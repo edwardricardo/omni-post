@@ -1,0 +1,35 @@
+# API-specific deployment patch
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment # Will become api-deployment with namePrefix
+spec:
+  replicas: 3 # API needs more replicas
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      annotations:
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: app
+          image: app # Placeholder, replaced by kustomization images
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "3000"
+            - name: NODE_ENV
+              value: "production"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"

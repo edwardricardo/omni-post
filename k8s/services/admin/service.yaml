@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-service
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: frontend
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    # Monitoring annotations
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3100"
+    prometheus.io/path: "/api/metrics"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: admin
+  sessionAffinity: None

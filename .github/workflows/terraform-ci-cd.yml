@@ -1,0 +1,462 @@
+# Terraform CI/CD Pipeline for Infrastructure as Code
+name: Infrastructure CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform-ci-cd.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform-ci-cd.yml"
+  schedule:
+    - cron: "0 6 * * *" # Daily at 6 AM UTC for all environments
+
+env:
+  TF_VERSION: "1.5.7"
+  AWS_REGION: "us-west-2"
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  # Security and validation checks
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Install tfsec
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+          sudo mv tfsec /usr/local/bin/
+
+      - name: Run tfsec security scan
+        working-directory: terraform
+        run: |
+          tfsec . --format json --out tfsec-results.json || true
+          tfsec . --format sarif --out tfsec-results.sarif || true
+
+      - name: Upload tfsec results to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: terraform/tfsec-results.sarif
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Run Checkov scan
+        working-directory: terraform
+        run: |
+          checkov -d . --framework terraform --output json --output-file-path checkov-results.json || true
+          checkov -d . --framework terraform --output sarif --output-file-path checkov-results.sarif || true
+
+      - name: Upload Checkov results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: terraform/checkov-results.sarif
+
+  # Terraform validation and formatting
+  terraform-validate:
+    name: Terraform Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: security-scan
+
+    strategy:
+      matrix:
+        environment: [dev, staging, production]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: |
+          terraform init \
+            -backend-config="backend-configs/${{ matrix.environment }}.hcl" \
+            -input=false
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Terraform Plan (Validation)
+        working-directory: terraform
+        run: |
+          terraform plan \
+            -var-file="environments/${{ matrix.environment }}/terraform.tfvars" \
+            -input=false \
+            -no-color \
+            -detailed-exitcode
+
+  # Development environment deployment
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: terraform-validate
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment:
+      name: development
+      url: https://dev.omni-post.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: |
+          terraform init \
+            -backend-config="backend-configs/dev.hcl" \
+            -input=false
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: |
+          terraform plan \
+            -var-file="environments/dev/terraform.tfvars" \
+            -input=false \
+            -no-color \
+            -out=dev.tfplan
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve dev.tfplan
+
+      - name: Update kubeconfig
+        run: |
+          CLUSTER_NAME=$(cd terraform && terraform output -raw cluster_id 2>/dev/null || echo "")
+          if [ -n "$CLUSTER_NAME" ]; then
+            aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME --alias dev-$CLUSTER_NAME
+          fi
+
+      - name: Deploy application to dev
+        run: |
+          # This would typically deploy the application using kubectl/helm
+          echo "Deploying application to development environment..."
+          # kubectl apply -f k8s/ --namespace=omni-post
+
+      - name: Save Terraform outputs
+        working-directory: terraform
+        run: |
+          mkdir -p outputs
+          terraform output -json > outputs/dev-outputs-$(date +%Y%m%d-%H%M%S).json
+
+      - name: Upload Terraform outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-terraform-outputs
+          path: terraform/outputs/
+          retention-days: 30
+
+  # Staging environment deployment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: terraform-validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.omni-post.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: |
+          terraform init \
+            -backend-config="backend-configs/staging.hcl" \
+            -input=false
+
+      - name: Create state backup
+        working-directory: terraform
+        run: |
+          mkdir -p backups
+          terraform state pull > backups/staging-terraform.tfstate-$(date +%Y%m%d-%H%M%S)
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: |
+          terraform plan \
+            -var-file="environments/staging/terraform.tfvars" \
+            -input=false \
+            -no-color \
+            -out=staging.tfplan
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve staging.tfplan
+
+      - name: Update kubeconfig
+        run: |
+          CLUSTER_NAME=$(cd terraform && terraform output -raw cluster_id 2>/dev/null || echo "")
+          if [ -n "$CLUSTER_NAME" ]; then
+            aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME --alias staging-$CLUSTER_NAME
+          fi
+
+      - name: Deploy application to staging
+        run: |
+          echo "Deploying application to staging environment..."
+          # kubectl apply -f k8s/ --namespace=omni-post
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests against staging..."
+          # Add actual smoke tests here
+          sleep 30
+          # curl -f https://staging-api.omni-post.com/health || exit 1
+
+      - name: Save Terraform outputs
+        working-directory: terraform
+        run: |
+          mkdir -p outputs
+          terraform output -json > outputs/staging-outputs-$(date +%Y%m%d-%H%M%S).json
+
+      - name: Upload Terraform outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-terraform-outputs
+          path: terraform/outputs/
+          retention-days: 90
+
+  # Production deployment (manual approval required)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://app.omni-post.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials (Production)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.PROD_AWS_ROLE_ARN }}
+          role-session-name: GitHubActions-Production-Deploy
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: |
+          terraform init \
+            -backend-config="backend-configs/production.hcl" \
+            -input=false
+
+      - name: Create state backup
+        working-directory: terraform
+        run: |
+          mkdir -p backups
+          terraform state pull > backups/production-terraform.tfstate-$(date +%Y%m%d-%H%M%S)
+
+      - name: Terraform Plan
+        working-directory: terraform
+        env:
+          TF_VAR_jwt_secret: ${{ secrets.PROD_JWT_SECRET }}
+          TF_VAR_slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          TF_VAR_pagerduty_key: ${{ secrets.PAGERDUTY_KEY }}
+        run: |
+          terraform plan \
+            -var-file="environments/production/terraform.tfvars" \
+            -input=false \
+            -no-color \
+            -out=production.tfplan
+
+      - name: Terraform Apply
+        working-directory: terraform
+        env:
+          TF_VAR_jwt_secret: ${{ secrets.PROD_JWT_SECRET }}
+          TF_VAR_slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          TF_VAR_pagerduty_key: ${{ secrets.PAGERDUTY_KEY }}
+        run: terraform apply -auto-approve production.tfplan
+
+      - name: Update kubeconfig
+        run: |
+          CLUSTER_NAME=$(cd terraform && terraform output -raw cluster_id 2>/dev/null || echo "")
+          if [ -n "$CLUSTER_NAME" ]; then
+            aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME --alias prod-$CLUSTER_NAME
+          fi
+
+      - name: Deploy application to production (Blue-Green)
+        run: |
+          echo "Performing blue-green deployment to production..."
+          # kubectl apply -f k8s/ --namespace=omni-post
+          # Implement blue-green deployment logic here
+
+      - name: Health checks
+        run: |
+          echo "Running comprehensive health checks..."
+          sleep 60
+          # Add comprehensive health checks
+          # curl -f https://api.omni-post.com/health || exit 1
+
+      - name: Save Terraform outputs
+        working-directory: terraform
+        run: |
+          mkdir -p outputs
+          terraform output -json > outputs/production-outputs-$(date +%Y%m%d-%H%M%S).json
+
+      - name: Upload Terraform outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-terraform-outputs
+          path: terraform/outputs/
+          retention-days: 365
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "🎉 Production deployment completed successfully!"
+          # Send success notification to Slack/Teams/Email
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "❌ Production deployment failed!"
+          # Send failure notification to Slack/Teams/Email
+
+  # Terraform drift detection (scheduled)
+  drift-detection:
+    name: Infrastructure Drift Detection
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    strategy:
+      matrix:
+        environment: [dev, staging, production]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ matrix.environment == 'production' && secrets.PROD_AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ matrix.environment == 'production' && secrets.PROD_AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: |
+          terraform init \
+            -backend-config="backend-configs/${{ matrix.environment }}.hcl" \
+            -input=false
+
+      - name: Check for drift
+        working-directory: terraform
+        continue-on-error: true
+        run: |
+          terraform plan \
+            -var-file="environments/${{ matrix.environment }}/terraform.tfvars" \
+            -input=false \
+            -no-color \
+            -detailed-exitcode \
+            > drift-report-${{ matrix.environment }}.txt 2>&1
+
+          PLAN_EXIT_CODE=$?
+
+          if [ $PLAN_EXIT_CODE -eq 2 ]; then
+            echo "DRIFT_DETECTED=true" >> $GITHUB_ENV
+            echo "Infrastructure drift detected in ${{ matrix.environment }}"
+          else
+            echo "DRIFT_DETECTED=false" >> $GITHUB_ENV
+            echo "No infrastructure drift detected in ${{ matrix.environment }}"
+          fi
+
+      - name: Upload drift report
+        if: env.DRIFT_DETECTED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report-${{ matrix.environment }}
+          path: terraform/drift-report-${{ matrix.environment }}.txt
+
+      - name: Create drift issue
+        if: env.DRIFT_DETECTED == 'true' && matrix.environment == 'production'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Infrastructure Drift Detected in ${{ matrix.environment }}`,
+              body: `Infrastructure drift has been detected in the ${{ matrix.environment }} environment.\n\nPlease review the drift report and take appropriate action.\n\n**Environment**: ${{ matrix.environment }}\n**Detection Time**: ${new Date().toISOString()}\n\n[View Workflow Run](${context.payload.repository.html_url}/actions/runs/${context.runId})`,
+              labels: ['infrastructure', 'drift-detection', '${{ matrix.environment }}']
+            })
+
+# Scheduled drift detection (daily for production, weekly for others)

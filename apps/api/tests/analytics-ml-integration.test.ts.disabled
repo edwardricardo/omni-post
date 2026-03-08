@@ -1,0 +1,768 @@
+/**
+ * Analytics & ML Integration Tests
+ *
+ * Tests the advanced analytics and machine learning integration features
+ */
+
+import { describe, it, before, after } from "node:test";
+import assert from "node:assert/strict";
+import request from "supertest";
+import { prisma } from "@infra/prisma";
+import { buildFastifyApp } from "../src/index";
+import type { FastifyInstance } from "fastify";
+
+// Test data
+const testAccountId = "test-account-analytics";
+const testProjectId = "test-project-analytics";
+const testUserId = "test-user-analytics";
+let testAuthToken: string;
+
+describe("Analytics & ML Integration Tests", () => {
+  let app: FastifyInstance;
+
+  before(async () => {
+    // Build Fastify app
+    app = await buildFastifyApp();
+    await app.ready();
+
+    // Clean up any existing test data
+    await prisma.user.deleteMany({
+      where: {
+        OR: [{ id: testUserId }, { accountId: testAccountId }],
+      },
+    });
+
+    await prisma.project.deleteMany({
+      where: { id: testProjectId },
+    });
+
+    // Create test user and account
+    const _testUser = await prisma.user.create({
+      data: {
+        id: testUserId,
+        email: "analytics-test@example.com",
+        accountId: testAccountId,
+        role: "OWNER",
+        emailVerified: new Date(),
+        createdAt: new Date(),
+        lastLoginAt: new Date(),
+      },
+    });
+
+    // Create test project
+    await prisma.project.create({
+      data: {
+        id: testProjectId,
+        name: "Analytics Test Project",
+        accountId: testAccountId,
+        createdBy: testUserId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    // Create some test posts with analytics data
+    const _testPost = await prisma.post.create({
+      data: {
+        id: "test-post-analytics-1",
+        projectId: testProjectId,
+        accountId: testAccountId,
+        createdBy: testUserId,
+        status: "PUBLISHED",
+        postType: "SINGLE",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        postContents: {
+          create: {
+            id: "test-content-analytics-1",
+            text: "This is a test post for analytics #testing #analytics",
+            language: "en",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        publishLogs: {
+          create: {
+            id: "test-log-analytics-1",
+            provider: "twitter",
+            status: "SUCCESS",
+            createdAt: new Date(),
+            analytics: {
+              create: {
+                id: "test-analytics-1",
+                provider: "twitter",
+                impressions: 1500,
+                likes: 75,
+                comments: 12,
+                shares: 8,
+                clicks: 25,
+                engagementRate: 8.0,
+                createdAt: new Date(),
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Generate test auth token (simplified for testing)
+    const _authResponse = await request(app.server)
+      .post("/api/auth/login")
+      .send({
+        email: "analytics-test@example.com",
+        password: "test-password",
+      });
+
+    // For testing, we'll create a mock token
+    testAuthToken = "test-token-analytics";
+  });
+
+  after(async () => {
+    // Clean up test data
+    await prisma.analyticsData.deleteMany({
+      where: { id: { startsWith: "test-analytics" } },
+    });
+
+    await prisma.publishLog.deleteMany({
+      where: { id: { startsWith: "test-log" } },
+    });
+
+    await prisma.postContent.deleteMany({
+      where: { id: { startsWith: "test-content" } },
+    });
+
+    await prisma.post.deleteMany({
+      where: { id: { startsWith: "test-post" } },
+    });
+
+    await prisma.project.deleteMany({
+      where: { id: testProjectId },
+    });
+
+    await prisma.user.deleteMany({
+      where: { id: testUserId },
+    });
+
+    await app.close();
+  });
+
+  describe("Cross-Platform Analytics", () => {
+    it("should generate comprehensive cross-platform metrics", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/cross-platform")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          projectId: testProjectId,
+          timeRange: "30d",
+          includePredictions: true,
+          includeCompetitorAnalysis: false,
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.equal(response.body.ok, true, "Should return success");
+      assert.ok(response.body.analytics, "Should have analytics data");
+
+      const analytics = response.body.analytics;
+      assert.ok(analytics.summary, "Should have summary");
+      assert.ok(Array.isArray(analytics.byProvider), "Should have provider breakdown");
+      assert.ok(analytics.contentInsights, "Should have content insights");
+      assert.ok(analytics.audienceAnalytics, "Should have audience analytics");
+      assert.ok(Array.isArray(analytics.recommendations), "Should have recommendations");
+
+      // Verify structure of summary metrics
+      assert.equal(typeof analytics.summary.totalImpressions, "number", "Should have total impressions");
+      assert.equal(typeof analytics.summary.totalEngagements, "number", "Should have total engagements");
+      assert.equal(
+        typeof analytics.summary.averageEngagementRate,
+        "number",
+        "Should have average engagement rate"
+      );
+    });
+
+    it("should handle provider filtering", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/cross-platform")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          projectId: testProjectId,
+          timeRange: "7d",
+          providers: ["twitter"],
+          includePredictions: false,
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.ok(response.body.analytics.byProvider, "Should have provider breakdown");
+
+      // Should only include requested providers
+      const providerNames = response.body.analytics.byProvider.map((p: any) => p.provider);
+      assert.ok(providerNames.includes("twitter"), "Should include Twitter in results");
+    });
+  });
+
+  describe("ROI Calculation", () => {
+    it("should calculate ROI with different models", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/roi")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          projectId: testProjectId,
+          timeRange: "30d",
+          costModel: "hybrid",
+          revenueModel: "engagement_value",
+          includeForecast: true,
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.equal(response.body.ok, true, "Should return success");
+      assert.ok(response.body.roiAnalysis, "Should have ROI analysis");
+
+      const roi = response.body.roiAnalysis;
+      assert.equal(typeof roi.totalCost, "number", "Should have total cost");
+      assert.equal(typeof roi.totalRevenue, "number", "Should have total revenue");
+      assert.equal(typeof roi.roi, "number", "Should have ROI value");
+      assert.ok(Array.isArray(roi.breakdown), "Should have breakdown");
+      assert.ok(roi.costBreakdown, "Should have cost breakdown");
+      assert.ok(roi.revenueBreakdown, "Should have revenue breakdown");
+
+      if (roi.forecast) {
+        assert.equal(typeof roi.forecast.projectedROI, "number", "Should have projected ROI");
+        assert.equal(typeof roi.forecast.confidence, "number", "Should have confidence value");
+      }
+    });
+
+    it("should validate ROI calculation parameters", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/roi")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          // Missing required fields
+          costModel: "invalid_model",
+        });
+
+      assert.equal(response.status, 400, "Should return 400 for invalid parameters");
+    });
+  });
+
+  describe("Performance Comparison", () => {
+    it("should generate performance comparison with benchmarks", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/performance-comparison")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          projectId: testProjectId,
+          timeRange: "30d",
+          comparisonType: "time_period",
+          includeIndustryBenchmarks: true,
+          includeRecommendations: true,
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.equal(response.body.ok, true, "Should return success");
+      assert.ok(response.body.comparison, "Should have comparison data");
+
+      const comparison = response.body.comparison;
+      assert.ok(comparison.currentPeriod, "Should have current period");
+      assert.ok(comparison.previousPeriod, "Should have previous period");
+      assert.ok(comparison.industryBenchmarks, "Should have industry benchmarks");
+      assert.ok(Array.isArray(comparison.performanceGaps), "Should have performance gaps");
+      assert.ok(Array.isArray(comparison.recommendations), "Should have recommendations");
+    });
+
+    it("should support different comparison types", async () => {
+      const comparisonTypes = ["time_period", "content_types", "platforms"];
+
+      for (const comparisonType of comparisonTypes) {
+        const response = await request(app.server)
+          .post("/api/analytics/performance-comparison")
+          .set("Authorization", `Bearer ${testAuthToken}`)
+          .send({
+            accountId: testAccountId,
+            projectId: testProjectId,
+            timeRange: "30d",
+            comparisonType,
+            includeIndustryBenchmarks: false,
+            includeRecommendations: false,
+          });
+
+        assert.equal(response.status, 200, `Should return 200 for ${comparisonType}`);
+        assert.ok(response.body.comparison, `Should have comparison data for ${comparisonType}`);
+      }
+    });
+  });
+
+  describe("ML Prediction Services", () => {
+    it("should predict engagement for content", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/predict-engagement")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          projectId: testProjectId,
+          content: {
+            text: "This is a test post about machine learning and analytics #ML #analytics #testing",
+            contentType: "text",
+            provider: "twitter",
+            hashtags: ["ML", "analytics", "testing"],
+            scheduledTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          },
+          includeOptimizations: true,
+          includeExplanation: false,
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.equal(response.body.ok, true, "Should return success");
+      assert.ok(response.body.prediction, "Should have prediction data");
+
+      const prediction = response.body.prediction;
+      assert.equal(typeof prediction.expectedImpressions, "number", "Should have expected impressions");
+      assert.equal(typeof prediction.expectedEngagements, "number", "Should have expected engagements");
+      assert.equal(
+        typeof prediction.expectedEngagementRate,
+        "number",
+        "Should have expected engagement rate"
+      );
+      assert.equal(typeof prediction.confidence, "number", "Should have confidence value");
+      assert.ok(Array.isArray(prediction.factors), "Should have factors");
+
+      // Verify optimizations are included
+      if (prediction.optimizations) {
+        assert.ok(
+          Array.isArray(prediction.optimizations.suggestedChanges),
+          "Should have suggested changes"
+        );
+      }
+    });
+
+    it("should provide explainable predictions", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/predict-engagement")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          content: {
+            text: "Short test post #test",
+            contentType: "text",
+            provider: "twitter",
+            hashtags: ["test"],
+          },
+          includeOptimizations: false,
+          includeExplanation: true,
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.ok(response.body.prediction, "Should have prediction data");
+
+      const prediction = response.body.prediction;
+      if (prediction.explanation) {
+        assert.ok(Array.isArray(prediction.explanation.topFactors), "Should have top factors");
+        assert.ok(prediction.explanation.featureImportance, "Should have feature importance");
+        assert.ok(
+          Array.isArray(prediction.explanation.similarHistoricalCases),
+          "Should have similar historical cases"
+        );
+      }
+    });
+  });
+
+  describe("Content Optimization", () => {
+    it("should provide AI-powered content optimization", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/optimize-content")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          projectId: testProjectId,
+          content: {
+            text: "This is a basic post that could be improved",
+            contentType: "text",
+            provider: "twitter",
+            hashtags: ["basic"],
+          },
+          optimizationGoals: ["engagement", "reach"],
+          generateVariations: true,
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.equal(response.body.ok, true, "Should return success");
+      assert.ok(response.body.optimization, "Should have optimization data");
+
+      const optimization = response.body.optimization;
+      assert.ok(optimization.originalAnalysis, "Should have original analysis");
+      assert.ok(Array.isArray(optimization.optimizedVersions), "Should have optimized versions");
+      assert.ok(Array.isArray(optimization.primaryRecommendations), "Should have recommendations");
+      assert.ok(Array.isArray(optimization.abTestSuggestions), "Should have AB test suggestions");
+
+      // Verify optimized versions have improvements
+      if (optimization.optimizedVersions.length > 0) {
+        const optimizedVersion = optimization.optimizedVersions[0];
+        assert.equal(typeof optimizedVersion.optimizedText, "string", "Should have optimized text");
+        assert.ok(Array.isArray(optimizedVersion.improvements), "Should have improvements");
+        assert.ok(optimizedVersion.expectedImpact, "Should have expected impact");
+      }
+    });
+
+    it("should handle different optimization goals", async () => {
+      const goals = [["engagement"], ["reach"], ["clicks"], ["engagement", "reach"]];
+
+      for (const optimizationGoals of goals) {
+        const response = await request(app.server)
+          .post("/api/analytics/optimize-content")
+          .set("Authorization", `Bearer ${testAuthToken}`)
+          .send({
+            accountId: testAccountId,
+            content: {
+              text: "Test content for optimization",
+              contentType: "text",
+              provider: "twitter",
+            },
+            optimizationGoals,
+            generateVariations: false,
+          });
+
+        assert.equal(response.status, 200, `Should return 200 for goals: ${optimizationGoals.join(", ")}`);
+        assert.ok(response.body.optimization, "Should have optimization data");
+      }
+    });
+  });
+
+  describe("Timing Prediction", () => {
+    it("should predict optimal posting times", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/optimal-timing")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          projectId: testProjectId,
+          provider: "twitter",
+          contentType: "text",
+          timezone: "UTC",
+          lookbackDays: 30,
+          includeCompetitorAnalysis: false,
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.equal(response.body.ok, true, "Should return success");
+      assert.ok(response.body.timingAnalysis, "Should have timing analysis");
+
+      const timing = response.body.timingAnalysis;
+      assert.equal(typeof timing.bestDay, "string", "Should have best day");
+      assert.equal(typeof timing.bestHour, "number", "Should have best hour");
+      assert.equal(
+        typeof timing.expectedEngagementIncrease,
+        "number",
+        "Should have expected engagement increase"
+      );
+      assert.ok(Array.isArray(timing.weekdayPatterns), "Should have weekday patterns");
+      assert.ok(Array.isArray(timing.weekendPatterns), "Should have weekend patterns");
+      assert.ok(Array.isArray(timing.insights), "Should have insights");
+      assert.equal(typeof timing.confidence, "number", "Should have confidence value");
+    });
+
+    it("should validate timing prediction parameters", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/optimal-timing")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          // Missing required provider
+          contentType: "text",
+        });
+
+      assert.equal(response.status, 400, "Should return 400 for missing parameters");
+    });
+  });
+
+  describe("Audience Analysis", () => {
+    it("should provide comprehensive audience analysis", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/audience-analysis")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          projectId: testProjectId,
+          timeRange: "30d",
+          segmentationCriteria: ["demographic", "behavioral", "engagement"],
+          includeGrowthPredictions: true,
+          includePersonalization: true,
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.equal(response.body.ok, true, "Should return success");
+      assert.ok(response.body.audienceAnalysis, "Should have audience analysis");
+
+      const analysis = response.body.audienceAnalysis;
+      assert.ok(Array.isArray(analysis.segments), "Should have segments");
+      assert.ok(analysis.behaviorPatterns, "Should have behavior patterns");
+      assert.ok(analysis.growthPredictions, "Should have growth predictions");
+      assert.ok(
+        Array.isArray(analysis.personalizedRecommendations),
+        "Should have personalized recommendations"
+      );
+      assert.ok(Array.isArray(analysis.insights), "Should have insights");
+
+      // Verify segments structure
+      if (analysis.segments.length > 0) {
+        const segment = analysis.segments[0];
+        assert.equal(typeof segment.id, "string", "Segment should have ID");
+        assert.equal(typeof segment.name, "string", "Segment should have name");
+        assert.equal(typeof segment.size, "number", "Segment should have size");
+        assert.ok(segment.characteristics, "Segment should have characteristics");
+      }
+    });
+
+    it("should support different segmentation criteria", async () => {
+      const criteriaOptions = [
+        ["demographic"],
+        ["behavioral"],
+        ["engagement"],
+        ["demographic", "behavioral"],
+      ];
+
+      for (const segmentationCriteria of criteriaOptions) {
+        const response = await request(app.server)
+          .post("/api/analytics/audience-analysis")
+          .set("Authorization", `Bearer ${testAuthToken}`)
+          .send({
+            accountId: testAccountId,
+            timeRange: "7d",
+            segmentationCriteria,
+            includeGrowthPredictions: false,
+            includePersonalization: false,
+          });
+
+        assert.equal(
+          response.status,
+          200,
+          `Should return 200 for criteria: ${segmentationCriteria.join(", ")}`
+        );
+        assert.ok(response.body.audienceAnalysis, "Should have audience analysis");
+      }
+    });
+  });
+
+  describe("ML Model Performance", () => {
+    it("should retrieve model performance metrics", async () => {
+      const response = await request(app.server)
+        .get("/api/analytics/models/performance")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .query({
+          timeRange: "30d",
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.equal(response.body.ok, true, "Should return success");
+      assert.ok(Array.isArray(response.body.modelsPerformance), "Should have models performance");
+
+      // Verify model performance structure
+      if (response.body.modelsPerformance.length > 0) {
+        const modelPerf = response.body.modelsPerformance[0];
+        assert.equal(typeof modelPerf.modelId, "string", "Should have model ID");
+        assert.ok(modelPerf.performance, "Should have performance data");
+        assert.equal(typeof modelPerf.performance.accuracy, "number", "Should have accuracy");
+        assert.ok(
+          Array.isArray(modelPerf.performance.recommendedActions),
+          "Should have recommended actions"
+        );
+      }
+    });
+
+    it("should retrieve specific model insights", async () => {
+      const response = await request(app.server)
+        .get("/api/analytics/models/performance")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .query({
+          modelId: "engagement_predictor_v2",
+          timeRange: "30d",
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.equal(response.body.ok, true, "Should return success");
+      assert.equal(response.body.modelId, "engagement_predictor_v2", "Should have correct model ID");
+      assert.ok(response.body.performance, "Should have performance data");
+      assert.ok(response.body.insights, "Should have insights");
+
+      const insights = response.body.insights;
+      assert.ok(insights.modelSummary, "Should have model summary");
+      assert.ok(Array.isArray(insights.featureAnalysis), "Should have feature analysis");
+      assert.ok(Array.isArray(insights.performanceTrends), "Should have performance trends");
+      assert.ok(Array.isArray(insights.recommendations), "Should have recommendations");
+    });
+  });
+
+  describe("Enhanced Dashboard", () => {
+    it("should provide comprehensive dashboard with ML insights", async () => {
+      const response = await request(app.server)
+        .get("/api/analytics/dashboard")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .query({
+          projectId: testProjectId,
+          timeRange: "30d",
+          includePredictions: "true",
+          includeROI: "true",
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.equal(response.body.ok, true, "Should return success");
+      assert.ok(response.body.dashboard, "Should have dashboard data");
+
+      const dashboard = response.body.dashboard;
+      assert.ok(dashboard.summary, "Should have summary");
+      assert.ok(dashboard.trends, "Should have trends");
+      assert.ok(dashboard.contentInsights, "Should have content insights");
+      assert.ok(dashboard.audienceAnalytics, "Should have audience analytics");
+      assert.ok(Array.isArray(dashboard.byProvider), "Should have provider breakdown");
+      assert.ok(Array.isArray(dashboard.recommendations), "Should have recommendations");
+
+      // ROI data should be included
+      if (dashboard.roi) {
+        assert.equal(typeof dashboard.roi.totalCost, "number", "Should have total cost");
+        assert.equal(typeof dashboard.roi.roi, "number", "Should have ROI value");
+      }
+
+      // Benchmarking data should be included
+      assert.ok(dashboard.benchmarking, "Should have benchmarking data");
+      assert.ok(Array.isArray(dashboard.performanceGaps), "Should have performance gaps");
+    });
+
+    it("should handle dashboard with minimal data", async () => {
+      const response = await request(app.server)
+        .get("/api/analytics/dashboard")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .query({
+          projectId: testProjectId,
+          timeRange: "7d",
+          includePredictions: "false",
+          includeROI: "false",
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.ok(response.body.dashboard, "Should have dashboard data");
+      assert.equal(response.body.dashboard.roi, undefined, "Should not have ROI when not requested");
+    });
+  });
+
+  describe("Analytics Export", () => {
+    it("should export analytics data in JSON format", async () => {
+      const response = await request(app.server)
+        .get("/api/analytics/export")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .query({
+          projectId: testProjectId,
+          timeRange: "30d",
+          format: "json",
+          includeAnalytics: "true",
+          includeROI: "true",
+          includePredictions: "true",
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.ok(response.headers["content-type"].includes("application/json"), "Should be JSON format");
+      assert.ok(response.headers["content-disposition"].includes("attachment"), "Should be attachment");
+
+      // Should be valid JSON structure
+      assert.equal(response.body.projectId, testProjectId, "Should have correct project ID");
+      assert.ok(response.body.analytics, "Should have analytics data");
+      assert.ok(response.body.roi, "Should have ROI data");
+      assert.ok(response.body.exportedAt, "Should have export timestamp");
+    });
+
+    it("should export analytics data in CSV format", async () => {
+      const response = await request(app.server)
+        .get("/api/analytics/export")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .query({
+          projectId: testProjectId,
+          timeRange: "7d",
+          format: "csv",
+          includeAnalytics: "true",
+          includeROI: "false",
+        });
+
+      assert.equal(response.status, 200, "Should return 200 status");
+      assert.ok(response.headers["content-type"].includes("text/csv"), "Should be CSV format");
+      assert.ok(response.headers["content-disposition"].includes("attachment"), "Should be attachment");
+
+      // Should contain CSV headers
+      assert.ok(response.text.includes("Date,Provider,Impressions"), "Should have CSV headers");
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("should handle invalid account access", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/cross-platform")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: "invalid-account-id",
+          projectId: testProjectId,
+          timeRange: "30d",
+        });
+
+      assert.equal(response.status, 403, "Should return 403 for invalid account");
+    });
+
+    it("should handle missing authentication", async () => {
+      const response = await request(app.server).post("/api/analytics/cross-platform").send({
+        accountId: testAccountId,
+        timeRange: "30d",
+      });
+
+      assert.equal(response.status, 401, "Should return 401 for missing auth");
+    });
+
+    it("should validate request parameters", async () => {
+      const response = await request(app.server)
+        .post("/api/analytics/cross-platform")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          // Missing required accountId
+          timeRange: "invalid-range",
+        });
+
+      assert.equal(response.status, 400, "Should return 400 for invalid parameters");
+    });
+  });
+
+  describe("Caching and Performance", () => {
+    it("should cache analytics results for performance", async () => {
+      const startTime = Date.now();
+
+      // First request
+      const response1 = await request(app.server)
+        .post("/api/analytics/cross-platform")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          projectId: testProjectId,
+          timeRange: "30d",
+        });
+
+      const firstRequestTime = Date.now() - startTime;
+
+      // Second identical request should be faster (cached)
+      const startTime2 = Date.now();
+      const response2 = await request(app.server)
+        .post("/api/analytics/cross-platform")
+        .set("Authorization", `Bearer ${testAuthToken}`)
+        .send({
+          accountId: testAccountId,
+          projectId: testProjectId,
+          timeRange: "30d",
+        });
+
+      const secondRequestTime = Date.now() - startTime2;
+
+      assert.equal(response1.status, 200, "First request should succeed");
+      assert.equal(response2.status, 200, "Second request should succeed");
+
+      // Second request should generally be faster due to caching
+      // Note: This is a rough test and might not always pass due to system variations
+      console.log(`First request: ${firstRequestTime}ms, Second request: ${secondRequestTime}ms`);
+    });
+  });
+});

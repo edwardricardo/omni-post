@@ -1,0 +1,423 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: omni-post
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.2.3
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "admin123"
+            - name: GF_INSTALL_PLUGINS
+              value: "grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel"
+            - name: GF_FEATURE_TOGGLES_ENABLE
+              value: "traceqlEditor"
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "200m"
+          volumeMounts:
+            - name: grafana-data
+              mountPath: /var/lib/grafana
+            - name: grafana-config
+              mountPath: /etc/grafana/provisioning
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: grafana-data
+          persistentVolumeClaim:
+            claimName: grafana-pvc
+        - name: grafana-config
+          configMap:
+            name: grafana-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: omni-post
+  labels:
+    app: grafana
+spec:
+  type: ClusterIP
+  ports:
+    - name: grafana
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: grafana
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+  namespace: omni-post
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: omni-post
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus-service:9090
+      isDefault: true
+      editable: true
+    - name: Jaeger
+      type: jaeger
+      access: proxy
+      url: http://jaeger-service:16686
+      editable: true
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: 'loki'
+          spanStartTimeShift: '-1h'
+          spanEndTimeShift: '1h'
+          tags: [{ key: 'service.name', value: 'service' }]
+          filterByTraceID: false
+          filterBySpanID: false
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-service:3100
+      editable: true
+      jsonData:
+        derivedFields:
+          - datasourceUid: jaeger
+            matcherRegex: 'traceID=(\w+)'
+            name: TraceID
+            url: '$${__value.raw}'
+
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+    - name: default
+      type: file
+      options:
+        path: /etc/grafana/provisioning/dashboards
+        foldersFromFilesStructure: true
+
+  social-cms-business-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Social Media CMS - Business Intelligence",
+        "tags": ["social-cms", "business", "kpi"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Content Publishing Overview",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(content_published_total[5m]))",
+                "legendFormat": "Publishing Rate"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "displayMode": "basic"
+                },
+                "unit": "reqps"
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Publishing Success Rate by Provider",
+            "type": "piechart",
+            "targets": [
+              {
+                "expr": "sum by (provider) (rate(content_published_total{status=\"success\"}[5m])) / sum by (provider) (rate(content_published_total[5m]))",
+                "legendFormat": "{{provider}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 6,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "Cross-Platform Reach",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum by (provider) (rate(cross_platform_reach_total[5m]))",
+                "legendFormat": "{{provider}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            }
+          },
+          {
+            "id": 4,
+            "title": "User Active Sessions",
+            "type": "gauge",
+            "targets": [
+              {
+                "expr": "sum(user_active_sessions)",
+                "legendFormat": "Active Sessions"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "min": 0,
+                "max": 1000,
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 500},
+                    {"color": "red", "value": 800}
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 0,
+              "y": 8
+            }
+          },
+          {
+            "id": 5,
+            "title": "Monthly Recurring Revenue",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(monthly_recurring_revenue)",
+                "legendFormat": "MRR"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "currencyUSD",
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": null},
+                    {"color": "yellow", "value": 10000},
+                    {"color": "green", "value": 50000}
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 6,
+              "y": 8
+            }
+          },
+          {
+            "id": 6,
+            "title": "Content Performance Score",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "avg(content_performance_score)",
+                "legendFormat": "Performance Score"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 8
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+
+  social-cms-technical-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Social Media CMS - Technical Monitoring",
+        "tags": ["social-cms", "technical", "monitoring"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "API Response Times",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, method, route))",
+                "legendFormat": "95th percentile - {{method}} {{route}}"
+              },
+              {
+                "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, method, route))",
+                "legendFormat": "50th percentile - {{method}} {{route}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Error Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))",
+                "legendFormat": "Error Rate"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percentunit",
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 0.01},
+                    {"color": "red", "value": 0.05}
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 12,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "Queue Processing Times",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(queue_processing_duration_ms_bucket[5m])) by (le, queue))",
+                "legendFormat": "95th percentile - {{queue}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 8
+            }
+          },
+          {
+            "id": 4,
+            "title": "Provider API Health",
+            "type": "heatmap",
+            "targets": [
+              {
+                "expr": "sum(rate(provider_availability[5m])) by (provider)",
+                "legendFormat": "{{provider}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 8
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: omni-post
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - host: grafana.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-service
+                port:
+                  number: 3000

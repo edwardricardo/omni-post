@@ -1,0 +1,79 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: client-hpa
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: client
+    app.kubernetes.io/part-of: frontend
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: client-deployment
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    # CPU utilization
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # Memory utilization
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120 # Wait 2 minutes before scaling up
+      policies:
+        - type: Percent
+          value: 50 # Scale up by 50%
+          periodSeconds: 60
+        - type: Pods
+          value: 2 # Or add 2 pods max
+          periodSeconds: 60
+      selectPolicy: Min
+
+    scaleDown:
+      stabilizationWindowSeconds: 300 # Wait 5 minutes before scaling down
+      policies:
+        - type: Percent
+          value: 25 # Scale down by 25%
+          periodSeconds: 60
+        - type: Pods
+          value: 1 # Or remove 1 pod max
+          periodSeconds: 60
+      selectPolicy: Min
+---
+# Pod Disruption Budget for client frontend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: client-pdb
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: client
+    app.kubernetes.io/part-of: frontend
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  minAvailable: 1 # Always keep at least 1 pod running
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: omni-post
+      app.kubernetes.io/component: client
+  unhealthyPodEvictionPolicy: AlwaysAllow

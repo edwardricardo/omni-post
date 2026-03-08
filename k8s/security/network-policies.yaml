@@ -1,0 +1,304 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  podSelector: {} # Apply to all pods in namespace
+  policyTypes:
+    - Ingress
+    - Egress
+  # Default deny all traffic (explicit empty rules)
+  ingress: []
+  egress: []
+
+---
+# Allow API to communicate with PostgreSQL
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-to-postgres
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: workers
+      ports:
+        - protocol: TCP
+          port: 5432
+
+---
+# Allow API and Workers to communicate with Redis
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-workers-to-redis
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: workers
+      ports:
+        - protocol: TCP
+          port: 6379
+
+---
+# Allow frontend apps to communicate with API
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-to-api
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: admin
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: client
+        # Allow ingress controller
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# Allow ingress traffic to frontend apps
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-to-frontend
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Allow ingress controller
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        # Allow same namespace (for health checks, etc.)
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3100 # Admin
+        - protocol: TCP
+          port: 3200 # Client
+
+---
+# Allow DNS resolution for all pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS queries to kube-system
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow CoreDNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# Allow external HTTPS/HTTP traffic for API integrations
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-external-https
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: api
+  policyTypes:
+    - Egress
+  egress:
+    # Allow HTTPS for external API calls (social media platforms)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow HTTP for some integrations
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 80
+
+---
+# Allow monitoring and metrics collection
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+        - namespaceSelector:
+            matchLabels:
+              name: prometheus
+        # Allow same namespace monitoring
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9090 # Metrics port
+        - protocol: TCP
+          port: 9121 # Redis exporter
+        - protocol: TCP
+          port: 9187 # Postgres exporter
+
+---
+# Allow service mesh sidecar communication (Istio)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-istio-sidecar
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow Istio sidecar traffic
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 15001 # Envoy admin
+        - protocol: TCP
+          port: 15006 # Envoy inbound
+        - protocol: TCP
+          port: 15090 # Envoy stats
+  egress:
+    # Allow outbound sidecar traffic
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 15001 # Envoy proxy
+        - protocol: TCP
+          port: 15010 # Pilot discovery
+        - protocol: TCP
+          port: 15011 # Pilot discovery mTLS
+    # Allow Istio control plane
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 15010
+        - protocol: TCP
+          port: 15011

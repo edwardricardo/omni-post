@@ -1,0 +1,403 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Dependencies",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "up", "-d"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Start PostgreSQL and Redis containers"
+    },
+    {
+      "label": "Stop Dependencies",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "down"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Stop all Docker containers"
+    },
+    {
+      "label": "Setup Test Environment",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["db:migrate"],
+      "group": "test",
+      "dependsOn": "Start Dependencies",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Setup test database with migrations"
+    },
+    {
+      "label": "🧪 Run All Tests",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["test"],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "dependsOn": "Setup Test Environment",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Run all API tests with coverage"
+    },
+    {
+      "label": "🧪 Run Unit Tests",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["--filter", "@apps/api", "test:unit"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Run unit tests only"
+    },
+    {
+      "label": "🧪 Run Integration Tests",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["--filter", "@apps/api", "test:integration"],
+      "group": "test",
+      "dependsOn": "Setup Test Environment",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Run integration tests with database"
+    },
+    {
+      "label": "🎭 Run E2E Tests",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["--filter", "@apps/client", "test:e2e"],
+      "group": "test",
+      "dependsOn": "Start Dependencies",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Run Playwright E2E tests"
+    },
+    {
+      "label": "⚡ Run Performance Tests",
+      "type": "shell",
+      "command": "bash",
+      "args": ["performance/scripts/run-performance-tests.sh"],
+      "group": "test",
+      "dependsOn": "Start Dependencies",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Run performance test suite"
+    },
+    {
+      "label": "🔒 Run Security Tests",
+      "type": "shell",
+      "command": "bash",
+      "args": ["quality/scripts/run-security-tests.sh"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Run security scanning and tests"
+    },
+    {
+      "label": "🏗️ Build All",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["build"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "problemMatcher": ["$tsc"],
+      "detail": "Build all packages and applications"
+    },
+    {
+      "label": "🧹 Lint & Format",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["lint:fix"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": ["$eslint-stylish"],
+      "detail": "Run ESLint with auto-fix"
+    },
+    {
+      "label": "🎨 Format Code",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["format"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Format all code with Prettier"
+    },
+    {
+      "label": "📊 Type Check",
+      "type": "shell",
+      "command": "npx",
+      "args": ["tsc", "--noEmit"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "problemMatcher": ["$tsc"],
+      "detail": "Run TypeScript type checking"
+    },
+    {
+      "label": "🗄️ Database Studio",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["db:studio"],
+      "group": "build",
+      "dependsOn": "Start Dependencies",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Open Prisma Studio"
+    },
+    {
+      "label": "🌱 Seed Database",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["db:seed"],
+      "group": "build",
+      "dependsOn": "Start Dependencies",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Seed database with demo data"
+    },
+    {
+      "label": "🔄 Reset Database",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["--filter", "@infra/prisma", "migrate:reset", "--force"],
+      "group": "build",
+      "dependsOn": "Start Dependencies",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Reset and recreate database"
+    },
+    {
+      "label": "📦 Clean Dependencies",
+      "type": "shell",
+      "command": "find",
+      "args": [".", "-name", "node_modules", "-type", "d", "-exec", "rm", "-rf", "{}", "+"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Remove all node_modules directories"
+    },
+    {
+      "label": "📦 Fresh Install",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["install", "--frozen-lockfile"],
+      "group": "build",
+      "dependsOn": "📦 Clean Dependencies",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Clean install all dependencies"
+    },
+    {
+      "label": "🚀 Dev: Full Stack",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev"],
+      "group": "build",
+      "dependsOn": "Start Dependencies",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Start API and Workers in development mode",
+      "isBackground": true
+    },
+    {
+      "label": "🚀 Dev: API Only",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev:api"],
+      "group": "build",
+      "dependsOn": "Start Dependencies",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Start API server only",
+      "isBackground": true
+    },
+    {
+      "label": "🚀 Dev: Client Only",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev:client"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Start client app only",
+      "isBackground": true
+    },
+    {
+      "label": "🚀 Dev: Admin Only",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev:admin"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Start admin app only",
+      "isBackground": true
+    },
+    {
+      "label": "📊 Generate Quality Report",
+      "type": "shell",
+      "command": "bash",
+      "args": ["quality/scripts/generate-quality-report.sh"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Generate comprehensive quality report"
+    },
+    {
+      "label": "🔍 Analyze Bundle",
+      "type": "shell",
+      "command": "npx",
+      "args": ["tsx", "quality/scripts/bundle-analyzer.ts"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Analyze bundle size and dependencies"
+    },
+    {
+      "label": "🔧 Setup Development Environment",
+      "type": "shell",
+      "command": "bash",
+      "args": ["quality/scripts/setup-environment.sh"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Complete development environment setup"
+    }
+  ]
+}

@@ -1,0 +1,354 @@
+# Cleanup & Maintenance Automation
+# Automated cleanup of old artifacts, images, and resources
+name: Cleanup & Maintenance
+
+on:
+  schedule:
+    # Run cleanup weekly on Sundays at 2 AM UTC
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+    inputs:
+      cleanup_type:
+        description: "Type of cleanup to perform"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - artifacts
+          - images
+          - caches
+          - preview-envs
+          - all
+
+env:
+  RETENTION_DAYS_ARTIFACTS: 30
+  RETENTION_DAYS_IMAGES: 60
+  RETENTION_DAYS_CACHES: 7
+
+jobs:
+  # ===== CLEANUP WORKFLOW ARTIFACTS =====
+  cleanup-artifacts:
+    name: Cleanup Workflow Artifacts
+    runs-on: ubuntu-latest
+    if: github.event.inputs.cleanup_type == 'artifacts' || github.event.inputs.cleanup_type == 'all' || github.event.inputs.cleanup_type == ''
+
+    steps:
+      - name: Cleanup old workflow artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const retentionDays = ${{ env.RETENTION_DAYS_ARTIFACTS }};
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+            console.log(`Cleaning up artifacts older than ${retentionDays} days (before ${cutoffDate.toISOString()})`);
+
+            let totalDeleted = 0;
+            let totalSizeFreed = 0;
+
+            // Get all artifacts
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+
+            for (const artifact of artifacts.data.artifacts) {
+              const artifactDate = new Date(artifact.created_at);
+
+              if (artifactDate < cutoffDate) {
+                try {
+                  await github.rest.actions.deleteArtifact({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    artifact_id: artifact.id
+                  });
+
+                  console.log(`Deleted artifact: ${artifact.name} (${artifact.size_in_bytes} bytes)`);
+                  totalDeleted++;
+                  totalSizeFreed += artifact.size_in_bytes;
+                } catch (error) {
+                  console.log(`Failed to delete artifact ${artifact.name}: ${error.message}`);
+                }
+              }
+            }
+
+            const sizeMB = (totalSizeFreed / 1024 / 1024).toFixed(2);
+            console.log(`Cleanup complete: ${totalDeleted} artifacts deleted, ${sizeMB} MB freed`);
+
+            // Update job summary
+            await core.summary
+              .addHeading('🧹 Artifact Cleanup Summary')
+              .addTable([
+                [
+                  { data: 'Metric', header: true },
+                  { data: 'Value', header: true }
+                ],
+                ['Artifacts Deleted', totalDeleted.toString()],
+                ['Storage Freed', `${sizeMB} MB`],
+                ['Retention Period', `${retentionDays} days`]
+              ])
+              .write();
+
+  # ===== CLEANUP CONTAINER IMAGES =====
+  cleanup-images:
+    name: Cleanup Container Images
+    runs-on: ubuntu-latest
+    if: github.event.inputs.cleanup_type == 'images' || github.event.inputs.cleanup_type == 'all' || github.event.inputs.cleanup_type == ''
+
+    strategy:
+      matrix:
+        service: [api, workers, admin, client]
+
+    permissions:
+      packages: write
+
+    steps:
+      - name: Cleanup old container images
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const retentionDays = ${{ env.RETENTION_DAYS_IMAGES }};
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+            const packageName = `${{ github.repository }}/${{ matrix.service }}`.toLowerCase();
+            console.log(`Cleaning up images for ${packageName} older than ${retentionDays} days`);
+
+            let totalDeleted = 0;
+
+            try {
+              // Get package versions
+              const versions = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
+                package_type: 'container',
+                package_name: packageName,
+                org: context.repo.owner,
+                per_page: 100
+              });
+
+              for (const version of versions.data) {
+                const versionDate = new Date(version.created_at);
+
+                // Keep latest 10 versions and tagged releases
+                const isTagged = version.metadata?.container?.tags?.some(tag =>
+                  tag.match(/^v?\d+\.\d+\.\d+$/) || tag === 'latest'
+                );
+
+                if (versionDate < cutoffDate && !isTagged && versions.data.indexOf(version) > 10) {
+                  try {
+                    await github.rest.packages.deletePackageVersionForOrg({
+                      package_type: 'container',
+                      package_name: packageName,
+                      org: context.repo.owner,
+                      package_version_id: version.id
+                    });
+
+                    console.log(`Deleted image version: ${version.name || version.id}`);
+                    totalDeleted++;
+                  } catch (error) {
+                    console.log(`Failed to delete version ${version.name}: ${error.message}`);
+                  }
+                }
+              }
+            } catch (error) {
+              console.log(`Failed to cleanup images for ${packageName}: ${error.message}`);
+            }
+
+            console.log(`Cleanup complete for ${{ matrix.service }}: ${totalDeleted} versions deleted`);
+
+  # ===== CLEANUP BUILD CACHES =====
+  cleanup-caches:
+    name: Cleanup Build Caches
+    runs-on: ubuntu-latest
+    if: github.event.inputs.cleanup_type == 'caches' || github.event.inputs.cleanup_type == 'all' || github.event.inputs.cleanup_type == ''
+
+    steps:
+      - name: Cleanup GitHub Actions caches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const retentionDays = ${{ env.RETENTION_DAYS_CACHES }};
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+            console.log(`Cleaning up caches older than ${retentionDays} days`);
+
+            let totalDeleted = 0;
+
+            // Get all caches
+            const caches = await github.rest.actions.getActionsCacheList({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+
+            for (const cache of caches.data.actions_caches) {
+              const cacheDate = new Date(cache.created_at);
+
+              if (cacheDate < cutoffDate) {
+                try {
+                  await github.rest.actions.deleteActionsCacheById({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    cache_id: cache.id
+                  });
+
+                  console.log(`Deleted cache: ${cache.key}`);
+                  totalDeleted++;
+                } catch (error) {
+                  console.log(`Failed to delete cache ${cache.key}: ${error.message}`);
+                }
+              }
+            }
+
+            console.log(`Cache cleanup complete: ${totalDeleted} caches deleted`);
+
+  # ===== CLEANUP PREVIEW ENVIRONMENTS =====
+  cleanup-preview-environments:
+    name: Cleanup Preview Environments
+    runs-on: ubuntu-latest
+    if: github.event.inputs.cleanup_type == 'preview-envs' || github.event.inputs.cleanup_type == 'all' || github.event.inputs.cleanup_type == ''
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Setup kubectl
+        run: |
+          aws eks update-kubeconfig --name omni-post-preview
+
+      - name: Cleanup stale preview environments
+        run: |
+          echo "🧹 Cleaning up stale preview environments..."
+
+          # Get all preview namespaces
+          PREVIEW_NAMESPACES=$(kubectl get namespaces -l type=preview -o name | sed 's/namespace\///')
+
+          for namespace in $PREVIEW_NAMESPACES; do
+            if [[ $namespace =~ ^preview-([0-9]+)$ ]]; then
+              PR_NUMBER="${BASH_REMATCH[1]}"
+              echo "Checking PR #${PR_NUMBER}..."
+
+              # Check if PR still exists and is open
+              PR_STATE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" \
+                | jq -r '.state // "closed"')
+
+              if [ "$PR_STATE" != "open" ]; then
+                echo "PR #${PR_NUMBER} is ${PR_STATE}, cleaning up preview environment..."
+                kubectl delete namespace "$namespace" --ignore-not-found=true
+                echo "✅ Cleaned up preview environment: $namespace"
+              else
+                # Check if environment is older than 7 days
+                CREATED_DATE=$(kubectl get namespace "$namespace" -o jsonpath='{.metadata.annotations.preview/created-at}' 2>/dev/null || echo "")
+
+                if [ -n "$CREATED_DATE" ]; then
+                  CREATED_TIMESTAMP=$(date -d "$CREATED_DATE" +%s)
+                  CURRENT_TIMESTAMP=$(date +%s)
+                  AGE_DAYS=$(( (CURRENT_TIMESTAMP - CREATED_TIMESTAMP) / 86400 ))
+
+                  if [ $AGE_DAYS -gt 7 ]; then
+                    echo "Preview environment $namespace is ${AGE_DAYS} days old, cleaning up..."
+                    kubectl delete namespace "$namespace" --ignore-not-found=true
+                    echo "✅ Cleaned up old preview environment: $namespace"
+                  else
+                    echo "Preview environment $namespace is ${AGE_DAYS} days old, keeping it"
+                  fi
+                fi
+              fi
+            fi
+          done
+
+          echo "🎉 Preview environment cleanup completed"
+
+  # ===== CLEANUP REPORT =====
+  cleanup-report:
+    name: Generate Cleanup Report
+    runs-on: ubuntu-latest
+    needs: [cleanup-artifacts, cleanup-images, cleanup-caches, cleanup-preview-environments]
+    if: always()
+
+    steps:
+      - name: Generate cleanup report
+        run: |
+          echo "# 🧹 Weekly Cleanup Report" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## 📊 Cleanup Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Task | Status | Notes |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Artifacts | ${{ needs.cleanup-artifacts.result == 'success' && '✅ Completed' || needs.cleanup-artifacts.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | Retention: ${{ env.RETENTION_DAYS_ARTIFACTS }} days |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Images | ${{ needs.cleanup-images.result == 'success' && '✅ Completed' || needs.cleanup-images.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | Retention: ${{ env.RETENTION_DAYS_IMAGES }} days |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Caches | ${{ needs.cleanup-caches.result == 'success' && '✅ Completed' || needs.cleanup-caches.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | Retention: ${{ env.RETENTION_DAYS_CACHES }} days |" >> $GITHUB_STEP_SUMMARY
+          echo "| Preview Environments | ${{ needs.cleanup-preview-environments.result == 'success' && '✅ Completed' || needs.cleanup-preview-environments.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | Automatic cleanup |" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Benefits" >> $GITHUB_STEP_SUMMARY
+          echo "- Reduced storage costs" >> $GITHUB_STEP_SUMMARY
+          echo "- Improved performance" >> $GITHUB_STEP_SUMMARY
+          echo "- Cleaner resource management" >> $GITHUB_STEP_SUMMARY
+          echo "- Automated maintenance" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify team about cleanup
+        if: github.event_name == 'schedule'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "channel": "#devops",
+              "attachments": [
+                {
+                  "color": "good",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "🧹 Weekly Cleanup Completed"
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "Automated cleanup has been performed on the repository."
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Repository:*\n${{ github.repository }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Completed:*\n$(date -u)"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "actions",
+                      "elements": [
+                        {
+                          "type": "button",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "View Report"
+                          },
+                          "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

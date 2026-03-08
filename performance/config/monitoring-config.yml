@@ -1,0 +1,126 @@
+monitoring:
+  metrics:
+    collection_interval: 15s
+    retention_period: 30d
+    exporters:
+      - prometheus
+      - json
+      - grafana
+
+  alerts:
+    enabled: true
+    channels:
+      - webhook
+      - email
+      - slack
+
+    rules:
+      - name: high_response_time
+        condition: "api_response_time_p95 > 200"
+        severity: warning
+        duration: 5m
+
+      - name: critical_response_time
+        condition: "api_response_time_p95 > 500"
+        severity: critical
+        duration: 2m
+
+      - name: high_error_rate
+        condition: "api_error_rate > 1.0"
+        severity: warning
+        duration: 3m
+
+      - name: memory_leak_detected
+        condition: "memory_growth_rate > 100MB/hour"
+        severity: critical
+        duration: 10m
+
+      - name: database_slow_queries
+        condition: "db_query_time_p95 > 100"
+        severity: warning
+        duration: 5m
+
+  dashboards:
+    performance_overview:
+      widgets:
+        - api_response_times
+        - throughput_metrics
+        - error_rates
+        - memory_usage
+        - database_metrics
+
+    user_experience:
+      widgets:
+        - core_web_vitals
+        - page_load_times
+        - user_journey_metrics
+
+    infrastructure:
+      widgets:
+        - cpu_usage
+        - memory_consumption
+        - database_connections
+        - cache_hit_rates
+        - provider_status
+
+  baseline:
+    capture_frequency: daily
+    comparison_window: 7d
+    regression_threshold: 20%
+    auto_alert_on_regression: true
+
+prometheus:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+  rule_groups:
+    - name: performance_rules
+      rules:
+        - alert: HighResponseTime
+          expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High response time detected"
+            description: "95th percentile response time is {{ $value }}s"
+
+        - alert: HighErrorRate
+          expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.01
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High error rate detected"
+            description: "Error rate is {{ $value | humanizePercentage }}"
+
+k6:
+  default_options:
+    stages:
+      - duration: "2m"
+        target: 100
+      - duration: "5m"
+        target: 100
+      - duration: "2m"
+        target: 200
+      - duration: "5m"
+        target: 200
+      - duration: "2m"
+        target: 0
+
+    thresholds:
+      http_req_duration: ["p(95)<200"]
+      http_req_failed: ["rate<0.01"]
+      checks: ["rate>0.99"]
+
+database:
+  performance_schema: true
+  slow_query_log: true
+  slow_query_time: 0.1
+  monitoring_queries:
+    - name: active_connections
+      query: "SELECT count(*) FROM pg_stat_activity WHERE state = 'active'"
+      interval: 30s
+    - name: long_running_queries
+      query: "SELECT count(*) FROM pg_stat_activity WHERE state = 'active' AND now() - query_start > interval '5 minutes'"
+      interval: 60s

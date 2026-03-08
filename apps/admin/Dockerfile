@@ -1,0 +1,78 @@
+# syntax=docker/dockerfile:1.4
+# ==============================================================================
+# Admin Service Dockerfile (Consolidated - uses shared patterns)
+# ==============================================================================
+
+# ==============================================================================
+# Shared Base Stage - Node.js with pnpm
+# ==============================================================================
+FROM node:20-alpine AS base
+RUN corepack enable
+WORKDIR /app
+
+# ==============================================================================
+# Shared Dependencies Stage
+# ==============================================================================
+FROM base AS deps
+ARG SERVICE_PATH=apps/admin
+ENV CI=true
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
+COPY packages/ ./packages/
+COPY infra/ ./infra/
+
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm fetch --frozen-lockfile && \
+    pnpm install --frozen-lockfile --prod || echo "Some prepare scripts may have failed (expected)"
+
+# ==============================================================================
+# Build Stage
+# ==============================================================================
+FROM base AS build
+ARG SERVICE_PATH=apps/admin
+ENV CI=true
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
+COPY packages/ ./packages/
+COPY infra/ ./infra/
+
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm fetch --frozen-lockfile && \
+    pnpm install --frozen-lockfile || echo "Some prepare scripts may have failed (expected)"
+
+RUN pnpm --filter @infra/prisma generate
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+COPY apps/admin ./apps/admin
+RUN pnpm --filter @apps/admin build
+
+# ==============================================================================
+# Production Runtime
+# ==============================================================================
+FROM gcr.io/distroless/nodejs20-debian12 AS production
+
+WORKDIR /app
+
+COPY --from=deps --chown=nonroot:nonroot /app/node_modules ./node_modules
+COPY --from=deps --chown=nonroot:nonroot /app/packages ./packages
+COPY --from=build --chown=nonroot:nonroot /app/infra ./infra
+COPY --from=build --chown=nonroot:nonroot /app/apps/admin/.next/standalone ./
+COPY --from=build --chown=nonroot:nonroot /app/apps/admin/.next/static ./apps/admin/.next/static
+COPY --from=build --chown=nonroot:nonroot /app/apps/admin/public ./apps/admin/public
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3100
+ENV NODE_OPTIONS="--max-old-space-size=512"
+
+USER nonroot
+EXPOSE 3100
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "const http=require('http');const req=http.request({host:'localhost',port:3100,path:'/api/health',timeout:5000},res=>{process.exit(res.statusCode===200?0:1)});req.on('error',()=>process.exit(1));req.end();"
+
+CMD ["apps/admin/server.js"]

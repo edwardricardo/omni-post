@@ -1,0 +1,142 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: omni-post
+
+resources:
+  # Core observability stack
+  - jaeger-deployment.yaml
+  - grafana-deployment.yaml
+  - loki-deployment.yaml
+  - alertmanager-deployment.yaml
+
+  # Monitoring configuration
+  - prometheus-rules.yaml
+  - monitoring-dashboard.yaml
+
+commonLabels:
+  component: observability
+  project: social-cms
+  managed-by: kustomize
+
+images:
+  # Use specific versions for production stability
+  - name: jaegertracing/all-in-one
+    newTag: "1.60.0"
+  - name: grafana/grafana
+    newTag: "10.2.3"
+  - name: grafana/loki
+    newTag: "3.0.0"
+  - name: grafana/promtail
+    newTag: "3.0.0"
+  - name: prom/alertmanager
+    newTag: "v0.27.0"
+  - name: docker.elastic.co/elasticsearch/elasticsearch
+    newTag: "8.11.0"
+
+configMapGenerator:
+  - name: observability-config
+    literals:
+      - JAEGER_ENDPOINT=http://jaeger-service:16686
+      - GRAFANA_URL=http://grafana-service:3000
+      - LOKI_URL=http://loki-service:3100
+      - ALERTMANAGER_URL=http://alertmanager-service:9093
+      - PROMETHEUS_URL=http://prometheus-service:9090
+      - ENVIRONMENT=production
+      - RETENTION_DAYS=30
+      - SAMPLING_RATE=0.1
+      - LOG_LEVEL=info
+
+patches:
+  # Production resource limits
+  - target:
+      kind: Deployment
+      name: jaeger-all-in-one
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1000m"
+
+  - target:
+      kind: Deployment
+      name: grafana
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+
+  - target:
+      kind: Deployment
+      name: loki
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+
+  # Production storage settings
+  - target:
+      kind: PersistentVolumeClaim
+      name: elasticsearch-pvc
+    patch: |-
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: "50Gi"
+
+  - target:
+      kind: PersistentVolumeClaim
+      name: grafana-pvc
+    patch: |-
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: "20Gi"
+
+  - target:
+      kind: PersistentVolumeClaim
+      name: loki-pvc
+    patch: |-
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: "100Gi"
+
+  # Security patches
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/securityContext
+        value:
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          fsGroup: 1000
+
+  # Add node selectors for observability workloads
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/arch: amd64
+          node-type: monitoring
+
+  # Add tolerations for dedicated monitoring nodes
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: "monitoring"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"

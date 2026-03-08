@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: cache
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    # Service mesh annotations
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    # Monitoring annotations
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9121"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  clusterIP: None # Headless service for stateful workloads
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: redis
+  sessionAffinity: None

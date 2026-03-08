@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: omni-post
+
+# Use base templates
+resources:
+  - ../../base/templates/deployment.yaml
+  - ../../base/templates/service.yaml
+  - ../../base/templates/hpa.yaml
+
+# Name prefix for all resources
+namePrefix: api-
+
+# Common labels for all resources
+commonLabels:
+  app.kubernetes.io/component: api
+  app.kubernetes.io/part-of: backend
+
+# Strategic merge patches for API-specific configuration
+patchesStrategicMerge:
+  - deployment-patch.yaml
+  - service-patch.yaml
+
+# Images
+images:
+  - name: app
+    newName: ghcr.io/omni-post/api
+    newTag: latest

@@ -1,0 +1,113 @@
+/**
+ * Token Service
+ *
+ * Handles JWT token generation and verification for admin authentication:
+ * - Access tokens (short-lived, 15 minutes)
+ * - Refresh tokens (long-lived, 7-30 days)
+ * - Token payload validation
+ * - Token expiration handling
+ */
+
+import jwt from "jsonwebtoken";
+import { ok, err, type Result } from "@shared/types";
+import type {
+  AdminUserProfile,
+  AccessTokenPayload,
+  RefreshTokenPayload,
+  AuthErrorCode,
+} from "./adminAuthTypes";
+import { adminAuthConfig } from "./adminAuthConfig";
+
+export class TokenService {
+  /**
+   * Generate access token (short-lived, 15 minutes)
+   */
+  generateAccessToken(user: AdminUserProfile, deviceId?: string): string {
+    const payload: AccessTokenPayload = {
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      type: "access",
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
+      ...(deviceId && { deviceId }),
+    };
+
+    return jwt.sign(payload, adminAuthConfig.jwt.accessTokenSecret, {
+      issuer: adminAuthConfig.jwt.issuer,
+      audience: adminAuthConfig.jwt.audience,
+    });
+  }
+
+  /**
+   * Generate refresh token (long-lived, 7-30 days)
+   */
+  generateRefreshToken(
+    userId: string,
+    sessionId: string,
+    rememberMe: boolean,
+    deviceId?: string
+  ): string {
+    const expirationDays = rememberMe ? 30 : 7;
+    const payload: RefreshTokenPayload = {
+      sub: userId,
+      sessionId,
+      type: "refresh",
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + expirationDays * 24 * 60 * 60,
+      ...(deviceId && { deviceId }),
+    };
+
+    return jwt.sign(payload, adminAuthConfig.jwt.refreshTokenSecret, {
+      issuer: adminAuthConfig.jwt.issuer,
+      audience: adminAuthConfig.jwt.audience,
+    });
+  }
+
+  /**
+   * Verify and decode access token
+   */
+  verifyAccessToken(token: string): Result<AccessTokenPayload, AuthErrorCode> {
+    try {
+      const decoded = jwt.verify(token, adminAuthConfig.jwt.accessTokenSecret, {
+        issuer: adminAuthConfig.jwt.issuer,
+        audience: adminAuthConfig.jwt.audience,
+      }) as AccessTokenPayload;
+
+      if (decoded.type !== "access") {
+        return err("INVALID_TOKEN");
+      }
+
+      return ok(decoded);
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        return err("TOKEN_EXPIRED");
+      }
+      return err("INVALID_TOKEN");
+    }
+  }
+
+  /**
+   * Verify and decode refresh token
+   */
+  verifyRefreshToken(token: string): Result<RefreshTokenPayload, AuthErrorCode> {
+    try {
+      const decoded = jwt.verify(token, adminAuthConfig.jwt.refreshTokenSecret, {
+        issuer: adminAuthConfig.jwt.issuer,
+        audience: adminAuthConfig.jwt.audience,
+      }) as RefreshTokenPayload;
+
+      if (decoded.type !== "refresh") {
+        return err("INVALID_TOKEN");
+      }
+
+      return ok(decoded);
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        return err("TOKEN_EXPIRED");
+      }
+      return err("INVALID_TOKEN");
+    }
+  }
+}

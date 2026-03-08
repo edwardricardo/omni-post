@@ -1,0 +1,10 @@
+{
+  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @packages/ui build && pnpm --filter @shared/types build && pnpm --filter @apps/client build",
+  "outputDirectory": ".next",
+  "installCommand": "echo 'Skipping default install'",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://omni-post-production.up.railway.app"
+  }
+}

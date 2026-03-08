@@ -1,0 +1,38 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: omni-post-clusterrolebinding
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+subjects:
+  - kind: ServiceAccount
+    name: omni-post-serviceaccount
+    namespace: omni-post
+roleRef:
+  kind: ClusterRole
+  name: omni-post-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: omni-post-rolebinding
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+subjects:
+  - kind: ServiceAccount
+    name: omni-post-serviceaccount
+    namespace: omni-post
+roleRef:
+  kind: Role
+  name: omni-post-role
+  apiGroup: rbac.authorization.k8s.io

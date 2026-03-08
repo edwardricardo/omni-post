@@ -1,0 +1,5 @@
+# Prevent committing compiled build outputs in src/
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map

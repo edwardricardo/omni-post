@@ -1,0 +1,536 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitoring-dashboard-config
+  namespace: omni-post
+data:
+  dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Social Media CMS - Complete Monitoring",
+        "tags": ["social-cms", "monitoring", "observability"],
+        "timezone": "browser",
+        "schemaVersion": 30,
+        "version": 1,
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "System Overview",
+            "type": "row",
+            "collapsed": false,
+            "gridPos": {
+              "h": 1,
+              "w": 24,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Service Health Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=~\"social-cms-.*\"}",
+                "legendFormat": "{{job}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "mappings": [
+                  {
+                    "options": {
+                      "0": {
+                        "text": "DOWN",
+                        "color": "red"
+                      },
+                      "1": {
+                        "text": "UP",
+                        "color": "green"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ],
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": null},
+                    {"color": "green", "value": 1}
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 0,
+              "y": 1
+            }
+          },
+          {
+            "id": 3,
+            "title": "Request Rate (RPS)",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total[5m])) by (job)",
+                "legendFormat": "{{job}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 9,
+              "x": 6,
+              "y": 1
+            }
+          },
+          {
+            "id": 4,
+            "title": "Error Rate (%)",
+            "type": "gauge",
+            "targets": [
+              {
+                "expr": "(sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))) * 100",
+                "legendFormat": "Error Rate"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 10,
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 1},
+                    {"color": "red", "value": 5}
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 9,
+              "x": 15,
+              "y": 1
+            }
+          },
+          {
+            "id": 5,
+            "title": "Publishing Metrics",
+            "type": "row",
+            "collapsed": false,
+            "gridPos": {
+              "h": 1,
+              "w": 24,
+              "x": 0,
+              "y": 9
+            }
+          },
+          {
+            "id": 6,
+            "title": "Publishing Success Rate by Provider",
+            "type": "piechart",
+            "targets": [
+              {
+                "expr": "sum by (provider) (rate(content_published_total{status=\"success\"}[5m])) / sum by (provider) (rate(content_published_total[5m]))",
+                "legendFormat": "{{provider}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 0,
+              "y": 10
+            }
+          },
+          {
+            "id": 7,
+            "title": "Publishing Volume",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(rate(content_published_total[5m])) by (provider, content_type)",
+                "legendFormat": "{{provider}} - {{content_type}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 8,
+              "y": 10
+            }
+          },
+          {
+            "id": 8,
+            "title": "Queue Depth",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(queue_depth) by (queue)",
+                "legendFormat": "{{queue}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 16,
+              "y": 10
+            }
+          },
+          {
+            "id": 9,
+            "title": "Provider API Performance",
+            "type": "row",
+            "collapsed": false,
+            "gridPos": {
+              "h": 1,
+              "w": 24,
+              "x": 0,
+              "y": 18
+            }
+          },
+          {
+            "id": 10,
+            "title": "Provider API Latency",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(social_provider_api_duration_ms_bucket[5m])) by (le, provider))",
+                "legendFormat": "95th - {{provider}}"
+              },
+              {
+                "expr": "histogram_quantile(0.50, sum(rate(social_provider_api_duration_ms_bucket[5m])) by (le, provider))",
+                "legendFormat": "50th - {{provider}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 19
+            }
+          },
+          {
+            "id": 11,
+            "title": "Provider Availability",
+            "type": "heatmap",
+            "targets": [
+              {
+                "expr": "avg(provider_availability) by (provider)",
+                "legendFormat": "{{provider}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 19
+            }
+          },
+          {
+            "id": 12,
+            "title": "Business Intelligence",
+            "type": "row",
+            "collapsed": false,
+            "gridPos": {
+              "h": 1,
+              "w": 24,
+              "x": 0,
+              "y": 27
+            }
+          },
+          {
+            "id": 13,
+            "title": "Active User Sessions",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(user_active_sessions)",
+                "legendFormat": "Active Sessions"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": null},
+                    {"color": "yellow", "value": 50},
+                    {"color": "green", "value": 100}
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 0,
+              "y": 28
+            }
+          },
+          {
+            "id": 14,
+            "title": "Content Performance Score",
+            "type": "gauge",
+            "targets": [
+              {
+                "expr": "avg(content_performance_score)",
+                "legendFormat": "Performance Score"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "min": 0,
+                "max": 100,
+                "unit": "short",
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": null},
+                    {"color": "yellow", "value": 50},
+                    {"color": "green", "value": 75}
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 6,
+              "y": 28
+            }
+          },
+          {
+            "id": 15,
+            "title": "Monthly Recurring Revenue",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(monthly_recurring_revenue)",
+                "legendFormat": "MRR"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "currencyUSD",
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": null},
+                    {"color": "yellow", "value": 10000},
+                    {"color": "green", "value": 50000}
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 12,
+              "y": 28
+            }
+          },
+          {
+            "id": 16,
+            "title": "Cross-Platform Reach",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(rate(cross_platform_reach_total[5m])) by (provider)",
+                "legendFormat": "{{provider}}"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 18,
+              "y": 28
+            }
+          },
+          {
+            "id": 17,
+            "title": "Infrastructure Metrics",
+            "type": "row",
+            "collapsed": false,
+            "gridPos": {
+              "h": 1,
+              "w": 24,
+              "x": 0,
+              "y": 36
+            }
+          },
+          {
+            "id": 18,
+            "title": "CPU Usage",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+                "legendFormat": "{{instance}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 0,
+              "y": 37
+            }
+          },
+          {
+            "id": 19,
+            "title": "Memory Usage",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+                "legendFormat": "{{instance}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 8,
+              "y": 37
+            }
+          },
+          {
+            "id": 20,
+            "title": "Disk Usage",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "(1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100",
+                "legendFormat": "{{instance}}:{{mountpoint}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 16,
+              "y": 37
+            }
+          },
+          {
+            "id": 21,
+            "title": "Security & Alerts",
+            "type": "row",
+            "collapsed": false,
+            "gridPos": {
+              "h": 1,
+              "w": 24,
+              "x": 0,
+              "y": 45
+            }
+          },
+          {
+            "id": 22,
+            "title": "Failed Login Attempts",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(rate(auth_failed_attempts_total[5m]))",
+                "legendFormat": "Failed Logins/sec"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 0,
+              "y": 46
+            }
+          },
+          {
+            "id": 23,
+            "title": "Content Moderation Flags",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(rate(content_moderation_flags_total[5m]))",
+                "legendFormat": "Flags/sec"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 8,
+              "y": 46
+            }
+          },
+          {
+            "id": 24,
+            "title": "Alert Status",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "ALERTS{alertstate=\"firing\"}",
+                "legendFormat": "",
+                "format": "table"
+              }
+            ],
+            "transformations": [
+              {
+                "id": "organize",
+                "options": {
+                  "excludeByName": {
+                    "Time": true,
+                    "__name__": true,
+                    "job": true
+                  },
+                  "indexByName": {},
+                  "renameByName": {
+                    "alertname": "Alert",
+                    "severity": "Severity",
+                    "instance": "Instance",
+                    "summary": "Summary"
+                  }
+                }
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 16,
+              "y": 46
+            }
+          }
+        ]
+      }
+    }

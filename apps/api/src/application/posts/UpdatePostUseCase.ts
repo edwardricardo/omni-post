@@ -1,0 +1,152 @@
+/**
+ * Application Layer - Update Post Use Case
+ *
+ * Part of Sprint 8: DDD Architecture Implementation
+ * Handles updating an existing post's content.
+ */
+
+import { type Result, ok, err } from "@shared/types";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { PostId, type PostRepository, type EventDispatcher } from "../../domain/index.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import { type PostDTO } from "./GetPostUseCase.js";
+
+/**
+ * Input DTO for updating a post
+ */
+export interface UpdatePostInput {
+  postId: string;
+  body?: string;
+  title?: string;
+  summary?: string;
+  tags?: string[];
+}
+
+/**
+ * Update Post Use Case
+ *
+ * Updates an existing post's content. Only editable posts (draft or failed) can be updated.
+ *
+ * @example
+ * const useCase = new UpdatePostUseCase(postRepository, eventDispatcher);
+ * const result = await useCase.execute({
+ *   postId: 'post-123',
+ *   body: 'Updated content',
+ *   title: 'New Title'
+ * });
+ */
+export class UpdatePostUseCase implements UseCase<UpdatePostInput, PostDTO, UseCaseError> {
+  constructor(
+    private readonly postRepository: PostRepository,
+    private readonly eventDispatcher: EventDispatcher,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
+
+  async execute(input: UpdatePostInput): Promise<Result<PostDTO, UseCaseError>> {
+    // Validate post ID
+    const postIdResult = PostId.fromString(input.postId);
+    if (!postIdResult.ok) {
+      return err(
+        new UseCaseError(`Invalid post ID: ${input.postId}`, USE_CASE_ERRORS.VALIDATION_FAILED)
+      );
+    }
+
+    // Find the post
+    const findResult = await this.postRepository.findById(postIdResult.value);
+    if (!findResult.ok) {
+      return err(
+        new UseCaseError(
+          `Post not found: ${input.postId}`,
+          USE_CASE_ERRORS.NOT_FOUND,
+          findResult.error
+        )
+      );
+    }
+
+    const post = findResult.value;
+
+    // Check if post is editable
+    if (!post.isEditable) {
+      return err(
+        new UseCaseError(
+          `Post cannot be edited in current status: ${post.status.value}`,
+          USE_CASE_ERRORS.FORBIDDEN
+        )
+      );
+    }
+
+    // Update content if provided
+    if (input.body || input.title || input.summary || input.tags) {
+      const updateResult = post.updateContent({
+        ...(input.body && { body: input.body }),
+        ...(input.title && { title: input.title }),
+        ...(input.summary && { summary: input.summary }),
+        ...(input.tags && { tags: input.tags }),
+      });
+
+      if (!updateResult.ok) {
+        return err(
+          new UseCaseError(
+            updateResult.error.message,
+            USE_CASE_ERRORS.VALIDATION_FAILED,
+            updateResult.error
+          )
+        );
+      }
+    }
+
+    // Persist changes and dispatch domain events atomically
+    const persistAndDispatch = async () => {
+      const saveResult = await this.postRepository.save(post);
+      if (!saveResult.ok) {
+        throw new UseCaseError(
+          "Failed to save post",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          saveResult.error
+        );
+      }
+
+      const events = post.domainEvents;
+      if (events.length > 0) {
+        await this.eventDispatcher.dispatchAll([...events]);
+        post.clearDomainEvents();
+      }
+    };
+
+    try {
+      if (this.unitOfWork) {
+        await this.unitOfWork.executeInTransaction(persistAndDispatch);
+      } else {
+        await persistAndDispatch();
+      }
+    } catch (error) {
+      if (error instanceof UseCaseError) {
+        return err(error);
+      }
+      return err(
+        new UseCaseError(
+          "Failed to save post",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
+
+    // Return updated DTO
+    return ok({
+      id: post.id.value,
+      projectId: post.projectId.value,
+      body: post.content.body,
+      ...(post.content.title && { title: post.content.title }),
+      ...(post.content.summary && { summary: post.content.summary }),
+      tags: [...post.content.tags],
+      locale: post.content.locale,
+      status: post.status.value,
+      ...(post.scheduledAt && { scheduledAt: post.scheduledAt.dateTime }),
+      ...(post.publishedAt && { publishedAt: post.publishedAt }),
+      mediaCount: post.media.length,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    });
+  }
+}

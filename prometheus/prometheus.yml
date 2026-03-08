@@ -1,0 +1,73 @@
+# Prometheus configuration for omni-post monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    cluster: "omni-post"
+    environment: "development"
+
+# Alertmanager configuration (optional - can be added later)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - 'alertmanager:9093'
+
+# Rule files (optional - can be added later for alerts)
+# rule_files:
+#   - 'alerts/*.yml'
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: "prometheus"
+
+  # API server metrics
+  - job_name: "api-server"
+    scrape_interval: 10s
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:3000"]
+        labels:
+          service: "api"
+          component: "fastify"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "api-server"
+
+  # Workers metrics (not yet available - workers don't expose a metrics endpoint)
+  # Uncomment when a metrics server is added to the workers process
+  # - job_name: "workers"
+  #   scrape_interval: 15s
+  #   metrics_path: "/metrics"
+  #   static_configs:
+  #     - targets: ["host.docker.internal:3300"]
+  #       labels:
+  #         service: "workers"
+  #         component: "bullmq"
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       target_label: instance
+  #       replacement: "workers"
+
+  # PostgreSQL exporter (optional - can be added later)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         service: 'postgres'
+
+  # Redis exporter (optional - can be added later)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+  #       labels:
+  #         service: 'redis'
+# Storage configuration
+# Note: retention settings are passed as command-line flags in docker-compose.yml

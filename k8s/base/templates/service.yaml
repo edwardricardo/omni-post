@@ -1,0 +1,15 @@
+# Base Service Template
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    prometheus.io/scrape: "true"
+spec:
+  type: ClusterIP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800

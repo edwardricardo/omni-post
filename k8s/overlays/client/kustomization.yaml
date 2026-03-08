@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: omni-post
+resources:
+  - ../../base/templates/deployment.yaml
+  - ../../base/templates/service.yaml
+  - ../../base/templates/hpa.yaml
+namePrefix: client-
+commonLabels:
+  app.kubernetes.io/component: client
+  app.kubernetes.io/part-of: frontend
+patchesStrategicMerge:
+  - deployment-patch.yaml
+  - service-patch.yaml
+images:
+  - name: app
+    newName: ghcr.io/omni-post/client
+    newTag: latest

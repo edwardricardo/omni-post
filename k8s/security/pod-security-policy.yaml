@@ -1,0 +1,225 @@
+# Pod Security Standards - Restricted Profile
+# This enforces the most restrictive security policies for production workloads
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-security-standards
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  # Pod Security Standards configuration
+  security-policy.yaml: |
+    # Restricted profile requirements:
+    # - Non-root containers
+    # - Non-privileged containers
+    # - Restricted capabilities
+    # - Read-only root filesystem (where possible)
+    # - Seccomp profile
+    # - AppArmor profile
+    # - Security context constraints
+
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+      supplementalGroups: []
+
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      capabilities:
+        drop:
+          - ALL
+        add: []
+      seccompProfile:
+        type: RuntimeDefault
+
+---
+# Security Context Constraints (OpenShift compatibility)
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: omni-post-scc
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    kubernetes.io/description: "Security constraints for SAAS prototype workloads"
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities: []
+defaultAddCapabilities: []
+requiredDropCapabilities:
+  - ALL
+allowedFlexVolumes: []
+allowedUnsafeSysctls: []
+defaultAllowPrivilegeEscalation: false
+forbiddenSysctls:
+  - "*"
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+    - max: 65535
+readOnlyRootFilesystem: false # Some containers need write access
+runAsUser:
+  type: MustRunAsNonRoot
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+    - max: 65535
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  - system:serviceaccount:omni-post:omni-post-serviceaccount
+
+---
+# Gatekeeper Constraint Templates (OPA Gatekeeper)
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: requiredsecuritycontext
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RequiredSecurityContext
+      validation:
+        type: object
+        properties:
+          runAsNonRoot:
+            type: boolean
+          readOnlyRootFilesystem:
+            type: boolean
+          allowPrivilegeEscalation:
+            type: boolean
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package requiredsecuritycontext
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not container.securityContext.runAsNonRoot
+          msg := "Container must run as non-root user"
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          container.securityContext.allowPrivilegeEscalation
+          msg := "Container must not allow privilege escalation"
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not container.securityContext.readOnlyRootFilesystem
+          not exempt_from_readonly[container.name]
+          msg := sprintf("Container %v should have read-only root filesystem", [container.name])
+        }
+
+        # Containers that need write access
+        exempt_from_readonly[name] {
+          name := "postgres"
+        }
+        exempt_from_readonly[name] {
+          name := "redis"
+        }
+
+---
+# Apply security constraint to SAAS prototype namespace
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RequiredSecurityContext
+metadata:
+  name: omni-post-security-context
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]
+    namespaces: ["omni-post"]
+  parameters:
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+
+---
+# Priority Classes for workload prioritization
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+value: 1000
+globalDefault: false
+description: "High priority class for critical API services"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: medium-priority
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+value: 500
+globalDefault: false
+description: "Medium priority class for background workers and frontend"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: security
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+value: 100
+globalDefault: false
+description: "Low priority class for batch jobs and non-critical workloads"

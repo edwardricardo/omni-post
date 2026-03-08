@@ -1,0 +1,41 @@
+{
+  "version": "baseline-1771787639986",
+  "timestamp": 1771787755920,
+  "environment": "development",
+  "metrics": {
+    "responseTime": {
+      "p50": 2,
+      "p99": 7,
+      "max": 231
+    },
+    "throughput": 3130.07,
+    "errorRate": 99.88390608108469,
+    "dbQueryTime": {
+      "p50": 9.415256000000227,
+      "p95": 40.56222999999591,
+      "p99": 46.98633400000108
+    },
+    "dbConnectionPoolUtilization": 45,
+    "memoryUsage": {
+      "rss": 208834560,
+      "heapTotal": 95870976,
+      "heapUsed": 73077160,
+      "external": 12911916,
+      "arrayBuffers": 3141684
+    },
+    "cpuUsage": 44.22756100538402,
+    "cacheHitRate": 42,
+    "cacheResponseTime": 0.20915567999989435,
+    "providerResponseTime": {
+      "p95": 1473.4642989999993,
+      "p99": 1491.354210999998
+    },
+    "providerErrorRate": 0
+  },
+  "testConfiguration": {
+    "concurrentUsers": 10,
+    "testDuration": 60000,
+    "scenario": "baseline_capture",
+    "dataSize": "mixed"
+  }
+}

@@ -1,0 +1,144 @@
+# Production resource overrides and patches
+
+# API Service resource optimization
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  namespace: omni-post
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          resources:
+            requests:
+              cpu: 300m
+              memory: 768Mi
+            limits:
+              cpu: 1500m
+              memory: 3Gi
+          env:
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=2048"
+
+---
+# Workers service resource optimization
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workers-deployment
+  namespace: omni-post
+spec:
+  template:
+    spec:
+      containers:
+        - name: workers
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          env:
+            - name: WORKER_CONCURRENCY
+              value: "10"
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=1536"
+
+---
+# Admin frontend resource optimization
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-deployment
+  namespace: omni-post
+spec:
+  template:
+    spec:
+      containers:
+        - name: admin
+          resources:
+            requests:
+              cpu: 150m
+              memory: 384Mi
+            limits:
+              cpu: 750m
+              memory: 1.5Gi
+
+---
+# Client frontend resource optimization
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-deployment
+  namespace: omni-post
+spec:
+  template:
+    spec:
+      containers:
+        - name: client
+          resources:
+            requests:
+              cpu: 150m
+              memory: 384Mi
+            limits:
+              cpu: 750m
+              memory: 1.5Gi
+
+---
+# PostgreSQL production resources
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+  namespace: omni-post
+spec:
+  template:
+    spec:
+      containers:
+        - name: postgres
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+        - name: postgres-exporter
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+---
+# Redis production resources
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deployment
+  namespace: omni-post
+spec:
+  template:
+    spec:
+      containers:
+        - name: redis
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+        - name: redis-exporter
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

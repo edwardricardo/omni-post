@@ -1,0 +1,96 @@
+# Local Development Kubernetes Overlay
+# For minikube/kind/Docker Desktop Kubernetes
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: omni-post-local
+
+namespace: omni-post
+
+# Common labels for local environment
+commonLabels:
+  app.kubernetes.io/name: omni-post
+  app.kubernetes.io/environment: local
+  app.kubernetes.io/managed-by: kustomize
+
+# Base resources - only what's needed for local dev
+resources:
+  # Namespace
+  - ../../base/namespaces/namespace.yaml
+
+  # Storage (local uses emptyDir, but still need PVC definitions)
+  - ../../storage/postgres-pvc.yaml
+  - ../../storage/redis-pvc.yaml
+
+  # Infrastructure
+  - ../../services/postgres/deployment.yaml
+  - ../../services/postgres/service.yaml
+  - ../../services/redis/deployment.yaml
+  - ../../services/redis/service.yaml
+
+  # Application
+  - ../../services/api/deployment.yaml
+  - ../../services/api/service.yaml
+
+# Local configmap
+configMapGenerator:
+  - name: app-config
+    literals:
+      - NODE_ENV=development
+      - API_PORT=3000
+      - POSTGRES_HOST=postgres-service
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=omnipostdb
+      - REDIS_HOST=redis-service
+      - REDIS_PORT=6379
+      - LOG_LEVEL=debug
+      - LOG_FORMAT=json
+
+# Local secrets (for development only)
+secretGenerator:
+  - name: app-secrets
+    literals:
+      - DATABASE_URL=postgresql://postgres:localdev123@postgres-service:5432/omnipostdb
+      - POSTGRES_PASSWORD=localdev123
+      - REDIS_URL=redis://redis-service:6379
+      - JWT_ACCESS_SECRET=local-dev-access-secret-not-for-production-use-only
+      - JWT_REFRESH_SECRET=local-dev-refresh-secret-not-for-production-use-only
+
+# Reduce replicas for local development
+replicas:
+  - name: api-deployment
+    count: 1
+  - name: postgres-deployment
+    count: 1
+  - name: redis-deployment
+    count: 1
+
+# Patches for local development
+patches:
+  # Remove resource limits for local dev (optional)
+  - target:
+      kind: Deployment
+      name: api-deployment
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+# Local images (use locally built images)
+images:
+  - name: omnipost-api
+    newTag: local
+  - name: postgres
+    newName: postgres
+    newTag: "16"
+  - name: redis
+    newName: redis
+    newTag: "7"

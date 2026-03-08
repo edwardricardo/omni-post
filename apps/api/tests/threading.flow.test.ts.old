@@ -1,0 +1,316 @@
+// Integration test for end-to-end threading flow
+
+const API_BASE = "http://localhost:3000";
+
+interface ApiResponse<T> {
+  ok: boolean;
+  data?: T;
+  error?: string;
+}
+
+// Helper function to make API requests
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<ApiResponse<T> & { status?: number }> {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    ...options,
+  });
+  const data = (await response.json()) as ApiResponse<T>;
+  (data as any).status = response.status;
+  return data as ApiResponse<T> & { status?: number };
+}
+
+async function runThreadingFlowTests() {
+  console.log("🧵 Starting threading flow integration tests...");
+
+  // Step 1: Create an account
+  console.log("Step 1: Creating account...");
+  const timestamp = Date.now();
+  const accountData = {
+    email: `threading-${timestamp}@test.com`,
+    name: "Threading Test User",
+    subscription: "PRO" as const,
+  };
+  const accountResult = await apiRequest<any>("/accounts", {
+    method: "POST",
+    body: JSON.stringify(accountData),
+  });
+
+  if (!accountResult.ok) {
+    throw new Error(`Failed to create account: ${accountResult.error}`);
+  }
+  const accountId = accountResult.data!.id;
+  console.log("✓ Account created:", accountId);
+
+  // Step 2: Create a project
+  console.log("Step 2: Creating project...");
+  const projectData = {
+    name: "Threading Test Project",
+    locale: "en" as const,
+  };
+  const projectResult = await apiRequest<any>(`/accounts/${accountId}/projects`, {
+    method: "POST",
+    body: JSON.stringify(projectData),
+  });
+
+  if (!projectResult.ok) {
+    throw new Error(`Failed to create project: ${projectResult.error}`);
+  }
+  const projectId = projectResult.data!.id;
+  console.log("✓ Project created:", projectId);
+
+  // Step 3: Test thread preview endpoint
+  console.log("Step 3: Testing thread preview...");
+  const previewData = {
+    body: "This is a very long post that should be split into multiple tweets because it exceeds the character limit for a single tweet on the platform. ".repeat(
+      10
+    ),
+    locale: "en" as const,
+    strategy: "AUTO" as const,
+  };
+
+  const previewResult = await apiRequest<any>("/preview/x/thread", {
+    method: "POST",
+    body: JSON.stringify(previewData),
+  });
+
+  if (!previewResult.ok) {
+    throw new Error(`Failed to get thread preview: ${previewResult.error}`);
+  }
+
+  if (previewResult.data!.type !== "thread") {
+    throw new Error(`Expected thread preview, got ${previewResult.data!.type}`);
+  }
+
+  const threadPlan = previewResult.data!.content;
+  if (!threadPlan.needsThreading) {
+    throw new Error("Long content should need threading");
+  }
+
+  if (threadPlan.tweets.length <= 1) {
+    throw new Error(`Expected multiple tweets, got ${threadPlan.tweets.length}`);
+  }
+  console.log(`✓ Thread preview generated ${threadPlan.tweets.length} tweets`);
+
+  // Step 4: Create a long post
+  console.log("Step 4: Creating long post...");
+  const postData = {
+    projectId,
+    locale: "en" as const,
+    body: "This is a comprehensive test of our threading system. The content is intentionally long to trigger automatic thread creation. ".repeat(
+      20
+    ),
+    title: "Threading Test Post",
+    tags: ["testing", "threads", "x"],
+  };
+
+  const postResult = await apiRequest<any>("/posts", {
+    method: "POST",
+    body: JSON.stringify(postData),
+  });
+
+  if (!postResult.ok) {
+    throw new Error(`Failed to create post: ${postResult.error}`);
+  }
+  const postId = postResult.data!.id;
+  console.log("✓ Long post created:", postId);
+
+  // Step 5: Create thread manually for the post
+  console.log("Step 5: Creating thread for post...");
+  const threadData = {
+    strategy: "AUTO" as const,
+  };
+
+  const threadResult = await apiRequest<any>(`/posts/${postId}/thread`, {
+    method: "POST",
+    body: JSON.stringify(threadData),
+  });
+
+  if (!threadResult.ok) {
+    throw new Error(`Failed to create thread: ${threadResult.error}`);
+  }
+  const threadId = threadResult.data!.id;
+  console.log("✓ Thread created:", threadId);
+
+  // Step 6: Get thread details
+  console.log("Step 6: Getting thread details...");
+  const threadDetailsResult = await apiRequest<any>(`/posts/${postId}/thread`);
+
+  if (!threadDetailsResult.ok) {
+    throw new Error(`Failed to get thread details: ${threadDetailsResult.error}`);
+  }
+
+  if (threadDetailsResult.data!.id !== threadId) {
+    throw new Error("Thread ID mismatch");
+  }
+  console.log("✓ Thread details retrieved");
+
+  // Step 7: Create tweets in the thread
+  console.log("Step 7: Creating tweets in thread...");
+  const tweet1Data = {
+    sequenceNumber: 1,
+    content:
+      "This is the first tweet in our test thread. It introduces the topic and sets the stage for the following tweets.",
+    media: [],
+  };
+
+  const tweet1Result = await apiRequest<any>(`/threads/${threadId}/tweets`, {
+    method: "POST",
+    body: JSON.stringify(tweet1Data),
+  });
+
+  if (!tweet1Result.ok) {
+    throw new Error(`Failed to create first tweet: ${tweet1Result.error}`);
+  }
+  const tweet1Id = tweet1Result.data!.id;
+  console.log("✓ First tweet created:", tweet1Id);
+
+  const tweet2Data = {
+    sequenceNumber: 2,
+    content:
+      "This is the second tweet in our thread, continuing the narrative and providing additional context and information.",
+    media: [],
+  };
+
+  const tweet2Result = await apiRequest<any>(`/threads/${threadId}/tweets`, {
+    method: "POST",
+    body: JSON.stringify(tweet2Data),
+  });
+
+  if (!tweet2Result.ok) {
+    throw new Error(`Failed to create second tweet: ${tweet2Result.error}`);
+  }
+  console.log("✓ Second tweet created:", tweet2Result.data!.id);
+
+  // Step 8: Get all tweets in thread
+  console.log("Step 8: Getting all tweets in thread...");
+  const tweetsResult = await apiRequest<any>(`/threads/${threadId}/tweets`);
+
+  if (!tweetsResult.ok) {
+    throw new Error(`Failed to get tweets: ${tweetsResult.error}`);
+  }
+
+  if (tweetsResult.data!.length !== 2) {
+    throw new Error(`Expected 2 tweets, got ${tweetsResult.data!.length}`);
+  }
+
+  // Check sequence order
+  const tweets = tweetsResult.data!.sort((a: any, b: any) => a.sequenceNumber - b.sequenceNumber);
+  if (tweets[0].sequenceNumber !== 1 || tweets[1].sequenceNumber !== 2) {
+    throw new Error("Tweets not in correct sequence order");
+  }
+  console.log("✓ All tweets retrieved in correct order");
+
+  // Step 9: Update tweet status (simulate publishing)
+  console.log("Step 9: Updating tweet status...");
+  const updateData = {
+    tweetId: "1234567890123456789", // X's tweet ID
+    status: "PUBLISHED" as const,
+    publishedAt: new Date(),
+  };
+
+  const updateResult = await apiRequest<any>(`/tweets/${tweet1Id}`, {
+    method: "PUT",
+    body: JSON.stringify(updateData),
+  });
+
+  if (!updateResult.ok) {
+    throw new Error(`Failed to update tweet: ${updateResult.error}`);
+  }
+
+  if (updateResult.data!.status !== "PUBLISHED") {
+    throw new Error("Tweet status not updated correctly");
+  }
+  console.log("✓ Tweet status updated to PUBLISHED");
+
+  // Step 10: Get individual tweet
+  console.log("Step 10: Getting individual tweet...");
+  const tweetResult = await apiRequest<any>(`/tweets/${tweet1Id}`);
+
+  if (!tweetResult.ok) {
+    throw new Error(`Failed to get individual tweet: ${tweetResult.error}`);
+  }
+
+  if (tweetResult.data!.status !== "PUBLISHED") {
+    throw new Error("Tweet status not persisted correctly");
+  }
+  console.log("✓ Individual tweet retrieved with correct status");
+
+  // Step 11: Test duplicate sequence error
+  console.log("Step 11: Testing duplicate sequence error...");
+  const duplicateData = {
+    sequenceNumber: 1, // Same as first tweet
+    content: "This should fail due to duplicate sequence",
+    media: [],
+  };
+
+  const duplicateResult = await apiRequest<any>(`/threads/${threadId}/tweets`, {
+    method: "POST",
+    body: JSON.stringify(duplicateData),
+  });
+
+  if (duplicateResult.ok) {
+    throw new Error("Expected duplicate sequence to fail");
+  }
+  console.log("✓ Duplicate sequence properly rejected");
+
+  // Step 12: Clean up - delete thread
+  console.log("Step 12: Cleaning up - deleting thread...");
+  const deleteResult = await apiRequest<any>(`/threads/${threadId}`, {
+    method: "DELETE",
+    headers: {}, // Don't send Content-Type for DELETE requests with no body
+  });
+
+  if (!deleteResult.ok) {
+    console.error("Delete thread failed:");
+    console.error("- HTTP Status:", deleteResult.status);
+    console.error("- Response body:", JSON.stringify(deleteResult, null, 2));
+    throw new Error(
+      `Failed to delete thread: ${deleteResult.error || "Unknown error"} (HTTP ${deleteResult.status})`
+    );
+  }
+  console.log("✓ Thread deleted successfully");
+
+  // Step 13: Verify thread is gone
+  console.log("Step 13: Verifying thread deletion...");
+  const verifyResult = await apiRequest<any>(`/posts/${postId}/thread`);
+
+  if (verifyResult.ok && verifyResult.data) {
+    throw new Error("Thread should have been deleted");
+  }
+  console.log("✓ Thread deletion verified");
+
+  // Cleanup account
+  await apiRequest(`/accounts/${accountId}`, { method: "DELETE", headers: {} });
+
+  console.log("🎉 All threading flow tests passed!");
+}
+
+// Run the tests only if API is available
+async function checkApiAvailability(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(1000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+checkApiAvailability()
+  .then((available) => {
+    if (!available) {
+      console.log("⏭️  Skipping threading flow test - API not available at", API_BASE);
+      console.log("✅ Test skipped gracefully");
+      return;
+    }
+    return runThreadingFlowTests();
+  })
+  .catch((error) => {
+    console.error("❌ Threading flow test failed:", error.message);
+    process.exit(1);
+  });

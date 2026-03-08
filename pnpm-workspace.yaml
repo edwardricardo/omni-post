@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+  - packages/providers/*
+  - packages/adapters/*
+  - packages/core/*
+  - packages/monitoring/*
+  - packages/observability/*
+  - infra/*
+  - infra/prisma
+
+ignoredBuiltDependencies:
+  - bcrypt

@@ -1,0 +1,219 @@
+/**
+ * Account Lifecycle Query Service
+ *
+ * Handles read-only queries for admin account management:
+ * listing with filters/pagination and aggregate statistics.
+ *
+ * Extracted from AccountLifecycleService to keep each module under 800 lines.
+ *
+ * @module admin/accountLifecycleQueryService
+ */
+
+import { ok, err, type Result } from "@shared/types";
+import { prisma } from "@infra/prisma";
+import { logger } from "../lib/logger.js";
+
+const adminLogger = logger.child({ module: "admin" });
+import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
+import { AuditableService } from "../services/AuditableService.js";
+import type { AccountProfile, AccountFilters, AccountStats } from "./accountLifecycleTypes.js";
+
+// ---------------------------------------------------------------------------
+// Internal helper — maps a Prisma AdminUser row to the public AccountProfile
+// shape.  Shared with AccountLifecycleService via import so both modules stay
+// in sync without duplicating the logic.
+// ---------------------------------------------------------------------------
+
+export async function mapAdminUserToProfile(user: {
+  id: string;
+  email: string;
+  name: string;
+  role: AdminRoleKind;
+  isActive: boolean;
+  emailVerified: boolean;
+  lastLoginAt: Date | null;
+  mfaEnabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  sessions?: Array<{ createdAt: Date }>;
+}): Promise<AccountProfile> {
+  const sessionCount = user.sessions
+    ? user.sessions.length
+    : await prisma.adminSession.count({
+        where: { userId: user.id, isActive: true },
+      });
+
+  const lastActivity = user.sessions?.[0]?.createdAt ?? user.lastLoginAt ?? null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    isActive: user.isActive,
+    emailVerified: user.emailVerified,
+    lastLoginAt: user.lastLoginAt,
+    mfaEnabled: user.mfaEnabled,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    sessionCount,
+    lastActivity,
+  };
+}
+
+// ---------------------------------------------------------------------------
+
+export class AccountLifecycleQueryService extends AuditableService {
+  constructor() {
+    super("AccountLifecycleQueryService");
+  }
+
+  /**
+   * List accounts with filtering and pagination
+   */
+  async listAccounts(
+    filters: AccountFilters = {},
+    page = 1,
+    limit = 50
+  ): Promise<
+    Result<
+      { accounts: AccountProfile[]; total: number; page: number; limit: number },
+      "DATABASE_ERROR"
+    >
+  > {
+    try {
+      const offset = (page - 1) * limit;
+
+      // Build where clause
+      const where: Record<string, unknown> = {};
+
+      if (filters.role) {
+        where.role = filters.role;
+      }
+
+      if (filters.isActive !== undefined) {
+        where.isActive = filters.isActive;
+      }
+
+      if (filters.emailVerified !== undefined) {
+        where.emailVerified = filters.emailVerified;
+      }
+
+      if (filters.mfaEnabled !== undefined) {
+        where.mfaEnabled = filters.mfaEnabled;
+      }
+
+      if (filters.lastLoginAfter || filters.lastLoginBefore) {
+        where.lastLoginAt = {};
+        if (filters.lastLoginAfter) {
+          (where.lastLoginAt as Record<string, Date>).gte = filters.lastLoginAfter;
+        }
+        if (filters.lastLoginBefore) {
+          (where.lastLoginAt as Record<string, Date>).lte = filters.lastLoginBefore;
+        }
+      }
+
+      if (filters.createdAfter || filters.createdBefore) {
+        where.createdAt = {};
+        if (filters.createdAfter) {
+          (where.createdAt as Record<string, Date>).gte = filters.createdAfter;
+        }
+        if (filters.createdBefore) {
+          (where.createdAt as Record<string, Date>).lte = filters.createdBefore;
+        }
+      }
+
+      if (filters.search) {
+        where.OR = [
+          { email: { contains: filters.search, mode: "insensitive" } },
+          { name: { contains: filters.search, mode: "insensitive" } },
+        ];
+      }
+
+      // Get total count
+      const total = await prisma.adminUser.count({ where });
+
+      // Get users
+      const users = await prisma.adminUser.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: offset,
+        take: limit,
+        include: {
+          sessions: {
+            where: { isActive: true },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+      });
+
+      const accounts = await Promise.all(users.map((user) => mapAdminUserToProfile(user)));
+
+      return ok({
+        accounts,
+        total,
+        page,
+        limit,
+      });
+    } catch (error: unknown) {
+      adminLogger.error({ err: error }, "List accounts error");
+      return err("DATABASE_ERROR");
+    }
+  }
+
+  /**
+   * Get account statistics
+   */
+  async getAccountStats(): Promise<Result<AccountStats, "DATABASE_ERROR">> {
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+      const [
+        totalAccounts,
+        activeAccounts,
+        emailVerifiedAccounts,
+        mfaEnabledAccounts,
+        recentLogins,
+        recentRegistrations,
+        roleStats,
+      ] = await Promise.all([
+        prisma.adminUser.count(),
+        prisma.adminUser.count({ where: { isActive: true } }),
+        prisma.adminUser.count({ where: { emailVerified: true } }),
+        prisma.adminUser.count({ where: { mfaEnabled: true } }),
+        prisma.adminUser.count({ where: { lastLoginAt: { gte: sevenDaysAgo } } }),
+        prisma.adminUser.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+        prisma.adminUser.groupBy({
+          by: ["role"],
+          _count: { id: true },
+        }),
+      ]);
+
+      const accountsByRole: Record<AdminRoleKind, number> = {
+        SUPER_ADMIN: 0,
+        ADMIN: 0,
+        SUPPORT: 0,
+      };
+
+      roleStats.forEach((stat) => {
+        accountsByRole[stat.role] = stat._count.id;
+      });
+
+      return ok({
+        totalAccounts,
+        activeAccounts,
+        inactiveAccounts: totalAccounts - activeAccounts,
+        emailVerifiedAccounts,
+        mfaEnabledAccounts,
+        accountsByRole,
+        recentLogins,
+        recentRegistrations,
+      });
+    } catch (error: unknown) {
+      adminLogger.error({ err: error }, "Get account stats error");
+      return err("DATABASE_ERROR");
+    }
+  }
+}

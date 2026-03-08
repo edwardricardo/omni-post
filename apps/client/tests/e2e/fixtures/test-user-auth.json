@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:3200",
+      "localStorage": [
+        {
+          "name": "auth-token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test-token-for-e2e-user"
+        }
+      ]
+    }
+  ]
+}

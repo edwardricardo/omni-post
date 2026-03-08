@@ -1,0 +1,19 @@
+{
+  "threshold": 5,
+  "minLines": 10,
+  "minTokens": 50,
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/reports/**",
+    "**/.next/**",
+    "**/generated/**",
+    "**/pnpm-lock.yaml",
+    "**/tests/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.stories.tsx"
+  ],
+  "format": ["typescript", "typescriptreact"],
+  "absolute": true
+}

@@ -1,0 +1,394 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+  namespace: omni-post
+  labels:
+    app: loki
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      containers:
+        - name: loki
+          image: grafana/loki:3.0.0
+          args:
+            - -config.file=/etc/loki/local-config.yaml
+          ports:
+            - containerPort: 3100
+              protocol: TCP
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "200m"
+          volumeMounts:
+            - name: loki-config
+              mountPath: /etc/loki
+            - name: loki-data
+              mountPath: /loki
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: loki-config
+          configMap:
+            name: loki-config
+        - name: loki-data
+          persistentVolumeClaim:
+            claimName: loki-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-service
+  namespace: omni-post
+  labels:
+    app: loki
+spec:
+  type: ClusterIP
+  ports:
+    - name: loki
+      port: 3100
+      targetPort: 3100
+      protocol: TCP
+  selector:
+    app: loki
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: loki-pvc
+  namespace: omni-post
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-config
+  namespace: omni-post
+data:
+  local-config.yaml: |
+    auth_enabled: false
+
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9096
+
+    common:
+      instance_addr: 127.0.0.1
+      path_prefix: /loki
+      storage:
+        filesystem:
+          chunks_directory: /loki/chunks
+          rules_directory: /loki/rules
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+
+    query_range:
+      results_cache:
+        cache:
+          embedded_cache:
+            enabled: true
+            max_size_mb: 100
+
+    schema_config:
+      configs:
+        - from: 2020-10-24
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+
+    ruler:
+      alertmanager_url: http://alertmanager:9093
+
+    # Enhanced configuration for social media CMS
+    limits_config:
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+      max_cache_freshness_per_query: 10m
+      split_queries_by_interval: 15m
+      per_stream_rate_limit: 5MB
+      per_stream_rate_limit_burst: 20MB
+      ingestion_rate_mb: 10
+      ingestion_burst_size_mb: 20
+      max_label_name_length: 1024
+      max_label_value_length: 4096
+      max_label_names_per_series: 30
+
+    # Table manager for retention
+    table_manager:
+      retention_deletes_enabled: true
+      retention_period: 336h  # 14 days
+
+---
+# Promtail for log collection
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail
+  namespace: omni-post
+  labels:
+    app: promtail
+spec:
+  selector:
+    matchLabels:
+      app: promtail
+  template:
+    metadata:
+      labels:
+        app: promtail
+    spec:
+      serviceAccountName: promtail
+      containers:
+        - name: promtail
+          image: grafana/promtail:3.0.0
+          args:
+            - -config.file=/etc/promtail/config.yml
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: config
+              mountPath: /etc/promtail
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          ports:
+            - name: http-metrics
+              containerPort: 3101
+              protocol: TCP
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+      volumes:
+        - name: config
+          configMap:
+            name: promtail-config
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: promtail
+  namespace: omni-post
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: promtail
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: promtail
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: promtail
+subjects:
+  - kind: ServiceAccount
+    name: promtail
+    namespace: omni-post
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: omni-post
+data:
+  config.yml: |
+    server:
+      http_listen_port: 3101
+      grpc_listen_port: 0
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    clients:
+      - url: http://loki-service:3100/loki/api/v1/push
+
+    scrape_configs:
+    - job_name: kubernetes-pods-name
+      kubernetes_sd_configs:
+      - role: pod
+      pipeline_stages:
+      - docker: {}
+      relabel_configs:
+      - source_labels:
+        - __meta_kubernetes_pod_label_name
+        target_label: __service__
+      - source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: __host__
+      - action: replace
+        replacement: $1
+        separator: /
+        source_labels:
+        - __meta_kubernetes_namespace
+        - __service__
+        target_label: job
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: pod
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_container_name
+        target_label: container
+      - replacement: /var/log/pods/*$1/*.log
+        separator: /
+        source_labels:
+        - __meta_kubernetes_pod_uid
+        - __meta_kubernetes_pod_container_name
+        target_label: __path__
+
+    - job_name: kubernetes-pods-app
+      kubernetes_sd_configs:
+      - role: pod
+      pipeline_stages:
+      - docker: {}
+      relabel_configs:
+      - action: drop
+        regex: .+
+        source_labels:
+        - __meta_kubernetes_pod_label_name
+      - source_labels:
+        - __meta_kubernetes_pod_label_app
+        target_label: __service__
+      - source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: __host__
+      - action: replace
+        replacement: $1
+        separator: /
+        source_labels:
+        - __meta_kubernetes_namespace
+        - __service__
+        target_label: job
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: pod
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_container_name
+        target_label: container
+      - replacement: /var/log/pods/*$1/*.log
+        separator: /
+        source_labels:
+        - __meta_kubernetes_pod_uid
+        - __meta_kubernetes_pod_container_name
+        target_label: __path__
+
+    # Enhanced scraping for social media CMS specific logs
+    - job_name: social-cms-api
+      kubernetes_sd_configs:
+      - role: pod
+      pipeline_stages:
+      - json:
+          expressions:
+            timestamp: time
+            level: level
+            message: msg
+            correlation_id: correlationId
+            trace_id: traceId
+            user_id: userId
+            tenant_id: tenantId
+            provider: provider
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+      - labels:
+          level:
+          correlation_id:
+          trace_id:
+          user_id:
+          tenant_id:
+          provider:
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: social-cms-api
+        action: keep
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      - source_labels: [__meta_kubernetes_pod_container_name]
+        target_label: container
+      - replacement: /var/log/pods/*$1/*.log
+        separator: /
+        source_labels:
+        - __meta_kubernetes_pod_uid
+        - __meta_kubernetes_pod_container_name
+        target_label: __path__

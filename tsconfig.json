@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "skipLibCheck": true
+  },
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/ports" },
+    { "path": "packages/core" },
+    { "path": "packages/api-common" },
+    { "path": "packages/observability/opentelemetry" }
+  ]
+}

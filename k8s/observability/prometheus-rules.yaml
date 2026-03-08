@@ -1,0 +1,389 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: omni-post
+  labels:
+    app: prometheus
+data:
+  social-cms-alerts.yml: |
+    groups:
+    # Business Critical Alerts
+    - name: social-cms-business-critical
+      rules:
+      - alert: PublishingSystemDown
+        expr: up{job="social-cms-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: system
+          service: publishing
+          runbook_url: https://docs.social-cms.com/runbooks/publishing-system-down
+        annotations:
+          summary: "Social Media Publishing System is Down"
+          description: "The main API service for social media publishing has been down for more than 1 minute."
+          dashboard_url: "http://grafana.local/d/social-cms-technical"
+
+      - alert: DatabaseDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: system
+          service: database
+          runbook_url: https://docs.social-cms.com/runbooks/database-down
+        annotations:
+          summary: "Database is Down"
+          description: "PostgreSQL database is not responding."
+
+      - alert: RedisDown
+        expr: up{job="redis-exporter"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: system
+          service: cache
+          runbook_url: https://docs.social-cms.com/runbooks/redis-down
+        annotations:
+          summary: "Redis Cache is Down"
+          description: "Redis cache/queue system is not responding."
+
+    # Publishing Performance Alerts
+    - name: social-cms-publishing-performance
+      rules:
+      - alert: LowPublishingSuccessRate
+        expr: (sum(rate(content_published_total{status="success"}[5m])) / sum(rate(content_published_total[5m]))) * 100 < 95
+        for: 5m
+        labels:
+          severity: high
+          category: business
+          service: publishing
+          runbook_url: https://docs.social-cms.com/runbooks/low-publishing-success
+        annotations:
+          summary: "Publishing Success Rate is Low"
+          description: "Publishing success rate is {{ $value }}%, below the 95% threshold."
+          value: "{{ $value }}"
+          threshold: "95"
+
+      - alert: HighPublishingLatency
+        expr: histogram_quantile(0.95, sum(rate(social_publishing_duration_ms_bucket[5m])) by (le, provider)) > 10000
+        for: 3m
+        labels:
+          severity: high
+          category: performance
+          service: publishing
+        annotations:
+          summary: "High Publishing Latency Detected"
+          description: "95th percentile publishing latency is {{ $value }}ms for provider {{ $labels.provider }}"
+
+      - alert: QueueBacklogHigh
+        expr: sum(queue_depth) > 1000
+        for: 2m
+        labels:
+          severity: high
+          category: performance
+          service: queue
+        annotations:
+          summary: "Publishing Queue Backlog is High"
+          description: "Queue depth is {{ $value }}, indicating potential processing delays."
+
+    # Provider API Health Alerts
+    - name: social-cms-provider-health
+      rules:
+      - alert: ProviderAPIDown
+        expr: avg(provider_availability) by (provider) < 95
+        for: 2m
+        labels:
+          severity: critical
+          category: external
+          service: provider
+        annotations:
+          summary: "Social Media Provider API is Down"
+          description: "{{ $labels.provider }} API availability is {{ $value }}%, below 95% threshold."
+
+      - alert: ProviderRateLimitExhausted
+        expr: max(provider_rate_limit_utilization) by (provider) > 90
+        for: 1m
+        labels:
+          severity: high
+          category: external
+          service: provider
+        annotations:
+          summary: "Provider Rate Limit Near Exhaustion"
+          description: "{{ $labels.provider }} rate limit utilization is {{ $value }}%"
+
+      - alert: ProviderHighLatency
+        expr: histogram_quantile(0.95, sum(rate(social_provider_api_duration_ms_bucket[5m])) by (le, provider)) > 5000
+        for: 3m
+        labels:
+          severity: high
+          category: performance
+          service: provider
+        annotations:
+          summary: "High Provider API Latency"
+          description: "95th percentile latency for {{ $labels.provider }} is {{ $value }}ms"
+
+    # System Performance Alerts
+    - name: social-cms-system-performance
+      rules:
+      - alert: HighErrorRate
+        expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) * 100 > 1
+        for: 3m
+        labels:
+          severity: high
+          category: performance
+          service: api
+        annotations:
+          summary: "High Error Rate Detected"
+          description: "Error rate is {{ $value }}%, above 1% threshold"
+          value: "{{ $value }}"
+          threshold: "1"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: high
+          category: performance
+          service: api
+        annotations:
+          summary: "High API Latency"
+          description: "95th percentile response time is {{ $value }}s"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+          service: system
+        annotations:
+          summary: "High Memory Usage"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: resource
+          service: system
+        annotations:
+          summary: "High CPU Usage"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+          service: system
+        annotations:
+          summary: "Low Disk Space"
+          description: "Disk space is {{ $value }}% available on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+
+    # Business KPI Alerts
+    - name: social-cms-business-kpis
+      rules:
+      - alert: UserActiveSessionsDrop
+        expr: sum(user_active_sessions) < 100
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          service: user-engagement
+        annotations:
+          summary: "Active User Sessions Below Threshold"
+          description: "Only {{ $value }} active user sessions, below expected baseline of 100"
+
+      - alert: LowContentPerformance
+        expr: avg(content_performance_score) < 50
+        for: 15m
+        labels:
+          severity: warning
+          category: business
+          service: content
+        annotations:
+          summary: "Content Performance Score is Low"
+          description: "Average content performance score is {{ $value }}, below 50"
+
+      - alert: HighUserChurn
+        expr: rate(user_retention_rate[1d]) < 0.8
+        for: 1h
+        labels:
+          severity: warning
+          category: business
+          service: user-retention
+        annotations:
+          summary: "High User Churn Detected"
+          description: "User retention rate is {{ $value }}, below 80% threshold"
+
+      - alert: RevenueDropAlert
+        expr: deriv(monthly_recurring_revenue[1h]) < -1000
+        for: 30m
+        labels:
+          severity: high
+          category: business
+          service: revenue
+        annotations:
+          summary: "Monthly Recurring Revenue Drop"
+          description: "MRR is decreasing at a rate of ${{ $value }}/hour"
+
+    # Security Alerts
+    - name: social-cms-security
+      rules:
+      - alert: HighFailedLoginAttempts
+        expr: sum(rate(auth_failed_attempts_total[5m])) > 10
+        for: 2m
+        labels:
+          severity: high
+          category: security
+          service: authentication
+        annotations:
+          summary: "High Number of Failed Login Attempts"
+          description: "{{ $value }} failed login attempts per second detected"
+
+      - alert: SuspiciousAPIActivity
+        expr: sum(rate(http_requests_total{status="401"}[5m])) > 50
+        for: 3m
+        labels:
+          severity: high
+          category: security
+          service: api
+        annotations:
+          summary: "Suspicious API Activity Detected"
+          description: "High rate of unauthorized API requests: {{ $value }} per second"
+
+      - alert: UnusualTrafficPattern
+        expr: sum(rate(http_requests_total[5m])) > (avg_over_time(sum(rate(http_requests_total[5m]))[1h:5m]) * 3)
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+          service: traffic
+        annotations:
+          summary: "Unusual Traffic Pattern"
+          description: "Request rate {{ $value }} is 3x higher than normal"
+
+    # Content Moderation Alerts
+    - name: social-cms-content-moderation
+      rules:
+      - alert: HighContentModerationFlags
+        expr: sum(rate(content_moderation_flags_total[5m])) > 5
+        for: 3m
+        labels:
+          severity: high
+          category: business
+          service: content-moderation
+        annotations:
+          summary: "High Content Moderation Flag Rate"
+          description: "{{ $value }} content pieces per second are being flagged for moderation"
+
+      - alert: AIOptimizationScoreLow
+        expr: avg(ai_content_optimization_score) < 60
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          service: ai-optimization
+        annotations:
+          summary: "AI Content Optimization Score is Low"
+          description: "Average AI optimization score is {{ $value }}, below 60"
+
+    # Integration Health Alerts
+    - name: social-cms-integrations
+      rules:
+      - alert: WebhookDeliveryFailure
+        expr: sum(rate(webhook_delivery_failures_total[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          category: integration
+          service: webhooks
+        annotations:
+          summary: "Webhook Delivery Failures"
+          description: "{{ $value }} webhook deliveries per second are failing"
+
+      - alert: S3StorageError
+        expr: sum(rate(s3_operation_errors_total[5m])) > 0.1
+        for: 3m
+        labels:
+          severity: high
+          category: integration
+          service: storage
+        annotations:
+          summary: "S3 Storage Errors"
+          description: "{{ $value }} S3 operations per second are failing"
+
+    # Worker Health Alerts
+    - name: social-cms-workers
+      rules:
+      - alert: WorkerJobFailureRate
+        expr: (sum(rate(jobs_failed_total[5m])) / sum(rate(jobs_completed_total[5m]) + rate(jobs_failed_total[5m]))) * 100 > 5
+        for: 5m
+        labels:
+          severity: high
+          category: performance
+          service: workers
+        annotations:
+          summary: "High Worker Job Failure Rate"
+          description: "Worker job failure rate is {{ $value }}%, above 5% threshold"
+
+      - alert: WorkersDown
+        expr: up{job="social-cms-workers"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: system
+          service: workers
+        annotations:
+          summary: "Background Workers are Down"
+          description: "All background workers are down, publishing will be delayed"
+
+      - alert: LongRunningJobs
+        expr: max(job_duration_seconds) > 300
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+          service: workers
+        annotations:
+          summary: "Long Running Jobs Detected"
+          description: "Jobs are taking longer than 5 minutes to complete"
+
+    # Capacity Planning Alerts
+    - name: social-cms-capacity
+      rules:
+      - alert: HighAPIRequestRate
+        expr: sum(rate(http_requests_total[5m])) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          category: capacity
+          service: api
+        annotations:
+          summary: "High API Request Rate"
+          description: "API is handling {{ $value }} requests per second, consider scaling"
+
+      - alert: DatabaseConnectionsHigh
+        expr: sum(pg_stat_activity_count) > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: capacity
+          service: database
+        annotations:
+          summary: "High Database Connection Usage"
+          description: "Database has {{ $value }} active connections, near the limit"
+
+      - alert: RedisMemoryHigh
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: capacity
+          service: cache
+        annotations:
+          summary: "Redis Memory Usage High"
+          description: "Redis memory usage is {{ $value }}%"

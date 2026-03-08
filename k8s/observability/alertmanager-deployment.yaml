@@ -1,0 +1,438 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: omni-post
+  labels:
+    app: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.27.0
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/alertmanager
+            - --web.external-url=http://alertmanager.local
+            - --web.route-prefix=/
+            - --cluster.listen-address=0.0.0.0:9094
+            - --log.level=info
+          ports:
+            - containerPort: 9093
+              protocol: TCP
+            - containerPort: 9094
+              protocol: TCP
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "100m"
+          volumeMounts:
+            - name: alertmanager-config
+              mountPath: /etc/alertmanager
+            - name: alertmanager-data
+              mountPath: /alertmanager
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: alertmanager-config
+          configMap:
+            name: alertmanager-config
+        - name: alertmanager-data
+          persistentVolumeClaim:
+            claimName: alertmanager-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-service
+  namespace: omni-post
+  labels:
+    app: alertmanager
+spec:
+  type: ClusterIP
+  ports:
+    - name: alertmanager
+      port: 9093
+      targetPort: 9093
+      protocol: TCP
+    - name: cluster
+      port: 9094
+      targetPort: 9094
+      protocol: TCP
+  selector:
+    app: alertmanager
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alertmanager-pvc
+  namespace: omni-post
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: omni-post
+data:
+  alertmanager.yml: |
+    global:
+      # Global configuration for all integrations
+      smtp_smarthost: 'localhost:587'
+      smtp_from: 'alerts@social-cms.com'
+      smtp_auth_username: 'alerts@social-cms.com'
+      smtp_auth_password: 'password'  # Use secret in production
+
+      # Slack configuration
+      slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+      # Default templates
+      resolve_timeout: 5m
+
+    # Templates for custom alert formatting
+    templates:
+    - '/etc/alertmanager/templates/*.tmpl'
+
+    # Route tree for determining how to handle alerts
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'default-receiver'
+      routes:
+
+      # Critical business alerts - immediate notification
+      - match:
+          severity: critical
+        receiver: 'critical-alerts'
+        group_wait: 0s
+        repeat_interval: 15m
+        routes:
+        - match:
+            alertname: 'PublishingSystemDown'
+          receiver: 'publishing-critical'
+        - match:
+            alertname: 'ProviderAPIDown'
+          receiver: 'provider-critical'
+        - match:
+            alertname: 'DatabaseDown'
+          receiver: 'database-critical'
+
+      # High severity alerts - quick notification
+      - match:
+          severity: high
+        receiver: 'high-severity-alerts'
+        group_wait: 30s
+        repeat_interval: 30m
+        routes:
+        - match:
+            alertname: 'HighErrorRate'
+          receiver: 'error-rate-high'
+        - match:
+            alertname: 'HighLatency'
+          receiver: 'latency-high'
+        - match:
+            alertname: 'QueueBacklog'
+          receiver: 'queue-alerts'
+
+      # Business KPI alerts
+      - match:
+          category: 'business'
+        receiver: 'business-alerts'
+        group_wait: 1m
+        repeat_interval: 2h
+        routes:
+        - match:
+            alertname: 'LowPublishingSuccessRate'
+          receiver: 'publishing-business'
+        - match:
+            alertname: 'HighUserChurn'
+          receiver: 'user-retention-alerts'
+        - match:
+            alertname: 'RevenueDropAlert'
+          receiver: 'revenue-alerts'
+
+      # Provider-specific alerts
+      - match_re:
+          provider: '(twitter|instagram|facebook|linkedin)'
+        receiver: 'provider-alerts'
+        group_wait: 30s
+        repeat_interval: 45m
+
+      # Security alerts
+      - match:
+          category: 'security'
+        receiver: 'security-alerts'
+        group_wait: 0s
+        repeat_interval: 10m
+
+      # Development and staging alerts
+      - match:
+          environment: 'development'
+        receiver: 'dev-alerts'
+        group_wait: 2m
+        repeat_interval: 24h
+
+    # Inhibition rules to reduce noise
+    inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      equal: ['alertname', 'cluster', 'service']
+
+    - source_match:
+        alertname: 'DatabaseDown'
+      target_match_re:
+        alertname: '(HighLatency|HighErrorRate)'
+
+    - source_match:
+        alertname: 'PublishingSystemDown'
+      target_match_re:
+        alertname: '(LowPublishingSuccessRate|HighQueueDepth)'
+
+    # Receivers define how and where to send alerts
+    receivers:
+
+    - name: 'default-receiver'
+      email_configs:
+      - to: 'devops@social-cms.com'
+        subject: '[SocialCMS] Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Time: {{ .StartsAt }}
+          {{ end }}
+
+    - name: 'critical-alerts'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/CRITICAL/WEBHOOK'
+        channel: '#alerts-critical'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Service:* {{ .Labels.service }}
+          *Environment:* {{ .Labels.environment }}
+          *Time:* {{ .StartsAt }}
+          {{ if .Labels.runbook_url }}*Runbook:* {{ .Labels.runbook_url }}{{ end }}
+          {{ end }}
+      email_configs:
+      - to: 'oncall@social-cms.com,cto@social-cms.com'
+        subject: '🚨 CRITICAL ALERT: {{ .GroupLabels.alertname }}'
+        body: |
+          CRITICAL ALERT TRIGGERED
+
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Service: {{ .Labels.service }}
+          Environment: {{ .Labels.environment }}
+          Started: {{ .StartsAt }}
+          {{ if .Labels.runbook_url }}
+          Runbook: {{ .Labels.runbook_url }}
+          {{ end }}
+          {{ end }}
+
+          Please check Grafana dashboards and Jaeger traces for more details.
+
+    - name: 'publishing-critical'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/PUBLISHING/WEBHOOK'
+        channel: '#publishing-alerts'
+        title: '📤 PUBLISHING SYSTEM CRITICAL'
+        text: 'Publishing system is down! All content publishing has stopped.'
+      webhook_configs:
+      - url: 'http://social-cms-api:3000/alerts/webhook/publishing-critical'
+        http_config:
+          basic_auth:
+            username: 'alertmanager'
+            password: 'webhook-secret'
+
+    - name: 'provider-critical'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/PROVIDER/WEBHOOK'
+        channel: '#provider-alerts'
+        title: '🔗 SOCIAL PROVIDER API DOWN'
+        text: |
+          {{ range .Alerts }}
+          Provider {{ .Labels.provider }} API is down!
+          This affects all publishing to this platform.
+          {{ end }}
+
+    - name: 'database-critical'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/DATABASE/WEBHOOK'
+        channel: '#database-alerts'
+        title: '💾 DATABASE CRITICAL ISSUE'
+        text: 'Database connectivity lost! System functionality severely impacted.'
+
+    - name: 'high-severity-alerts'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/HIGH/WEBHOOK'
+        channel: '#alerts-high'
+        title: '⚠️ High Severity: {{ .GroupLabels.alertname }}'
+
+    - name: 'error-rate-high'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/ERRORS/WEBHOOK'
+        channel: '#error-monitoring'
+        title: '🔥 High Error Rate Detected'
+        text: |
+          {{ range .Alerts }}
+          Error rate is {{ .Annotations.value }}% for service {{ .Labels.service }}
+          Threshold: {{ .Annotations.threshold }}%
+          {{ end }}
+
+    - name: 'latency-high'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/LATENCY/WEBHOOK'
+        channel: '#performance-alerts'
+        title: '🐌 High Latency Alert'
+
+    - name: 'queue-alerts'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/QUEUE/WEBHOOK'
+        channel: '#queue-monitoring'
+        title: '📬 Queue Processing Alert'
+
+    - name: 'business-alerts'
+      email_configs:
+      - to: 'business@social-cms.com,product@social-cms.com'
+        subject: '[SocialCMS Business Alert] {{ .GroupLabels.alertname }}'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/BUSINESS/WEBHOOK'
+        channel: '#business-alerts'
+        title: '📊 Business Metric Alert'
+
+    - name: 'publishing-business'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/BUSINESS/WEBHOOK'
+        channel: '#business-alerts'
+        title: '📤 Publishing Success Rate Drop'
+        text: |
+          Publishing success rate has dropped below acceptable levels.
+          This may impact customer satisfaction and retention.
+
+    - name: 'user-retention-alerts'
+      email_configs:
+      - to: 'product@social-cms.com,growth@social-cms.com'
+        subject: '[SocialCMS] User Retention Alert'
+
+    - name: 'revenue-alerts'
+      email_configs:
+      - to: 'finance@social-cms.com,ceo@social-cms.com'
+        subject: '[SocialCMS] Revenue Alert'
+
+    - name: 'provider-alerts'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/PROVIDER/WEBHOOK'
+        channel: '#provider-monitoring'
+        title: '🔗 Social Provider Issue'
+
+    - name: 'security-alerts'
+      email_configs:
+      - to: 'security@social-cms.com'
+        subject: '[SocialCMS SECURITY] {{ .GroupLabels.alertname }}'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SECURITY/WEBHOOK'
+        channel: '#security-alerts'
+        title: '🔒 Security Alert'
+        text: 'Potential security incident detected. Immediate investigation required.'
+
+    - name: 'dev-alerts'
+      slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/DEV/WEBHOOK'
+        channel: '#dev-alerts'
+        title: '🛠️ Development Environment Alert'
+
+  # Custom alert templates
+  social-cms-templates.tmpl: |
+    {{ define "social-cms.title" }}
+    [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.SortedPairs.Values | join " " }} {{ if gt (len .CommonLabels) (len .GroupLabels) }}({{ with .CommonLabels.Remove .GroupLabels.Names }}{{ .Values | join " " }}{{ end }}){{ end }}
+    {{ end }}
+
+    {{ define "social-cms.slack.text" }}
+    {{ range .Alerts }}
+    *Alert:* {{ .Annotations.summary }}{{ if .Labels.severity }} - Severity: `{{ .Labels.severity }}`{{ end }}
+    *Description:* {{ .Annotations.description }}
+    *Details:*
+      • Service: `{{ .Labels.service | default "unknown" }}`
+      • Environment: `{{ .Labels.environment | default "unknown" }}`
+      • Provider: `{{ .Labels.provider | default "N/A" }}`
+      • Tenant: `{{ .Labels.tenant_id | default "N/A" }}`
+    {{ if .Labels.runbook_url }}*Runbook:* {{ .Labels.runbook_url }}{{ end }}
+    {{ if .Labels.dashboard_url }}*Dashboard:* {{ .Labels.dashboard_url }}{{ end }}
+    *Started:* {{ .StartsAt | date "2006-01-02 15:04:05 UTC" }}
+    {{ end }}
+    {{ end }}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alertmanager-ingress
+  namespace: omni-post
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: alertmanager-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Authentication Required - Alertmanager"
+spec:
+  rules:
+    - host: alertmanager.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: alertmanager-service
+                port:
+                  number: 9093
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-basic-auth
+  namespace: omni-post
+type: Opaque
+data:
+  auth: YWRtaW46JGFwcjEkSDVXV1N6clMkRXkwbUR5WGVGTmlSMzBMbEU5WGFwMQo= # admin:admin123

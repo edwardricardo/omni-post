@@ -1,0 +1,766 @@
+{
+  "testDuration": 60102,
+  "snapshots": [
+    {
+      "timestamp": 1771786818843,
+      "heapUsed": 9551304,
+      "heapTotal": 17928192,
+      "external": 2443121,
+      "arrayBuffers": 39804,
+      "rss": 116994048,
+      "cpu": {
+        "user": 311310,
+        "system": 59867
+      },
+      "gc": {
+        "totalGCTime": 0,
+        "gcFrequency": 0,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0
+      }
+    },
+    {
+      "timestamp": 1771786820843,
+      "heapUsed": 9767488,
+      "heapTotal": 17928192,
+      "external": 2443177,
+      "arrayBuffers": 39820,
+      "rss": 116994048,
+      "cpu": {
+        "user": 316207,
+        "system": 59867
+      },
+      "gc": {
+        "totalGCTime": 0,
+        "gcFrequency": 0,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0
+      }
+    },
+    {
+      "timestamp": 1771786822843,
+      "heapUsed": 9965016,
+      "heapTotal": 17928192,
+      "external": 2443177,
+      "arrayBuffers": 39820,
+      "rss": 117125120,
+      "cpu": {
+        "user": 319198,
+        "system": 62282
+      },
+      "gc": {
+        "totalGCTime": 0,
+        "gcFrequency": 0,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0
+      }
+    },
+    {
+      "timestamp": 1771786824843,
+      "heapUsed": 8745200,
+      "heapTotal": 10850304,
+      "external": 2420280,
+      "arrayBuffers": 16923,
+      "rss": 112095232,
+      "cpu": {
+        "user": 353323,
+        "system": 70664
+      },
+      "gc": {
+        "totalGCTime": 3.00308096408844,
+        "gcFrequency": 2,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 2.6322529911994934
+      }
+    },
+    {
+      "timestamp": 1771786826842,
+      "heapUsed": 8925816,
+      "heapTotal": 11112448,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 104632320,
+      "cpu": {
+        "user": 442024,
+        "system": 81105
+      },
+      "gc": {
+        "totalGCTime": 4.544119954109192,
+        "gcFrequency": 4,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 1.1945980191230774
+      }
+    },
+    {
+      "timestamp": 1771786828843,
+      "heapUsed": 9126984,
+      "heapTotal": 11112448,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 104763392,
+      "cpu": {
+        "user": 446179,
+        "system": 81105
+      },
+      "gc": {
+        "totalGCTime": 4.544119954109192,
+        "gcFrequency": 4,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 1.1945980191230774
+      }
+    },
+    {
+      "timestamp": 1771786830843,
+      "heapUsed": 9325960,
+      "heapTotal": 11112448,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 104894464,
+      "cpu": {
+        "user": 449956,
+        "system": 81105
+      },
+      "gc": {
+        "totalGCTime": 4.544119954109192,
+        "gcFrequency": 4,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 1.1945980191230774
+      }
+    },
+    {
+      "timestamp": 1771786832844,
+      "heapUsed": 9524680,
+      "heapTotal": 11112448,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 105025536,
+      "cpu": {
+        "user": 454016,
+        "system": 81105
+      },
+      "gc": {
+        "totalGCTime": 4.544119954109192,
+        "gcFrequency": 4,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 1.1945980191230774
+      }
+    },
+    {
+      "timestamp": 1771786834844,
+      "heapUsed": 9583416,
+      "heapTotal": 12161024,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 105943040,
+      "cpu": {
+        "user": 459916,
+        "system": 81105
+      },
+      "gc": {
+        "totalGCTime": 5.185082972049713,
+        "gcFrequency": 5,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.6409630179405212
+      }
+    },
+    {
+      "timestamp": 1771786836843,
+      "heapUsed": 9794232,
+      "heapTotal": 11636736,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 106598400,
+      "cpu": {
+        "user": 466149,
+        "system": 81105
+      },
+      "gc": {
+        "totalGCTime": 6.3630629777908325,
+        "gcFrequency": 6,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 1.1779800057411194
+      }
+    },
+    {
+      "timestamp": 1771786838844,
+      "heapUsed": 9993240,
+      "heapTotal": 11636736,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 106598400,
+      "cpu": {
+        "user": 470742,
+        "system": 81162
+      },
+      "gc": {
+        "totalGCTime": 6.3630629777908325,
+        "gcFrequency": 6,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 1.1779800057411194
+      }
+    },
+    {
+      "timestamp": 1771786840844,
+      "heapUsed": 10195704,
+      "heapTotal": 11636736,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 106729472,
+      "cpu": {
+        "user": 474858,
+        "system": 81872
+      },
+      "gc": {
+        "totalGCTime": 6.3630629777908325,
+        "gcFrequency": 6,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 1.1779800057411194
+      }
+    },
+    {
+      "timestamp": 1771786842844,
+      "heapUsed": 10242232,
+      "heapTotal": 12685312,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 106991616,
+      "cpu": {
+        "user": 479599,
+        "system": 82689
+      },
+      "gc": {
+        "totalGCTime": 6.986940979957581,
+        "gcFrequency": 7,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.623878002166748
+      }
+    },
+    {
+      "timestamp": 1771786844845,
+      "heapUsed": 10451584,
+      "heapTotal": 12161024,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 107646976,
+      "cpu": {
+        "user": 485304,
+        "system": 83673
+      },
+      "gc": {
+        "totalGCTime": 7.808791995048523,
+        "gcFrequency": 8,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.8218510150909424
+      }
+    },
+    {
+      "timestamp": 1771786846845,
+      "heapUsed": 10651416,
+      "heapTotal": 12161024,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 107646976,
+      "cpu": {
+        "user": 489545,
+        "system": 84404
+      },
+      "gc": {
+        "totalGCTime": 7.808791995048523,
+        "gcFrequency": 8,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.8218510150909424
+      }
+    },
+    {
+      "timestamp": 1771786848845,
+      "heapUsed": 10864912,
+      "heapTotal": 12161024,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 107646976,
+      "cpu": {
+        "user": 493661,
+        "system": 85113
+      },
+      "gc": {
+        "totalGCTime": 7.808791995048523,
+        "gcFrequency": 8,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.8218510150909424
+      }
+    },
+    {
+      "timestamp": 1771786850845,
+      "heapUsed": 10957472,
+      "heapTotal": 13471744,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 107909120,
+      "cpu": {
+        "user": 498967,
+        "system": 85293
+      },
+      "gc": {
+        "totalGCTime": 8.681497991085052,
+        "gcFrequency": 9,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.8727059960365295
+      }
+    },
+    {
+      "timestamp": 1771786852845,
+      "heapUsed": 11183048,
+      "heapTotal": 13471744,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 107909120,
+      "cpu": {
+        "user": 504242,
+        "system": 85293
+      },
+      "gc": {
+        "totalGCTime": 8.681497991085052,
+        "gcFrequency": 9,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.8727059960365295
+      }
+    },
+    {
+      "timestamp": 1771786854845,
+      "heapUsed": 11300312,
+      "heapTotal": 12947456,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 108433408,
+      "cpu": {
+        "user": 509418,
+        "system": 85616
+      },
+      "gc": {
+        "totalGCTime": 9.357978999614716,
+        "gcFrequency": 10,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.6764810085296631
+      }
+    },
+    {
+      "timestamp": 1771786856845,
+      "heapUsed": 11501520,
+      "heapTotal": 12947456,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 108433408,
+      "cpu": {
+        "user": 509763,
+        "system": 89958
+      },
+      "gc": {
+        "totalGCTime": 9.357978999614716,
+        "gcFrequency": 10,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.6764810085296631
+      }
+    },
+    {
+      "timestamp": 1771786858844,
+      "heapUsed": 11708840,
+      "heapTotal": 12947456,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 108433408,
+      "cpu": {
+        "user": 510909,
+        "system": 93666
+      },
+      "gc": {
+        "totalGCTime": 9.357978999614716,
+        "gcFrequency": 10,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.6764810085296631
+      }
+    },
+    {
+      "timestamp": 1771786860846,
+      "heapUsed": 11806352,
+      "heapTotal": 14258176,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 108695552,
+      "cpu": {
+        "user": 516351,
+        "system": 93882
+      },
+      "gc": {
+        "totalGCTime": 9.867727994918823,
+        "gcFrequency": 11,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.5097489953041077
+      }
+    },
+    {
+      "timestamp": 1771786862845,
+      "heapUsed": 12005864,
+      "heapTotal": 14258176,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 108695552,
+      "cpu": {
+        "user": 521410,
+        "system": 94024
+      },
+      "gc": {
+        "totalGCTime": 9.867727994918823,
+        "gcFrequency": 11,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.5097489953041077
+      }
+    },
+    {
+      "timestamp": 1771786864846,
+      "heapUsed": 12177488,
+      "heapTotal": 13733888,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 109219840,
+      "cpu": {
+        "user": 522825,
+        "system": 98372
+      },
+      "gc": {
+        "totalGCTime": 10.754596948623657,
+        "gcFrequency": 12,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.886868953704834
+      }
+    },
+    {
+      "timestamp": 1771786866846,
+      "heapUsed": 12376864,
+      "heapTotal": 13733888,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 109219840,
+      "cpu": {
+        "user": 523373,
+        "system": 102121
+      },
+      "gc": {
+        "totalGCTime": 10.754596948623657,
+        "gcFrequency": 12,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.886868953704834
+      }
+    },
+    {
+      "timestamp": 1771786868845,
+      "heapUsed": 12452296,
+      "heapTotal": 15044608,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 109613056,
+      "cpu": {
+        "user": 525713,
+        "system": 105142
+      },
+      "gc": {
+        "totalGCTime": 11.446217954158783,
+        "gcFrequency": 13,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.6916210055351257
+      }
+    },
+    {
+      "timestamp": 1771786870845,
+      "heapUsed": 12655904,
+      "heapTotal": 15044608,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 109613056,
+      "cpu": {
+        "user": 529395,
+        "system": 105879
+      },
+      "gc": {
+        "totalGCTime": 11.446217954158783,
+        "gcFrequency": 13,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.6916210055351257
+      }
+    },
+    {
+      "timestamp": 1771786872846,
+      "heapUsed": 12822064,
+      "heapTotal": 14520320,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 110268416,
+      "cpu": {
+        "user": 531381,
+        "system": 110361
+      },
+      "gc": {
+        "totalGCTime": 12.121485948562622,
+        "gcFrequency": 14,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.6752679944038391
+      }
+    },
+    {
+      "timestamp": 1771786874846,
+      "heapUsed": 13021440,
+      "heapTotal": 14520320,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 110268416,
+      "cpu": {
+        "user": 532548,
+        "system": 114117
+      },
+      "gc": {
+        "totalGCTime": 12.121485948562622,
+        "gcFrequency": 14,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.6752679944038391
+      }
+    },
+    {
+      "timestamp": 1771786876846,
+      "heapUsed": 13143808,
+      "heapTotal": 15831040,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 110661632,
+      "cpu": {
+        "user": 538588,
+        "system": 114503
+      },
+      "gc": {
+        "totalGCTime": 12.846227943897247,
+        "gcFrequency": 15,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.7247419953346252
+      }
+    },
+    {
+      "timestamp": 1771786876942,
+      "heapUsed": 13150952,
+      "heapTotal": 15831040,
+      "external": 2420280,
+      "arrayBuffers": 16915,
+      "rss": 110661632,
+      "cpu": {
+        "user": 539699,
+        "system": 114739
+      },
+      "gc": {
+        "totalGCTime": 12.846227943897247,
+        "gcFrequency": 15,
+        "gcTypes": {
+          "1": 11,
+          "4": 2,
+          "8": 2
+        },
+        "lastGCDuration": 0.7247419953346252
+      }
+    }
+  ],
+  "analysis": {
+    "memoryGrowthRate": 212.7129665662275,
+    "peakMemoryUsage": 12.541725158691406,
+    "memoryEfficiency": 82.05681820250099,
+    "gcPressure": 0.021373688408061572,
+    "trendAnalysis": {
+      "pattern": "linear_growth",
+      "confidence": 0.8,
+      "prediction": 511.92991411762847
+    },
+    "anomalies": [
+      {
+        "timestamp": 1771786860846,
+        "type": "plateau_shift",
+        "severity": 1.4443798914808337,
+        "description": "Memory plateau shift: 9.04MB → 10.40MB"
+      },
+      {
+        "timestamp": 1771786862845,
+        "type": "plateau_shift",
+        "severity": 1.5487954829780972,
+        "description": "Memory plateau shift: 9.08MB → 10.55MB"
+      },
+      {
+        "timestamp": 1771786864846,
+        "type": "plateau_shift",
+        "severity": 1.735704974685614,
+        "description": "Memory plateau shift: 9.10MB → 10.72MB"
+      },
+      {
+        "timestamp": 1771786866846,
+        "type": "plateau_shift",
+        "severity": 1.756687543876092,
+        "description": "Memory plateau shift: 9.27MB → 10.89MB"
+      },
+      {
+        "timestamp": 1771786868845,
+        "type": "plateau_shift",
+        "severity": 1.7411444271578236,
+        "description": "Memory plateau shift: 9.43MB → 11.05MB"
+      },
+      {
+        "timestamp": 1771786870845,
+        "type": "plateau_shift",
+        "severity": 1.7362047419245663,
+        "description": "Memory plateau shift: 9.60MB → 11.20MB"
+      },
+      {
+        "timestamp": 1771786872846,
+        "type": "plateau_shift",
+        "severity": 1.775758794958127,
+        "description": "Memory plateau shift: 9.75MB → 11.36MB"
+      },
+      {
+        "timestamp": 1771786874846,
+        "type": "plateau_shift",
+        "severity": 1.7689287926678938,
+        "description": "Memory plateau shift: 9.91MB → 11.52MB"
+      },
+      {
+        "timestamp": 1771786876846,
+        "type": "plateau_shift",
+        "severity": 1.7773498251266795,
+        "description": "Memory plateau shift: 10.07MB → 11.69MB"
+      },
+      {
+        "timestamp": 1771786876942,
+        "type": "plateau_shift",
+        "severity": 1.7865784474423305,
+        "description": "Memory plateau shift: 10.24MB → 11.84MB"
+      }
+    ]
+  },
+  "recommendations": [
+    "🚨 High memory growth rate detected. Check for memory leaks in event listeners, closures, or cached objects.",
+    "📊 Multiple memory anomalies detected. Review code for irregular memory allocation patterns."
+  ],
+  "leakDetected": true,
+  "severity": "critical"
+}

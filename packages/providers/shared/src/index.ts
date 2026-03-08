@@ -1,0 +1,21 @@
+// Abstract Provider Adapter (class-based architecture)
+export { AbstractProviderAdapter } from "./AbstractProviderAdapter.js";
+
+// Structured provider errors
+export { ProviderError, ProviderErrorCode } from "./ProviderError.js";
+
+// Export types from AbstractProviderAdapter
+export type {
+  ProviderCredentials,
+  MediaUploadResult,
+  MediaUploadOptions,
+  ProviderMetadata,
+  ProviderConstraints,
+  ProviderAuthType,
+  ContentValidationResult,
+  ProviderPreview,
+  ConnectionConfig,
+  ProviderCapabilities,
+  HealthCheckResult,
+  AccountInfo,
+} from "./AbstractProviderAdapter.js";

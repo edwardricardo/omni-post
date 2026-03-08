@@ -1,0 +1,26 @@
+# Coverage reports
+coverage/
+.nyc_output/
+*.lcov
+
+# Test artifacts
+test-results/
+test-report.xml
+junit.xml
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Runtime files
+*.pid
+*.log

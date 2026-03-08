@@ -1,0 +1,336 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: omni-post-ingress
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+    # Ingress controller specific annotations
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/use-regex: "true"
+
+    # SSL/TLS configuration
+    cert-manager.io/cluster-issuer: letsencrypt-production
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Content-Type-Options nosniff;
+      add_header X-Frame-Options DENY;
+      add_header X-XSS-Protection "1; mode=block";
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+      add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin";
+
+    # Rate limiting
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/rate-limit-rps: "2"
+
+    # Connection and timeout settings
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+
+    # Session affinity
+    nginx.ingress.kubernetes.io/session-cookie-name: "route"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "86400"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
+    nginx.ingress.kubernetes.io/session-cookie-path: "/"
+
+    # CORS configuration
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.omni-post.com,https://admin.omni-post.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+
+    # Load balancing
+    nginx.ingress.kubernetes.io/upstream-vhost: "$service_name.$namespace.svc.cluster.local"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+
+    # Custom error pages
+    nginx.ingress.kubernetes.io/custom-http-errors: "404,503"
+    nginx.ingress.kubernetes.io/default-backend: error-page-service
+
+spec:
+  ingressClassName: nginx
+
+  tls:
+    - hosts:
+        - api.omni-post.com
+        - app.omni-post.com
+        - admin.omni-post.com
+      secretName: tls-secret
+
+  rules:
+    # API Server
+    - host: api.omni-post.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 3000
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 3000
+          - path: /metrics
+            pathType: Exact
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 9090
+
+    # Client Application
+    - host: app.omni-post.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: client-service
+                port:
+                  number: 3200
+          - path: /api/health
+            pathType: Exact
+            backend:
+              service:
+                name: client-service
+                port:
+                  number: 3200
+          # Proxy API calls to backend
+          - path: /api/(?!health).*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 3000
+
+    # Admin Dashboard
+    - host: admin.omni-post.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-service
+                port:
+                  number: 3100
+          - path: /api/health
+            pathType: Exact
+            backend:
+              service:
+                name: admin-service
+                port:
+                  number: 3100
+          # Proxy API calls to backend
+          - path: /api/(?!health).*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 3000
+
+---
+# Error page service for custom error responses
+apiVersion: v1
+kind: Service
+metadata:
+  name: error-page-service
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: error-pages
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: error-pages
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: error-page-deployment
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: error-pages
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: omni-post
+      app.kubernetes.io/component: error-pages
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: omni-post
+        app.kubernetes.io/component: error-pages
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+        - name: error-pages
+          image: nginx:1.25-alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: error-pages-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: error-pages-html
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+      volumes:
+        - name: error-pages-config
+          configMap:
+            name: error-pages-config
+        - name: error-pages-html
+          configMap:
+            name: error-pages-html
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: error-pages-config
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: error-pages
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        server {
+            listen 8080;
+            server_name _;
+            root /usr/share/nginx/html;
+
+            error_page 404 /404.html;
+            error_page 503 /503.html;
+
+            location / {
+                try_files $uri $uri/ =404;
+            }
+        }
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: error-pages-html
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: error-pages
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+data:
+  404.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>404 - Page Not Found</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; margin-top: 100px; }
+            h1 { color: #e74c3c; }
+        </style>
+    </head>
+    <body>
+        <h1>404 - Page Not Found</h1>
+        <p>The requested page could not be found.</p>
+        <p><a href="/">Return to homepage</a></p>
+    </body>
+    </html>
+
+  503.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>503 - Service Unavailable</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; margin-top: 100px; }
+            h1 { color: #f39c12; }
+        </style>
+    </head>
+    <body>
+        <h1>503 - Service Unavailable</h1>
+        <p>The service is temporarily unavailable. Please try again later.</p>
+        <p><a href="/">Return to homepage</a></p>
+    </body>
+    </html>

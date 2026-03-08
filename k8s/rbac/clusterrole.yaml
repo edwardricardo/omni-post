@@ -1,0 +1,107 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: omni-post-clusterrole
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+rules:
+  # Minimal permissions for application functionality
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+    resourceNames:
+      - "app-config"
+      - "app-secrets"
+      - "postgres-config"
+      - "redis-config"
+
+  # Service discovery
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+
+  # Pod information (for health checks and service mesh)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+  # Metrics collection
+  - apiGroups: [""]
+    resources: ["nodes", "pods", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+
+  # Custom Resource Definitions (for service mesh, monitoring)
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+
+  # Networking (for ingress controllers, service mesh)
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies", "ingresses"]
+    verbs: ["get", "list", "watch"]
+
+  # Monitoring and observability
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors", "podmonitors"]
+    verbs: ["get", "list", "watch"]
+
+  # Istio service mesh (if enabled)
+  - apiGroups: ["networking.istio.io"]
+    resources: ["virtualservices", "destinationrules", "gateways"]
+    verbs: ["get", "list", "watch"]
+
+  # Cert-manager (for TLS certificate management)
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates", "issuers", "clusterissuers"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: omni-post-role
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+rules:
+  # Namespace-scoped permissions
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # Deployment management (for rolling updates)
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+
+  # Service management
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # Pod management (for scaling, health checks)
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/status"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+
+  # Events (for debugging and monitoring)
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "create"]
+
+  # Horizontal Pod Autoscaler
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # Ingress management
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]

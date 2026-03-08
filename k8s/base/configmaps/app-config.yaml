@@ -1,0 +1,156 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: config
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  # Application Configuration
+  NODE_ENV: "production"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+  # Port Configuration
+  API_PORT: "3000"
+  ADMIN_PORT: "3100"
+  CLIENT_PORT: "3200"
+
+  # Service URLs (internal cluster communication)
+  API_BASE_URL: "http://api-service.omni-post.svc.cluster.local:3000"
+  POSTGRES_HOST: "postgres-service.omni-post.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "omnipostdb"
+  REDIS_HOST: "redis-service.omni-post.svc.cluster.local"
+  REDIS_PORT: "6379"
+
+  # Application Settings
+  API_RATE_LIMIT: "1000"
+  WORKER_CONCURRENCY: "5"
+
+  # Cache Configuration
+  REDIS_TTL: "3600"
+  REDIS_MAX_MEMORY: "512mb"
+  REDIS_EVICTION_POLICY: "allkeys-lru"
+
+  # Monitoring and Observability
+  PROMETHEUS_METRICS_ENABLED: "true"
+  PROMETHEUS_METRICS_PATH: "/metrics"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+
+  # Security Settings
+  CORS_ORIGIN: "https://app.omni-post.com,https://admin.omni-post.com"
+  SECURE_COOKIES: "true"
+  CSRF_PROTECTION: "true"
+
+  # Feature Flags
+  FEATURE_ANALYTICS: "true"
+  FEATURE_MULTI_TENANT: "true"
+  FEATURE_RATE_LIMITING: "true"
+
+  # Performance Tuning
+  NODE_OPTIONS: "--max-old-space-size=512"
+  UV_THREADPOOL_SIZE: "16"
+
+  # Database Connection Pool
+  DB_POOL_MIN: "2"
+  DB_POOL_MAX: "10"
+  DB_POOL_IDLE_TIMEOUT: "30000"
+  DB_POOL_ACQUIRE_TIMEOUT: "60000"
+
+  # Health Check Configuration
+  HEALTH_CHECK_INTERVAL: "30"
+  HEALTH_CHECK_TIMEOUT: "10"
+  HEALTH_CHECK_RETRIES: "3"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  # PostgreSQL Configuration
+  POSTGRES_DB: "omnipostdb"
+  POSTGRES_USER: "postgres"
+  POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+
+  # Performance Configuration
+  shared_preload_libraries: "pg_stat_statements"
+  max_connections: "100"
+  shared_buffers: "256MB"
+  effective_cache_size: "1GB"
+  maintenance_work_mem: "64MB"
+  checkpoint_completion_target: "0.9"
+  wal_buffers: "16MB"
+  default_statistics_target: "100"
+  random_page_cost: "1.1"
+  effective_io_concurrency: "200"
+  work_mem: "4MB"
+  min_wal_size: "1GB"
+  max_wal_size: "4GB"
+
+  # Logging Configuration
+  log_statement: "mod"
+  log_min_duration_statement: "1000"
+  log_checkpoints: "on"
+  log_connections: "on"
+  log_disconnections: "on"
+  log_lock_waits: "on"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  redis.conf: |
+    # Network configuration
+    bind 0.0.0.0
+    protected-mode yes
+    port 6379
+
+    # Memory configuration
+    maxmemory 512mb
+    maxmemory-policy allkeys-lru
+
+    # Persistence configuration
+    save 900 1
+    save 300 10
+    save 60 10000
+    stop-writes-on-bgsave-error yes
+    rdbcompression yes
+    rdbchecksum yes
+    dbfilename dump.rdb
+    dir /data
+
+    # Security
+    requirepass REDIS_PASSWORD_PLACEHOLDER
+
+    # Performance
+    timeout 300
+    tcp-keepalive 300
+    tcp-backlog 511
+
+    # Logging
+    loglevel notice
+    logfile ""
+
+    # Slow log
+    slowlog-log-slower-than 10000
+    slowlog-max-len 128

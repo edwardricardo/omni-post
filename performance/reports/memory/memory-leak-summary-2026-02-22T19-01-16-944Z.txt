@@ -1,0 +1,45 @@
+
+Memory Leak Detection Report
+============================
+
+Test Duration: 1.00 minutes
+Snapshots Collected: 31
+Leak Detected: YES
+Severity: CRITICAL
+
+Memory Metrics:
+- Growth Rate: 212.71 MB/hour
+- Peak Usage: 12.54 MB
+- Memory Efficiency: 82.1%
+- GC Pressure: 0.02%
+
+Trend Analysis:
+- Pattern: linear_growth
+- Confidence: 80.0%
+- Predicted Usage (1h): 511.93 MB
+
+Anomalies Detected: 10
+- Memory plateau shift: 9.04MB → 10.40MB
+- Memory plateau shift: 9.08MB → 10.55MB
+- Memory plateau shift: 9.10MB → 10.72MB
+- Memory plateau shift: 9.27MB → 10.89MB
+- Memory plateau shift: 9.43MB → 11.05MB
+- Memory plateau shift: 9.60MB → 11.20MB
+- Memory plateau shift: 9.75MB → 11.36MB
+- Memory plateau shift: 9.91MB → 11.52MB
+- Memory plateau shift: 10.07MB → 11.69MB
+- Memory plateau shift: 10.24MB → 11.84MB
+
+Recommendations:
+- 🚨 High memory growth rate detected. Check for memory leaks in event listeners, closures, or cached objects.
+- 📊 Multiple memory anomalies detected. Review code for irregular memory allocation patterns.
+
+GC Statistics:
+- Total GC Time: 12.85ms
+- GC Frequency: 15 collections
+- Last GC Duration: 0.72ms
+- GC Types: {
+  "1": 11,
+  "4": 2,
+  "8": 2
+}

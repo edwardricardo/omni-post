@@ -1,0 +1,87 @@
+/**
+ * Application Layer - Exit Crisis Mode Use Case
+ *
+ * Part of Sprint 19: Crisis Mode Feature
+ * Handles exiting crisis mode for a project.
+ */
+
+import { type Result, ok, err } from "@shared/types";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { ProjectId, type EventDispatcher } from "../../domain/index.js";
+import {
+  type ExitCrisisModeInput,
+  type ExitCrisisModeOutput,
+  type CrisisProjectRepository,
+} from "./types.js";
+
+/**
+ * Exit Crisis Mode Use Case
+ *
+ * Deactivates crisis mode for a project, allowing scheduled posts to resume.
+ */
+export class ExitCrisisModeUseCase
+  implements UseCase<ExitCrisisModeInput, ExitCrisisModeOutput, UseCaseError>
+{
+  constructor(
+    private readonly projectRepository: CrisisProjectRepository,
+    private readonly eventDispatcher: EventDispatcher
+  ) {}
+
+  async execute(input: ExitCrisisModeInput): Promise<Result<ExitCrisisModeOutput, UseCaseError>> {
+    // Validate project ID
+    const projectIdResult = ProjectId.fromString(input.projectId);
+    if (!projectIdResult.ok) {
+      return err(
+        new UseCaseError(
+          `Invalid project ID: ${input.projectId}`,
+          USE_CASE_ERRORS.VALIDATION_FAILED
+        )
+      );
+    }
+
+    // Find the project
+    const findResult = await this.projectRepository.findById(projectIdResult.value);
+    if (!findResult.ok) {
+      return err(
+        new UseCaseError(
+          `Project not found: ${input.projectId}`,
+          USE_CASE_ERRORS.NOT_FOUND,
+          findResult.error
+        )
+      );
+    }
+
+    const project = findResult.value;
+
+    // Calculate duration before exiting
+    const duration = project.crisisDurationMs ?? 0;
+
+    // Exit crisis mode
+    const exited = project.exitCrisisMode();
+    if (!exited) {
+      return err(new UseCaseError("Project is not in crisis mode", USE_CASE_ERRORS.CONFLICT));
+    }
+
+    // Save the project
+    const saveResult = await this.projectRepository.save(project);
+    if (!saveResult.ok) {
+      return err(
+        new UseCaseError("Failed to save project", USE_CASE_ERRORS.INTERNAL_ERROR, saveResult.error)
+      );
+    }
+
+    // Dispatch domain events
+    const events = project.domainEvents;
+    if (events.length > 0) {
+      await this.eventDispatcher.dispatchAll([...events]);
+      project.clearDomainEvents();
+    }
+
+    // Return output
+    return ok({
+      projectId: project.id.value,
+      isInCrisisMode: false,
+      duration,
+    });
+  }
+}

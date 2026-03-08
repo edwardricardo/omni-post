@@ -1,0 +1,13 @@
+# API-specific service patch
+apiVersion: v1
+kind: Service
+metadata:
+  name: service # Will become api-service with namePrefix
+spec:
+  selector:
+    app.kubernetes.io/component: api
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP

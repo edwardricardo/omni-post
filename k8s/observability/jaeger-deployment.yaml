@@ -1,0 +1,245 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger-all-in-one
+  namespace: omni-post
+  labels:
+    app: jaeger
+    component: all-in-one
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+      component: all-in-one
+  template:
+    metadata:
+      labels:
+        app: jaeger
+        component: all-in-one
+    spec:
+      containers:
+        - name: jaeger
+          image: jaegertracing/all-in-one:1.60.0
+          env:
+            - name: COLLECTOR_OTLP_ENABLED
+              value: "true"
+            - name: COLLECTOR_ZIPKIN_HOST_PORT
+              value: ":9411"
+            - name: SPAN_STORAGE_TYPE
+              value: "elasticsearch"
+            - name: ES_SERVER_URLS
+              value: "http://elasticsearch:9200"
+            - name: ES_TAGS_AS_FIELDS_ALL
+              value: "true"
+            - name: ES_NUM_SHARDS
+              value: "1"
+            - name: ES_NUM_REPLICAS
+              value: "0"
+          ports:
+            - containerPort: 16686 # Jaeger UI
+              protocol: TCP
+            - containerPort: 14268 # HTTP collector
+              protocol: TCP
+            - containerPort: 14250 # gRPC collector
+              protocol: TCP
+            - containerPort: 4317 # OTLP gRPC receiver
+              protocol: TCP
+            - containerPort: 4318 # OTLP HTTP receiver
+              protocol: TCP
+            - containerPort: 9411 # Zipkin receiver
+              protocol: TCP
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 16686
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 16686
+            initialDelaySeconds: 15
+            periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-service
+  namespace: omni-post
+  labels:
+    app: jaeger
+    component: all-in-one
+spec:
+  type: ClusterIP
+  ports:
+    - name: jaeger-ui
+      port: 16686
+      targetPort: 16686
+      protocol: TCP
+    - name: jaeger-collector-http
+      port: 14268
+      targetPort: 14268
+      protocol: TCP
+    - name: jaeger-collector-grpc
+      port: 14250
+      targetPort: 14250
+      protocol: TCP
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    - name: zipkin
+      port: 9411
+      targetPort: 9411
+      protocol: TCP
+  selector:
+    app: jaeger
+    component: all-in-one
+
+---
+# Elasticsearch for Jaeger trace storage
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: omni-post
+  labels:
+    app: elasticsearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+          env:
+            - name: discovery.type
+              value: "single-node"
+            - name: ES_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+            - name: xpack.security.enabled
+              value: "false"
+            - name: xpack.security.enrollment.enabled
+              value: "false"
+          ports:
+            - containerPort: 9200
+              protocol: TCP
+            - containerPort: 9300
+              protocol: TCP
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: es-data
+              mountPath: /usr/share/elasticsearch/data
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 5
+      volumes:
+        - name: es-data
+          persistentVolumeClaim:
+            claimName: elasticsearch-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: omni-post
+  labels:
+    app: elasticsearch
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9200
+      targetPort: 9200
+      protocol: TCP
+    - name: transport
+      port: 9300
+      targetPort: 9300
+      protocol: TCP
+  selector:
+    app: elasticsearch
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-pvc
+  namespace: omni-post
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# Ingress for Jaeger UI
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jaeger-ingress
+  namespace: omni-post
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: jaeger-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Authentication Required - Jaeger Tracing"
+spec:
+  rules:
+    - host: jaeger.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jaeger-service
+                port:
+                  number: 16686
+
+---
+# Basic auth secret for Jaeger UI
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jaeger-basic-auth
+  namespace: omni-post
+type: Opaque
+data:
+  auth: YWRtaW46JGFwcjEkSDVXV1N6clMkRXkwbUR5WGVGTmlSMzBMbEU5WGFwMQo= # admin:admin123

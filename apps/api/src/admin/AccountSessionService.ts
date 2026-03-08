@@ -1,0 +1,207 @@
+/**
+ * Account Session Service
+ *
+ * Manages session and password operations for admin accounts.
+ * Extracted from AccountLifecycleService to reduce file size.
+ *
+ * Features:
+ * - Password reset with audit logging
+ * - Session listing for admin accounts
+ * - Bulk session revocation with security event logging
+ *
+ * @module admin/AccountSessionService
+ */
+
+import { ok, err, type Result } from "@shared/types";
+import { prisma } from "@infra/prisma";
+import { logger } from "../lib/logger.js";
+
+const adminLogger = logger.child({ module: "admin" });
+import type { AdminSession } from "@infra/prisma";
+import { AuditableService } from "../services/AuditableService.js";
+import argon2 from "argon2";
+import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { ResetPasswordRequest } from "./accountLifecycleTypes.js";
+
+export class AccountSessionService extends AuditableService {
+  constructor(private readonly userRepo: AdminUserRepositoryPort) {
+    super("AccountSessionService");
+  }
+
+  /**
+   * Reset account password (admin action)
+   */
+  async resetPassword(
+    accountId: string,
+    data: ResetPasswordRequest,
+    resetByUserId?: string
+  ): Promise<Result<void, "NOT_FOUND" | "VALIDATION_ERROR" | "DATABASE_ERROR">> {
+    try {
+      this.validateRequired(
+        { accountId, newPassword: data.newPassword },
+        "Account ID and password are required"
+      );
+
+      if (data.newPassword.length < 8) {
+        return err("VALIDATION_ERROR");
+      }
+
+      const userResult = await this.userRepo.findById(accountId);
+
+      if (!userResult.ok) {
+        return err("NOT_FOUND");
+      }
+
+      const user = userResult.value;
+
+      // Hash new password
+      const passwordHash = await argon2.hash(data.newPassword);
+
+      // Update password with audit logging
+      await this.executeWithAudit(
+        {
+          operation: "resetPassword",
+          ...(resetByUserId !== undefined && { userId: resetByUserId }),
+          accountId,
+        },
+        {
+          action: "RESOURCE_UPDATE",
+          category: "SECURITY",
+          resourceType: "AdminUser",
+          resourceId: accountId,
+          severity: "HIGH",
+        },
+        async () => {
+          await prisma.adminUser.update({
+            where: { id: accountId },
+            data: {
+              passwordHash,
+              passwordResetToken: data.requirePasswordChange ? "CHANGE_REQUIRED" : null,
+              passwordResetExpires: data.requirePasswordChange
+                ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+                : null, // 24 hours
+            },
+          });
+        }
+      );
+
+      // Log security event for password reset
+      if (resetByUserId) {
+        await this.logSecurityEvent(resetByUserId, accountId, {
+          action: "RESOURCE_UPDATE",
+          severity: "HIGH",
+          details: {
+            email: user.email,
+            action: "PASSWORD_RESET_ADMIN",
+            requirePasswordChange: data.requirePasswordChange,
+            resetBy: resetByUserId,
+          },
+        });
+      }
+
+      return ok(undefined);
+    } catch (error: unknown) {
+      adminLogger.error({ err: error }, "Reset password error");
+      return err("DATABASE_ERROR");
+    }
+  }
+
+  /**
+   * Get account sessions
+   */
+  async getAccountSessions(
+    accountId: string
+  ): Promise<Result<AdminSession[], "NOT_FOUND" | "DATABASE_ERROR">> {
+    try {
+      this.validateRequired({ accountId }, "Account ID is required");
+
+      const userResult = await this.userRepo.findById(accountId);
+
+      if (!userResult.ok) {
+        return err("NOT_FOUND");
+      }
+
+      const sessions = await prisma.adminSession.findMany({
+        where: { userId: accountId },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return ok(sessions);
+    } catch (error: unknown) {
+      adminLogger.error({ err: error }, "Get account sessions error");
+      return err("DATABASE_ERROR");
+    }
+  }
+
+  /**
+   * Revoke all sessions for an account
+   */
+  async revokeAllSessions(
+    accountId: string,
+    revokedByUserId?: string
+  ): Promise<Result<number, "NOT_FOUND" | "DATABASE_ERROR">> {
+    try {
+      this.validateRequired({ accountId }, "Account ID is required");
+
+      const userResult = await this.userRepo.findById(accountId);
+
+      if (!userResult.ok) {
+        return err("NOT_FOUND");
+      }
+
+      const user = userResult.value;
+
+      // Revoke sessions with audit logging
+      const count = await this.executeWithAudit(
+        {
+          operation: "revokeAllSessions",
+          ...(revokedByUserId !== undefined && { userId: revokedByUserId }),
+          accountId,
+        },
+        {
+          action: "RESOURCE_UPDATE",
+          category: "SECURITY",
+          resourceType: "AdminSession",
+          resourceId: accountId,
+          severity: "HIGH",
+        },
+        async () => {
+          const result = await prisma.adminSession.updateMany({
+            where: {
+              userId: accountId,
+              isActive: true,
+            },
+            data: {
+              isActive: false,
+              revokedAt: new Date(),
+            },
+          });
+          return result.count;
+        }
+      );
+
+      // Log security event for session revocation
+      if (revokedByUserId) {
+        await this.logSecurityEvent(revokedByUserId, accountId, {
+          action: "RESOURCE_UPDATE",
+          severity: "HIGH",
+          details: {
+            email: user.email,
+            action: "SESSIONS_REVOKED_ADMIN",
+            revokedSessions: count,
+            revokedBy: revokedByUserId,
+          },
+        });
+      }
+
+      return ok(count);
+    } catch (error: unknown) {
+      adminLogger.error({ err: error }, "Revoke sessions error");
+      return err("DATABASE_ERROR");
+    }
+  }
+}
+
+// NOTE: No module-level singleton. AccountSessionService is registered in
+// the DI container (TOKENS.AccountSessionService) and receives
+// AdminUserRepositoryPort via constructor injection. See setup.ts.

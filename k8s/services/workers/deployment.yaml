@@ -1,0 +1,278 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workers-deployment
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: workers
+    app.kubernetes.io/part-of: backend
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/version: "1.2.0"
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    deployment.kubernetes.io/revision: "1"
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: omni-post
+      app.kubernetes.io/component: workers
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: omni-post
+        app.kubernetes.io/component: workers
+        app.kubernetes.io/part-of: backend
+        app.kubernetes.io/version: "1.2.0"
+        # Service mesh labels
+        version: "1.2.0"
+        sidecar.istio.io/inject: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+        # Security annotations
+        container.apparmor.security.beta.kubernetes.io/workers: runtime/default
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+    spec:
+      serviceAccountName: omni-post-serviceaccount
+      automountServiceAccountToken: true
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532 # nonroot user from distroless
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: "OnRootMismatch"
+        seccompProfile:
+          type: RuntimeDefault
+        supplementalGroups: [65532]
+      # Pod placement and affinity
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: workers
+                topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/os
+                    operator: In
+                    values: ["linux"]
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values: ["amd64"]
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values: ["compute-optimized"]
+      # Tolerations for worker workloads
+      tolerations:
+        - key: "workers"
+          operator: "Equal"
+          value: "background-jobs"
+          effect: "NoSchedule"
+      # Init containers for dependencies
+      initContainers:
+        - name: wait-for-redis
+          image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 999
+            capabilities:
+              drop:
+                - ALL
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD ping; do
+                echo "Waiting for Redis to be ready..."
+                sleep 2
+              done
+              echo "Redis is ready!"
+          env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: REDIS_PORT
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: REDIS_PASSWORD
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+      containers:
+        - name: workers
+          image: omnipost-workers:1.2.0
+          imagePullPolicy: Always
+          # Security context for container
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities:
+              drop:
+                - ALL
+          # Environment variables from ConfigMap and Secrets
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          # Resource limits and requests
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          # Volume mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          # Health checks
+          livenessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - |
+                  const Redis = require('ioredis');
+                  const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+                  redis.ping()
+                    .then(() => {
+                      redis.disconnect();
+                      process.exit(0);
+                    })
+                    .catch((err) => {
+                      console.error('Health check failed:', err);
+                      process.exit(1);
+                    });
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - |
+                  const Redis = require('ioredis');
+                  const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+                  redis.ping()
+                    .then(() => {
+                      redis.disconnect();
+                      process.exit(0);
+                    })
+                    .catch((err) => {
+                      console.error('Readiness check failed:', err);
+                      process.exit(1);
+                    });
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          startupProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - |
+                  const Redis = require('ioredis');
+                  const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+                  redis.ping()
+                    .then(() => {
+                      redis.disconnect();
+                      process.exit(0);
+                    })
+                    .catch((err) => {
+                      console.error('Startup check failed:', err);
+                      process.exit(1);
+                    });
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 30
+            successThreshold: 1
+
+      # Volumes
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+      # Restart policy
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 60 # Allow time for jobs to complete
+
+      # Image pull secrets
+      imagePullSecrets:
+        - name: registry-secret
+
+      # DNS configuration
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
+          - name: edns0
+
+      # Priority class for background workloads
+      priorityClassName: medium-priority

@@ -1,0 +1,99 @@
+# Kustomization for Social Media CMS Platform
+# Production-ready Kubernetes deployment with GitOps support
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: omni-post-platform
+  annotations:
+    config.kubernetes.io/local-config: "true"
+
+namespace: omni-post
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: omni-post
+  app.kubernetes.io/version: "1.2.0"
+  app.kubernetes.io/managed-by: kustomize
+
+# Resource ordering for dependencies
+resources:
+  # Base configuration
+  - base/namespaces/namespace.yaml
+  - base/configmaps/app-config.yaml
+  - base/secrets/app-secrets.yaml
+
+  # RBAC and Security
+  - rbac/serviceaccount.yaml
+  - rbac/clusterrole.yaml
+  - rbac/clusterrolebinding.yaml
+  - security/network-policies.yaml
+  - security/pod-security-policy.yaml
+
+  # Storage
+  - storage/postgres-pvc.yaml
+  - storage/redis-pvc.yaml
+
+  # Infrastructure Services
+  - services/postgres/deployment.yaml
+  - services/postgres/service.yaml
+  - services/redis/deployment.yaml
+  - services/redis/service.yaml
+
+  # Application Services
+  - services/api/deployment.yaml
+  - services/api/service.yaml
+  - services/api/hpa.yaml
+  - services/workers/deployment.yaml
+  - services/admin/deployment.yaml
+  - services/admin/service.yaml
+  - services/admin/hpa.yaml
+  - services/client/deployment.yaml
+  - services/client/service.yaml
+  - services/client/hpa.yaml
+
+  # Ingress
+  - ingress/ingress.yaml
+
+  # Monitoring
+  - monitoring/servicemonitor.yaml
+
+# Image transformations for production
+images:
+  - name: omnipost-api
+    newTag: "1.2.0"
+  - name: omnipost-workers
+    newTag: "1.2.0"
+  - name: omnipost-admin
+    newTag: "1.2.0"
+  - name: omnipost-client
+    newTag: "1.2.0"
+
+# Configuration patches
+patchesStrategicMerge:
+  - patches/production-resources.yaml
+  - patches/security-context.yaml
+
+# Generate ConfigMap from environment files
+configMapGenerator:
+  - name: app-env-config
+    env: ../env/production.env
+    options:
+      disableNameSuffixHash: true
+
+# Generate Secret from environment files
+secretGenerator:
+  - name: app-secrets-env
+    env: ../env/secrets.env
+    options:
+      disableNameSuffixHash: true
+
+# Validation and transformations
+replicas:
+  - name: api-deployment
+    count: 3
+  - name: admin-deployment
+    count: 2
+  - name: client-deployment
+    count: 2

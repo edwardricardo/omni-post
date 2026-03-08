@@ -1,0 +1,161 @@
+# Docker ignore file for production builds
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Development files
+.env.local
+.env.development
+.env.test
+.env.example
+
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs (will be built inside container)
+.next/
+dist/
+build/
+out/
+
+# Testing
+coverage/
+.nyc_output
+test-results/
+playwright-report/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+.tsbuildinfo
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env*
+!.env.example
+
+# parcel-bundler cache (https://parceljs.org/)
+.parcel-cache
+
+# Next.js
+.next/
+out/
+
+# Nuxt.js
+.nuxt
+dist
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Security-sensitive files (2025 enhanced patterns)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+config.local.js
+*.local.yml
+*.local.json
+credentials.json
+auth.json
+secrets.json
+.aws/
+.npmrc
+
+# Infrastructure and deployment files
+terraform/
+ansible/
+k8s/
+kubernetes/
+infra/terraform/
+.terraform/
+*.tfstate
+*.tfvars
+Dockerfile*
+docker-compose*.yml
+
+# Monitoring and observability
+prometheus/
+grafana/
+jaeger/
+elastic/
+
+# Testing files
+test/
+tests/
+__tests__/
+*.test.*
+*.spec.*
+jest.config.*
+vitest.config.*
+playwright.config.*
+cypress.json
+cypress/
+
+# Additional backup and temporary patterns
+*.backup
+*.bak
+*.orig

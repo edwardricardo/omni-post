@@ -1,0 +1,231 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: omni-post-api
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: monitoring
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: omni-post
+      app.kubernetes.io/component: api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "go_.*"
+          action: drop
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: omni-post-postgres
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/part-of: monitoring
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: omni-post
+      app.kubernetes.io/component: postgres
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: omni-post-redis
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: monitoring
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: omni-post
+      app.kubernetes.io/component: redis
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: omni-post-frontend
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: monitoring
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: omni-post
+      app.kubernetes.io/part-of: frontend
+  endpoints:
+    - port: http
+      path: /api/metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+
+---
+# PrometheusRule for alerting
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: omni-post-alerts
+  namespace: omni-post
+  labels:
+    app.kubernetes.io/name: omni-post
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/managed-by: kustomize
+    prometheus: kube-prometheus
+    role: alert-rules
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  groups:
+    - name: omni-post.api
+      interval: 30s
+      rules:
+        - alert: HighErrorRate
+          expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High error rate detected"
+            description: "API error rate is {{ $value }} requests per second"
+
+        - alert: HighResponseTime
+          expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High response time detected"
+            description: "95th percentile response time is {{ $value }}s"
+
+        - alert: DatabaseConnectionsHigh
+          expr: pg_stat_activity_count > 80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High database connections"
+            description: "Database has {{ $value }} active connections"
+
+        - alert: RedisMemoryUsageHigh
+          expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Redis memory usage high"
+            description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+        - alert: PodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod crash looping"
+            description: "Pod {{ $labels.pod }} is crash looping"
+
+        - alert: PodNotReady
+          expr: kube_pod_status_ready{condition="false"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod not ready"
+            description: "Pod {{ $labels.pod }} is not ready"
+
+    - name: omni-post.resources
+      interval: 30s
+      rules:
+        - alert: HighCPUUsage
+          expr: rate(container_cpu_usage_seconds_total[5m]) > 0.8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage"
+            description: "Container {{ $labels.container }} CPU usage is {{ $value | humanizePercentage }}"
+
+        - alert: HighMemoryUsage
+          expr: container_memory_working_set_bytes / container_spec_memory_limit_bytes > 0.9
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage"
+            description: "Container {{ $labels.container }} memory usage is {{ $value | humanizePercentage }}"
+
+        - alert: DiskSpaceUsageHigh
+          expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High disk space usage"
+            description: "Disk usage is {{ $value | humanizePercentage }}"
+
+    - name: omni-post.business
+      interval: 60s
+      rules:
+        - alert: LowPublishSuccessRate
+          expr: rate(posts_published_total{status="success"}[10m]) / rate(posts_published_total[10m]) < 0.95
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Low post publish success rate"
+            description: "Post publish success rate is {{ $value | humanizePercentage }}"
+
+        - alert: QueueBacklogHigh
+          expr: bullmq_queue_waiting_jobs > 100
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High queue backlog"
+            description: "Queue {{ $labels.queue }} has {{ $value }} waiting jobs"
