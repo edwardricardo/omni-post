@@ -66,7 +66,7 @@
     "@adapters/storage-s3": "workspace:*",
     "@core/engine": "workspace:*",
     "@fastify/cookie": "11.0.2",
-    "@fastify/cors": "11.1.0",
+    "@fastify/cors": "11.2.0",
     "@fastify/helmet": "13.0.1",
     "@fastify/websocket": "11.2.0",
     "@google/genai": "1.20.0",
