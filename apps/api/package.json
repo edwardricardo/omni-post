@@ -69,7 +69,7 @@
     "@fastify/cors": "11.1.0",
     "@fastify/helmet": "13.0.1",
     "@fastify/websocket": "11.2.0",
-    "@google/genai": "1.20.0",
+    "@google/genai": "1.44.0",
     "@infra/prisma": "workspace:*",
     "@monitoring/circuit-breaker": "workspace:*",
     "@monitoring/health-checks": "workspace:*",
