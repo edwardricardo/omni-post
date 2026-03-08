@@ -20,7 +20,7 @@
     "@adapters/external-apis": "workspace:*",
     "@adapters/fallback-strategies": "workspace:*",
     "@observability/logger": "workspace:*",
-    "googleapis": "160.0.0",
+    "googleapis": "171.4.0",
     "google-auth-library": "9.14.1",
     "prom-client": "15.1.3"
   },
