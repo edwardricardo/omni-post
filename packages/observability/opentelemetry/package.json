@@ -17,7 +17,7 @@
     "@opentelemetry/exporter-prometheus": "0.57.0",
     "@opentelemetry/instrumentation": "0.57.0",
     "@opentelemetry/instrumentation-fastify": "0.41.0",
-    "@opentelemetry/instrumentation-http": "0.57.0",
+    "@opentelemetry/instrumentation-http": "0.213.0",
     "@opentelemetry/instrumentation-redis": "0.45.0",
     "@opentelemetry/instrumentation-fs": "0.15.0",
     "@opentelemetry/propagation-utils": "0.31.8",
