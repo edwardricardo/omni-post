@@ -48,7 +48,7 @@ jobs:
           tfsec . --format sarif --out tfsec-results.sarif || true
 
       - name: Upload tfsec results to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: terraform/tfsec-results.sarif
@@ -63,7 +63,7 @@ jobs:
           checkov -d . --framework terraform --output sarif --output-file-path checkov-results.sarif || true
 
       - name: Upload Checkov results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: terraform/checkov-results.sarif
