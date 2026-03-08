@@ -1,0 +1,700 @@
+{
+  "auditMetadata": {
+    "auditDate": "2025-09-29",
+    "totalRoutes": 18,
+    "auditedBy": "fastify-backend-developer",
+    "purpose": "Comprehensive analysis for BaseRouteHandler pattern migration"
+  },
+  "routes": [
+    {
+      "file": "/apps/api/src/auth/mfaRoutes.ts",
+      "lines": 456,
+      "structure": "inline async handlers with preHandler middleware",
+      "errorPatterns": 8,
+      "validationApproach": "JSON Schema via Fastify schema + manual Zod parsing",
+      "authChecks": "authenticateMiddleware preHandler",
+      "externalDeps": ["mfaService", "auditService", "prisma"],
+      "specialPatterns": [
+        "MFA token generation with otplib",
+        "QR code creation for authenticator apps",
+        "Backup code generation and validation",
+        "Admin force-disable with audit logging"
+      ],
+      "complexityScore": 7,
+      "migrationEffort": "6-8 hours",
+      "priority": 2,
+      "notes": "Requires MFA-specific error handling. Multiple switch-case error mapping patterns (8 unique error types). Admin routes need special RBAC handling."
+    },
+    {
+      "file": "/apps/api/src/auth/rbacRoutes.ts",
+      "lines": 379,
+      "structure": "inline async handlers with multiple middleware layers",
+      "errorPatterns": 5,
+      "validationApproach": "JSON Schema via Fastify schema",
+      "authChecks": "authenticateMiddleware, requireAdmin, requireSuperAdmin, requirePermission",
+      "externalDeps": ["rbacService", "Permission enum"],
+      "specialPatterns": [
+        "Dynamic permission checking with requirePermission factory",
+        "Role hierarchy enforcement",
+        "Permission matrix generation",
+        "Bulk permission validation"
+      ],
+      "complexityScore": 6,
+      "migrationEffort": "4-6 hours",
+      "priority": 2,
+      "notes": "Complex RBAC middleware composition. Permission enum validation. Requires careful handling of role hierarchy logic."
+    },
+    {
+      "file": "/apps/api/src/auth/providerOAuth.ts",
+      "lines": 680,
+      "structure": "mixed: route registration functions + OAuth helper classes",
+      "errorPatterns": 12,
+      "validationApproach": "manual validation + custom OAuth state management",
+      "authChecks": "none (public OAuth callbacks)",
+      "externalDeps": ["prisma", "crypto", "oauthProviders map"],
+      "specialPatterns": [
+        "OAuth 2.0 flow implementation for 5 providers (X, Instagram, Facebook, YouTube, TikTok)",
+        "State management with in-memory Map and cleanup intervals",
+        "Token exchange and refresh logic",
+        "Provider-specific signature verification",
+        "Webhook verification for Facebook/Instagram"
+      ],
+      "complexityScore": 9,
+      "migrationEffort": "10-12 hours",
+      "priority": 1,
+      "notes": "MOST COMPLEX FILE. Critical OAuth flows for all providers. Requires provider-specific error handlers in BaseRouteHandler. State management needs Redis migration. Multiple external API calls with different error formats."
+    },
+    {
+      "file": "/apps/api/src/admin/dashboardRoutes.ts",
+      "lines": 407,
+      "structure": "inline handlers with data aggregation logic",
+      "errorPatterns": 3,
+      "validationApproach": "none (demo endpoints with auth disabled)",
+      "authChecks": "authenticateMiddleware and requireAdmin commented out for demo",
+      "externalDeps": ["prisma", "dataGenerator"],
+      "specialPatterns": [
+        "Complex Prisma aggregations (groupBy, counts, date filtering)",
+        "Mock data generation for demos",
+        "Revenue calculation from subscription data",
+        "Multi-dimensional analytics"
+      ],
+      "complexityScore": 5,
+      "migrationEffort": "3-4 hours",
+      "priority": 3,
+      "notes": "Low priority - demo endpoints with auth disabled. Complex Prisma queries that could benefit from service layer extraction. Mock data generation should be separated."
+    },
+    {
+      "file": "/apps/api/src/admin/accountLifecycleRoutes.ts",
+      "lines": 561,
+      "structure": "well-structured with Zod schemas and proper error handling",
+      "errorPatterns": 6,
+      "validationApproach": "Zod schemas with createFastifySchema helper",
+      "authChecks": "authenticateMiddleware, requireAdmin, requireSuperAdmin",
+      "externalDeps": ["accountLifecycleService", "removeUndefinedProperties util"],
+      "specialPatterns": [
+        "Comprehensive CRUD for admin users",
+        "Bulk operations (suspend, reactivate)",
+        "Session management and revocation",
+        "Advanced filtering and pagination",
+        "Date range filtering with timezone handling"
+      ],
+      "complexityScore": 6,
+      "migrationEffort": "5-6 hours",
+      "priority": 2,
+      "notes": "GOOD EXAMPLE of proper Zod usage. Well-structured with service layer separation. Error handling is consistent. Could serve as migration template."
+    },
+    {
+      "file": "/apps/api/src/analytics/analyticsRoutes.ts",
+      "lines": 640,
+      "structure": "inline handlers with mock implementations",
+      "errorPatterns": 6,
+      "validationApproach": "Zod schemas with createFastifySchema helper",
+      "authChecks": "authenticateMiddleware",
+      "externalDeps": ["prisma (unused)", "CacheConfigs (unused)"],
+      "specialPatterns": [
+        "Thread analytics (performance, comparison)",
+        "Engagement trends with time series",
+        "Optimal posting time predictions",
+        "Geographic analytics",
+        "Media performance comparison",
+        "CSV export functionality"
+      ],
+      "complexityScore": 4,
+      "migrationEffort": "4-5 hours",
+      "priority": 3,
+      "notes": "All routes return mock data with TODO comments. Low priority until real analytics services are implemented. Good structure for future implementation."
+    },
+    {
+      "file": "/apps/api/src/billing/subscriptionRoutes.ts",
+      "lines": 841,
+      "structure": "mix of inline handlers and service calls",
+      "errorPatterns": 7,
+      "validationApproach": "Zod schemas with createFastifySchema helper",
+      "authChecks": "authenticateMiddleware, requireAdmin, requireSuperAdmin",
+      "externalDeps": ["subscriptionService", "removeUndefinedProperties", "prisma"],
+      "specialPatterns": [
+        "Trial management (start, end, convert)",
+        "Subscription tier changes with effective dating",
+        "Bulk subscription operations",
+        "Revenue analytics with mock data",
+        "Health scoring algorithm",
+        "CSV export with date filtering",
+        "Auto-renewal processing"
+      ],
+      "complexityScore": 7,
+      "migrationEffort": "6-8 hours",
+      "priority": 2,
+      "notes": "Complex billing logic with multiple workflows. Trial management requires state machine-like handling. Health scoring and analytics need careful validation."
+    },
+    {
+      "file": "/apps/api/src/audit/auditRoutes.ts",
+      "lines": 419,
+      "structure": "well-structured with Zod schemas",
+      "errorPatterns": 3,
+      "validationApproach": "Zod schemas for params, query, body",
+      "authChecks": "authenticateMiddleware, requireAdmin, requireSuperAdmin",
+      "externalDeps": ["auditService"],
+      "specialPatterns": [
+        "Advanced filtering (date range, user, resource, success)",
+        "Statistics aggregation",
+        "CSV export with proper escaping",
+        "Cleanup operations with retention policies",
+        "Self-service audit logs endpoint"
+      ],
+      "complexityScore": 5,
+      "migrationEffort": "3-4 hours",
+      "priority": 2,
+      "notes": "WELL-STRUCTURED. Good example of proper error handling. CSV generation could be extracted to utility. Service layer properly separated."
+    },
+    {
+      "file": "/apps/api/src/webhooks/webhookHandler.ts",
+      "lines": 657,
+      "structure": "class-based with route registration function",
+      "errorPatterns": 10,
+      "validationApproach": "custom validation with provider-specific logic",
+      "authChecks": "none (webhook verification via signatures)",
+      "externalDeps": [
+        "prisma",
+        "crypto",
+        "WebhookProcessor interface",
+        "RealtimeWebhookBroadcaster"
+      ],
+      "specialPatterns": [
+        "Universal webhook handler for all providers",
+        "Signature verification per provider",
+        "Duplicate event detection",
+        "Retry logic with exponential backoff",
+        "Dead letter queue management",
+        "Event normalization",
+        "Real-time broadcasting via Redis",
+        "Facebook webhook verification challenge"
+      ],
+      "complexityScore": 10,
+      "migrationEffort": "12-15 hours",
+      "priority": 1,
+      "notes": "EXTREMELY COMPLEX. Critical system infrastructure. Provider-specific webhook processors. Requires extensive error handling for each provider. State management across retries. Should be migrated after provider OAuth routes."
+    },
+    {
+      "file": "/apps/api/src/webhooks/webhookManager.ts",
+      "lines": 634,
+      "structure": "class-based WebhookManager with route registration",
+      "errorPatterns": 5,
+      "validationApproach": "Zod schemas for webhook subscriptions",
+      "authChecks": "authenticateMiddleware, requireAdmin",
+      "externalDeps": ["prisma", "Redis", "WebhookJobProcessor", "crypto"],
+      "specialPatterns": [
+        "Webhook subscription CRUD",
+        "Secret key generation for verification",
+        "Platform-specific setup instructions",
+        "BullMQ job queue integration",
+        "Statistics by provider",
+        "Cleanup and maintenance operations",
+        "Manual retry functionality"
+      ],
+      "complexityScore": 7,
+      "migrationEffort": "6-8 hours",
+      "priority": 2,
+      "notes": "Depends on webhookHandler. Complex queue integration. Setup instructions generation is provider-specific. Cleanup logic needs careful testing."
+    },
+    {
+      "file": "/apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "lines": 708,
+      "structure": "function-based route registration",
+      "errorPatterns": 4,
+      "validationApproach": "Zod schemas for dashboard queries",
+      "authChecks": "authenticateMiddleware",
+      "externalDeps": ["prisma"],
+      "specialPatterns": [
+        "Real-time dashboard metrics",
+        "Time series data aggregation (1h, 6h, 24h, 7d, 30d)",
+        "Server-Sent Events for live monitoring",
+        "Complex Prisma aggregations by provider and status",
+        "CSV export with proper escaping",
+        "Dead letter queue management UI",
+        "Pagination for event lists"
+      ],
+      "complexityScore": 6,
+      "migrationEffort": "5-6 hours",
+      "priority": 2,
+      "notes": "Heavy Prisma query usage. SSE implementation needs special handling. Timeline generation is computationally expensive. Could benefit from caching."
+    },
+    {
+      "file": "/apps/api/src/templates/templateRoutes.ts",
+      "lines": 538,
+      "structure": "function-based with 'any' types throughout",
+      "errorPatterns": 10,
+      "validationApproach": "none - relies on service layer validation",
+      "authChecks": "none visible",
+      "externalDeps": ["templateService", "templateAnalytics"],
+      "specialPatterns": [
+        "Template CRUD with versioning",
+        "Template compilation with context",
+        "A/B testing management",
+        "Platform-specific validation",
+        "Analytics tracking",
+        "Duplication functionality"
+      ],
+      "complexityScore": 6,
+      "migrationEffort": "8-10 hours",
+      "priority": 2,
+      "notes": "NEEDS MAJOR REFACTOR. Uses 'any' types extensively. No Zod validation. No authentication visible. Error handling is generic. Requires complete type safety overhaul."
+    },
+    {
+      "file": "/apps/api/src/ai/routes.ts",
+      "lines": 483,
+      "structure": "inline handlers with explicit type annotations",
+      "errorPatterns": 5,
+      "validationApproach": "manual validation in handlers",
+      "authChecks": "none visible",
+      "externalDeps": ["aiOrchestrator"],
+      "specialPatterns": [
+        "Content generation with multiple AI providers",
+        "Content analysis (sentiment, tone, readability, engagement)",
+        "Content optimization per platform",
+        "Performance prediction",
+        "Variation generation",
+        "Smart analysis combining multiple AI operations",
+        "Health check for AI services",
+        "Cache management"
+      ],
+      "complexityScore": 5,
+      "migrationEffort": "4-5 hours",
+      "priority": 3,
+      "notes": "Well-typed request/reply handlers. Missing Zod validation. No authentication (likely needs adding). AI orchestrator handles errors but routes should validate inputs."
+    },
+    {
+      "file": "/apps/api/src/documentation/testRoutes.ts",
+      "lines": 138,
+      "structure": "simple test endpoints with OpenAPI schemas",
+      "errorPatterns": 2,
+      "validationApproach": "JSON Schema via Fastify schema",
+      "authChecks": "schema-defined security requirements",
+      "externalDeps": ["none"],
+      "specialPatterns": [
+        "OpenAPI documentation examples",
+        "Schema-based validation demos",
+        "Authentication requirement examples"
+      ],
+      "complexityScore": 2,
+      "migrationEffort": "1-2 hours",
+      "priority": 4,
+      "notes": "SIMPLE TEST ROUTES. Low priority. Good examples of OpenAPI schema usage. Could be kept as-is for documentation purposes."
+    },
+    {
+      "file": "/apps/api/src/documentation/documentationPlugin.ts",
+      "lines": 637,
+      "structure": "plugin with custom documentation routes",
+      "errorPatterns": 3,
+      "validationApproach": "minimal - mostly metadata endpoints",
+      "authChecks": "none (public documentation)",
+      "externalDeps": ["fastifySwagger", "fastifySwaggerUi", "js-yaml"],
+      "specialPatterns": [
+        "Swagger/OpenAPI UI registration",
+        "SDK code generation (TypeScript, JavaScript, Python)",
+        "Code example generation (multiple languages)",
+        "YAML export functionality",
+        "Health check for documentation"
+      ],
+      "complexityScore": 4,
+      "migrationEffort": "2-3 hours",
+      "priority": 4,
+      "notes": "Documentation infrastructure. Low priority for migration. SDK generation is useful but not critical. Could be enhanced but works as-is."
+    },
+    {
+      "file": "/apps/api/src/monitoring/rateLimitingDashboard.ts",
+      "lines": 537,
+      "structure": "class-based dashboard with route registration",
+      "errorPatterns": 4,
+      "validationApproach": "Zod schemas for query params",
+      "authChecks": "likely admin-only (not visible in register method)",
+      "externalDeps": ["Redis", "ApiMetrics", "Zod v4"],
+      "specialPatterns": [
+        "Real-time rate limiting metrics",
+        "Time series data aggregation",
+        "Alert system with multiple channels (Slack, Email, PagerDuty)",
+        "Tenant-specific analytics",
+        "Distributed instance monitoring",
+        "Emergency mode status tracking",
+        "Peak usage detection"
+      ],
+      "complexityScore": 7,
+      "migrationEffort": "5-6 hours",
+      "priority": 3,
+      "notes": "Complex monitoring system. Uses Zod v4 (note import). Heavy Redis usage for time series. Alert logic is sophisticated. Placeholder implementations need completion."
+    },
+    {
+      "file": "/apps/api/src/testing/testRoutes.ts",
+      "lines": 167,
+      "structure": "typed routes with ZodTypeProvider",
+      "errorPatterns": 2,
+      "validationApproach": "Zod schemas with fastify-type-provider-zod",
+      "authChecks": "none (test endpoints)",
+      "externalDeps": ["fastify-type-provider-zod", "Zod v4"],
+      "specialPatterns": [
+        "Test endpoints for security testing",
+        "Rate limit debugging endpoint",
+        "Header inspection for rate limiting"
+      ],
+      "complexityScore": 2,
+      "migrationEffort": "1-2 hours",
+      "priority": 4,
+      "notes": "SIMPLE TEST ROUTES. Uses ZodTypeProvider correctly. Good example of typed Fastify routes. Uses Zod v4. Low priority."
+    },
+    {
+      "file": "/apps/api/src/patterns/fastifyPatterns.ts",
+      "lines": 143,
+      "structure": "pattern examples and type definitions",
+      "errorPatterns": 1,
+      "validationApproach": "multiple approaches demonstrated",
+      "authChecks": "example patterns shown",
+      "externalDeps": ["fastify-type-provider-zod"],
+      "specialPatterns": [
+        "Pattern documentation for Fastify v5+",
+        "TypeScript typing examples",
+        "ZodTypeProvider usage patterns",
+        "Reusable type definitions (AuthenticatedRequest)"
+      ],
+      "complexityScore": 2,
+      "migrationEffort": "N/A - reference file",
+      "priority": 5,
+      "notes": "REFERENCE FILE. Contains pattern examples for developers. Should be kept as-is for documentation. Not a route file to migrate."
+    }
+  ],
+  "commonPatterns": [
+    {
+      "pattern": "switch-case error code mapping",
+      "occurrences": 45,
+      "consolidationOpportunity": "high",
+      "recommendation": "Create ErrorMapper utility in BaseRouteHandler with predefined error code to HTTP status mappings"
+    },
+    {
+      "pattern": "reply.status(xxx).send({ error: ... })",
+      "occurrences": 89,
+      "consolidationOpportunity": "high",
+      "recommendation": "Standardize error response format through BaseRouteHandler errorResponse method"
+    },
+    {
+      "pattern": "manual Zod parsing with try-catch",
+      "occurrences": 67,
+      "consolidationOpportunity": "medium",
+      "recommendation": "Add validateBody/validateQuery/validateParams helpers to BaseRouteHandler"
+    },
+    {
+      "pattern": "service.method().ok check with error handling",
+      "occurrences": 134,
+      "consolidationOpportunity": "high",
+      "recommendation": "Create handleServiceResult utility that automatically maps Result<T> to HTTP responses"
+    },
+    {
+      "pattern": "timestamp: new Date().toISOString() in responses",
+      "occurrences": 78,
+      "consolidationOpportunity": "high",
+      "recommendation": "Automatically add timestamps in BaseRouteHandler success responses"
+    },
+    {
+      "pattern": "preHandler: [authenticateMiddleware, requireX]",
+      "occurrences": 56,
+      "consolidationOpportunity": "medium",
+      "recommendation": "Create middleware composition helpers in BaseRouteHandler for common auth patterns"
+    },
+    {
+      "pattern": "CSV export with manual header/row formatting",
+      "occurrences": 5,
+      "consolidationOpportunity": "high",
+      "recommendation": "Extract CSV generation to shared utility with proper escaping"
+    },
+    {
+      "pattern": "pagination response format",
+      "occurrences": 12,
+      "consolidationOpportunity": "high",
+      "recommendation": "Standardize pagination response structure in BaseRouteHandler"
+    }
+  ],
+  "requiredEnhancements": [
+    {
+      "enhancement": "OAuth error handling helpers",
+      "reason": "providerOAuth.ts and webhookHandler.ts have unique OAuth flow error patterns across 5+ providers",
+      "files": ["providerOAuth.ts", "webhookHandler.ts"],
+      "priority": "critical",
+      "details": "Need provider-specific error mappers for token exchange, refresh, signature verification failures"
+    },
+    {
+      "enhancement": "Result<T> to HTTP response mapper",
+      "reason": "134 occurrences of manual .ok checking with error mapping across all service-layer interactions",
+      "files": ["all service-calling routes"],
+      "priority": "critical",
+      "details": "Automatic conversion of Result.success/failure to appropriate HTTP responses with consistent error format"
+    },
+    {
+      "enhancement": "Zod validation helpers",
+      "reason": "67 manual try-catch blocks for Zod parsing, inconsistent error messages",
+      "files": ["most routes"],
+      "priority": "high",
+      "details": "validateBody, validateQuery, validateParams methods with automatic 400 responses and formatted errors"
+    },
+    {
+      "enhancement": "Provider-specific webhook verification",
+      "reason": "webhookHandler has different signature verification per provider",
+      "files": ["webhookHandler.ts", "webhookManager.ts"],
+      "priority": "high",
+      "details": "Webhook signature verification helpers for each provider (HMAC-SHA256, custom headers, etc.)"
+    },
+    {
+      "enhancement": "CSV export utility",
+      "reason": "5 different CSV implementations with varying escape logic",
+      "files": [
+        "analyticsRoutes.ts",
+        "auditRoutes.ts",
+        "subscriptionRoutes.ts",
+        "webhookDashboardRoutes.ts"
+      ],
+      "priority": "medium",
+      "details": "Shared CSV generator with proper RFC 4180 compliance and type-safe column definitions"
+    },
+    {
+      "enhancement": "Pagination helper",
+      "reason": "12 different pagination implementations with inconsistent response formats",
+      "files": [
+        "accountLifecycleRoutes.ts",
+        "subscriptionRoutes.ts",
+        "webhookDashboardRoutes.ts",
+        "others"
+      ],
+      "priority": "medium",
+      "details": "Standardized pagination with hasNext, hasPrev, totalPages calculations"
+    },
+    {
+      "enhancement": "Time range parsing helper",
+      "reason": "Multiple implementations of time range parsing ('1h', '24h', '7d') with different logic",
+      "files": ["analyticsRoutes.ts", "webhookDashboardRoutes.ts", "rateLimitingDashboard.ts"],
+      "priority": "low",
+      "details": "Consistent time range parsing with validation"
+    },
+    {
+      "enhancement": "SSE (Server-Sent Events) helper",
+      "reason": "webhookDashboardRoutes has SSE implementation that could be reused",
+      "files": ["webhookDashboardRoutes.ts"],
+      "priority": "low",
+      "details": "Reusable SSE setup with heartbeat and proper cleanup"
+    }
+  ],
+  "priorityMatrix": {
+    "priority1_critical_complex": {
+      "description": "Most complex, highest impact, blocking other migrations",
+      "estimatedEffort": "22-27 hours",
+      "files": ["providerOAuth.ts", "webhookHandler.ts"],
+      "reasoning": "OAuth flows are critical infrastructure used by all provider integrations. Webhook system is complex event-driven architecture. Both have many provider-specific error patterns."
+    },
+    "priority2_high_value": {
+      "description": "Well-structured files that can serve as migration templates",
+      "estimatedEffort": "25-32 hours",
+      "files": [
+        "accountLifecycleRoutes.ts",
+        "auditRoutes.ts",
+        "subscriptionRoutes.ts",
+        "mfaRoutes.ts",
+        "rbacRoutes.ts",
+        "webhookManager.ts",
+        "webhookDashboardRoutes.ts"
+      ],
+      "reasoning": "These files have good structure with Zod schemas and service layers. Can be migrated in parallel after BaseRouteHandler enhancements are complete."
+    },
+    "priority3_mock_or_demo": {
+      "description": "Files with mock data or demo functionality",
+      "estimatedEffort": "11-15 hours",
+      "files": [
+        "dashboardRoutes.ts",
+        "analyticsRoutes.ts",
+        "rateLimitingDashboard.ts",
+        "aiRoutes.ts"
+      ],
+      "reasoning": "Either have placeholder implementations (analytics, dashboard) or are feature-complete but lower priority (AI, monitoring)."
+    },
+    "priority4_refactor_needed": {
+      "description": "Files needing significant refactoring before or during migration",
+      "estimatedEffort": "8-10 hours",
+      "files": ["templateRoutes.ts"],
+      "reasoning": "Uses 'any' types extensively, missing authentication, needs complete type safety overhaul."
+    },
+    "priority5_supporting": {
+      "description": "Test routes, documentation, reference files",
+      "estimatedEffort": "4-7 hours",
+      "files": [
+        "testRoutes.ts",
+        "documentationTestRoutes.ts",
+        "documentationPlugin.ts",
+        "fastifyPatterns.ts"
+      ],
+      "reasoning": "Low priority infrastructure. Can be migrated last or kept as-is. fastifyPatterns.ts is reference documentation."
+    }
+  },
+  "migrationStrategy": {
+    "phase1_foundation": {
+      "description": "Enhance BaseRouteHandler with required utilities",
+      "estimatedEffort": "16-20 hours",
+      "tasks": [
+        "Implement Result<T> to HTTP response mapper",
+        "Add Zod validation helpers (validateBody, validateQuery, validateParams)",
+        "Create OAuth error handler helpers",
+        "Add provider-specific webhook verification helpers",
+        "Implement standardized error response format",
+        "Add CSV export utility",
+        "Create pagination helper"
+      ],
+      "deliverables": [
+        "Enhanced BaseRouteHandler class",
+        "Comprehensive test suite for BaseRouteHandler",
+        "Migration guide with before/after examples",
+        "Type-safe utility functions"
+      ]
+    },
+    "phase2_critical_paths": {
+      "description": "Migrate OAuth and webhook infrastructure",
+      "estimatedEffort": "22-27 hours",
+      "dependencies": ["phase1_foundation"],
+      "files": ["providerOAuth.ts", "webhookHandler.ts"],
+      "risks": [
+        "OAuth flows are in production - zero downtime required",
+        "Webhook retry logic must be preserved exactly",
+        "Provider-specific signature verification is security-critical"
+      ],
+      "mitigationStrategy": [
+        "Feature flag for new vs old implementation",
+        "Parallel running with comparison logging",
+        "Comprehensive integration tests with real provider sandboxes"
+      ]
+    },
+    "phase3_parallel_migration": {
+      "description": "Migrate well-structured routes in parallel",
+      "estimatedEffort": "25-32 hours",
+      "dependencies": ["phase1_foundation"],
+      "files": [
+        "accountLifecycleRoutes.ts",
+        "auditRoutes.ts",
+        "subscriptionRoutes.ts",
+        "mfaRoutes.ts",
+        "rbacRoutes.ts",
+        "webhookManager.ts",
+        "webhookDashboardRoutes.ts"
+      ],
+      "approach": "Can be done by multiple developers in parallel since they're well-structured"
+    },
+    "phase4_cleanup": {
+      "description": "Migrate remaining routes and refactor templateRoutes.ts",
+      "estimatedEffort": "23-32 hours",
+      "dependencies": ["phase1_foundation", "phase3_parallel_migration"],
+      "files": [
+        "templateRoutes.ts",
+        "dashboardRoutes.ts",
+        "analyticsRoutes.ts",
+        "rateLimitingDashboard.ts",
+        "aiRoutes.ts",
+        "testRoutes.ts",
+        "documentationTestRoutes.ts",
+        "documentationPlugin.ts"
+      ],
+      "notes": "templateRoutes.ts needs refactoring before migration. Others are straightforward."
+    }
+  },
+  "totalEffort": {
+    "minimum": "86 hours",
+    "maximum": "111 hours",
+    "recommended": "98 hours",
+    "breakdown": {
+      "foundation": "16-20 hours",
+      "critical_paths": "22-27 hours",
+      "parallel_migration": "25-32 hours",
+      "cleanup": "23-32 hours"
+    }
+  },
+  "riskAssessment": {
+    "high": [
+      {
+        "risk": "OAuth flow breakage affecting user authentication",
+        "mitigation": "Feature flags, parallel running, comprehensive testing",
+        "impact": "critical"
+      },
+      {
+        "risk": "Webhook event loss during migration",
+        "mitigation": "Queue-based architecture ensures no events lost, extensive retry testing",
+        "impact": "high"
+      }
+    ],
+    "medium": [
+      {
+        "risk": "Performance regression from additional abstraction layers",
+        "mitigation": "Benchmark before/after, optimize hot paths",
+        "impact": "medium"
+      },
+      {
+        "risk": "Type safety issues from complex generic constraints",
+        "mitigation": "Comprehensive TypeScript tests, gradual rollout",
+        "impact": "medium"
+      }
+    ],
+    "low": [
+      {
+        "risk": "Breaking changes to error response formats",
+        "mitigation": "Version API responses, maintain backward compatibility",
+        "impact": "low"
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "priority": "critical",
+      "recommendation": "Start with BaseRouteHandler enhancements (phase 1) before any route migrations",
+      "reason": "All other migrations depend on these utilities. Attempting migration without them will result in rework."
+    },
+    {
+      "priority": "critical",
+      "recommendation": "Migrate providerOAuth.ts and webhookHandler.ts with extreme caution using feature flags",
+      "reason": "These are production-critical systems handling authentication and real-time events. Zero downtime is mandatory."
+    },
+    {
+      "priority": "high",
+      "recommendation": "Use accountLifecycleRoutes.ts and auditRoutes.ts as migration templates",
+      "reason": "These files demonstrate best practices with Zod schemas and proper service layer separation."
+    },
+    {
+      "priority": "high",
+      "recommendation": "Completely refactor templateRoutes.ts types before migration",
+      "reason": "Current 'any' types throughout will negate benefits of BaseRouteHandler. Fix types first."
+    },
+    {
+      "priority": "medium",
+      "recommendation": "Consolidate CSV export implementations before individual route migrations",
+      "reason": "5 different implementations exist. Create shared utility to avoid spreading inconsistencies."
+    },
+    {
+      "priority": "medium",
+      "recommendation": "Consider keeping test and documentation routes (priority 5) as-is",
+      "reason": "Low business value for migration. They work fine and demonstrate various patterns."
+    },
+    {
+      "priority": "low",
+      "recommendation": "Document Zod version differences (v3 vs v4) in migration guide",
+      "reason": "Some files use Zod v4 with different imports. Need consistent approach."
+    }
+  ]
+}

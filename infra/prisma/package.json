@@ -1,0 +1,29 @@
+{
+  "name": "@infra/prisma",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "postinstall": "prisma generate",
+    "prisma": "prisma",
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev --name init",
+    "studio": "prisma studio",
+    "seed": "tsx seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "7.4.1",
+    "@prisma/adapter-pg": "7.4.1",
+    "dotenv": "17.2.2"
+  },
+  "devDependencies": {
+    "prisma": "7.4.1",
+    "tsx": "4.20.5"
+  },
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  }
+}

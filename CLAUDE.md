@@ -1,0 +1,586 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+> **Apply these rules to every file you create or modify. No exceptions.**
+
+---
+
+## Development Commands
+
+### Core Commands
+
+- `pnpm dev` - Start API and workers concurrently
+- `pnpm dev:api` - Start API server only (port 3000)
+- `pnpm dev:workers` - Start workers only
+- `pnpm dev:admin` - Start admin interface only
+- `pnpm build` - Build all packages
+- `pnpm test` - Run API tests
+- `pnpm lint` - Run ESLint with TypeScript support
+- `pnpm lint:fix` - Auto-fix ESLint issues
+- `pnpm format` - Format code with Prettier
+- `pnpm format:check` - Check code formatting
+
+### Database Commands
+
+- `pnpm db:up` - Start PostgreSQL and Redis via Docker Compose
+- `pnpm db:studio` - Open Prisma Studio
+- `pnpm db:migrate` - Run Prisma migrations
+- `pnpm db:seed` - Seed database with test data
+
+### Test Commands (API)
+
+- `pnpm --filter @apps/api test` - Run all tests with Node.js native test runner
+- `pnpm --filter @apps/api test:watch` - Run tests in watch mode
+- `pnpm --filter @apps/api test:coverage` - Run tests with coverage report
+- `pnpm --filter @apps/api test:coverage:check` - Validate coverage thresholds (80%)
+
+Category-based: `test:category:core`, `test:category:security`, `test:category:threading`, `test:category:account`, `test:category:workflow`, `test:category:integration`
+
+---
+
+## Project Structure
+
+```text
+apps/
+  api/        - Fastify REST API server
+  workers/    - BullMQ background job processors
+  admin/      - Admin dashboard (Next.js)
+  client/     - Client dashboard (Next.js)
+infra/
+  prisma/     - Database schema, migrations, and client
+packages/
+  ports/      - Port interfaces (technology-free)
+  shared/     - Shared types, events, CQRS, saga definitions
+  providers/  - Social platform adapters (x, instagram, facebook, youtube, tiktok)
+  adapters/   - Infrastructure adapters (cache-redis, db-prisma, queue-bullmq, storage-s3, etc.)
+  ui/         - Shared React components
+  api-common/ - Base route handler, CSV export
+  monitoring/ - Circuit breaker, health checks
+  observability/ - OpenTelemetry instrumentation
+```
+
+### Technology Stack
+
+- **Backend**: TypeScript, Fastify, Prisma ORM
+- **Database**: PostgreSQL with Redis for queues/caching
+- **Frontend**: Next.js, React, Tailwind CSS, Radix UI
+- **Testing**: node:test (API), Vitest (frontend), Playwright (E2E)
+- **Monitoring**: Prometheus metrics, Pino structured logging, OpenTelemetry
+- **Storage**: S3-compatible storage for media files
+
+### Workspace Configuration
+
+- **pnpm workspaces** with TypeScript project references
+- **ESLint v9 flat config** with TypeScript support, React plugins
+- **Prettier** for code formatting
+- **Husky + lint-staged** for pre-commit quality checks
+- **GitHub Actions CI** for automated testing and quality gates
+- Shared TypeScript configuration in `tsconfig.base.json`
+- Path mapping: `@ports/core`, `@infra/prisma`, `@shared/types`, etc.
+
+### Environment Setup
+
+- Requires `.env` file (copy from `.env.example`)
+- PostgreSQL and Redis via `docker-compose.yml`
+- Database URL: `postgresql://postgres:password123@localhost:5432/omnipostdb`
+- Redis URL: `redis://localhost:6379`
+
+---
+
+## Documentation Policy
+
+**All project documentation lives under `/docs/`.** Never create `.md` files in `apps/`, `packages/`, `infra/`, or any other directory. The only exceptions are `CLAUDE.md` (root) and `.claude/` configuration files.
+
+---
+
+## Architecture — Hexagonal (Ports & Adapters)
+
+**Dependency direction is always inward. Outer layers import inner. Never the reverse.**
+
+```text
+Routes → Application → Domain ← (never imports from) → Infrastructure
+```
+
+- `domain/` imports **nothing** external — no Prisma, no Fastify, no Redis, no BullMQ, no SDKs
+- `application/` imports **domain only** — no concrete adapters, no infrastructure classes
+- `infrastructure/` imports application + domain + external libs
+- Routes import **use cases only** — never repositories, never Prisma directly
+- **Never** `import { prisma } from "@infra/prisma"` in a route file — resolve from DI: `fastify.container.resolve(TOKENS.XRepository)`
+- Ports (interfaces) live in `packages/ports/` — technology-free names (`PostRepository` not `PrismaPostPort`)
+- Concrete adapters are instantiated **only** in the DI composition root (`Container.ts`)
+
+---
+
+## Domain-Driven Design
+
+**The domain speaks business language. If a domain expert wouldn't recognize the word, rename it.**
+
+### Entities
+
+- Identity via typed Value Object: `PostId` not `string`
+- State changes through methods only: `post.scheduleForPublishing(time)` not `post.status = 'SCHEDULED'`
+- No repository, service, or adapter references inside an entity
+- Enforce invariants inside the entity method — not in the use case
+
+### Value Objects
+
+- All properties `readonly` — no setters, ever
+- Validate on construction, throw domain error on invalid input
+- Equality by value, not reference
+- Wrap primitives: `new ShortCode('abc123')` not bare `string`
+
+### Aggregates
+
+- Reference other aggregates **by ID only**: `channelId: ChannelId` not `channel: Channel`
+- Aggregate root is the only public entry point — no direct child mutation from outside
+- Collect domain events internally — dispatch only after persistence (via Unit of Work)
+- Never call a repository or service from inside the aggregate
+
+### Domain Events
+
+- Past tense names: `PostPublished`, `CrisisModeEntered`
+- Immutable payload, no methods beyond constructor
+- Always carry: `aggregateId`, `occurredAt: Date`
+- Extend base `DomainEvent` class
+
+### Repositories (Ports)
+
+- Return **domain objects** — never raw Prisma types outside infrastructure
+- `findById` returns `Result<T, NotFoundError>` — never `T | null`
+- Command repo (`PostRepository`) is separate from query repo (`PostQueryRepository`)
+- No DTOs in or out — that is the use case's job
+
+---
+
+## CQRS
+
+**Commands change state. Queries read state. Never mix.**
+
+### Commands
+
+- Return `Result<void, DomainError>` or `Result<EntityId, DomainError>` — never a full object graph
+- Load aggregate → call aggregate method → save via repo via Unit of Work
+- Zero `findMany`, `select`, or read operations inside command handlers
+- State changes go through the aggregate — never `repository.update({ field: value })` directly
+
+### Queries
+
+- Return typed **DTOs** — never domain objects
+- Zero `save`, `create`, `update`, `delete` calls — not even incidentally
+- Zero domain events emitted
+- May bypass domain layer and query read model directly via `PostQueryRepository`
+
+### CQRS Bus
+
+- CQRSBus handlers delegate to Application layer use cases — **never** call `prisma.*` directly
+- One implementation only — the Application layer use cases. No parallel Prisma path.
+
+---
+
+## Unit of Work
+
+**Aggregate persistence + event dispatch must be atomic. Always use UoW for mutations.**
+
+```typescript
+// Every mutating use case follows this pattern:
+await this.unitOfWork.execute(async (uow) => {
+  const post = await uow.postRepository.findById(id);
+  post.scheduleForPublishing(scheduledTime);
+  await uow.postRepository.save(post);
+  await uow.outboxWriter.write(post.pullEvents());
+});
+```
+
+- Never `repository.save()` + `eventDispatcher.dispatch()` as two separate calls
+- `PrismaUnitOfWork` wraps both writes in a **single `$transaction()`**
+
+---
+
+## Event-Driven Architecture
+
+- Domain event → Outbox write — **in the same DB transaction** as the aggregate save
+- Outbox relay uses `SELECT FOR UPDATE SKIP LOCKED` — no double-dispatch
+- After dispatch, mark event `PROCESSED` atomically
+- Integration events carry **only** primitive-serializable data — no domain objects in BullMQ payloads
+- Every consumer handler is **idempotent** — processing twice = same result as processing once
+- Every dispatched event type has a registered schema version
+
+---
+
+## Saga Pattern
+
+- Each saga step is a local transaction — commits independently
+- Compensating transactions exist for every compensable step — **no no-op compensations**
+- Compensation is **idempotent and retryable**
+- Compensations execute in **reverse order** of forward steps
+- DedupeKey is **deterministic**: `saga-${sagaId}-${stepIndex}` — never append `randomUUID()`
+- Guard against re-execution of terminal sagas:
+
+  ```typescript
+  if (["COMPLETED", "FAILED", "COMPENSATED"].includes(saga.status)) return;
+  ```
+
+- Saga state (including jobIds from scheduling steps) persisted between steps for compensation use
+
+---
+
+## TypeScript Strict Mode
+
+**`exactOptionalPropertyTypes: true` is active. Treat the compiler as a collaborator.**
+
+### Zero-Tolerance Rules
+
+- **Zero `any`** in domain, application, and infrastructure layers — use proper interfaces, generics, or `unknown` + type guard
+- **Zero `throw`** in domain/application — use `Result<T, DomainError>` for all fallible operations
+- **Zero `@ts-ignore`** or `@ts-nocheck` in production source
+- **Zero `!.`** non-null assertions in domain/application — handle nullability explicitly
+- Optional properties: never assign `undefined` — omit the key instead
+- Error catch variables: type as `unknown`, narrow with `instanceof`
+- `as const` + union types preferred over `enum`
+
+### exactOptionalPropertyTypes Patterns
+
+```typescript
+// WRONG - assigns undefined explicitly
+const obj = { ...existing, progress: undefined, error: errorMsg };
+
+// CORRECT - conditional spreading
+const obj = {
+  ...existing,
+  status,
+  ...(progress !== undefined && { progress }),
+  ...(error !== undefined && { error }),
+};
+```
+
+### Array Operations & Null Safety
+
+```typescript
+// Always check for undefined after destructuring
+const [item] = array.splice(index, 1);
+if (item) {
+  item.property; // Safe
+}
+```
+
+### React State Updates with Optional Properties
+
+```typescript
+// CORRECT
+setState((prev) =>
+  prev.map((item) => ({
+    ...item,
+    ...(optionalProp !== undefined && { optionalProp }),
+  }))
+);
+```
+
+### Hook Dependency Arrays & Function Ordering
+
+```typescript
+// Declare functions BEFORE using in dependency arrays
+const helperFunction = useCallback(() => {}, []);
+
+useEffect(() => {
+  helperFunction();
+}, [helperFunction]);
+```
+
+---
+
+## Result Type
+
+**All fallible operations return `Result<T, E>` — never throw across layer boundaries.**
+
+```typescript
+// Domain error hierarchy
+DomainError
+  ├── ValidationError
+  ├── InvariantError
+  └── NotFoundError
+
+// Use case signature
+execute(command: CreatePostCommand): Promise<Result<PostId, DomainError>>
+
+// Never:
+execute(command: CreatePostCommand): Promise<Post>  // hides failure
+```
+
+- Use `ok()` and `err()` helpers from `@shared/types`
+- Narrow with `if (!result.ok)` before accessing `.value`
+
+---
+
+## Dependency Injection
+
+- **130+ tokens** — every new dependency gets a `TOKENS.MY_DEPENDENCY` symbol
+- Registration in `Container.ts` composition root only
+- Lifecycle: repositories → singleton, use cases → singleton, UoW → **transient**
+- No `new ConcreteClass()` inside domain or application constructors
+- Allowed `new` in domain: Value Objects from primitives, Domain Events — nothing else
+
+---
+
+## Error Handling
+
+- Domain errors extend `DomainError` — never raw `Error` for business failures
+- Infrastructure errors wrapped into domain/application errors before crossing layers
+- Single global error handler in Fastify translates domain errors → HTTP status codes
+- Every error response includes: `statusCode`, `message`, `correlationId`, `timestamp`
+- Empty catch blocks: **zero tolerance** — log at minimum, rethrow if unrecoverable
+
+---
+
+## Logging & Observability
+
+- Use `@observability/logger` (Pino) — zero `console.*` in production code
+- **Domain layer: zero logging** — it is an infrastructure concern
+- Application layer: `WARN` or `ERROR` only
+- Logger injected via `LoggerPort` — never imported as a concrete class
+- Every log entry carries: `correlationId`, `layer`, `operation`
+- Correlation ID propagated to: logger → domain events → outbox → BullMQ job data → error responses
+- OTel SDK initialized as **first import** in entry points (`index.ts`) — before Fastify, before Prisma
+
+---
+
+## Testing
+
+**Write the test first. If you can't write a test for it, reconsider the design.**
+
+### TDD Cycle
+
+- **Red**: write a failing test that describes the behavior
+- **Green**: write the minimum code to pass it
+- **Refactor**: clean up without breaking the test
+
+### Test Quality Rules
+
+- **AAA pattern**: Arrange / Act / Assert — one behavior per test
+- Naming: `'returns X when Y given Z'` — behavior, not implementation
+  - `'returns PostNotFoundError when post does not exist'`
+  - Never: `'calls repository.findById'`
+- `beforeEach(() => { /* reset mocks */ })` in every suite
+- Zero `console.log` in test files
+- Zero `.only()` or `.skip()` committed
+- Async tests always `await` — no floating promises
+
+### Mock Factories (Required Pattern)
+
+```typescript
+// Never inline magic values in tests
+const makePost = (overrides?: Partial<Post>): Post => ({
+  id: PostId.create("post-uuid-001"),
+  status: PublishStatus.DRAFT,
+  createdAt: new Date("2024-01-01T00:00:00Z"),
+  ...overrides,
+});
+```
+
+### Coverage Targets
+
+| Layer                   | Minimum |
+| ----------------------- | ------- |
+| Domain                  | 90%     |
+| Application use cases   | 85%     |
+| Infrastructure adapters | 70%     |
+| Route handlers          | 70%     |
+| Provider adapters       | 75%     |
+
+### Test Framework Rules
+
+**Three frameworks, strict domain boundaries. Jest is NOT allowed.**
+
+| Domain                                             | Framework    | Imports                                                                                                           |
+| -------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Backend (API, providers, adapters, core, security) | `node:test`  | `import { describe, it, before, after, beforeEach } from "node:test"` + `import assert from "node:assert/strict"` |
+| Frontend (admin components, client hooks)          | `vitest`     | `import { describe, it, expect, vi } from "vitest"` + `@testing-library/react`                                    |
+| E2E (admin auth, client publishing)                | `Playwright` | `import { test, expect } from "@playwright/test"`                                                                 |
+
+### Backend Test Pattern (node:test)
+
+```typescript
+import { describe, it, before, after, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+
+describe("Feature Name", () => {
+  before(async () => {
+    /* one-time setup */
+  });
+  beforeEach(async () => {
+    /* per-test setup */
+  });
+  after(async () => {
+    /* cleanup */
+  });
+
+  describe("Specific Functionality", () => {
+    it("returns expected result when given valid input", async () => {
+      const result = await serviceUnderTest.method(testData);
+      assert.ok(result.ok, "Operation should succeed");
+      assert.strictEqual(result.value.property, expectedValue);
+    });
+  });
+});
+```
+
+### Running Tests
+
+- Individual file: `pnpm --filter @apps/api test:filename`
+- Category: `pnpm --filter @apps/api test:category:name`
+- All tests: `pnpm --filter @apps/api test`
+- With coverage: `pnpm --filter @apps/api test:coverage`
+
+---
+
+## Naming Conventions
+
+| Element             | Convention                              | Example                  |
+| ------------------- | --------------------------------------- | ------------------------ |
+| Variables/Functions | `camelCase`                             | `getUserData()`          |
+| Constants           | `UPPER_SNAKE_CASE`                      | `MAX_RETRY_ATTEMPTS`     |
+| Classes             | `PascalCase`                            | `CreatePostUseCase`      |
+| Interfaces          | `PascalCase` (no `I` prefix)            | `PostRepository`         |
+| Types               | `PascalCase`                            | `UserId`                 |
+| Domain Events       | `PascalCase`, past tense                | `PostPublished`          |
+| Commands            | `PascalCase` + `Command`                | `CreatePostCommand`      |
+| Queries             | `PascalCase` + `Query`                  | `GetPostQuery`           |
+| Use Cases           | `PascalCase` + `UseCase`                | `CreatePostUseCase`      |
+| Port interfaces     | `PascalCase` + `Repository`/`Port`      | `PostRepository`         |
+| Adapters            | Infra prefix + Port name                | `PrismaPostRepository`   |
+| DI tokens           | `UPPER_SNAKE_CASE` in `TOKENS`          | `TOKENS.POST_REPOSITORY` |
+| Queue names         | `UPPER_SNAKE_CASE` constant             | `QUEUES.PUBLISH`         |
+| Zod schemas         | `camelCase` + `Schema`                  | `createPostSchema`       |
+| Enums (if needed)   | `PascalCase`, values `UPPER_SNAKE_CASE` | `JobStatus.RUNNING`      |
+| Files (utilities)   | `kebab-case.ts`                         | `api-client.ts`          |
+| Files (React)       | `PascalCase.tsx`                        | `UserProfile.tsx`        |
+| Directories         | `kebab-case`                            | `shared-components/`     |
+| CSS Classes         | `kebab-case`                            | `.data-table-header`     |
+| Database            | `snake_case` (Prisma schema)            | `created_at`             |
+
+### Unused Variables
+
+- Prefix with underscore: `_unusedParam`
+- Destructured: `{ propName: _propName }`
+- Active variables: never use underscore prefix
+
+---
+
+## React Component Standards
+
+- Function Declaration Order:
+  1. State declarations (useState)
+  2. Refs (useRef)
+  3. Callback functions (useCallback) — declare before use
+  4. Effects (useEffect) — must come after functions they depend on
+  5. Render helpers
+  6. Return JSX
+- Dependencies: All functions used in hooks must be in dependency arrays
+- Named exports for components, default exports only for pages
+- Import order: React → External libs → Internal packages → Relative imports
+- No circular dependencies
+
+---
+
+## Documentation
+
+Every file gets a JSDoc header:
+
+```typescript
+/**
+ * @file create-post.use-case.ts
+ * @description Orchestrates post creation: validates input, constructs aggregate,
+ *              persists via repository, dispatches PostCreated event via outbox.
+ * @layer application
+ */
+```
+
+Every public class method gets:
+
+```typescript
+/**
+ * @method execute
+ * @description Creates a new post aggregate and persists it transactionally.
+ * @param command - Validated creation parameters
+ * @returns Result<PostId> on success, ValidationError or InvariantError on failure
+ */
+```
+
+All comments in **English**.
+
+---
+
+## Automated Compliance Checks (CI Fitness Functions)
+
+These must stay at zero. If your change breaks any of these, fix it before committing:
+
+```bash
+# 1. No Prisma singleton imports in routes
+grep -rn "import { prisma" apps/api/src/ --include="*routes*" | wc -l
+
+# 2. Domain layer is framework-free
+grep -rn "prisma\|fastify\|redis\|bullmq" apps/api/src/domain/ --include="*.ts" | wc -l
+
+# 3. No `any` in domain/application/infrastructure
+grep -rn ": any\b\|as any\b\|<any>" \
+  apps/api/src/domain/ apps/api/src/application/ apps/api/src/infrastructure/ \
+  --include="*.ts" | grep -v "// any" | wc -l
+
+# 4. No raw throws in domain/application
+grep -rn "throw " apps/api/src/domain/ apps/api/src/application/ \
+  --include="*.ts" | wc -l
+
+# 5. No @ts-ignore in production source
+grep -rn "@ts-ignore\|@ts-nocheck" apps/api/src/ packages/*/src/ \
+  --include="*.ts" | wc -l
+
+# 6. CQRS handlers don't touch Prisma directly
+grep -rn "prisma\." apps/api/src/cqrs/handlers/ --include="*.ts" | wc -l
+
+# 7. No randomUUID in dedupeKey
+grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" \
+  apps/api/src/ packages/ --include="*.ts" | wc -l
+```
+
+---
+
+## Problem-Solving Standards
+
+**CRITICAL: NEVER bypass problems or create workarounds.** Always fix the root cause.
+
+1. **Research First**: Understand root cause and official solution
+2. **Implement Proper Solution**: Apply the correct, standards-compliant fix
+3. **Avoid Workarounds**: Never create temporary patches
+4. **Fix Problems Immediately**: When you detect a problem, fix it before proceeding
+
+**3+ Consecutive Errors Rule**: When 3 or more consecutive errors are encountered:
+
+1. STOP the current task immediately
+2. Enter planning mode
+3. Create a systematic plan to find root problems
+4. Use parallel subagents to fix issues
+5. Only then continue with the previous task
+
+### Multi-Agent Strategy
+
+Use specialized agents for different problem domains:
+
+- `software-architect-mvp` for workspace/dependency analysis
+- `qa-testing-strategist` for compilation audits and testing
+- `fastify-backend-developer` for import/dependency fixes
+- `nextjs-frontend-developer` for TypeScript compliance fixes
+- `postgresql-schema-architect` for database type issues
+- `performance-optimizer` for Result type and async patterns
+
+### Code Quality Gates
+
+- ESLint: Must pass with zero errors, zero warnings
+- Prettier: All files must be formatted
+- TypeScript: Must compile with zero errors
+- All CI fitness functions must pass
+
+---
+
+## Communication
+
+Always communicate what you are doing or trying to do. This allows the user to decide properly if that is what they want.

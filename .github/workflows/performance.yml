@@ -1,0 +1,180 @@
+name: Performance Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "k6 scenario to run"
+        required: false
+        default: "api-performance"
+        type: choice
+        options:
+          - api-performance
+          - auth-flow
+          - posting-workflow
+          - analytics-dashboard
+          - stress-test
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/src/**"
+      - "performance/**"
+
+concurrency:
+  group: performance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  db-stress:
+    name: Database & Memory Stress
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password123
+          POSTGRES_USER: postgres
+          POSTGRES_DB: omnipostdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Setup environment
+        run: |
+          cp apps/api/.env.example apps/api/.env
+          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> apps/api/.env
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env
+
+      - name: Run database migrations
+        run: pnpm --filter @infra/prisma db:migrate
+
+      - name: Run PostgreSQL stress test
+        run: pnpm perf:db
+        continue-on-error: true
+
+      - name: Run memory leak detection
+        run: pnpm perf:memory
+        continue-on-error: true
+
+  k6-load:
+    name: k6 Load Test (${{ github.event.inputs.scenario || 'api-performance' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: db-stress
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password123
+          POSTGRES_USER: postgres
+          POSTGRES_DB: omnipostdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Setup environment
+        run: |
+          cp apps/api/.env.example apps/api/.env
+          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> apps/api/.env
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env
+          echo "NODE_ENV=test" >> apps/api/.env
+
+      - name: Run database migrations
+        run: pnpm --filter @infra/prisma db:migrate
+
+      - name: Start API server
+        run: |
+          pnpm dev:api &
+          echo "API_PID=$!" >> $GITHUB_ENV
+          # Wait for API to be ready
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+              echo "API is ready after ${i}s"
+              break
+            fi
+            echo "Waiting for API... (${i}/30)"
+            sleep 1
+          done
+          curl -sf http://localhost:3000/health || (echo "API failed to start" && exit 1)
+
+      - name: Pull k6 Docker image
+        run: docker pull grafana/k6:latest
+
+      - name: Run k6 load test
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario || 'api-performance' }}"
+          docker run --rm \
+            --network host \
+            -v ${{ github.workspace }}/performance/k6:/scripts \
+            -e API_BASE_URL=http://localhost:3000 \
+            grafana/k6 run \
+              --out json=/scripts/results/results.json \
+              /scripts/scenarios/${SCENARIO}.js
+        continue-on-error: true
+
+      - name: Generate performance report
+        if: always()
+        run: pnpm perf:report
+        continue-on-error: true
+
+      - name: Upload k6 results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-results-${{ github.run_number }}
+          path: |
+            performance/k6/results/
+            performance/k6/reports/
+          retention-days: 30
+
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -n "$API_PID" ]; then
+            kill $API_PID 2>/dev/null || true
+          fi

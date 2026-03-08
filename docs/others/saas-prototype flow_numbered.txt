@@ -1,0 +1,136 @@
+🔄 Flujo detallado (1 → 6)
+
+1) Admin (Next.js) → API (Fastify/Nest)
+
+Aquí un usuario humano (tú o alguien del equipo) crea un CanonicalPost desde el panel.
+
+Tangible que entra:
+
+Texto (título, resumen, cuerpo, hashtags, links).
+
+Media (imágenes, GIFs, videos) → subidos a un storage (ej. S3, Cloudinary).
+
+Metadatos (idioma, categoría, fecha de publicación, autor).
+
+El Admin envía esta info al backend vía API HTTP (POST /posts).
+
+
+2) API → DB (Prisma/Postgres)
+
+La API valida los datos (zod).
+
+Guarda el CanonicalPost completo en la tabla Post.
+
+Si tiene media:
+
+Guarda referencias a URLs (ej: https://cdn.goldeayer.com/img123.jpg).
+
+No almacena el binario en DB, sólo paths + metadatos (ancho, alto, duración, tipo).
+
+Resultado: en DB tienes un snapshot canónico del post, aún sin publicar.
+
+
+3) API → Queue (BullMQ/Redis)
+
+La API programa un job de tipo publishPost.
+
+Job payload:
+
+{
+  "postId": "uuid",
+  "scheduledAt": "2025-09-15T18:00:00Z",
+  "channelIds": ["x:edward", "ig:goldeayer_official"]
+}
+
+
+Tangible aquí: solo viajan IDs y metadatos. El Worker luego usa el postId para recuperar todo de DB.
+
+
+4) Workers → Core (planPublication)
+
+Un Worker saca el job de la cola.
+
+Llama a core.planPublication(post, channels).
+
+Core (puro):
+
+Carga el CanonicalPost desde DB.
+
+Reglas: validaciones de longitudes, ratios de imágenes, límite de hashtags, etc.
+
+Genera un plan: qué va a cada red, cómo, y qué efectos se deben ejecutar.
+
+Tangible aquí:
+
+Texto original del post.
+
+URLs de imágenes/videos.
+
+Decisiones (ej: “para TikTok usar solo video vertical”, “para X recortar texto”).
+
+
+5) Ports → Providers (X, IG, FB, YT, TikTok)
+
+Cada ProviderAdapter recibe el CanonicalPost y produce un RenderedPost.
+
+Ejemplo X:
+
+{
+  "text": "Efeméride: hoy hace 30 años...",
+  "media": ["https://cdn.goldeayer.com/img123.jpg"]
+}
+
+
+Ejemplo TikTok:
+
+{
+  "text": "¡Golazo histórico!",
+  "media": ["https://cdn.goldeayer.com/video456.mp4"],
+  "meta": { "soundId": "tiktok123" }
+}
+
+
+Luego llama a la API oficial de cada red y publica.
+
+Tangible aquí: se transforma en el formato exacto que la red espera (texto truncado, media en ratio correcto, links tratados, etc.).
+
+
+6) Ports → Observabilidad (PublishLog, Analytics)
+
+Una vez publicado:
+
+Se guarda un PublishLog con dedupeKey, ID del post, providerId, status (OK/ERR), payload (ID del post en la red, URL pública).
+
+Si falla: se loguea error + detalles (ej. “rate limit exceeded”, “invalid media”).
+
+Jobs periódicos (fetchAnalytics) traen:
+
+Vistas, likes, retweets, shares, comentarios.
+
+Se guardan en tablas de analytics/reportes.
+
+
+Tangible aquí:
+
+En PublishLog → URL final del post publicado (ej. https://x.com/.../status/1234).
+
+En Analytics → números de engagement.
+
+
+📦 Resumen: dónde viaja la info tangible
+
+Admin → API: Texto completo + archivos subidos.
+
+API → DB: Texto + URLs/media + metadatos → guardado como snapshot.
+
+API → Queue: Job con referencias (IDs, no media).
+
+Worker → Core: Recupera CanonicalPost completo desde DB.
+
+Core → Providers: Transforma a RenderedPost adaptado por red.
+
+Providers → Redes Sociales: Se publica el contenido real (texto + media).
+
+Providers → PublishLog: URL final + estado (éxito/error).
+
+Providers → Analytics: Engagement recogido de APIs externas.

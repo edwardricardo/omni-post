@@ -1,0 +1,333 @@
+/**
+ * SyncEngine - Initialization & Sync Channel Management Tests
+ *
+ * Covers:
+ * - Engine initialization, Redis stream setup, idempotent re-init
+ * - Channel creation from Redis on startup
+ * - Unidirectional / bidirectional channel creation
+ * - Duplicate channel rejection, same-source/target validation
+ * - Redis storage of channel config, initial health status
+ */
+
+import { describe, it, before, after, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+
+// Suppress console.log to prevent TAP protocol corruption in concurrent test mode
+let _originalConsoleLog: typeof console.log;
+before(() => {
+  _originalConsoleLog = console.log;
+  console.log = () => {};
+});
+after(() => {
+  console.log = _originalConsoleLog;
+});
+
+import { SyncEngine } from "../../src/content/SyncEngine";
+import type { SyncConfiguration } from "@shared/orchestration";
+import type { ProviderId } from "../../src/providers/providerAdapter.interface";
+import {
+  mockPrisma,
+  mockRedis,
+  mockEventService,
+  synchronizer,
+  versionManager,
+  servicesAvailable,
+  setupSyncEngineInfra,
+  teardownSyncEngineInfra,
+  resetSyncEngineState,
+  skipIfUnavailable,
+} from "./syncEngine.helpers";
+
+let syncEngine: SyncEngine;
+
+before(async () => {
+  await setupSyncEngineInfra();
+});
+
+after(async () => {
+  await teardownSyncEngineInfra(syncEngine);
+});
+
+beforeEach(async () => {
+  await resetSyncEngineState(syncEngine);
+  if (!servicesAvailable) return;
+  syncEngine = new SyncEngine({
+    prisma: mockPrisma,
+    redis: mockRedis,
+    eventService: mockEventService,
+    synchronizer,
+    versionManager,
+  });
+});
+
+// ============================================================================
+// Initialization Tests
+// ============================================================================
+
+describe("SyncEngine - Initialization", { concurrency: 1 }, () => {
+  it("should initialize with empty channel map", async (t) => {
+    if (skipIfUnavailable(t)) return;
+    const engine = new SyncEngine({
+      prisma: mockPrisma,
+      redis: mockRedis,
+      eventService: mockEventService,
+      synchronizer,
+      versionManager,
+    });
+
+    await engine.initialize();
+
+    const metrics = await engine.getSyncMetrics();
+    assert.strictEqual(metrics.totalTransactions, 0, "Should start with zero transactions");
+    await engine.shutdown();
+  });
+
+  it("should setup Redis streams on initialization", async (t) => {
+    if (skipIfUnavailable(t)) return;
+    await syncEngine.initialize();
+
+    const streams = ["sync:content:changes", "sync:transactions", "sync:conflicts", "sync:metrics"];
+
+    for (const stream of streams) {
+      const info = await mockRedis.xinfo("STREAM", stream).catch(() => null);
+      assert.ok(info, `Stream ${stream} should be created`);
+    }
+  });
+
+  it("should not re-initialize when called multiple times", async (t) => {
+    if (skipIfUnavailable(t)) return;
+    await syncEngine.initialize();
+    await syncEngine.initialize();
+    await syncEngine.initialize();
+
+    const metrics = await syncEngine.getSyncMetrics();
+    assert.ok(metrics, "Metrics should be available after multiple inits");
+  });
+
+  it("should load existing sync channels from Redis", async (t) => {
+    if (skipIfUnavailable(t)) return;
+    const channelData = {
+      id: "test-channel-1",
+      name: "Test Channel",
+      sourceProvider: "twitter" as ProviderId,
+      targetProvider: "instagram" as ProviderId,
+      bidirectional: false,
+      enabled: true,
+      configuration: {
+        mode: "ON_DEMAND",
+        sources: [],
+        targets: [],
+        syncRules: [],
+        conflictResolution: {
+          strategy: "source_wins",
+        },
+      },
+      healthStatus: "healthy" as const,
+      errorCount: 0,
+      successRate: 1.0,
+    };
+
+    await mockRedis.setex("sync:channel:test-channel-1", 86400, JSON.stringify(channelData));
+
+    await syncEngine.initialize();
+
+    const result = await syncEngine.createSyncChannel(
+      "Test Channel",
+      "twitter" as ProviderId,
+      "instagram" as ProviderId,
+      {
+        mode: "ON_DEMAND",
+        sources: [],
+        targets: [],
+        syncRules: [],
+        conflictResolution: {
+          strategy: "source_wins",
+        },
+      }
+    );
+
+    assert.strictEqual(result.ok, false, "Should reject duplicate channel creation");
+    if (!result.ok) {
+      assert.match(
+        result.error.message,
+        /already exists/i,
+        "Error should mention channel already exists"
+      );
+    }
+  });
+});
+
+// ============================================================================
+// Sync Channel Management Tests
+// ============================================================================
+
+describe("SyncEngine - Sync Channel Management", { concurrency: 1 }, () => {
+  beforeEach(async () => {
+    if (!servicesAvailable) return;
+    await syncEngine.initialize();
+  });
+
+  it("should create unidirectional sync channel", async (t) => {
+    if (skipIfUnavailable(t)) return;
+    const result = await syncEngine.createSyncChannel(
+      "Twitter to Instagram",
+      "twitter" as ProviderId,
+      "instagram" as ProviderId,
+      {
+        mode: "REAL_TIME",
+        sources: [],
+        targets: [],
+        syncRules: [],
+        conflictResolution: {
+          strategy: "source_wins",
+        },
+      },
+      false
+    );
+
+    assert.strictEqual(result.ok, true, "Channel creation should succeed");
+    if (result.ok) {
+      assert.strictEqual(result.value.sourceProvider, "twitter");
+      assert.strictEqual(result.value.targetProvider, "instagram");
+      assert.strictEqual(result.value.bidirectional, false);
+      assert.strictEqual(result.value.enabled, true);
+      assert.strictEqual(result.value.healthStatus, "healthy");
+      assert.ok(result.value.id, "Channel should have an ID");
+    }
+  });
+
+  it("should create bidirectional sync channel", async (t) => {
+    if (skipIfUnavailable(t)) return;
+    const result = await syncEngine.createSyncChannel(
+      "Twitter ↔ Instagram",
+      "twitter" as ProviderId,
+      "instagram" as ProviderId,
+      {
+        mode: "REAL_TIME",
+        sources: [],
+        targets: [],
+        syncRules: [],
+        conflictResolution: {
+          strategy: "timestamp_wins",
+        },
+      },
+      true
+    );
+
+    assert.strictEqual(result.ok, true, "Bidirectional channel should be created");
+    if (result.ok) {
+      assert.strictEqual(result.value.bidirectional, true);
+    }
+  });
+
+  it("should reject channel with same source and target", async (t) => {
+    if (skipIfUnavailable(t)) return;
+    const result = await syncEngine.createSyncChannel(
+      "Invalid Channel",
+      "twitter" as ProviderId,
+      "twitter" as ProviderId,
+      {
+        mode: "ON_DEMAND",
+        sources: [],
+        targets: [],
+        syncRules: [],
+        conflictResolution: {
+          strategy: "source_wins",
+        },
+      }
+    );
+
+    assert.strictEqual(result.ok, false, "Should reject same source/target");
+    if (!result.ok) {
+      assert.strictEqual(result.error.type, "validation");
+      assert.match(result.error.message, /cannot be the same/i);
+    }
+  });
+
+  it("should reject duplicate channel creation", async (t) => {
+    if (skipIfUnavailable(t)) return;
+    const config: SyncConfiguration = {
+      mode: "ON_DEMAND",
+      sources: [],
+      targets: [],
+      syncRules: [],
+      conflictResolution: {
+        strategy: "source_wins",
+      },
+    };
+
+    const result1 = await syncEngine.createSyncChannel(
+      "Twitter to Facebook",
+      "twitter" as ProviderId,
+      "facebook" as ProviderId,
+      config
+    );
+    assert.strictEqual(result1.ok, true, "First channel should succeed");
+
+    const result2 = await syncEngine.createSyncChannel(
+      "Twitter to Facebook Duplicate",
+      "twitter" as ProviderId,
+      "facebook" as ProviderId,
+      config
+    );
+
+    assert.strictEqual(result2.ok, false, "Duplicate should be rejected");
+    if (!result2.ok) {
+      assert.match(result2.error.message, /already exists/i);
+    }
+  });
+
+  it("should store channel configuration in Redis", async (t) => {
+    if (skipIfUnavailable(t)) return;
+    const result = await syncEngine.createSyncChannel(
+      "Test Redis Storage",
+      "twitter" as ProviderId,
+      "youtube" as ProviderId,
+      {
+        mode: "SCHEDULED",
+        sources: [],
+        targets: [],
+        syncRules: [],
+        conflictResolution: {
+          strategy: "manual",
+        },
+      }
+    );
+
+    assert.strictEqual(result.ok, true, "Channel creation should succeed");
+    if (result.ok) {
+      const channelId = result.value.id;
+      const stored = await mockRedis.get(`sync:channel:${channelId}`);
+      assert.ok(stored, "Channel should be stored in Redis");
+
+      const parsed = JSON.parse(stored!);
+      assert.strictEqual(parsed.id, channelId);
+      assert.strictEqual(parsed.name, "Test Redis Storage");
+    }
+  });
+
+  it("should initialize channel with healthy status", async (t) => {
+    if (skipIfUnavailable(t)) return;
+    const result = await syncEngine.createSyncChannel(
+      "Health Check Channel",
+      "twitter" as ProviderId,
+      "instagram" as ProviderId,
+      {
+        mode: "REAL_TIME",
+        sources: [],
+        targets: [],
+        syncRules: [],
+        conflictResolution: {
+          strategy: "source_wins",
+        },
+      }
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.strictEqual(result.value.healthStatus, "healthy");
+      assert.strictEqual(result.value.errorCount, 0);
+      assert.strictEqual(result.value.successRate, 1.0);
+    }
+  });
+});

@@ -1,0 +1,24 @@
+{
+  "name": "@adapters/db-prisma",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  },
+  "dependencies": {
+    "@shared/types": "workspace:*",
+    "@ports/core": "workspace:*",
+    "@infra/prisma": "workspace:*",
+    "@observability/logger": "workspace:*",
+    "@prisma/client": "7.4.1",
+    "opossum": "9.0.0",
+    "ioredis": "5.7.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}

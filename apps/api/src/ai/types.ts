@@ -1,0 +1,198 @@
+// AI Service Types and Interfaces
+//
+// NOTE: The "AI" prefix refers to external LLM provider integrations
+// (OpenAI, Gemini, Perplexity), not proprietary ML models. Performance
+// "predictions" are AI-assisted estimates from these providers, not
+// outputs of a trained statistical model.
+
+export interface AIMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+export interface GenerationOptions {
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  stream?: boolean;
+  timeout?: number;
+}
+
+export interface ContentAnalysis {
+  sentiment: {
+    score: number; // -1 to 1
+    label: "positive" | "negative" | "neutral";
+    confidence: number;
+  };
+  tone: {
+    detected: string;
+    confidence: number;
+    suggestions: string[];
+  };
+  readability: {
+    score: number;
+    level: string;
+    suggestions: string[];
+  };
+  brandConsistency: {
+    score: number;
+    voice: string;
+    suggestions: string[];
+  };
+  engagement: {
+    score: number;
+    factors: Array<{
+      factor: string;
+      impact: number;
+      suggestion: string;
+    }>;
+  };
+}
+
+export interface ContentOptimization {
+  optimizedText: string;
+  changes: Array<{
+    type: "added" | "removed" | "modified";
+    original: string;
+    optimized: string;
+    reason: string;
+  }>;
+  hashtags: string[];
+  mentions: string[];
+  mediasuggestions: Array<{
+    type: "image" | "video";
+    description: string;
+    dimensions: string;
+  }>;
+  platformSpecific: Record<
+    string,
+    {
+      text: string;
+      characterCount: number;
+      optimizations: string[];
+    }
+  >;
+}
+
+export interface PerformancePrediction {
+  platform: string;
+  metrics: {
+    expectedEngagement: {
+      value: number;
+      confidence: number;
+      range: { min: number; max: number };
+    };
+    expectedReach: {
+      value: number;
+      confidence: number;
+      range: { min: number; max: number };
+    };
+    viralPotential: number;
+    conversionPotential: number;
+  };
+  optimalTiming: {
+    hour: number;
+    day: string;
+    timezone: string;
+    confidence: number;
+  };
+  competitiveAnalysis: {
+    benchmarkScore: number;
+    opportunities: string[];
+    threats: string[];
+  };
+}
+
+export interface AIProvider {
+  name: "openai" | "anthropic" | "perplexity" | "gemini";
+  isAvailable(): Promise<boolean>;
+  generateText(messages: AIMessage[], options?: GenerationOptions): Promise<string>;
+  analyzeContent(
+    content: string,
+    analysisType: "sentiment" | "tone" | "readability" | "engagement"
+  ): Promise<Partial<ContentAnalysis>>;
+  optimizeContent(
+    content: string,
+    platform: string,
+    brandVoice?: string
+  ): Promise<ContentOptimization>;
+  predictPerformance(
+    content: string,
+    platform: string,
+    historicalData?: any[]
+  ): Promise<PerformancePrediction>;
+  generateVariations(
+    content: string,
+    variationType: "tone" | "length" | "audience",
+    count: number
+  ): Promise<string[]>;
+}
+
+export interface AITaskConfig {
+  primaryProvider: AIProvider["name"];
+  fallbackProviders: AIProvider["name"][];
+  retryAttempts: number;
+  timeout: number;
+  cacheResults: boolean;
+  cacheTTL: number;
+}
+
+export interface AIUsageMetrics {
+  provider: string;
+  tokensUsed: number;
+  requestCount: number;
+  successRate: number;
+  averageLatency: number;
+  cost: number;
+  timestamp: Date;
+}
+
+export interface RateLimitConfig {
+  requestsPerMinute: number;
+  tokensPerMinute: number;
+  requestsPerDay: number;
+  tokensPerDay: number;
+}
+
+export interface AIProviderConfig {
+  apiKey: string;
+  baseUrl?: string;
+  model: string;
+  rateLimit: RateLimitConfig;
+  timeout: number;
+  retries: number;
+}
+
+export type AITask =
+  | { type: "generate"; data: { messages: AIMessage[]; options?: GenerationOptions } }
+  | {
+      type: "analyze";
+      data: { content: string; analysisType: "sentiment" | "tone" | "readability" | "engagement" };
+    }
+  | { type: "optimize"; data: { content: string; platform: string; brandVoice?: string } }
+  | { type: "predict"; data: { content: string; platform: string; historicalData?: any[] } }
+  | {
+      type: "variations";
+      data: { content: string; variationType: "tone" | "length" | "audience"; count: number };
+    };
+
+export interface AIResponse<T = any> {
+  ok: boolean;
+  value?: T;
+  error?: {
+    code: string;
+    message: string;
+    provider: string;
+    retryable: boolean;
+  };
+  metadata: {
+    provider: string;
+    model: string;
+    tokensUsed: number;
+    latency: number;
+    cached: boolean;
+  };
+}

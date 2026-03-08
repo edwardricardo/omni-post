@@ -1,0 +1,24 @@
+{
+  "name": "@adapters/external-apis",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  },
+  "dependencies": {
+    "@ports/core": "workspace:*",
+    "@adapters/queue-bullmq": "workspace:*",
+    "@adapters/fallback-strategies": "workspace:*",
+    "@adapters/dead-letter-queue": "workspace:*",
+    "@observability/logger": "workspace:*",
+    "opossum": "8.0.0",
+    "prom-client": "15.1.3"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}

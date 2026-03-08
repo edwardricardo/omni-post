@@ -1,0 +1,131 @@
+# Dependabot configuration for automated dependency updates
+version: 2
+updates:
+  # Enable version updates for pnpm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    assignees:
+      - "repository-owner"
+    reviewers:
+      - "repository-owner"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "automated"
+    ignore:
+      # Ignore major version updates for React (handled manually)
+      - dependency-name: "react*"
+        update-types: ["version-update:semver-major"]
+      # Ignore major updates for TypeScript (needs manual validation)
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # Group React ecosystem updates
+      react:
+        patterns:
+          - "react*"
+          - "@types/react*"
+      # Group ESLint and Prettier updates
+      code-quality:
+        patterns:
+          - "eslint*"
+          - "prettier*"
+          - "@typescript-eslint/*"
+      # Group testing dependencies
+      testing:
+        patterns:
+          - "*test*"
+          - "jest*"
+          - "playwright*"
+          - "vitest*"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "06:00"
+      timezone: "UTC"
+    assignees:
+      - "repository-owner"
+    reviewers:
+      - "repository-owner"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "automated"
+
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "06:00"
+      timezone: "UTC"
+    assignees:
+      - "repository-owner"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "docker"
+      - "automated"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/workers"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "06:00"
+      timezone: "UTC"
+    assignees:
+      - "repository-owner"
+    commit-message:
+      prefix: "docker"
+    labels:
+      - "docker"
+      - "automated"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/admin"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "06:00"
+      timezone: "UTC"
+    assignees:
+      - "repository-owner"
+    commit-message:
+      prefix: "docker"
+    labels:
+      - "docker"
+      - "automated"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/client"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "06:00"
+      timezone: "UTC"
+    assignees:
+      - "repository-owner"
+    commit-message:
+      prefix: "docker"
+    labels:
+      - "docker"
+      - "automated"

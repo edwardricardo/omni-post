@@ -1,0 +1,372 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "omni-post",
+    "stack": [
+      "TypeScript",
+      "Next.js (App Router)",
+      "Tailwind + shadcn/ui",
+      "Fastify",
+      "PostgreSQL + Prisma"
+    ],
+    "work_environments": ["dev", "staging", "prod"]
+  },
+  "_schema": {
+    "handoff": {
+      "_note": "Formal template that every handoff must follow.",
+      "required": [
+        "from",
+        "to",
+        "trigger",
+        "artifacts",
+        "acceptance_criteria",
+        "timeout_minutes",
+        "retries",
+        "gate"
+      ],
+      "properties": {
+        "from": "string",
+        "to": "string",
+        "trigger": "string",
+        "artifacts": ["string"],
+        "acceptance_criteria": ["string"],
+        "timeout_minutes": "number>0",
+        "retries": "integer>=0",
+        "gate": "string|null",
+        "notes": "string(optional)"
+      }
+    }
+  },
+  "orchestrator": {
+    "id": "project-conductor",
+    "model": "sonnet",
+    "purpose": "Coordinate work between subagents, split tasks, consolidate deliverables, and decide handoffs.",
+    "routing_strategy": "rule-first-with-metrics",
+    "global_inputs": ["backlog_item", "design_decisions", "repo_urls", "env_vars"],
+    "global_outputs": ["work_plan", "handoff_messages", "merge_summary"],
+    "handoff_policy": {
+      "required_fields": ["context", "acceptance_criteria", "artifacts", "owner"],
+      "max_context_tokens": 8000,
+      "redact": ["secrets", "access_tokens", "pii"]
+    },
+    "quality_gates": [
+      "qa-testing-strategist:green",
+      "appsec-security-auditor:green",
+      "performance-optimizer:notes-or-green",
+      "dx-documentation-manager:updated"
+    ],
+    "metrics": {
+      "lead_time_hours": true,
+      "handoff_rework_rate": true,
+      "failed_quality_gates": true
+    }
+  },
+  "agents": [
+    {
+      "id": "product-manager-epic-stories",
+      "model": "sonnet",
+      "purpose": "Translate business objectives into epics and prioritized user stories.",
+      "tools": ["issue_tracker_writer"]
+    },
+    {
+      "id": "software-architect-mvp",
+      "model": "sonnet",
+      "purpose": "Define architecture, patterns, and contracts between layers.",
+      "tools": ["adr_writer"]
+    },
+    {
+      "id": "postgresql-schema-architect",
+      "model": "sonnet",
+      "purpose": "Relational modeling, indexes, migrations, and query performance.",
+      "tools": ["prisma_generator"]
+    },
+    {
+      "id": "nextjs-frontend-architect",
+      "model": "sonnet",
+      "purpose": "Define frontend structure (App Router), i18n, atomic design, and UI libraries.",
+      "tools": ["component_schematics"]
+    },
+    {
+      "id": "fastify-backend-developer",
+      "model": "sonnet",
+      "purpose": "Implement Fastify API, auth with cookies/CSRF, validation, and services.",
+      "tools": ["openapi_generator"]
+    },
+    {
+      "id": "nextjs-frontend-developer",
+      "model": "sonnet",
+      "purpose": "Implement components and pages consuming APIs.",
+      "tools": ["code_writer"]
+    },
+    {
+      "id": "qa-testing-strategist",
+      "model": "haiku",
+      "purpose": "Define and execute strategy for unit, integration, and E2E tests.",
+      "tools": ["test_runner"]
+    },
+    {
+      "id": "appsec-security-auditor",
+      "model": "sonnet",
+      "purpose": "Audit security (OWASP), dependencies, and configurations.",
+      "tools": ["dep_scanner"]
+    },
+    {
+      "id": "performance-optimizer",
+      "model": "sonnet",
+      "purpose": "Optimize response time, rendering, and SQL queries.",
+      "tools": ["profiler"]
+    },
+    {
+      "id": "sre-devops-architect",
+      "model": "sonnet",
+      "purpose": "Configure CI/CD, containers, observability, and releases.",
+      "tools": ["ci_writer"]
+    },
+    {
+      "id": "dx-documentation-manager",
+      "model": "haiku",
+      "purpose": "Maintain living documentation: APIs, components, decisions, and guides.",
+      "tools": ["docs_generator"]
+    },
+    {
+      "id": "analytics-architect",
+      "model": "sonnet",
+      "purpose": "Define KPIs, tracking, analytical schemas, and dashboards.",
+      "tools": ["sql_writer"]
+    },
+    {
+      "id": "react-frontend-specialist",
+      "model": "sonnet",
+      "purpose": "Optimize UI in React/Next.js: component performance, a11y, state, and composition.",
+      "tools": ["bundle_analyzer", "a11y_auditor"]
+    },
+    {
+      "id": "react-backend-specialist",
+      "model": "sonnet",
+      "purpose": "Design/optimize React Server Components, SSR/ISR, cache, and Edge execution for Next.js.",
+      "tools": ["rsc_profiler", "cache_strategist"]
+    }
+  ],
+  "chains": [
+    {
+      "id": "feature_delivery",
+      "trigger": "new_story_committed",
+      "steps": [
+        "product-manager-epic-stories",
+        "software-architect-mvp",
+        ["postgresql-schema-architect", "nextjs-frontend-architect"],
+        "react-frontend-specialist",
+        "react-backend-specialist",
+        ["fastify-backend-developer", "nextjs-frontend-developer"],
+        "qa-testing-strategist",
+        ["appsec-security-auditor", "performance-optimizer"],
+        "sre-devops-architect",
+        "dx-documentation-manager",
+        "analytics-architect"
+      ],
+      "handoffs": [
+        {
+          "from": "product-manager-epic-stories",
+          "to": "software-architect-mvp",
+          "trigger": "backlog_ready",
+          "artifacts": ["epics", "stories", "prioritized_backlog"],
+          "acceptance_criteria": ["INVEST stories", "clear AC", "declared dependencies"],
+          "timeout_minutes": 30,
+          "retries": 1,
+          "gate": null
+        },
+        {
+          "from": "software-architect-mvp",
+          "to": "postgresql-schema-architect",
+          "trigger": "persistence_required",
+          "artifacts": ["architecture_doc", "api_contracts"],
+          "acceptance_criteria": [
+            "entities and relationships defined",
+            "contracts requiring storage"
+          ],
+          "timeout_minutes": 30,
+          "retries": 1,
+          "gate": null
+        },
+        {
+          "from": "software-architect-mvp",
+          "to": "nextjs-frontend-architect",
+          "trigger": "ui_required",
+          "artifacts": ["architecture_doc", "api_contracts", "component_map"],
+          "acceptance_criteria": ["main routes listed", "atomic components defined"],
+          "timeout_minutes": 30,
+          "retries": 1,
+          "gate": null
+        },
+        {
+          "from": "nextjs-frontend-architect",
+          "to": "react-frontend-specialist",
+          "trigger": "component_specs_ready",
+          "artifacts": ["ui_architecture", "component_library_plan", "routing_map"],
+          "acceptance_criteria": [
+            "key components with defined state strategy",
+            "critical props typed and documented",
+            "load scenarios identified"
+          ],
+          "timeout_minutes": 30,
+          "retries": 1,
+          "gate": null
+        },
+        {
+          "from": "react-frontend-specialist",
+          "to": "nextjs-frontend-developer",
+          "trigger": "perf_guidelines_ready",
+          "artifacts": ["perf_checklist_ui", "a11y_findings", "bundle_budget_rules"],
+          "acceptance_criteria": [
+            "bundle_budget_rules integrated",
+            "no critical a11y issues",
+            "performance checklist attached"
+          ],
+          "timeout_minutes": 30,
+          "retries": 0,
+          "gate": null
+        },
+        {
+          "from": "software-architect-mvp",
+          "to": "fastify-backend-developer",
+          "trigger": "api_contracts_ready",
+          "artifacts": ["api_contracts"],
+          "acceptance_criteria": ["valid OpenAPI", "typed errors"],
+          "timeout_minutes": 45,
+          "retries": 1,
+          "gate": null
+        },
+        {
+          "from": "software-architect-mvp",
+          "to": "react-backend-specialist",
+          "trigger": "server_components_required",
+          "artifacts": ["architecture_doc", "api_contracts", "component_map"],
+          "acceptance_criteria": [
+            "RSC points identified with justification",
+            "proposed cache policies",
+            "data/latency constraints considered"
+          ],
+          "timeout_minutes": 45,
+          "retries": 1,
+          "gate": null
+        },
+        {
+          "from": "react-backend-specialist",
+          "to": "fastify-backend-developer",
+          "trigger": "rsc_contracts_ready",
+          "artifacts": ["server_components_plan", "cache_policies", "edge_guidelines"],
+          "acceptance_criteria": [
+            "endpoints and expected times defined for RSC",
+            "cache policies mapped to routes/segments"
+          ],
+          "timeout_minutes": 40,
+          "retries": 1,
+          "gate": null
+        },
+        {
+          "from": "react-backend-specialist",
+          "to": "nextjs-frontend-developer",
+          "trigger": "rsc_contracts_ready",
+          "artifacts": ["server_components_plan", "rsc_usage_guide"],
+          "acceptance_criteria": [
+            "components marked as server/client where applicable",
+            "RSC usage guide integrated into UI plan"
+          ],
+          "timeout_minutes": 40,
+          "retries": 1,
+          "gate": null
+        },
+        {
+          "from": "postgresql-schema-architect",
+          "to": "fastify-backend-developer",
+          "trigger": "migrations_ready",
+          "artifacts": ["sql_migrations", "prisma_schema"],
+          "acceptance_criteria": ["migrations apply in dev", "critical indexes created"],
+          "timeout_minutes": 45,
+          "retries": 1,
+          "gate": null
+        },
+        {
+          "from": "fastify-backend-developer",
+          "to": "qa-testing-strategist",
+          "trigger": "feature_ready",
+          "artifacts": ["routes", "services", "validators"],
+          "acceptance_criteria": ["API build without errors", "handlers covered"],
+          "timeout_minutes": 30,
+          "retries": 0,
+          "gate": null
+        },
+        {
+          "from": "nextjs-frontend-developer",
+          "to": "qa-testing-strategist",
+          "trigger": "feature_ready",
+          "artifacts": ["react_components", "hooks", "storybook"],
+          "acceptance_criteria": ["storybook compiles", "typed props"],
+          "timeout_minutes": 30,
+          "retries": 0,
+          "gate": null
+        },
+        {
+          "from": "qa-testing-strategist",
+          "to": "appsec-security-auditor",
+          "trigger": "critical_path_passed",
+          "artifacts": ["coverage_report", "test_suites"],
+          "acceptance_criteria": ["coverage >= 0.8", "no failures on critical path"],
+          "timeout_minutes": 30,
+          "retries": 0,
+          "gate": null
+        },
+        {
+          "from": "qa-testing-strategist",
+          "to": "performance-optimizer",
+          "trigger": "critical_path_passed",
+          "artifacts": ["coverage_report"],
+          "acceptance_criteria": ["stable tests"],
+          "timeout_minutes": 30,
+          "retries": 0,
+          "gate": null
+        },
+        {
+          "from": "appsec-security-auditor",
+          "to": "sre-devops-architect",
+          "trigger": "security_report_ready",
+          "artifacts": ["security_report", "fix_recommendations"],
+          "acceptance_criteria": ["0 critical vulnerabilities", "medium <= 2"],
+          "timeout_minutes": 40,
+          "retries": 1,
+          "gate": "appsec-security-auditor:green"
+        },
+        {
+          "from": "performance-optimizer",
+          "to": "sre-devops-architect",
+          "trigger": "perf_report_ready",
+          "artifacts": ["perf_report"],
+          "acceptance_criteria": ["prioritized improvements"],
+          "timeout_minutes": 40,
+          "retries": 1,
+          "gate": null
+        },
+        {
+          "from": "sre-devops-architect",
+          "to": "dx-documentation-manager",
+          "trigger": "release_ready",
+          "artifacts": ["pipelines", "dashboards"],
+          "acceptance_criteria": ["reproducible deploy", "basic monitoring"],
+          "timeout_minutes": 30,
+          "retries": 0,
+          "gate": null
+        },
+        {
+          "from": "dx-documentation-manager",
+          "to": "analytics-architect",
+          "trigger": "docs_updated",
+          "artifacts": ["docs_site", "changelog"],
+          "acceptance_criteria": ["docs published", "changes versioned"],
+          "timeout_minutes": 20,
+          "retries": 0,
+          "gate": null
+        }
+      ]
+    }
+  ]
+}

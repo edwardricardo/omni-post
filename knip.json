@@ -1,0 +1,127 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "workspaces": {
+    ".": {
+      "project": ["*.{ts,js,cjs,mjs}"],
+      "ignoreDependencies": [
+        "loadtest",
+        "jq",
+        "fastify-type-provider-zod",
+        "@ast-grep/cli",
+        "depcheck",
+        "eslint-config-prettier",
+        "@types/react",
+        "@types/react-dom",
+        "react",
+        "react-dom"
+      ]
+    },
+    "apps/api": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**", "src/**/*.test.ts", "reports/**", "scripts/**"]
+    },
+    "apps/workers": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**"]
+    },
+    "apps/admin": {
+      "project": ["**/*.{ts,tsx}"],
+      "ignore": ["tests/**"],
+      "ignoreDependencies": ["@vitest/coverage-v8"]
+    },
+    "apps/client": {
+      "project": ["**/*.{ts,tsx}"],
+      "ignore": ["tests/**"],
+      "ignoreDependencies": ["@vitest/coverage-v8", "tailwindcss"]
+    },
+    "packages/shared": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["src/**/*.js", "src/**/*.d.ts"]
+    },
+    "packages/ports": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["src/**/*.js", "src/**/*.d.ts"]
+    },
+    "packages/core": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**"]
+    },
+    "packages/ui": {
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/api-common": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**"]
+    },
+    "packages/providers/shared": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**"]
+    },
+    "packages/providers/x": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**"]
+    },
+    "packages/providers/instagram": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**"]
+    },
+    "packages/providers/facebook": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**"]
+    },
+    "packages/providers/youtube": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**"]
+    },
+    "packages/providers/tiktok": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**"]
+    },
+    "packages/providers/_template": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/adapters/cache-redis": {
+      "project": ["src/**/*.ts"],
+      "ignore": ["tests/**"]
+    },
+    "packages/adapters/db-prisma": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/adapters/queue-bullmq": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/adapters/external-apis": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/adapters/storage-cloudinary": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/adapters/storage-s3": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/adapters/dead-letter-queue": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/adapters/fallback-strategies": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/observability/logger": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/observability/opentelemetry": {
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": [
+        "@opentelemetry/core",
+        "@opentelemetry/instrumentation",
+        "@opentelemetry/propagation-utils"
+      ]
+    },
+    "infra/prisma": {
+      "entry": ["src/index.ts", "src/client.ts"],
+      "project": ["src/**/*.ts"],
+      "ignore": ["src/**/*.d.ts"]
+    }
+  },
+  "ignoreDependencies": ["@ports/core", "@prisma/client", "tw-animate-css"]
+}

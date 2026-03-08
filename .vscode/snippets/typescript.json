@@ -1,0 +1,245 @@
+{
+  "Fastify Route Handler": {
+    "prefix": "fastify-route",
+    "body": [
+      "export const ${1:routeName}Handler = async (fastify: FastifyInstance) => {",
+      "  fastify.${2|get,post,put,delete,patch|}('${3:/endpoint}', {",
+      "    schema: {",
+      "      ${4:summary: '${5:Description}',}",
+      "      ${6:tags: ['${7:tag}'],}",
+      "      ${8:params: z.object({",
+      "        ${9:id: z.string().uuid()}",
+      "      }),}",
+      "      ${10:body: z.object({",
+      "        ${11:// Request body schema}",
+      "      }),}",
+      "      response: {",
+      "        200: z.object({",
+      "          ${12:// Response schema}",
+      "        })",
+      "      }",
+      "    }",
+      "  }, async (request, reply) => {",
+      "    ${13:// Implementation}",
+      "    $0",
+      "  });",
+      "};"
+    ],
+    "description": "Create a Fastify route handler with Zod schema"
+  },
+  "Test Case": {
+    "prefix": "test-case",
+    "body": [
+      "test('${1:should describe what it tests}', async () => {",
+      "  // Arrange",
+      "  ${2:// Setup test data}",
+      "",
+      "  // Act",
+      "  ${3:// Execute the code under test}",
+      "",
+      "  // Assert",
+      "  ${4:// Verify the results}",
+      "  expect(${5:actual}).toEqual(${6:expected});",
+      "});"
+    ],
+    "description": "Create a test case with Arrange-Act-Assert pattern"
+  },
+  "Async Test Case": {
+    "prefix": "test-async",
+    "body": [
+      "test('${1:should describe what it tests}', async () => {",
+      "  // Arrange",
+      "  ${2:// Setup test data}",
+      "",
+      "  // Act",
+      "  const result = await ${3:// Execute async code};",
+      "",
+      "  // Assert",
+      "  expect(result).toEqual(${4:expected});",
+      "});"
+    ],
+    "description": "Create an async test case"
+  },
+  "API Test": {
+    "prefix": "api-test",
+    "body": [
+      "test('${1:endpoint} should ${2:behavior}', async () => {",
+      "  const response = await fastify.inject({",
+      "    method: '${3|GET,POST,PUT,DELETE,PATCH|}',",
+      "    url: '${4:/api/endpoint}',",
+      "    ${5:payload: {",
+      "      ${6:// Request body}",
+      "    },}",
+      "    ${7:headers: {",
+      "      authorization: 'Bearer ' + accessToken",
+      "    }}",
+      "  });",
+      "",
+      "  expect(response.statusCode).toBe(${8:200});",
+      "  const body = response.json();",
+      "  expect(body).toEqual(${9:expected});",
+      "});"
+    ],
+    "description": "Create an API test using Fastify inject"
+  },
+  "React Hook": {
+    "prefix": "use-hook",
+    "body": [
+      "export const use${1:HookName} = (${2:params}) => {",
+      "  const [${3:state}, ${4:setState}] = useState(${5:initialValue});",
+      "",
+      "  useEffect(() => {",
+      "    ${6:// Effect logic}",
+      "  }, [${7:dependencies}]);",
+      "",
+      "  return {",
+      "    ${8:// Return values}",
+      "    ${3:state},",
+      "    ${4:setState}",
+      "  };",
+      "};"
+    ],
+    "description": "Create a custom React hook"
+  },
+  "React Component": {
+    "prefix": "react-component",
+    "body": [
+      "interface ${1:ComponentName}Props {",
+      "  ${2:// Props interface}",
+      "}",
+      "",
+      "export const ${1:ComponentName}: React.FC<${1:ComponentName}Props> = ({",
+      "  ${3:// Destructured props}",
+      "}) => {",
+      "  ${4:// Component logic}",
+      "",
+      "  return (",
+      "    <div>",
+      "      ${5:// JSX content}",
+      "    </div>",
+      "  );",
+      "};"
+    ],
+    "description": "Create a React functional component"
+  },
+  "Error Handler": {
+    "prefix": "error-handler",
+    "body": [
+      "try {",
+      "  ${1:// Code that might throw}",
+      "} catch (error) {",
+      "  ${2:// Log error}",
+      "  fastify.log.error({ error, ${3:context} }, '${4:Error message}');",
+      "  ",
+      "  ${5:// Handle specific error types}",
+      "  if (error instanceof ${6:SpecificError}) {",
+      "    return reply.status(${7:400}).send({",
+      "      error: '${8:Error message}',",
+      "      code: '${9:ERROR_CODE}'",
+      "    });",
+      "  }",
+      "  ",
+      "  ${10:// Generic error response}",
+      "  return reply.status(500).send({",
+      "    error: 'Internal server error'",
+      "  });",
+      "}"
+    ],
+    "description": "Create an error handler with logging"
+  },
+  "Zod Schema": {
+    "prefix": "zod-schema",
+    "body": [
+      "const ${1:schemaName}Schema = z.object({",
+      "  ${2:id: z.string().uuid(),}",
+      "  ${3:name: z.string().min(1).max(255),}",
+      "  ${4:email: z.string().email().optional(),}",
+      "  ${5:createdAt: z.date().default(() => new Date())}",
+      "});",
+      "",
+      "export type ${1/(.*)/${1:/capitalize}/} = z.infer<typeof ${1:schemaName}Schema>;"
+    ],
+    "description": "Create a Zod schema with TypeScript type"
+  },
+  "Database Query": {
+    "prefix": "db-query",
+    "body": [
+      "const ${1:result} = await prisma.${2:modelName}.${3|findMany,findUnique,create,update,delete|}({",
+      "  ${4:where: {",
+      "    ${5:// Query conditions}",
+      "  },}",
+      "  ${6:select: {",
+      "    ${7:// Fields to select}",
+      "  },}",
+      "  ${8:include: {",
+      "    ${9:// Relations to include}",
+      "  }}",
+      "});"
+    ],
+    "description": "Create a Prisma database query"
+  },
+  "Performance Timer": {
+    "prefix": "perf-timer",
+    "body": [
+      "const ${1:timerName}Start = performance.now();",
+      "${2:// Code to measure}",
+      "const ${1:timerName}End = performance.now();",
+      "fastify.log.info({ ",
+      "  duration: ${1:timerName}End - ${1:timerName}Start,",
+      "  operation: '${3:operation-name}'",
+      "}, '${4:Performance measurement}');"
+    ],
+    "description": "Add performance timing measurement"
+  },
+  "Logger": {
+    "prefix": "logger",
+    "body": [
+      "fastify.log.${1|info,debug,warn,error|}({ ",
+      "  ${2:// Context data}",
+      "}, '${3:Log message}');"
+    ],
+    "description": "Add structured logging statement"
+  },
+  "Cache Implementation": {
+    "prefix": "cache-impl",
+    "body": [
+      "const cacheKey = `${1:prefix}:${2:identifier}`;",
+      "",
+      "// Try to get from cache",
+      "const cached = await redis.get(cacheKey);",
+      "if (cached) {",
+      "  return JSON.parse(cached);",
+      "}",
+      "",
+      "// Get from source",
+      "const ${3:data} = await ${4:fetchData()};",
+      "",
+      "// Cache the result",
+      "await redis.setex(cacheKey, ${5:3600}, JSON.stringify(${3:data}));",
+      "",
+      "return ${3:data};"
+    ],
+    "description": "Implement Redis caching pattern"
+  },
+  "Queue Job": {
+    "prefix": "queue-job",
+    "body": [
+      "export const ${1:jobName}Job = {",
+      "  name: '${2:job-name}',",
+      "  ",
+      "  async handler(data: ${3:JobDataType}) {",
+      "    ${4:// Job implementation}",
+      "  },",
+      "  ",
+      "  options: {",
+      "    attempts: ${5:3},",
+      "    backoff: {",
+      "      type: 'exponential',",
+      "      delay: ${6:2000}",
+      "    }",
+      "  }",
+      "};"
+    ],
+    "description": "Create a BullMQ job handler"
+  }
+}

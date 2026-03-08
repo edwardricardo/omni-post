@@ -1,0 +1,24 @@
+{
+  "name": "@adapters/dead-letter-queue",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  },
+  "dependencies": {
+    "@shared/types": "workspace:*",
+    "@ports/core": "workspace:*",
+    "@adapters/queue-bullmq": "workspace:*",
+    "bullmq": "5.58.9",
+    "ioredis": "5.7.0",
+    "pino": "10.3.1",
+    "uuid": "13.0.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}

@@ -1,0 +1,48 @@
+# ==============================================================================
+# Railway Production Dockerfile - tsx with tsconfig-paths for path resolution
+# Solves: TypeScript path aliases, no compilation needed, faster builds
+# ==============================================================================
+
+FROM node:20-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+# Install OpenSSL for Prisma
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+RUN corepack enable
+
+# ==============================================================================
+# Production Stage - Single stage for simplicity and speed
+# ==============================================================================
+FROM base AS production
+
+WORKDIR /app
+
+# Copy everything
+COPY . .
+
+# Install ALL dependencies (tsx and tsconfig-paths are needed at runtime)
+RUN pnpm install --frozen-lockfile
+
+# Generate Prisma client
+RUN pnpm --filter @infra/prisma prisma generate
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "const http=require('http');const req=http.request({host:'localhost',port:process.env.PORT||3000,path:'/health',timeout:5000},res=>{process.exit(res.statusCode===200?0:1)});req.on('error',()=>process.exit(1));req.end();"
+
+# Copy and setup startup script (runs migrations before starting app)
+COPY apps/api/start.sh /app/apps/api/start.sh
+RUN chmod +x /app/apps/api/start.sh
+
+# Start with startup script (runs migrations then starts app)
+WORKDIR /app/apps/api
+CMD ["./start.sh"]

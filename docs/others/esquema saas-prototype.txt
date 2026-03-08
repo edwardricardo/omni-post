@@ -1,0 +1,22 @@
+apps/
+  admin/          # Next.js (panel CMS)
+  api/            # Fastify/Nest (HTTP, webhooks)
+  workers/        # Workers BullMQ para publicación/analytics
+packages/
+  core/           # dominio + casos de uso (puro TS)
+  ports/          # interfaces (repos, colas, storage, providers)
+  adapters/
+    db-prisma/
+    queue-bullmq/
+    storage-s3/
+  providers/
+    x/
+    instagram/
+    facebook/
+    youtube/
+    tiktok/
+  shared/         # zod schemas, tipos, utils, ts-pattern, neverthrow
+infra/
+  prisma/
+  docker/
+  helm/ (si usas k8s)

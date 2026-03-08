@@ -1,0 +1,71 @@
+{
+  "api": {
+    "response_time": {
+      "p95": 200,
+      "p99": 500,
+      "max": 2000
+    },
+    "throughput": {
+      "min_rps": 1000,
+      "target_rps": 5000
+    },
+    "error_rate": {
+      "max_percentage": 1.0
+    },
+    "concurrent_users": {
+      "target": 10000,
+      "max": 25000
+    }
+  },
+  "database": {
+    "query_time": {
+      "p95": 100,
+      "p99": 250,
+      "max": 1000
+    },
+    "connection_pool": {
+      "max_connections": 100,
+      "target_utilization": 80
+    },
+    "deadlocks": {
+      "max_per_hour": 5
+    }
+  },
+  "memory": {
+    "heap_usage": {
+      "max_mb": 2048,
+      "leak_threshold_mb": 100
+    },
+    "gc_time": {
+      "max_percentage": 5
+    }
+  },
+  "core_web_vitals": {
+    "lcp": {
+      "good": 2500,
+      "needs_improvement": 4000
+    },
+    "fid": {
+      "good": 100,
+      "needs_improvement": 300
+    },
+    "cls": {
+      "good": 0.1,
+      "needs_improvement": 0.25
+    }
+  },
+  "providers": {
+    "api_response_time": {
+      "p95": 1000,
+      "p99": 3000,
+      "timeout": 30000
+    },
+    "rate_limit_compliance": {
+      "buffer_percentage": 20
+    },
+    "circuit_breaker": {
+      "failure_threshold": 5,
+      "recovery_time": 30000
+    }
+  }
+}

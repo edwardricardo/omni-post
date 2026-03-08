@@ -1,0 +1,22 @@
+{
+  "name": "@providers/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@shared/types": "workspace:*",
+    "@adapters/db-prisma": "workspace:*",
+    "pino": "10.3.1"
+  },
+  "scripts": {
+    "test": "node --import tsx --test --test-force-exit tests/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.3",
+    "typescript": "5.9.2"
+  }
+}

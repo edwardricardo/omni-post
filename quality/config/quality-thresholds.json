@@ -1,0 +1,208 @@
+{
+  "profiles": {
+    "strict": {
+      "description": "Highest quality standards for production releases",
+      "thresholds": {
+        "test_coverage": {
+          "minimum": 95,
+          "target": 98,
+          "unit_tests": 95,
+          "integration_tests": 90,
+          "e2e_tests": 85
+        },
+        "performance": {
+          "api_response_time_p95": 150,
+          "api_response_time_p99": 300,
+          "ui_load_time": 2000,
+          "lighthouse_performance": 90,
+          "lighthouse_accessibility": 95,
+          "lighthouse_best_practices": 90,
+          "lighthouse_seo": 85
+        },
+        "security": {
+          "critical_vulnerabilities": 0,
+          "high_vulnerabilities": 0,
+          "medium_vulnerabilities": 5,
+          "security_score_minimum": 95,
+          "license_compliance": true,
+          "secret_detection": true
+        },
+        "code_quality": {
+          "typescript_errors": 0,
+          "eslint_errors": 0,
+          "eslint_warnings": 10,
+          "prettier_violations": 0,
+          "complexity_score": 85,
+          "maintainability_index": 80,
+          "technical_debt_ratio": 5
+        },
+        "reliability": {
+          "error_rate": 0.001,
+          "availability": 99.95,
+          "mean_time_to_recovery": 15,
+          "mean_time_between_failures": 720
+        }
+      },
+      "gates": {
+        "block_on_security": true,
+        "block_on_coverage": true,
+        "block_on_performance": true,
+        "block_on_quality": true,
+        "require_manual_approval": true
+      }
+    },
+    "standard": {
+      "description": "Balanced quality standards for regular development",
+      "thresholds": {
+        "test_coverage": {
+          "minimum": 85,
+          "target": 90,
+          "unit_tests": 85,
+          "integration_tests": 80,
+          "e2e_tests": 75
+        },
+        "performance": {
+          "api_response_time_p95": 200,
+          "api_response_time_p99": 500,
+          "ui_load_time": 3000,
+          "lighthouse_performance": 80,
+          "lighthouse_accessibility": 90,
+          "lighthouse_best_practices": 85,
+          "lighthouse_seo": 80
+        },
+        "security": {
+          "critical_vulnerabilities": 0,
+          "high_vulnerabilities": 2,
+          "medium_vulnerabilities": 10,
+          "security_score_minimum": 85,
+          "license_compliance": true,
+          "secret_detection": true
+        },
+        "code_quality": {
+          "typescript_errors": 0,
+          "eslint_errors": 0,
+          "eslint_warnings": 25,
+          "prettier_violations": 0,
+          "complexity_score": 75,
+          "maintainability_index": 70,
+          "technical_debt_ratio": 10
+        },
+        "reliability": {
+          "error_rate": 0.01,
+          "availability": 99.9,
+          "mean_time_to_recovery": 30,
+          "mean_time_between_failures": 168
+        }
+      },
+      "gates": {
+        "block_on_security": true,
+        "block_on_coverage": true,
+        "block_on_performance": false,
+        "block_on_quality": true,
+        "require_manual_approval": false
+      }
+    },
+    "minimal": {
+      "description": "Minimum viable quality standards for development",
+      "thresholds": {
+        "test_coverage": {
+          "minimum": 70,
+          "target": 80,
+          "unit_tests": 70,
+          "integration_tests": 65,
+          "e2e_tests": 60
+        },
+        "performance": {
+          "api_response_time_p95": 500,
+          "api_response_time_p99": 1000,
+          "ui_load_time": 5000,
+          "lighthouse_performance": 70,
+          "lighthouse_accessibility": 80,
+          "lighthouse_best_practices": 75,
+          "lighthouse_seo": 70
+        },
+        "security": {
+          "critical_vulnerabilities": 1,
+          "high_vulnerabilities": 5,
+          "medium_vulnerabilities": 20,
+          "security_score_minimum": 70,
+          "license_compliance": false,
+          "secret_detection": true
+        },
+        "code_quality": {
+          "typescript_errors": 0,
+          "eslint_errors": 5,
+          "eslint_warnings": 50,
+          "prettier_violations": 10,
+          "complexity_score": 60,
+          "maintainability_index": 60,
+          "technical_debt_ratio": 20
+        },
+        "reliability": {
+          "error_rate": 0.05,
+          "availability": 99.5,
+          "mean_time_to_recovery": 60,
+          "mean_time_between_failures": 24
+        }
+      },
+      "gates": {
+        "block_on_security": false,
+        "block_on_coverage": false,
+        "block_on_performance": false,
+        "block_on_quality": false,
+        "require_manual_approval": false
+      }
+    }
+  },
+  "environments": {
+    "development": {
+      "default_profile": "minimal",
+      "allow_profile_override": true,
+      "enable_fast_feedback": true,
+      "parallel_execution": true
+    },
+    "staging": {
+      "default_profile": "standard",
+      "allow_profile_override": false,
+      "enable_fast_feedback": false,
+      "parallel_execution": true
+    },
+    "production": {
+      "default_profile": "strict",
+      "allow_profile_override": false,
+      "enable_fast_feedback": false,
+      "parallel_execution": false,
+      "require_sign_off": true
+    }
+  },
+  "notifications": {
+    "slack": {
+      "enabled": true,
+      "channels": {
+        "quality_gates": "#quality-gates",
+        "security_alerts": "#security",
+        "performance_alerts": "#performance",
+        "general_notifications": "#engineering"
+      },
+      "mention_on_failure": true,
+      "mention_users": ["@channel"]
+    },
+    "email": {
+      "enabled": false,
+      "recipients": []
+    },
+    "github": {
+      "enabled": true,
+      "pr_comments": true,
+      "commit_status": true,
+      "check_runs": true
+    }
+  },
+  "reporting": {
+    "dashboard_url": "https://quality.omni-post.com",
+    "retention_days": 90,
+    "trend_analysis": true,
+    "automated_insights": true,
+    "export_formats": ["json", "html", "pdf"]
+  }
+}

@@ -1,0 +1,219 @@
+name: CI
+
+on:
+  push:
+    branches: [main, omni-post-cc]
+  pull_request:
+    branches: [main, omni-post-cc]
+
+jobs:
+  lint-and-format:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: TypeScript type check
+        run: pnpm --filter @apps/api run typecheck
+
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password123
+          POSTGRES_USER: postgres
+          POSTGRES_DB: omnipostdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Setup test environment
+        run: |
+          cp apps/api/.env.example apps/api/.env
+          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> apps/api/.env
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env
+
+      - name: Run database migrations
+        run: pnpm --filter @infra/prisma db:migrate
+
+      - name: Run API tests
+        run: pnpm --filter @apps/api test
+
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Build admin app
+        run: pnpm --filter @apps/admin build
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Run security audit
+        run: pnpm audit --audit-level moderate
+
+  # ── Code quality checks: dead code, duplication, circular deps ──
+  code-quality:
+    name: Code Quality (knip + jscpd + madge)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Dead code check (knip)
+        run: pnpm check:dead-code
+
+      - name: Duplicate code check (jscpd)
+        run: pnpm check:duplicates
+
+      - name: Circular dependency check (madge)
+        run: pnpm check:circular
+        continue-on-error: true
+
+  # ── Tier 0: Provider adapter unit tests (no DB, no Redis) ──
+  test-providers:
+    name: Provider Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Run X provider tests
+        run: pnpm --filter @providers/x test
+
+      - name: Run Facebook provider tests
+        run: pnpm --filter @providers/facebook test
+
+      - name: Run Shared provider tests
+        run: pnpm --filter @providers/shared test
+
+      - name: Run TikTok provider tests
+        run: pnpm --filter @providers/tiktok test
+
+      - name: Run YouTube provider tests
+        run: pnpm --filter @providers/youtube test
+
+      - name: Run Instagram provider tests
+        run: pnpm --filter @providers/instagram test
+
+      - name: Run api-common tests
+        run: pnpm --filter @packages/api-common test
+
+      - name: Run Core engine tests
+        run: node --import tsx --test --test-force-exit packages/core/tests/**/*.test.ts
+
+  # ── Tier 0: Frontend unit tests (vitest + jsdom, no DB) ──
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Run Admin unit tests (vitest)
+        run: pnpm --filter @apps/admin test
+
+      - name: Run Client unit tests (vitest)
+        run: pnpm --filter @apps/client exec vitest run
+
+  # ── Tier 2: Cache adapter tests (needs Redis) ──
+  test-cache-redis:
+    name: Cache Redis Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Run Cache Redis tests
+        run: node --import tsx --test --test-force-exit packages/adapters/cache-redis/tests/**/*.test.ts
+        env:
+          REDIS_URL: redis://localhost:6379

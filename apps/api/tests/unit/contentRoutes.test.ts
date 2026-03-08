@@ -1,0 +1,656 @@
+#!/usr/bin/env tsx
+/**
+ * Unit Tests for contentRoutes (F28)
+ *
+ * Covers all 17 content sync endpoints:
+ *   POST /content/sync/:postId
+ *   GET  /content/sync/metrics
+ *   GET  /content/sync/metrics/:channelId
+ *   POST /content/sync/:transactionId/rollback
+ *   POST /content/channels
+ *   POST /content/channels/realtime/start
+ *   POST /content/channels/realtime/stop/:postId
+ *   GET  /content/versions/:postId
+ *   POST /content/versions/:postId
+ *   POST /content/versions/:postId/restore/:versionId
+ *   POST /content/versions/compare
+ *   POST /content/conflicts/resolve
+ *   GET  /content/conflicts/history/:channelId
+ *   POST /content/transform
+ *   POST /content/transform/multi
+ *   POST /content/transform/recommendations
+ *   POST /content/render/:provider
+ *   POST /content/diff
+ */
+
+// Suppress console output during tests
+const originalConsole = {
+  log: console.log,
+  info: console.info,
+  warn: console.warn,
+  error: console.error,
+};
+console.log = () => {};
+console.info = () => {};
+console.warn = () => {};
+console.error = () => {};
+
+import { describe, it, before, after } from "node:test";
+import assert from "node:assert/strict";
+import Fastify, { FastifyInstance } from "fastify";
+import fastifyCookie from "@fastify/cookie";
+import { contentRoutes } from "../../src/content/contentRoutes.js";
+import { setupContainer } from "../../src/infrastructure/container/setup.js";
+import { createRedisConnection } from "../../src/lib/redis.js";
+import { prisma } from "@infra/prisma";
+import type Redis from "ioredis";
+
+let redis: Redis;
+
+async function createTestApp(): Promise<FastifyInstance> {
+  const app = Fastify({ logger: false });
+  const container = setupContainer({ prisma });
+  app.decorate("container", container);
+  app.decorate("redis", redis);
+  await app.register(fastifyCookie);
+  await app.register(contentRoutes);
+  await app.ready();
+  return app;
+}
+
+let app: FastifyInstance;
+
+// Sample canonical content used across multiple tests
+const sampleContent = {
+  id: "test-content-001",
+  projectId: "test-project-001",
+  body: "Test content for transformation and rendering",
+  tags: ["test", "content"],
+  locale: "en",
+};
+
+describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
+  before(async () => {
+    redis = createRedisConnection({ maxRetriesPerRequest: 1 });
+    redis.on("error", () => {});
+    app = await createTestApp();
+  });
+
+  after(async () => {
+    await app.close();
+    await prisma.$disconnect();
+    redis.disconnect();
+    Object.assign(console, originalConsole);
+  });
+
+  // ── GET /content/sync/metrics ──────────────────────────────────────────────
+
+  it("should return global sync metrics", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/content/sync/metrics",
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+    assert.ok(body.data !== undefined, "Should have value field");
+  });
+
+  it("should return per-channel sync metrics", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/content/sync/metrics/channel-001",
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+    assert.ok(body.data !== undefined, "Should have value field");
+  });
+
+  // ── POST /content/sync/:postId ────────────────────────────────────────────
+
+  it("should return 400 for missing channelId when syncing a post", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/sync/post-001",
+      payload: {
+        // Missing required channelId
+        direction: "source_to_target",
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should attempt post sync with valid body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/sync/post-nonexistent-001",
+      payload: {
+        channelId: "channel-001",
+        direction: "source_to_target",
+      },
+    });
+    // 400 (validation error from SyncEngine: post not found) or 500
+    assert.ok(
+      res.statusCode === 400 || res.statusCode === 500,
+      `Expected 400 or 500, got ${res.statusCode}`
+    );
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false, "Should have ok: false for non-existent post");
+  });
+
+  // ── POST /content/sync/:transactionId/rollback ────────────────────────────
+
+  it("should attempt rollback for a non-existent transaction", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/sync/tx-nonexistent-001/rollback",
+    });
+    // 400 (validation/not found) or 500
+    assert.ok(
+      res.statusCode === 400 || res.statusCode === 500,
+      `Expected 400 or 500, got ${res.statusCode}`
+    );
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  // ── POST /content/channels ────────────────────────────────────────────────
+
+  it("should return 400 for invalid channel creation body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/channels",
+      payload: {
+        // Missing required fields (name, sourceProvider, targetProvider)
+        bidirectional: false,
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should create a sync channel with valid body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/channels",
+      payload: {
+        name: `Test Sync Channel ${Date.now()}`,
+        sourceProvider: "x",
+        targetProvider: "instagram",
+        bidirectional: false,
+        configuration: {},
+      },
+    });
+    // 201 on success or 400/500 if service fails
+    assert.ok(
+      res.statusCode === 201 || res.statusCode === 400 || res.statusCode === 500,
+      `Expected 201, 400 or 500, got ${res.statusCode}`
+    );
+    const body = JSON.parse(res.body);
+    assert.ok("ok" in body, "Should have ok field");
+  });
+
+  // ── POST /content/channels/realtime/start ────────────────────────────────
+
+  it("should return 400 for invalid realtime start body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/channels/realtime/start",
+      payload: {
+        // Missing required postId and channelIds
+        invalid: true,
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should attempt to start realtime sync with valid body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/channels/realtime/start",
+      payload: {
+        postId: "post-realtime-001",
+        channelIds: ["channel-001"],
+      },
+    });
+    // 200 on success or 400/500 if service fails
+    assert.ok(
+      res.statusCode === 200 || res.statusCode === 400 || res.statusCode === 500,
+      `Expected 200, 400 or 500, got ${res.statusCode}`
+    );
+    const body = JSON.parse(res.body);
+    assert.ok("ok" in body, "Should have ok field");
+  });
+
+  // ── POST /content/channels/realtime/stop/:postId ─────────────────────────
+
+  it("should stop realtime sync for a post", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/channels/realtime/stop/post-stop-001",
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+    assert.equal(body.data.postId, "post-stop-001", "postId should match");
+    assert.equal(body.data.status, "realtime_sync_stopped", "status should be stopped");
+  });
+
+  // ── GET /content/versions/:postId ────────────────────────────────────────
+
+  it("should return empty version history for a non-existent post", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/content/versions/post-version-nonexistent-001",
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+    // ContentVersionManager.getVersionHistory returns an array (possibly empty)
+    assert.ok(Array.isArray(body.data), "value should be an array");
+  });
+
+  it("should accept branch and limit query params for version list", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/content/versions/post-001?branch=main&limit=5",
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok);
+    assert.ok(Array.isArray(body.data));
+  });
+
+  // ── POST /content/versions/:postId ────────────────────────────────────────
+
+  it("should return 400 for invalid version snapshot body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/versions/post-001",
+      payload: {
+        // Missing required 'content' and 'createdBy'
+        tags: ["test"],
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should attempt to create version snapshot with valid body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/versions/post-001",
+      payload: {
+        content: sampleContent,
+        adaptations: {},
+        createdBy: "user-001",
+        changelog: "Initial version",
+        branchName: "main",
+        tags: ["initial"],
+      },
+    });
+    // 201 on success or 400/500 if service fails (e.g., post not found in DB)
+    assert.ok(
+      res.statusCode === 201 || res.statusCode === 400 || res.statusCode === 500,
+      `Expected 201, 400 or 500, got ${res.statusCode}`
+    );
+    const body = JSON.parse(res.body);
+    assert.ok("ok" in body, "Should have ok field");
+  });
+
+  // ── POST /content/versions/:postId/restore/:versionId ────────────────────
+
+  it("should return 400 for missing restoredBy body in version restore", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/versions/post-001/restore/version-001",
+      payload: {
+        // Missing required 'restoredBy'
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should attempt to restore version with valid body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/versions/post-001/restore/version-nonexistent-001",
+      payload: {
+        restoredBy: "user-001",
+      },
+    });
+    // 404 (version not found) or 500
+    assert.ok(
+      res.statusCode === 404 || res.statusCode === 500,
+      `Expected 404 or 500, got ${res.statusCode}`
+    );
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  // ── POST /content/versions/compare ──────────────────────────────────────
+
+  it("should return 400 for missing version IDs in compare", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/versions/compare",
+      payload: {
+        // Missing required fromVersionId and toVersionId
+        invalid: true,
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should attempt version comparison with valid body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/versions/compare",
+      payload: {
+        fromVersionId: "version-001",
+        toVersionId: "version-002",
+      },
+    });
+    // 400 (not found) or 500
+    assert.ok(
+      res.statusCode === 400 || res.statusCode === 500,
+      `Expected 400 or 500, got ${res.statusCode}`
+    );
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  // ── POST /content/conflicts/resolve ──────────────────────────────────────
+
+  it("should return 400 for invalid conflict resolution body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/conflicts/resolve",
+      payload: {
+        // Missing required transactionId and resolutions
+        invalid: true,
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should attempt conflict resolution with valid body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/conflicts/resolve",
+      payload: {
+        transactionId: "tx-nonexistent-001",
+        resolutions: [
+          {
+            conflictId: "conflict-001",
+            resolution: "source_wins",
+          },
+        ],
+      },
+    });
+    // 400 (transaction not found) or 500
+    assert.ok(
+      res.statusCode === 400 || res.statusCode === 500,
+      `Expected 400 or 500, got ${res.statusCode}`
+    );
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  // ── GET /content/conflicts/history/:channelId ────────────────────────────
+
+  it("should return conflict history for a channel (empty for new channel)", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/content/conflicts/history/channel-test-001",
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+    assert.ok("channelId" in body.data, "Should have channelId field");
+    assert.ok("conflicts" in body.data, "Should have conflicts field");
+    assert.equal(body.data.channelId, "channel-test-001", "channelId should match");
+    assert.ok(Array.isArray(body.data.conflicts), "conflicts should be an array");
+  });
+
+  // ── POST /content/transform ───────────────────────────────────────────────
+
+  it("should return 400 for invalid transform body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/transform",
+      payload: {
+        // Missing required 'content' and 'targetProvider'
+        invalid: true,
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should transform content for a single provider", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/transform",
+      payload: {
+        content: sampleContent,
+        targetProvider: "x",
+        userPreferences: {
+          preserveFormatting: true,
+          allowContentTruncation: true,
+          preferredHashtagStyle: "inline",
+          mediaQualityPreference: "optimized",
+        },
+      },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+    assert.ok(body.data !== undefined, "Should have value field");
+  });
+
+  it("should transform content with minimal body (no userPreferences)", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/transform",
+      payload: {
+        content: sampleContent,
+        targetProvider: "instagram",
+      },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+  });
+
+  // ── POST /content/transform/multi ────────────────────────────────────────
+
+  it("should return 400 for invalid multi-transform body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/transform/multi",
+      payload: {
+        // Missing required 'targetProviders'
+        content: sampleContent,
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should transform content for multiple providers", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/transform/multi",
+      payload: {
+        content: sampleContent,
+        targetProviders: ["x", "instagram", "facebook"],
+      },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+    assert.ok("adaptations" in body.data, "Should have adaptations field");
+    // adaptations should be an object keyed by provider
+    assert.ok(typeof body.data.adaptations === "object", "adaptations should be an object");
+  });
+
+  // ── POST /content/transform/recommendations ───────────────────────────────
+
+  it("should return 400 for invalid recommendations body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/transform/recommendations",
+      payload: {
+        // Missing required fields
+        invalid: true,
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should return adaptation recommendations", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/transform/recommendations",
+      payload: {
+        content: sampleContent,
+        targetProviders: ["x", "instagram"],
+      },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+    assert.ok("recommendations" in body.data, "Should have recommendations field");
+    assert.ok(typeof body.data.recommendations === "object", "recommendations should be an object");
+  });
+
+  // ── POST /content/render/:provider ───────────────────────────────────────
+
+  it("should return 400 for invalid render body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/render/x",
+      payload: {
+        // Missing required 'content'
+        provider: "x",
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should render content for a provider", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/render/x",
+      payload: {
+        content: sampleContent,
+        provider: "x",
+      },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+    assert.ok("provider" in body.data, "Should have provider field");
+    assert.equal(body.data.provider, "x", "provider should match");
+    assert.ok("adaptedContent" in body.data, "Should have adaptedContent field");
+    assert.ok("confidence" in body.data, "Should have confidence field");
+    assert.ok("warnings" in body.data, "Should have warnings field");
+  });
+
+  it("should render content for instagram provider", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/render/instagram",
+      payload: {
+        content: sampleContent,
+        provider: "instagram",
+      },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok);
+    assert.equal(body.data.provider, "instagram");
+  });
+
+  // ── POST /content/diff ───────────────────────────────────────────────────
+
+  it("should return 400 for invalid diff body", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/diff",
+      payload: {
+        // Missing required 'fromVersion' and 'toVersion'
+        invalid: true,
+      },
+    });
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+  });
+
+  it("should calculate diff between two versions", async () => {
+    const fromVersion = {
+      content: { ...sampleContent, body: "Original body text" },
+      adaptations: {},
+    };
+    const toVersion = {
+      content: { ...sampleContent, body: "Updated body text with changes" },
+      adaptations: {},
+    };
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/diff",
+      payload: {
+        fromVersion,
+        toVersion,
+      },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok, "Should have ok: true");
+    assert.ok("diffs" in body.data, "Should have diffs field");
+    assert.ok("summary" in body.data, "Should have summary field");
+    assert.ok(Array.isArray(body.data.diffs), "diffs should be an array");
+  });
+
+  it("should return empty diff for identical versions", async () => {
+    const version = {
+      content: sampleContent,
+      adaptations: {},
+    };
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/content/diff",
+      payload: {
+        fromVersion: version,
+        toVersion: version,
+      },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.ok);
+    assert.ok(Array.isArray(body.data.diffs));
+  });
+});

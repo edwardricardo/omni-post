@@ -1,0 +1,246 @@
+/**
+ * Unit Tests for VideoUploadPipeline — Advanced Features
+ * Tests progress tracking, encryption, compression, webhook notifications,
+ * and edge cases (tiny files, exact-divisible sizes, unknown extensions).
+ */
+import { describe, it, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import {
+  VideoUploadPipeline,
+  type UploadOptions,
+  type UploadDestination,
+} from "../../src/video/uploadPipeline";
+import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers";
+
+describe("VideoUploadPipeline - Progress Tracking", { concurrency: 1 }, () => {
+  let pipeline: VideoUploadPipeline;
+
+  beforeEach((t) => {
+    setupFsMocks(t);
+    pipeline = new VideoUploadPipeline(0);
+  });
+
+  it("should calculate progress percentage correctly", async () => {
+    const filePath = "/test/progress.mp4";
+    const fileData = Buffer.alloc(10 * 1024 * 1024);
+    mockFsData.files.set(filePath, fileData);
+    mockFsData.stats.set(filePath, {
+      size: fileData.length,
+      isDirectory: () => false,
+    });
+
+    const destination: UploadDestination = {
+      type: "local",
+      config: { directory: "/test" },
+    };
+
+    let finalProgress = 0;
+
+    await pipeline.uploadFile(filePath, destination, {}, (progress) => {
+      assert.ok(progress.progress >= 0 && progress.progress <= 100);
+      finalProgress = progress.progress;
+    });
+
+    assert.equal(finalProgress, 100);
+  });
+
+  it("should provide upload speed and ETA", async () => {
+    const filePath = "/test/speed-test.mp4";
+    const fileData = Buffer.alloc(8 * 1024 * 1024);
+    mockFsData.files.set(filePath, fileData);
+    mockFsData.stats.set(filePath, {
+      size: fileData.length,
+      isDirectory: () => false,
+    });
+
+    const destination: UploadDestination = {
+      type: "local",
+      config: { directory: "/test" },
+    };
+
+    let receivedSpeed = false;
+    let receivedETA = false;
+
+    await pipeline.uploadFile(filePath, destination, {}, (progress) => {
+      if (progress.speed > 0) receivedSpeed = true;
+      if (progress.eta !== undefined) receivedETA = true;
+    });
+
+    // At least some progress updates should have speed/ETA
+    assert.ok(receivedSpeed || receivedETA);
+  });
+});
+
+describe("VideoUploadPipeline - Encryption and Compression", { concurrency: 1 }, () => {
+  let pipeline: VideoUploadPipeline;
+
+  beforeEach((t) => {
+    setupFsMocks(t);
+    pipeline = new VideoUploadPipeline(0);
+  });
+
+  it("should support encryption option", async () => {
+    const filePath = "/test/encrypt.mp4";
+    const fileData = Buffer.alloc(1 * 1024 * 1024);
+    mockFsData.files.set(filePath, fileData);
+    mockFsData.stats.set(filePath, {
+      size: fileData.length,
+      isDirectory: () => false,
+    });
+
+    const destination: UploadDestination = {
+      type: "local",
+      config: { directory: "/test" },
+    };
+
+    const options: UploadOptions = {
+      encryption: {
+        enabled: true,
+        algorithm: "aes-256-gcm",
+      },
+    };
+
+    const session = await pipeline.uploadFile(filePath, destination, options);
+
+    assert.equal(session.status, "completed");
+  });
+
+  it("should support compression option", async () => {
+    const filePath = "/test/compress.mp4";
+    const fileData = Buffer.alloc(2 * 1024 * 1024);
+    mockFsData.files.set(filePath, fileData);
+    mockFsData.stats.set(filePath, {
+      size: fileData.length,
+      isDirectory: () => false,
+    });
+
+    const destination: UploadDestination = {
+      type: "local",
+      config: { directory: "/test" },
+    };
+
+    const options: UploadOptions = {
+      compression: {
+        enabled: true,
+        level: 6,
+      },
+    };
+
+    const session = await pipeline.uploadFile(filePath, destination, options);
+
+    assert.equal(session.status, "completed");
+  });
+});
+
+describe("VideoUploadPipeline - Webhook Notifications", { concurrency: 1 }, () => {
+  let pipeline: VideoUploadPipeline;
+
+  beforeEach((t) => {
+    setupFsMocks(t);
+    pipeline = new VideoUploadPipeline(0);
+  });
+
+  it("should support webhook configuration", async (t) => {
+    const filePath = "/test/webhook.mp4";
+    const fileData = Buffer.alloc(1 * 1024 * 1024);
+    mockFsData.files.set(filePath, fileData);
+    mockFsData.stats.set(filePath, {
+      size: fileData.length,
+      isDirectory: () => false,
+    });
+
+    const destination: UploadDestination = {
+      type: "local",
+      config: { directory: "/test" },
+    };
+
+    // Mock global fetch using t.mock.fn
+    globalThis.fetch = t.mock.fn(async () => {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+      } as Response;
+    }) as typeof fetch;
+
+    const options: UploadOptions = {
+      webhook: {
+        url: "https://example.com/webhook",
+        events: ["completed", "failed"],
+        headers: {
+          Authorization: "Bearer test-token",
+        },
+      },
+    };
+
+    const session = await pipeline.uploadFile(filePath, destination, options);
+
+    assert.equal(session.status, "completed");
+  });
+});
+
+describe("VideoUploadPipeline - Edge Cases", { concurrency: 1 }, () => {
+  let pipeline: VideoUploadPipeline;
+
+  beforeEach((t) => {
+    setupFsMocks(t);
+    pipeline = new VideoUploadPipeline(0);
+  });
+
+  it("should handle very small files", async () => {
+    const session = await pipeline.createUploadSession("tiny.mp4", 1024, "video/mp4");
+
+    assert.equal(session.totalChunks, 1);
+    assert.equal(session.chunks[0]!.size, 1024);
+  });
+
+  it("should handle files exactly divisible by chunk size", async () => {
+    const session = await pipeline.createUploadSession("exact.mp4", 15 * 1024 * 1024, "video/mp4", {
+      chunkSize: 5 * 1024 * 1024,
+    });
+
+    assert.equal(session.totalChunks, 3);
+    assert.equal(session.chunks[0]!.size, 5 * 1024 * 1024);
+    assert.equal(session.chunks[1]!.size, 5 * 1024 * 1024);
+    assert.equal(session.chunks[2]!.size, 5 * 1024 * 1024);
+  });
+
+  it("should handle single chunk upload", async () => {
+    const filePath = "/test/single-chunk.mp4";
+    const fileData = Buffer.alloc(1 * 1024 * 1024);
+    mockFsData.files.set(filePath, fileData);
+    mockFsData.stats.set(filePath, {
+      size: fileData.length,
+      isDirectory: () => false,
+    });
+
+    const destination: UploadDestination = {
+      type: "local",
+      config: { directory: "/test" },
+    };
+
+    const session = await pipeline.uploadFile(filePath, destination);
+
+    assert.equal(session.status, "completed");
+    assert.equal(session.totalChunks, 1);
+  });
+
+  it("should handle unknown file extension", async () => {
+    const filePath = "/test/unknown.xyz";
+    const fileData = Buffer.alloc(100);
+    mockFsData.files.set(filePath, fileData);
+    mockFsData.stats.set(filePath, {
+      size: fileData.length,
+      isDirectory: () => false,
+    });
+
+    const destination: UploadDestination = {
+      type: "local",
+      config: { directory: "/test" },
+    };
+
+    const session = await pipeline.uploadFile(filePath, destination);
+
+    assert.equal(session.mimeType, "application/octet-stream");
+  });
+});

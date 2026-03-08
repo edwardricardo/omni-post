@@ -1,0 +1,180 @@
+{
+  "performance_alerts": [
+    {
+      "name": "api_response_time_degradation",
+      "metric": "http_request_duration_p95",
+      "threshold": 200,
+      "operator": "greater_than",
+      "duration": "5m",
+      "severity": "warning",
+      "description": "API response time P95 exceeds 200ms",
+      "runbook": "https://docs.company.com/runbooks/api-performance"
+    },
+    {
+      "name": "critical_api_response_time",
+      "metric": "http_request_duration_p95",
+      "threshold": 500,
+      "operator": "greater_than",
+      "duration": "2m",
+      "severity": "critical",
+      "description": "API response time P95 exceeds 500ms - immediate action required"
+    },
+    {
+      "name": "high_error_rate",
+      "metric": "http_request_error_rate",
+      "threshold": 1.0,
+      "operator": "greater_than",
+      "duration": "3m",
+      "severity": "warning",
+      "description": "Error rate exceeds 1%"
+    },
+    {
+      "name": "critical_error_rate",
+      "metric": "http_request_error_rate",
+      "threshold": 5.0,
+      "operator": "greater_than",
+      "duration": "1m",
+      "severity": "critical",
+      "description": "Error rate exceeds 5% - service degradation"
+    },
+    {
+      "name": "memory_leak_detection",
+      "metric": "memory_growth_rate_mb_per_hour",
+      "threshold": 100,
+      "operator": "greater_than",
+      "duration": "10m",
+      "severity": "critical",
+      "description": "Memory leak detected - growth rate exceeds 100MB/hour"
+    },
+    {
+      "name": "database_connection_pool_exhaustion",
+      "metric": "db_connection_pool_utilization",
+      "threshold": 90,
+      "operator": "greater_than",
+      "duration": "2m",
+      "severity": "warning",
+      "description": "Database connection pool utilization above 90%"
+    },
+    {
+      "name": "slow_database_queries",
+      "metric": "db_query_duration_p95",
+      "threshold": 100,
+      "operator": "greater_than",
+      "duration": "5m",
+      "severity": "warning",
+      "description": "Database query P95 duration exceeds 100ms"
+    },
+    {
+      "name": "cache_hit_rate_degradation",
+      "metric": "cache_hit_rate",
+      "threshold": 80,
+      "operator": "less_than",
+      "duration": "5m",
+      "severity": "warning",
+      "description": "Cache hit rate below 80%"
+    },
+    {
+      "name": "provider_api_timeout",
+      "metric": "provider_api_timeout_rate",
+      "threshold": 5.0,
+      "operator": "greater_than",
+      "duration": "3m",
+      "severity": "warning",
+      "description": "Provider API timeout rate exceeds 5%"
+    },
+    {
+      "name": "concurrent_user_limit",
+      "metric": "concurrent_active_users",
+      "threshold": 8000,
+      "operator": "greater_than",
+      "duration": "1m",
+      "severity": "warning",
+      "description": "Concurrent users approaching limit (8000/10000)"
+    },
+    {
+      "name": "core_web_vitals_lcp",
+      "metric": "lcp_p75",
+      "threshold": 2500,
+      "operator": "greater_than",
+      "duration": "5m",
+      "severity": "warning",
+      "description": "LCP P75 exceeds 2.5s - poor user experience"
+    },
+    {
+      "name": "core_web_vitals_cls",
+      "metric": "cls_p75",
+      "threshold": 0.1,
+      "operator": "greater_than",
+      "duration": "5m",
+      "severity": "warning",
+      "description": "CLS P75 exceeds 0.1 - layout stability issues"
+    }
+  ],
+  "regression_alerts": [
+    {
+      "name": "performance_regression_p95",
+      "metric": "http_request_duration_p95",
+      "baseline_comparison": true,
+      "threshold_percentage": 20,
+      "operator": "greater_than",
+      "duration": "10m",
+      "severity": "warning",
+      "description": "Response time P95 regression > 20% compared to baseline"
+    },
+    {
+      "name": "throughput_regression",
+      "metric": "requests_per_second",
+      "baseline_comparison": true,
+      "threshold_percentage": -15,
+      "operator": "less_than",
+      "duration": "10m",
+      "severity": "warning",
+      "description": "Throughput regression > 15% compared to baseline"
+    },
+    {
+      "name": "memory_usage_regression",
+      "metric": "memory_usage_mb",
+      "baseline_comparison": true,
+      "threshold_percentage": 25,
+      "operator": "greater_than",
+      "duration": "15m",
+      "severity": "warning",
+      "description": "Memory usage regression > 25% compared to baseline"
+    }
+  ],
+  "escalation_policies": [
+    {
+      "severity": "warning",
+      "initial_delay": "0m",
+      "repeat_interval": "30m",
+      "max_escalations": 3,
+      "channels": ["slack", "email"]
+    },
+    {
+      "severity": "critical",
+      "initial_delay": "0m",
+      "repeat_interval": "10m",
+      "max_escalations": 5,
+      "channels": ["slack", "email", "pagerduty", "webhook"]
+    }
+  ],
+  "notification_channels": {
+    "slack": {
+      "webhook_url": "${SLACK_WEBHOOK_URL}",
+      "channel": "#alerts-performance",
+      "username": "PerformanceBot"
+    },
+    "email": {
+      "smtp_server": "${SMTP_SERVER}",
+      "recipients": ["oncall@company.com", "performance-team@company.com"]
+    },
+    "webhook": {
+      "url": "${WEBHOOK_URL}",
+      "method": "POST",
+      "headers": {
+        "Authorization": "Bearer ${WEBHOOK_TOKEN}",
+        "Content-Type": "application/json"
+      }
+    }
+  }
+}

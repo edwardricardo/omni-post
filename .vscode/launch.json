@@ -1,0 +1,168 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🚀 Debug API Server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/apps/api/src/index.ts",
+      "runtimeArgs": ["--loader", "tsx/esm"],
+      "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "saas:*",
+        "LOG_LEVEL": "debug"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "smartStep": true,
+      "stopOnEntry": false,
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Start Dependencies"
+    },
+    {
+      "name": "🔄 Debug Workers",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/apps/workers/src/index.ts",
+      "runtimeArgs": ["--loader", "tsx/esm"],
+      "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "workers:*",
+        "LOG_LEVEL": "debug"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Start Dependencies"
+    },
+    {
+      "name": "🌐 Debug Next.js Client",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/next",
+      "args": ["dev", "-p", "3001"],
+      "cwd": "${workspaceFolder}/apps/client",
+      "env": {
+        "NODE_ENV": "development",
+        "NEXT_TELEMETRY_DISABLED": "1"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "👨‍💼 Debug Admin App",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/next",
+      "args": ["dev", "-p", "3002"],
+      "cwd": "${workspaceFolder}/apps/admin",
+      "env": {
+        "NODE_ENV": "development",
+        "NEXT_TELEMETRY_DISABLED": "1"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "🧪 Debug Current Test File",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/tsx",
+      "args": ["${file}"],
+      "env": {
+        "NODE_ENV": "test",
+        "DEBUG": "test:*",
+        "LOG_LEVEL": "debug"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "restart": false,
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "🧪 Debug All API Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/apps/api/tests/run.ts",
+      "runtimeArgs": ["--loader", "tsx/esm"],
+      "env": {
+        "NODE_ENV": "test",
+        "DEBUG": "test:*",
+        "LOG_LEVEL": "debug",
+        "DATABASE_URL": "postgresql://postgres:password123@localhost:5432/omnipostdb_test"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "restart": false,
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Setup Test Environment"
+    },
+    {
+      "name": "🎭 Debug Playwright Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/playwright",
+      "args": ["test", "--debug"],
+      "cwd": "${workspaceFolder}/apps/client",
+      "env": {
+        "NODE_ENV": "test",
+        "PWDEBUG": "1"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "restart": false
+    },
+    {
+      "name": "⚡ Debug Performance Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/performance/scripts/run-performance-tests.sh",
+      "env": {
+        "NODE_ENV": "test",
+        "DEBUG": "perf:*"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "restart": false,
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "🔧 Attach to Running Process",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "🚀 Debug Full Stack",
+      "configurations": ["🚀 Debug API Server", "🔄 Debug Workers", "🌐 Debug Next.js Client"],
+      "stopAll": true,
+      "preLaunchTask": "Start Dependencies"
+    },
+    {
+      "name": "🧪 Debug All Tests",
+      "configurations": ["🧪 Debug All API Tests", "🎭 Debug Playwright Tests"],
+      "stopAll": true
+    }
+  ]
+}

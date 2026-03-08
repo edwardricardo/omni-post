@@ -1,0 +1,206 @@
+import {
+  ok,
+  err,
+  type Result,
+  type Account,
+  type CreateAccountInput,
+  type UpdateAccountInput,
+} from "@shared/types";
+import { prisma } from "@infra/prisma";
+import {
+  mapSubscriptionTierFromDB,
+  mapSubscriptionTierToDB,
+  getMaxProjectsForTier,
+} from "./mappers.js";
+import { createLogger } from "@observability/logger";
+
+const logger = createLogger("adapter:db-prisma:account");
+
+export function createAccountRepository(readBreaker: any, writeBreaker: any) {
+  return {
+    async createAccount(
+      input: CreateAccountInput
+    ): Promise<Result<Account, "EMAIL_TAKEN" | "DATABASE_ERROR">> {
+      try {
+        const result = await writeBreaker.fire(() => {
+          const tier = input.subscription || "BASIC";
+          const maxProjects = input.maxProjects || getMaxProjectsForTier(tier);
+
+          return prisma.account.create({
+            data: {
+              email: input.email,
+              name: input.name,
+              subscription: mapSubscriptionTierToDB(tier),
+              maxProjects,
+            },
+          });
+        });
+
+        const account: Account = {
+          id: result.id,
+          email: result.email,
+          name: result.name,
+          subscription: mapSubscriptionTierFromDB(result.subscription),
+          maxProjects: result.maxProjects,
+          createdAt: result.createdAt,
+          updatedAt: result.updatedAt,
+        };
+
+        return ok(account);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "P2002" &&
+          "meta" in error &&
+          error.meta &&
+          typeof error.meta === "object" &&
+          "target" in error.meta &&
+          Array.isArray(error.meta.target) &&
+          error.meta.target.includes("email")
+        ) {
+          return err("EMAIL_TAKEN");
+        }
+        logger.error({ err: error }, "createAccount error");
+        return err("DATABASE_ERROR");
+      }
+    },
+
+    async getAccountById(id: string): Promise<Result<Account, "NOT_FOUND" | "DATABASE_ERROR">> {
+      try {
+        const result = await readBreaker.fire(() => {
+          return prisma.account.findUnique({
+            where: { id },
+          });
+        });
+
+        if (!result) {
+          return err("NOT_FOUND");
+        }
+
+        const account: Account = {
+          id: result.id,
+          email: result.email,
+          name: result.name,
+          subscription: mapSubscriptionTierFromDB(result.subscription),
+          maxProjects: result.maxProjects,
+          createdAt: result.createdAt,
+          updatedAt: result.updatedAt,
+        };
+
+        return ok(account);
+      } catch (error) {
+        logger.error({ err: error }, "getAccountById error");
+        return err("DATABASE_ERROR");
+      }
+    },
+
+    async getAccountByEmail(
+      email: string
+    ): Promise<Result<Account, "NOT_FOUND" | "DATABASE_ERROR">> {
+      try {
+        const account = await prisma.account.findUnique({
+          where: { email },
+        });
+
+        if (!account) {
+          return err("NOT_FOUND");
+        }
+
+        const result: Account = {
+          id: account.id,
+          email: account.email,
+          name: account.name,
+          subscription: mapSubscriptionTierFromDB(account.subscription),
+          maxProjects: account.maxProjects,
+          createdAt: account.createdAt,
+          updatedAt: account.updatedAt,
+        };
+
+        return ok(result);
+      } catch (error) {
+        logger.error({ err: error }, "getAccountByEmail error");
+        return err("DATABASE_ERROR");
+      }
+    },
+
+    async updateAccount(
+      id: string,
+      input: UpdateAccountInput
+    ): Promise<Result<Account, "NOT_FOUND" | "DATABASE_ERROR">> {
+      try {
+        const updateData: any = {};
+        if (input.name !== undefined) updateData.name = input.name;
+        if (input.subscription !== undefined) {
+          updateData.subscription = mapSubscriptionTierToDB(input.subscription);
+          // Update maxProjects if subscription changes but maxProjects not explicitly set
+          if (input.maxProjects === undefined) {
+            updateData.maxProjects = getMaxProjectsForTier(input.subscription);
+          }
+        }
+        if (input.maxProjects !== undefined) updateData.maxProjects = input.maxProjects;
+
+        const account = await prisma.account.update({
+          where: { id },
+          data: updateData,
+        });
+
+        const result: Account = {
+          id: account.id,
+          email: account.email,
+          name: account.name,
+          subscription: mapSubscriptionTierFromDB(account.subscription),
+          maxProjects: account.maxProjects,
+          createdAt: account.createdAt,
+          updatedAt: account.updatedAt,
+        };
+
+        return ok(result);
+      } catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "P2025") {
+          return err("NOT_FOUND");
+        }
+        logger.error({ err: error }, "updateAccount error");
+        return err("DATABASE_ERROR");
+      }
+    },
+
+    async deleteAccount(id: string): Promise<Result<void, "NOT_FOUND" | "DATABASE_ERROR">> {
+      try {
+        await prisma.account.delete({
+          where: { id },
+        });
+        return ok(undefined);
+      } catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "P2025") {
+          return err("NOT_FOUND");
+        }
+        logger.error({ err: error }, "deleteAccount error");
+        return err("DATABASE_ERROR");
+      }
+    },
+
+    async listAccounts(): Promise<Result<Account[], "DATABASE_ERROR">> {
+      try {
+        const accounts = await prisma.account.findMany({
+          orderBy: { createdAt: "desc" },
+        });
+
+        const result: Account[] = accounts.map((account) => ({
+          id: account.id,
+          email: account.email,
+          name: account.name,
+          subscription: mapSubscriptionTierFromDB(account.subscription),
+          maxProjects: account.maxProjects,
+          createdAt: account.createdAt,
+          updatedAt: account.updatedAt,
+        }));
+
+        return ok(result);
+      } catch (error) {
+        logger.error({ err: error }, "listAccounts error");
+        return err("DATABASE_ERROR");
+      }
+    },
+  };
+}
