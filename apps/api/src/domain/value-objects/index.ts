@@ -46,3 +46,11 @@ export { Provider, PROVIDERS, type ProviderType, type ProviderCapabilities } fro
 // Team value objects (Phase 1: TeamMember foundation)
 export { TeamMemberId } from "./TeamMemberId.js";
 export { TeamRole, TEAM_ROLE, type TeamRoleValue, type TeamPermission } from "./TeamRole.js";
+
+// Notification value objects (Phase 1 Step 2: Notification system)
+export { NotificationId } from "./NotificationId.js";
+export {
+  NotificationType,
+  NOTIFICATION_TYPES,
+  type NotificationTypeValue,
+} from "./NotificationType.js";

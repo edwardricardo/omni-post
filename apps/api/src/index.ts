@@ -75,6 +75,7 @@ import type { OutboxCleaner } from "./infrastructure/outbox/OutboxCleaner.js";
 import { crisisRoutes } from "./projects/crisisRoutes.js";
 import { linkRoutes } from "./links/linkRoutes.js";
 import { teamRoutes } from "./team/teamRoutes.js";
+import { notificationRoutes } from "./notifications/notificationRoutes.js";
 
 // Phase 3 imports
 import { DatabaseOptimizer } from "./utils/dbOptimization.js";
@@ -387,10 +388,11 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(postRoutes);
   await typedApp.register(channelRoutes);
 
-  // Register crisis mode, link tracking, and team management routes
+  // Register crisis mode, link tracking, team management, and notification routes
   await typedApp.register(crisisRoutes);
   await typedApp.register(linkRoutes);
   await typedApp.register(teamRoutes);
+  await typedApp.register(notificationRoutes);
 
   // Register provider routes
   const { providerRoutes } = await import("./providers/providerRoutes.js");

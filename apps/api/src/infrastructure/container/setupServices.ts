@@ -49,6 +49,7 @@ import { SagaManagerImpl } from "../../saga/SagaManager.js";
 import type { IntegrationEventPublisher } from "../integration-events/IntegrationEventPort.js";
 import { EventSchemaRegistry } from "../integration-events/EventSchemaRegistry.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
+import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.js";
 
 /**
  * Register all services in the container
@@ -274,6 +275,19 @@ export function setupServices(
   container.register<ProviderHealthMonitor>(
     TOKENS.ProviderHealthMonitor,
     () => container.resolve<ProviderCoordinator>(TOKENS.ProviderCoordinator).getHealthMonitor(),
+    true
+  );
+
+  // Register NotificationBroadcaster (Phase 1.2 -- SSE real-time notifications)
+  container.register<NotificationBroadcaster>(
+    TOKENS.NotificationBroadcaster,
+    () => {
+      const redis = createRedisConnection();
+      redis.on("error", () => {});
+      const broadcaster = new NotificationBroadcaster(redis);
+      broadcaster.initialize();
+      return broadcaster;
+    },
     true
   );
 

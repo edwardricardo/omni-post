@@ -45,3 +45,10 @@ export { LinkClick, type LinkClickProps, type LinkClickCreateProps } from "./Lin
 
 // Team entities (Phase 1: TeamMember foundation)
 export { TeamMemberEntity } from "./TeamMember.js";
+
+// Notification entities (Phase 1 Step 2: Notification system)
+export {
+  NotificationEntity,
+  type NotificationProps,
+  type CreateNotificationParams,
+} from "./Notification.js";

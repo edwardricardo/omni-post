@@ -92,6 +92,15 @@ export {
 // TeamMember repository port (Phase 1: TeamMember foundation)
 export { type TeamMemberRepository } from "./TeamMemberRepository.js";
 
+// Notification repository ports (Phase 1 Step 2: Notification system)
+export {
+  type NotificationRepository,
+  type NotificationPreferenceRepository,
+  type NotificationPreferenceDTO,
+  type NotificationFindOptions,
+  type NotificationPaginatedResult,
+} from "./NotificationRepository.js";
+
 // Plain domain DTOs — Prisma-free type mirrors for read-model ports
 export {
   type ProviderKind,

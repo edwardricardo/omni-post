@@ -39,6 +39,11 @@ import type { CrisisProjectRepository } from "../../application/crisis/types.js"
 import { PrismaCrisisProjectRepository } from "../repositories/PrismaCrisisProjectRepository.js";
 import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
 import { PrismaTeamMemberRepository } from "../repositories/PrismaTeamMemberRepository.js";
+import type {
+  NotificationRepository,
+  NotificationPreferenceRepository,
+} from "../../domain/repositories/NotificationRepository.js";
+import { PrismaNotificationRepository } from "../repositories/PrismaNotificationRepository.js";
 
 /**
  * Register all repository adapters in the container
@@ -149,6 +154,19 @@ export function setupRepositories(container: Container): void {
   container.register<TeamMemberRepository>(
     TOKENS.TeamMemberRepository,
     () => new PrismaTeamMemberRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register Notification Repositories (Phase 1.2)
+  // Single adapter implements both command and preference ports
+  container.register<NotificationRepository>(
+    TOKENS.NotificationRepository,
+    () => new PrismaNotificationRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<NotificationPreferenceRepository>(
+    TOKENS.NotificationPreferenceRepository,
+    () => new PrismaNotificationRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 }

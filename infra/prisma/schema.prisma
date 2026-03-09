@@ -200,6 +200,7 @@ model TeamMember {
 
   account            Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
   projectMemberships ProjectMember[]
+  notifications      Notification[]
 
   @@unique([accountId, email])
   @@index([accountId, isActive])
@@ -225,6 +226,47 @@ enum TeamRole {
   MANAGER
   MEMBER
   VIEWER
+}
+
+model Notification {
+  id           String           @id @default(uuid())
+  recipientId  String
+  type         NotificationType
+  title        String
+  body         String
+  resourceType String?
+  resourceId   String?
+  actorId      String?
+  actorName    String?
+  isRead       Boolean          @default(false)
+  readAt       DateTime?
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+
+  recipient TeamMember @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, isRead, createdAt])
+  @@index([recipientId, createdAt])
+}
+
+model NotificationPreference {
+  id        String           @id @default(uuid())
+  memberId  String
+  type      NotificationType
+  enabled   Boolean          @default(true)
+  updatedAt DateTime         @updatedAt
+
+  @@unique([memberId, type])
+}
+
+enum NotificationType {
+  APPROVAL_REQUESTED
+  POST_APPROVED
+  POST_REJECTED
+  COMMENT_ADDED
+  COMMENT_REPLY
+  MENTION
+  TEAM_INVITE
 }
 
 model AdminLoginAttempt {

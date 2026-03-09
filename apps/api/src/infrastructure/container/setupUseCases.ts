@@ -65,6 +65,17 @@ import {
   UpdateTeamMemberRoleUseCase,
   RemoveTeamMemberUseCase,
 } from "../../application/team/index.js";
+import type {
+  NotificationRepository,
+  NotificationPreferenceRepository,
+} from "../../domain/repositories/NotificationRepository.js";
+import {
+  CreateNotificationUseCase,
+  GetNotificationsQuery,
+  MarkNotificationReadUseCase,
+  MarkAllNotificationsReadUseCase,
+  GetUnreadCountQuery,
+} from "../../application/notifications/index.js";
 
 /**
  * Register all use cases and their adapters in the container
@@ -335,6 +346,49 @@ export function setupUseCases(container: Container): void {
     () =>
       new RemoveTeamMemberUseCase(
         container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
+      ),
+    true
+  );
+
+  // Register Notification Use Cases (Phase 1.2)
+  container.register<CreateNotificationUseCase>(
+    TOKENS.CreateNotificationUseCase,
+    () =>
+      new CreateNotificationUseCase(
+        container.resolve<NotificationRepository>(TOKENS.NotificationRepository),
+        container.resolve<NotificationPreferenceRepository>(TOKENS.NotificationPreferenceRepository)
+      ),
+    true
+  );
+  container.register<GetNotificationsQuery>(
+    TOKENS.GetNotificationsQuery,
+    () =>
+      new GetNotificationsQuery(
+        container.resolve<NotificationRepository>(TOKENS.NotificationRepository)
+      ),
+    true
+  );
+  container.register<MarkNotificationReadUseCase>(
+    TOKENS.MarkNotificationReadUseCase,
+    () =>
+      new MarkNotificationReadUseCase(
+        container.resolve<NotificationRepository>(TOKENS.NotificationRepository)
+      ),
+    true
+  );
+  container.register<MarkAllNotificationsReadUseCase>(
+    TOKENS.MarkAllNotificationsReadUseCase,
+    () =>
+      new MarkAllNotificationsReadUseCase(
+        container.resolve<NotificationRepository>(TOKENS.NotificationRepository)
+      ),
+    true
+  );
+  container.register<GetUnreadCountQuery>(
+    TOKENS.GetUnreadCountQuery,
+    () =>
+      new GetUnreadCountQuery(
+        container.resolve<NotificationRepository>(TOKENS.NotificationRepository)
       ),
     true
   );

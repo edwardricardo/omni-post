@@ -155,6 +155,16 @@ export const TOKENS = {
   GetTeamMembersQuery: Symbol.for("GetTeamMembersQuery"),
   UpdateTeamMemberRoleUseCase: Symbol.for("UpdateTeamMemberRoleUseCase"),
   RemoveTeamMemberUseCase: Symbol.for("RemoveTeamMemberUseCase"),
+
+  // Notification System (Phase 1.2)
+  NotificationRepository: Symbol.for("NotificationRepository"),
+  NotificationPreferenceRepository: Symbol.for("NotificationPreferenceRepository"),
+  NotificationBroadcaster: Symbol.for("NotificationBroadcaster"),
+  CreateNotificationUseCase: Symbol.for("CreateNotificationUseCase"),
+  GetNotificationsQuery: Symbol.for("GetNotificationsQuery"),
+  MarkNotificationReadUseCase: Symbol.for("MarkNotificationReadUseCase"),
+  MarkAllNotificationsReadUseCase: Symbol.for("MarkAllNotificationsReadUseCase"),
+  GetUnreadCountQuery: Symbol.for("GetUnreadCountQuery"),
 } as const;
 
 /**
