@@ -377,6 +377,18 @@ const makePost = (overrides?: Partial<Post>): Post => ({
 });
 ```
 
+### Zero Cancelled Tests
+
+**Cancelled tests are bugs. Investigate and fix every one — never ignore them.**
+
+A cancelled test means one of:
+
+- The test file doesn't use the correct test framework (`describe`/`it` from `node:test`) — rewrite or delete it
+- A prior test leaked resources (open handles, timers, DB connections) causing `--test-force-exit` to kill pending tests — fix the leak
+- A module resolution error (`ERR_MODULE_NOT_FOUND`) crashed the process before tests ran — fix the import or build dependency
+
+The target is **0 cancelled** on every run. If you find cancelled tests, diagnose the root cause and fix it before moving on.
+
 ### Coverage Targets
 
 | Layer                   | Minimum |
