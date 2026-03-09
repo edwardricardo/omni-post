@@ -156,6 +156,14 @@ export const TOKENS = {
   UpdateTeamMemberRoleUseCase: Symbol.for("UpdateTeamMemberRoleUseCase"),
   RemoveTeamMemberUseCase: Symbol.for("RemoveTeamMemberUseCase"),
 
+  // Approval Workflow (Phase 1.3)
+  ApprovalRequestRepository: Symbol.for("ApprovalRequestRepository"),
+  SubmitForReviewUseCase: Symbol.for("SubmitForReviewUseCase"),
+  ApprovePostUseCase: Symbol.for("ApprovePostUseCase"),
+  RejectPostUseCase: Symbol.for("RejectPostUseCase"),
+  GetApprovalHistoryQuery: Symbol.for("GetApprovalHistoryQuery"),
+  GetPendingApprovalsQuery: Symbol.for("GetPendingApprovalsQuery"),
+
   // Notification System (Phase 1.2)
   NotificationRepository: Symbol.for("NotificationRepository"),
   NotificationPreferenceRepository: Symbol.for("NotificationPreferenceRepository"),

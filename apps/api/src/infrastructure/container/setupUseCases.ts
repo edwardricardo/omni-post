@@ -58,6 +58,14 @@ import {
   ExitCrisisModeUseCase,
   GetCrisisStatusUseCase,
 } from "../../application/crisis/index.js";
+import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
+import {
+  SubmitForReviewUseCase,
+  ApprovePostUseCase,
+  RejectPostUseCase,
+  GetApprovalHistoryQuery,
+  GetPendingApprovalsQuery,
+} from "../../application/approvals/index.js";
 import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
 import {
   InviteTeamMemberUseCase,
@@ -314,6 +322,49 @@ export function setupUseCases(container: Container): void {
     () =>
       new GetCrisisStatusUseCase(
         container.resolve<CrisisProjectRepository>(TOKENS.CrisisProjectRepository)
+      ),
+    true
+  );
+
+  // Register Approval Workflow Use Cases (Phase 1.3)
+  container.register<SubmitForReviewUseCase>(
+    TOKENS.SubmitForReviewUseCase,
+    () =>
+      new SubmitForReviewUseCase(
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository),
+        container.resolve<PostRepository>(TOKENS.PostRepository)
+      ),
+    true
+  );
+  container.register<ApprovePostUseCase>(
+    TOKENS.ApprovePostUseCase,
+    () =>
+      new ApprovePostUseCase(
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository)
+      ),
+    true
+  );
+  container.register<RejectPostUseCase>(
+    TOKENS.RejectPostUseCase,
+    () =>
+      new RejectPostUseCase(
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository)
+      ),
+    true
+  );
+  container.register<GetApprovalHistoryQuery>(
+    TOKENS.GetApprovalHistoryQuery,
+    () =>
+      new GetApprovalHistoryQuery(
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository)
+      ),
+    true
+  );
+  container.register<GetPendingApprovalsQuery>(
+    TOKENS.GetPendingApprovalsQuery,
+    () =>
+      new GetPendingApprovalsQuery(
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository)
       ),
     true
   );

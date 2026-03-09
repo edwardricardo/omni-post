@@ -13,6 +13,7 @@ import { InvalidValueError, InvalidStateTransitionError } from "../errors/index.
  */
 export const PUBLISH_STATUS = {
   DRAFT: "DRAFT",
+  PENDING_REVIEW: "PENDING_REVIEW",
   SCHEDULED: "SCHEDULED",
   PUBLISHING: "PUBLISHING",
   PUBLISHED: "PUBLISHED",
@@ -27,9 +28,14 @@ export type PublishStatusValue = (typeof PUBLISH_STATUS)[keyof typeof PUBLISH_ST
  */
 const VALID_TRANSITIONS: Record<PublishStatusValue, PublishStatusValue[]> = {
   [PUBLISH_STATUS.DRAFT]: [
+    PUBLISH_STATUS.PENDING_REVIEW,
     PUBLISH_STATUS.SCHEDULED,
     PUBLISH_STATUS.PUBLISHING,
     PUBLISH_STATUS.CANCELLED,
+  ],
+  [PUBLISH_STATUS.PENDING_REVIEW]: [
+    PUBLISH_STATUS.SCHEDULED, // Approved path
+    PUBLISH_STATUS.DRAFT, // Rejected path
   ],
   [PUBLISH_STATUS.SCHEDULED]: [
     PUBLISH_STATUS.PUBLISHING,
@@ -107,6 +113,10 @@ export class PublishStatus {
     return new PublishStatus(PUBLISH_STATUS.FAILED);
   }
 
+  static pendingReview(): PublishStatus {
+    return new PublishStatus(PUBLISH_STATUS.PENDING_REVIEW);
+  }
+
   static cancelled(): PublishStatus {
     return new PublishStatus(PUBLISH_STATUS.CANCELLED);
   }
@@ -149,6 +159,10 @@ export class PublishStatus {
 
   isFailed(): boolean {
     return this._value === PUBLISH_STATUS.FAILED;
+  }
+
+  isPendingReview(): boolean {
+    return this._value === PUBLISH_STATUS.PENDING_REVIEW;
   }
 
   isCancelled(): boolean {

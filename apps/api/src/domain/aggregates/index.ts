@@ -10,3 +10,15 @@ export {
   type CreatePostAggregateInput,
   type PostAggregateState,
 } from "./PostAggregate.js";
+
+// Approval workflow aggregate (Phase 1 Step 3: Content Approval)
+export {
+  ApprovalRequestAggregate,
+  type CreateApprovalRequestInput,
+  type ApprovalRequestState,
+  type Review,
+  ApprovalRequestCreated,
+  ApprovalReviewAdded,
+  ApprovalRequestResolved,
+  ApprovalRequestCancelled,
+} from "./ApprovalRequestAggregate.js";

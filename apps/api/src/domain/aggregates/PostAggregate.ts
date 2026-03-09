@@ -29,6 +29,9 @@ import {
   PostCancelled,
   PostMediaAdded,
   PostMediaRemoved,
+  PostSubmittedForReview,
+  PostApproved,
+  PostRejected,
 } from "../events/PostEvents.js";
 
 /**
@@ -241,6 +244,10 @@ export class PostAggregate extends AggregateRoot<PostId> {
 
   get isFailed(): boolean {
     return this._status.isFailed();
+  }
+
+  get isPendingReview(): boolean {
+    return this._status.isPendingReview();
   }
 
   get isEditable(): boolean {
@@ -465,6 +472,79 @@ export class PostAggregate extends AggregateRoot<PostId> {
 
     // Raise event
     this.addDomainEvent(new PostCancelled(this._id.value, previousStatus, reason));
+
+    return ok(undefined);
+  }
+
+  /**
+   * Submit post for review (DRAFT -> PENDING_REVIEW)
+   */
+  submitForReview(): Result<void, InvalidStateTransitionError> {
+    if (!this._status.canTransitionTo(PUBLISH_STATUS.PENDING_REVIEW)) {
+      return err(
+        new InvalidStateTransitionError(this._status.value, PUBLISH_STATUS.PENDING_REVIEW, "Post")
+      );
+    }
+
+    const transitionResult = this._status.transitionTo(PUBLISH_STATUS.PENDING_REVIEW);
+    if (!transitionResult.ok) return err(transitionResult.error);
+
+    this._status = transitionResult.value;
+    this.markUpdated();
+    this.addDomainEvent(new PostSubmittedForReview(this._id.value, this._projectId.value));
+
+    return ok(undefined);
+  }
+
+  /**
+   * Return post to draft (PENDING_REVIEW -> DRAFT, rejection path)
+   */
+  returnToDraft(reason?: string): Result<void, InvalidStateTransitionError> {
+    if (!this._status.canTransitionTo(PUBLISH_STATUS.DRAFT)) {
+      return err(new InvalidStateTransitionError(this._status.value, PUBLISH_STATUS.DRAFT, "Post"));
+    }
+
+    const transitionResult = this._status.transitionTo(PUBLISH_STATUS.DRAFT);
+    if (!transitionResult.ok) return err(transitionResult.error);
+
+    this._status = transitionResult.value;
+    this._scheduledAt = undefined;
+    this.markUpdated();
+    this.addDomainEvent(new PostRejected(this._id.value, reason));
+
+    return ok(undefined);
+  }
+
+  /**
+   * Approve and schedule post (PENDING_REVIEW -> SCHEDULED)
+   */
+  approveForScheduling(
+    scheduledAt: Date,
+    timezone?: string
+  ): Result<void, InvalidStateTransitionError | InvariantViolationError> {
+    if (!this._status.canTransitionTo(PUBLISH_STATUS.SCHEDULED)) {
+      return err(
+        new InvalidStateTransitionError(this._status.value, PUBLISH_STATUS.SCHEDULED, "Post")
+      );
+    }
+
+    const scheduledResult = ScheduledTime.create({
+      dateTime: scheduledAt,
+      ...(timezone !== undefined && { timezone }),
+    });
+    if (!scheduledResult.ok) {
+      return err(
+        new InvariantViolationError(`Invalid scheduled time: ${scheduledResult.error.message}`)
+      );
+    }
+
+    const transitionResult = this._status.transitionTo(PUBLISH_STATUS.SCHEDULED);
+    if (!transitionResult.ok) return err(transitionResult.error);
+
+    this._status = transitionResult.value;
+    this._scheduledAt = scheduledResult.value;
+    this.markUpdated();
+    this.addDomainEvent(new PostApproved(this._id.value, scheduledAt));
 
     return ok(undefined);
   }

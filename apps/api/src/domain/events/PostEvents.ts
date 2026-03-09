@@ -267,6 +267,75 @@ export class PostMediaRemoved extends BaseDomainEvent {
 }
 
 /**
+ * Event raised when a post is submitted for review
+ */
+export class PostSubmittedForReview extends BaseDomainEvent {
+  readonly eventType = "PostSubmittedForReview";
+  readonly aggregateType = "Post";
+
+  constructor(
+    readonly aggregateId: string,
+    readonly projectId: string,
+    version: number = 1
+  ) {
+    super(version);
+  }
+
+  toPayload(): Record<string, unknown> {
+    return {
+      postId: this.aggregateId,
+      projectId: this.projectId,
+    };
+  }
+}
+
+/**
+ * Event raised when a post is approved for scheduling
+ */
+export class PostApproved extends BaseDomainEvent {
+  readonly eventType = "PostApproved";
+  readonly aggregateType = "Post";
+
+  constructor(
+    readonly aggregateId: string,
+    readonly scheduledAt: Date,
+    version: number = 1
+  ) {
+    super(version);
+  }
+
+  toPayload(): Record<string, unknown> {
+    return {
+      postId: this.aggregateId,
+      scheduledAt: this.scheduledAt.toISOString(),
+    };
+  }
+}
+
+/**
+ * Event raised when a post is rejected during review
+ */
+export class PostRejected extends BaseDomainEvent {
+  readonly eventType = "PostRejected";
+  readonly aggregateType = "Post";
+
+  constructor(
+    readonly aggregateId: string,
+    readonly reason?: string,
+    version: number = 1
+  ) {
+    super(version);
+  }
+
+  toPayload(): Record<string, unknown> {
+    return {
+      postId: this.aggregateId,
+      ...(this.reason !== undefined && { reason: this.reason }),
+    };
+  }
+}
+
+/**
  * Union type of all post events
  */
 export type PostEvent =
@@ -279,4 +348,7 @@ export type PostEvent =
   | PostPublishingFailed
   | PostCancelled
   | PostMediaAdded
-  | PostMediaRemoved;
+  | PostMediaRemoved
+  | PostSubmittedForReview
+  | PostApproved
+  | PostRejected;

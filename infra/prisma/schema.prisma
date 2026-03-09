@@ -201,6 +201,8 @@ model TeamMember {
   account            Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
   projectMemberships ProjectMember[]
   notifications      Notification[]
+  submittedApprovals ApprovalRequest[] @relation("ApprovalSubmitter")
+  reviews            ApprovalReview[]
 
   @@unique([accountId, email])
   @@index([accountId, isActive])
@@ -267,6 +269,51 @@ enum NotificationType {
   COMMENT_REPLY
   MENTION
   TEAM_INVITE
+}
+
+model ApprovalRequest {
+  id          String         @id @default(uuid())
+  postId      String
+  submitterId String
+  status      ApprovalStatus @default(PENDING)
+  comment     String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  post      Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  submitter TeamMember       @relation("ApprovalSubmitter", fields: [submitterId], references: [id])
+  reviews   ApprovalReview[]
+
+  @@index([postId, status])
+  @@index([submitterId, createdAt])
+}
+
+model ApprovalReview {
+  id         String         @id @default(uuid())
+  requestId  String
+  reviewerId String
+  decision   ReviewDecision
+  comment    String?
+  reviewedAt DateTime       @default(now())
+
+  request  ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reviewer TeamMember      @relation(fields: [reviewerId], references: [id])
+
+  @@index([requestId])
+  @@index([reviewerId])
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ReviewDecision {
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
 }
 
 model AdminLoginAttempt {
@@ -350,6 +397,7 @@ model Post {
   webhookEvents   WebhookEvent[]
   analytics       Analytics[]       // ✅ Phase 1: Added relationship (fixes N+1 queries)
   publishLogs     PublishLog[]      // ✅ Phase 1: Added relationship (fixes N+1 queries)
+  approvalRequests ApprovalRequest[]
   deletedAt       DateTime?
 
   // @@index([projectId]) - REMOVED: Covered by [projectId, status] and [projectId, createdAt]

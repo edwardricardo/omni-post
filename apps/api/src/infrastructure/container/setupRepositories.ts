@@ -39,6 +39,8 @@ import type { CrisisProjectRepository } from "../../application/crisis/types.js"
 import { PrismaCrisisProjectRepository } from "../repositories/PrismaCrisisProjectRepository.js";
 import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
 import { PrismaTeamMemberRepository } from "../repositories/PrismaTeamMemberRepository.js";
+import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
+import { PrismaApprovalRequestRepository } from "../repositories/PrismaApprovalRequestRepository.js";
 import type {
   NotificationRepository,
   NotificationPreferenceRepository,
@@ -147,6 +149,13 @@ export function setupRepositories(container: Container): void {
   container.register<CrisisProjectRepository>(
     TOKENS.CrisisProjectRepository,
     () => new PrismaCrisisProjectRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register ApprovalRequest Repository (Phase 1.3)
+  container.register<ApprovalRequestRepository>(
+    TOKENS.ApprovalRequestRepository,
+    () => new PrismaApprovalRequestRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 

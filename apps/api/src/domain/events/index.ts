@@ -21,6 +21,9 @@ export {
   PostPublishingFailed,
   PostCancelled,
   PostMediaAdded,
+  PostSubmittedForReview,
+  PostApproved,
+  PostRejected,
   type PostEvent,
 } from "./PostEvents.js";
 

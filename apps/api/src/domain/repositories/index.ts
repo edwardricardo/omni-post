@@ -92,6 +92,9 @@ export {
 // TeamMember repository port (Phase 1: TeamMember foundation)
 export { type TeamMemberRepository } from "./TeamMemberRepository.js";
 
+// Approval request repository port (Phase 1 Step 3: Content Approval)
+export { type ApprovalRequestRepository } from "./ApprovalRequestRepository.js";
+
 // Notification repository ports (Phase 1 Step 2: Notification system)
 export {
   type NotificationRepository,

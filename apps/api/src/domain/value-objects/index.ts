@@ -54,3 +54,8 @@ export {
   NOTIFICATION_TYPES,
   type NotificationTypeValue,
 } from "./NotificationType.js";
+
+// Approval workflow value objects (Phase 1 Step 3: Content Approval)
+export { ApprovalRequestId } from "./ApprovalRequestId.js";
+export { ApprovalStatus, APPROVAL_STATUSES, type ApprovalStatusValue } from "./ApprovalStatus.js";
+export { ReviewDecision, REVIEW_DECISIONS, type ReviewDecisionValue } from "./ReviewDecision.js";
