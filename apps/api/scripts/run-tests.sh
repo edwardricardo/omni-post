@@ -205,7 +205,8 @@ run_batch "unit:account" \
   tests/unit/auditService.stats.test.ts tests/unit/auditService.retention.test.ts \
   tests/unit/auditLogger.test.ts \
   tests/unit/auditMiddleware.test.ts tests/unit/AuditableService.test.ts \
-  tests/unit/dashboardRoutes.test.ts
+  tests/unit/dashboardRoutes.test.ts \
+  tests/unit/team/teamRoutes.test.ts
 
 run_batch "unit:cache" \
   tests/unit/autoCacheMiddleware.registration-get.test.ts \

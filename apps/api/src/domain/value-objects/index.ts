@@ -42,3 +42,7 @@ export { ScheduledTime, type ScheduledTimeProps, type Timezone } from "./Schedul
 
 // Provider value objects
 export { Provider, PROVIDERS, type ProviderType, type ProviderCapabilities } from "./Provider.js";
+
+// Team value objects (Phase 1: TeamMember foundation)
+export { TeamMemberId } from "./TeamMemberId.js";
+export { TeamRole, TEAM_ROLE, type TeamRoleValue, type TeamPermission } from "./TeamRole.js";

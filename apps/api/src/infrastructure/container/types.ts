@@ -148,6 +148,13 @@ export const TOKENS = {
   EnterCrisisModeUseCase: Symbol.for("EnterCrisisModeUseCase"),
   ExitCrisisModeUseCase: Symbol.for("ExitCrisisModeUseCase"),
   GetCrisisStatusUseCase: Symbol.for("GetCrisisStatusUseCase"),
+
+  // Team Member (Phase 1.1)
+  TeamMemberRepository: Symbol.for("TeamMemberRepository"),
+  InviteTeamMemberUseCase: Symbol.for("InviteTeamMemberUseCase"),
+  GetTeamMembersQuery: Symbol.for("GetTeamMembersQuery"),
+  UpdateTeamMemberRoleUseCase: Symbol.for("UpdateTeamMemberRoleUseCase"),
+  RemoveTeamMemberUseCase: Symbol.for("RemoveTeamMemberUseCase"),
 } as const;
 
 /**

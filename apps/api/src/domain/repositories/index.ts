@@ -89,6 +89,9 @@ export {
   type PostWithAnalyticsAndContent,
 } from "./AnalyticsReadRepository.js";
 
+// TeamMember repository port (Phase 1: TeamMember foundation)
+export { type TeamMemberRepository } from "./TeamMemberRepository.js";
+
 // Plain domain DTOs — Prisma-free type mirrors for read-model ports
 export {
   type ProviderKind,

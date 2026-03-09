@@ -58,6 +58,13 @@ import {
   ExitCrisisModeUseCase,
   GetCrisisStatusUseCase,
 } from "../../application/crisis/index.js";
+import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
+import {
+  InviteTeamMemberUseCase,
+  GetTeamMembersQuery,
+  UpdateTeamMemberRoleUseCase,
+  RemoveTeamMemberUseCase,
+} from "../../application/team/index.js";
 
 /**
  * Register all use cases and their adapters in the container
@@ -296,6 +303,38 @@ export function setupUseCases(container: Container): void {
     () =>
       new GetCrisisStatusUseCase(
         container.resolve<CrisisProjectRepository>(TOKENS.CrisisProjectRepository)
+      ),
+    true
+  );
+
+  // Register Team Member Use Cases (Phase 1.1)
+  container.register<InviteTeamMemberUseCase>(
+    TOKENS.InviteTeamMemberUseCase,
+    () =>
+      new InviteTeamMemberUseCase(
+        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
+      ),
+    true
+  );
+  container.register<GetTeamMembersQuery>(
+    TOKENS.GetTeamMembersQuery,
+    () =>
+      new GetTeamMembersQuery(container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)),
+    true
+  );
+  container.register<UpdateTeamMemberRoleUseCase>(
+    TOKENS.UpdateTeamMemberRoleUseCase,
+    () =>
+      new UpdateTeamMemberRoleUseCase(
+        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
+      ),
+    true
+  );
+  container.register<RemoveTeamMemberUseCase>(
+    TOKENS.RemoveTeamMemberUseCase,
+    () =>
+      new RemoveTeamMemberUseCase(
+        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
       ),
     true
   );

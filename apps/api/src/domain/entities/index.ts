@@ -42,3 +42,6 @@ export {
 export { TrackedLink, type TrackedLinkProps, type TrackedLinkCreateProps } from "./TrackedLink.js";
 
 export { LinkClick, type LinkClickProps, type LinkClickCreateProps } from "./LinkClick.js";
+
+// Team entities (Phase 1: TeamMember foundation)
+export { TeamMemberEntity } from "./TeamMember.js";
