@@ -60,7 +60,7 @@ export type PublishedPost = PostWithContent;
 export interface ProjectQueryRepositoryPort {
   /**
    * Return all post IDs belonging to a project.
-   * Replaces the repeated `prisma.post.findMany({ select: { id: true } })` pattern.
+   * Replaces the repeated post-ID-only query pattern across analytics services.
    */
   getPostIds(projectId: string): Promise<string[]>;
 

@@ -7,7 +7,12 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
-import { PostId, type PostRepository, type EventDispatcher } from "../../domain/index.js";
+import {
+  PostId,
+  type PostAggregate,
+  type PostRepository,
+  type EventDispatcher,
+} from "../../domain/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { type PostDTO } from "./GetPostUseCase.js";
 
@@ -95,41 +100,10 @@ export class UpdatePostUseCase implements UseCase<UpdatePostInput, PostDTO, UseC
       }
     }
 
-    // Persist changes and dispatch domain events atomically
-    const persistAndDispatch = async () => {
-      const saveResult = await this.postRepository.save(post);
-      if (!saveResult.ok) {
-        throw new UseCaseError(
-          "Failed to save post",
-          USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
-        );
-      }
-
-      const events = post.domainEvents;
-      if (events.length > 0) {
-        await this.eventDispatcher.dispatchAll([...events]);
-        post.clearDomainEvents();
-      }
-    };
-
-    try {
-      if (this.unitOfWork) {
-        await this.unitOfWork.executeInTransaction(persistAndDispatch);
-      } else {
-        await persistAndDispatch();
-      }
-    } catch (error) {
-      if (error instanceof UseCaseError) {
-        return err(error);
-      }
-      return err(
-        new UseCaseError(
-          "Failed to save post",
-          USE_CASE_ERRORS.INTERNAL_ERROR,
-          error instanceof Error ? error : undefined
-        )
-      );
+    // Persist changes and dispatch domain events
+    const persistResult = await this.persistAndDispatch(post);
+    if (!persistResult.ok) {
+      return err(persistResult.error);
     }
 
     // Return updated DTO
@@ -148,5 +122,49 @@ export class UpdatePostUseCase implements UseCase<UpdatePostInput, PostDTO, UseC
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
     });
+  }
+
+  /**
+   * @method persistAndDispatch
+   * @description Saves the aggregate and dispatches domain events, optionally within a UoW transaction.
+   * @param post - The post aggregate to persist
+   * @returns Result indicating success or failure
+   */
+  private async persistAndDispatch(post: PostAggregate): Promise<Result<void, UseCaseError>> {
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      const saveResult = await this.postRepository.save(post);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError("Failed to save post", USE_CASE_ERRORS.INTERNAL_ERROR, saveResult.error)
+        );
+      }
+
+      const events = post.domainEvents;
+      if (events.length > 0) {
+        await this.eventDispatcher.dispatchAll([...events]);
+        post.clearDomainEvents();
+      }
+
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
+      return err(
+        new UseCaseError(
+          "Failed to save post",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
   }
 }
