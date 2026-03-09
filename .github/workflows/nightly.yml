@@ -1,0 +1,72 @@
+name: Nightly Full Test Suite
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  full-suite:
+    name: Full test suite (cache bypassed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password123
+          POSTGRES_USER: postgres
+          POSTGRES_DB: omnipostdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Setup test environment
+        run: |
+          cp apps/api/.env.example apps/api/.env
+          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> apps/api/.env
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env
+
+      - name: Run database migrations
+        run: pnpm --filter @infra/prisma db:migrate
+
+      - name: Build (cache bypassed)
+        run: pnpm turbo run build --force
+
+      - name: Run full test suite (cache bypassed)
+        run: pnpm turbo run test --force
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Nightly test suite failed — ${new Date().toISOString().split('T')[0]}`,
+              body: `The nightly full test suite failed.\n\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              labels: ['bug', 'nightly-failure']
+            })

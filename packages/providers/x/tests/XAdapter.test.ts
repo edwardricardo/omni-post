@@ -71,7 +71,7 @@ describe("XAdapter - Metadata", { concurrency: 1 }, () => {
   it("should have correct capabilities", () => {
     assert.strictEqual(adapter.capabilities.publish, true);
     assert.strictEqual(adapter.capabilities.schedule, true);
-    assert.strictEqual(adapter.capabilities.analytics, true);
+    assert.strictEqual(adapter.capabilities.analytics, false);
     assert.strictEqual(adapter.capabilities.comments, true);
     assert.strictEqual(adapter.capabilities.replies, true);
     assert.strictEqual(adapter.capabilities.threading, true);

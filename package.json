@@ -17,15 +17,15 @@
     "infra/*"
   ],
   "scripts": {
-    "test": "pnpm --filter @apps/api test",
-    "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier -w .",
     "format:check": "prettier -c .",
-    "typecheck": "tsc --build && pnpm --filter @apps/api --filter @apps/admin --filter @apps/client --filter @apps/workers typecheck",
+    "typecheck": "turbo run typecheck",
     "typecheck:packages": "tsc --build",
     "typecheck:apps": "pnpm --filter @apps/api --filter @apps/admin --filter @apps/client --filter @apps/workers typecheck",
-    "build": "pnpm -r build",
+    "build": "turbo run build",
     "dev:api": "pnpm --filter @apps/api dev",
     "dev:workers": "pnpm --filter @apps/workers dev",
     "dev:admin": "pnpm --filter @apps/admin dev",
@@ -85,6 +85,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tsx": "4.20.5",
+    "turbo": "^2.8.14",
     "zod": "4.3.6"
   },
   "pnpm": {
