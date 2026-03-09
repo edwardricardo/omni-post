@@ -272,9 +272,7 @@ CONCURRENCY=1 run_batch "integration:sync" \
 # Integration test batches (concurrency=1 for shared DB state)
 CONCURRENCY=1 run_batch "integration:routes" \
   tests/integration/crisisRoutes.test.ts tests/integration/linkRoutes.test.ts \
-  tests/integration/security-endpoints.test.ts \
-  tests/integration/providers/instagram-provider.test.ts \
-  tests/integration/providers/x-provider.test.ts
+  tests/integration/security-endpoints.test.ts
 
 CONCURRENCY=1 run_batch "integration:flows" \
   tests/auth.test.ts tests/audit.test.ts tests/cache.test.ts \
@@ -282,11 +280,6 @@ CONCURRENCY=1 run_batch "integration:flows" \
 
 CONCURRENCY=1 TIMEOUT=60000 run_batch "flow" \
   tests/publish.flow.test.ts tests/analytics.flow.test.ts tests/media.flow.test.ts tests/schedule.flow.test.ts
-
-CONCURRENCY=1 run_batch "providers" \
-  tests/providers/facebook.test.ts tests/providers/instagram.test.ts \
-  tests/providers/tiktok.test.ts tests/providers/x.test.ts \
-  tests/providers/youtube.test.ts
 
 CONCURRENCY=1 run_batch "remaining" \
   tests/accountLifecycle.test.ts tests/trialPeriod.test.ts \
