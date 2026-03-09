@@ -25,3 +25,8 @@ export {
 } from "./MarkNotificationReadUseCase.js";
 
 export { GetUnreadCountQuery, type GetUnreadCountInput } from "./GetUnreadCountQuery.js";
+
+export {
+  NotificationEventHandlers,
+  type NotificationEventContext,
+} from "./handlers/NotificationEventHandlers.js";

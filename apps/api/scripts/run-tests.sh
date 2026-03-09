@@ -208,6 +208,7 @@ run_batch "unit:account" \
   tests/unit/dashboardRoutes.test.ts \
   tests/unit/team/teamRoutes.test.ts \
   tests/unit/notifications/notificationRoutes.test.ts \
+  tests/unit/notifications/NotificationEventHandlers.test.ts \
   tests/unit/approvals/approvalRoutes.test.ts \
   tests/unit/comments/commentRoutes.test.ts
 

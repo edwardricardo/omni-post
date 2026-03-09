@@ -83,6 +83,7 @@ import {
   MarkNotificationReadUseCase,
   MarkAllNotificationsReadUseCase,
   GetUnreadCountQuery,
+  NotificationEventHandlers,
 } from "../../application/notifications/index.js";
 import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
 import {
@@ -447,6 +448,16 @@ export function setupUseCases(container: Container): void {
     () =>
       new GetUnreadCountQuery(
         container.resolve<NotificationRepository>(TOKENS.NotificationRepository)
+      ),
+    true
+  );
+
+  // Register Notification Event Handlers (Phase 1.5)
+  container.register<NotificationEventHandlers>(
+    TOKENS.NotificationEventHandlers,
+    () =>
+      new NotificationEventHandlers(
+        container.resolve<CreateNotificationUseCase>(TOKENS.CreateNotificationUseCase)
       ),
     true
   );

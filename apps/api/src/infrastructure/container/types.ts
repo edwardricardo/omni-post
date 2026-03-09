@@ -174,6 +174,9 @@ export const TOKENS = {
   MarkAllNotificationsReadUseCase: Symbol.for("MarkAllNotificationsReadUseCase"),
   GetUnreadCountQuery: Symbol.for("GetUnreadCountQuery"),
 
+  // Notification Event Handlers (Phase 1.5)
+  NotificationEventHandlers: Symbol.for("NotificationEventHandlers"),
+
   // Comments (Phase 1.4)
   PostCommentRepository: Symbol.for("PostCommentRepository"),
   CreateCommentUseCase: Symbol.for("CreateCommentUseCase"),
