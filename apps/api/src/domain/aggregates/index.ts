@@ -11,6 +11,16 @@ export {
   type PostAggregateState,
 } from "./PostAggregate.js";
 
+// In-context comments aggregate (Phase 1 Step 4: In-Context Comments)
+export {
+  PostCommentAggregate,
+  type CreateCommentProps,
+  type PostCommentState,
+  CommentAdded,
+  CommentEdited,
+  CommentDeleted,
+} from "./PostCommentAggregate.js";
+
 // Approval workflow aggregate (Phase 1 Step 3: Content Approval)
 export {
   ApprovalRequestAggregate,

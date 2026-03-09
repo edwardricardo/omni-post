@@ -46,6 +46,8 @@ import type {
   NotificationPreferenceRepository,
 } from "../../domain/repositories/NotificationRepository.js";
 import { PrismaNotificationRepository } from "../repositories/PrismaNotificationRepository.js";
+import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
+import { PrismaPostCommentRepository } from "../repositories/PrismaPostCommentRepository.js";
 
 /**
  * Register all repository adapters in the container
@@ -176,6 +178,13 @@ export function setupRepositories(container: Container): void {
   container.register<NotificationPreferenceRepository>(
     TOKENS.NotificationPreferenceRepository,
     () => new PrismaNotificationRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register PostComment Repository (Phase 1.4)
+  container.register<PostCommentRepository>(
+    TOKENS.PostCommentRepository,
+    () => new PrismaPostCommentRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 }

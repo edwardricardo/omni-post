@@ -203,6 +203,7 @@ model TeamMember {
   notifications      Notification[]
   submittedApprovals ApprovalRequest[] @relation("ApprovalSubmitter")
   reviews            ApprovalReview[]
+  comments           PostComment[]
 
   @@unique([accountId, email])
   @@index([accountId, isActive])
@@ -303,6 +304,29 @@ model ApprovalReview {
   @@index([reviewerId])
 }
 
+model PostComment {
+  id        String    @id @default(uuid())
+  postId    String
+  authorId  String
+  parentId  String?
+  body      String
+  mentions  String[]  @default([])
+  isEdited  Boolean   @default(false)
+  editedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  TeamMember    @relation(fields: [authorId], references: [id])
+  parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies PostComment[] @relation("CommentReplies")
+
+  @@index([postId, deletedAt, createdAt])
+  @@index([parentId])
+  @@index([authorId])
+}
+
 enum ApprovalStatus {
   PENDING
   APPROVED
@@ -398,6 +422,7 @@ model Post {
   analytics       Analytics[]       // ✅ Phase 1: Added relationship (fixes N+1 queries)
   publishLogs     PublishLog[]      // ✅ Phase 1: Added relationship (fixes N+1 queries)
   approvalRequests ApprovalRequest[]
+  comments        PostComment[]
   deletedAt       DateTime?
 
   // @@index([projectId]) - REMOVED: Covered by [projectId, status] and [projectId, createdAt]

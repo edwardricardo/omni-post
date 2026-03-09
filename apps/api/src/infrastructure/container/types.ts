@@ -173,6 +173,13 @@ export const TOKENS = {
   MarkNotificationReadUseCase: Symbol.for("MarkNotificationReadUseCase"),
   MarkAllNotificationsReadUseCase: Symbol.for("MarkAllNotificationsReadUseCase"),
   GetUnreadCountQuery: Symbol.for("GetUnreadCountQuery"),
+
+  // Comments (Phase 1.4)
+  PostCommentRepository: Symbol.for("PostCommentRepository"),
+  CreateCommentUseCase: Symbol.for("CreateCommentUseCase"),
+  EditCommentUseCase: Symbol.for("EditCommentUseCase"),
+  DeleteCommentUseCase: Symbol.for("DeleteCommentUseCase"),
+  GetPostCommentsQuery: Symbol.for("GetPostCommentsQuery"),
 } as const;
 
 /**

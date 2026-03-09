@@ -104,6 +104,13 @@ export {
   type NotificationPaginatedResult,
 } from "./NotificationRepository.js";
 
+// PostComment repository port (Phase 1 Step 4: In-Context Comments)
+export {
+  type PostCommentRepository,
+  type PostCommentFindOptions,
+  type PostCommentPaginatedResult,
+} from "./PostCommentRepository.js";
+
 // Plain domain DTOs — Prisma-free type mirrors for read-model ports
 export {
   type ProviderKind,

@@ -84,6 +84,13 @@ import {
   MarkAllNotificationsReadUseCase,
   GetUnreadCountQuery,
 } from "../../application/notifications/index.js";
+import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
+import {
+  CreateCommentUseCase,
+  EditCommentUseCase,
+  DeleteCommentUseCase,
+  GetPostCommentsQuery,
+} from "../../application/comments/index.js";
 
 /**
  * Register all use cases and their adapters in the container
@@ -440,6 +447,40 @@ export function setupUseCases(container: Container): void {
     () =>
       new GetUnreadCountQuery(
         container.resolve<NotificationRepository>(TOKENS.NotificationRepository)
+      ),
+    true
+  );
+
+  // Register Comment Use Cases (Phase 1.4)
+  container.register<CreateCommentUseCase>(
+    TOKENS.CreateCommentUseCase,
+    () =>
+      new CreateCommentUseCase(
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+      ),
+    true
+  );
+  container.register<EditCommentUseCase>(
+    TOKENS.EditCommentUseCase,
+    () =>
+      new EditCommentUseCase(
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+      ),
+    true
+  );
+  container.register<DeleteCommentUseCase>(
+    TOKENS.DeleteCommentUseCase,
+    () =>
+      new DeleteCommentUseCase(
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+      ),
+    true
+  );
+  container.register<GetPostCommentsQuery>(
+    TOKENS.GetPostCommentsQuery,
+    () =>
+      new GetPostCommentsQuery(
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
       ),
     true
   );
