@@ -32,3 +32,16 @@ export {
   ApprovalRequestResolved,
   ApprovalRequestCancelled,
 } from "./ApprovalRequestAggregate.js";
+
+// Social Inbox aggregate (Phase 2: Social Inbox)
+export {
+  SocialMessageAggregate,
+  type CreateSocialMessageInput,
+  type SocialMessageState,
+  type SocialMessageEvent,
+  SocialMessageReceived,
+  SocialMessageRead,
+  SocialMessageReplied,
+  SocialMessageAssigned,
+  SocialMessageArchived,
+} from "./SocialMessageAggregate.js";

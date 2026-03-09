@@ -35,6 +35,29 @@ export type { RenderedPost };
 export type PublishInput = { channelId: string; post: RenderedPost; dedupeKey: string };
 export type PublishReceipt = { providerPostId: string; url?: string; publishedAt: Date };
 
+/**
+ * Normalized comment fetched from a provider's API.
+ */
+export interface ProviderComment {
+  providerMessageId: string;
+  providerParentId?: string;
+  authorName: string;
+  authorHandle?: string;
+  authorAvatarUrl?: string;
+  authorProviderId: string;
+  body: string;
+  mediaUrls?: string[];
+  createdAt: Date;
+}
+
+/**
+ * Result of posting a reply through the provider API.
+ */
+export interface ProviderReplyResult {
+  providerReplyId: string;
+  createdAt: Date;
+}
+
 export interface ProviderAdapter {
   readonly id: ProviderId;
   readonly limits: ProviderLimits;
@@ -61,4 +84,19 @@ export interface ProviderAdapter {
     until?: Date;
   }): Promise<Result<unknown, "AUTH" | "NETWORK">>;
   handleWebhook?(payload: unknown): Promise<Result<unknown, "IGNORE" | "PARSE_ERROR">>;
+
+  // Social Inbox methods (Phase 2)
+  getComments?(params: {
+    channelCredentials: unknown;
+    postExternalId?: string;
+    since?: Date;
+    cursor?: string;
+    limit?: number;
+  }): Promise<Result<{ comments: ProviderComment[]; nextCursor?: string }, "AUTH" | "NETWORK">>;
+
+  postReply?(params: {
+    channelCredentials: unknown;
+    inReplyToProviderMessageId: string;
+    body: string;
+  }): Promise<Result<ProviderReplyResult, "AUTH" | "NETWORK" | "RATE_LIMIT">>;
 }

@@ -29,3 +29,8 @@ export {
 
 // Project events (Sprint 19)
 export { type ProjectEvent } from "./ProjectEvents.js";
+
+// Social Inbox events are co-located with their aggregates/entities:
+// - SocialMessageReceived, SocialMessageRead, etc. → SocialMessageAggregate.ts
+// - ConversationResolved, ConversationReopened → SocialConversation.ts
+// Re-exported from aggregates/index.ts and entities/index.ts

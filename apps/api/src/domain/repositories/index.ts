@@ -111,6 +111,27 @@ export {
   type PostCommentPaginatedResult,
 } from "./PostCommentRepository.js";
 
+// Social Inbox repository ports (Phase 2: Social Inbox)
+export { type SocialMessageRepository } from "./SocialMessageRepository.js";
+export {
+  type SocialMessageQueryRepository,
+  type SocialMessageDTO,
+  type InboxFilter,
+  type CursorPagination,
+  type CursorPaginatedResult,
+} from "./SocialMessageQueryRepository.js";
+export {
+  type SocialConversationRepository,
+  type SocialConversationDTO,
+} from "./SocialConversationRepository.js";
+export {
+  type SocialOutboundReplyRepository,
+  type SocialOutboundReplyDTO,
+  type CreateOutboundReplyInput,
+  type OutboundReplyStatusValue,
+  OUTBOUND_REPLY_STATUSES,
+} from "./SocialOutboundReplyRepository.js";
+
 // Plain domain DTOs — Prisma-free type mirrors for read-model ports
 export {
   type ProviderKind,

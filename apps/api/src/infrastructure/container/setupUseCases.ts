@@ -13,6 +13,10 @@ import type {
   PostQueryRepository,
   EventDispatcher,
   ChannelRepository,
+  SocialMessageRepository,
+  SocialMessageQueryRepository,
+  SocialConversationRepository,
+  SocialOutboundReplyRepository,
 } from "../../domain/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository.js";
@@ -92,6 +96,22 @@ import {
   DeleteCommentUseCase,
   GetPostCommentsQuery,
 } from "../../application/comments/index.js";
+import {
+  IngestSocialMessageUseCase,
+  MarkMessageReadUseCase,
+  MarkMessageArchivedUseCase,
+  AssignMessageUseCase,
+  SendReplyUseCase,
+  ResolveConversationUseCase,
+  ReopenConversationUseCase,
+  SyncProviderCommentsUseCase,
+  GetInboxQuery,
+  GetMentionsQuery,
+  GetConversationQuery,
+  GetConversationMessagesQuery,
+  GetUnreadInboxCountQuery,
+} from "../../application/inbox/index.js";
+import { InboxEventHandlers } from "../../application/inbox/handlers/InboxEventHandlers.js";
 
 /**
  * Register all use cases and their adapters in the container
@@ -492,6 +512,132 @@ export function setupUseCases(container: Container): void {
     () =>
       new GetPostCommentsQuery(
         container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+      ),
+    true
+  );
+
+  // Social Inbox Use Cases (Phase 2)
+  container.register<IngestSocialMessageUseCase>(
+    TOKENS.IngestSocialMessageUseCase,
+    () =>
+      new IngestSocialMessageUseCase(
+        container.resolve<SocialMessageRepository>(TOKENS.SocialMessageRepository),
+        container.resolve<SocialConversationRepository>(TOKENS.SocialConversationRepository),
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+      ),
+    true
+  );
+  container.register<MarkMessageReadUseCase>(
+    TOKENS.MarkMessageReadUseCase,
+    () =>
+      new MarkMessageReadUseCase(
+        container.resolve<SocialMessageRepository>(TOKENS.SocialMessageRepository),
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+      ),
+    true
+  );
+  container.register<MarkMessageArchivedUseCase>(
+    TOKENS.MarkMessageArchivedUseCase,
+    () =>
+      new MarkMessageArchivedUseCase(
+        container.resolve<SocialMessageRepository>(TOKENS.SocialMessageRepository),
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+      ),
+    true
+  );
+  container.register<AssignMessageUseCase>(
+    TOKENS.AssignMessageUseCase,
+    () =>
+      new AssignMessageUseCase(
+        container.resolve<SocialMessageRepository>(TOKENS.SocialMessageRepository),
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+      ),
+    true
+  );
+  container.register<SendReplyUseCase>(
+    TOKENS.SendReplyUseCase,
+    () =>
+      new SendReplyUseCase(
+        container.resolve<SocialMessageRepository>(TOKENS.SocialMessageRepository),
+        container.resolve<SocialOutboundReplyRepository>(TOKENS.SocialOutboundReplyRepository),
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+      ),
+    true
+  );
+  container.register<ResolveConversationUseCase>(
+    TOKENS.ResolveConversationUseCase,
+    () =>
+      new ResolveConversationUseCase(
+        container.resolve<SocialConversationRepository>(TOKENS.SocialConversationRepository)
+      ),
+    true
+  );
+  container.register<ReopenConversationUseCase>(
+    TOKENS.ReopenConversationUseCase,
+    () =>
+      new ReopenConversationUseCase(
+        container.resolve<SocialConversationRepository>(TOKENS.SocialConversationRepository)
+      ),
+    true
+  );
+  container.register<SyncProviderCommentsUseCase>(
+    TOKENS.SyncProviderCommentsUseCase,
+    () =>
+      new SyncProviderCommentsUseCase(
+        container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
+        container.resolve<IngestSocialMessageUseCase>(TOKENS.IngestSocialMessageUseCase)
+      ),
+    true
+  );
+
+  // Social Inbox Queries (Phase 2)
+  container.register<GetInboxQuery>(
+    TOKENS.GetInboxQuery,
+    () =>
+      new GetInboxQuery(
+        container.resolve<SocialMessageQueryRepository>(TOKENS.SocialMessageQueryRepository)
+      ),
+    true
+  );
+  container.register<GetMentionsQuery>(
+    TOKENS.GetMentionsQuery,
+    () =>
+      new GetMentionsQuery(
+        container.resolve<SocialMessageQueryRepository>(TOKENS.SocialMessageQueryRepository)
+      ),
+    true
+  );
+  container.register<GetConversationQuery>(
+    TOKENS.GetConversationQuery,
+    () =>
+      new GetConversationQuery(
+        container.resolve<SocialConversationRepository>(TOKENS.SocialConversationRepository)
+      ),
+    true
+  );
+  container.register<GetConversationMessagesQuery>(
+    TOKENS.GetConversationMessagesQuery,
+    () =>
+      new GetConversationMessagesQuery(
+        container.resolve<SocialMessageQueryRepository>(TOKENS.SocialMessageQueryRepository)
+      ),
+    true
+  );
+  container.register<GetUnreadInboxCountQuery>(
+    TOKENS.GetUnreadInboxCountQuery,
+    () =>
+      new GetUnreadInboxCountQuery(
+        container.resolve<SocialMessageQueryRepository>(TOKENS.SocialMessageQueryRepository)
+      ),
+    true
+  );
+
+  // Social Inbox Event Handlers (Phase 2)
+  container.register<InboxEventHandlers>(
+    TOKENS.InboxEventHandlers,
+    () =>
+      new InboxEventHandlers(
+        container.resolve<CreateNotificationUseCase>(TOKENS.CreateNotificationUseCase)
       ),
     true
   );

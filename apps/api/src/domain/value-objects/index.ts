@@ -58,6 +58,20 @@ export {
 // Comment value objects (Phase 1 Step 4: In-Context Comments)
 export { CommentId } from "./CommentId.js";
 
+// Social Inbox value objects (Phase 2: Social Inbox)
+export { SocialMessageId } from "./SocialMessageId.js";
+export { SocialConversationId } from "./SocialConversationId.js";
+export {
+  SocialMessageType,
+  SOCIAL_MESSAGE_TYPES,
+  type SocialMessageTypeValue,
+} from "./SocialMessageType.js";
+export {
+  SocialMessageStatus,
+  SOCIAL_MESSAGE_STATUSES,
+  type SocialMessageStatusValue,
+} from "./SocialMessageStatus.js";
+
 // Approval workflow value objects (Phase 1 Step 3: Content Approval)
 export { ApprovalRequestId } from "./ApprovalRequestId.js";
 export { ApprovalStatus, APPROVAL_STATUSES, type ApprovalStatusValue } from "./ApprovalStatus.js";

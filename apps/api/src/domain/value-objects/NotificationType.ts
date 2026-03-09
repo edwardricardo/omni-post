@@ -15,6 +15,8 @@ export const NOTIFICATION_TYPES = {
   COMMENT_REPLY: "COMMENT_REPLY",
   MENTION: "MENTION",
   TEAM_INVITE: "TEAM_INVITE",
+  INBOX_MESSAGE_RECEIVED: "INBOX_MESSAGE_RECEIVED",
+  INBOX_MENTION_RECEIVED: "INBOX_MENTION_RECEIVED",
 } as const;
 
 export type NotificationTypeValue = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
@@ -33,6 +35,11 @@ const COMMENT_TYPES: readonly NotificationTypeValue[] = [
 ];
 
 const TEAM_TYPES: readonly NotificationTypeValue[] = [NOTIFICATION_TYPES.TEAM_INVITE];
+
+const INBOX_TYPES: readonly NotificationTypeValue[] = [
+  NOTIFICATION_TYPES.INBOX_MESSAGE_RECEIVED,
+  NOTIFICATION_TYPES.INBOX_MENTION_RECEIVED,
+];
 
 /**
  * @class NotificationType
@@ -106,6 +113,14 @@ export class NotificationType {
    */
   isTeamRelated(): boolean {
     return TEAM_TYPES.includes(this._value);
+  }
+
+  /**
+   * @method isInboxRelated
+   * @description Returns true if this type is related to social inbox messages.
+   */
+  isInboxRelated(): boolean {
+    return INBOX_TYPES.includes(this._value);
   }
 
   /**

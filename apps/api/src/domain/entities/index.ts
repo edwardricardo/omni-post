@@ -52,3 +52,13 @@ export {
   type NotificationProps,
   type CreateNotificationParams,
 } from "./Notification.js";
+
+// Social Inbox entities (Phase 2: Social Inbox)
+export {
+  SocialConversation,
+  type CreateSocialConversationInput,
+  type SocialConversationState,
+  type SocialConversationEvent,
+  ConversationResolved,
+  ConversationReopened,
+} from "./SocialConversation.js";

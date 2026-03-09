@@ -48,6 +48,14 @@ import type {
 import { PrismaNotificationRepository } from "../repositories/PrismaNotificationRepository.js";
 import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
 import { PrismaPostCommentRepository } from "../repositories/PrismaPostCommentRepository.js";
+import type { SocialMessageRepository } from "../../domain/repositories/SocialMessageRepository.js";
+import type { SocialMessageQueryRepository } from "../../domain/repositories/SocialMessageQueryRepository.js";
+import type { SocialConversationRepository } from "../../domain/repositories/SocialConversationRepository.js";
+import type { SocialOutboundReplyRepository } from "../../domain/repositories/SocialOutboundReplyRepository.js";
+import { PrismaSocialMessageRepository } from "../repositories/PrismaSocialMessageRepository.js";
+import { PrismaSocialMessageQueryRepository } from "../repositories/PrismaSocialMessageQueryRepository.js";
+import { PrismaSocialConversationRepository } from "../repositories/PrismaSocialConversationRepository.js";
+import { PrismaSocialOutboundReplyRepository } from "../repositories/PrismaSocialOutboundReplyRepository.js";
 
 /**
  * Register all repository adapters in the container
@@ -185,6 +193,28 @@ export function setupRepositories(container: Container): void {
   container.register<PostCommentRepository>(
     TOKENS.PostCommentRepository,
     () => new PrismaPostCommentRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register Social Inbox Repositories (Phase 2)
+  container.register<SocialMessageRepository>(
+    TOKENS.SocialMessageRepository,
+    () => new PrismaSocialMessageRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<SocialMessageQueryRepository>(
+    TOKENS.SocialMessageQueryRepository,
+    () => new PrismaSocialMessageQueryRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<SocialConversationRepository>(
+    TOKENS.SocialConversationRepository,
+    () => new PrismaSocialConversationRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<SocialOutboundReplyRepository>(
+    TOKENS.SocialOutboundReplyRepository,
+    () => new PrismaSocialOutboundReplyRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 }

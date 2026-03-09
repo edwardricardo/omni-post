@@ -183,6 +183,25 @@ export const TOKENS = {
   EditCommentUseCase: Symbol.for("EditCommentUseCase"),
   DeleteCommentUseCase: Symbol.for("DeleteCommentUseCase"),
   GetPostCommentsQuery: Symbol.for("GetPostCommentsQuery"),
+  // Social Inbox (Phase 2)
+  SocialMessageRepository: Symbol.for("SocialMessageRepository"),
+  SocialMessageQueryRepository: Symbol.for("SocialMessageQueryRepository"),
+  SocialConversationRepository: Symbol.for("SocialConversationRepository"),
+  SocialOutboundReplyRepository: Symbol.for("SocialOutboundReplyRepository"),
+  IngestSocialMessageUseCase: Symbol.for("IngestSocialMessageUseCase"),
+  MarkMessageReadUseCase: Symbol.for("MarkMessageReadUseCase"),
+  MarkMessageArchivedUseCase: Symbol.for("MarkMessageArchivedUseCase"),
+  AssignMessageUseCase: Symbol.for("AssignMessageUseCase"),
+  SendReplyUseCase: Symbol.for("SendReplyUseCase"),
+  ResolveConversationUseCase: Symbol.for("ResolveConversationUseCase"),
+  ReopenConversationUseCase: Symbol.for("ReopenConversationUseCase"),
+  SyncProviderCommentsUseCase: Symbol.for("SyncProviderCommentsUseCase"),
+  GetInboxQuery: Symbol.for("GetInboxQuery"),
+  GetMentionsQuery: Symbol.for("GetMentionsQuery"),
+  GetConversationQuery: Symbol.for("GetConversationQuery"),
+  GetConversationMessagesQuery: Symbol.for("GetConversationMessagesQuery"),
+  GetUnreadInboxCountQuery: Symbol.for("GetUnreadInboxCountQuery"),
+  InboxEventHandlers: Symbol.for("InboxEventHandlers"),
 } as const;
 
 /**
