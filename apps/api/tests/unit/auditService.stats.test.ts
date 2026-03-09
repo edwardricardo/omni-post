@@ -4,7 +4,7 @@ import { prisma } from "@infra/prisma";
 import { AuditService } from "../../src/audit/auditService";
 import {
   setupAuditTestUsers,
-  teardownAuditTestUsers,
+  teardownAuditTestData,
   testUserId,
   testUser2Id,
 } from "./auditService.test-helpers.js";
@@ -48,7 +48,8 @@ describe("AuditService - getStats()", { concurrency: 1 }, () => {
   });
 
   after(async () => {
-    await teardownAuditTestUsers();
+    // Only clean up audit logs with "STATS_" prefix created by this file
+    await teardownAuditTestData("STATS_");
   });
 
   describe("getStats() - Basic Counts", () => {

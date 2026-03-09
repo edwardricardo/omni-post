@@ -57,6 +57,7 @@ import { createTenantHealthMonitor } from "@monitoring/health-checks";
 import { authRoutes } from "./auth/authRoutes.js";
 import { setRedisInstance } from "./auth/redisSessionHelpers.js";
 import { auditRoutes } from "./audit/auditRoutes.js";
+import { activityFeedRoutes } from "./audit/activityFeedRoutes.js";
 import { auditMiddleware } from "./audit/auditMiddleware.js";
 import { mfaRoutes } from "./auth/mfaRoutes.js";
 import { rbacRoutes } from "./auth/rbacRoutes.js";
@@ -97,6 +98,56 @@ async function createApp(): Promise<FastifyInstance> {
   // ✅ Set up Zod validation compiler
   typedApp.setValidatorCompiler(validatorCompiler);
   typedApp.setSerializerCompiler(serializerCompiler);
+
+  // Register OpenAPI documentation (before routes so schemas are captured)
+  const fastifySwagger = await import("@fastify/swagger");
+  await typedApp.register(fastifySwagger.default, {
+    openapi: {
+      info: {
+        title: "OmniPost API",
+        description:
+          "Multi-tenant social media CMS API — manage posts, scheduling, analytics, " +
+          "and publishing across multiple platforms.",
+        version: "3.1.0",
+      },
+      servers: [{ url: "http://localhost:3000", description: "Local development" }],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+          },
+          apiKey: {
+            type: "apiKey",
+            in: "header",
+            name: "X-API-Key",
+          },
+          cookieAuth: {
+            type: "apiKey",
+            in: "cookie",
+            name: "admin-session",
+          },
+        },
+      },
+    },
+  });
+
+  const scalarRef = await import("@scalar/fastify-api-reference");
+  await typedApp.register(scalarRef.default, {
+    routePrefix: "/docs",
+    configuration: {
+      theme: "kepler",
+      spec: {
+        url: "/docs/json",
+      },
+    },
+  });
+
+  // Expose raw JSON spec
+  typedApp.get("/docs/json", async (_request, reply) => {
+    return reply.send(typedApp.swagger());
+  });
 
   // Initialize Redis for advanced rate limiting
   const redis = createRedisConnection();
@@ -309,6 +360,7 @@ async function createApp(): Promise<FastifyInstance> {
   // Register all route modules
   await typedApp.register(authRoutes);
   await typedApp.register(auditRoutes);
+  await typedApp.register(activityFeedRoutes);
   await typedApp.register(mfaRoutes);
   await typedApp.register(rbacRoutes);
 

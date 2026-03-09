@@ -12,14 +12,19 @@ import Fastify, { FastifyInstance } from "fastify";
 import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { accountRoutes } from "../../src/accounts/accountRoutes.js";
 import { prisma } from "@infra/prisma";
+import { setupContainer } from "../../src/infrastructure/container/setup.js";
 
-// Create test Fastify instance
+// Create test Fastify instance with DI container
 async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
 
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
   typedApp.setValidatorCompiler(validatorCompiler);
   typedApp.setSerializerCompiler(serializerCompiler);
+
+  // Decorate with DI container so route plugin can resolve PrismaClient
+  const container = setupContainer({ prisma });
+  typedApp.decorate("container", container);
 
   await typedApp.register(accountRoutes);
 

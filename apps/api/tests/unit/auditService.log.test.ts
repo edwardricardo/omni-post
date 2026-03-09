@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { AuditService, AuditActions, AuditResources } from "../../src/audit/auditService";
 import {
   setupAuditTestUsers,
-  teardownAuditTestUsers,
+  teardownAuditTestData,
   testUserId,
 } from "./auditService.test-helpers.js";
 
@@ -15,7 +15,10 @@ describe("AuditService - log() - Create Audit Logs", { concurrency: 1 }, () => {
   });
 
   after(async () => {
-    await teardownAuditTestUsers();
+    // Only clean up audit logs with the "TEST_" prefix created by this file.
+    // The prefix also matches TEST_FILTER_ from the query test, but the query
+    // test cleans its own data independently.
+    await teardownAuditTestData("TEST_");
   });
 
   describe("Conditional Property Spreading - exactOptionalPropertyTypes", () => {

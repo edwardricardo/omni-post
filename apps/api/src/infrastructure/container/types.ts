@@ -94,6 +94,7 @@ export const TOKENS = {
   MfaService: Symbol.for("MfaService"),
   RbacService: Symbol.for("RbacService"),
   AuditService: Symbol.for("AuditService"),
+  ActivityFeedService: Symbol.for("ActivityFeedService"),
   AIService: Symbol.for("AIService"),
   DashboardService: Symbol.for("DashboardService"),
   AccountLifecycleService: Symbol.for("AccountLifecycleService"),
@@ -113,8 +114,6 @@ export const TOKENS = {
   // ML Use Cases (B0-2 — DI violation fix in ai/routes.ts)
   OptimizeContentUseCase: Symbol.for("OptimizeContentUseCase"),
   PredictOptimalTimingUseCase: Symbol.for("PredictOptimalTimingUseCase"),
-  PredictAudienceResponseUseCase: Symbol.for("PredictAudienceResponseUseCase"),
-
   // Posts Service (B0-4)
   PostsService: Symbol.for("PostsService"),
 

@@ -94,6 +94,7 @@ export function createLogger(name: string): Logger {
 export const logger = createLogger("api");
 export const httpLogger = createLogger("http");
 export const dbLogger = createLogger("database");
+export const queueLogger = createLogger("queue");
 export const authLogger = createLogger("auth");
 export const cacheLogger = createLogger("cache");
 export const providerLogger = createLogger("provider");
@@ -122,6 +123,76 @@ export function createRequestLogger(context: RequestContext): Logger {
     ...(context.path && { path: context.path }),
     ...(context.method && { method: context.method }),
   });
+}
+
+/**
+ * Standard log level constants
+ */
+export const LogLevel = {
+  TRACE: "trace",
+  DEBUG: "debug",
+  INFO: "info",
+  WARN: "warn",
+  ERROR: "error",
+  FATAL: "fatal",
+} as const;
+
+/**
+ * Create a child logger with additional context bindings
+ * @param parent - Parent logger instance
+ * @param bindings - Additional context to attach to all log entries
+ */
+export function createChildLogger(parent: Logger, bindings: Record<string, unknown>): Logger {
+  return parent.child(bindings);
+}
+
+/**
+ * Extract structured error information from any error type
+ * @param error - The error to extract information from
+ */
+export function extractErrorInfo(error: unknown): {
+  message: string;
+  name?: string;
+  stack?: string;
+  code?: string;
+  status?: number;
+} {
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      name: error.name,
+      ...(error.stack !== undefined && { stack: error.stack }),
+      ...("code" in error && { code: (error as Error & { code: string }).code }),
+      ...("status" in error && { status: (error as Error & { status: number }).status }),
+    };
+  }
+
+  return { message: String(error) };
+}
+
+/**
+ * Create a timing logger for measuring operation duration
+ * @param parentLogger - Logger to use for output
+ * @param operation - Name of the operation being timed
+ */
+export function createTimingLogger(
+  parentLogger: Logger,
+  operation: string
+): { end: (success: boolean, meta?: Record<string, unknown>) => void } {
+  const start = Date.now();
+
+  return {
+    end(success: boolean, meta?: Record<string, unknown>): void {
+      const duration = Date.now() - start;
+      const logData = { operation, duration, success, ...meta };
+
+      if (success) {
+        parentLogger.info(logData, `${operation} completed`);
+      } else {
+        parentLogger.warn(logData, `${operation} failed`);
+      }
+    },
+  };
 }
 
 // Re-export pino types for convenience

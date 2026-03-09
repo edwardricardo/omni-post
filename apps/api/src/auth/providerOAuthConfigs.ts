@@ -52,6 +52,40 @@ export interface OAuthProvider {
   }>;
 }
 
+// ---------------------------------------------------------------------------
+// Helpers — declared before oauthProviders to avoid Temporal Dead Zone errors
+// ---------------------------------------------------------------------------
+
+/** Placeholder config for providers whose OAuth flow is not yet built. */
+const EMPTY_OAUTH_CONFIG: OAuthConfig = {
+  clientId: "",
+  clientSecret: "",
+  redirectUri: "",
+  scopes: [],
+  authUrl: "",
+  tokenUrl: "",
+};
+
+/**
+ * Creates a stub OAuthProvider entry for a platform whose OAuth
+ * integration has not been implemented yet. Calling `validateCode()`
+ * on the returned object throws a typed `AppError` with
+ * `ErrorCode.CONFIGURATION_ERROR` so the error is handled consistently
+ * by the centralised error handler and never leaks raw stack traces.
+ */
+function createUnimplementedProvider(id: ProviderId): OAuthProvider {
+  return {
+    id,
+    config: { ...EMPTY_OAUTH_CONFIG },
+    async validateCode(): Promise<never> {
+      throw AppError.configuration(
+        `OAuth provider "${id}" is not yet implemented. Active providers: x, instagram, facebook, youtube, tiktok.`,
+        { provider: id }
+      );
+    },
+  };
+}
+
 /**
  * OAuth Provider Configurations for all supported platforms
  */
@@ -378,37 +412,3 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   twitch: createUnimplementedProvider("twitch"),
   snapchat: createUnimplementedProvider("snapchat"),
 };
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Placeholder config for providers whose OAuth flow is not yet built. */
-const EMPTY_OAUTH_CONFIG: OAuthConfig = {
-  clientId: "",
-  clientSecret: "",
-  redirectUri: "",
-  scopes: [],
-  authUrl: "",
-  tokenUrl: "",
-};
-
-/**
- * Creates a stub OAuthProvider entry for a platform whose OAuth
- * integration has not been implemented yet. Calling `validateCode()`
- * on the returned object throws a typed `AppError` with
- * `ErrorCode.CONFIGURATION_ERROR` so the error is handled consistently
- * by the centralised error handler and never leaks raw stack traces.
- */
-function createUnimplementedProvider(id: ProviderId): OAuthProvider {
-  return {
-    id,
-    config: { ...EMPTY_OAUTH_CONFIG },
-    async validateCode(): Promise<never> {
-      throw AppError.configuration(
-        `OAuth provider "${id}" is not yet implemented. Active providers: x, instagram, facebook, youtube, tiktok.`,
-        { provider: id }
-      );
-    },
-  };
-}

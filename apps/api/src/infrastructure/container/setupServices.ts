@@ -15,6 +15,7 @@ import { AuthService } from "../../auth/authService.js";
 import { MfaService } from "../../auth/mfaService.js";
 import { RbacService } from "../../auth/rbacService.js";
 import { auditService } from "../../audit/auditService.js";
+import { ActivityFeedService } from "../../audit/activityFeedService.js";
 import { aiService } from "../../ai/aiService.js";
 import { dashboardService } from "../../admin/dashboardService.js";
 import { AccountLifecycleService } from "../../admin/accountLifecycleService.js";
@@ -92,6 +93,7 @@ export function setupServices(
 
   // Register singleton instances
   container.registerInstance(TOKENS.AuditService, auditService);
+  container.registerInstance(TOKENS.ActivityFeedService, new ActivityFeedService());
   container.registerInstance(TOKENS.AIService, aiService);
   container.registerInstance(TOKENS.DashboardService, dashboardService);
 

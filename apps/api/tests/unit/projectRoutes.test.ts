@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import Fastify, { FastifyInstance } from "fastify";
 import { projectRoutes } from "../../src/projects/projectRoutes.js";
 import { prisma } from "@infra/prisma";
+import { setupContainer } from "../../src/infrastructure/container/setup.js";
 
 // Test data
 const timestamp = Date.now();
@@ -23,6 +24,11 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
 
   before(async () => {
     app = Fastify({ logger: false });
+
+    // Decorate with DI container so route plugin can resolve PrismaClient
+    const container = setupContainer({ prisma });
+    app.decorate("container", container);
+
     await app.register(projectRoutes);
 
     // Create test account

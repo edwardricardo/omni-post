@@ -25,6 +25,7 @@ export interface MockFastifyInstance {
 }
 
 export interface MockEventService {
+  initialize: () => Promise<void>;
   publishEvent: (event: DomainEvent) => Promise<void>;
   publishedEvents: DomainEvent[];
 }
@@ -49,9 +50,43 @@ export interface MockQueue extends QueuePort {
   enqueuedJobs: QueueJob[];
 }
 
+export interface MockPrisma {
+  $queryRaw: (query: any) => Promise<any>;
+  sagaInstance: {
+    upsert: (args: any) => Promise<any>;
+    findMany: (args?: any) => Promise<any[]>;
+    findUnique: (args: any) => Promise<any>;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Factory functions
 // ---------------------------------------------------------------------------
+
+export function createMockPrisma(): MockPrisma {
+  const store = new Map<string, any>();
+
+  return {
+    $queryRaw: async () => [{ result: 1 }],
+    sagaInstance: {
+      upsert: async (args: any) => {
+        const data = args.create ?? args.update;
+        store.set(args.where.id, data);
+        return data;
+      },
+      findMany: async (args?: any) => {
+        if (!args?.where) return Array.from(store.values());
+        const statuses: string[] = args.where.status?.in ?? [];
+        return Array.from(store.values()).filter((v: any) =>
+          statuses.length ? statuses.includes(v.status) : true
+        );
+      },
+      findUnique: async (args: any) => {
+        return store.get(args.where.id) ?? null;
+      },
+    },
+  };
+}
 
 export function createMockFastify(): MockFastifyInstance {
   const registeredRoutes = new Map<string, (req: any, reply: any) => any>();
@@ -70,6 +105,7 @@ export function createMockFastify(): MockFastifyInstance {
 export function createMockEventService(): MockEventService {
   const publishedEvents: DomainEvent[] = [];
   return {
+    initialize: async () => {},
     publishEvent: async (event: DomainEvent) => {
       publishedEvents.push(event);
     },
@@ -146,12 +182,16 @@ export async function buildIntegration(): Promise<{
   const mockEventService = createMockEventService();
   const mockCQRSBus = createMockCQRSBus();
   const mockRedis = createMockRedis();
+  const mockPrisma = createMockPrisma();
+  const mockQueue = createMockQueue();
 
   const integration = new SagaIntegration({
     fastify: mockFastify as any,
+    prisma: mockPrisma as any,
     eventService: mockEventService as any,
     cqrsBus: mockCQRSBus as any,
     redis: mockRedis as any,
+    queue: mockQueue,
   });
 
   await integration.initialize();

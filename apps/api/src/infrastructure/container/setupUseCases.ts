@@ -43,11 +43,7 @@ import {
 import { CrossPlatformAnalyticsAdapter } from "../adapters/CrossPlatformAnalyticsAdapter.js";
 import { PerformanceComparatorAdapter } from "../adapters/PerformanceComparatorAdapter.js";
 import { ROICalculatorAdapter } from "../adapters/ROICalculatorAdapter.js";
-import {
-  OptimizeContentUseCase,
-  PredictOptimalTimingUseCase,
-  PredictAudienceResponseUseCase,
-} from "../../application/ml/index.js";
+import { OptimizeContentUseCase, PredictOptimalTimingUseCase } from "../../application/ml/index.js";
 import type { TrackedLinkRepository } from "../../domain/repositories/TrackedLinkRepository.js";
 import {
   CreateTrackedLinkUseCase,
@@ -214,23 +210,26 @@ export function setupUseCases(container: Container): void {
     true
   );
 
-  // Register ML Use Cases (B0-2 -- pure stateless, no external deps)
+  // Register ML Use Cases (B0-2 — AI-powered with heuristic fallback)
   container.register<OptimizeContentUseCase>(
     TOKENS.OptimizeContentUseCase,
-    () => new OptimizeContentUseCase(),
+    () =>
+      new OptimizeContentUseCase(
+        container.resolve<import("../../ai/aiService.js").AIService>(TOKENS.AIService)
+      ),
     true
   );
   container.register<PredictOptimalTimingUseCase>(
     TOKENS.PredictOptimalTimingUseCase,
-    () => new PredictOptimalTimingUseCase(),
+    () =>
+      new PredictOptimalTimingUseCase(
+        container.resolve<import("../../ai/aiService.js").AIService>(TOKENS.AIService),
+        container.resolve<
+          import("../../domain/repositories/AnalyticsReadRepository.js").AnalyticsReadRepositoryPort
+        >(TOKENS.AnalyticsReadRepository)
+      ),
     true
   );
-  container.register<PredictAudienceResponseUseCase>(
-    TOKENS.PredictAudienceResponseUseCase,
-    () => new PredictAudienceResponseUseCase(),
-    true
-  );
-
   // Register Tracked Link Use Cases (P1-DI-7)
   container.register<CreateTrackedLinkUseCase>(
     TOKENS.CreateTrackedLinkUseCase,

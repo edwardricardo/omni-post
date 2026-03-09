@@ -10,7 +10,7 @@ import type { CanonicalPost } from "@shared/types";
  */
 export class XProviderTest extends ProviderTestBase {
   protected providerId = "x";
-  protected adapter = XAdapter;
+  protected adapter = new XAdapter();
 
   createTestCredentials(): Record<string, any> {
     return {
@@ -400,6 +400,12 @@ class _XMockProviderServer {
 
 // Main execution function
 async function runXProviderTests(): Promise<void> {
+  // Skip when real X/Twitter credentials are not available
+  if (!process.env.X_ACCESS_TOKEN) {
+    console.log("⏭️  Skipping X/Twitter integration tests (X_ACCESS_TOKEN not set)");
+    return;
+  }
+
   console.log("🔬 Running X/Twitter Provider Integration Tests");
   console.log("================================================");
 

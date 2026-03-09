@@ -55,7 +55,7 @@ describe("WebhookDashboardService", { concurrency: 1 }, () => {
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 50 * 60 * 1000); // 50 min ago (within 1h)
     const sixHoursAgo = new Date(now.getTime() - 5 * 60 * 60 * 1000); // 5h ago (within 6h)
-    const oneDayAgo = new Date(now.getTime() - 23 * 60 * 60 * 1000); // 23h ago (within 24h)
+    const oneDayAgo = new Date(now.getTime() - 20 * 60 * 60 * 1000); // 20h ago (within 24h, wide safety margin)
 
     // Completed events for X
     for (let i = 0; i < 5; i++) {

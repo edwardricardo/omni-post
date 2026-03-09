@@ -605,6 +605,29 @@ class MockProviderServer {
     });
   }
 
+  /**
+   * Provider-specific mock stubs. No-op in base class — provider test subclasses
+   * call these on the base mock type via `this.mockServer`.
+   */
+  mockInstagramContainerFlow(_type: "single" | "carousel" | "video"): void {
+    /* no-op */
+  }
+  mockInstagramInsights(): void {
+    /* no-op */
+  }
+  mockInstagramPersonalAccountError(): void {
+    /* no-op */
+  }
+  mockInstagramContainerTimeout(): void {
+    /* no-op */
+  }
+  mockInstagramInvalidMediaError(): void {
+    /* no-op */
+  }
+  mockValidationError(_endpoint: string, _type: "duplicate" | "too-long"): void {
+    /* no-op */
+  }
+
   async stop(): Promise<void> {
     this.responses.clear();
   }

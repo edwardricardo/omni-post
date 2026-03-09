@@ -10,7 +10,7 @@ import type { CanonicalPost } from "@shared/types";
  */
 export class InstagramProviderTest extends ProviderTestBase {
   protected providerId = "instagram";
-  protected adapter = InstagramAdapter;
+  protected adapter = new InstagramAdapter();
 
   createTestCredentials(): Record<string, any> {
     return {
@@ -636,6 +636,12 @@ class _InstagramMockProviderServer {
 
 // Main execution function
 async function runInstagramProviderTests(): Promise<void> {
+  // Skip when real Instagram credentials are not available
+  if (!process.env.INSTAGRAM_ACCESS_TOKEN) {
+    console.log("⏭️  Skipping Instagram integration tests (INSTAGRAM_ACCESS_TOKEN not set)");
+    return;
+  }
+
   console.log("🔬 Running Instagram Provider Integration Tests");
   console.log("===============================================");
 

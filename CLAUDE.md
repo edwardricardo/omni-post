@@ -430,6 +430,7 @@ describe("Feature Name", () => {
 - Category: `pnpm --filter @apps/api test:category:name`
 - All tests: `pnpm --filter @apps/api test`
 - With coverage: `pnpm --filter @apps/api test:coverage`
+- **Integration tests need real services**: Start PostgreSQL and Redis with `pnpm db:up` before running tests that use Prisma or Redis. Never skip tests because services are down — start them.
 
 ---
 
@@ -578,6 +579,7 @@ Use specialized agents for different problem domains:
 - Prettier: All files must be formatted
 - TypeScript: Must compile with zero errors
 - All CI fitness functions must pass
+- **Fix ALL errors found** — both new and pre-existing. Never skip or defer an error because "it was already there". Every build/lint/test run must end at zero errors.
 
 ---
 

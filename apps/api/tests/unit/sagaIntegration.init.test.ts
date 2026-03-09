@@ -17,10 +17,14 @@ import {
   createMockEventService,
   createMockCQRSBus,
   createMockRedis,
+  createMockPrisma,
+  createMockQueue,
   type MockFastifyInstance,
   type MockEventService,
   type MockCQRSBus,
   type MockRedis,
+  type MockPrisma,
+  type MockQueue,
 } from "./sagaIntegration.helpers";
 
 // Suppress verbose background-execution logs so they don't corrupt the TAP
@@ -38,6 +42,8 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
   let mockEventService: MockEventService;
   let mockCQRSBus: MockCQRSBus;
   let mockRedis: MockRedis;
+  let mockPrisma: MockPrisma;
+  let mockQueue: MockQueue;
   let integration: SagaIntegration | undefined;
 
   beforeEach(() => {
@@ -45,6 +51,8 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
     mockEventService = createMockEventService();
     mockCQRSBus = createMockCQRSBus();
     mockRedis = createMockRedis();
+    mockPrisma = createMockPrisma();
+    mockQueue = createMockQueue();
   });
 
   afterEach(async () => {
@@ -57,9 +65,11 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
   it("should initialize saga integration successfully", async () => {
     integration = new SagaIntegration({
       fastify: mockFastify as any,
+      prisma: mockPrisma as any,
       eventService: mockEventService as any,
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
+      queue: mockQueue,
     });
 
     await integration.initialize();
@@ -71,9 +81,11 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
   it("should register saga definitions during initialization", async () => {
     integration = new SagaIntegration({
       fastify: mockFastify as any,
+      prisma: mockPrisma as any,
       eventService: mockEventService as any,
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
+      queue: mockQueue,
     });
 
     await integration.initialize();
@@ -90,9 +102,11 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
   it("should register API routes during initialization", async () => {
     integration = new SagaIntegration({
       fastify: mockFastify as any,
+      prisma: mockPrisma as any,
       eventService: mockEventService as any,
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
+      queue: mockQueue,
     });
 
     await integration.initialize();
@@ -118,9 +132,11 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
   it("should register monitoring routes during initialization", async () => {
     integration = new SagaIntegration({
       fastify: mockFastify as any,
+      prisma: mockPrisma as any,
       eventService: mockEventService as any,
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
+      queue: mockQueue,
     });
 
     await integration.initialize();
@@ -150,18 +166,24 @@ describe("SagaIntegration - Saga Definition Registration", { concurrency: 1 }, (
   let mockEventService: MockEventService;
   let mockCQRSBus: MockCQRSBus;
   let mockRedis: MockRedis;
+  let mockPrisma: MockPrisma;
+  let mockQueue: MockQueue;
 
   beforeEach(async () => {
     mockFastify = createMockFastify();
     mockEventService = createMockEventService();
     mockCQRSBus = createMockCQRSBus();
     mockRedis = createMockRedis();
+    mockPrisma = createMockPrisma();
+    mockQueue = createMockQueue();
 
     integration = new SagaIntegration({
       fastify: mockFastify as any,
+      prisma: mockPrisma as any,
       eventService: mockEventService as any,
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
+      queue: mockQueue,
     });
   });
 

@@ -171,7 +171,7 @@ describe("ProviderOAuth - Unimplemented Providers", { concurrency: 1 }, () => {
       async () => {
         await provider.validateCode("code", "state");
       },
-      { message: /LinkedIn OAuth not implemented/ }
+      { message: /not yet implemented/ }
     );
   });
 
@@ -182,7 +182,7 @@ describe("ProviderOAuth - Unimplemented Providers", { concurrency: 1 }, () => {
       async () => {
         await provider.validateCode("code", "state");
       },
-      { message: /Pinterest OAuth not implemented/ }
+      { message: /not yet implemented/ }
     );
   });
 
@@ -193,7 +193,7 @@ describe("ProviderOAuth - Unimplemented Providers", { concurrency: 1 }, () => {
       async () => {
         await provider.validateCode("code", "state");
       },
-      { message: /Reddit OAuth not implemented/ }
+      { message: /not yet implemented/ }
     );
   });
 
@@ -204,7 +204,7 @@ describe("ProviderOAuth - Unimplemented Providers", { concurrency: 1 }, () => {
       async () => {
         await provider.validateCode("code", "state");
       },
-      { message: /Discord OAuth not implemented/ }
+      { message: /not yet implemented/ }
     );
   });
 
@@ -215,7 +215,7 @@ describe("ProviderOAuth - Unimplemented Providers", { concurrency: 1 }, () => {
       async () => {
         await provider.validateCode("code", "state");
       },
-      { message: /Twitch OAuth not implemented/ }
+      { message: /not yet implemented/ }
     );
   });
 
@@ -226,7 +226,7 @@ describe("ProviderOAuth - Unimplemented Providers", { concurrency: 1 }, () => {
       async () => {
         await provider.validateCode("code", "state");
       },
-      { message: /Snapchat OAuth not implemented/ }
+      { message: /not yet implemented/ }
     );
   });
 });

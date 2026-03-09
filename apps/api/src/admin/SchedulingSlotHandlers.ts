@@ -501,7 +501,20 @@ export class SchedulingSlotRouteHandler extends BaseRouteHandler {
     const optimalTimes: Array<{ dayOfWeek: number; hour: number; minute: number }> = [];
     for (const rule of rules) {
       if (rule.optimalTimes && Array.isArray(rule.optimalTimes)) {
-        optimalTimes.push(...rule.optimalTimes);
+        for (const item of rule.optimalTimes) {
+          if (
+            item &&
+            typeof item === "object" &&
+            "dayOfWeek" in item &&
+            "hour" in item &&
+            "minute" in item &&
+            typeof (item as Record<string, unknown>).dayOfWeek === "number" &&
+            typeof (item as Record<string, unknown>).hour === "number" &&
+            typeof (item as Record<string, unknown>).minute === "number"
+          ) {
+            optimalTimes.push(item as { dayOfWeek: number; hour: number; minute: number });
+          }
+        }
       }
     }
 

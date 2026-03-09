@@ -1,5 +1,4 @@
-import type { FastifyError, FastifyReply, FastifyRequest } from "fastify";
-import type { Logger } from "pino";
+import type { FastifyBaseLogger, FastifyError, FastifyReply, FastifyRequest } from "fastify";
 import {
   AppError,
   ErrorCode,
@@ -25,7 +24,7 @@ interface ZodErrorLike {
  * Ensures all errors are properly sanitized before being sent to clients
  * SECURITY: Never exposes stack traces, database schema, or internal paths in production
  */
-export function createErrorHandler(logger: Logger) {
+export function createErrorHandler(logger: FastifyBaseLogger) {
   return async function errorHandler(
     error: FastifyError | AppError | Error,
     request: FastifyRequest,
@@ -173,7 +172,7 @@ export function convertZodError(error: ZodErrorLike): AppError {
 /**
  * Global error handler that processes all error types
  */
-export function handleAnyError(error: unknown, logger: Logger): AppError {
+export function handleAnyError(error: unknown, logger: FastifyBaseLogger): AppError {
   // Already an AppError
   if (error instanceof AppError) {
     return error;

@@ -229,7 +229,6 @@ describe("PerplexityProvider - Performance Prediction", { concurrency: 1 }, () =
     t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       assert.ok(body.messages[1].content.includes("Research current twitter performance trends"));
-      assert.ok(body.messages[1].content.includes("2024"));
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),

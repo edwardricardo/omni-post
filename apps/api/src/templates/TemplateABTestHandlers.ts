@@ -63,6 +63,7 @@ export class TemplateABTestHandler extends BaseRouteHandler {
     const { params, body } = validation.value;
     this.logInfo(ctx, "Creating A/B test", { projectId: params.projectId, testName: body.name });
 
+    const rawConfig = body.config as Record<string, unknown>;
     const testData: {
       name: string;
       templateId: string;
@@ -71,7 +72,17 @@ export class TemplateABTestHandler extends BaseRouteHandler {
     } = {
       name: body.name,
       templateId: body.templateId,
-      config: body.config as ABTestConfig,
+      config: {
+        enabled: typeof rawConfig.enabled === "boolean" ? rawConfig.enabled : true,
+        variants: Array.isArray(rawConfig.variants)
+          ? (rawConfig.variants as ABTestConfig["variants"])
+          : [],
+        ...(Array.isArray(rawConfig.trafficSplit) && {
+          trafficSplit: rawConfig.trafficSplit as number[],
+        }),
+        ...(rawConfig.startDate instanceof Date && { startDate: rawConfig.startDate }),
+        ...(rawConfig.endDate instanceof Date && { endDate: rawConfig.endDate }),
+      },
       ...(body.description && { description: body.description }),
     };
 

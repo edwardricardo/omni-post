@@ -24,6 +24,27 @@ interface _WindowData {
   firstSeen: number;
 }
 
+/**
+ * Predefined rate limit configurations for common use cases
+ */
+export const SlidingWindowConfigs = {
+  AUTH: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    maxRequests: 5,
+    enableProgressiveBlocking: true,
+  },
+  API: {
+    windowMs: 60000, // 1 minute
+    maxRequests: 100,
+    enableProgressiveBlocking: true,
+  },
+  HEALTH: {
+    windowMs: 60000, // 1 minute
+    maxRequests: 1000,
+    enableProgressiveBlocking: false,
+  },
+} as const;
+
 export class SlidingWindowRateLimit {
   private redis: Redis;
   private metrics: ApiMetrics;

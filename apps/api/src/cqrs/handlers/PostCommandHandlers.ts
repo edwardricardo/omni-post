@@ -126,7 +126,9 @@ export class CreatePostCommandHandler
         body: data.body,
         ...(data.title && { title: data.title }),
         ...(data.tags && { tags: data.tags }),
-        ...(data.locale && { locale: data.locale }),
+        ...(data.locale && {
+          locale: data.locale as import("../../domain/value-objects/Content.js").ContentLocale,
+        }),
         ...(data.scheduledAt && { scheduledAt: data.scheduledAt }),
       });
 

@@ -19,16 +19,8 @@ export type {
   PredictTimingOutput,
   OptimalTimeSlot,
   ActivityPattern,
-  // PredictAudience types
-  PredictAudienceInput,
-  PredictAudienceOutput,
-  ContentDescription,
-  SegmentPrediction,
-  RiskFactor,
-  OptimizationSuggestion,
 } from "./types.js";
 
 // Use Cases
 export { OptimizeContentUseCase } from "./OptimizeContentUseCase.js";
 export { PredictOptimalTimingUseCase } from "./PredictOptimalTimingUseCase.js";
-export { PredictAudienceResponseUseCase } from "./PredictAudienceResponseUseCase.js";

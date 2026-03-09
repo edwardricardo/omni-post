@@ -4,7 +4,7 @@ import { prisma } from "@infra/prisma";
 import { AuditService } from "../../src/audit/auditService";
 import {
   setupAuditTestUsers,
-  teardownAuditTestUsers,
+  teardownAuditTestData,
   testUserId,
   testUser2Id,
 } from "./auditService.test-helpers.js";
@@ -62,7 +62,8 @@ describe("AuditService - getLogs() - Query and Filtering", { concurrency: 1 }, (
   });
 
   after(async () => {
-    await teardownAuditTestUsers();
+    // Only clean up audit logs with "TEST_FILTER" prefix created by this file
+    await teardownAuditTestData("TEST_FILTER");
   });
 
   describe("Where Clause Building", () => {

@@ -1,31 +1,117 @@
 /**
- * Application Layer - ML Use Cases Unit Tests
- *
- * Pure Tier 0 unit tests. ML use cases are stateless (no repository DI),
- * so they need NO database at all.
+ * @file MLUseCases.test.ts
+ * @description Application Layer - ML Use Cases Unit Tests.
+ *              Tests AI-powered optimization with heuristic fallback.
+ * @layer test
  */
 
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "crypto";
 
 import {
   OptimizeContentUseCase,
   PredictOptimalTimingUseCase,
-  PredictAudienceResponseUseCase,
   type OptimizeContentInput,
   type PredictTimingInput,
-  type PredictAudienceInput,
 } from "../../../src/application/ml/index.js";
 import { USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+
+/**
+ * Mock AIService that simulates AI unavailability (for heuristic fallback tests)
+ */
+function createFailingAIServiceMock() {
+  return {
+    optimizeContent: async () => {
+      throw new Error("AI unavailable");
+    },
+    generateVariations: async () => {
+      throw new Error("AI unavailable");
+    },
+    analyzeContent: async () => {
+      throw new Error("AI unavailable");
+    },
+    generateContent: async () => {
+      throw new Error("AI unavailable");
+    },
+    predictPerformance: async () => {
+      throw new Error("AI unavailable");
+    },
+    smartAnalysis: async () => {
+      throw new Error("AI unavailable");
+    },
+    healthCheck: async () => ({ status: "unhealthy" }),
+    getMetrics: async () => ({ success: false }),
+    clearCache: async () => ({ success: false }),
+  } as any;
+}
+
+/**
+ * Mock AIService that returns successful AI optimization results
+ */
+function createSuccessfulAIServiceMock() {
+  return {
+    optimizeContent: async () => ({
+      success: true,
+      optimization: {
+        optimizedText: "AI-optimized content here",
+        changes: [
+          {
+            type: "modified" as const,
+            original: "original",
+            optimized: "optimized",
+            reason: "Improved engagement hooks",
+          },
+        ],
+        hashtags: ["#trending", "#social"],
+        mentions: [],
+        mediasuggestions: [],
+        platformSpecific: {},
+      },
+      metadata: { provider: "openai", model: "gpt-4", tokensUsed: 150, latency: 500 },
+    }),
+    generateVariations: async (_content: string, _type: string, count: number) => ({
+      success: true,
+      variations: Array.from({ length: count }, (_, i) => `Variation ${i + 1}`),
+      metadata: { provider: "openai" },
+    }),
+    analyzeContent: async () => ({
+      success: true,
+      analysis: {
+        tone: {
+          detected: "enthusiastic",
+          confidence: 0.85,
+          suggestions: ["conversational", "professional"],
+        },
+      },
+      metadata: { provider: "openai" },
+    }),
+    generateContent: async () => {
+      throw new Error("Not needed");
+    },
+    predictPerformance: async () => {
+      throw new Error("Not needed");
+    },
+    smartAnalysis: async () => {
+      throw new Error("Not needed");
+    },
+    healthCheck: async () => ({ status: "healthy" }),
+    getMetrics: async () => ({ success: true }),
+    clearCache: async () => ({ success: true }),
+  } as any;
+}
 
 describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
   const testAccountId = randomUUID();
 
-  describe("OptimizeContentUseCase", { concurrency: 1 }, () => {
-    it("should optimize content for engagement and return recommendations", async () => {
-      const useCase = new OptimizeContentUseCase();
+  describe("OptimizeContentUseCase — Heuristic Fallback", { concurrency: 1 }, () => {
+    let useCase: OptimizeContentUseCase;
 
+    beforeEach(() => {
+      useCase = new OptimizeContentUseCase(createFailingAIServiceMock());
+    });
+
+    it("returns recommendations when AI is unavailable (heuristic fallback)", async () => {
       const input: OptimizeContentInput = {
         content: "Check out our new product launch! #product",
         provider: "X",
@@ -34,22 +120,16 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok, "Should successfully optimize content");
-      assert.ok(result.value.optimizedContent.length > 0, "Optimized content should not be empty");
-      assert.ok(Array.isArray(result.value.recommendations), "Recommendations should be an array");
-      assert.ok(result.value.recommendations.length > 0, "Should have at least one recommendation");
-      assert.equal(
-        typeof result.value.predictedImprovement,
-        "number",
-        "Should predict improvement"
-      );
-      assert.equal(result.value.optimizationGoal, "engagement", "Should preserve goal in output");
-      assert.equal(result.value.originalContent, input.content, "Should preserve original content");
+      assert.ok(result.ok, "Should succeed via heuristic fallback");
+      assert.ok(result.value.optimizedContent.length > 0);
+      assert.ok(Array.isArray(result.value.recommendations));
+      assert.ok(result.value.recommendations.length > 0);
+      assert.equal(typeof result.value.predictedImprovement, "number");
+      assert.equal(result.value.optimizationGoal, "engagement");
+      assert.equal(result.value.originalContent, input.content);
     });
 
-    it("should optimize content for reach on Facebook", async () => {
-      const useCase = new OptimizeContentUseCase();
-
+    it("optimizes content for reach on Facebook via heuristic fallback", async () => {
       const input: OptimizeContentInput = {
         content: "Important announcement for our community",
         provider: "FACEBOOK",
@@ -62,9 +142,7 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
       assert.equal(result.value.optimizationGoal, "reach");
     });
 
-    it("should generate requested number of content variations", async () => {
-      const useCase = new OptimizeContentUseCase();
-
+    it("generates requested number of heuristic variations", async () => {
       const input: OptimizeContentInput = {
         content: "Join us for an exciting event!",
         provider: "INSTAGRAM",
@@ -77,18 +155,15 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       assert.ok(result.ok);
       assert.ok(result.value.variations, "Should include variations");
-      assert.equal(result.value.variations?.length, 3, "Should generate 3 variations");
-      // Each variation should have content, changes, and expectedImprovement
+      assert.equal(result.value.variations?.length, 3);
       for (const variation of result.value.variations ?? []) {
-        assert.ok(variation.content.length > 0, "Variation content should not be empty");
-        assert.ok(Array.isArray(variation.changes), "Changes should be array");
+        assert.ok(variation.content.length > 0);
+        assert.ok(Array.isArray(variation.changes));
         assert.equal(typeof variation.expectedImprovement, "number");
       }
     });
 
-    it("should reject empty content with VALIDATION_FAILED", async () => {
-      const useCase = new OptimizeContentUseCase();
-
+    it("rejects empty content with VALIDATION_FAILED", async () => {
       const input: OptimizeContentInput = {
         content: "",
         provider: "X",
@@ -97,13 +172,11 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(!result.ok, "Should reject empty content");
+      assert.ok(!result.ok);
       assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
     });
 
-    it("should truncate content that exceeds X platform limit of 280 chars", async () => {
-      const useCase = new OptimizeContentUseCase();
-
+    it("truncates content exceeding X platform limit of 280 chars", async () => {
       const longContent = "A".repeat(500);
       const input: OptimizeContentInput = {
         content: longContent,
@@ -113,17 +186,14 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok, "Should handle long content by truncating");
-      assert.ok(result.value.optimizedContent.length <= 280, "Should respect X 280-char limit");
+      assert.ok(result.ok);
+      assert.ok(result.value.optimizedContent.length <= 280);
       assert.ok(
-        result.value.recommendations.some((r) => r.includes("truncat") || r.includes("limit")),
-        "Should include truncation recommendation"
+        result.value.recommendations.some((r) => r.includes("truncat") || r.includes("limit"))
       );
     });
 
-    it("should include tone analysis when requested", async () => {
-      const useCase = new OptimizeContentUseCase();
-
+    it("includes heuristic tone analysis when requested", async () => {
       const input: OptimizeContentInput = {
         content: "Amazing product launch!",
         provider: "INSTAGRAM",
@@ -134,14 +204,73 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
       const result = await useCase.execute(input);
 
       assert.ok(result.ok);
-      assert.ok(result.value.toneAnalysis, "Should include tone analysis");
-      assert.ok(result.value.toneAnalysis?.currentTone, "Should detect current tone");
-      assert.ok(Array.isArray(result.value.toneAnalysis?.suggestedTones), "Should suggest tones");
+      assert.ok(result.value.toneAnalysis);
+      assert.ok(result.value.toneAnalysis?.currentTone);
+      assert.ok(Array.isArray(result.value.toneAnalysis?.suggestedTones));
+    });
+  });
+
+  describe("OptimizeContentUseCase — AI-powered", { concurrency: 1 }, () => {
+    let useCase: OptimizeContentUseCase;
+
+    beforeEach(() => {
+      useCase = new OptimizeContentUseCase(createSuccessfulAIServiceMock());
+    });
+
+    it("returns AI-generated optimization when AI is available", async () => {
+      const input: OptimizeContentInput = {
+        content: "Check out our new product launch!",
+        provider: "X",
+        optimizationGoal: "engagement",
+      };
+
+      const result = await useCase.execute(input);
+
+      assert.ok(result.ok);
+      assert.equal(result.value.optimizedContent, "AI-optimized content here");
+      assert.ok(result.value.recommendations.some((r) => r.includes("engagement hooks")));
+      assert.ok(result.value.recommendations.some((r) => r.includes("#trending")));
+    });
+
+    it("returns AI-generated variations when requested", async () => {
+      const input: OptimizeContentInput = {
+        content: "Join us for an exciting event!",
+        provider: "INSTAGRAM",
+        optimizationGoal: "engagement",
+        generateVariations: true,
+        variationCount: 2,
+      };
+
+      const result = await useCase.execute(input);
+
+      assert.ok(result.ok);
+      assert.ok(result.value.variations);
+      assert.equal(result.value.variations?.length, 2);
+      assert.equal(result.value.variations?.[0]?.content, "Variation 1");
+    });
+
+    it("returns AI tone analysis when requested", async () => {
+      const input: OptimizeContentInput = {
+        content: "Amazing product launch!",
+        provider: "INSTAGRAM",
+        optimizationGoal: "engagement",
+        includeToneAnalysis: true,
+      };
+
+      const result = await useCase.execute(input);
+
+      assert.ok(result.ok);
+      assert.ok(result.value.toneAnalysis);
+      assert.equal(result.value.toneAnalysis?.currentTone, "enthusiastic");
+      assert.deepEqual(result.value.toneAnalysis?.suggestedTones, [
+        "conversational",
+        "professional",
+      ]);
     });
   });
 
   describe("PredictOptimalTimingUseCase", { concurrency: 1 }, () => {
-    it("should predict optimal posting times with scored slots", async () => {
+    it("predicts optimal posting times with scored slots", async () => {
       const useCase = new PredictOptimalTimingUseCase();
 
       const input: PredictTimingInput = {
@@ -154,17 +283,15 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
       const result = await useCase.execute(input);
 
       assert.ok(result.ok, "Should successfully predict timing");
-      assert.ok(Array.isArray(result.value.optimalSlots), "Optimal slots should be an array");
-      assert.ok(result.value.optimalSlots.length > 0, "Should have at least one optimal slot");
+      assert.ok(Array.isArray(result.value.optimalSlots));
+      assert.ok(result.value.optimalSlots.length > 0);
 
-      // Verify slot structure
       const firstSlot = result.value.optimalSlots[0];
-      assert.ok(firstSlot, "First slot should exist");
-      assert.ok(firstSlot.dayOfWeek >= 0 && firstSlot.dayOfWeek <= 6, "Day should be 0-6");
-      assert.ok(firstSlot.hour >= 0 && firstSlot.hour <= 23, "Hour should be 0-23");
-      assert.equal(typeof firstSlot.score, "number", "Score should be a number");
-      assert.ok(firstSlot.score > 0, "Score should be positive");
-      // Slots should be sorted by score descending
+      assert.ok(firstSlot);
+      assert.ok(firstSlot.dayOfWeek >= 0 && firstSlot.dayOfWeek <= 6);
+      assert.ok(firstSlot.hour >= 0 && firstSlot.hour <= 23);
+      assert.equal(typeof firstSlot.score, "number");
+      assert.ok(firstSlot.score > 0);
       for (let i = 1; i < result.value.optimalSlots.length; i++) {
         const prev = result.value.optimalSlots[i - 1]!;
         const curr = result.value.optimalSlots[i]!;
@@ -172,7 +299,7 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
       }
     });
 
-    it("should produce different results for different content types", async () => {
+    it("produces different results for different content types", async () => {
       const useCase = new PredictOptimalTimingUseCase();
 
       const textResult = await useCase.execute({
@@ -190,16 +317,13 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
       });
 
       assert.ok(textResult.ok && videoResult.ok);
-      // Video has different hour offset and score bonus than text,
-      // so the top slot should differ in at least one dimension
       const textTop = textResult.value.optimalSlots[0];
       const videoTop = videoResult.value.optimalSlots[0];
-      assert.ok(textTop && videoTop, "Both should have results");
-      // At minimum both complete successfully; scores will differ due to content modifiers
+      assert.ok(textTop && videoTop);
       assert.ok(videoTop.score >= textTop.score, "Video should have equal or higher score bonus");
     });
 
-    it("should include activity patterns when requested", async () => {
+    it("includes activity patterns when requested", async () => {
       const useCase = new PredictOptimalTimingUseCase();
 
       const input: PredictTimingInput = {
@@ -213,13 +337,12 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
       const result = await useCase.execute(input);
 
       assert.ok(result.ok);
-      assert.ok(result.value.activityPatterns, "Should include activity patterns");
+      assert.ok(result.value.activityPatterns);
       assert.ok(Array.isArray(result.value.activityPatterns));
-      // Should have patterns for all 7 days * 24 hours = 168 entries
-      assert.equal(result.value.activityPatterns.length, 168, "Should have 168 activity patterns");
+      assert.equal(result.value.activityPatterns.length, 168);
     });
 
-    it("should reject invalid provider with VALIDATION_FAILED", async () => {
+    it("rejects invalid provider with VALIDATION_FAILED", async () => {
       const useCase = new PredictOptimalTimingUseCase();
 
       const input = {
@@ -236,7 +359,7 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
       assert.match(result.error.message, /invalid provider/i);
     });
 
-    it("should include recommendations", async () => {
+    it("includes recommendations", async () => {
       const useCase = new PredictOptimalTimingUseCase();
 
       const result = await useCase.execute({
@@ -249,175 +372,6 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
       assert.ok(result.ok);
       assert.ok(Array.isArray(result.value.recommendations));
       assert.ok(result.value.recommendations.length > 0, "Should have recommendations");
-    });
-  });
-
-  describe("PredictAudienceResponseUseCase", { concurrency: 1 }, () => {
-    it("should predict audience response with engagement score in 0-100 range", async () => {
-      const useCase = new PredictAudienceResponseUseCase();
-
-      const input: PredictAudienceInput = {
-        accountId: testAccountId,
-        contentDescription: {
-          type: "promotional",
-          topic: "product launch",
-          tone: "exciting",
-          provider: "X",
-        },
-      };
-
-      const result = await useCase.execute(input);
-
-      assert.ok(result.ok, "Should successfully predict audience response");
-      assert.equal(typeof result.value.overallEngagementScore, "number");
-      assert.ok(result.value.overallEngagementScore >= 0, "Score should be >= 0");
-      assert.ok(result.value.overallEngagementScore <= 100, "Score should be <= 100");
-      // predictions should have likes, comments, shares, reach
-      assert.equal(typeof result.value.predictions.likes, "number");
-      assert.equal(typeof result.value.predictions.comments, "number");
-      assert.equal(typeof result.value.predictions.shares, "number");
-      assert.equal(typeof result.value.predictions.reach, "number");
-      assert.ok(Array.isArray(result.value.riskFactors), "Should have risk factors array");
-    });
-
-    it("should provide segment-specific predictions for target segments", async () => {
-      const useCase = new PredictAudienceResponseUseCase();
-
-      const input: PredictAudienceInput = {
-        accountId: testAccountId,
-        contentDescription: {
-          type: "educational",
-          topic: "industry insights",
-          tone: "professional",
-          provider: "LINKEDIN",
-        },
-        targetSegments: ["engaged_followers", "industry_professionals"],
-      };
-
-      const result = await useCase.execute(input);
-
-      assert.ok(result.ok);
-      assert.ok(result.value.segmentPredictions, "Should have segment predictions");
-      assert.equal(
-        result.value.segmentPredictions?.length,
-        2,
-        "Should match number of target segments"
-      );
-      // Each segment should have expected fields
-      for (const seg of result.value.segmentPredictions ?? []) {
-        assert.ok(seg.segmentName, "Should have segment name");
-        assert.equal(typeof seg.engagementScore, "number");
-        assert.ok(["positive", "neutral", "negative"].includes(seg.sentiment));
-      }
-    });
-
-    it("should include optimization suggestions when requested", async () => {
-      const useCase = new PredictAudienceResponseUseCase();
-
-      const input: PredictAudienceInput = {
-        accountId: testAccountId,
-        contentDescription: {
-          type: "promotional",
-          topic: "sale",
-          tone: "urgent",
-          provider: "FACEBOOK",
-        },
-        includeOptimizationSuggestions: true,
-      };
-
-      const result = await useCase.execute(input);
-
-      assert.ok(result.ok);
-      assert.ok(result.value.optimizationSuggestions, "Should include optimization suggestions");
-      assert.ok(
-        result.value.optimizationSuggestions.length > 0,
-        "Should have at least one suggestion"
-      );
-      for (const suggestion of result.value.optimizationSuggestions) {
-        assert.ok(suggestion.area, "Each suggestion should have an area");
-        assert.ok(suggestion.suggestion, "Each suggestion should have text");
-        assert.equal(typeof suggestion.expectedImpact, "number");
-      }
-    });
-
-    it("should identify risk factors for controversial content", async () => {
-      const useCase = new PredictAudienceResponseUseCase();
-
-      const input: PredictAudienceInput = {
-        accountId: testAccountId,
-        contentDescription: {
-          type: "controversial",
-          topic: "political",
-          tone: "aggressive",
-          provider: "X",
-        },
-      };
-
-      const result = await useCase.execute(input);
-
-      assert.ok(result.ok);
-      assert.ok(
-        result.value.riskFactors.length > 0,
-        "Should identify risk factors for controversial content"
-      );
-      // Should have high severity risks for political + aggressive combo
-      const highRisks = result.value.riskFactors.filter((r) => r.severity === "high");
-      assert.ok(highRisks.length > 0, "Should have at least one high-severity risk");
-      // Each risk should have type, description, and mitigation
-      for (const risk of result.value.riskFactors) {
-        assert.ok(risk.type, "Risk should have a type");
-        assert.ok(risk.description, "Risk should have a description");
-        assert.ok(risk.mitigation, "Risk should have a mitigation suggestion");
-      }
-    });
-
-    it("should reject invalid provider", async () => {
-      const useCase = new PredictAudienceResponseUseCase();
-
-      const input: PredictAudienceInput = {
-        accountId: testAccountId,
-        contentDescription: {
-          type: "educational",
-          topic: "tech",
-          tone: "professional",
-          provider: "INVALID" as never,
-        },
-      };
-
-      const result = await useCase.execute(input);
-
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
-    });
-
-    it("should boost LinkedIn score for educational content", async () => {
-      const useCase = new PredictAudienceResponseUseCase();
-
-      const linkedinResult = await useCase.execute({
-        accountId: testAccountId,
-        contentDescription: {
-          type: "educational",
-          topic: "best practices",
-          tone: "professional",
-          provider: "LINKEDIN",
-        },
-      });
-
-      const genericResult = await useCase.execute({
-        accountId: testAccountId,
-        contentDescription: {
-          type: "educational",
-          topic: "best practices",
-          tone: "professional",
-          provider: "X",
-        },
-      });
-
-      assert.ok(linkedinResult.ok && genericResult.ok);
-      assert.ok(
-        linkedinResult.value.overallEngagementScore > genericResult.value.overallEngagementScore,
-        "LinkedIn should score higher for educational content due to platform synergy"
-      );
     });
   });
 });

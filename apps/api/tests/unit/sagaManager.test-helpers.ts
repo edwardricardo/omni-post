@@ -4,6 +4,11 @@ import { DomainEvent } from "@shared/events";
 
 export interface MockPrismaClient {
   $queryRaw: (query: any) => Promise<any>;
+  sagaInstance: {
+    upsert: (args: any) => Promise<any>;
+    findMany: (args?: any) => Promise<any[]>;
+    findUnique: (args: any) => Promise<any>;
+  };
 }
 
 export interface MockRedis {
@@ -20,8 +25,27 @@ export interface MockEventService {
 }
 
 export function createMockPrisma(): MockPrismaClient {
+  const store = new Map<string, any>();
+
   return {
     $queryRaw: async () => [{ result: 1 }],
+    sagaInstance: {
+      upsert: async (args: any) => {
+        const data = args.create ?? args.update;
+        store.set(args.where.id, data);
+        return data;
+      },
+      findMany: async (args?: any) => {
+        if (!args?.where) return Array.from(store.values());
+        const statuses: string[] = args.where.status?.in ?? [];
+        return Array.from(store.values()).filter((v: any) =>
+          statuses.length ? statuses.includes(v.status) : true
+        );
+      },
+      findUnique: async (args: any) => {
+        return store.get(args.where.id) ?? null;
+      },
+    },
   };
 }
 
