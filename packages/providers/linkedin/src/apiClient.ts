@@ -16,6 +16,7 @@ import type {
   LinkedInProfileResponse,
   LinkedInImageUploadResponse,
   LinkedInVideoUploadResponse,
+  LinkedInDocumentUploadResponse,
   LinkedInCommentResponse,
   LinkedInCommentsPage,
   LinkedInAnalyticsResponse,
@@ -29,10 +30,16 @@ export type {
   LinkedInProfileResponse,
   LinkedInImageUploadResponse,
   LinkedInVideoUploadResponse,
+  LinkedInDocumentUploadResponse,
   LinkedInCommentResponse,
   LinkedInCommentsPage,
   LinkedInAnalyticsResponse,
   LinkedInMediaContent,
+  LinkedInPollContent,
+  LinkedInPollDuration,
+  LinkedInPollOption,
+  LinkedInDocumentContent,
+  LinkedInPollPostContent,
 } from "./types.js";
 
 const logger = createLogger("provider:linkedin:api-client");
@@ -320,6 +327,26 @@ export class LinkedInApiClient {
         fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
         fallback,
       }
+    );
+  }
+
+  /**
+   * @method initializeDocumentUpload
+   * @description Initializes a LinkedIn document upload (PDF/PPT/DOC) via POST /rest/documents.
+   * @param ownerUrn - The author URN (person or organization)
+   */
+  async initializeDocumentUpload(ownerUrn: string): Promise<LinkedInDocumentUploadResponse> {
+    return circuitBreaker.call(
+      "linkedin-api",
+      "init-document-upload",
+      async () =>
+        this.request<LinkedInDocumentUploadResponse>(
+          "POST",
+          "/rest/documents?action=initializeUpload",
+          { initializeUploadRequest: { owner: ownerUrn } }
+        ),
+      [],
+      UPLOAD_CB_OPTIONS
     );
   }
 

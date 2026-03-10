@@ -102,6 +102,30 @@ async function uploadImage(
 }
 
 /**
+ * @function uploadDocument
+ * @description Fetches a document (PDF/PPT/DOC) from URL and uploads it to LinkedIn.
+ * @returns The LinkedIn document URN on success, undefined on failure
+ */
+export async function uploadDocument(
+  apiClient: LinkedInApiClient,
+  ownerUrn: string,
+  documentUrl: string
+): Promise<string | undefined> {
+  const mediaResponse = await fetch(documentUrl);
+  if (!mediaResponse.ok) {
+    return undefined;
+  }
+
+  const arrayBuffer = await mediaResponse.arrayBuffer();
+  const contentType = mediaResponse.headers.get("content-type") || "application/pdf";
+
+  const initResult = await apiClient.initializeDocumentUpload(ownerUrn);
+  await apiClient.uploadMediaBinary(initResult.value.uploadUrl, arrayBuffer, contentType);
+
+  return initResult.value.document;
+}
+
+/**
  * @function buildMediaContent
  * @description Builds the LinkedIn post content payload from uploaded media references.
  */

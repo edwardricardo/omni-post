@@ -10,7 +10,14 @@ import {
   type ProviderMetadata,
   type ProviderConstraints,
 } from "@providers/shared";
-import type { ProviderId, ProviderLimits, PublishInput, PublishReceipt } from "@ports/core";
+import type {
+  ProviderId,
+  ProviderLimits,
+  PublishInput,
+  PublishReceipt,
+  ProviderComment,
+  ProviderReplyResult,
+} from "@ports/core";
 import type {
   CanonicalPost,
   RenderedContent,
@@ -63,7 +70,7 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
     schedule: true,
     analytics: true,
     comments: true,
-    replies: false, // Different model than Twitter
+    replies: true,
     threading: false,
   };
 
@@ -453,6 +460,84 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
       // Handle circuit breaker specific error
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
         return err("NETWORK");
+      }
+
+      return err("NETWORK");
+    }
+  }
+  // ----------------------------------------------------------
+  // Social Inbox: getComments & postReply
+  // ----------------------------------------------------------
+
+  /**
+   * @method getComments
+   * @description Fetches comments on a Facebook post via GET /{post-id}/comments.
+   *              Supports cursor-based pagination and reverse chronological order.
+   */
+  async getComments(params: {
+    channelCredentials: unknown;
+    postExternalId?: string;
+    since?: Date;
+    cursor?: string;
+    limit?: number;
+  }): Promise<Result<{ comments: ProviderComment[]; nextCursor?: string }, "AUTH" | "NETWORK">> {
+    if (!params.postExternalId) {
+      return ok({ comments: [] });
+    }
+
+    try {
+      const credentials = params.channelCredentials as FacebookCredentials;
+      const apiClient = this.createApiClient(credentials);
+
+      const result = await apiClient.getPostComments(
+        params.postExternalId,
+        params.limit || 25,
+        params.cursor
+      );
+
+      const comments: ProviderComment[] = result.data.map((c) => ({
+        providerMessageId: c.id,
+        authorName: c.from.name,
+        authorProviderId: c.from.id,
+        body: c.message,
+        createdAt: new Date(c.created_time),
+        ...(c.parent ? { providerParentId: c.parent.id } : {}),
+      }));
+
+      return ok({
+        comments,
+        ...(result.paging?.cursors?.after ? { nextCursor: result.paging.cursors.after } : {}),
+      });
+    } catch (error: unknown) {
+      this.logError("getComments", error);
+      return err("NETWORK");
+    }
+  }
+
+  /**
+   * @method postReply
+   * @description Posts a reply to a Facebook comment via POST /{comment-id}/comments.
+   */
+  async postReply(params: {
+    channelCredentials: unknown;
+    inReplyToProviderMessageId: string;
+    body: string;
+  }): Promise<Result<ProviderReplyResult, "AUTH" | "NETWORK" | "RATE_LIMIT">> {
+    try {
+      const credentials = params.channelCredentials as FacebookCredentials;
+      const apiClient = this.createApiClient(credentials);
+
+      const result = await apiClient.replyToComment(params.inReplyToProviderMessageId, params.body);
+
+      return ok({
+        providerReplyId: result.id,
+        createdAt: new Date(),
+      });
+    } catch (error: unknown) {
+      this.logError("postReply", error);
+
+      if (error instanceof Error && error.message?.includes("Rate Limit")) {
+        return err("RATE_LIMIT");
       }
 
       return err("NETWORK");

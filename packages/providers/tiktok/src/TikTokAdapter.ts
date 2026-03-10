@@ -82,9 +82,9 @@ export class TikTokAdapter extends AbstractProviderAdapter<TikTokCredentials> {
 
   readonly limits: ProviderLimits = {
     maxChars: 2200, // TikTok video description limit
-    allowedMedia: ["video"],
+    allowedMedia: ["video", "image"],
     aspectRatios: ["9:16", "1:1", "16:9"],
-    maxMediaPerPost: 1, // TikTok allows one video per post
+    maxMediaPerPost: 35, // TikTok allows up to 35 images per photo post, 1 video
     threadingSupported: false,
     rateLimitHints: { burst: 50, perSeconds: 3600 }, // TikTok API rate limits
   };
@@ -153,54 +153,105 @@ export class TikTokAdapter extends AbstractProviderAdapter<TikTokCredentials> {
       return err("CONTENT_TOO_LONG");
     }
 
-    // TikTok requires video media
+    // TikTok requires media (video or images)
     if (!canonical.media || canonical.media.length === 0) {
       return err("MEDIA_REQUIRED" as RenderError);
     }
 
-    // Only one video allowed
-    if (canonical.media.length > 1) {
-      return err("TOO_MANY_MEDIA" as RenderError);
+    const firstMedia = canonical.media[0];
+    if (!firstMedia) {
+      return err("MEDIA_REQUIRED" as RenderError);
     }
 
-    const videoMedia = canonical.media[0];
-    if (!videoMedia || !videoMedia.url.includes("video")) {
+    // Detect content type: photo post (all images) or video post (single video)
+    const isPhotoPost = canonical.media.every((m) => m.type === "image");
+    const isVideoPost = firstMedia.type === "video";
+
+    if (!isPhotoPost && !isVideoPost) {
       return err("INVALID_MEDIA_TYPE" as RenderError);
     }
 
-    const mappedMedia = canonical.media
-      ? canonical.media.map((media) => ({
-          url: media.url,
-          type:
-            media.type === "video"
-              ? ("video" as const)
-              : media.type === "image"
-                ? ("image" as const)
-                : ("gif" as const),
-          ...(media.alt && { alt: media.alt }),
-        }))
-      : undefined;
+    // Video posts: only one video allowed
+    if (isVideoPost && canonical.media.length > 1) {
+      return err("TOO_MANY_MEDIA" as RenderError);
+    }
+
+    // Photo posts: max 35 images
+    if (isPhotoPost && canonical.media.length > 35) {
+      return err("TOO_MANY_MEDIA" as RenderError);
+    }
+
+    const mappedMedia = canonical.media.map((media) => ({
+      url: media.url,
+      type:
+        media.type === "video"
+          ? ("video" as const)
+          : media.type === "image"
+            ? ("image" as const)
+            : ("gif" as const),
+      ...(media.alt && { alt: media.alt }),
+    }));
 
     return ok({
       type: "single" as const,
       content: {
         body: description,
         text: description,
-        videoUrl: videoMedia.url,
-        ...(mappedMedia && { media: mappedMedia }),
+        ...(isPhotoPost ? { contentType: "photo" } : { videoUrl: firstMedia.url }),
+        media: mappedMedia,
       },
-      ...(Object.keys({}).length > 0 ? { meta: {} } : {}),
+      ...(isPhotoPost ? { meta: { contentType: "photo" } } : {}),
     });
   }
 
   /**
    * Generate and apply hashtag strategy
    */
+  /**
+   * @method publishPhotoPost
+   * @description Publishes a photo carousel post to TikTok.
+   * @param apiClient - TikTok API client
+   * @param credentials - TikTok credentials
+   * @param post - The rendered post with image media
+   * @param description - Enhanced description with hashtags
+   */
+  private async publishPhotoPost(
+    apiClient: TikTokApiClient,
+    credentials: TikTokCredentials,
+    post: import("@shared/types").RenderedPost,
+    description: string
+  ): Promise<Result<PublishReceipt, PublishError>> {
+    const imageUrls = (post.media || []).filter((m) => m.type === "image").map((m) => m.url);
+
+    if (imageUrls.length === 0) {
+      return err("VALIDATION");
+    }
+
+    const privacy =
+      post.meta?.privacy === "private" ? ("SELF_ONLY" as const) : ("PUBLIC_TO_EVERYONE" as const);
+
+    const result = await apiClient.publishPhotoPost({
+      description,
+      imageUrls,
+      privacy,
+      ...(typeof post.meta?.disableComment === "boolean" && {
+        disableComment: post.meta.disableComment,
+      }),
+    });
+
+    return ok({
+      providerPostId: result.shareId,
+      url:
+        result.shareUrl || `https://www.tiktok.com/@${credentials.openId}/photo/${result.shareId}`,
+      publishedAt: new Date(),
+    });
+  }
+
   private async applyHashtagStrategy(
     apiClient: TikTokApiClient,
     credentials: TikTokCredentials,
     description: string,
-    meta?: Record<string, any>
+    meta?: Record<string, unknown>
   ): Promise<string> {
     if (!meta?.useHashtagStrategy) {
       return description;
@@ -223,9 +274,9 @@ export class TikTokAdapter extends AbstractProviderAdapter<TikTokCredentials> {
       const hashtagManager = new TikTokHashtagManager(researchClient);
 
       const strategy = await hashtagManager.generateHashtagStrategy({
-        contentCategory: meta.contentCategory || "general",
-        ...(meta.targetAudience && { targetAudience: meta.targetAudience }),
-        ...(meta.brandedHashtags && { brandedHashtags: meta.brandedHashtags }),
+        contentCategory: (meta.contentCategory as string) || "general",
+        ...(meta.targetAudience ? { targetAudience: meta.targetAudience as string } : {}),
+        ...(meta.brandedHashtags ? { brandedHashtags: meta.brandedHashtags as string[] } : {}),
       });
 
       // Combine all hashtags from strategy
@@ -254,7 +305,7 @@ export class TikTokAdapter extends AbstractProviderAdapter<TikTokCredentials> {
   private async createPromotedContent(
     credentials: TikTokCredentials,
     videoId: string,
-    meta?: Record<string, any>
+    meta?: Record<string, unknown>
   ): Promise<void> {
     if (!meta?.promotedContent || !meta?.marketingBudget) {
       return;
@@ -311,13 +362,13 @@ export class TikTokAdapter extends AbstractProviderAdapter<TikTokCredentials> {
     try {
       const apiClient = this.createApiClient(credentials.value);
 
-      // TikTok requires video upload
+      // TikTok requires media
       if (!input.post.media || input.post.media.length === 0) {
         return err("VALIDATION");
       }
 
-      const videoMedia = input.post.media[0];
-      if (!videoMedia) {
+      const firstMedia = input.post.media[0];
+      if (!firstMedia) {
         return err("VALIDATION");
       }
 
@@ -330,12 +381,23 @@ export class TikTokAdapter extends AbstractProviderAdapter<TikTokCredentials> {
           apiClient,
           credentials.value,
           description,
-          input.post.meta
+          input.post.meta as Record<string, unknown>
         );
       }
 
-      // Future: Select trending sound if requested
-      // Requires: TikTok Sound API endpoints (not available in public API)
+      // Detect photo vs video post
+      const isPhotoPost =
+        input.post.meta?.contentType === "photo" ||
+        input.post.media.every((m) => m.type === "image");
+
+      if (isPhotoPost) {
+        return await this.publishPhotoPost(
+          apiClient,
+          credentials.value,
+          input.post,
+          enhancedDescription
+        );
+      }
 
       // Determine privacy level (only "public" or "private" are supported)
       let privacy: "public" | "private" = "public";
@@ -346,7 +408,7 @@ export class TikTokAdapter extends AbstractProviderAdapter<TikTokCredentials> {
       // Upload video to TikTok with enhanced options
       const result = await apiClient.uploadVideo({
         description: enhancedDescription,
-        videoUrl: videoMedia.url,
+        videoUrl: firstMedia.url,
         privacy,
         ...(typeof input.post.meta?.disableComment === "boolean" && {
           disableComment: input.post.meta.disableComment,
@@ -361,9 +423,11 @@ export class TikTokAdapter extends AbstractProviderAdapter<TikTokCredentials> {
 
       // Create promoted content if requested (async, don't wait)
       if (input.post.meta?.promotedContent) {
-        this.createPromotedContent(credentials.value, result.shareId, input.post.meta).catch(
-          (err) => this.logError("createPromotedContent", err, {})
-        );
+        this.createPromotedContent(
+          credentials.value,
+          result.shareId,
+          input.post.meta as Record<string, unknown>
+        ).catch((promoteErr) => this.logError("createPromotedContent", promoteErr, {}));
       }
 
       return ok({

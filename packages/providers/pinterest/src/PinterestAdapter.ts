@@ -299,6 +299,7 @@ export class PinterestAdapter extends AbstractProviderAdapter<PinterestCredentia
     channelId: string;
     since?: Date;
     until?: Date;
+    providerPostId?: string;
   }): Promise<Result<unknown, "AUTH" | "NETWORK">> {
     const credentials = await this.getCredentials(q.channelId);
     if (!credentials.ok) {
@@ -313,9 +314,16 @@ export class PinterestAdapter extends AbstractProviderAdapter<PinterestCredentia
       const startDate = q.since || new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
 
       const formatDate = (d: Date): string => d.toISOString().split("T")[0] || "";
+      const startStr = formatDate(startDate);
+      const endStr = formatDate(endDate);
 
       // Fetch user account for summary info
       const userAccount = await apiClient.getUserAccount();
+
+      // If a specific pin ID is provided, fetch pin-level analytics
+      const pinMetrics = q.providerPostId
+        ? await this.fetchPinMetrics(apiClient, q.providerPostId, startStr, endStr)
+        : undefined;
 
       return ok({
         channelId: q.channelId,
@@ -327,15 +335,46 @@ export class PinterestAdapter extends AbstractProviderAdapter<PinterestCredentia
           pinCount: userAccount.pin_count || 0,
           boardCount: userAccount.board_count || 0,
           accountType: userAccount.account_type,
+          ...(pinMetrics ? { pin: pinMetrics } : {}),
         },
         dateRange: {
-          startDate: formatDate(startDate),
-          endDate: formatDate(endDate),
+          startDate: startStr,
+          endDate: endStr,
         },
       });
     } catch (error: unknown) {
       this.logError("fetchAnalytics", error, { channelId: q.channelId });
       return err("NETWORK");
+    }
+  }
+
+  /**
+   * @method fetchPinMetrics
+   * @description Fetches lifetime analytics for a specific pin via getPinAnalytics().
+   * @param apiClient - PinterestApiClient instance
+   * @param pinId - The Pinterest pin ID
+   * @param startDate - Start date in YYYY-MM-DD format
+   * @param endDate - End date in YYYY-MM-DD format
+   * @returns Pin-level metrics or undefined on failure
+   */
+  private async fetchPinMetrics(
+    apiClient: PinterestApiClient,
+    pinId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<Record<string, number> | undefined> {
+    try {
+      const analytics = await apiClient.getPinAnalytics(pinId, startDate, endDate);
+      const m = analytics.all.lifetime_metrics;
+      return {
+        impressions: m.IMPRESSION,
+        saves: m.SAVE,
+        pinClicks: m.PIN_CLICK,
+        outboundClicks: m.OUTBOUND_CLICK,
+      };
+    } catch {
+      // Pin analytics may fail for pins older than 90 days or non-business accounts
+      return undefined;
     }
   }
 

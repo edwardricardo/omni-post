@@ -22,10 +22,17 @@ import type {
   ThreadError,
 } from "@shared/types";
 import { ok, err } from "@shared/types";
-import { TelegramApiClient, type TelegramCredentials } from "./apiClient.js";
+import {
+  TelegramApiClient,
+  type TelegramCredentials,
+  type TelegramPollConfig,
+} from "./apiClient.js";
 
 /** Maximum caption length for media messages in Telegram */
 const MAX_CAPTION_LENGTH = 1024;
+
+/** Prefix used to detect poll content in canonical post body */
+const POLL_TAG_PREFIX = "poll:";
 
 /**
  * @class TelegramAdapter
@@ -61,7 +68,7 @@ export class TelegramAdapter extends AbstractProviderAdapter<TelegramCredentials
   readonly capabilities = {
     publish: true,
     schedule: false,
-    analytics: false,
+    analytics: true,
     comments: false,
     replies: false,
     threading: false,
@@ -120,6 +127,12 @@ export class TelegramAdapter extends AbstractProviderAdapter<TelegramCredentials
   override render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
     const body = canonical.body || "";
 
+    // Detect poll content: tags starting with "poll:" indicate a poll
+    const pollTag = canonical.tags?.find((t) => t.startsWith(POLL_TAG_PREFIX));
+    if (pollTag) {
+      return this.renderPoll(body, pollTag);
+    }
+
     if (body.length > this.limits.maxChars) {
       return err("CONTENT_TOO_LONG");
     }
@@ -151,6 +164,41 @@ export class TelegramAdapter extends AbstractProviderAdapter<TelegramCredentials
         meta: {
           parseMode: "HTML",
           ...(hasMedia && { captionLength: Math.min(body.length, MAX_CAPTION_LENGTH) }),
+        },
+      },
+      meta: {},
+    });
+  }
+
+  /**
+   * @method renderPoll
+   * @description Render a poll from canonical post data.
+   *              Poll tag format: "poll:option1|option2|option3"
+   *              The body becomes the poll question.
+   */
+  private renderPoll(question: string, pollTag: string): Result<RenderedContent, RenderError> {
+    const optionsPart = pollTag.substring(POLL_TAG_PREFIX.length);
+    const options = optionsPart.split("|").filter((o) => o.trim().length > 0);
+
+    if (options.length < 2 || options.length > 10) {
+      return err("VALIDATION_ERROR");
+    }
+
+    if (!question || question.length === 0) {
+      return err("VALIDATION_ERROR");
+    }
+
+    if (question.length > 300) {
+      return err("CONTENT_TOO_LONG");
+    }
+
+    return ok({
+      type: "single",
+      content: {
+        body: question,
+        meta: {
+          isPoll: true,
+          pollOptions: options,
         },
       },
       meta: {},
@@ -203,6 +251,17 @@ export class TelegramAdapter extends AbstractProviderAdapter<TelegramCredentials
       const text = post.body || "";
       const media = post.media;
       const hasMedia = media && media.length > 0;
+
+      // Check for poll content
+      const meta = post.meta as Record<string, unknown> | undefined;
+      if (meta && meta.isPoll === true && Array.isArray(meta.pollOptions)) {
+        return await this.publishPoll(
+          apiClient,
+          text,
+          meta.pollOptions as string[],
+          credentials.value.chatId
+        );
+      }
 
       // Route to the appropriate Telegram API method
       if (!hasMedia) {
@@ -375,6 +434,69 @@ export class TelegramAdapter extends AbstractProviderAdapter<TelegramCredentials
       publishedAt: new Date(firstMessage.date * 1000),
     });
   }
+
+  /**
+   * @method publishPoll
+   * @description Send a poll to the Telegram chat.
+   */
+  private async publishPoll(
+    apiClient: TelegramApiClient,
+    question: string,
+    options: string[],
+    chatId: string,
+    config?: TelegramPollConfig
+  ): Promise<Result<PublishReceipt, PublishError>> {
+    const result = await apiClient.sendPoll(question, options, config);
+
+    return ok({
+      providerPostId: String(result.message_id),
+      url: this.buildMessageUrl(chatId, result.message_id),
+      publishedAt: new Date(result.date * 1000),
+    });
+  }
+
+  // ============================================================
+  // Analytics
+  // ============================================================
+
+  /**
+   * @method fetchAnalytics
+   * @description Fetches basic analytics for a Telegram channel.
+   *              Uses getChatMemberCount as a member count proxy since
+   *              Telegram Bot API does not expose detailed analytics.
+   * @param q - Query containing channelId, since, and until
+   * @returns Analytics data with member count or error
+   */
+  override async fetchAnalytics(q: {
+    channelId: string;
+    since?: Date;
+    until?: Date;
+  }): Promise<Result<unknown, "AUTH" | "NETWORK">> {
+    const credentials = await this.getCredentials(q.channelId);
+    if (!credentials.ok) {
+      return err("AUTH");
+    }
+
+    try {
+      const apiClient = this.createApiClient(credentials.value);
+      const memberCount = await apiClient.getChatMemberCount();
+
+      return ok({
+        provider: "telegram",
+        channelId: q.channelId,
+        memberCount,
+        ...(q.since && { since: q.since.toISOString() }),
+        ...(q.until && { until: q.until.toISOString() }),
+      });
+    } catch (error: unknown) {
+      this.logError("fetchAnalytics", error, { channelId: q.channelId });
+      return err("NETWORK");
+    }
+  }
+
+  // ============================================================
+  // URL Builder
+  // ============================================================
 
   /**
    * @method buildMessageUrl

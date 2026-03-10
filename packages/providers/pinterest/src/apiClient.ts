@@ -77,6 +77,11 @@ export interface PinterestPinAnalyticsResponse {
   };
 }
 
+export interface PinterestBoardSectionResponse {
+  id: string;
+  name: string;
+}
+
 export interface PinterestApiError {
   code: number;
   message: string;
@@ -305,6 +310,41 @@ export class PinterestApiClient {
     }
 
     return this.makeRequest<PinterestBoardsListResponse>("get-boards", url, { method: "GET" });
+  }
+
+  /**
+   * @method createBoard
+   * @description Creates a new board for the authenticated user.
+   * @param params - Board creation payload (name, description, privacy)
+   * @returns The created board response
+   */
+  async createBoard(params: {
+    name: string;
+    description?: string;
+    privacy?: "PUBLIC" | "PROTECTED" | "SECRET";
+  }): Promise<PinterestBoardResponse> {
+    return this.makeRequest<PinterestBoardResponse>("create-board", `${this.baseUrl}/boards`, {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * @method createBoardSection
+   * @description Creates a new section within an existing board.
+   * @param boardId - The board to add the section to
+   * @param name - Section name
+   * @returns The created board section response
+   */
+  async createBoardSection(boardId: string, name: string): Promise<PinterestBoardSectionResponse> {
+    return this.makeRequest<PinterestBoardSectionResponse>(
+      "create-board-section",
+      `${this.baseUrl}/boards/${boardId}/sections`,
+      {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }
+    );
   }
 
   // ----------------------------------------------------------

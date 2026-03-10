@@ -42,6 +42,44 @@ export interface TelegramMessage {
   caption?: string;
 }
 
+export interface TelegramMessageResponse {
+  ok: boolean;
+  result: {
+    message_id: number;
+    chat: { id: number; type: string };
+    date: number;
+    text?: string;
+    document?: { file_id: string; file_name?: string };
+    audio?: { file_id: string; duration: number };
+    poll?: { id: string; question: string; options: Array<{ text: string; voter_count: number }> };
+  };
+}
+
+export interface TelegramInlineKeyboard {
+  inline_keyboard: Array<
+    Array<{
+      text: string;
+      callback_data?: string;
+      url?: string;
+    }>
+  >;
+}
+
+export interface TelegramPollConfig {
+  isAnonymous?: boolean;
+  type?: "regular" | "quiz";
+  allowsMultipleAnswers?: boolean;
+  correctOptionId?: number;
+  openPeriod?: number;
+}
+
+export interface TelegramAudioConfig {
+  caption?: string;
+  duration?: number;
+  performer?: string;
+  title?: string;
+}
+
 export interface TelegramMediaGroupMessage {
   message_id: number;
   chat: { id: number; title?: string; type: string };
@@ -331,6 +369,258 @@ export class TelegramApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+    });
+  }
+
+  // ----------------------------------------------------------
+  // Poll, Document, Audio
+  // ----------------------------------------------------------
+
+  /**
+   * @method sendPoll
+   * @description Send a poll to the configured chat.
+   * @param question - Poll question (1-300 characters).
+   * @param options - Poll options (2-10 items, each 1-100 characters).
+   * @param config - Optional poll configuration.
+   * @returns The sent message with poll data.
+   */
+  async sendPoll(
+    question: string,
+    options: string[],
+    config?: TelegramPollConfig
+  ): Promise<TelegramMessage> {
+    const apiCall = async (): Promise<TelegramMessage> => {
+      const body: Record<string, unknown> = {
+        chat_id: this.chatId,
+        question,
+        options: JSON.stringify(options),
+      };
+      if (config) {
+        if (config.isAnonymous !== undefined) body.is_anonymous = config.isAnonymous;
+        if (config.type) body.type = config.type;
+        if (config.allowsMultipleAnswers !== undefined)
+          body.allows_multiple_answers = config.allowsMultipleAnswers;
+        if (config.correctOptionId !== undefined) body.correct_option_id = config.correctOptionId;
+        if (config.openPeriod !== undefined) body.open_period = config.openPeriod;
+      }
+      return this.callApi<TelegramMessage>("sendPoll", body);
+    };
+
+    return circuitBreaker.call("telegram-api", "send-poll", apiCall, [], {
+      timeout: 15000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 3,
+      baseDelay: 2000,
+      maxDelay: 30000,
+      jitterEnabled: true,
+      cacheEnabled: false,
+      fallbackEnabled: true,
+      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
+    });
+  }
+
+  /**
+   * @method sendDocument
+   * @description Send a document (PDF, ZIP, etc.) to the configured chat.
+   * @param documentUrl - URL of the document to send.
+   * @param caption - Optional caption (up to 1024 characters).
+   * @returns The sent message object.
+   */
+  async sendDocument(documentUrl: string, caption?: string): Promise<TelegramMessage> {
+    const apiCall = async (): Promise<TelegramMessage> => {
+      const body: Record<string, unknown> = {
+        chat_id: this.chatId,
+        document: documentUrl,
+        parse_mode: "HTML",
+      };
+      if (caption) {
+        body.caption = caption;
+      }
+      return this.callApi<TelegramMessage>("sendDocument", body);
+    };
+
+    return circuitBreaker.call("telegram-api", "send-document", apiCall, [], {
+      timeout: 30000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 2,
+      baseDelay: 3000,
+      maxDelay: 15000,
+      jitterEnabled: true,
+      cacheEnabled: false,
+      fallbackEnabled: true,
+      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
+    });
+  }
+
+  /**
+   * @method sendAudio
+   * @description Send an audio file to the configured chat.
+   * @param audioUrl - URL of the audio file to send.
+   * @param config - Optional audio configuration (caption, duration, performer, title).
+   * @returns The sent message object.
+   */
+  async sendAudio(audioUrl: string, config?: TelegramAudioConfig): Promise<TelegramMessage> {
+    const apiCall = async (): Promise<TelegramMessage> => {
+      const body: Record<string, unknown> = {
+        chat_id: this.chatId,
+        audio: audioUrl,
+        parse_mode: "HTML",
+      };
+      if (config) {
+        if (config.caption) body.caption = config.caption;
+        if (config.duration !== undefined) body.duration = config.duration;
+        if (config.performer) body.performer = config.performer;
+        if (config.title) body.title = config.title;
+      }
+      return this.callApi<TelegramMessage>("sendAudio", body);
+    };
+
+    return circuitBreaker.call("telegram-api", "send-audio", apiCall, [], {
+      timeout: 30000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 2,
+      baseDelay: 3000,
+      maxDelay: 15000,
+      jitterEnabled: true,
+      cacheEnabled: false,
+      fallbackEnabled: true,
+      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
+    });
+  }
+
+  // ----------------------------------------------------------
+  // Edit, Delete, Pin
+  // ----------------------------------------------------------
+
+  /**
+   * @method editMessageText
+   * @description Edit the text of an existing message.
+   * @param messageId - ID of the message to edit.
+   * @param text - New text content.
+   * @param replyMarkup - Optional inline keyboard markup.
+   * @returns The edited message object.
+   */
+  async editMessageText(
+    messageId: number,
+    text: string,
+    replyMarkup?: TelegramInlineKeyboard
+  ): Promise<TelegramMessage> {
+    const apiCall = async (): Promise<TelegramMessage> => {
+      const body: Record<string, unknown> = {
+        chat_id: this.chatId,
+        message_id: messageId,
+        text,
+        parse_mode: "HTML",
+      };
+      if (replyMarkup) {
+        body.reply_markup = replyMarkup;
+      }
+      return this.callApi<TelegramMessage>("editMessageText", body);
+    };
+
+    return circuitBreaker.call("telegram-api", "edit-message-text", apiCall, [], {
+      timeout: 15000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 3,
+      baseDelay: 2000,
+      maxDelay: 30000,
+      jitterEnabled: true,
+      cacheEnabled: false,
+      fallbackEnabled: false,
+    });
+  }
+
+  /**
+   * @method deleteMessage
+   * @description Delete a message from the chat.
+   * @param messageId - ID of the message to delete.
+   * @returns Boolean indicating success.
+   */
+  async deleteMessage(messageId: number): Promise<boolean> {
+    const apiCall = async (): Promise<boolean> => {
+      return this.callApi<boolean>("deleteMessage", {
+        chat_id: this.chatId,
+        message_id: messageId,
+      });
+    };
+
+    return circuitBreaker.call("telegram-api", "delete-message", apiCall, [], {
+      timeout: 15000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 3,
+      baseDelay: 2000,
+      maxDelay: 30000,
+      jitterEnabled: true,
+      cacheEnabled: false,
+      fallbackEnabled: false,
+    });
+  }
+
+  /**
+   * @method pinChatMessage
+   * @description Pin a message in the chat.
+   * @param messageId - ID of the message to pin.
+   * @param disableNotification - Whether to disable the pin notification.
+   * @returns Boolean indicating success.
+   */
+  async pinChatMessage(messageId: number, disableNotification?: boolean): Promise<boolean> {
+    const apiCall = async (): Promise<boolean> => {
+      const body: Record<string, unknown> = {
+        chat_id: this.chatId,
+        message_id: messageId,
+      };
+      if (disableNotification !== undefined) {
+        body.disable_notification = disableNotification;
+      }
+      return this.callApi<boolean>("pinChatMessage", body);
+    };
+
+    return circuitBreaker.call("telegram-api", "pin-chat-message", apiCall, [], {
+      timeout: 15000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 3,
+      baseDelay: 2000,
+      maxDelay: 30000,
+      jitterEnabled: true,
+      cacheEnabled: false,
+      fallbackEnabled: false,
+    });
+  }
+
+  // ----------------------------------------------------------
+  // Analytics proxy
+  // ----------------------------------------------------------
+
+  /**
+   * @method getChatMemberCount
+   * @description Get the number of members in the configured chat.
+   * @returns The member count.
+   */
+  async getChatMemberCount(): Promise<number> {
+    const apiCall = async (): Promise<number> => {
+      return this.callApi<number>("getChatMemberCount", {
+        chat_id: this.chatId,
+      });
+    };
+
+    return circuitBreaker.call("telegram-api", "get-chat-member-count", apiCall, [], {
+      timeout: 15000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 3,
+      baseDelay: 2000,
+      maxDelay: 30000,
+      jitterEnabled: true,
+      cacheEnabled: true,
+      cacheTtl: 300000,
+      fallbackEnabled: true,
+      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
     });
   }
 

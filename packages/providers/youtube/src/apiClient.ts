@@ -540,6 +540,164 @@ export class YouTubeApiClient {
     throw ProviderError.unauthorized("youtube", "Failed to refresh YouTube access token");
   }
 
+  /**
+   * @method getVideoComments
+   * @description Fetches comment threads for a video via commentThreads.list.
+   *              Uses 1 quota unit per call.
+   * @param videoId - The YouTube video ID
+   * @param maxResults - Max results per page (default 20, max 100)
+   * @param pageToken - Pagination token from a previous response
+   */
+  async getVideoComments(
+    videoId: string,
+    maxResults: number = 20,
+    pageToken?: string
+  ): Promise<{
+    items: Array<{
+      id: string;
+      snippet: {
+        topLevelComment: {
+          id: string;
+          snippet: {
+            textDisplay: string;
+            authorDisplayName: string;
+            authorChannelId?: { value: string };
+            authorProfileImageUrl?: string;
+            publishedAt: string;
+          };
+        };
+        totalReplyCount: number;
+      };
+    }>;
+    nextPageToken?: string;
+  }> {
+    const apiCall = async () => {
+      await this.refreshTokenIfNeeded();
+
+      const response = await this.youtube.commentThreads.list({
+        part: ["snippet"],
+        videoId,
+        maxResults: Math.min(maxResults, 100),
+        order: "time",
+        ...(pageToken ? { pageToken } : {}),
+      });
+
+      return {
+        items: (response.data.items || []).map((item) => ({
+          id: item.id || "",
+          snippet: {
+            topLevelComment: {
+              id: item.snippet?.topLevelComment?.id || "",
+              snippet: {
+                textDisplay: item.snippet?.topLevelComment?.snippet?.textDisplay || "",
+                authorDisplayName: item.snippet?.topLevelComment?.snippet?.authorDisplayName || "",
+                ...(item.snippet?.topLevelComment?.snippet?.authorChannelId
+                  ? {
+                      authorChannelId: item.snippet.topLevelComment.snippet.authorChannelId as {
+                        value: string;
+                      },
+                    }
+                  : {}),
+                ...(item.snippet?.topLevelComment?.snippet?.authorProfileImageUrl
+                  ? {
+                      authorProfileImageUrl:
+                        item.snippet.topLevelComment.snippet.authorProfileImageUrl,
+                    }
+                  : {}),
+                publishedAt: item.snippet?.topLevelComment?.snippet?.publishedAt || "",
+              },
+            },
+            totalReplyCount: item.snippet?.totalReplyCount || 0,
+          },
+        })),
+        ...(response.data.nextPageToken ? { nextPageToken: response.data.nextPageToken } : {}),
+      };
+    };
+
+    return circuitBreaker.call("youtube-api", "get-video-comments", apiCall, [], {
+      timeout: 15000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 3,
+      baseDelay: 2000,
+      maxDelay: 30000,
+      jitterEnabled: true,
+      cacheEnabled: true,
+      cacheTtl: 60000,
+      fallbackEnabled: true,
+      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+    });
+  }
+
+  /**
+   * @method postComment
+   * @description Posts a comment on a video or replies to an existing comment.
+   *              Uses 50 quota units per call.
+   * @param videoId - The YouTube video ID
+   * @param text - Comment text
+   * @param parentId - Optional parent comment ID for threaded replies
+   */
+  async postComment(
+    videoId: string,
+    text: string,
+    parentId?: string
+  ): Promise<{ id: string; publishedAt: string }> {
+    const apiCall = async () => {
+      await this.refreshTokenIfNeeded();
+
+      if (parentId) {
+        // Reply to existing comment
+        const response = await this.youtube.comments.insert({
+          part: ["snippet"],
+          requestBody: {
+            snippet: {
+              parentId,
+              textOriginal: text,
+            },
+          },
+        });
+
+        return {
+          id: response.data.id || "",
+          publishedAt: response.data.snippet?.publishedAt || new Date().toISOString(),
+        };
+      }
+
+      // New top-level comment
+      const response = await this.youtube.commentThreads.insert({
+        part: ["snippet"],
+        requestBody: {
+          snippet: {
+            videoId,
+            topLevelComment: {
+              snippet: {
+                textOriginal: text,
+              },
+            },
+          },
+        },
+      });
+
+      return {
+        id: response.data.id || "",
+        publishedAt:
+          response.data.snippet?.topLevelComment?.snippet?.publishedAt || new Date().toISOString(),
+      };
+    };
+
+    return circuitBreaker.call("youtube-api", "post-comment", apiCall, [], {
+      timeout: 15000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 2,
+      baseDelay: 2000,
+      maxDelay: 15000,
+      jitterEnabled: true,
+      cacheEnabled: false,
+      fallbackEnabled: false,
+    });
+  }
+
   getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }

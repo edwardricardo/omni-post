@@ -43,6 +43,7 @@ export interface LinkedInMediaContent {
   multiImage?: {
     images: Array<{ id: string; altText?: string }>;
   };
+  poll?: LinkedInPollContent;
 }
 
 export interface LinkedInPostResponse {
@@ -124,4 +125,49 @@ export interface LinkedInAnalyticsResponse {
     clickCount: number;
     engagement: number;
   };
+}
+
+// ============================================================
+// Document Upload
+// ============================================================
+
+export interface LinkedInDocumentUploadResponse {
+  value: {
+    uploadUrlExpiresAt: number;
+    uploadUrl: string;
+    document: string;
+  };
+}
+
+// ============================================================
+// Poll
+// ============================================================
+
+export type LinkedInPollDuration = "ONE_DAY" | "THREE_DAYS" | "SEVEN_DAYS" | "FOURTEEN_DAYS";
+
+export interface LinkedInPollOption {
+  text: string;
+}
+
+export interface LinkedInPollContent {
+  question: string;
+  options: LinkedInPollOption[];
+  settings: {
+    duration: LinkedInPollDuration;
+  };
+}
+
+// ============================================================
+// Extended Post Payload (with document + poll support)
+// ============================================================
+
+export interface LinkedInDocumentContent {
+  media: {
+    title?: string;
+    id: string;
+  };
+}
+
+export interface LinkedInPollPostContent {
+  poll: LinkedInPollContent;
 }

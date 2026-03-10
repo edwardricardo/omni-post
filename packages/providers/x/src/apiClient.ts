@@ -1,7 +1,7 @@
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import client from "prom-client";
-import { TwitterApi } from "twitter-api-v2";
+import { TwitterApi, type SendTweetV2Params, type TweetV2 } from "twitter-api-v2";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("provider:x:api-client");
@@ -51,6 +51,28 @@ export interface XAnalyticsResponse {
   }>;
 }
 
+export interface XSearchReplyResult {
+  id: string;
+  text: string;
+  author_id?: string;
+  created_at?: string;
+  in_reply_to_user_id?: string;
+  conversation_id?: string;
+}
+
+export interface XSearchRepliesResponse {
+  data: XSearchReplyResult[];
+  meta?: {
+    next_token?: string;
+    result_count: number;
+  };
+}
+
+export interface XPollOptions {
+  options: string[];
+  durationMinutes: number;
+}
+
 // Global registry for circuit breaker metrics
 const registry = new client.Registry();
 const circuitBreaker = createExternalApiCircuitBreaker(registry, process.env.REDIS_URL);
@@ -97,32 +119,59 @@ export class XApiClient {
   }
 
   /**
-   * Post a single tweet using twitter-api-v2 library
+   * @method postTweet
+   * @description Posts a single tweet using twitter-api-v2 library.
+   *              Supports media attachments, replies, polls, and quote tweets.
+   * @param text - The tweet text
+   * @param mediaIds - Optional array of uploaded media IDs
+   * @param replyToTweetId - Optional tweet ID to reply to
+   * @param poll - Optional poll configuration (2-4 options, duration in minutes)
+   * @param quoteTweetId - Optional tweet ID to quote
    */
   async postTweet(
     text: string,
     mediaIds: string[] = [],
-    replyToTweetId?: string
+    replyToTweetId?: string,
+    poll?: XPollOptions,
+    quoteTweetId?: string
   ): Promise<XTweetResponse> {
     const apiCall = async (): Promise<XTweetResponse> => {
-      const tweetOptions: any = { text };
+      const tweetOptions: SendTweetV2Params = { text };
 
       if (mediaIds.length > 0) {
-        tweetOptions.media = { media_ids: mediaIds };
+        tweetOptions.media = {
+          media_ids: mediaIds as
+            | [string]
+            | [string, string]
+            | [string, string, string]
+            | [string, string, string, string],
+        };
       }
 
       if (replyToTweetId) {
         tweetOptions.reply = { in_reply_to_tweet_id: replyToTweetId };
       }
 
+      if (poll) {
+        tweetOptions.poll = {
+          options: poll.options,
+          duration_minutes: poll.durationMinutes,
+        };
+      }
+
+      if (quoteTweetId) {
+        tweetOptions.quote_tweet_id = quoteTweetId;
+      }
+
       const result = await this.twitterApi.v2.tweet(tweetOptions);
+      const tweetData = result.data as TweetV2;
 
       return {
         data: {
-          id: result.data.id,
-          text: result.data.text,
-          ...("author_id" in result.data && { author_id: (result.data as any).author_id }),
-          ...("created_at" in result.data && { created_at: (result.data as any).created_at }),
+          id: tweetData.id,
+          text: tweetData.text,
+          ...(tweetData.author_id ? { author_id: tweetData.author_id } : {}),
+          ...(tweetData.created_at ? { created_at: tweetData.created_at } : {}),
         },
       };
     };
@@ -135,7 +184,7 @@ export class XApiClient {
       baseDelay: 2000,
       maxDelay: 30000,
       jitterEnabled: true,
-      cacheEnabled: false, // Don't cache tweet posts
+      cacheEnabled: false,
       fallbackEnabled: true,
       fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
     });
@@ -265,9 +314,71 @@ export class XApiClient {
   }
 
   /**
-   * Get circuit breaker status for X API operations
+   * @method searchReplies
+   * @description Searches for replies to a tweet using conversation_id.
+   *              Uses GET /2/tweets/search/recent with query `conversation_id:{tweetId}`.
+   *              Requires Basic tier ($100/mo) or higher.
+   * @param tweetId - The tweet ID to find replies for
+   * @param maxResults - Maximum number of results (10-100, default 20)
+   * @param nextToken - Pagination token from a previous response
    */
-  getCircuitBreakerStatus(): Record<string, any> {
+  async searchReplies(
+    tweetId: string,
+    maxResults: number = 20,
+    nextToken?: string
+  ): Promise<XSearchRepliesResponse> {
+    const apiCall = async (): Promise<XSearchRepliesResponse> => {
+      const query = `conversation_id:${tweetId}`;
+      const searchResult = await this.twitterApi.v2.search(query, {
+        max_results: Math.min(Math.max(maxResults, 10), 100),
+        "tweet.fields": ["author_id", "created_at", "in_reply_to_user_id", "conversation_id"],
+        ...(nextToken ? { next_token: nextToken } : {}),
+      });
+
+      const tweets: XSearchReplyResult[] = (searchResult.data.data || []).map((tweet: TweetV2) => ({
+        id: tweet.id,
+        text: tweet.text,
+        ...(tweet.author_id ? { author_id: tweet.author_id } : {}),
+        ...(tweet.created_at ? { created_at: tweet.created_at } : {}),
+        ...(tweet.in_reply_to_user_id ? { in_reply_to_user_id: tweet.in_reply_to_user_id } : {}),
+        ...(tweet.conversation_id ? { conversation_id: tweet.conversation_id } : {}),
+      }));
+
+      return {
+        data: tweets,
+        ...(searchResult.data.meta
+          ? {
+              meta: {
+                result_count: searchResult.data.meta.result_count,
+                ...(searchResult.data.meta.next_token
+                  ? { next_token: searchResult.data.meta.next_token }
+                  : {}),
+              },
+            }
+          : {}),
+      };
+    };
+
+    return circuitBreaker.call("x-api", "search-replies", apiCall, [], {
+      timeout: 15000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 3,
+      baseDelay: 2000,
+      maxDelay: 30000,
+      jitterEnabled: true,
+      cacheEnabled: true,
+      cacheTtl: 60000,
+      fallbackEnabled: true,
+      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+    });
+  }
+
+  /**
+   * @method getCircuitBreakerStatus
+   * @description Returns the current state of all X API circuit breakers.
+   */
+  getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }
 

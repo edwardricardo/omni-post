@@ -92,7 +92,7 @@ describe("YouTubeAdapter - Metadata", { concurrency: 1 }, () => {
     assert.strictEqual(adapter.capabilities.schedule, true);
     assert.strictEqual(adapter.capabilities.analytics, true);
     assert.strictEqual(adapter.capabilities.comments, true);
-    assert.strictEqual(adapter.capabilities.replies, false);
+    assert.strictEqual(adapter.capabilities.replies, true);
     assert.strictEqual(adapter.capabilities.threading, false);
   });
 

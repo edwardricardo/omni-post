@@ -10,7 +10,14 @@ import {
   type ProviderMetadata,
   type ProviderConstraints,
 } from "@providers/shared";
-import type { ProviderId, ProviderLimits, PublishInput, PublishReceipt } from "@ports/core";
+import type {
+  ProviderId,
+  ProviderLimits,
+  PublishInput,
+  PublishReceipt,
+  ProviderComment,
+  ProviderReplyResult,
+} from "@ports/core";
 import type {
   CanonicalPost,
   RenderedContent,
@@ -60,7 +67,7 @@ export class YouTubeAdapter extends AbstractProviderAdapter<YouTubeCredentials> 
     schedule: true,
     analytics: true,
     comments: true,
-    replies: false,
+    replies: true,
     threading: false,
   };
 
@@ -462,6 +469,92 @@ export class YouTubeAdapter extends AbstractProviderAdapter<YouTubeCredentials> 
         return err("NETWORK");
       }
 
+      return err("NETWORK");
+    }
+  }
+
+  /**
+   * @method getComments
+   * @description Fetches comments for a YouTube video via commentThreads.list.
+   * @param params - channelCredentials, postExternalId, cursor, limit
+   * @returns Paginated list of ProviderComment objects
+   */
+  async getComments(params: {
+    channelCredentials: YouTubeCredentials;
+    postExternalId?: string;
+    cursor?: string;
+    limit?: number;
+  }): Promise<Result<{ comments: ProviderComment[]; nextCursor?: string }, "AUTH" | "NETWORK">> {
+    if (!params.postExternalId) {
+      return ok({ comments: [] });
+    }
+
+    try {
+      const apiClient = this.createApiClient(params.channelCredentials);
+      const response = await apiClient.getVideoComments(
+        params.postExternalId,
+        params.limit || 20,
+        params.cursor
+      );
+
+      const comments: ProviderComment[] = response.items.map((item) => {
+        const snippet = item.snippet.topLevelComment.snippet;
+        return {
+          providerMessageId: item.snippet.topLevelComment.id,
+          authorName: snippet.authorDisplayName,
+          authorProviderId: snippet.authorChannelId?.value || "",
+          ...(snippet.authorProfileImageUrl
+            ? { authorAvatarUrl: snippet.authorProfileImageUrl }
+            : {}),
+          body: snippet.textDisplay,
+          createdAt: new Date(snippet.publishedAt),
+        };
+      });
+
+      return ok({
+        comments,
+        ...(response.nextPageToken ? { nextCursor: response.nextPageToken } : {}),
+      });
+    } catch (error: unknown) {
+      this.logError("getComments", error, { videoId: params.postExternalId });
+      if (error instanceof Error) {
+        if (error.message.includes("401") || error.message.includes("403")) return err("AUTH");
+      }
+      return err("NETWORK");
+    }
+  }
+
+  /**
+   * @method postReply
+   * @description Posts a reply to a YouTube comment via comments.insert.
+   * @param params - channelCredentials, inReplyToProviderMessageId, body, postExternalId
+   * @returns The new reply ID and creation timestamp
+   */
+  async postReply(params: {
+    channelCredentials: YouTubeCredentials;
+    inReplyToProviderMessageId: string;
+    body: string;
+    postExternalId?: string;
+  }): Promise<Result<ProviderReplyResult, "AUTH" | "NETWORK" | "RATE_LIMIT">> {
+    try {
+      const apiClient = this.createApiClient(params.channelCredentials);
+      const result = await apiClient.postComment(
+        params.postExternalId || "",
+        params.body,
+        params.inReplyToProviderMessageId
+      );
+
+      return ok({
+        providerReplyId: result.id,
+        createdAt: new Date(result.publishedAt),
+      });
+    } catch (error: unknown) {
+      this.logError("postReply", error, { parentId: params.inReplyToProviderMessageId });
+      if (error instanceof Error) {
+        if (error.message.includes("401") || error.message.includes("403")) return err("AUTH");
+        if (error.message.includes("429") || error.message.toLowerCase().includes("rate"))
+          return err("RATE_LIMIT");
+      }
       return err("NETWORK");
     }
   }

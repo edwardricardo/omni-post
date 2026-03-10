@@ -541,6 +541,110 @@ export class FacebookApiClient {
     });
   }
 
+  /**
+   * @method getPostComments
+   * @description Fetches comments on a post via GET /{post-id}/comments.
+   *              Supports cursor-based pagination and 2-level threading.
+   * @param postId - The Facebook post ID
+   * @param limit - Max comments per page (default 25)
+   * @param after - Cursor for pagination
+   */
+  async getPostComments(
+    postId: string,
+    limit: number = 25,
+    after?: string
+  ): Promise<{
+    data: Array<{
+      id: string;
+      message: string;
+      from: { id: string; name: string };
+      created_time: string;
+      parent?: { id: string };
+    }>;
+    paging?: { cursors?: { after?: string }; next?: string };
+  }> {
+    let url =
+      `/${postId}/comments?fields=id,message,from,created_time,parent` +
+      `&limit=${Math.min(limit, 100)}` +
+      `&order=reverse_chronological`;
+
+    if (after) {
+      url += `&after=${encodeURIComponent(after)}`;
+    }
+
+    const response = await this.makeApiRequest(url);
+    return response.json();
+  }
+
+  /**
+   * @method replyToComment
+   * @description Posts a reply to a comment via POST /{comment-id}/comments.
+   * @param commentId - The comment ID to reply to
+   * @param message - The reply text
+   */
+  async replyToComment(commentId: string, message: string): Promise<{ id: string }> {
+    const response = await this.makeApiRequest(`/${commentId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        message,
+        access_token: this.credentials.accessToken,
+      }).toString(),
+    });
+    return response.json();
+  }
+
+  /**
+   * @method postWithLink
+   * @description Creates a post with an OG link preview on the page feed.
+   * @param message - Post text
+   * @param link - URL for OG preview
+   */
+  async postWithLink(message: string, link: string): Promise<{ id: string }> {
+    const response = await this.makeApiRequest(`/${this.credentials.pageId}/feed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        message,
+        link,
+        access_token: this.credentials.accessToken,
+      }).toString(),
+    });
+    return response.json();
+  }
+
+  /**
+   * @method postScheduled
+   * @description Creates a scheduled post on the page feed.
+   *              Scheduled time must be between 10 minutes and 6 months from now.
+   * @param message - Post text
+   * @param scheduledPublishTime - Unix timestamp for when to publish
+   * @param mediaIds - Optional array of unpublished media IDs to attach
+   */
+  async postScheduled(
+    message: string,
+    scheduledPublishTime: number,
+    mediaIds: string[] = []
+  ): Promise<{ id: string }> {
+    const postData: Record<string, string> = {
+      message,
+      published: "false",
+      scheduled_publish_time: scheduledPublishTime.toString(),
+      access_token: this.credentials.accessToken,
+    };
+
+    if (mediaIds.length > 0) {
+      postData.attached_media = JSON.stringify(mediaIds.map((id) => ({ media_fbid: id })));
+    }
+
+    const response = await this.makeApiRequest(`/${this.credentials.pageId}/feed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(postData).toString(),
+    });
+    return response.json();
+  }
+
   getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }

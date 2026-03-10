@@ -18,6 +18,9 @@ import { FacebookWebhookProcessor } from "./processors/facebookWebhookProcessor.
 import { XWebhookProcessor } from "./processors/xWebhookProcessor.js";
 import { YouTubeWebhookProcessor } from "./processors/youtubeWebhookProcessor.js";
 import { TikTokWebhookProcessor } from "./processors/tiktokWebhookProcessor.js";
+import { LinkedInWebhookProcessor } from "./processors/linkedinWebhookProcessor.js";
+import { SnapchatWebhookProcessor } from "./processors/snapchatWebhookProcessor.js";
+import { TelegramWebhookProcessor } from "./processors/telegramWebhookProcessor.js";
 import type {
   WebhookEventInput,
   WebhookProcessingResult,
@@ -46,6 +49,9 @@ export class UniversalWebhookHandler {
     this.processors.set("X", new XWebhookProcessor(this.broadcaster));
     this.processors.set("YOUTUBE", new YouTubeWebhookProcessor(this.broadcaster));
     this.processors.set("TIKTOK", new TikTokWebhookProcessor(this.broadcaster));
+    this.processors.set("LINKEDIN", new LinkedInWebhookProcessor(this.broadcaster));
+    this.processors.set("SNAPCHAT", new SnapchatWebhookProcessor(this.broadcaster));
+    this.processors.set("TELEGRAM", new TelegramWebhookProcessor(this.broadcaster));
   }
 
   async handleWebhook(
@@ -177,6 +183,12 @@ export class UniversalWebhookHandler {
         return (
           payload.event?.content?.video_id ||
           payload.timestamp ||
+          createHash("md5").update(JSON.stringify(payload)).digest("hex")
+        );
+
+      case "TELEGRAM":
+        return (
+          String(payload.update_id) ||
           createHash("md5").update(JSON.stringify(payload)).digest("hex")
         );
 

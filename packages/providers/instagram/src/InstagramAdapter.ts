@@ -1,8 +1,9 @@
 /**
- * Instagram Provider Adapter - Class-based implementation
- *
- * Extends AbstractProviderAdapter to provide Instagram-specific functionality
- * for publishing posts, carousels, and fetching analytics.
+ * @file InstagramAdapter.ts
+ * @description Instagram provider adapter. Extends AbstractProviderAdapter to
+ *              publish posts, carousels, stories, reels, and handle comments.
+ *              Content helpers extracted to contentHelpers.ts for maintainability.
+ * @layer infrastructure
  */
 
 import {
@@ -10,7 +11,14 @@ import {
   type ProviderMetadata,
   type ProviderConstraints,
 } from "@providers/shared";
-import type { ProviderId, ProviderLimits, PublishInput, PublishReceipt } from "@ports/core";
+import type {
+  ProviderId,
+  ProviderLimits,
+  PublishInput,
+  PublishReceipt,
+  ProviderComment,
+  ProviderReplyResult,
+} from "@ports/core";
 import type {
   CanonicalPost,
   RenderedPost,
@@ -26,217 +34,25 @@ import type {
 import { ok, err, AppError } from "@shared/types";
 import { InstagramApiClient, type InstagramCredentials } from "./apiClient.js";
 import { InstagramMediaProcessor } from "./mediaProcessor.js";
-
-// ============================================================
-// Content Type Detection
-// ============================================================
-
-type InstagramContentType = "STORY" | "REEL" | "CAROUSEL" | "FEED";
+import {
+  detectContentType,
+  shouldCreateCarousel,
+  optimizeInstagramContent,
+  optimizeHashtags,
+  planCarousel,
+} from "./contentHelpers.js";
 
 /**
- * Detect Instagram content type based on rendered post metadata and media
+ * @function waitForContainer
+ * @description Polls Instagram container status until FINISHED or ERROR.
  */
-function detectContentType(post: RenderedPost): InstagramContentType {
-  // No media means it's not valid for Instagram (all posts require media)
-  if (!post.media || post.media.length === 0) {
-    return "FEED"; // Will fail validation later
-  }
-
-  // Multiple media items = Carousel
-  if (post.media.length > 1) {
-    return "CAROUSEL";
-  }
-
-  const media = post.media[0];
-  if (!media) return "FEED";
-
-  // RenderedPost media items don't have w, h, durationMs
-  // So we rely on metadata if available
-  const _mediaType = media.type;
-
-  // For now, default to FEED for single media items
-  // In production, you would inspect metadata or use external service to determine content type
-  // This can be enhanced by adding meta fields to RenderedPost
-
-  // Default to feed post
-  return "FEED";
-}
-
-// ============================================================
-// Helper Functions
-// ============================================================
-
-function shouldCreateCarousel(canonical: CanonicalPost): boolean {
-  // Create carousel if:
-  // 1. Multiple media items, OR
-  // 2. Long content that would benefit from splitting, OR
-  // 3. Content has clear sections that could be separate slides
-
-  if (canonical.media && canonical.media.length > 1) {
-    return true;
-  }
-
-  // Check if content is long enough to benefit from carousel
-  if (canonical.body.length > 800) {
-    return true;
-  }
-
-  // Check for natural break points (could indicate slide boundaries)
-  const breakPoints = canonical.body.match(/\n\n|\. [A-Z]|[0-9]+\./g);
-  if (breakPoints && breakPoints.length >= 2) {
-    return true;
-  }
-
-  return false;
-}
-
-function optimizeInstagramContent(content: string): string {
-  // Remove X-specific formatting that doesn't work well on Instagram
-  let optimized = content
-    .replace(/^[0-9]+\/[0-9]+\s*/, "") // Remove thread numbering
-    .replace(/🧵\s*/, "") // Remove thread emoji
-    .trim();
-
-  // Instagram prefers more descriptive, engaging content
-  // Convert X-style brevity to Instagram-style storytelling
-  optimized = optimized.replace(/\.$/, ""); // Remove trailing periods for more casual tone
-
-  return optimized;
-}
-
-function optimizeHashtags(content: string): string {
-  // Extract existing hashtags
-  const existingHashtags = content.match(/#\w+/g) || [];
-
-  // Instagram allows up to 30 hashtags, but 5-10 is recommended for best engagement
-  const maxHashtags = 10;
-
-  // Filter and optimize hashtags
-  const optimizedHashtags = existingHashtags
-    .slice(0, maxHashtags)
-    .map((tag) => tag.toLowerCase()) // Instagram hashtags are case-insensitive
-    .filter((tag, index, array) => array.indexOf(tag) === index); // Remove duplicates
-
-  return optimizedHashtags.join(" ");
-}
-
-function splitContentForCarousel(content: string): string[] {
-  const chunks: string[] = [];
-  const maxChunkLength = 800; // Leave room for hashtags
-
-  // Try to split on natural boundaries
-  const paragraphs = content.split(/\n\n+/);
-  let currentChunk = "";
-
-  for (const paragraph of paragraphs) {
-    if ((currentChunk + paragraph).length <= maxChunkLength) {
-      currentChunk += (currentChunk ? "\n\n" : "") + paragraph;
-    } else {
-      if (currentChunk) {
-        chunks.push(currentChunk.trim());
-      }
-
-      // If single paragraph is too long, split it
-      if (paragraph.length > maxChunkLength) {
-        const sentences = paragraph.split(/\. /);
-        let sentenceChunk = "";
-
-        for (const sentence of sentences) {
-          if ((sentenceChunk + sentence).length <= maxChunkLength) {
-            sentenceChunk += (sentenceChunk ? ". " : "") + sentence;
-          } else {
-            if (sentenceChunk) {
-              chunks.push(sentenceChunk.trim());
-            }
-            sentenceChunk = sentence;
-          }
-        }
-
-        if (sentenceChunk) {
-          currentChunk = sentenceChunk;
-        } else {
-          currentChunk = "";
-        }
-      } else {
-        currentChunk = paragraph;
-      }
-    }
-  }
-
-  if (currentChunk) {
-    chunks.push(currentChunk.trim());
-  }
-
-  return chunks.length > 0 ? chunks : [content];
-}
-
-function planCarousel(
-  canonical: CanonicalPost,
-  limits: ProviderLimits
-): Result<ThreadPlan, ThreadError> {
-  const slides: ThreadPlan["tweets"] = [];
-
-  // If we have multiple media items, create one slide per media
-  if (canonical.media && canonical.media.length > 1) {
-    canonical.media.forEach((media, index) => {
-      const slideContent =
-        index === 0 ? optimizeInstagramContent(canonical.body) : `Slide ${index + 1}`;
-
-      slides.push({
-        sequence: index + 1,
-        text: slideContent,
-        media: [media],
-        estimatedChars: slideContent.length,
-      });
-    });
-  } else {
-    // Split long content into multiple slides
-    const contentChunks = splitContentForCarousel(canonical.body);
-
-    contentChunks.forEach((chunk, index) => {
-      const optimizedChunk = optimizeInstagramContent(chunk);
-
-      slides.push({
-        sequence: index + 1,
-        text: optimizedChunk,
-        estimatedChars: optimizedChunk.length,
-        ...(index === 0 && canonical.media ? { media: canonical.media } : {}),
-      });
-    });
-  }
-
-  // Add hashtags to the last slide
-  if (slides.length > 0) {
-    const lastSlide = slides[slides.length - 1];
-    const hashtags = optimizeHashtags(canonical.body);
-
-    if (hashtags && lastSlide) {
-      lastSlide.text = `${lastSlide.text}\n\n${hashtags}`.trim();
-      lastSlide.estimatedChars = lastSlide.text.length;
-    }
-  }
-
-  // Validate carousel constraints
-  if (limits.maxPostsPerThread && slides.length > limits.maxPostsPerThread) {
-    return err("CONTENT_TOO_LONG");
-  }
-
-  return ok({
-    needsThreading: true,
-    tweets: slides,
-    totalChars: slides.reduce((sum, slide) => sum + slide.estimatedChars, 0),
-    estimatedReach: 0, // Future: query Instagram Insights API for real reach estimates
-    strategy: "AUTO",
-  });
-}
-
 async function waitForContainer(
   apiClient: InstagramApiClient,
   containerId: string,
-  timeout = 60000 // Default 60 seconds
+  timeout = 60000
 ): Promise<void> {
-  const maxAttempts = Math.floor(timeout / 1000); // 1 second between checks
-  const delay = 1000; // 1 second between checks
+  const maxAttempts = Math.floor(timeout / 1000);
+  const delay = 1000;
 
   for (let i = 0; i < maxAttempts; i++) {
     const status = await apiClient.getContainerStatus(containerId);
@@ -700,6 +516,101 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
       });
     } catch (error: unknown) {
       this.logError("fetchAnalytics", error, { channelId: q.channelId });
+      return err("NETWORK");
+    }
+  }
+  // ----------------------------------------------------------
+  // Social Inbox: getComments & postReply
+  // ----------------------------------------------------------
+
+  /**
+   * @method getComments
+   * @description Fetches comments on an Instagram media post via GET /{media-id}/comments.
+   *              Includes threaded replies via field expansion.
+   */
+  async getComments(params: {
+    channelCredentials: unknown;
+    postExternalId?: string;
+    since?: Date;
+    cursor?: string;
+    limit?: number;
+  }): Promise<Result<{ comments: ProviderComment[]; nextCursor?: string }, "AUTH" | "NETWORK">> {
+    if (!params.postExternalId) {
+      return ok({ comments: [] });
+    }
+
+    try {
+      const credentials = params.channelCredentials as InstagramCredentials;
+      const apiClient = this.createApiClient(credentials);
+
+      const result = await apiClient.getMediaComments(
+        params.postExternalId,
+        params.limit || 50,
+        params.cursor
+      );
+
+      const comments: ProviderComment[] = [];
+
+      for (const c of result.data) {
+        comments.push({
+          providerMessageId: c.id,
+          authorName: c.username,
+          authorProviderId: c.username,
+          body: c.text,
+          createdAt: new Date(c.timestamp),
+        });
+
+        // Include threaded replies
+        if (c.replies?.data) {
+          for (const reply of c.replies.data) {
+            comments.push({
+              providerMessageId: reply.id,
+              providerParentId: c.id,
+              authorName: reply.username,
+              authorProviderId: reply.username,
+              body: reply.text,
+              createdAt: new Date(reply.timestamp),
+            });
+          }
+        }
+      }
+
+      return ok({
+        comments,
+        ...(result.paging?.cursors?.after ? { nextCursor: result.paging.cursors.after } : {}),
+      });
+    } catch (error: unknown) {
+      this.logError("getComments", error);
+      return err("NETWORK");
+    }
+  }
+
+  /**
+   * @method postReply
+   * @description Posts a reply to a comment via POST /{comment-id}/replies.
+   */
+  async postReply(params: {
+    channelCredentials: unknown;
+    inReplyToProviderMessageId: string;
+    body: string;
+  }): Promise<Result<ProviderReplyResult, "AUTH" | "NETWORK" | "RATE_LIMIT">> {
+    try {
+      const credentials = params.channelCredentials as InstagramCredentials;
+      const apiClient = this.createApiClient(credentials);
+
+      const result = await apiClient.replyToComment(params.inReplyToProviderMessageId, params.body);
+
+      return ok({
+        providerReplyId: result.id,
+        createdAt: new Date(),
+      });
+    } catch (error: unknown) {
+      this.logError("postReply", error);
+
+      if (error instanceof Error && error.message?.includes("429")) {
+        return err("RATE_LIMIT");
+      }
+
       return err("NETWORK");
     }
   }

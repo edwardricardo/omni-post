@@ -17,6 +17,10 @@ export const PROVIDERS = {
   FACEBOOK: "FACEBOOK",
   YOUTUBE: "YOUTUBE",
   TIKTOK: "TIKTOK",
+  LINKEDIN: "LINKEDIN",
+  TELEGRAM: "TELEGRAM",
+  SNAPCHAT: "SNAPCHAT",
+  PINTEREST: "PINTEREST",
 } as const;
 
 export type ProviderType = (typeof PROVIDERS)[keyof typeof PROVIDERS];
@@ -131,6 +135,74 @@ const PROVIDER_CAPABILITIES: Record<ProviderType, ProviderCapabilities> = {
     maxImages: 35,
     maxVideoDurationSeconds: 600, // 10 minutes
   },
+  [PROVIDERS.LINKEDIN]: {
+    supportsImages: true,
+    supportsVideos: true,
+    supportsGifs: false,
+    supportsThreads: false,
+    supportsStories: false,
+    supportsReels: false,
+    supportsScheduling: false,
+    supportsCarousel: true, // Multi-image posts
+    supportsHashtags: true,
+    supportsMentions: true,
+    supportsLinks: true,
+    supportsPolls: true,
+    maxCharacters: 3000,
+    maxImages: 20,
+    maxVideoDurationSeconds: 600, // 10 minutes
+  },
+  [PROVIDERS.TELEGRAM]: {
+    supportsImages: true,
+    supportsVideos: true,
+    supportsGifs: true,
+    supportsThreads: false,
+    supportsStories: false,
+    supportsReels: false,
+    supportsScheduling: false,
+    supportsCarousel: true, // Media groups
+    supportsHashtags: true,
+    supportsMentions: true,
+    supportsLinks: true,
+    supportsPolls: true,
+    maxCharacters: 4096,
+    maxImages: 10,
+    maxVideoDurationSeconds: 0, // No limit
+  },
+  [PROVIDERS.SNAPCHAT]: {
+    supportsImages: true,
+    supportsVideos: true,
+    supportsGifs: false,
+    supportsThreads: false,
+    supportsStories: true,
+    supportsReels: false,
+    supportsScheduling: false,
+    supportsCarousel: false,
+    supportsHashtags: false,
+    supportsMentions: false,
+    supportsLinks: false,
+    supportsPolls: false,
+    maxCharacters: 250,
+    maxImages: 1,
+    maxVideoDurationSeconds: 60,
+  },
+  [PROVIDERS.PINTEREST]: {
+    supportsImages: true,
+    supportsVideos: true,
+    supportsGifs: true,
+    supportsThreads: false,
+    supportsStories: false,
+    supportsReels: false,
+    supportsScheduling: false,
+    supportsCarousel: false, // Idea Pins deprecated
+    supportsHashtags: true,
+    supportsMentions: false,
+    supportsLinks: true,
+    supportsPolls: false,
+    maxCharacters: 500, // Pin description limit
+    maxImages: 1,
+    maxVideoDurationSeconds: 900, // 15 minutes
+  },
 };
 
 /**
@@ -142,6 +214,10 @@ const PROVIDER_DISPLAY: Record<ProviderType, { name: string; icon: string; color
   [PROVIDERS.FACEBOOK]: { name: "Facebook", icon: "facebook", color: "#1877F2" },
   [PROVIDERS.YOUTUBE]: { name: "YouTube", icon: "youtube", color: "#FF0000" },
   [PROVIDERS.TIKTOK]: { name: "TikTok", icon: "tiktok", color: "#000000" },
+  [PROVIDERS.LINKEDIN]: { name: "LinkedIn", icon: "linkedin", color: "#0A66C2" },
+  [PROVIDERS.TELEGRAM]: { name: "Telegram", icon: "telegram", color: "#26A5E4" },
+  [PROVIDERS.SNAPCHAT]: { name: "Snapchat", icon: "snapchat", color: "#FFFC00" },
+  [PROVIDERS.PINTEREST]: { name: "Pinterest", icon: "pinterest", color: "#E60023" },
 };
 
 /**
@@ -198,6 +274,22 @@ export class Provider {
 
   static tiktok(): Provider {
     return new Provider(PROVIDERS.TIKTOK);
+  }
+
+  static linkedin(): Provider {
+    return new Provider(PROVIDERS.LINKEDIN);
+  }
+
+  static telegram(): Provider {
+    return new Provider(PROVIDERS.TELEGRAM);
+  }
+
+  static snapchat(): Provider {
+    return new Provider(PROVIDERS.SNAPCHAT);
+  }
+
+  static pinterest(): Provider {
+    return new Provider(PROVIDERS.PINTEREST);
   }
 
   /**
@@ -314,6 +406,22 @@ export class Provider {
 
   isTikTok(): boolean {
     return this._type === PROVIDERS.TIKTOK;
+  }
+
+  isLinkedIn(): boolean {
+    return this._type === PROVIDERS.LINKEDIN;
+  }
+
+  isTelegram(): boolean {
+    return this._type === PROVIDERS.TELEGRAM;
+  }
+
+  isSnapchat(): boolean {
+    return this._type === PROVIDERS.SNAPCHAT;
+  }
+
+  isPinterest(): boolean {
+    return this._type === PROVIDERS.PINTEREST;
   }
 
   /**

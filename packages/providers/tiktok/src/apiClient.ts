@@ -366,7 +366,7 @@ export class TikTokApiClient {
 
       return {
         videos:
-          data.videos?.map((video: any) => ({
+          data.videos?.map((video: Record<string, unknown>) => ({
             id: video.id,
             title: video.title || video.video_description || "",
             videoUrl: video.embed_link || "",
@@ -413,7 +413,71 @@ export class TikTokApiClient {
   /**
    * Get circuit breaker status for TikTok API operations
    */
-  getCircuitBreakerStatus(): Record<string, any> {
+  /**
+   * @method publishPhotoPost
+   * @description Creates a photo post (carousel) on TikTok using the Content Posting API.
+   *              Supports up to 35 images per post.
+   * @param params - Photo post configuration (description, imageUrls, privacy)
+   */
+  async publishPhotoPost(params: {
+    description: string;
+    imageUrls: string[];
+    privacy: "PUBLIC_TO_EVERYONE" | "MUTUAL_FOLLOW_FRIENDS" | "FOLLOWER_OF_CREATOR" | "SELF_ONLY";
+    disableComment?: boolean;
+  }): Promise<TikTokUploadResponse> {
+    const apiCall = async (): Promise<TikTokUploadResponse> => {
+      const response = await axios.post(
+        `${TIKTOK_BASE_URL}/post/publish/content/init/`,
+        {
+          post_info: {
+            title: params.description.substring(0, 150),
+            description: params.description,
+            privacy_level: params.privacy,
+            disable_comment: params.disableComment || false,
+          },
+          source_info: {
+            source: "PULL_FROM_URL",
+            photo_cover_index: 0,
+            photo_images: params.imageUrls,
+          },
+          media_type: "PHOTO",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.credentials.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.error?.code) {
+        throw ProviderError.externalService(
+          "tiktok",
+          `TikTok photo post error: ${response.data.error.code} - ${response.data.error.message}`
+        );
+      }
+
+      return {
+        shareId: response.data.data.publish_id,
+        shareUrl: "",
+        uniqueId: response.data.data.publish_id,
+      };
+    };
+
+    return circuitBreaker.call("tiktok-api", "publish-photo-post", apiCall, [], {
+      timeout: 60000,
+      errorThresholdPercentage: 70,
+      resetTimeout: 120000,
+      maxRetries: 2,
+      baseDelay: 3000,
+      maxDelay: 30000,
+      jitterEnabled: true,
+      cacheEnabled: false,
+      fallbackEnabled: false,
+    });
+  }
+
+  getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }
 

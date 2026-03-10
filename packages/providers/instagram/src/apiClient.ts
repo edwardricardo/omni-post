@@ -525,9 +525,67 @@ export class InstagramApiClient {
   }
 
   /**
-   * Get circuit breaker status for Instagram API operations
+   * @method getMediaComments
+   * @description Fetches comments on a media object via GET /{media-id}/comments.
+   *              Requires instagram_manage_comments scope.
+   * @param mediaId - The Instagram media ID
+   * @param limit - Max comments per page (default 50)
+   * @param after - Cursor for pagination
    */
-  getCircuitBreakerStatus(): Record<string, any> {
+  async getMediaComments(
+    mediaId: string,
+    limit: number = 50,
+    after?: string
+  ): Promise<{
+    data: Array<{
+      id: string;
+      text: string;
+      username: string;
+      timestamp: string;
+      replies?: { data: Array<{ id: string; text: string; username: string; timestamp: string }> };
+    }>;
+    paging?: { cursors?: { after?: string }; next?: string };
+  }> {
+    let url =
+      `${this.baseUrl}/${mediaId}/comments` +
+      `?fields=id,text,username,timestamp,replies{id,text,username,timestamp}` +
+      `&limit=${Math.min(limit, 50)}` +
+      `&access_token=${this.credentials.accessToken}`;
+
+    if (after) {
+      url += `&after=${encodeURIComponent(after)}`;
+    }
+
+    return this.makeRequest("get-media-comments", url, { method: "GET" });
+  }
+
+  /**
+   * @method replyToComment
+   * @description Posts a reply to a comment via POST /{comment-id}/replies.
+   *              Requires instagram_manage_comments scope.
+   * @param commentId - The comment ID to reply to
+   * @param message - The reply text
+   */
+  async replyToComment(commentId: string, message: string): Promise<{ id: string }> {
+    const url = `${this.baseUrl}/${commentId}/replies`;
+
+    const body = {
+      message,
+      access_token: this.credentials.accessToken,
+    };
+
+    return this.makeRequest<{ id: string }>("reply-to-comment", url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(body).toString(),
+    });
+  }
+
+  /**
+   * @method getCircuitBreakerStatus
+   * @description Returns the current state of all Instagram API circuit breakers.
+   */
+  getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }
 

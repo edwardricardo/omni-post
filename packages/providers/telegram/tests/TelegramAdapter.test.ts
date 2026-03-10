@@ -176,7 +176,7 @@ describe("TelegramAdapter - getProviderInfo / metadata", { concurrency: 1 }, () 
   it("reports correct capabilities", () => {
     assert.strictEqual(adapter.capabilities.publish, true);
     assert.strictEqual(adapter.capabilities.schedule, false);
-    assert.strictEqual(adapter.capabilities.analytics, false);
+    assert.strictEqual(adapter.capabilities.analytics, true);
     assert.strictEqual(adapter.capabilities.threading, false);
     assert.strictEqual(adapter.capabilities.media, true);
   });

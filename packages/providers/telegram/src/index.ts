@@ -10,7 +10,13 @@
 export { TelegramAdapter, telegramAdapter } from "./TelegramAdapter.js";
 
 // Export API client types
-export type { TelegramCredentials } from "./apiClient.js";
+export type {
+  TelegramCredentials,
+  TelegramMessageResponse,
+  TelegramInlineKeyboard,
+  TelegramPollConfig,
+  TelegramAudioConfig,
+} from "./apiClient.js";
 export { TelegramApiClient } from "./apiClient.js";
 
 // Default export

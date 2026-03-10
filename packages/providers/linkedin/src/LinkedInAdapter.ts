@@ -32,8 +32,8 @@ import type {
 } from "@shared/types";
 import { ok, err } from "@shared/types";
 import { LinkedInApiClient } from "./apiClient.js";
-import type { LinkedInCredentials, LinkedInPostPayload } from "./types.js";
-import { uploadAndAttachMedia } from "./mediaUpload.js";
+import type { LinkedInCredentials, LinkedInPostPayload, LinkedInPollDuration } from "./types.js";
+import { uploadAndAttachMedia, uploadDocument } from "./mediaUpload.js";
 
 /**
  * LinkedIn Provider Adapter
@@ -115,7 +115,7 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
   /**
    * @method render
    * @description Renders a canonical post into LinkedIn-specific format.
-   *              LinkedIn does not support threading, so all content is a single post.
+   *              Supports text, media, polls, and document posts.
    * @param canonical - The platform-agnostic post content
    * @returns Rendered content ready for publishing
    */
@@ -130,6 +130,18 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
       return err("VALIDATION_ERROR");
     }
 
+    // Detect poll from canonical post tags (convention: tag starting with "poll:")
+    const pollTag = canonical.tags?.find((t) => t.startsWith("poll:"));
+    const meta: Record<string, unknown> = { platform: "linkedin" };
+
+    if (pollTag) {
+      // Parse poll: "poll:duration:question|option1|option2|..."
+      const pollData = this.parsePollTag(pollTag);
+      if (pollData) {
+        meta.poll = pollData;
+      }
+    }
+
     return ok({
       type: "single",
       content: {
@@ -142,7 +154,7 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
               ...(m.alt ? { alt: m.alt } : {}),
             })),
           }),
-        meta: { platform: "linkedin" },
+        meta,
       },
       meta: {},
     });
@@ -196,10 +208,33 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
         isReshareDisabledByAuthor: false,
       };
 
-      if (input.post.media && input.post.media.length > 0) {
-        const mediaContent = await uploadAndAttachMedia(apiClient, authorUrn, input.post.media);
-        if (mediaContent) {
-          payload.content = mediaContent;
+      // Check for poll in rendered meta
+      const pollData = input.post.meta?.poll as
+        | { question: string; options: string[]; duration: LinkedInPollDuration }
+        | undefined;
+
+      if (pollData) {
+        payload.content = {
+          poll: {
+            question: pollData.question,
+            options: pollData.options.map((text) => ({ text })),
+            settings: { duration: pollData.duration },
+          },
+        };
+      } else if (input.post.media && input.post.media.length > 0) {
+        // Check for document media (detect by URL extension)
+        const documentMedia = input.post.media.find((m) => /\.(pdf|pptx?|docx?)$/i.test(m.url));
+
+        if (documentMedia) {
+          const docUrn = await uploadDocument(apiClient, authorUrn, documentMedia.url);
+          if (docUrn) {
+            payload.content = { media: { id: docUrn, title: documentMedia.alt || "Document" } };
+          }
+        } else {
+          const mediaContent = await uploadAndAttachMedia(apiClient, authorUrn, input.post.media);
+          if (mediaContent) {
+            payload.content = mediaContent;
+          }
         }
       }
 
@@ -351,6 +386,40 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
 
       return err("NETWORK");
     }
+  }
+
+  /**
+   * @method parsePollTag
+   * @description Parses a poll tag into structured poll data.
+   *              Format: "poll:DURATION:question|option1|option2|..."
+   */
+  private parsePollTag(
+    tag: string
+  ): { question: string; options: string[]; duration: LinkedInPollDuration } | null {
+    const validDurations: LinkedInPollDuration[] = [
+      "ONE_DAY",
+      "THREE_DAYS",
+      "SEVEN_DAYS",
+      "FOURTEEN_DAYS",
+    ];
+
+    // Strip "poll:" prefix
+    const remainder = tag.slice(5);
+    const colonIndex = remainder.indexOf(":");
+    if (colonIndex === -1) return null;
+
+    const duration = remainder.slice(0, colonIndex) as LinkedInPollDuration;
+    if (!validDurations.includes(duration)) return null;
+
+    const parts = remainder.slice(colonIndex + 1).split("|");
+    const question = parts[0];
+    const options = parts.slice(1);
+
+    if (!question || options.length < 2 || options.length > 4) return null;
+    if (question.length > 140) return null;
+    if (options.some((o) => o.length > 30)) return null;
+
+    return { question, options, duration };
   }
 
   /**

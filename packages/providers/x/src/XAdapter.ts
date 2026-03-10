@@ -23,8 +23,9 @@ import type {
   ThreadError,
 } from "@shared/types";
 import { ok, err, type Err } from "@shared/types";
+import type { ProviderComment, ProviderReplyResult } from "@ports/core";
 import { planThread } from "../../../core/threading/src/threadPlanner.js";
-import { XApiClient, type XCredentials } from "./apiClient.js";
+import { XApiClient, type XCredentials, type XPollOptions } from "./apiClient.js";
 
 /**
  * X/Twitter Provider Adapter
@@ -102,9 +103,15 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
   }
 
   /**
-   * Render canonical post for X/Twitter
+   * @method render
+   * @description Renders canonical post for X/Twitter.
+   *              Detects poll tags (poll:DURATION:question|option1|option2|...)
+   *              and quote tweet references.
    */
   override render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
+    // Detect poll tag
+    const pollConfig = this.parsePollTag(canonical.tags);
+
     // Check if content needs threading
     const threadPlan = planThread(canonical, "AUTO", {
       ...(this.limits.maxChars && { maxCharsPerTweet: this.limits.maxChars }),
@@ -123,7 +130,10 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
       return ok({
         type: "thread",
         content: threadPlan.value,
-        meta: { estimatedReach: threadPlan.value.estimatedReach },
+        meta: {
+          estimatedReach: threadPlan.value.estimatedReach,
+          ...(pollConfig ? { poll: pollConfig } : {}),
+        },
       });
     } else {
       // Single tweet
@@ -131,6 +141,10 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
       if (!singleTweet) {
         return err("THREAD_PLANNING_FAILED");
       }
+
+      // Detect quote tweet reference from tags
+      const quoteTweetId = this.parseQuoteTweetTag(canonical.tags);
+
       return ok({
         type: "single",
         content: {
@@ -143,7 +157,12 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
                 ...(m.alt && { alt: m.alt }),
               })),
             }),
-          meta: { sequence: 1, totalTweets: 1 },
+          meta: {
+            sequence: 1,
+            totalTweets: 1,
+            ...(pollConfig ? { poll: pollConfig } : {}),
+            ...(quoteTweetId ? { quoteTweetId } : {}),
+          },
         },
         meta: {},
       });
@@ -164,10 +183,10 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
   }
 
   /**
-   * Publish single tweet
+   * @method publish
+   * @description Publishes a single tweet. Supports media, polls, and quote tweets.
    */
   override async publish(input: PublishInput): Promise<Result<PublishReceipt, PublishError>> {
-    // Get credentials using base class method
     const credentials = await this.getCredentials(input.channelId);
     if (!credentials.ok) {
       return err("AUTH");
@@ -185,8 +204,18 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
         }
       }
 
-      // Post tweet with circuit breaker protection
-      const result = await apiClient.postTweet(input.post.body, mediaIds);
+      // Extract poll and quote tweet from meta
+      const meta = (input.post.meta || {}) as Record<string, unknown>;
+      const pollConfig = meta.poll as XPollOptions | undefined;
+      const quoteTweetId = typeof meta.quoteTweetId === "string" ? meta.quoteTweetId : undefined;
+
+      const result = await apiClient.postTweet(
+        input.post.body,
+        mediaIds,
+        undefined,
+        pollConfig,
+        quoteTweetId
+      );
 
       return ok({
         providerPostId: result.data.id,
@@ -196,7 +225,6 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
     } catch (error: unknown) {
       this.logError("publish", error, { channelId: input.channelId });
 
-      // Handle circuit breaker specific error
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
         return err("NETWORK");
       }
@@ -270,8 +298,8 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
         publishedTweets.length > 0 &&
         error instanceof Error &&
         "status" in error &&
-        (error as any).status >= 400 &&
-        (error as any).status < 500
+        (error as Error & { status: number }).status >= 400 &&
+        (error as Error & { status: number }).status < 500
       ) {
         return err("THREAD_INTERRUPTED");
       }
@@ -355,6 +383,153 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
 
       return err("NETWORK");
     }
+  }
+
+  // ----------------------------------------------------------
+  // Social Inbox: getComments & postReply
+  // ----------------------------------------------------------
+
+  /**
+   * @method getComments
+   * @description Fetches replies to a tweet via conversation_id search.
+   *              Requires X API Basic tier ($100/mo) or higher.
+   * @param params - Query parameters including channelCredentials and postExternalId
+   */
+  async getComments(params: {
+    channelCredentials: unknown;
+    postExternalId?: string;
+    since?: Date;
+    cursor?: string;
+    limit?: number;
+  }): Promise<Result<{ comments: ProviderComment[]; nextCursor?: string }, "AUTH" | "NETWORK">> {
+    if (!params.postExternalId) {
+      return ok({ comments: [] });
+    }
+
+    try {
+      const credentials = params.channelCredentials as XCredentials;
+      const apiClient = this.createApiClient(credentials);
+
+      const result = await apiClient.searchReplies(
+        params.postExternalId,
+        params.limit || 20,
+        params.cursor
+      );
+
+      const comments: ProviderComment[] = result.data.map((tweet) => ({
+        providerMessageId: tweet.id,
+        authorName: tweet.author_id || "unknown",
+        authorProviderId: tweet.author_id || "unknown",
+        body: tweet.text,
+        createdAt: tweet.created_at ? new Date(tweet.created_at) : new Date(),
+        ...(tweet.in_reply_to_user_id ? { providerParentId: tweet.in_reply_to_user_id } : {}),
+      }));
+
+      return ok({
+        comments,
+        ...(result.meta?.next_token ? { nextCursor: result.meta.next_token } : {}),
+      });
+    } catch (error: unknown) {
+      this.logError("getComments", error);
+
+      if (
+        error instanceof Error &&
+        (error.message?.includes("401") || error.message?.includes("403"))
+      ) {
+        return err("AUTH");
+      }
+
+      return err("NETWORK");
+    }
+  }
+
+  /**
+   * @method postReply
+   * @description Posts a reply to a tweet using the existing postTweet method
+   *              with replyToTweetId parameter.
+   * @param params - Reply parameters including credentials, tweet ID, and body
+   */
+  async postReply(params: {
+    channelCredentials: unknown;
+    inReplyToProviderMessageId: string;
+    body: string;
+  }): Promise<Result<ProviderReplyResult, "AUTH" | "NETWORK" | "RATE_LIMIT">> {
+    try {
+      const credentials = params.channelCredentials as XCredentials;
+      const apiClient = this.createApiClient(credentials);
+
+      const result = await apiClient.postTweet(params.body, [], params.inReplyToProviderMessageId);
+
+      return ok({
+        providerReplyId: result.data.id,
+        createdAt: new Date(result.data.created_at || new Date().toISOString()),
+      });
+    } catch (error: unknown) {
+      this.logError("postReply", error);
+
+      if (error instanceof Error && error.message?.includes("429")) {
+        return err("RATE_LIMIT");
+      }
+
+      if (
+        error instanceof Error &&
+        (error.message?.includes("401") || error.message?.includes("403"))
+      ) {
+        return err("AUTH");
+      }
+
+      return err("NETWORK");
+    }
+  }
+
+  // ----------------------------------------------------------
+  // Private helpers
+  // ----------------------------------------------------------
+
+  /**
+   * @method parsePollTag
+   * @description Parses poll configuration from canonical post tags.
+   *              Format: "poll:DURATION_MINUTES:question|option1|option2|..."
+   */
+  private parsePollTag(tags?: string[]): XPollOptions | undefined {
+    if (!tags) return undefined;
+
+    const pollTag = tags.find((t) => t.startsWith("poll:"));
+    if (!pollTag) return undefined;
+
+    const parts = pollTag.split(":");
+    if (parts.length < 3) return undefined;
+
+    const durationStr = parts[1];
+    const questionAndOptions = parts.slice(2).join(":");
+    const segments = questionAndOptions.split("|");
+
+    if (!durationStr || segments.length < 3) return undefined; // question + at least 2 options
+
+    const durationMinutes = parseInt(durationStr, 10);
+    if (isNaN(durationMinutes) || durationMinutes < 5 || durationMinutes > 10080) {
+      return undefined; // X polls: 5 minutes to 7 days
+    }
+
+    const options = segments.slice(1).filter((o) => o.trim().length > 0);
+    if (options.length < 2 || options.length > 4) return undefined;
+
+    return { options, durationMinutes };
+  }
+
+  /**
+   * @method parseQuoteTweetTag
+   * @description Extracts quote tweet ID from canonical post tags.
+   *              Format: "quote:TWEET_ID"
+   */
+  private parseQuoteTweetTag(tags?: string[]): string | undefined {
+    if (!tags) return undefined;
+
+    const quoteTag = tags.find((t) => t.startsWith("quote:"));
+    if (!quoteTag) return undefined;
+
+    const tweetId = quoteTag.slice("quote:".length);
+    return tweetId.length > 0 ? tweetId : undefined;
   }
 }
 
