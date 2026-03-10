@@ -5,29 +5,19 @@
  */
 
 import { xAdapter as xAdapterInstance } from "./XAdapter.js";
-import { ok } from "@shared/types";
 
 // Export class and instance
 export { XAdapter, xAdapter } from "./XAdapter.js";
 
 /**
- * Fetch X/Twitter analytics
- * Uses the XAdapter class instance
+ * Fetch X/Twitter analytics via API v2 public_metrics
  */
 export async function fetchXAnalytics(channelId: string, since?: Date, until?: Date) {
-  return (
-    xAdapterInstance.fetchAnalytics?.({
-      channelId,
-      ...(since && { since }),
-      ...(until && { until }),
-    }) ||
-    ok({
-      channelId,
-      since,
-      until,
-      metrics: { views: 0, likes: 0, shares: 0, comments: 0 },
-    })
-  );
+  return xAdapterInstance.fetchAnalytics({
+    channelId,
+    ...(since && { since }),
+    ...(until && { until }),
+  });
 }
 
 // Default export

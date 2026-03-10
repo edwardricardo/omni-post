@@ -52,7 +52,7 @@ export class PinterestAdapter extends AbstractProviderAdapter<PinterestCredentia
     displayName: "Pinterest",
     description: "Create and share image and video pins on Pinterest boards",
     icon: "/providers/pinterest-icon.svg",
-    color: "#E60023",
+    color: "#BD081C",
     website: "https://pinterest.com",
     authType: "oauth",
     requiredScopes: [

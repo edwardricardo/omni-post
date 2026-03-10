@@ -442,9 +442,6 @@ export class ProviderCapabilityManager {
       tiktok: 3000,
       linkedin: 800,
       pinterest: 600,
-      reddit: 400,
-      discord: 200,
-      twitch: 1200,
       snapchat: 900,
       telegram: 700,
     };

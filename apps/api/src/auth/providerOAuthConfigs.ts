@@ -10,12 +10,13 @@
  *   - facebook      -- Facebook Graph API v18.0
  *   - youtube       -- Google OAuth 2.0 / YouTube Data API v3
  *   - tiktok        -- TikTok Login Kit
+ *   - linkedin      -- LinkedIn OAuth 2.0 (Posts API)
+ *   - pinterest     -- Pinterest OAuth 2.0 (API v5)
+ *   - snapchat      -- Snapchat OAuth 2.0 (Public Profile API)
  *
- * Planned providers (not yet implemented):
- *   - linkedin, pinterest, reddit, discord, twitch, snapchat
- *   These entries exist so the ProviderId union is satisfied at the type
- *   level, but calling validateCode() on them throws a typed AppError
- *   with ErrorCode.CONFIGURATION_ERROR (HTTP 500).
+ * Non-OAuth provider:
+ *   - telegram      -- Uses Bot API token, not OAuth. Stub entry satisfies
+ *                      Record<ProviderId, OAuthProvider> type contract.
  *
  * @module auth/providerOAuthConfigs
  */
@@ -79,7 +80,8 @@ function createUnimplementedProvider(id: ProviderId): OAuthProvider {
     config: { ...EMPTY_OAUTH_CONFIG },
     async validateCode(): Promise<never> {
       throw AppError.configuration(
-        `OAuth provider "${id}" is not yet implemented. Active providers: x, instagram, facebook, youtube, tiktok.`,
+        `Provider "${id}" does not use OAuth. ` +
+          `Telegram uses Bot API token authentication — configure credentials via the provider settings page.`,
         { provider: id }
       );
     },
@@ -401,15 +403,189 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   },
 
   // -----------------------------------------------------------------
-  // Planned providers -- OAuth integration not yet implemented.
-  // Each entry satisfies the Record<ProviderId, OAuthProvider> type
-  // contract while throwing a typed AppError if invoked at runtime.
+  // LinkedIn — OAuth 2.0 Authorization Code Flow (Posts API)
   // -----------------------------------------------------------------
-  linkedin: createUnimplementedProvider("linkedin"),
-  pinterest: createUnimplementedProvider("pinterest"),
-  reddit: createUnimplementedProvider("reddit"),
-  discord: createUnimplementedProvider("discord"),
-  twitch: createUnimplementedProvider("twitch"),
-  snapchat: createUnimplementedProvider("snapchat"),
+  linkedin: {
+    id: "linkedin",
+    config: {
+      clientId: process.env.LINKEDIN_CLIENT_ID || "",
+      clientSecret: process.env.LINKEDIN_CLIENT_SECRET || "",
+      redirectUri:
+        process.env.LINKEDIN_REDIRECT_URI || "http://localhost:3000/auth/callback/linkedin",
+      scopes: ["openid", "profile", "w_member_social"],
+      authUrl: "https://www.linkedin.com/oauth/v2/authorization",
+      tokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
+    },
+    async validateCode(code: string, _state: string) {
+      const config = this.config;
+      const tokenResponse = await fetch(config.tokenUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          client_id: config.clientId,
+          client_secret: config.clientSecret,
+          redirect_uri: config.redirectUri,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        throw new Error(`token_exchange_failure: ${errorText}`);
+      }
+
+      const tokens = await tokenResponse.json();
+
+      const userResponse = await fetch("https://api.linkedin.com/v2/userinfo", {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+
+      if (!userResponse.ok) {
+        throw new Error(`user_info_fetch_failure: Failed to fetch LinkedIn user info`);
+      }
+
+      const userInfo = await userResponse.json();
+
+      return {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresIn: tokens.expires_in,
+        accountInfo: {
+          id: userInfo.sub,
+          name: userInfo.name,
+          username: userInfo.email,
+          profileImage: userInfo.picture,
+        },
+      };
+    },
+  },
+
+  // -----------------------------------------------------------------
+  // Pinterest — OAuth 2.0 Authorization Code Flow (API v5)
+  // -----------------------------------------------------------------
+  pinterest: {
+    id: "pinterest",
+    config: {
+      clientId: process.env.PINTEREST_CLIENT_ID || "",
+      clientSecret: process.env.PINTEREST_CLIENT_SECRET || "",
+      redirectUri:
+        process.env.PINTEREST_REDIRECT_URI || "http://localhost:3000/auth/callback/pinterest",
+      scopes: ["boards:read", "boards:write", "pins:read", "pins:write"],
+      authUrl: "https://www.pinterest.com/oauth/",
+      tokenUrl: "https://api.pinterest.com/v5/oauth/token",
+    },
+    async validateCode(code: string, _state: string) {
+      const config = this.config;
+      const tokenResponse = await fetch(config.tokenUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          redirect_uri: config.redirectUri,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        throw new Error(`token_exchange_failure: ${errorText}`);
+      }
+
+      const tokens = await tokenResponse.json();
+
+      const userResponse = await fetch("https://api.pinterest.com/v5/user_account", {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+
+      if (!userResponse.ok) {
+        throw new Error(`user_info_fetch_failure: Failed to fetch Pinterest user info`);
+      }
+
+      const userInfo = await userResponse.json();
+
+      return {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresIn: tokens.expires_in,
+        accountInfo: {
+          id: userInfo.username,
+          name: userInfo.business_name || userInfo.username,
+          username: userInfo.username,
+          profileImage: userInfo.profile_image,
+        },
+      };
+    },
+  },
+
+  // -----------------------------------------------------------------
+  // Snapchat — OAuth 2.0 Authorization Code Flow (Public Profile API)
+  // -----------------------------------------------------------------
+  snapchat: {
+    id: "snapchat",
+    config: {
+      clientId: process.env.SNAPCHAT_CLIENT_ID || "",
+      clientSecret: process.env.SNAPCHAT_CLIENT_SECRET || "",
+      redirectUri:
+        process.env.SNAPCHAT_REDIRECT_URI || "http://localhost:3000/auth/callback/snapchat",
+      scopes: ["snapchat-marketing-api"],
+      authUrl: "https://accounts.snapchat.com/login/oauth2/authorize",
+      tokenUrl: "https://accounts.snapchat.com/login/oauth2/access_token",
+    },
+    async validateCode(code: string, _state: string) {
+      const config = this.config;
+      const tokenResponse = await fetch(config.tokenUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          redirect_uri: config.redirectUri,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        throw new Error(`token_exchange_failure: ${errorText}`);
+      }
+
+      const tokens = await tokenResponse.json();
+
+      const userResponse = await fetch("https://adsapi.snapchat.com/v1/me", {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+
+      if (!userResponse.ok) {
+        throw new Error(`user_info_fetch_failure: Failed to fetch Snapchat user info`);
+      }
+
+      const userInfo = await userResponse.json();
+      const me = userInfo.me;
+
+      return {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresIn: tokens.expires_in,
+        accountInfo: {
+          id: me.id,
+          name: me.display_name,
+          username: me.email,
+        },
+      };
+    },
+  },
+
+  // -----------------------------------------------------------------
+  // Telegram — Uses Bot API token (not OAuth). This stub exists to
+  // satisfy the Record<ProviderId, OAuthProvider> type contract.
+  // Telegram authentication is handled via TelegramAdapter.validateCredentials()
+  // which validates the bot token by calling the getMe endpoint.
+  // -----------------------------------------------------------------
   telegram: createUnimplementedProvider("telegram"),
 };

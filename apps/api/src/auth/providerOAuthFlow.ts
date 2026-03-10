@@ -34,9 +34,6 @@ const ProviderIdSchema = z.enum([
   "tiktok",
   "linkedin",
   "pinterest",
-  "reddit",
-  "discord",
-  "twitch",
   "snapchat",
 ]);
 

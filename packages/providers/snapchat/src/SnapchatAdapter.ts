@@ -47,7 +47,7 @@ export class SnapchatAdapter extends AbstractProviderAdapter<SnapchatCredentials
     website: "https://www.snapchat.com",
     authType: "oauth",
     requiredScopes: ["snapchat-marketing-api", "snapchat-profile-api"],
-    status: "beta",
+    status: "active",
   };
 
   readonly constraints: ProviderConstraints = {

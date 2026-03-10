@@ -14,10 +14,7 @@ export type ProviderId =
   | "linkedin"
   | "pinterest"
   | "snapchat"
-  | "telegram"
-  | "reddit"
-  | "discord"
-  | "twitch";
+  | "telegram";
 
 export interface ProviderCapabilities {
   publish: boolean;
