@@ -184,7 +184,16 @@ export type PublishError =
 // Provider and analytics types used across the platform
 
 /** Provider names matching the Prisma Provider enum */
-export type ProviderName = "X" | "INSTAGRAM" | "FACEBOOK" | "YOUTUBE" | "TIKTOK";
+export type ProviderName =
+  | "X"
+  | "INSTAGRAM"
+  | "FACEBOOK"
+  | "YOUTUBE"
+  | "TIKTOK"
+  | "SNAPCHAT"
+  | "TELEGRAM"
+  | "PINTEREST"
+  | "LINKEDIN";
 
 /** Admin user roles matching the Prisma AdminRole enum */
 export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "SUPPORT";

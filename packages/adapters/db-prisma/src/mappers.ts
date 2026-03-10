@@ -1,26 +1,42 @@
 import type { SubscriptionTier } from "@shared/types";
 
 // Database type definitions
-export type Provider = "X" | "INSTAGRAM" | "FACEBOOK" | "YOUTUBE" | "TIKTOK";
+export type Provider =
+  | "X"
+  | "INSTAGRAM"
+  | "FACEBOOK"
+  | "YOUTUBE"
+  | "TIKTOK"
+  | "SNAPCHAT"
+  | "TELEGRAM"
+  | "PINTEREST"
+  | "LINKEDIN";
 export type PrismaSubscriptionTier = "BASIC" | "PRO" | "ENTERPRISE";
 export type PrismaThreadStrategy = "SEQUENTIAL" | "INSTANT" | "BATCH";
 export type PrismaTweetStatus = "PENDING" | "PUBLISHED" | "FAILED";
 
+type AppProvider =
+  | "x"
+  | "instagram"
+  | "facebook"
+  | "youtube"
+  | "tiktok"
+  | "snapchat"
+  | "telegram"
+  | "pinterest"
+  | "linkedin";
+
 /**
  * Maps database Provider enum to application provider string
  */
-export function mapProviderFromDB(
-  provider: Provider
-): "x" | "instagram" | "facebook" | "youtube" | "tiktok" {
-  return provider.toLowerCase() as "x" | "instagram" | "facebook" | "youtube" | "tiktok";
+export function mapProviderFromDB(provider: Provider): AppProvider {
+  return provider.toLowerCase() as AppProvider;
 }
 
 /**
  * Maps application provider string to database Provider enum
  */
-export function mapProviderToDB(
-  provider: "x" | "instagram" | "facebook" | "youtube" | "tiktok"
-): Provider {
+export function mapProviderToDB(provider: AppProvider): Provider {
   return provider.toUpperCase() as Provider;
 }
 

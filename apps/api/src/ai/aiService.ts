@@ -1,6 +1,7 @@
 import { BaseService } from "../services/BaseService.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { aiOrchestrator } from "./orchestrator.js";
+import type { ImageGenerationOptions, ImageGenerationResult, AIResponse } from "./types.js";
 
 interface Message {
   role: string;
@@ -179,6 +180,22 @@ export class AIService extends BaseService {
           variations: result.value,
           metadata: result.metadata,
         };
+      }
+    );
+  }
+
+  /**
+   * @method generateImage
+   * @description Generates an image via the AI orchestrator (delegates to OpenAI DALL-E 3).
+   * @param options - Image generation options including prompt, size, quality, and style
+   * @returns AIResponse containing the image URL and revised prompt
+   */
+  async generateImage(options: ImageGenerationOptions): Promise<AIResponse<ImageGenerationResult>> {
+    return this.execute(
+      { operation: "generateImage", metadata: { prompt: options.prompt } },
+      async () => {
+        const result = await aiOrchestrator.generateImage(options);
+        return result;
       }
     );
   }

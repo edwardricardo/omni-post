@@ -156,6 +156,12 @@ export { type EmailPort, type SendEmailOptions, type EmailAttachment } from "./E
 // GA4 Tracking port (Phase 3 Step 4: UTM/GA4 Integration)
 export { type GA4TrackingPort, type GA4Event } from "./GA4TrackingPort.js";
 
+// GeneratedImage repository port (AI Image Generation)
+export {
+  type GeneratedImageRepository,
+  type GeneratedImageData,
+} from "./GeneratedImageRepository.js";
+
 // Plain domain DTOs — Prisma-free type mirrors for read-model ports
 export {
   type ProviderKind,

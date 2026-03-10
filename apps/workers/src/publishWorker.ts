@@ -13,6 +13,10 @@ import { instagramAdapter } from "@providers/instagram";
 import { facebookAdapter } from "@providers/facebook";
 import { youtubeAdapter } from "@providers/youtube";
 import { tiktokAdapter } from "@providers/tiktok";
+import { snapchatAdapter } from "@providers/snapchat";
+import { telegramAdapter } from "@providers/telegram";
+import { pinterestAdapter } from "@providers/pinterest";
+import { linkedInAdapter } from "@providers/linkedin";
 import { createBullMQConsumerAdapter } from "@adapters/queue-bullmq";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import client from "prom-client";
@@ -41,6 +45,10 @@ const providerRegistry: Record<string, PublishProvider> = {
   facebook: facebookAdapter,
   youtube: youtubeAdapter,
   tiktok: tiktokAdapter,
+  snapchat: snapchatAdapter,
+  telegram: telegramAdapter,
+  pinterest: pinterestAdapter,
+  linkedin: linkedInAdapter,
 };
 
 // Enhanced Metrics

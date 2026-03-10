@@ -13,10 +13,11 @@ export type ProviderId =
   | "tiktok"
   | "linkedin"
   | "pinterest"
+  | "snapchat"
+  | "telegram"
   | "reddit"
   | "discord"
-  | "twitch"
-  | "snapchat";
+  | "twitch";
 
 export interface ProviderCapabilities {
   publish: boolean;
@@ -235,10 +236,97 @@ export const PROVIDER_CONFIGS: Record<string, ProviderMetadata> = {
       maxImageSize: 10 * 1024 * 1024, // 10MB
       maxVideoSize: 5 * 1024 * 1024 * 1024, // 5GB
     },
-    status: "coming_soon",
+    status: "active",
     description: "Share professional content on LinkedIn",
     authType: "oauth",
-    requiredScopes: ["w_member_social"],
+    requiredScopes: ["w_member_social", "w_organization_social", "openid", "profile"],
+  },
+
+  snapchat: {
+    id: "snapchat",
+    name: "snapchat",
+    displayName: "Snapchat",
+    icon: "/providers/snapchat-icon.svg",
+    color: "#FFFC00",
+    capabilities: {
+      publish: true,
+      schedule: false,
+      analytics: true,
+      comments: false,
+      replies: false,
+      threading: false,
+      stories: true,
+    },
+    limits: {
+      maxChars: 250,
+      maxMediaPerPost: 1,
+      allowedMedia: ["image", "video"],
+      aspectRatios: ["9:16"],
+      maxVideoDuration: 60,
+      maxImageSize: 5 * 1024 * 1024, // 5MB
+      maxVideoSize: 32 * 1024 * 1024, // 32MB
+    },
+    status: "active",
+    description: "Share stories and spotlight content on Snapchat",
+    authType: "oauth",
+    requiredScopes: ["snapchat-marketing-api"],
+  },
+
+  telegram: {
+    id: "telegram",
+    name: "telegram",
+    displayName: "Telegram",
+    icon: "/providers/telegram-icon.svg",
+    color: "#26A5E4",
+    capabilities: {
+      publish: true,
+      schedule: false,
+      analytics: false,
+      comments: false,
+      replies: false,
+      threading: false,
+    },
+    limits: {
+      maxChars: 4096,
+      maxMediaPerPost: 10,
+      allowedMedia: ["image", "video"],
+      aspectRatios: [],
+      maxVideoDuration: 60,
+      maxImageSize: 10 * 1024 * 1024, // 10MB
+      maxVideoSize: 50 * 1024 * 1024, // 50MB
+    },
+    status: "active",
+    description: "Send messages to Telegram channels and groups via bot",
+    authType: "api_key",
+  },
+
+  pinterest: {
+    id: "pinterest",
+    name: "pinterest",
+    displayName: "Pinterest",
+    icon: "/providers/pinterest-icon.svg",
+    color: "#BD081C",
+    capabilities: {
+      publish: true,
+      schedule: true,
+      analytics: true,
+      comments: false,
+      replies: false,
+      threading: false,
+    },
+    limits: {
+      maxChars: 500,
+      maxMediaPerPost: 1,
+      allowedMedia: ["image", "video"],
+      aspectRatios: ["2:3", "1:1"],
+      maxVideoDuration: 15 * 60, // 15 minutes
+      maxImageSize: 20 * 1024 * 1024, // 20MB
+      maxVideoSize: 2 * 1024 * 1024 * 1024, // 2GB
+    },
+    status: "active",
+    description: "Create and share pins on Pinterest boards",
+    authType: "oauth",
+    requiredScopes: ["boards:read", "pins:read", "pins:write"],
   },
 } as const;
 

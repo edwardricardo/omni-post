@@ -12,7 +12,16 @@ import type {
   ThreadError,
 } from "@shared/types";
 
-export type ProviderId = "x" | "instagram" | "facebook" | "youtube" | "tiktok";
+export type ProviderId =
+  | "x"
+  | "instagram"
+  | "facebook"
+  | "youtube"
+  | "tiktok"
+  | "snapchat"
+  | "telegram"
+  | "pinterest"
+  | "linkedin";
 
 export type ProviderLimits = {
   maxChars: number;

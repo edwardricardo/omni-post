@@ -3,8 +3,12 @@ import { xAdapter } from "@providers/x";
 import { instagramAdapter } from "@providers/instagram";
 import { facebookAdapter } from "@providers/facebook";
 import { tiktokAdapter } from "@providers/tiktok";
-import { providerLogger } from "../lib/logger.js";
 import { youtubeAdapter } from "@providers/youtube";
+import { snapchatAdapter } from "@providers/snapchat";
+import { telegramAdapter } from "@providers/telegram";
+import { pinterestAdapter } from "@providers/pinterest";
+import { linkedInAdapter } from "@providers/linkedin";
+import { providerLogger } from "../lib/logger.js";
 import {
   PROVIDER_CONFIGS,
   getProviderConfig,
@@ -44,6 +48,10 @@ class ProviderRegistryService {
     this.adapters.set("facebook", facebookAdapter);
     this.adapters.set("tiktok", tiktokAdapter);
     this.adapters.set("youtube", youtubeAdapter);
+    this.adapters.set("snapchat", snapchatAdapter);
+    this.adapters.set("telegram", telegramAdapter);
+    this.adapters.set("pinterest", pinterestAdapter);
+    this.adapters.set("linkedin", linkedInAdapter);
   }
 
   /**

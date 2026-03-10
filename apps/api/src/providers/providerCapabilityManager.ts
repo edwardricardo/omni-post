@@ -446,6 +446,7 @@ export class ProviderCapabilityManager {
       discord: 200,
       twitch: 1200,
       snapchat: 900,
+      telegram: 700,
     };
 
     return baseReach[providerId] || 500;

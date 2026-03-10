@@ -406,6 +406,9 @@ model Project {
   socialConversations    SocialConversation[]
   campaigns              Campaign[]
   scheduledReports       ScheduledReport[]
+  externalNotificationConfigs ExternalNotificationConfig[]
+  generatedImages        GeneratedImage[]
+  recurringPosts         RecurringPost[]
 
   @@unique([accountId, name])
   @@index([accountId])
@@ -436,6 +439,7 @@ model Post {
   comments        PostComment[]
   socialMessages  SocialMessage[]
   campaignPosts   CampaignPost[]
+  firstComment    FirstComment?
   deletedAt       DateTime?
 
   // @@index([projectId]) - REMOVED: Covered by [projectId, status] and [projectId, createdAt]
@@ -904,6 +908,10 @@ enum Provider {
   FACEBOOK
   YOUTUBE
   TIKTOK
+  SNAPCHAT
+  TELEGRAM
+  PINTEREST
+  LINKEDIN
 }
 
 enum SubscriptionTier {
@@ -2055,6 +2063,81 @@ model ScheduledReport {
 
   @@index([projectId, isActive])
   @@index([nextRunAt, isActive])
+}
+
+// =============================================
+// Phase 4: Platform Expansion + Quick Wins
+// =============================================
+
+model ExternalNotificationConfig {
+  id         String   @id @default(uuid())
+  projectId  String
+  channel    String   // "slack" | "teams"
+  webhookUrl String
+  label      String
+  events     String[]
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, isActive])
+}
+
+model FirstComment {
+  id                String    @id @default(uuid())
+  postId            String    @unique
+  body              String
+  status            String    @default("PENDING")
+  publishedAt       DateTime?
+  providerCommentId String?
+  error             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model GeneratedImage {
+  id            String   @id @default(uuid())
+  projectId     String
+  prompt        String
+  revisedPrompt String?
+  imageUrl      String
+  size          String
+  quality       String
+  style         String
+  createdAt     DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+}
+
+model RecurringPost {
+  id               String    @id @default(uuid())
+  projectId        String
+  templatePostId   String
+  name             String
+  cronExpression   String
+  timezone         String    @default("UTC")
+  startDate        DateTime
+  endDate          DateTime?
+  maxOccurrences   Int?
+  occurrenceCount  Int       @default(0)
+  isActive         Boolean   @default(true)
+  lastScheduledAt  DateTime?
+  nextScheduledAt  DateTime?
+  channels         String[]
+  contentVariation String    @default("EXACT")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, isActive])
+  @@index([nextScheduledAt, isActive])
 }
 
 enum ReportFormat {

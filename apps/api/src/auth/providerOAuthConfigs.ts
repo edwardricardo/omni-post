@@ -411,4 +411,5 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   discord: createUnimplementedProvider("discord"),
   twitch: createUnimplementedProvider("twitch"),
   snapchat: createUnimplementedProvider("snapchat"),
+  telegram: createUnimplementedProvider("telegram"),
 };

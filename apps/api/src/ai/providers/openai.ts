@@ -2,11 +2,14 @@ import OpenAI from "openai";
 import {
   AIProvider,
   AIMessage,
+  AIResponse,
   GenerationOptions,
   ContentAnalysis,
   ContentOptimization,
   PerformancePrediction,
   AIProviderConfig,
+  ImageGenerationOptions,
+  ImageGenerationResult,
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
@@ -153,6 +156,80 @@ Content:
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "OpenAI prediction failed");
       throw AppError.externalService("OpenAI", `OpenAI prediction failed: ${error}`);
+    }
+  }
+
+  /**
+   * @method generateImage
+   * @description Generates an image using OpenAI DALL-E 3 from a text prompt.
+   * @param options - Image generation options including prompt, size, quality, and style
+   * @returns AIResponse containing the image URL and revised prompt on success
+   */
+  async generateImage(options: ImageGenerationOptions): Promise<AIResponse<ImageGenerationResult>> {
+    const startTime = Date.now();
+    try {
+      const response = await this.client.images.generate({
+        model: "dall-e-3",
+        prompt: options.prompt,
+        n: 1,
+        size: options.size || "1024x1024",
+        quality: options.quality || "standard",
+        style: options.style || "vivid",
+      });
+
+      const responseData = response.data;
+      const imageData = responseData?.[0];
+      if (!imageData?.url) {
+        return {
+          ok: false,
+          error: {
+            code: "IMAGE_GENERATION_FAILED",
+            message: "No image URL returned from OpenAI",
+            provider: "openai",
+            retryable: true,
+          },
+          metadata: {
+            provider: "openai",
+            model: "dall-e-3",
+            tokensUsed: 0,
+            latency: Date.now() - startTime,
+            cached: false,
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        value: {
+          imageUrl: imageData.url,
+          revisedPrompt: imageData.revised_prompt || options.prompt,
+        },
+        metadata: {
+          provider: "openai",
+          model: "dall-e-3",
+          tokensUsed: 0,
+          latency: Date.now() - startTime,
+          cached: false,
+        },
+      };
+    } catch (error: unknown) {
+      aiLogger.error({ err: error }, "OpenAI image generation failed");
+      return {
+        ok: false,
+        error: {
+          code: "IMAGE_GENERATION_FAILED",
+          message: error instanceof Error ? error.message : String(error),
+          provider: "openai",
+          retryable: true,
+        },
+        metadata: {
+          provider: "openai",
+          model: "dall-e-3",
+          tokensUsed: 0,
+          latency: Date.now() - startTime,
+          cached: false,
+        },
+      };
     }
   }
 

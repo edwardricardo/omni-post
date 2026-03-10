@@ -62,6 +62,10 @@ import { PrismaCampaignRepository } from "../repositories/PrismaCampaignReposito
 import { PrismaCampaignQueryRepository } from "../repositories/PrismaCampaignQueryRepository.js";
 import type { ScheduledReportRepository } from "../../domain/repositories/ScheduledReportRepository.js";
 import { PrismaScheduledReportRepository } from "../repositories/PrismaScheduledReportRepository.js";
+import type { FirstCommentRepository } from "../../domain/repositories/FirstCommentRepository.js";
+import { PrismaFirstCommentRepository } from "../repositories/PrismaFirstCommentRepository.js";
+import type { RecurringPostRepository } from "../../domain/repositories/RecurringPostRepository.js";
+import { PrismaRecurringPostRepository } from "../repositories/PrismaRecurringPostRepository.js";
 
 /**
  * Register all repository adapters in the container
@@ -240,6 +244,20 @@ export function setupRepositories(container: Container): void {
   container.register<ScheduledReportRepository>(
     TOKENS.ScheduledReportRepository,
     () => new PrismaScheduledReportRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register FirstComment Repository
+  container.register<FirstCommentRepository>(
+    TOKENS.FirstCommentRepository,
+    () => new PrismaFirstCommentRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register RecurringPost Repository
+  container.register<RecurringPostRepository>(
+    TOKENS.RecurringPostRepository,
+    () => new PrismaRecurringPostRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 }

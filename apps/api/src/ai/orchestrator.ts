@@ -7,6 +7,8 @@ import {
   ContentAnalysis,
   ContentOptimization,
   PerformancePrediction,
+  ImageGenerationOptions,
+  ImageGenerationResult,
 } from "./types.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { logger } from "../lib/logger.js";
@@ -446,6 +448,51 @@ export class AIOrchestrator {
       type: "variations",
       data: { content, variationType, count },
     });
+  }
+
+  /**
+   * @method generateImage
+   * @description Generates an image by delegating to the first available provider
+   *              that supports image generation (currently OpenAI with DALL-E 3).
+   * @param options - Image generation options
+   * @returns AIResponse with the generated image URL and revised prompt
+   */
+  async generateImage(options: ImageGenerationOptions): Promise<AIResponse<ImageGenerationResult>> {
+    const startTime = Date.now();
+
+    // Find a provider that supports image generation
+    const providerNames = ["openai"] as const;
+    for (const name of providerNames) {
+      const provider = this.providers.get(name);
+      if (!provider || !provider.generateImage) continue;
+
+      if (!(await this.checkRateLimit(name))) {
+        aiLogger.warn({ provider: name }, "Rate limit exceeded for image generation");
+        continue;
+      }
+
+      const result = await provider.generateImage(options);
+      const latency = Date.now() - startTime;
+      this.updateMetrics(name, result.ok, latency, 0);
+      return result;
+    }
+
+    return {
+      ok: false,
+      error: {
+        code: "NO_IMAGE_PROVIDER",
+        message: "No AI provider available for image generation",
+        provider: "none",
+        retryable: false,
+      },
+      metadata: {
+        provider: "none",
+        model: "none",
+        tokensUsed: 0,
+        latency: Date.now() - startTime,
+        cached: false,
+      },
+    };
   }
 
   // Utility methods

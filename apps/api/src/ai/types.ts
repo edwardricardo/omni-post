@@ -106,6 +106,19 @@ export interface PerformancePrediction {
   };
 }
 
+export interface ImageGenerationOptions {
+  prompt: string;
+  size?: "1024x1024" | "1024x1792" | "1792x1024";
+  quality?: "standard" | "hd";
+  style?: "natural" | "vivid";
+  n?: number;
+}
+
+export interface ImageGenerationResult {
+  imageUrl: string;
+  revisedPrompt: string;
+}
+
 export interface AIProvider {
   name: "openai" | "anthropic" | "perplexity" | "gemini";
   isAvailable(): Promise<boolean>;
@@ -129,6 +142,7 @@ export interface AIProvider {
     variationType: "tone" | "length" | "audience",
     count: number
   ): Promise<string[]>;
+  generateImage?(options: ImageGenerationOptions): Promise<AIResponse<ImageGenerationResult>>;
 }
 
 export interface AITaskConfig {

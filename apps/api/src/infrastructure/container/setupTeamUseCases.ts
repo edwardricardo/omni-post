@@ -1,0 +1,145 @@
+/**
+ * @file setupTeamUseCases.ts
+ * @description Registers approval workflow, team member, and comment use cases
+ *              in the DI container. Extracted from setupUseCases.ts.
+ * @layer infrastructure
+ */
+import type { Container } from "./Container.js";
+import { TOKENS } from "./types.js";
+import type { PostRepository } from "../../domain/index.js";
+import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
+import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
+import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
+import {
+  SubmitForReviewUseCase,
+  ApprovePostUseCase,
+  RejectPostUseCase,
+  GetApprovalHistoryQuery,
+  GetPendingApprovalsQuery,
+} from "../../application/approvals/index.js";
+import {
+  InviteTeamMemberUseCase,
+  GetTeamMembersQuery,
+  UpdateTeamMemberRoleUseCase,
+  RemoveTeamMemberUseCase,
+} from "../../application/team/index.js";
+import {
+  CreateCommentUseCase,
+  EditCommentUseCase,
+  DeleteCommentUseCase,
+  GetPostCommentsQuery,
+} from "../../application/comments/index.js";
+
+/**
+ * Register approval workflow, team member, and comment use cases
+ */
+export function setupTeamUseCases(container: Container): void {
+  // Register Approval Workflow Use Cases (Phase 1.3)
+  container.register<SubmitForReviewUseCase>(
+    TOKENS.SubmitForReviewUseCase,
+    () =>
+      new SubmitForReviewUseCase(
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository),
+        container.resolve<PostRepository>(TOKENS.PostRepository)
+      ),
+    true
+  );
+  container.register<ApprovePostUseCase>(
+    TOKENS.ApprovePostUseCase,
+    () =>
+      new ApprovePostUseCase(
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository)
+      ),
+    true
+  );
+  container.register<RejectPostUseCase>(
+    TOKENS.RejectPostUseCase,
+    () =>
+      new RejectPostUseCase(
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository)
+      ),
+    true
+  );
+  container.register<GetApprovalHistoryQuery>(
+    TOKENS.GetApprovalHistoryQuery,
+    () =>
+      new GetApprovalHistoryQuery(
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository)
+      ),
+    true
+  );
+  container.register<GetPendingApprovalsQuery>(
+    TOKENS.GetPendingApprovalsQuery,
+    () =>
+      new GetPendingApprovalsQuery(
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository)
+      ),
+    true
+  );
+
+  // Register Team Member Use Cases (Phase 1.1)
+  container.register<InviteTeamMemberUseCase>(
+    TOKENS.InviteTeamMemberUseCase,
+    () =>
+      new InviteTeamMemberUseCase(
+        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
+      ),
+    true
+  );
+  container.register<GetTeamMembersQuery>(
+    TOKENS.GetTeamMembersQuery,
+    () =>
+      new GetTeamMembersQuery(container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)),
+    true
+  );
+  container.register<UpdateTeamMemberRoleUseCase>(
+    TOKENS.UpdateTeamMemberRoleUseCase,
+    () =>
+      new UpdateTeamMemberRoleUseCase(
+        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
+      ),
+    true
+  );
+  container.register<RemoveTeamMemberUseCase>(
+    TOKENS.RemoveTeamMemberUseCase,
+    () =>
+      new RemoveTeamMemberUseCase(
+        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
+      ),
+    true
+  );
+
+  // Register Comment Use Cases (Phase 1.4)
+  container.register<CreateCommentUseCase>(
+    TOKENS.CreateCommentUseCase,
+    () =>
+      new CreateCommentUseCase(
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+      ),
+    true
+  );
+  container.register<EditCommentUseCase>(
+    TOKENS.EditCommentUseCase,
+    () =>
+      new EditCommentUseCase(
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+      ),
+    true
+  );
+  container.register<DeleteCommentUseCase>(
+    TOKENS.DeleteCommentUseCase,
+    () =>
+      new DeleteCommentUseCase(
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+      ),
+    true
+  );
+  container.register<GetPostCommentsQuery>(
+    TOKENS.GetPostCommentsQuery,
+    () =>
+      new GetPostCommentsQuery(
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+      ),
+    true
+  );
+}

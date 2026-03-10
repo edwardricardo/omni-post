@@ -242,6 +242,18 @@ importers:
       '@providers/instagram':
         specifier: workspace:*
         version: link:../../packages/providers/instagram
+      '@providers/linkedin':
+        specifier: workspace:*
+        version: link:../../packages/providers/linkedin
+      '@providers/pinterest':
+        specifier: workspace:*
+        version: link:../../packages/providers/pinterest
+      '@providers/snapchat':
+        specifier: workspace:*
+        version: link:../../packages/providers/snapchat
+      '@providers/telegram':
+        specifier: workspace:*
+        version: link:../../packages/providers/telegram
       '@providers/tiktok':
         specifier: workspace:*
         version: link:../../packages/providers/tiktok
@@ -517,6 +529,18 @@ importers:
       '@providers/instagram':
         specifier: workspace:*
         version: link:../../packages/providers/instagram
+      '@providers/linkedin':
+        specifier: workspace:*
+        version: link:../../packages/providers/linkedin
+      '@providers/pinterest':
+        specifier: workspace:*
+        version: link:../../packages/providers/pinterest
+      '@providers/snapchat':
+        specifier: workspace:*
+        version: link:../../packages/providers/snapchat
+      '@providers/telegram':
+        specifier: workspace:*
+        version: link:../../packages/providers/telegram
       '@providers/tiktok':
         specifier: workspace:*
         version: link:../../packages/providers/tiktok
@@ -1028,6 +1052,56 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
+  packages/providers/linkedin:
+    dependencies:
+      '@adapters/external-apis':
+        specifier: workspace:*
+        version: link:../../adapters/external-apis
+      '@adapters/fallback-strategies':
+        specifier: workspace:*
+        version: link:../../adapters/fallback-strategies
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../observability/logger
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+      prom-client:
+        specifier: 15.1.3
+        version: 15.1.3
+    devDependencies:
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/providers/pinterest:
+    dependencies:
+      '@adapters/external-apis':
+        specifier: workspace:*
+        version: link:../../adapters/external-apis
+      '@adapters/fallback-strategies':
+        specifier: workspace:*
+        version: link:../../adapters/fallback-strategies
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../observability/logger
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+      prom-client:
+        specifier: 15.1.3
+        version: 15.1.3
+    devDependencies:
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   packages/providers/shared:
     dependencies:
       '@adapters/db-prisma':
@@ -1043,6 +1117,56 @@ importers:
       '@types/node':
         specifier: 22.13.3
         version: 22.13.3
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/providers/snapchat:
+    dependencies:
+      '@adapters/external-apis':
+        specifier: workspace:*
+        version: link:../../adapters/external-apis
+      '@adapters/fallback-strategies':
+        specifier: workspace:*
+        version: link:../../adapters/fallback-strategies
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../observability/logger
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+      prom-client:
+        specifier: 15.1.3
+        version: 15.1.3
+    devDependencies:
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/providers/telegram:
+    dependencies:
+      '@adapters/external-apis':
+        specifier: workspace:*
+        version: link:../../adapters/external-apis
+      '@adapters/fallback-strategies':
+        specifier: workspace:*
+        version: link:../../adapters/fallback-strategies
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../observability/logger
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+      prom-client:
+        specifier: 15.1.3
+        version: 15.1.3
+    devDependencies:
       typescript:
         specifier: 5.9.2
         version: 5.9.2

@@ -33,6 +33,9 @@ export const QUEUE_NAMES = {
 
   /** Scheduled report generation queue (cron-driven + manual trigger) */
   REPORT_GENERATION: "report-generation",
+
+  /** Recurring post scheduling queue (cron-driven post creation from templates) */
+  RECURRING_POSTS: "recurring-posts",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

@@ -215,6 +215,13 @@ export const TOKENS = {
   ListCampaignsQuery: Symbol.for("ListCampaignsQuery"),
   GetCampaignQuery: Symbol.for("GetCampaignQuery"),
 
+  // First Comment Scheduling
+  FirstCommentRepository: Symbol.for("FirstCommentRepository"),
+  SetFirstCommentUseCase: Symbol.for("SetFirstCommentUseCase"),
+  RemoveFirstCommentUseCase: Symbol.for("RemoveFirstCommentUseCase"),
+  GetFirstCommentQuery: Symbol.for("GetFirstCommentQuery"),
+  PublishFirstCommentUseCase: Symbol.for("PublishFirstCommentUseCase"),
+
   // Historical Analytics (Phase 3 Step 5)
   GetHistoricalAnalyticsQuery: Symbol.for("GetHistoricalAnalyticsQuery"),
 
@@ -230,6 +237,29 @@ export const TOKENS = {
   DeleteScheduledReportUseCase: Symbol.for("DeleteScheduledReportUseCase"),
   ListScheduledReportsQuery: Symbol.for("ListScheduledReportsQuery"),
   GenerateReportUseCase: Symbol.for("GenerateReportUseCase"),
+
+  // External Notifications (Step 6: Slack/Teams webhooks)
+  ExternalNotificationConfigRepository: Symbol.for("ExternalNotificationConfigRepository"),
+  ExternalNotifierPort: Symbol.for("ExternalNotifierPort"),
+  ConfigureExternalNotificationUseCase: Symbol.for("ConfigureExternalNotificationUseCase"),
+  ListExternalNotificationsQuery: Symbol.for("ListExternalNotificationsQuery"),
+  DeleteExternalNotificationUseCase: Symbol.for("DeleteExternalNotificationUseCase"),
+  TestExternalNotificationUseCase: Symbol.for("TestExternalNotificationUseCase"),
+  ExternalNotificationDispatcher: Symbol.for("ExternalNotificationDispatcher"),
+
+  // AI Image Generation (Step 8)
+  GeneratedImageRepository: Symbol.for("GeneratedImageRepository"),
+  GenerateImageUseCase: Symbol.for("GenerateImageUseCase"),
+  ListGeneratedImagesQuery_AIImage: Symbol.for("ListGeneratedImagesQuery_AIImage"),
+
+  // Recurring Posts
+  RecurringPostRepository: Symbol.for("RecurringPostRepository"),
+  CreateRecurringPostUseCase: Symbol.for("CreateRecurringPostUseCase"),
+  UpdateRecurringPostUseCase: Symbol.for("UpdateRecurringPostUseCase"),
+  DeactivateRecurringPostUseCase: Symbol.for("DeactivateRecurringPostUseCase"),
+  ListRecurringPostsQuery_Recurring: Symbol.for("ListRecurringPostsQuery_Recurring"),
+  GetRecurringPostQuery: Symbol.for("GetRecurringPostQuery"),
+  ProcessRecurrenceUseCase: Symbol.for("ProcessRecurrenceUseCase"),
 } as const;
 
 /**

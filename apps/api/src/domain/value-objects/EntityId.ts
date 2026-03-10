@@ -379,3 +379,33 @@ export class ScheduledReportId extends EntityId {
     return new ScheduledReportId(id);
   }
 }
+
+/**
+ * RecurringPostId - Strongly-typed identifier for RecurringPost entities
+ * Part of Recurring Posts feature
+ */
+export class RecurringPostId extends EntityId {
+  protected readonly entityType = "RecurringPostId";
+
+  private constructor(value: string) {
+    super(value);
+  }
+
+  static generate(): RecurringPostId {
+    return new RecurringPostId(EntityId.generateUUID());
+  }
+
+  static fromString(id: string): Result<RecurringPostId, InvalidIdError> {
+    if (!id || id.trim().length === 0) {
+      return err(new InvalidIdError("RecurringPostId", id));
+    }
+    if (!EntityId.isValidUUID(id)) {
+      return err(new InvalidIdError("RecurringPostId", id));
+    }
+    return ok(new RecurringPostId(id));
+  }
+
+  static fromStringUnsafe(id: string): RecurringPostId {
+    return new RecurringPostId(id);
+  }
+}

@@ -10,11 +10,12 @@ import type {
   ThreadStrategy,
   TweetStatus,
 } from "@shared/types";
+import type { ProviderId } from "./ProviderAdapter.js";
 
 export type PublishLog = {
   id: string;
   postId: string | null;
-  provider: "x" | "instagram" | "facebook" | "youtube" | "tiktok";
+  provider: ProviderId;
   channelId: string;
   status: "QUEUED" | "RUNNING" | "OK" | "ERR";
   payload: Record<string, unknown>;
@@ -25,14 +26,14 @@ export type PublishLog = {
 export type Channel = {
   id: string;
   projectId: string;
-  provider: "x" | "instagram" | "facebook" | "youtube" | "tiktok";
+  provider: ProviderId;
   handle: string;
   credentials: Record<string, unknown>;
 };
 
 export type LogPublishInput = {
   postId: string;
-  provider: "x" | "instagram" | "facebook" | "youtube" | "tiktok";
+  provider: ProviderId;
   channelId: string;
   status: "QUEUED" | "RUNNING" | "OK" | "ERR";
   payload: Record<string, unknown>;
@@ -42,7 +43,7 @@ export type LogPublishInput = {
 export type ListLogsQuery = {
   postId?: string;
   channelId?: string;
-  provider?: "x" | "instagram" | "facebook" | "youtube" | "tiktok";
+  provider?: ProviderId;
   status?: "QUEUED" | "RUNNING" | "OK" | "ERR";
   limit?: number;
   offset?: number;
@@ -77,7 +78,7 @@ export type Analytics = {
   id: string;
   postId: string | null;
   channelId: string;
-  provider: "x" | "instagram" | "facebook" | "youtube" | "tiktok";
+  provider: ProviderId;
   views?: number;
   likes?: number;
   comments?: number;
@@ -88,7 +89,7 @@ export type Analytics = {
 export type AnalyticsQuery = {
   postId?: string;
   channelId?: string;
-  provider?: "x" | "instagram" | "facebook" | "youtube" | "tiktok";
+  provider?: ProviderId;
   since?: Date;
   until?: Date;
   limit?: number;
@@ -98,7 +99,7 @@ export type AnalyticsQuery = {
 export type AnalyticsInput = {
   postId?: string;
   channelId: string;
-  provider: "x" | "instagram" | "facebook" | "youtube" | "tiktok";
+  provider: ProviderId;
   views?: number;
   likes?: number;
   comments?: number;
