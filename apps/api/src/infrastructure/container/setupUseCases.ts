@@ -112,6 +112,30 @@ import {
   GetUnreadInboxCountQuery,
 } from "../../application/inbox/index.js";
 import { InboxEventHandlers } from "../../application/inbox/handlers/InboxEventHandlers.js";
+import type { CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
+import type { CampaignQueryRepository } from "../../domain/repositories/CampaignQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
+import {
+  CreateCampaignUseCase,
+  UpdateCampaignUseCase,
+  ArchiveCampaignUseCase,
+  TagPostWithCampaignUseCase,
+  UntagPostFromCampaignUseCase,
+  GetCampaignAnalyticsUseCase,
+  ListCampaignsQuery,
+  GetCampaignQuery,
+} from "../../application/campaigns/index.js";
+import { GetHistoricalAnalyticsQuery } from "../../application/analytics/GetHistoricalAnalyticsQuery.js";
+import { GenerateUTMLinksUseCase } from "../../application/utm/index.js";
+import type { ScheduledReportRepository } from "../../domain/repositories/ScheduledReportRepository.js";
+import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import {
+  CreateScheduledReportUseCase,
+  UpdateScheduledReportUseCase,
+  DeleteScheduledReportUseCase,
+  ListScheduledReportsQuery as ListScheduledReportsQueryUC,
+  GenerateReportUseCase,
+} from "../../application/reports/index.js";
 
 /**
  * Register all use cases and their adapters in the container
@@ -638,6 +662,121 @@ export function setupUseCases(container: Container): void {
     () =>
       new InboxEventHandlers(
         container.resolve<CreateNotificationUseCase>(TOKENS.CreateNotificationUseCase)
+      ),
+    true
+  );
+
+  // Campaign Use Cases (Phase 3)
+  container.register<CreateCampaignUseCase>(
+    TOKENS.CreateCampaignUseCase,
+    () =>
+      new CreateCampaignUseCase(container.resolve<CampaignRepository>(TOKENS.CampaignRepository)),
+    true
+  );
+  container.register<UpdateCampaignUseCase>(
+    TOKENS.UpdateCampaignUseCase,
+    () =>
+      new UpdateCampaignUseCase(container.resolve<CampaignRepository>(TOKENS.CampaignRepository)),
+    true
+  );
+  container.register<ArchiveCampaignUseCase>(
+    TOKENS.ArchiveCampaignUseCase,
+    () =>
+      new ArchiveCampaignUseCase(container.resolve<CampaignRepository>(TOKENS.CampaignRepository)),
+    true
+  );
+  container.register<TagPostWithCampaignUseCase>(
+    TOKENS.TagPostWithCampaignUseCase,
+    () =>
+      new TagPostWithCampaignUseCase(
+        container.resolve<CampaignRepository>(TOKENS.CampaignRepository)
+      ),
+    true
+  );
+  container.register<UntagPostFromCampaignUseCase>(
+    TOKENS.UntagPostFromCampaignUseCase,
+    () =>
+      new UntagPostFromCampaignUseCase(
+        container.resolve<CampaignRepository>(TOKENS.CampaignRepository)
+      ),
+    true
+  );
+  container.register<GetCampaignAnalyticsUseCase>(
+    TOKENS.GetCampaignAnalyticsUseCase,
+    () =>
+      new GetCampaignAnalyticsUseCase(
+        container.resolve<CampaignQueryRepository>(TOKENS.CampaignQueryRepository),
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository)
+      ),
+    true
+  );
+  container.register<ListCampaignsQuery>(
+    TOKENS.ListCampaignsQuery,
+    () =>
+      new ListCampaignsQuery(
+        container.resolve<CampaignQueryRepository>(TOKENS.CampaignQueryRepository)
+      ),
+    true
+  );
+  container.register<GetCampaignQuery>(
+    TOKENS.GetCampaignQuery,
+    () =>
+      new GetCampaignQuery(
+        container.resolve<CampaignQueryRepository>(TOKENS.CampaignQueryRepository)
+      ),
+    true
+  );
+
+  // Register Historical Analytics Query (Phase 3 Step 5)
+  container.register<GetHistoricalAnalyticsQuery>(
+    TOKENS.GetHistoricalAnalyticsQuery,
+    () =>
+      new GetHistoricalAnalyticsQuery(
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository)
+      ),
+    true
+  );
+
+  // Register UTM Use Cases (Phase 3 Step 4: UTM/GA4 Integration)
+  container.register<GenerateUTMLinksUseCase>(
+    TOKENS.GenerateUTMLinksUseCase,
+    () =>
+      new GenerateUTMLinksUseCase(
+        container.resolve<TrackedLinkRepository>(TOKENS.TrackedLinkRepository)
+      ),
+    true
+  );
+
+  // Register Scheduled Report Use Cases (Phase 3 Step 7)
+  const reportRepo = () =>
+    container.resolve<ScheduledReportRepository>(TOKENS.ScheduledReportRepository);
+  container.register(
+    TOKENS.CreateScheduledReportUseCase,
+    () => new CreateScheduledReportUseCase(reportRepo()),
+    true
+  );
+  container.register(
+    TOKENS.UpdateScheduledReportUseCase,
+    () => new UpdateScheduledReportUseCase(reportRepo()),
+    true
+  );
+  container.register(
+    TOKENS.DeleteScheduledReportUseCase,
+    () => new DeleteScheduledReportUseCase(reportRepo()),
+    true
+  );
+  container.register(
+    TOKENS.ListScheduledReportsQuery,
+    () => new ListScheduledReportsQueryUC(reportRepo()),
+    true
+  );
+  container.register(
+    TOKENS.GenerateReportUseCase,
+    () =>
+      new GenerateReportUseCase(
+        reportRepo(),
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository),
+        container.resolve<EmailPort>(TOKENS.EmailPort)
       ),
     true
   );

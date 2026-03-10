@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { Entity, type EntityProps } from "./Entity.js";
 import { TrackedLinkId, ProjectId } from "../value-objects/EntityId.js";
 import { ShortCode } from "../value-objects/ShortCode.js";
+import { UTMParameters } from "../value-objects/UTMParameters.js";
 import { DomainError } from "../errors/index.js";
 
 /**
@@ -40,6 +41,12 @@ export interface TrackedLinkProps extends EntityProps {
   vanitySlug?: string;
   clicks: number;
   isActive: boolean;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
+  campaignId?: string;
 }
 
 /**
@@ -55,6 +62,12 @@ export class TrackedLink extends Entity<TrackedLinkId> {
   private readonly _vanitySlug?: string;
   private _clicks: number;
   private _isActive: boolean;
+  private _utmSource?: string;
+  private _utmMedium?: string;
+  private _utmCampaign?: string;
+  private _utmContent?: string;
+  private _utmTerm?: string;
+  private _campaignId?: string;
 
   private constructor(props: TrackedLinkProps) {
     super(props.id, props.createdAt);
@@ -66,6 +79,24 @@ export class TrackedLink extends Entity<TrackedLinkId> {
     }
     this._clicks = props.clicks;
     this._isActive = props.isActive;
+    if (props.utmSource !== undefined) {
+      this._utmSource = props.utmSource;
+    }
+    if (props.utmMedium !== undefined) {
+      this._utmMedium = props.utmMedium;
+    }
+    if (props.utmCampaign !== undefined) {
+      this._utmCampaign = props.utmCampaign;
+    }
+    if (props.utmContent !== undefined) {
+      this._utmContent = props.utmContent;
+    }
+    if (props.utmTerm !== undefined) {
+      this._utmTerm = props.utmTerm;
+    }
+    if (props.campaignId !== undefined) {
+      this._campaignId = props.campaignId;
+    }
   }
 
   /**
@@ -158,7 +189,81 @@ export class TrackedLink extends Entity<TrackedLinkId> {
     return this._vanitySlug ?? this._shortCode.value;
   }
 
+  get utmSource(): string | undefined {
+    return this._utmSource;
+  }
+
+  get utmMedium(): string | undefined {
+    return this._utmMedium;
+  }
+
+  get utmCampaign(): string | undefined {
+    return this._utmCampaign;
+  }
+
+  get utmContent(): string | undefined {
+    return this._utmContent;
+  }
+
+  get utmTerm(): string | undefined {
+    return this._utmTerm;
+  }
+
+  get campaignId(): string | undefined {
+    return this._campaignId;
+  }
+
   // Commands
+
+  /**
+   * @method setUTMParameters
+   * @description Sets UTM tracking parameters on this link from a UTMParameters value object.
+   * @param params - Validated UTMParameters value object
+   */
+  setUTMParameters(params: UTMParameters): void {
+    this._utmSource = params.source;
+    this._utmMedium = params.medium;
+    this._utmCampaign = params.campaign;
+    if (params.content !== undefined) {
+      this._utmContent = params.content;
+    }
+    if (params.term !== undefined) {
+      this._utmTerm = params.term;
+    }
+    this.markUpdated();
+  }
+
+  /**
+   * @method setCampaignId
+   * @description Associates this link with a campaign.
+   * @param campaignId - The campaign ID string
+   */
+  setCampaignId(campaignId: string): void {
+    this._campaignId = campaignId;
+    this.markUpdated();
+  }
+
+  /**
+   * @method getUTMUrl
+   * @description Returns the original URL with UTM parameters appended,
+   *   or just the original URL if no UTM parameters are set.
+   * @returns The URL string with or without UTM parameters
+   */
+  getUTMUrl(): string {
+    if (this._utmSource && this._utmMedium && this._utmCampaign) {
+      const utmResult = UTMParameters.create({
+        source: this._utmSource,
+        medium: this._utmMedium,
+        campaign: this._utmCampaign,
+        ...(this._utmContent !== undefined && { content: this._utmContent }),
+        ...(this._utmTerm !== undefined && { term: this._utmTerm }),
+      });
+      if (utmResult.ok) {
+        return utmResult.value.buildUrl(this._originalUrl);
+      }
+    }
+    return this._originalUrl;
+  }
 
   /**
    * Record a click on this link
@@ -196,6 +301,12 @@ export class TrackedLink extends Entity<TrackedLinkId> {
       vanitySlug: this._vanitySlug,
       clicks: this._clicks,
       isActive: this._isActive,
+      ...(this._utmSource !== undefined && { utmSource: this._utmSource }),
+      ...(this._utmMedium !== undefined && { utmMedium: this._utmMedium }),
+      ...(this._utmCampaign !== undefined && { utmCampaign: this._utmCampaign }),
+      ...(this._utmContent !== undefined && { utmContent: this._utmContent }),
+      ...(this._utmTerm !== undefined && { utmTerm: this._utmTerm }),
+      ...(this._campaignId !== undefined && { campaignId: this._campaignId }),
       createdAt: this._createdAt.toISOString(),
       updatedAt: this._updatedAt.toISOString(),
     };

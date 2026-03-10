@@ -56,6 +56,12 @@ import { PrismaSocialMessageRepository } from "../repositories/PrismaSocialMessa
 import { PrismaSocialMessageQueryRepository } from "../repositories/PrismaSocialMessageQueryRepository.js";
 import { PrismaSocialConversationRepository } from "../repositories/PrismaSocialConversationRepository.js";
 import { PrismaSocialOutboundReplyRepository } from "../repositories/PrismaSocialOutboundReplyRepository.js";
+import type { CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
+import type { CampaignQueryRepository } from "../../domain/repositories/CampaignQueryRepository.js";
+import { PrismaCampaignRepository } from "../repositories/PrismaCampaignRepository.js";
+import { PrismaCampaignQueryRepository } from "../repositories/PrismaCampaignQueryRepository.js";
+import type { ScheduledReportRepository } from "../../domain/repositories/ScheduledReportRepository.js";
+import { PrismaScheduledReportRepository } from "../repositories/PrismaScheduledReportRepository.js";
 
 /**
  * Register all repository adapters in the container
@@ -215,6 +221,25 @@ export function setupRepositories(container: Container): void {
   container.register<SocialOutboundReplyRepository>(
     TOKENS.SocialOutboundReplyRepository,
     () => new PrismaSocialOutboundReplyRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register Campaign Repositories (Phase 3)
+  container.register<CampaignRepository>(
+    TOKENS.CampaignRepository,
+    () => new PrismaCampaignRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<CampaignQueryRepository>(
+    TOKENS.CampaignQueryRepository,
+    () => new PrismaCampaignQueryRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register ScheduledReport Repository (Phase 3 Step 7)
+  container.register<ScheduledReportRepository>(
+    TOKENS.ScheduledReportRepository,
+    () => new PrismaScheduledReportRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 }

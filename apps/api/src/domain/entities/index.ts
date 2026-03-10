@@ -53,6 +53,27 @@ export {
   type CreateNotificationParams,
 } from "./Notification.js";
 
+// Campaign entities (Phase 3: Analytics & Reporting)
+export {
+  Campaign,
+  type CampaignProps,
+  type CampaignCreateProps,
+  type CampaignEvent,
+  CampaignCreated,
+  CampaignActivated,
+  CampaignCompleted,
+  CampaignArchived,
+  PostTaggedWithCampaign,
+  PostUntaggedFromCampaign,
+} from "./Campaign.js";
+
+// Scheduled Report entities (Phase 3: Analytics & Reporting)
+export {
+  ScheduledReport,
+  type ScheduledReportProps,
+  type ScheduledReportCreateProps,
+} from "./ScheduledReport.js";
+
 // Social Inbox entities (Phase 2: Social Inbox)
 export {
   SocialConversation,

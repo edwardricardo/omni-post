@@ -404,6 +404,8 @@ model Project {
   members                ProjectMember[]
   socialMessages         SocialMessage[]
   socialConversations    SocialConversation[]
+  campaigns              Campaign[]
+  scheduledReports       ScheduledReport[]
 
   @@unique([accountId, name])
   @@index([accountId])
@@ -433,6 +435,7 @@ model Post {
   approvalRequests ApprovalRequest[]
   comments        PostComment[]
   socialMessages  SocialMessage[]
+  campaignPosts   CampaignPost[]
   deletedAt       DateTime?
 
   // @@index([projectId]) - REMOVED: Covered by [projectId, status] and [projectId, createdAt]
@@ -517,6 +520,12 @@ model TrackedLink {
   vanitySlug  String?
   clicks      Int         @default(0)
   isActive    Boolean     @default(true)
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+  campaignId  String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -1948,4 +1957,107 @@ model SocialOutboundReply {
   @@index([socialMessageId])
   @@index([authorId])
   @@index([status])
+}
+
+// ============================================================================
+// Phase 3: Analytics & Reporting
+// ============================================================================
+
+model Campaign {
+  id          String         @id @default(uuid())
+  projectId   String
+  name        String
+  description String?
+  status      CampaignStatus @default(DRAFT)
+  startDate   DateTime?
+  endDate     DateTime?
+  utmSource   String?
+  utmMedium   String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  posts   CampaignPost[]
+
+  @@index([projectId, status])
+  @@index([projectId, createdAt])
+}
+
+model CampaignPost {
+  campaignId String
+  postId     String
+  taggedAt   DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, postId])
+  @@index([postId])
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+model AnalyticsDailySummary {
+  id        String   @id @default(uuid())
+  postId    String?
+  channelId String
+  provider  Provider
+  date      DateTime @db.Date
+  views     Int      @default(0)
+  likes     Int      @default(0)
+  comments  Int      @default(0)
+  shares    Int      @default(0)
+  records   Int      @default(0)
+
+  @@unique([postId, channelId, provider, date])
+  @@index([channelId, date])
+  @@index([provider, date])
+}
+
+model AnalyticsMonthlySummary {
+  id        String   @id @default(uuid())
+  postId    String?
+  channelId String
+  provider  Provider
+  month     DateTime @db.Date
+  views     Int      @default(0)
+  likes     Int      @default(0)
+  comments  Int      @default(0)
+  shares    Int      @default(0)
+  records   Int      @default(0)
+
+  @@unique([postId, channelId, provider, month])
+  @@index([channelId, month])
+  @@index([provider, month])
+}
+
+model ScheduledReport {
+  id           String       @id @default(uuid())
+  projectId    String
+  name         String
+  cronSchedule String
+  format       ReportFormat @default(CSV)
+  recipients   String[]
+  filters      Json         @default("{}")
+  isActive     Boolean      @default(true)
+  lastRunAt    DateTime?
+  nextRunAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, isActive])
+  @@index([nextRunAt, isActive])
+}
+
+enum ReportFormat {
+  CSV
+  JSON
 }

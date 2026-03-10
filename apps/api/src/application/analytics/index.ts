@@ -46,3 +46,9 @@ export {
 // Note: PredictEngagementUseCase removed — was not registered in DI and not called from any route.
 
 export { CalculateROIUseCase, type ROICalculatorPort } from "./CalculateROIUseCase.js";
+
+export {
+  GetHistoricalAnalyticsQuery,
+  type GetHistoricalAnalyticsInput,
+  type GetHistoricalAnalyticsOutput,
+} from "./GetHistoricalAnalyticsQuery.js";

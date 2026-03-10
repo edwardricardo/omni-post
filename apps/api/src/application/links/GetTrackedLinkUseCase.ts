@@ -53,6 +53,12 @@ export class GetTrackedLinkUseCase
       clicks: link.clicks,
       isActive: link.isActive,
       createdAt: link.createdAt,
+      ...(link.utmSource !== undefined && { utmSource: link.utmSource }),
+      ...(link.utmMedium !== undefined && { utmMedium: link.utmMedium }),
+      ...(link.utmCampaign !== undefined && { utmCampaign: link.utmCampaign }),
+      ...(link.utmContent !== undefined && { utmContent: link.utmContent }),
+      ...(link.utmTerm !== undefined && { utmTerm: link.utmTerm }),
+      ...(link.campaignId !== undefined && { campaignId: link.campaignId }),
     });
   }
 }

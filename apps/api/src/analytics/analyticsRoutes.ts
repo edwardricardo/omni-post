@@ -1,7 +1,14 @@
 // ✅ Phase 6: Analytics Routes with Real Service Integration
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
+import {
+  BaseRouteHandler,
+  type RouteContext,
+  IdSchema,
+  exportToCSV,
+  generateCSVFilename,
+  type ColumnDefinition,
+} from "@packages/api-common";
 import { authenticateMiddleware } from "../auth/authMiddleware.js";
 import type { AuthenticatedUser } from "../auth/authService.js";
 import type { PrismaClient } from "@infra/prisma";
@@ -392,14 +399,215 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
     const { projectId, timeRange, format, includeThreads, includePosts, includeAnalytics } =
       validated.value.query;
 
-    return this.sendError(ctx, 501, "Analytics export not yet implemented", {
-      feature: "export",
-      projectId,
-      timeRange,
-      format,
-      includeThreads,
-      includePosts,
-      includeAnalytics,
+    try {
+      const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+
+      if (!project) {
+        return this.sendError(ctx, 404, "Project not found");
+      }
+
+      const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      // Fetch data sections in parallel based on include flags
+      const [posts, channels, analytics, threads] = await Promise.all([
+        includePosts
+          ? this.prisma.post.findMany({
+              where: { projectId, deletedAt: null },
+              select: {
+                id: true,
+                status: true,
+                scheduledAt: true,
+                publishedAt: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: "desc" },
+              take: 1000,
+            })
+          : Promise.resolve([]),
+        this.prisma.channel.findMany({
+          where: { projectId, deletedAt: null },
+          select: { id: true, provider: true, handle: true },
+        }),
+        includeAnalytics
+          ? this.prisma.analytics.findMany({
+              where: {
+                post: { projectId },
+                capturedAt: { gte: startDate },
+              },
+              select: {
+                id: true,
+                postId: true,
+                channelId: true,
+                provider: true,
+                views: true,
+                likes: true,
+                comments: true,
+                shares: true,
+                capturedAt: true,
+              },
+              orderBy: { capturedAt: "desc" },
+              take: 5000,
+            })
+          : Promise.resolve([]),
+        includeThreads
+          ? this.prisma.thread.findMany({
+              where: { post: { projectId, deletedAt: null } },
+              select: {
+                id: true,
+                postId: true,
+                strategy: true,
+                createdAt: true,
+              },
+              take: 1000,
+            })
+          : Promise.resolve([]),
+      ]);
+
+      // Build export payload
+      const exportData = {
+        projectId,
+        projectName: project.name,
+        timeRange,
+        exportedAt: new Date().toISOString(),
+        ...(includePosts && { posts }),
+        ...(includeAnalytics && {
+          analytics: analytics.map((a) => ({
+            ...a,
+            provider: a.provider.toString(),
+            capturedAt: a.capturedAt.toISOString(),
+          })),
+        }),
+        ...(includeThreads && { threads }),
+        channels: channels.map((c) => ({
+          ...c,
+          provider: c.provider.toString(),
+        })),
+        summary: {
+          totalPosts: posts.length,
+          totalAnalyticsRecords: analytics.length,
+          totalThreads: threads.length,
+          totalChannels: channels.length,
+          totalViews: analytics.reduce((s, a) => s + (a.views ?? 0), 0),
+          totalLikes: analytics.reduce((s, a) => s + (a.likes ?? 0), 0),
+          totalComments: analytics.reduce((s, a) => s + (a.comments ?? 0), 0),
+          totalShares: analytics.reduce((s, a) => s + (a.shares ?? 0), 0),
+        },
+      };
+
+      // JSON format — return directly
+      if (format === "json") {
+        return this.sendSuccess(ctx, exportData);
+      }
+
+      // CSV format — build CSV from analytics rows (primary export data)
+      const csvRows = this.buildCsvRows(analytics, posts, channels);
+
+      type CsvRow = (typeof csvRows)[number];
+      const columns: ColumnDefinition<CsvRow>[] = [
+        { key: "postId", header: "Post ID" },
+        { key: "postStatus", header: "Post Status" },
+        { key: "channelId", header: "Channel ID" },
+        { key: "provider", header: "Provider" },
+        { key: "channelHandle", header: "Channel Handle" },
+        { key: "views", header: "Views" },
+        { key: "likes", header: "Likes" },
+        { key: "comments", header: "Comments" },
+        { key: "shares", header: "Shares" },
+        { key: "engagement", header: "Total Engagement" },
+        {
+          key: "engagementRate",
+          header: "Engagement Rate (%)",
+          format: (val: unknown) => String(val),
+        },
+        { key: "capturedAt", header: "Captured At" },
+        { key: "publishedAt", header: "Published At" },
+      ];
+
+      const csvContent = exportToCSV(csvRows, columns);
+      const filename = generateCSVFilename(`analytics-${projectId}-${timeRange}`);
+
+      return reply
+        .header("Content-Type", "text/csv; charset=utf-8")
+        .header("Content-Disposition", `attachment; filename="${filename}"`)
+        .send(csvContent);
+    } catch (error) {
+      return this.sendError(ctx, 500, "Failed to export analytics", {
+        projectId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * @method buildCsvRows
+   * @description Joins analytics records with post and channel data into flat CSV rows.
+   */
+  private buildCsvRows(
+    analytics: ReadonlyArray<{
+      id: string;
+      postId: string | null;
+      channelId: string;
+      provider: { toString(): string };
+      views: number | null;
+      likes: number | null;
+      comments: number | null;
+      shares: number | null;
+      capturedAt: Date;
+    }>,
+    posts: ReadonlyArray<{
+      id: string;
+      status: string;
+      publishedAt: Date | null;
+    }>,
+    channels: ReadonlyArray<{
+      id: string;
+      provider: { toString(): string };
+      handle: string;
+    }>
+  ): Array<{
+    postId: string;
+    postStatus: string;
+    channelId: string;
+    provider: string;
+    channelHandle: string;
+    views: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    engagement: number;
+    engagementRate: string;
+    capturedAt: string;
+    publishedAt: string;
+  }> {
+    const postMap = new Map(posts.map((p) => [p.id, p]));
+    const channelMap = new Map(channels.map((c) => [c.id, c]));
+
+    return analytics.map((a) => {
+      const post = a.postId ? postMap.get(a.postId) : undefined;
+      const channel = channelMap.get(a.channelId);
+      const views = a.views ?? 0;
+      const likes = a.likes ?? 0;
+      const comments = a.comments ?? 0;
+      const shares = a.shares ?? 0;
+      const engagement = likes + comments + shares;
+      const engagementRate = views > 0 ? ((engagement / views) * 100).toFixed(2) : "0.00";
+
+      return {
+        postId: a.postId ?? "",
+        postStatus: post?.status ?? "",
+        channelId: a.channelId,
+        provider: a.provider.toString(),
+        channelHandle: channel?.handle ?? "",
+        views,
+        likes,
+        comments,
+        shares,
+        engagement,
+        engagementRate,
+        capturedAt: a.capturedAt.toISOString(),
+        publishedAt: post?.publishedAt?.toISOString() ?? "",
+      };
     });
   }
 

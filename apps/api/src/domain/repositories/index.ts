@@ -87,6 +87,9 @@ export {
   type EngagementMetrics,
   type TimeSeriesRow,
   type PostWithAnalyticsAndContent,
+  type DailySummaryDto,
+  type MonthlySummaryDto,
+  type HistoricalTrendDto,
 } from "./AnalyticsReadRepository.js";
 
 // TeamMember repository port (Phase 1: TeamMember foundation)
@@ -131,6 +134,27 @@ export {
   type OutboundReplyStatusValue,
   OUTBOUND_REPLY_STATUSES,
 } from "./SocialOutboundReplyRepository.js";
+
+// Campaign repository ports (Phase 3: Analytics & Reporting)
+export { type CampaignRepository } from "./CampaignRepository.js";
+export {
+  type CampaignQueryRepository,
+  type CampaignDto,
+  type CampaignWithStats,
+  type ListCampaignsOptions,
+} from "./CampaignQueryRepository.js";
+
+// Scheduled Report repository port (Phase 3 Step 7: Scheduled Reports)
+export {
+  type ScheduledReportRepository,
+  type ScheduledReportDto,
+} from "./ScheduledReportRepository.js";
+
+// Email port (Phase 3 Step 7: Scheduled Reports)
+export { type EmailPort, type SendEmailOptions, type EmailAttachment } from "./EmailPort.js";
+
+// GA4 Tracking port (Phase 3 Step 4: UTM/GA4 Integration)
+export { type GA4TrackingPort, type GA4Event } from "./GA4TrackingPort.js";
 
 // Plain domain DTOs — Prisma-free type mirrors for read-model ports
 export {

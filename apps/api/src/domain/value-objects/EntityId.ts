@@ -319,3 +319,63 @@ export class LinkClickId extends EntityId {
     return new LinkClickId(id);
   }
 }
+
+/**
+ * CampaignId - Strongly-typed identifier for Campaign entities
+ * Part of Phase 3: Analytics & Reporting
+ */
+export class CampaignId extends EntityId {
+  protected readonly entityType = "CampaignId";
+
+  private constructor(value: string) {
+    super(value);
+  }
+
+  static generate(): CampaignId {
+    return new CampaignId(EntityId.generateUUID());
+  }
+
+  static fromString(id: string): Result<CampaignId, InvalidIdError> {
+    if (!id || id.trim().length === 0) {
+      return err(new InvalidIdError("CampaignId", id));
+    }
+    if (!EntityId.isValidUUID(id)) {
+      return err(new InvalidIdError("CampaignId", id));
+    }
+    return ok(new CampaignId(id));
+  }
+
+  static fromStringUnsafe(id: string): CampaignId {
+    return new CampaignId(id);
+  }
+}
+
+/**
+ * ScheduledReportId - Strongly-typed identifier for ScheduledReport entities
+ * Part of Phase 3: Analytics & Reporting
+ */
+export class ScheduledReportId extends EntityId {
+  protected readonly entityType = "ScheduledReportId";
+
+  private constructor(value: string) {
+    super(value);
+  }
+
+  static generate(): ScheduledReportId {
+    return new ScheduledReportId(EntityId.generateUUID());
+  }
+
+  static fromString(id: string): Result<ScheduledReportId, InvalidIdError> {
+    if (!id || id.trim().length === 0) {
+      return err(new InvalidIdError("ScheduledReportId", id));
+    }
+    if (!EntityId.isValidUUID(id)) {
+      return err(new InvalidIdError("ScheduledReportId", id));
+    }
+    return ok(new ScheduledReportId(id));
+  }
+
+  static fromStringUnsafe(id: string): ScheduledReportId {
+    return new ScheduledReportId(id);
+  }
+}

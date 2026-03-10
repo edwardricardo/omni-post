@@ -50,6 +50,9 @@ import type { IntegrationEventPublisher } from "../integration-events/Integratio
 import { EventSchemaRegistry } from "../integration-events/EventSchemaRegistry.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
 import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.js";
+import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
+import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import { ResendEmailAdapter } from "../adapters/ResendEmailAdapter.js";
 
 /**
  * Register all services in the container
@@ -290,6 +293,16 @@ export function setupServices(
     },
     true
   );
+
+  // Register GA4 Tracking Adapter (Phase 3 Step 4: UTM/GA4 Integration)
+  container.register<GA4TrackingAdapter>(
+    TOKENS.GA4TrackingPort,
+    () => new GA4TrackingAdapter(),
+    true
+  );
+
+  // Register EmailPort (Phase 3 Step 7: Scheduled Reports)
+  container.register<EmailPort>(TOKENS.EmailPort, () => new ResendEmailAdapter(), true);
 
   // Register SagaManager (P3-A)
   container.register<SagaManagerImpl>(

@@ -18,6 +18,8 @@ export {
   MediaId,
   TrackedLinkId,
   LinkClickId,
+  CampaignId,
+  ScheduledReportId,
 } from "./EntityId.js";
 
 // Link Tracking value objects (Sprint 19)
@@ -71,6 +73,12 @@ export {
   SOCIAL_MESSAGE_STATUSES,
   type SocialMessageStatusValue,
 } from "./SocialMessageStatus.js";
+
+// UTM parameters (Phase 3 Step 4: UTM/GA4 Integration)
+export { UTMParameters, type UTMParametersProps } from "./UTMParameters.js";
+
+// Campaign value objects (Phase 3: Analytics & Reporting)
+export { CampaignStatus, CAMPAIGN_STATUS, type CampaignStatusValue } from "./CampaignStatus.js";
 
 // Approval workflow value objects (Phase 1 Step 3: Content Approval)
 export { ApprovalRequestId } from "./ApprovalRequestId.js";

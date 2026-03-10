@@ -27,6 +27,12 @@ export const QUEUE_NAMES = {
 
   /** Circuit-breaker dead-letter queue for failed external API calls */
   FAILED_OPERATIONS_DLQ: "failed-operations-dlq",
+
+  /** Analytics aggregation queue (daily/monthly rollup + raw data purge) */
+  ANALYTICS_AGGREGATION: "analytics-aggregation",
+
+  /** Scheduled report generation queue (cron-driven + manual trigger) */
+  REPORT_GENERATION: "report-generation",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

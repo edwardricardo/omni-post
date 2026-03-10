@@ -79,6 +79,9 @@ import { notificationRoutes } from "./notifications/notificationRoutes.js";
 import { approvalRoutes } from "./approvals/approvalRoutes.js";
 import { commentRoutes } from "./comments/commentRoutes.js";
 import { inboxRoutes } from "./inbox/inboxRoutes.js";
+import { campaignRoutes } from "./campaigns/campaignRoutes.js";
+import { utmRoutes } from "./utm/utmRoutes.js";
+import { reportRoutes } from "./reports/reportRoutes.js";
 
 // Phase 3 imports
 import { DatabaseOptimizer } from "./utils/dbOptimization.js";
@@ -399,6 +402,9 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(approvalRoutes);
   await typedApp.register(commentRoutes);
   await typedApp.register(inboxRoutes);
+  await typedApp.register(campaignRoutes);
+  await typedApp.register(utmRoutes);
+  await typedApp.register(reportRoutes);
 
   // Register provider routes
   const { providerRoutes } = await import("./providers/providerRoutes.js");

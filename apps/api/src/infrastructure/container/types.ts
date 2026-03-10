@@ -202,6 +202,34 @@ export const TOKENS = {
   GetConversationMessagesQuery: Symbol.for("GetConversationMessagesQuery"),
   GetUnreadInboxCountQuery: Symbol.for("GetUnreadInboxCountQuery"),
   InboxEventHandlers: Symbol.for("InboxEventHandlers"),
+
+  // Campaign (Phase 3.1: Campaign Tagging)
+  CampaignRepository: Symbol.for("CampaignRepository"),
+  CampaignQueryRepository: Symbol.for("CampaignQueryRepository"),
+  CreateCampaignUseCase: Symbol.for("CreateCampaignUseCase"),
+  UpdateCampaignUseCase: Symbol.for("UpdateCampaignUseCase"),
+  ArchiveCampaignUseCase: Symbol.for("ArchiveCampaignUseCase"),
+  TagPostWithCampaignUseCase: Symbol.for("TagPostWithCampaignUseCase"),
+  UntagPostFromCampaignUseCase: Symbol.for("UntagPostFromCampaignUseCase"),
+  GetCampaignAnalyticsUseCase: Symbol.for("GetCampaignAnalyticsUseCase"),
+  ListCampaignsQuery: Symbol.for("ListCampaignsQuery"),
+  GetCampaignQuery: Symbol.for("GetCampaignQuery"),
+
+  // Historical Analytics (Phase 3 Step 5)
+  GetHistoricalAnalyticsQuery: Symbol.for("GetHistoricalAnalyticsQuery"),
+
+  // UTM / GA4 (Phase 3 Step 4: UTM/GA4 Integration)
+  GenerateUTMLinksUseCase: Symbol.for("GenerateUTMLinksUseCase"),
+  GA4TrackingPort: Symbol.for("GA4TrackingPort"),
+
+  // Scheduled Reports (Phase 3 Step 7)
+  ScheduledReportRepository: Symbol.for("ScheduledReportRepository"),
+  EmailPort: Symbol.for("EmailPort"),
+  CreateScheduledReportUseCase: Symbol.for("CreateScheduledReportUseCase"),
+  UpdateScheduledReportUseCase: Symbol.for("UpdateScheduledReportUseCase"),
+  DeleteScheduledReportUseCase: Symbol.for("DeleteScheduledReportUseCase"),
+  ListScheduledReportsQuery: Symbol.for("ListScheduledReportsQuery"),
+  GenerateReportUseCase: Symbol.for("GenerateReportUseCase"),
 } as const;
 
 /**

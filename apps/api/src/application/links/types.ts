@@ -28,6 +28,12 @@ export interface TrackedLinkOutput {
   clicks: number;
   isActive: boolean;
   createdAt: Date;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
+  campaignId?: string;
 }
 
 /**

@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@packages/api-common": "workspace:*",
     "@adapters/db-prisma": "workspace:*",
+    "@infra/prisma": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
     "@ports/core": "workspace:*",
     "@providers/facebook": "workspace:*",
@@ -20,6 +22,7 @@
     "@providers/youtube": "workspace:*",
     "@observability/opentelemetry": "workspace:*",
     "@shared/types": "workspace:*",
+    "bullmq": "5.58.9",
     "dotenv": "17.2.2",
     "ioredis": "5.7.0",
     "pino": "10.3.1",

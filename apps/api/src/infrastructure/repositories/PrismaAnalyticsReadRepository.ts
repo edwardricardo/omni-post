@@ -20,6 +20,9 @@ import type {
   EngagementMetrics,
   TimeSeriesRow,
   PostWithAnalyticsAndContent,
+  DailySummaryDto,
+  MonthlySummaryDto,
+  HistoricalTrendDto,
 } from "../../domain/repositories/AnalyticsReadRepository.js";
 import type { AnalyticsDto } from "../../domain/repositories/ReadModelDtos.js";
 
@@ -247,5 +250,102 @@ export class PrismaAnalyticsReadRepository implements AnalyticsReadRepositoryPor
       orderBy: options.orderBy ?? { createdAt: "desc" },
     });
     return rows as unknown as PostWithAnalyticsAndContent[];
+  }
+
+  /**
+   * Return daily aggregated summaries for a channel within a date range.
+   * Queries the AnalyticsDailySummary pre-aggregated table.
+   */
+  async getDailySummary(
+    channelId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<DailySummaryDto[]> {
+    const rows = await this.prisma.analyticsDailySummary.findMany({
+      where: {
+        channelId,
+        date: { gte: startDate, lte: endDate },
+      },
+      orderBy: { date: "asc" },
+    });
+    return rows as unknown as DailySummaryDto[];
+  }
+
+  /**
+   * Return monthly aggregated summaries for a channel within a date range.
+   * Queries the AnalyticsMonthlySummary pre-aggregated table.
+   */
+  async getMonthlySummary(
+    channelId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<MonthlySummaryDto[]> {
+    const rows = await this.prisma.analyticsMonthlySummary.findMany({
+      where: {
+        channelId,
+        month: { gte: startDate, lte: endDate },
+      },
+      orderBy: { month: "asc" },
+    });
+    return rows as unknown as MonthlySummaryDto[];
+  }
+
+  /**
+   * Return historical trends for all channels in a project over N months.
+   * First resolves channel IDs for the project, then aggregates monthly
+   * summaries grouped by month period.
+   */
+  async getHistoricalTrends(projectId: string, months: number): Promise<HistoricalTrendDto[]> {
+    // Resolve all channel IDs belonging to this project
+    const channels = await this.prisma.channel.findMany({
+      where: { projectId, deletedAt: null },
+      select: { id: true },
+    });
+    const channelIds = channels.map((c) => c.id);
+
+    if (channelIds.length === 0) {
+      return [];
+    }
+
+    // Calculate the start date N months ago (first day of that month)
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - months);
+    startDate.setDate(1);
+    startDate.setHours(0, 0, 0, 0);
+
+    const rows = await this.prisma.analyticsMonthlySummary.findMany({
+      where: {
+        channelId: { in: channelIds },
+        month: { gte: startDate },
+      },
+      orderBy: { month: "asc" },
+    });
+
+    // Group by month period and aggregate
+    const grouped = new Map<string, HistoricalTrendDto>();
+
+    for (const row of rows) {
+      const period = new Date(row.month).toISOString().slice(0, 7); // YYYY-MM
+      const existing = grouped.get(period);
+
+      if (existing) {
+        existing.totalViews += row.views;
+        existing.totalLikes += row.likes;
+        existing.totalComments += row.comments;
+        existing.totalShares += row.shares;
+        existing.totalEngagement += row.likes + row.comments + row.shares;
+      } else {
+        grouped.set(period, {
+          period,
+          totalViews: row.views,
+          totalLikes: row.likes,
+          totalComments: row.comments,
+          totalShares: row.shares,
+          totalEngagement: row.likes + row.comments + row.shares,
+        });
+      }
+    }
+
+    return Array.from(grouped.values());
   }
 }

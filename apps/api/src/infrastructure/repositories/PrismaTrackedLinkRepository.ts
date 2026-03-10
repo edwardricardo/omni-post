@@ -45,6 +45,12 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
           data: {
             clicks: link.clicks,
             isActive: link.isActive,
+            utmSource: link.utmSource ?? null,
+            utmMedium: link.utmMedium ?? null,
+            utmCampaign: link.utmCampaign ?? null,
+            utmContent: link.utmContent ?? null,
+            utmTerm: link.utmTerm ?? null,
+            campaignId: link.campaignId ?? null,
             updatedAt: new Date(),
           },
         });
@@ -59,6 +65,12 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
             vanitySlug: link.vanitySlug ?? null,
             clicks: link.clicks,
             isActive: link.isActive,
+            utmSource: link.utmSource ?? null,
+            utmMedium: link.utmMedium ?? null,
+            utmCampaign: link.utmCampaign ?? null,
+            utmContent: link.utmContent ?? null,
+            utmTerm: link.utmTerm ?? null,
+            campaignId: link.campaignId ?? null,
             createdAt: link.createdAt,
             updatedAt: new Date(),
           },
@@ -242,6 +254,12 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
     vanitySlug: string | null;
     clicks: number;
     isActive: boolean;
+    utmSource?: string | null;
+    utmMedium?: string | null;
+    utmCampaign?: string | null;
+    utmContent?: string | null;
+    utmTerm?: string | null;
+    campaignId?: string | null;
     createdAt: Date;
     updatedAt: Date;
   }): TrackedLink {
@@ -258,6 +276,12 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
       ...(link.vanitySlug && { vanitySlug: link.vanitySlug }),
       clicks: link.clicks,
       isActive: link.isActive,
+      ...(link.utmSource && { utmSource: link.utmSource }),
+      ...(link.utmMedium && { utmMedium: link.utmMedium }),
+      ...(link.utmCampaign && { utmCampaign: link.utmCampaign }),
+      ...(link.utmContent && { utmContent: link.utmContent }),
+      ...(link.utmTerm && { utmTerm: link.utmTerm }),
+      ...(link.campaignId && { campaignId: link.campaignId }),
       createdAt: link.createdAt,
       updatedAt: link.updatedAt,
     };
