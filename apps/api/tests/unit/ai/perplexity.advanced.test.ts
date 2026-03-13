@@ -1,9 +1,8 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PerplexityProvider } from "../../../src/ai/providers/perplexity.js";
 import { mockConfig } from "./perplexity.test-helpers.js";
 
-describe("PerplexityProvider - Content Analysis", { concurrency: 1 }, () => {
+describe("PerplexityProvider - Content Analysis", () => {
   let provider: PerplexityProvider;
 
   beforeEach(() => {
@@ -17,9 +16,9 @@ describe("PerplexityProvider - Content Analysis", { concurrency: 1 }, () => {
       confidence: 0.95,
     });
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("Search for the latest research"));
+      expect(body.messages[1].content.includes("Search for the latest research")).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -27,8 +26,8 @@ describe("PerplexityProvider - Content Analysis", { concurrency: 1 }, () => {
     });
 
     const result = await provider.analyzeContent("I love this product!", "sentiment");
-    assert.strictEqual(result.score, 0.8);
-    assert.strictEqual(result.label, "positive");
+    expect(result.score).toBe(0.8);
+    expect(result.label).toBe("positive");
   });
 
   it("should analyze tone with research context", async (t) => {
@@ -38,9 +37,9 @@ describe("PerplexityProvider - Content Analysis", { concurrency: 1 }, () => {
       suggestions: ["Add personal touches"],
     });
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("Research current best practices"));
+      expect(body.messages[1].content.includes("Research current best practices")).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -48,7 +47,7 @@ describe("PerplexityProvider - Content Analysis", { concurrency: 1 }, () => {
     });
 
     const result = await provider.analyzeContent("Dear Sir/Madam", "tone");
-    assert.strictEqual(result.detected, "professional");
+    expect(result.detected).toBe("professional");
   });
 
   it("should analyze readability with current standards", async (t) => {
@@ -58,9 +57,11 @@ describe("PerplexityProvider - Content Analysis", { concurrency: 1 }, () => {
       suggestions: ["Simplify sentences"],
     });
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("current readability assessment standards"));
+      expect(
+        body.messages[1].content.includes("current readability assessment standards")
+      ).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -68,7 +69,7 @@ describe("PerplexityProvider - Content Analysis", { concurrency: 1 }, () => {
     });
 
     const result = await provider.analyzeContent("Complex content", "readability");
-    assert.strictEqual(result.score, 75);
+    expect(result.score).toBe(75);
   });
 
   it("should analyze engagement with latest factors", async (t) => {
@@ -77,9 +78,11 @@ describe("PerplexityProvider - Content Analysis", { concurrency: 1 }, () => {
       factors: [{ factor: "emotional appeal", impact: 80, suggestion: "Add storytelling" }],
     });
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("latest social media engagement factors"));
+      expect(
+        body.messages[1].content.includes("latest social media engagement factors")
+      ).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -87,15 +90,15 @@ describe("PerplexityProvider - Content Analysis", { concurrency: 1 }, () => {
     });
 
     const result = await provider.analyzeContent("Join us!", "engagement");
-    assert.strictEqual(result.score, 85);
+    expect(result.score).toBe(85);
   });
 
   it("should include system message for JSON response", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.strictEqual(body.messages.length, 2);
-      assert.strictEqual(body.messages[0].role, "system");
-      assert.ok(body.messages[0].content.includes("JSON"));
+      expect(body.messages.length).toBe(2);
+      expect(body.messages[0].role).toBe("system");
+      expect(body.messages[0].content.includes("JSON")).toBeTruthy();
       return {
         ok: true,
         json: async () => ({
@@ -110,18 +113,18 @@ describe("PerplexityProvider - Content Analysis", { concurrency: 1 }, () => {
   });
 
   it("should throw error on malformed JSON response", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: true,
       json: async () => ({ choices: [{ message: { content: "Not JSON" } }] }),
     }));
 
-    await assert.rejects(async () => {
-      await provider.analyzeContent("Test", "sentiment");
-    }, /Perplexity analysis failed/);
+    await expect(provider.analyzeContent("Test", "sentiment")).rejects.toThrow(
+      /Perplexity analysis failed/
+    );
   });
 });
 
-describe("PerplexityProvider - Content Optimization", { concurrency: 1 }, () => {
+describe("PerplexityProvider - Content Optimization", () => {
   let provider: PerplexityProvider;
 
   beforeEach(() => {
@@ -138,9 +141,11 @@ describe("PerplexityProvider - Content Optimization", { concurrency: 1 }, () => 
       platformSpecific: {},
     });
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("Research the latest twitter algorithm"));
+      expect(
+        body.messages[1].content.includes("Research the latest twitter algorithm")
+      ).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -148,7 +153,7 @@ describe("PerplexityProvider - Content Optimization", { concurrency: 1 }, () => 
     });
 
     const result = await provider.optimizeContent("Original tweet", "twitter");
-    assert.strictEqual(result.optimizedText, "Optimized tweet! 🚀");
+    expect(result.optimizedText).toBe("Optimized tweet! 🚀");
   });
 
   it("should include brand voice in optimization prompt", async (t) => {
@@ -161,9 +166,11 @@ describe("PerplexityProvider - Content Optimization", { concurrency: 1 }, () => 
       platformSpecific: {},
     });
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("maintaining a professional brand voice"));
+      expect(
+        body.messages[1].content.includes("maintaining a professional brand voice")
+      ).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -183,9 +190,9 @@ describe("PerplexityProvider - Content Optimization", { concurrency: 1 }, () => 
       platformSpecific: {},
     });
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("2024"));
+      expect(body.messages[1].content.includes("2024")).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -196,17 +203,17 @@ describe("PerplexityProvider - Content Optimization", { concurrency: 1 }, () => 
   });
 
   it("should throw error on optimization failure", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw new Error("API Error");
     });
 
-    await assert.rejects(async () => {
-      await provider.optimizeContent("Test", "twitter");
-    }, /Perplexity optimization failed/);
+    await expect(provider.optimizeContent("Test", "twitter")).rejects.toThrow(
+      /Perplexity optimization failed/
+    );
   });
 });
 
-describe("PerplexityProvider - Performance Prediction", { concurrency: 1 }, () => {
+describe("PerplexityProvider - Performance Prediction", () => {
   let provider: PerplexityProvider;
 
   beforeEach(() => {
@@ -226,9 +233,11 @@ describe("PerplexityProvider - Performance Prediction", { concurrency: 1 }, () =
       competitiveAnalysis: { benchmarkScore: 78, opportunities: [], threats: [] },
     });
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("Research current twitter performance trends"));
+      expect(
+        body.messages[1].content.includes("Research current twitter performance trends")
+      ).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -236,8 +245,8 @@ describe("PerplexityProvider - Performance Prediction", { concurrency: 1 }, () =
     });
 
     const result = await provider.predictPerformance("Great content!", "twitter");
-    assert.strictEqual(result.platform, "twitter");
-    assert.strictEqual(result.metrics.expectedEngagement.value, 150);
+    expect(result.platform).toBe("twitter");
+    expect(result.metrics.expectedEngagement.value).toBe(150);
   });
 
   it("should include historical data in prediction", async (t) => {
@@ -258,9 +267,9 @@ describe("PerplexityProvider - Performance Prediction", { concurrency: 1 }, () =
       competitiveAnalysis: { benchmarkScore: 80, opportunities: [], threats: [] },
     });
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("Historical context"));
+      expect(body.messages[1].content.includes("Historical context")).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -285,11 +294,11 @@ describe("PerplexityProvider - Performance Prediction", { concurrency: 1 }, () =
       competitiveAnalysis: { benchmarkScore: 70, opportunities: [], threats: [] },
     });
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       const historicalContext = body.messages[1].content;
       const parsedData = JSON.parse(historicalContext.match(/\[[\s\S]*\]/)[0]);
-      assert.strictEqual(parsedData.length, 3);
+      expect(parsedData.length).toBe(3);
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -300,17 +309,17 @@ describe("PerplexityProvider - Performance Prediction", { concurrency: 1 }, () =
   });
 
   it("should throw error on prediction failure", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw new Error("API Error");
     });
 
-    await assert.rejects(async () => {
-      await provider.predictPerformance("Test", "twitter");
-    }, /Perplexity prediction failed/);
+    await expect(provider.predictPerformance("Test", "twitter")).rejects.toThrow(
+      /Perplexity prediction failed/
+    );
   });
 });
 
-describe("PerplexityProvider - Content Variations", { concurrency: 1 }, () => {
+describe("PerplexityProvider - Content Variations", () => {
   let provider: PerplexityProvider;
 
   beforeEach(() => {
@@ -324,11 +333,11 @@ describe("PerplexityProvider - Content Variations", { concurrency: 1 }, () => {
       "Humorous variation",
     ]);
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(
+      expect(
         body.messages[1].content.includes("Research current content creation best practices")
-      );
+      ).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -336,16 +345,16 @@ describe("PerplexityProvider - Content Variations", { concurrency: 1 }, () => {
     });
 
     const result = await provider.generateVariations("Original", "tone", 3);
-    assert.ok(Array.isArray(result));
-    assert.strictEqual(result.length, 3);
+    expect(Array.isArray(result)).toBeTruthy();
+    expect(result.length).toBe(3);
   });
 
   it("should generate tone variations", async (t) => {
     const mockResponse = JSON.stringify(["Tone 1", "Tone 2", "Tone 3"]);
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("varying the tone"));
+      expect(body.messages[1].content.includes("varying the tone")).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -353,15 +362,15 @@ describe("PerplexityProvider - Content Variations", { concurrency: 1 }, () => {
     });
 
     const result = await provider.generateVariations("Original", "tone", 3);
-    assert.strictEqual(result.length, 3);
+    expect(result.length).toBe(3);
   });
 
   it("should generate length variations", async (t) => {
     const mockResponse = JSON.stringify(["Short", "Medium", "Long"]);
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("varying the length"));
+      expect(body.messages[1].content.includes("varying the length")).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -369,15 +378,15 @@ describe("PerplexityProvider - Content Variations", { concurrency: 1 }, () => {
     });
 
     const result = await provider.generateVariations("Original", "length", 3);
-    assert.strictEqual(result.length, 3);
+    expect(result.length).toBe(3);
   });
 
   it("should generate audience variations", async (t) => {
     const mockResponse = JSON.stringify(["For execs", "For marketers", "For consumers"]);
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("varying the audience"));
+      expect(body.messages[1].content.includes("varying the audience")).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -385,16 +394,16 @@ describe("PerplexityProvider - Content Variations", { concurrency: 1 }, () => {
     });
 
     const result = await provider.generateVariations("Original", "audience", 3);
-    assert.strictEqual(result.length, 3);
+    expect(result.length).toBe(3);
   });
 
   it("should request exact count of variations", async (t) => {
     const mockResponse = JSON.stringify(["V1", "V2", "V3", "V4", "V5"]);
 
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.ok(body.messages[1].content.includes("generate 5"));
-      assert.ok(body.messages[1].content.includes("exactly 5 strings"));
+      expect(body.messages[1].content.includes("generate 5")).toBeTruthy();
+      expect(body.messages[1].content.includes("exactly 5 strings")).toBeTruthy();
       return {
         ok: true,
         json: async () => ({ choices: [{ message: { content: mockResponse } }] }),
@@ -402,21 +411,21 @@ describe("PerplexityProvider - Content Variations", { concurrency: 1 }, () => {
     });
 
     const result = await provider.generateVariations("Original", "tone", 5);
-    assert.strictEqual(result.length, 5);
+    expect(result.length).toBe(5);
   });
 
   it("should throw error on variation generation failure", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw new Error("API Error");
     });
 
-    await assert.rejects(async () => {
-      await provider.generateVariations("Test", "tone", 3);
-    }, /Perplexity variation generation failed/);
+    await expect(provider.generateVariations("Test", "tone", 3)).rejects.toThrow(
+      /Perplexity variation generation failed/
+    );
   });
 });
 
-describe("PerplexityProvider - Error Handling", { concurrency: 1 }, () => {
+describe("PerplexityProvider - Error Handling", () => {
   let provider: PerplexityProvider;
 
   beforeEach(() => {
@@ -424,61 +433,61 @@ describe("PerplexityProvider - Error Handling", { concurrency: 1 }, () => {
   });
 
   it("should handle rate limit errors", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: false,
       status: 429,
       statusText: "Too Many Requests",
     }));
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /Perplexity API error: 429/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /Perplexity API error: 429/
+    );
   });
 
   it("should handle authentication errors", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: false,
       status: 401,
       statusText: "Unauthorized",
     }));
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /Perplexity API error: 401/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /Perplexity API error: 401/
+    );
   });
 
   it("should handle server errors", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: false,
       status: 500,
       statusText: "Internal Server Error",
     }));
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /Perplexity API error: 500/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /Perplexity API error: 500/
+    );
   });
 
   it("should handle malformed API responses", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: true,
       json: async () => ({ choices: [] }),
     }));
 
     const result = await provider.generateText([{ role: "user", content: "Test" }]);
-    assert.strictEqual(result, "");
+    expect(result).toBe("");
   });
 
   it("should handle JSON parsing errors", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: true,
       json: async () => {
         throw new Error("Invalid JSON");
       },
     }));
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /Perplexity generation failed/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /Perplexity generation failed/
+    );
   });
 });

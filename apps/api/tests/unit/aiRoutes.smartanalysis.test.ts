@@ -1,20 +1,19 @@
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createTestApp, aiService, setupAiServiceMocks } from "./aiRoutes.test-helpers.js";
 
 let app: FastifyInstance;
 
-describe("aiRoutes - POST /ai/smart-analysis", { concurrency: 1 }, () => {
-  before(async () => {
+describe("aiRoutes - POST /ai/smart-analysis", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  beforeEach((t) => {
-    setupAiServiceMocks(t, aiService);
+  beforeEach(() => {
+    setupAiServiceMocks(aiService);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -29,11 +28,11 @@ describe("aiRoutes - POST /ai/smart-analysis", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
-    assert.ok(body.data.success);
-    assert.ok(body.data.analysis);
-    assert.ok(body.data.metadata);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.success).toBeTruthy();
+    expect(body.data.analysis).toBeTruthy();
+    expect(body.data.metadata).toBeTruthy();
   });
 
   it("should use default values for optional parameters", async () => {
@@ -46,8 +45,8 @@ describe("aiRoutes - POST /ai/smart-analysis", { concurrency: 1 }, () => {
     });
 
     const body = JSON.parse(response.body);
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.data.platform, "twitter");
+    expect(response.statusCode).toBe(200);
+    expect(body.data.platform).toBe("twitter");
   });
 
   it("should accept all optional parameters", async () => {
@@ -65,7 +64,7 @@ describe("aiRoutes - POST /ai/smart-analysis", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should accept disabled optional features", async () => {
@@ -80,7 +79,7 @@ describe("aiRoutes - POST /ai/smart-analysis", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should validate variation count range", async () => {
@@ -94,7 +93,7 @@ describe("aiRoutes - POST /ai/smart-analysis", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject empty content", async () => {
@@ -106,20 +105,20 @@ describe("aiRoutes - POST /ai/smart-analysis", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 });
 
-describe("aiRoutes - DELETE /ai/cache", { concurrency: 1 }, () => {
-  before(async () => {
+describe("aiRoutes - DELETE /ai/cache", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  beforeEach((t) => {
-    setupAiServiceMocks(t, aiService);
+  beforeEach(() => {
+    setupAiServiceMocks(aiService);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -131,14 +130,14 @@ describe("aiRoutes - DELETE /ai/cache", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
-    assert.strictEqual(body.data.success, true);
-    assert.strictEqual(body.data.message, "Cache cleared successfully");
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.success).toBe(true);
+    expect(body.data.message).toBe("Cache cleared successfully");
   });
 
   it("should handle cache clear errors", async (t) => {
-    t.mock.method(aiService, "clearCache", async () => {
+    vi.spyOn(aiService, "clearCache").mockImplementation(async () => {
       throw new Error("Cache clear failed");
     });
 
@@ -147,25 +146,25 @@ describe("aiRoutes - DELETE /ai/cache", { concurrency: 1 }, () => {
       url: "/ai/cache",
     });
 
-    assert.strictEqual(response.statusCode, 500);
+    expect(response.statusCode).toBe(500);
   });
 });
 
-describe("aiRoutes - Error Handling", { concurrency: 1 }, () => {
-  before(async () => {
+describe("aiRoutes - Error Handling", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  beforeEach((t) => {
-    setupAiServiceMocks(t, aiService);
+  beforeEach(() => {
+    setupAiServiceMocks(aiService);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
   it("should return 500 for unexpected service errors", async (t) => {
-    t.mock.method(aiService, "generateContent", async () => {
+    vi.spyOn(aiService, "generateContent").mockImplementation(async () => {
       throw new Error("Unexpected error");
     });
 
@@ -177,9 +176,9 @@ describe("aiRoutes - Error Handling", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 500);
+    expect(response.statusCode).toBe(500);
     const body = JSON.parse(response.body);
-    assert.strictEqual(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should handle malformed JSON gracefully", async () => {
@@ -192,7 +191,7 @@ describe("aiRoutes - Error Handling", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject requests with invalid content-type", async () => {
@@ -205,20 +204,20 @@ describe("aiRoutes - Error Handling", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 415);
+    expect(response.statusCode).toBe(415);
   });
 });
 
-describe("aiRoutes - Input Sanitization", { concurrency: 1 }, () => {
-  before(async () => {
+describe("aiRoutes - Input Sanitization", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  beforeEach((t) => {
-    setupAiServiceMocks(t, aiService);
+  beforeEach(() => {
+    setupAiServiceMocks(aiService);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -233,7 +232,7 @@ describe("aiRoutes - Input Sanitization", { concurrency: 1 }, () => {
       },
     });
 
-    assert.ok([200, 400, 413].includes(response.statusCode));
+    expect([200, 400, 413].includes(response.statusCode)).toBeTruthy();
   });
 
   it("should handle special characters in content", async () => {
@@ -246,7 +245,7 @@ describe("aiRoutes - Input Sanitization", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should handle unicode characters", async () => {
@@ -259,6 +258,6 @@ describe("aiRoutes - Input Sanitization", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 });

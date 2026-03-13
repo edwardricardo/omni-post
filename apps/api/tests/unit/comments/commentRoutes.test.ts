@@ -1,61 +1,135 @@
-#!/usr/bin/env tsx
 /**
  * @file commentRoutes.test.ts
- * @description Integration-style route tests for the in-context comments system.
- *   Uses real DI container with Prisma for integration-style route testing.
- *   Covers create, list, edit, and soft-delete comment endpoints.
- * @layer infrastructure
+ * @description Unit tests for in-context comments system endpoints.
+ *   Uses mocked Prisma stores and a real Fastify instance to test HTTP endpoint behavior.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { type FastifyInstance } from "fastify";
-import {
-  type ZodTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-type-provider-zod";
-import { commentRoutes } from "../../../src/comments/commentRoutes.js";
-import type { AuthService } from "../../../src/auth/authService.js";
-import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../../src/infrastructure/container/setup.js";
-import { TOKENS } from "../../../src/infrastructure/container/types.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule, createStore, buildModelMock } from "../helpers/mockPrisma.js";
 
-// --- Test helpers ---
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
 
-let containerAuthService: AuthService;
+const { mockPrisma } = createMockPrismaModule();
 
-async function createTestApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false });
-  const typedApp = app.withTypeProvider<ZodTypeProvider>();
-  typedApp.setValidatorCompiler(validatorCompiler);
-  typedApp.setSerializerCompiler(serializerCompiler);
+// Post defaults that satisfy the domain mapper
+const postDefaults = {
+  status: "DRAFT",
+  deletedAt: null,
+  publishedAt: null,
+  scheduledAt: null,
+  title: null,
+  excerpt: null,
+  language: "EN",
+  tags: [],
+  platformOverrides: {},
+  contents: [],
+  media: [],
+  contentVersions: [],
+};
 
-  const container = setupContainer({ prisma });
-  containerAuthService = container.resolve<AuthService>(TOKENS.AuthService);
-  typedApp.decorate("container", container);
+// PostComment defaults
+const commentDefaults = {
+  deletedAt: null,
+  editedAt: null,
+  parentId: null,
+};
 
-  await typedApp.register(commentRoutes);
-  return typedApp;
-}
+// Add extra models needed by comment routes and their repositories
+const extraModels = {
+  postComment: buildModelMock(createStore(), commentDefaults),
+  post: buildModelMock(createStore(), postDefaults),
+  teamMember: buildModelMock(createStore(), {
+    isActive: true,
+    role: "MEMBER",
+    avatarUrl: null,
+    invitedBy: null,
+  }),
+  projectMember: buildModelMock(createStore()),
+  channel: buildModelMock(createStore()),
+  adminUserPermission: buildModelMock(createStore()),
+};
+Object.assign(mockPrisma.prisma, extraModels);
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
+// ---------------------------------------------------------------------------
+// Dynamic imports after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const fastifyCookie = (await import("@fastify/cookie")).default;
+const { commentRoutes } = await import("../../../src/comments/commentRoutes.js");
+const { authRoutes } = await import("../../../src/auth/authRoutes.js");
+const { setupContainer } = await import("../../../src/infrastructure/container/setup.js");
+const { TOKENS } = await import("../../../src/infrastructure/container/types.js");
+const { AuthService, setRedisInstance } = await import("../../../src/auth/authService.js");
+const { MfaService } = await import("../../../src/auth/mfaService.js");
+const { PrismaAdminUserRepository } = await import(
+  "../../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
+);
+
+setRedisInstance(null as never);
+
+// ---------------------------------------------------------------------------
+// Test setup
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const adminEmail = `comment-admin-${timestamp}@example.com`;
-const testPassword = "TestPassword123!";
+const testPassword = "TestPassword123";
 
-let app: FastifyInstance;
+let app: import("fastify").FastifyInstance;
 let adminToken: string;
-let testAccountId: string;
-let testProjectId: string;
 let testPostId: string;
 let testMemberId: string;
 
-describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
-  before(async () => {
-    app = await createTestApp();
+async function createTestApp() {
+  const localApp = Fastify({ logger: false });
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+
+  const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+  const mfaSvc = new MfaService(adminUserRepo);
+  const authSvc = new AuthService(adminUserRepo, mfaSvc);
+  container.registerInstance(TOKENS.AuthService, authSvc);
+
+  localApp.decorate("container", container);
+  await localApp.register(fastifyCookie);
+  await localApp.register(authRoutes);
+  await localApp.register(commentRoutes);
+  await localApp.ready();
+  return { app: localApp, authSvc };
+}
+
+describe("commentRoutes Integration Tests", () => {
+  let authSvc: InstanceType<typeof AuthService>;
+
+  beforeAll(async () => {
+    const result = await createTestApp();
+    app = result.app;
+    authSvc = result.authSvc;
 
     // Create account
-    const account = await prisma.account.create({
+    const account = await (mockPrisma.prisma.account as { create: Function }).create({
       data: {
         email: `comment-account-${timestamp}@example.com`,
         name: "Comment Test Account",
@@ -63,28 +137,32 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
         maxProjects: 5,
       },
     });
-    testAccountId = account.id;
+    const testAccountId = account.id;
 
     // Create project
-    const project = await prisma.project.create({
+    const project = await (mockPrisma.prisma.project as { create: Function }).create({
       data: {
         accountId: testAccountId,
         name: "Comment Test Project",
       },
     });
-    testProjectId = project.id;
 
     // Create post
-    const post = await prisma.post.create({
+    const post = await (mockPrisma.prisma as Record<string, { create: Function }>).post.create({
       data: {
-        projectId: testProjectId,
+        projectId: project.id,
         status: "DRAFT",
+        contents: [],
+        media: [],
+        contentVersions: [],
       },
     });
     testPostId = post.id;
 
     // Create team member (comment author)
-    const member = await prisma.teamMember.create({
+    const member = await (
+      mockPrisma.prisma as Record<string, { create: Function }>
+    ).teamMember.create({
       data: {
         accountId: testAccountId,
         email: `commenter-${timestamp}@example.com`,
@@ -94,67 +172,18 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
     });
     testMemberId = member.id;
 
-    // Create admin user for authentication
-    const adminResult = await containerAuthService.registerAdmin(
-      adminEmail,
-      testPassword,
-      "Comment Admin",
-      "ADMIN"
-    );
-    assert.ok(adminResult.ok, "Admin registration should succeed");
-
-    // Get auth token
-    const loginResult = await containerAuthService.login(
-      { email: adminEmail, password: testPassword },
-      "127.0.0.1",
-      "test-agent"
-    );
-    assert.ok(loginResult.ok, "Login should succeed");
-    if (loginResult.ok && "tokens" in loginResult.value) {
-      adminToken = loginResult.value.tokens.accessToken;
-    }
+    // Register admin user and get token
+    await authSvc.registerAdmin(adminEmail, testPassword, "Comment Admin", "ADMIN");
+    const loginRes = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { email: adminEmail, password: testPassword },
+    });
+    const loginBody = JSON.parse(loginRes.body);
+    adminToken = loginBody.data?.accessToken ?? "";
   });
 
-  after(async () => {
-    try {
-      // Clean up in reverse dependency order
-      await prisma.postComment.deleteMany({
-        where: { postId: testPostId },
-      });
-      await prisma.post.deleteMany({
-        where: { projectId: testProjectId },
-      });
-      await prisma.projectMember.deleteMany({
-        where: { member: { accountId: testAccountId } },
-      });
-      await prisma.teamMember.deleteMany({
-        where: { accountId: testAccountId },
-      });
-      await prisma.project.deleteMany({
-        where: { accountId: testAccountId },
-      });
-      await prisma.account.deleteMany({
-        where: { id: testAccountId },
-      });
-
-      // Clean up admin user
-      const adminUser = await prisma.adminUser.findUnique({
-        where: { email: adminEmail },
-      });
-      if (adminUser) {
-        await prisma.session.deleteMany({ where: { userId: adminUser.id } });
-        await prisma.loginAttempt.deleteMany({
-          where: { userId: adminUser.id },
-        });
-        await prisma.adminRoleHistory.deleteMany({
-          where: { userId: adminUser.id },
-        });
-        await prisma.adminUser.delete({ where: { id: adminUser.id } });
-      }
-    } catch (_err: unknown) {
-      // Cleanup is best-effort
-    }
-
+  afterAll(async () => {
     await app.close();
   });
 
@@ -170,7 +199,7 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
           body: "Unauthenticated comment",
         },
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("creates comment successfully", async () => {
@@ -185,9 +214,9 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const parsed = JSON.parse(response.body);
-      assert.equal(response.statusCode, 201);
-      assert.equal(parsed.ok, true);
-      assert.ok(parsed.data?.id, "Should return comment ID");
+      expect(response.statusCode).toBe(201);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.data?.id).toBeTruthy();
     });
 
     it("creates reply to existing comment", async () => {
@@ -203,9 +232,9 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const parentBody = JSON.parse(parentResponse.body);
-      assert.equal(parentResponse.statusCode, 201);
+      expect(parentResponse.statusCode).toBe(201);
       const parentId = parentBody.data?.id;
-      assert.ok(parentId, "Parent comment should have an ID");
+      expect(parentId).toBeTruthy();
 
       // Create a reply
       const replyResponse = await app.inject({
@@ -220,9 +249,9 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const replyBody = JSON.parse(replyResponse.body);
-      assert.equal(replyResponse.statusCode, 201);
-      assert.equal(replyBody.ok, true);
-      assert.ok(replyBody.data?.id, "Reply should have an ID");
+      expect(replyResponse.statusCode).toBe(201);
+      expect(replyBody.ok).toBe(true);
+      expect(replyBody.data?.id).toBeTruthy();
     });
 
     it("rejects empty body", async () => {
@@ -236,7 +265,7 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.equal(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -248,7 +277,7 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
         method: "GET",
         url: `/posts/${testPostId}/comments`,
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("lists comments for post", async () => {
@@ -259,9 +288,9 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const parsed = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(parsed.ok, true);
-      assert.ok(Array.isArray(parsed.data?.items), "Should return comments array");
+      expect(response.statusCode).toBe(200);
+      expect(parsed.ok).toBe(true);
+      expect(Array.isArray(parsed.data?.items)).toBeTruthy();
     });
 
     it("supports parentOnly filter", async () => {
@@ -272,8 +301,8 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const parsed = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(parsed.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(parsed.ok).toBe(true);
     });
   });
 
@@ -282,7 +311,7 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
   describe("PATCH /comments/:id", () => {
     let editableCommentId: string;
 
-    before(async () => {
+    beforeAll(async () => {
       // Create a comment to edit
       const createResponse = await app.inject({
         method: "POST",
@@ -295,7 +324,7 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const createBody = JSON.parse(createResponse.body);
-      assert.ok(createBody.data?.id, "Setup: comment creation should succeed");
+      expect(createBody.data?.id).toBeTruthy();
       editableCommentId = createBody.data.id;
     });
 
@@ -308,7 +337,7 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
           body: "Updated without auth",
         },
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("edits comment successfully", async () => {
@@ -323,9 +352,9 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const parsed = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(parsed.ok, true);
-      assert.equal(parsed.data?.updated, true);
+      expect(response.statusCode).toBe(200);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.data?.updated).toBe(true);
     });
 
     it("rejects edit with empty body", async () => {
@@ -339,7 +368,7 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.equal(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -348,7 +377,7 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
   describe("DELETE /comments/:id", () => {
     let deletableCommentId: string;
 
-    before(async () => {
+    beforeAll(async () => {
       // Create a comment to delete
       const createResponse = await app.inject({
         method: "POST",
@@ -361,7 +390,7 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const createBody = JSON.parse(createResponse.body);
-      assert.ok(createBody.data?.id, "Setup: comment creation should succeed");
+      expect(createBody.data?.id).toBeTruthy();
       deletableCommentId = createBody.data.id;
     });
 
@@ -370,7 +399,7 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
         method: "DELETE",
         url: `/comments/${deletableCommentId}`,
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("soft deletes comment successfully", async () => {
@@ -381,9 +410,9 @@ describe("commentRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const parsed = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(parsed.ok, true);
-      assert.equal(parsed.data?.deleted, true);
+      expect(response.statusCode).toBe(200);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.data?.deleted).toBe(true);
     });
   });
 });

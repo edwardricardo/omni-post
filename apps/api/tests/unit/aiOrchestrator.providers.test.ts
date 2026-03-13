@@ -10,8 +10,7 @@
  * - Cost Optimization (cost tracking, per-provider reporting)
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import type { AIMessage } from "../../src/ai/types.js";
 import {
   createOrchestrator,
@@ -25,18 +24,18 @@ import {
 // Suite
 // ---------------------------------------------------------------------------
 
-describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
+describe("AIOrchestrator — Providers", () => {
   let envSnapshot: Record<string, string | undefined>;
 
   // Suppress console.log from AIOrchestrator source (would corrupt TAP output)
   let _originalConsoleLog: typeof console.log;
-  before(() => {
+  beforeAll(() => {
     _originalConsoleLog = console.log;
     console.log = () => {};
     envSnapshot = captureAndClearAIEnv();
   });
 
-  after(() => {
+  afterAll(() => {
     console.log = _originalConsoleLog;
     restoreAIEnv(envSnapshot);
     unrefActiveHandles();
@@ -56,23 +55,23 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
   // Provider Management
   // -------------------------------------------------------------------------
 
-  describe("Provider Management", { concurrency: 1 }, () => {
+  describe("Provider Management", () => {
     it("should list all available providers", async () => {
       const providers = orchestrator.getAvailableProviders();
 
-      assert.strictEqual(providers.length, 3, "Should have 3 providers");
-      assert.ok(providers.includes("openai"), "Should include openai");
-      assert.ok(providers.includes("perplexity"), "Should include perplexity");
-      assert.ok(providers.includes("gemini"), "Should include gemini");
+      expect(providers.length).toBe(3);
+      expect(providers.includes("openai")).toBeTruthy();
+      expect(providers.includes("perplexity")).toBeTruthy();
+      expect(providers.includes("gemini")).toBeTruthy();
     });
 
     it("should check health of all providers", async () => {
       const health = await orchestrator.healthCheck();
 
-      assert.strictEqual(Object.keys(health).length, 3, "Should check 3 providers");
-      assert.strictEqual(health.openai, true, "OpenAI should be healthy");
-      assert.strictEqual(health.perplexity, true, "Perplexity should be healthy");
-      assert.strictEqual(health.gemini, true, "Gemini should be healthy");
+      expect(Object.keys(health).length).toBe(3);
+      expect(health.openai).toBe(true);
+      expect(health.perplexity).toBe(true);
+      expect(health.gemini).toBe(true);
     });
 
     it("should detect unhealthy providers", async () => {
@@ -81,9 +80,9 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
 
       const health = await orchestrator.healthCheck();
 
-      assert.strictEqual(health.openai, false, "OpenAI should be unhealthy");
-      assert.strictEqual(health.perplexity, true, "Perplexity should be healthy");
-      assert.strictEqual(health.gemini, false, "Gemini should be unhealthy");
+      expect(health.openai).toBe(false);
+      expect(health.perplexity).toBe(true);
+      expect(health.gemini).toBe(false);
     });
   });
 
@@ -91,22 +90,22 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
   // Provider Selection Strategy
   // -------------------------------------------------------------------------
 
-  describe("Provider Selection Strategy", { concurrency: 1 }, () => {
+  describe("Provider Selection Strategy", () => {
     it("should select preferred provider for generate tasks", async () => {
       const messages: AIMessage[] = [{ role: "user", content: "Test message" }];
       const result = await orchestrator.generateContent(messages);
 
-      assert.strictEqual(result.ok, true, "Should succeed");
+      expect(result.ok).toBe(true);
       // OpenAI is preferred for generate tasks
-      assert.strictEqual(mockOpenAI.callCount, 1, "Should use OpenAI first");
+      expect(mockOpenAI.callCount).toBe(1);
     });
 
     it("should select preferred provider for predict tasks", async () => {
       const result = await orchestrator.predictPerformance("Test content", "twitter");
 
-      assert.strictEqual(result.ok, true, "Should succeed");
+      expect(result.ok).toBe(true);
       // Perplexity is preferred for predict tasks
-      assert.strictEqual(mockPerplexity.callCount, 1, "Should use Perplexity first");
+      expect(mockPerplexity.callCount).toBe(1);
     });
 
     it("should skip unavailable providers", async () => {
@@ -115,12 +114,9 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
       const messages: AIMessage[] = [{ role: "user", content: "Test message" }];
       const result = await orchestrator.generateContent(messages);
 
-      assert.strictEqual(result.ok, true, "Should succeed with fallback");
-      assert.strictEqual(mockOpenAI.callCount, 0, "Should skip OpenAI");
-      assert.ok(
-        mockGemini.callCount > 0 || mockPerplexity.callCount > 0,
-        "Should use fallback provider"
-      );
+      expect(result.ok).toBe(true);
+      expect(mockOpenAI.callCount).toBe(0);
+      expect(mockGemini.callCount > 0 || mockPerplexity.callCount > 0).toBeTruthy();
     });
   });
 
@@ -128,26 +124,19 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
   // Fallback Handling
   // -------------------------------------------------------------------------
 
-  describe("Fallback Handling", { concurrency: 1 }, () => {
-    it("should fallback to next provider on failure", async (t) => {
-      t.timeout = 10000;
-
+  describe("Fallback Handling", () => {
+    it("should fallback to next provider on failure", { timeout: 10000 }, async () => {
       mockOpenAI.setShouldFail(true);
 
       const messages: AIMessage[] = [{ role: "user", content: "Test message" }];
       const result = await orchestrator.generateContent(messages, { retryAttempts: 1 });
 
-      assert.strictEqual(result.ok, true, "Should succeed with fallback");
-      assert.ok(mockOpenAI.callCount >= 1, "Should try OpenAI first");
-      assert.ok(
-        mockGemini.callCount > 0 || mockPerplexity.callCount > 0,
-        "Should fallback to another provider"
-      );
+      expect(result.ok).toBe(true);
+      expect(mockOpenAI.callCount >= 1).toBeTruthy();
+      expect(mockGemini.callCount > 0 || mockPerplexity.callCount > 0).toBeTruthy();
     });
 
-    it("should try all providers before failing", async (t) => {
-      t.timeout = 15000;
-
+    it("should try all providers before failing", { timeout: 15000 }, async () => {
       mockOpenAI.setShouldFail(true);
       mockPerplexity.setShouldFail(true);
       mockGemini.setShouldFail(true);
@@ -155,16 +144,14 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
       const messages: AIMessage[] = [{ role: "user", content: "Test message" }];
       const result = await orchestrator.generateContent(messages, { retryAttempts: 1 });
 
-      assert.strictEqual(result.ok, false, "Should fail after all providers fail");
+      expect(result.ok).toBe(false);
       if (!result.ok) {
-        assert.strictEqual(result.error?.code, "ALL_PROVIDERS_FAILED");
-        assert.strictEqual(result.error?.retryable, true);
+        expect(result.error?.code).toBe("ALL_PROVIDERS_FAILED");
+        expect(result.error?.retryable).toBe(true);
       }
     });
 
-    it("should retry failed provider with exponential backoff", async (t) => {
-      t.timeout = 10000;
-
+    it("should retry failed provider with exponential backoff", { timeout: 10000 }, async () => {
       let attemptCount = 0;
       const originalGenerateText = mockOpenAI.generateText.bind(mockOpenAI);
 
@@ -183,8 +170,8 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
       const messages: AIMessage[] = [{ role: "user", content: "Test message" }];
       const result = await orchestrator.generateContent(messages, { retryAttempts: 2 });
 
-      assert.strictEqual(result.ok, true, "Should succeed after retry");
-      assert.ok(attemptCount >= 2, "Should have retried at least once");
+      expect(result.ok).toBe(true);
+      expect(attemptCount >= 2).toBeTruthy();
     });
   });
 
@@ -192,7 +179,7 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
   // Load Balancing
   // -------------------------------------------------------------------------
 
-  describe("Load Balancing", { concurrency: 1 }, () => {
+  describe("Load Balancing", () => {
     it("should distribute load across healthy providers", async () => {
       const messages: AIMessage[] = [{ role: "user", content: "Load balance test" }];
 
@@ -205,7 +192,7 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
 
       // All requests should succeed
       const allSuccessful = (await Promise.all(requests)).every((r) => r.ok);
-      assert.strictEqual(allSuccessful, true, "All requests should succeed");
+      expect(allSuccessful).toBe(true);
     });
 
     it("should prefer faster providers over time", async () => {
@@ -221,7 +208,7 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
       }
 
       // OpenAI should have been selected due to better latency
-      assert.ok(fastOpenAI.callCount > 0, "Should use faster provider");
+      expect(fastOpenAI.callCount > 0).toBeTruthy();
     });
   });
 
@@ -229,7 +216,7 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
   // Cost Optimization
   // -------------------------------------------------------------------------
 
-  describe("Cost Optimization", { concurrency: 1 }, () => {
+  describe("Cost Optimization", () => {
     it("should prefer cost-effective providers when possible", async () => {
       const messages: AIMessage[] = [{ role: "user", content: "Cost test" }];
 
@@ -242,7 +229,7 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
         totalCost += metric.cost;
       }
 
-      assert.ok(totalCost > 0, "Should track costs");
+      expect(totalCost > 0).toBeTruthy();
     });
 
     it("should report cost per provider in metrics", async () => {
@@ -254,7 +241,7 @@ describe("AIOrchestrator — Providers", { concurrency: 1 }, () => {
 
       for (const [provider, metric] of metrics) {
         if (metric.requestCount > 0) {
-          assert.ok(metric.cost >= 0, `${provider} should have cost metrics`);
+          expect(metric.cost >= 0).toBeTruthy();
         }
       }
     });

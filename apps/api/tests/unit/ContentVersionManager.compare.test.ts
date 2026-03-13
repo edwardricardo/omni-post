@@ -5,8 +5,7 @@ console.error = () => {};
 console.log = () => {};
 console.warn = () => {};
 
-import { describe, it, beforeEach, afterEach, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
 import { ContentVersionManager } from "../../src/content/ContentVersionManager";
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
@@ -28,11 +27,11 @@ let mockEventService: MockEventService;
 let mockPrisma: PrismaClient;
 let versionManager: ContentVersionManager;
 
-describe("ContentVersionManager - compareVersions", { concurrency: 1 }, () => {
+describe("ContentVersionManager - compareVersions", () => {
   let version1Id: string;
   let version2Id: string;
 
-  after(() => {
+  afterAll(() => {
     console.error = _origConsoleError;
     console.log = _origConsoleLog;
     console.warn = _origConsoleWarn;
@@ -55,7 +54,7 @@ describe("ContentVersionManager - compareVersions", { concurrency: 1 }, () => {
       testAdaptations,
       { createdBy: testUserId, changelog: "Version 1" }
     );
-    assert.ok(result1.ok);
+    expect(result1.ok).toBeTruthy();
     if (result1.ok) version1Id = result1.value.id;
 
     const updatedPost = {
@@ -67,7 +66,7 @@ describe("ContentVersionManager - compareVersions", { concurrency: 1 }, () => {
       createdBy: testUserId,
       changelog: "Version 2",
     });
-    assert.ok(result2.ok);
+    expect(result2.ok).toBeTruthy();
     if (result2.ok) version2Id = result2.value.id;
   });
 
@@ -77,29 +76,29 @@ describe("ContentVersionManager - compareVersions", { concurrency: 1 }, () => {
     }
   });
 
-  describe("Diff Generation", { concurrency: 1 }, () => {
+  describe("Diff Generation", () => {
     it("should generate diffs for modified content fields", async () => {
       const result = await versionManager.compareVersions(version1Id, version2Id);
 
-      assert.ok(result.ok, "Comparison should succeed");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const diffs = result.value;
-        assert.ok(Array.isArray(diffs), "Should return array of diffs");
+        expect(Array.isArray(diffs)).toBeTruthy();
 
         const titleDiff = diffs.find((d) => d.field === "content.title");
-        assert.ok(titleDiff, "Should have title diff");
+        expect(titleDiff).toBeTruthy();
         if (titleDiff) {
-          assert.strictEqual(titleDiff.oldValue, "Test Post Title");
-          assert.strictEqual(titleDiff.newValue, "Updated Title");
-          assert.strictEqual(titleDiff.changeType, "modified");
+          expect(titleDiff.oldValue).toBe("Test Post Title");
+          expect(titleDiff.newValue).toBe("Updated Title");
+          expect(titleDiff.changeType).toBe("modified");
         }
 
         const bodyDiff = diffs.find((d) => d.field === "content.body");
-        assert.ok(bodyDiff, "Should have body diff");
+        expect(bodyDiff).toBeTruthy();
         if (bodyDiff) {
-          assert.strictEqual(bodyDiff.oldValue, "Test post content body");
-          assert.strictEqual(bodyDiff.newValue, "Updated body content");
-          assert.strictEqual(bodyDiff.changeType, "modified");
+          expect(bodyDiff.oldValue).toBe("Test post content body");
+          expect(bodyDiff.newValue).toBe("Updated body content");
+          expect(bodyDiff.changeType).toBe("modified");
         }
       }
     });
@@ -116,19 +115,19 @@ describe("ContentVersionManager - compareVersions", { concurrency: 1 }, () => {
         testAdaptations,
         { createdBy: testUserId }
       );
-      assert.ok(result3.ok);
+      expect(result3.ok).toBeTruthy();
       const version3Id = result3.ok ? result3.value.id : "";
 
       const result = await versionManager.compareVersions(version1Id, version3Id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const addedDiff = result.value.find((d) => d.field === "content.subtitle");
-        assert.ok(addedDiff, "Should detect added field");
+        expect(addedDiff).toBeTruthy();
         if (addedDiff) {
-          assert.strictEqual(addedDiff.oldValue, undefined);
-          assert.strictEqual(addedDiff.newValue, "New subtitle field");
-          assert.strictEqual(addedDiff.changeType, "added");
+          expect(addedDiff.oldValue).toBe(undefined);
+          expect(addedDiff.newValue).toBe("New subtitle field");
+          expect(addedDiff.changeType).toBe("added");
         }
       }
     });
@@ -145,19 +144,19 @@ describe("ContentVersionManager - compareVersions", { concurrency: 1 }, () => {
         {},
         { createdBy: testUserId }
       );
-      assert.ok(result3.ok);
+      expect(result3.ok).toBeTruthy();
       const version3Id = result3.ok ? result3.value.id : "";
 
       const result = await versionManager.compareVersions(version1Id, version3Id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const removedDiff = result.value.find((d) => d.field === "content.tags");
-        assert.ok(removedDiff, "Should detect removed field");
+        expect(removedDiff).toBeTruthy();
         if (removedDiff) {
-          assert.deepStrictEqual(removedDiff.oldValue, ["test", "content"]);
-          assert.strictEqual(removedDiff.newValue, undefined);
-          assert.strictEqual(removedDiff.changeType, "removed");
+          expect(removedDiff.oldValue).toStrictEqual(["test", "content"]);
+          expect(removedDiff.newValue).toBe(undefined);
+          expect(removedDiff.changeType).toBe("removed");
         }
       }
     });
@@ -177,15 +176,15 @@ describe("ContentVersionManager - compareVersions", { concurrency: 1 }, () => {
         updatedAdaptations,
         { createdBy: testUserId }
       );
-      assert.ok(result3.ok);
+      expect(result3.ok).toBeTruthy();
       const version3Id = result3.ok ? result3.value.id : "";
 
       const result = await versionManager.compareVersions(version1Id, version3Id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const adaptationDiff = result.value.find((d) => d.field.startsWith("adaptations.x"));
-        assert.ok(adaptationDiff, "Should detect adaptation changes");
+        expect(adaptationDiff).toBeTruthy();
       }
     });
 
@@ -204,17 +203,17 @@ describe("ContentVersionManager - compareVersions", { concurrency: 1 }, () => {
         newAdaptations,
         { createdBy: testUserId }
       );
-      assert.ok(result3.ok);
+      expect(result3.ok).toBeTruthy();
       const version3Id = result3.ok ? result3.value.id : "";
 
       const result = await versionManager.compareVersions(version1Id, version3Id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const addedAdaptation = result.value.find((d) => d.field === "adaptations.facebook");
-        assert.ok(addedAdaptation, "Should detect added adaptation");
+        expect(addedAdaptation).toBeTruthy();
         if (addedAdaptation) {
-          assert.strictEqual(addedAdaptation.changeType, "added");
+          expect(addedAdaptation.changeType).toBe("added");
         }
       }
     });
@@ -230,45 +229,45 @@ describe("ContentVersionManager - compareVersions", { concurrency: 1 }, () => {
         reducedAdaptations,
         { createdBy: testUserId }
       );
-      assert.ok(result3.ok);
+      expect(result3.ok).toBeTruthy();
       const version3Id = result3.ok ? result3.value.id : "";
 
       const result = await versionManager.compareVersions(version1Id, version3Id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const removedAdaptation = result.value.find((d) => d.field === "adaptations.instagram");
-        assert.ok(removedAdaptation, "Should detect removed adaptation");
+        expect(removedAdaptation).toBeTruthy();
         if (removedAdaptation) {
-          assert.strictEqual(removedAdaptation.changeType, "removed");
+          expect(removedAdaptation.changeType).toBe("removed");
         }
       }
     });
   });
 
-  describe("Comparison Validation", { concurrency: 1 }, () => {
+  describe("Comparison Validation", () => {
     it("should handle comparison with non-existent version", async () => {
       const result = await versionManager.compareVersions(version1Id, "non-existent-id");
 
-      assert.ok(!result.ok, "Should fail for non-existent version");
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.strictEqual(result.error.type, "validation");
-        assert.ok(result.error.message.includes("not found"));
+        expect(result.error.type).toBe("validation");
+        expect(result.error.message.includes("not found")).toBeTruthy();
       }
     });
 
     it("should handle comparison when both versions not found", async () => {
       const result = await versionManager.compareVersions("invalid-1", "invalid-2");
 
-      assert.ok(!result.ok, "Should fail when versions not found");
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.strictEqual(result.error.type, "validation");
+        expect(result.error.type).toBe("validation");
       }
     });
   });
 });
 
-describe("ContentVersionManager - getVersionHistory", { concurrency: 1 }, () => {
+describe("ContentVersionManager - getVersionHistory", () => {
   beforeEach(async () => {
     mockRedis = createMockRedis();
     mockEventService = createMockEventService();
@@ -299,30 +298,30 @@ describe("ContentVersionManager - getVersionHistory", { concurrency: 1 }, () => 
   it("should retrieve all versions for a post", async () => {
     const history = await versionManager.getVersionHistory(testPostId);
 
-    assert.ok(Array.isArray(history), "Should return array");
-    assert.strictEqual(history.length, 5, "Should have 5 versions");
+    expect(Array.isArray(history)).toBeTruthy();
+    expect(history.length).toBe(5);
   });
 
   it("should respect limit parameter", async () => {
     const history = await versionManager.getVersionHistory(testPostId, undefined, 3);
 
-    assert.strictEqual(history.length, 3, "Should limit to 3 versions");
+    expect(history.length).toBe(3);
   });
 
   it("should retrieve versions from cache", async () => {
     const history1 = await versionManager.getVersionHistory(testPostId);
-    assert.strictEqual(history1.length, 5);
+    expect(history1.length).toBe(5);
 
     const history2 = await versionManager.getVersionHistory(testPostId);
-    assert.strictEqual(history2.length, 5);
-    assert.deepStrictEqual(history1, history2);
+    expect(history2.length).toBe(5);
+    expect(history1).toStrictEqual(history2);
   });
 
   it("should handle empty history gracefully", async () => {
     const emptyPostId = `post_${Date.now()}_empty`;
     const history = await versionManager.getVersionHistory(emptyPostId);
 
-    assert.ok(Array.isArray(history), "Should return empty array");
-    assert.strictEqual(history.length, 0);
+    expect(Array.isArray(history)).toBeTruthy();
+    expect(history.length).toBe(0);
   });
 });

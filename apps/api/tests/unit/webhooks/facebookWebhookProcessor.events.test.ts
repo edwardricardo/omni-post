@@ -9,18 +9,17 @@
  * @category UnitTests
  */
 
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { FacebookWebhookProcessor } from "../../../src/webhooks/processors/facebookWebhookProcessor.js";
 
 // ===========================
 // Comment Event Parsing Tests (4 tests)
 // ===========================
 
-describe("FacebookWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, () => {
+describe("FacebookWebhookProcessor - Comment Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new FacebookWebhookProcessor();
   });
 
@@ -51,12 +50,12 @@ describe("FacebookWebhookProcessor - Comment Event Parsing", { concurrency: 1 },
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "comment_received");
-    assert.strictEqual(result.normalizedData.commentId, "comment-456");
-    assert.strictEqual(result.normalizedData.postId, "post-789");
-    assert.strictEqual(result.normalizedData.text, "Great post!");
-    assert.strictEqual(result.normalizedData.isReply, false);
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("comment_received");
+    expect(result.normalizedData.commentId).toBe("comment-456");
+    expect(result.normalizedData.postId).toBe("post-789");
+    expect(result.normalizedData.text).toBe("Great post!");
+    expect(result.normalizedData.isReply).toBe(false);
   });
 
   it("should parse comment reply event", async () => {
@@ -87,8 +86,8 @@ describe("FacebookWebhookProcessor - Comment Event Parsing", { concurrency: 1 },
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.isReply, true);
-    assert.strictEqual(result.normalizedData.parentId, "comment-123");
+    expect(result.normalizedData.isReply).toBe(true);
+    expect(result.normalizedData.parentId).toBe("comment-123");
   });
 
   it("should parse comment edited event", async () => {
@@ -118,7 +117,7 @@ describe("FacebookWebhookProcessor - Comment Event Parsing", { concurrency: 1 },
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.verb, "edited");
+    expect(result.normalizedData.verb).toBe("edited");
   });
 
   it("should parse comment removed event", async () => {
@@ -147,7 +146,7 @@ describe("FacebookWebhookProcessor - Comment Event Parsing", { concurrency: 1 },
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.verb, "remove");
+    expect(result.normalizedData.verb).toBe("remove");
   });
 });
 
@@ -155,10 +154,10 @@ describe("FacebookWebhookProcessor - Comment Event Parsing", { concurrency: 1 },
 // Reaction Event Parsing Tests (5 tests)
 // ===========================
 
-describe("FacebookWebhookProcessor - Reaction Event Parsing", { concurrency: 1 }, () => {
+describe("FacebookWebhookProcessor - Reaction Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new FacebookWebhookProcessor();
   });
 
@@ -189,10 +188,10 @@ describe("FacebookWebhookProcessor - Reaction Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "LIKE_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "reaction_received");
-    assert.strictEqual(result.normalizedData.reactionType, "like");
-    assert.strictEqual(result.normalizedData.verb, "add");
+    expect(result.eventType).toBe("LIKE_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("reaction_received");
+    expect(result.normalizedData.reactionType).toBe("like");
+    expect(result.normalizedData.verb).toBe("add");
   });
 
   it("should parse love reaction event", async () => {
@@ -222,7 +221,7 @@ describe("FacebookWebhookProcessor - Reaction Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.reactionType, "love");
+    expect(result.normalizedData.reactionType).toBe("love");
   });
 
   it("should parse haha reaction event", async () => {
@@ -252,7 +251,7 @@ describe("FacebookWebhookProcessor - Reaction Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.reactionType, "haha");
+    expect(result.normalizedData.reactionType).toBe("haha");
   });
 
   it("should parse wow, sad, and angry reactions", async () => {
@@ -285,7 +284,7 @@ describe("FacebookWebhookProcessor - Reaction Event Parsing", { concurrency: 1 }
 
       const result = await processor.parse(payload);
 
-      assert.strictEqual(result.normalizedData.reactionType, reactionType);
+      expect(result.normalizedData.reactionType).toBe(reactionType);
     }
   });
 
@@ -316,7 +315,7 @@ describe("FacebookWebhookProcessor - Reaction Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.verb, "remove");
+    expect(result.normalizedData.verb).toBe("remove");
   });
 });
 
@@ -324,10 +323,10 @@ describe("FacebookWebhookProcessor - Reaction Event Parsing", { concurrency: 1 }
 // Mention Event Parsing Tests (2 tests)
 // ===========================
 
-describe("FacebookWebhookProcessor - Mention Event Parsing", { concurrency: 1 }, () => {
+describe("FacebookWebhookProcessor - Mention Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new FacebookWebhookProcessor();
   });
 
@@ -357,10 +356,10 @@ describe("FacebookWebhookProcessor - Mention Event Parsing", { concurrency: 1 },
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "MENTION_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "mention_received");
-    assert.strictEqual(result.normalizedData.postId, "mention-post-123");
-    assert.strictEqual(result.normalizedData.message, "Check out @TestPage!");
+    expect(result.eventType).toBe("MENTION_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("mention_received");
+    expect(result.normalizedData.postId).toBe("mention-post-123");
+    expect(result.normalizedData.message).toBe("Check out @TestPage!");
   });
 
   it("should extract mention author and permalink", async () => {
@@ -389,9 +388,9 @@ describe("FacebookWebhookProcessor - Mention Event Parsing", { concurrency: 1 },
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.from.id, "user-789");
-    assert.strictEqual(result.normalizedData.from.name, "Tagger");
-    assert.strictEqual(result.normalizedData.permalink, "https://facebook.com/permalink/123");
+    expect(result.normalizedData.from.id).toBe("user-789");
+    expect(result.normalizedData.from.name).toBe("Tagger");
+    expect(result.normalizedData.permalink).toBe("https://facebook.com/permalink/123");
   });
 });
 
@@ -399,10 +398,10 @@ describe("FacebookWebhookProcessor - Mention Event Parsing", { concurrency: 1 },
 // Page Event Parsing Tests (2 tests)
 // ===========================
 
-describe("FacebookWebhookProcessor - Page Event Parsing", { concurrency: 1 }, () => {
+describe("FacebookWebhookProcessor - Page Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new FacebookWebhookProcessor();
   });
 
@@ -432,11 +431,11 @@ describe("FacebookWebhookProcessor - Page Event Parsing", { concurrency: 1 }, ()
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "ACCOUNT_CONNECTED");
-    assert.strictEqual(result.normalizedData.eventType, "page_updated");
-    assert.strictEqual(result.normalizedData.pageId, "page-123");
-    assert.strictEqual(result.normalizedData.name, "Updated Page Name");
-    assert.strictEqual(result.normalizedData.category, "Entertainment");
+    expect(result.eventType).toBe("ACCOUNT_CONNECTED");
+    expect(result.normalizedData.eventType).toBe("page_updated");
+    expect(result.normalizedData.pageId).toBe("page-123");
+    expect(result.normalizedData.name).toBe("Updated Page Name");
+    expect(result.normalizedData.category).toBe("Entertainment");
   });
 
   it("should parse page settings changes", async () => {
@@ -463,7 +462,7 @@ describe("FacebookWebhookProcessor - Page Event Parsing", { concurrency: 1 }, ()
 
     const result = await processor.parse(payload);
 
-    assert.deepStrictEqual(result.normalizedData.changes, {
+    expect(result.normalizedData.changes).toStrictEqual({
       privacy: "public",
       messaging_enabled: true,
     });
@@ -474,10 +473,10 @@ describe("FacebookWebhookProcessor - Page Event Parsing", { concurrency: 1 }, ()
 // Live Video Event Parsing Tests (3 tests)
 // ===========================
 
-describe("FacebookWebhookProcessor - Live Video Event Parsing", { concurrency: 1 }, () => {
+describe("FacebookWebhookProcessor - Live Video Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new FacebookWebhookProcessor();
   });
 
@@ -508,10 +507,10 @@ describe("FacebookWebhookProcessor - Live Video Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_PUBLISHED");
-    assert.strictEqual(result.normalizedData.eventType, "live_video_published");
-    assert.strictEqual(result.normalizedData.videoId, "live-456");
-    assert.strictEqual(result.normalizedData.status, "live");
+    expect(result.eventType).toBe("POST_PUBLISHED");
+    expect(result.normalizedData.eventType).toBe("live_video_published");
+    expect(result.normalizedData.videoId).toBe("live-456");
+    expect(result.normalizedData.status).toBe("live");
   });
 
   it("should parse live video VOD status", async () => {
@@ -540,7 +539,7 @@ describe("FacebookWebhookProcessor - Live Video Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.status, "vod");
+    expect(result.normalizedData.status).toBe("vod");
   });
 
   it("should parse live video processing status", async () => {
@@ -568,7 +567,7 @@ describe("FacebookWebhookProcessor - Live Video Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.status, "processing");
+    expect(result.normalizedData.status).toBe("processing");
   });
 });
 
@@ -576,10 +575,10 @@ describe("FacebookWebhookProcessor - Live Video Event Parsing", { concurrency: 1
 // Messaging Event Parsing Tests (2 tests)
 // ===========================
 
-describe("FacebookWebhookProcessor - Messaging Event Parsing", { concurrency: 1 }, () => {
+describe("FacebookWebhookProcessor - Messaging Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new FacebookWebhookProcessor();
   });
 
@@ -605,12 +604,12 @@ describe("FacebookWebhookProcessor - Messaging Event Parsing", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "comment_received");
-    assert.strictEqual(result.normalizedData.senderId, "user-456");
-    assert.strictEqual(result.normalizedData.recipientId, "page-123");
-    assert.strictEqual(result.normalizedData.isDirectMessage, true);
-    assert.strictEqual(result.normalizedData.isMessenger, true);
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("comment_received");
+    expect(result.normalizedData.senderId).toBe("user-456");
+    expect(result.normalizedData.recipientId).toBe("page-123");
+    expect(result.normalizedData.isDirectMessage).toBe(true);
+    expect(result.normalizedData.isMessenger).toBe(true);
   });
 
   it("should extract message content from messenger event", async () => {
@@ -636,7 +635,7 @@ describe("FacebookWebhookProcessor - Messaging Event Parsing", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.deepStrictEqual(result.normalizedData.message, {
+    expect(result.normalizedData.message).toStrictEqual({
       mid: "msg-111",
       text: messageText,
     });
@@ -647,23 +646,18 @@ describe("FacebookWebhookProcessor - Messaging Event Parsing", { concurrency: 1 
 // Error Handling Tests (3 tests)
 // ===========================
 
-describe("FacebookWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
+describe("FacebookWebhookProcessor - Error Handling", () => {
   let processor: FacebookWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new FacebookWebhookProcessor();
   });
 
   it("should throw error for missing entry in payload", async () => {
     const payload = { object: "page" };
 
-    await assert.rejects(
-      async () => {
-        await processor.parse(payload);
-      },
-      {
-        message: "Invalid Facebook webhook payload: missing entry",
-      }
+    await expect(processor.parse(payload)).rejects.toThrow(
+      "Invalid Facebook webhook payload: missing entry"
     );
   });
 
@@ -677,13 +671,8 @@ describe("FacebookWebhookProcessor - Error Handling", { concurrency: 1 }, () => 
       ],
     };
 
-    await assert.rejects(
-      async () => {
-        await processor.parse(payload);
-      },
-      {
-        message: /Unsupported Facebook webhook event type/,
-      }
+    await expect(processor.parse(payload)).rejects.toThrow(
+      /Unsupported Facebook webhook event type/
     );
   });
 
@@ -692,7 +681,7 @@ describe("FacebookWebhookProcessor - Error Handling", { concurrency: 1 }, () => 
 
     // This should return false instead of throwing
     const isValid = processor.verify("invalid\x00data", "signature", "secret");
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 });
 
@@ -700,10 +689,10 @@ describe("FacebookWebhookProcessor - Error Handling", { concurrency: 1 }, () => 
 // Unknown Event Handling Tests (1 test)
 // ===========================
 
-describe("FacebookWebhookProcessor - Unknown Event Handling", { concurrency: 1 }, () => {
+describe("FacebookWebhookProcessor - Unknown Event Handling", () => {
   let processor: FacebookWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new FacebookWebhookProcessor();
   });
 
@@ -724,7 +713,7 @@ describe("FacebookWebhookProcessor - Unknown Event Handling", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_UPDATED");
-    assert.strictEqual(result.normalizedData.field, "unknown_field");
+    expect(result.eventType).toBe("POST_UPDATED");
+    expect(result.normalizedData.field).toBe("unknown_field");
   });
 });

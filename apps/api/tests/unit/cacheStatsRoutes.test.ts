@@ -6,9 +6,7 @@
  * Coverage Target: 95%+
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 
@@ -20,7 +18,6 @@ type MockCacheManager = Pick<
 
 // Mock cache manager factory
 function createMockCacheManager(
-  t: TestContext,
   config: {
     healthy?: boolean;
     statsSuccess?: boolean;
@@ -38,7 +35,7 @@ function createMockCacheManager(
   } = config;
 
   return {
-    getStats: t.mock.fn(async () => ({
+    getStats: vi.fn(async () => ({
       ok: statsSuccess,
       value: statsSuccess
         ? {
@@ -61,7 +58,7 @@ function createMockCacheManager(
           }
         : undefined,
     })),
-    healthCheck: t.mock.fn(async () => ({
+    healthCheck: vi.fn(async () => ({
       ok: healthy,
       value: healthy
         ? {
@@ -70,31 +67,31 @@ function createMockCacheManager(
           }
         : undefined,
     })),
-    flush: t.mock.fn(async () => ({
+    flush: vi.fn(async () => ({
       ok: flushSuccess,
       value: flushSuccess ? undefined : undefined,
     })),
-    invalidateByTag: t.mock.fn(async (tag: string) => ({
+    invalidateByTag: vi.fn(async (tag: string) => ({
       ok: invalidateSuccess,
       value: invalidateSuccess ? (tag === "users" ? 10 : 5) : 0,
     })),
-    invalidateByPattern: t.mock.fn(async (pattern: string) => ({
+    invalidateByPattern: vi.fn(async (pattern: string) => ({
       ok: invalidateSuccess,
       value: invalidateSuccess ? (pattern === "user:*" ? 15 : 8) : 0,
     })),
-    warmCache: t.mock.fn(async () => ({
+    warmCache: vi.fn(async () => ({
       ok: warmSuccess,
       value: warmSuccess ? 25 : 0,
     })),
   };
 }
 
-describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
+describe("cacheStatsRoutes - Unit Tests", () => {
   let app: FastifyInstance;
   let mockCacheManager: MockCacheManager;
 
   beforeEach(async (t) => {
-    mockCacheManager = createMockCacheManager(t);
+    mockCacheManager = createMockCacheManager();
 
     app = Fastify({ logger: false });
 
@@ -116,12 +113,12 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/stats",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.stats);
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(body.stats).toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should include hit/miss metrics", async () => {
@@ -131,10 +128,10 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.stats.hits);
-      assert.ok(body.stats.misses);
-      assert.ok(body.stats.hitRate);
-      assert.ok(body.stats.hitRatePercentage);
+      expect(body.stats.hits).toBeTruthy();
+      expect(body.stats.misses).toBeTruthy();
+      expect(body.stats.hitRate).toBeTruthy();
+      expect(body.stats.hitRatePercentage).toBeTruthy();
     });
 
     it("should include cache size metrics", async () => {
@@ -144,9 +141,9 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.stats.totalKeys);
-      assert.ok(body.stats.memoryUsage);
-      assert.ok(body.stats.memoryUsageMB);
+      expect(body.stats.totalKeys).toBeTruthy();
+      expect(body.stats.memoryUsage).toBeTruthy();
+      expect(body.stats.memoryUsageMB).toBeTruthy();
     });
 
     it("should include L1/L2 cache breakdown", async () => {
@@ -156,9 +153,9 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.stats.l1Hits === "number");
-      assert.ok(typeof body.stats.l2Hits === "number");
-      assert.ok(typeof body.stats.l1Size === "number");
+      expect(typeof body.stats.l1Hits === "number").toBeTruthy();
+      expect(typeof body.stats.l2Hits === "number").toBeTruthy();
+      expect(typeof body.stats.l1Size === "number").toBeTruthy();
     });
 
     it("should include hot keys (top 10)", async () => {
@@ -168,8 +165,8 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(Array.isArray(body.stats.hotKeys));
-      assert.ok(body.stats.hotKeys.length <= 10);
+      expect(Array.isArray(body.stats.hotKeys)).toBeTruthy();
+      expect(body.stats.hotKeys.length <= 10).toBeTruthy();
     });
 
     it("should return 503 when cache manager unavailable", async () => {
@@ -182,18 +179,18 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/stats",
       });
 
-      assert.strictEqual(response.statusCode, 503);
+      expect(response.statusCode).toBe(503);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
-      assert.ok(body.error);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBeTruthy();
 
       await appWithoutCache.close();
     });
 
     it("should handle cache manager errors gracefully", async (t) => {
       const appWithFailingCache = Fastify({ logger: false });
-      const failingCache = createMockCacheManager(t, { statsSuccess: false });
+      const failingCache = createMockCacheManager({ statsSuccess: false });
       appWithFailingCache.decorate("cache", failingCache as RedisCacheManager);
 
       const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
@@ -204,10 +201,10 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/stats",
       });
 
-      assert.strictEqual(response.statusCode, 500);
+      expect(response.statusCode).toBe(500);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
+      expect(body.ok).toBe(false);
 
       await appWithFailingCache.close();
     });
@@ -220,12 +217,12 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/health",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.health);
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(body.health).toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should include health status and latency", async () => {
@@ -235,9 +232,9 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.health.status);
-      assert.ok(typeof body.health.latency === "number");
-      assert.ok(body.health.latencyMs);
+      expect(body.health.status).toBeTruthy();
+      expect(typeof body.health.latency === "number").toBeTruthy();
+      expect(body.health.latencyMs).toBeTruthy();
     });
 
     it("should return 503 when cache manager unavailable", async () => {
@@ -250,13 +247,13 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/health",
       });
 
-      assert.strictEqual(response.statusCode, 503);
+      expect(response.statusCode).toBe(503);
       await appWithoutCache.close();
     });
 
     it("should handle health check failures", async (t) => {
       const appWithUnhealthyCache = Fastify({ logger: false });
-      const unhealthyCache = createMockCacheManager(t, { healthy: false });
+      const unhealthyCache = createMockCacheManager({ healthy: false });
       appWithUnhealthyCache.decorate("cache", unhealthyCache as RedisCacheManager);
 
       const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
@@ -267,7 +264,7 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/health",
       });
 
-      assert.strictEqual(response.statusCode, 500);
+      expect(response.statusCode).toBe(500);
       await appWithUnhealthyCache.close();
     });
   });
@@ -279,12 +276,12 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/flush",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.message);
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(body.message).toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should return 503 when cache manager unavailable", async () => {
@@ -297,13 +294,13 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/flush",
       });
 
-      assert.strictEqual(response.statusCode, 503);
+      expect(response.statusCode).toBe(503);
       await appWithoutCache.close();
     });
 
     it("should handle flush failures", async (t) => {
       const appWithFailingFlush = Fastify({ logger: false });
-      const failingCache = createMockCacheManager(t, { flushSuccess: false });
+      const failingCache = createMockCacheManager({ flushSuccess: false });
       appWithFailingFlush.decorate("cache", failingCache);
 
       const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
@@ -314,7 +311,7 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/flush",
       });
 
-      assert.strictEqual(response.statusCode, 500);
+      expect(response.statusCode).toBe(500);
       await appWithFailingFlush.close();
     });
   });
@@ -329,13 +326,13 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(typeof body.invalidated === "number");
-      assert.ok(Array.isArray(body.tags));
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(typeof body.invalidated === "number").toBeTruthy();
+      expect(Array.isArray(body.tags)).toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should invalidate cache by patterns", async () => {
@@ -347,12 +344,12 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(typeof body.invalidated === "number");
-      assert.ok(Array.isArray(body.patterns));
+      expect(body.ok).toBe(true);
+      expect(typeof body.invalidated === "number").toBeTruthy();
+      expect(Array.isArray(body.patterns)).toBeTruthy();
     });
 
     it("should invalidate cache by both tags and patterns", async () => {
@@ -365,11 +362,11 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.invalidated > 0);
+      expect(body.ok).toBe(true);
+      expect(body.invalidated > 0).toBeTruthy();
     });
 
     it("should return 400 when no tags or patterns provided", async () => {
@@ -379,11 +376,11 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         payload: {},
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
-      assert.ok(body.error);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBeTruthy();
     });
 
     it("should handle empty tags array", async () => {
@@ -396,7 +393,7 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should return 503 when cache manager unavailable", async () => {
@@ -412,7 +409,7 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 503);
+      expect(response.statusCode).toBe(503);
       await appWithoutCache.close();
     });
   });
@@ -424,13 +421,13 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/hot-keys",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.hotKeys));
-      assert.ok(typeof body.count === "number");
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.hotKeys)).toBeTruthy();
+      expect(typeof body.count === "number").toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should limit hot keys to 50 entries", async () => {
@@ -440,7 +437,7 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.hotKeys.length <= 50);
+      expect(body.hotKeys.length <= 50).toBeTruthy();
     });
 
     it("should return 503 when cache manager unavailable", async () => {
@@ -453,7 +450,7 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/hot-keys",
       });
 
-      assert.strictEqual(response.statusCode, 503);
+      expect(response.statusCode).toBe(503);
       await appWithoutCache.close();
     });
   });
@@ -465,12 +462,12 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/warm",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(typeof body.warmedCount === "number");
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(typeof body.warmedCount === "number").toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should return warmed keys count", async () => {
@@ -480,7 +477,7 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.warmedCount >= 0);
+      expect(body.warmedCount >= 0).toBeTruthy();
     });
 
     it("should return 503 when cache manager unavailable", async () => {
@@ -493,13 +490,13 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/warm",
       });
 
-      assert.strictEqual(response.statusCode, 503);
+      expect(response.statusCode).toBe(503);
       await appWithoutCache.close();
     });
 
     it("should handle warming failures", async (t) => {
       const appWithFailingWarm = Fastify({ logger: false });
-      const failingCache = createMockCacheManager(t, { warmSuccess: false });
+      const failingCache = createMockCacheManager({ warmSuccess: false });
       appWithFailingWarm.decorate("cache", failingCache as RedisCacheManager);
 
       const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
@@ -510,7 +507,7 @@ describe("cacheStatsRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/cache/warm",
       });
 
-      assert.strictEqual(response.statusCode, 500);
+      expect(response.statusCode).toBe(500);
       await appWithFailingWarm.close();
     });
   });

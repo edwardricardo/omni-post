@@ -6,8 +6,7 @@
  * No external dependencies — pure logic only.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { toIntegrationEvent } from "../../../src/infrastructure/integration-events/IntegrationEvent.js";
 import type { DomainEvent } from "../../../src/domain/events/DomainEvent.js";
 
@@ -42,29 +41,29 @@ function createPlainDomainEvent(overrides: Partial<DomainEvent> = {}): DomainEve
   };
 }
 
-describe("IntegrationEvent", { concurrency: 1 }, () => {
+describe("IntegrationEvent", () => {
   it("converts domain event with toPayload()", () => {
     const domainEvent = createMockDomainEvent();
     const result = toIntegrationEvent(domainEvent);
 
-    assert.equal(result.eventId, "evt-123");
-    assert.equal(result.eventType, "PostCreated");
-    assert.equal(result.aggregateId, "post-456");
-    assert.equal(result.aggregateType, "Post");
-    assert.equal(result.occurredAt, "2026-02-23T12:00:00.000Z");
-    assert.equal(result.schemaVersion, 1);
-    assert.deepEqual(result.payload, { postId: "post-456", body: "Hello world" });
-    assert.equal(result.source, "omnipost-api");
+    expect(result.eventId).toBe("evt-123");
+    expect(result.eventType).toBe("PostCreated");
+    expect(result.aggregateId).toBe("post-456");
+    expect(result.aggregateType).toBe("Post");
+    expect(result.occurredAt).toBe("2026-02-23T12:00:00.000Z");
+    expect(result.schemaVersion).toBe(1);
+    expect(result.payload).toEqual({ postId: "post-456", body: "Hello world" });
+    expect(result.source).toBe("omnipost-api");
   });
 
   it("converts domain event without toPayload() — falls back to metadata", () => {
     const domainEvent = createPlainDomainEvent();
     const result = toIntegrationEvent(domainEvent);
 
-    assert.equal(result.eventId, "evt-plain");
-    assert.equal(result.eventType, "PostScheduled");
+    expect(result.eventId).toBe("evt-plain");
+    expect(result.eventType).toBe("PostScheduled");
     // payload should be the metadata object (fallback)
-    assert.deepEqual(result.payload, { scheduledAt: "2026-03-01T10:00:00Z" });
+    expect(result.payload).toEqual({ scheduledAt: "2026-03-01T10:00:00Z" });
   });
 
   it("converts domain event with no toPayload() and no metadata — payload is {}", () => {
@@ -80,22 +79,22 @@ describe("IntegrationEvent", { concurrency: 1 }, () => {
 
     const result = toIntegrationEvent(domainEvent);
 
-    assert.deepEqual(result.payload, {});
-    assert.deepEqual(result.metadata, {});
+    expect(result.payload).toEqual({});
+    expect(result.metadata).toEqual({});
   });
 
   it("preserves eventId for BullMQ job deduplication", () => {
     const domainEvent = createMockDomainEvent({ eventId: "dedup-event-id-xyz" });
     const result = toIntegrationEvent(domainEvent);
 
-    assert.equal(result.eventId, "dedup-event-id-xyz");
+    expect(result.eventId).toBe("dedup-event-id-xyz");
   });
 
   it("sets schemaVersion from domain event version field", () => {
     const domainEvent = createMockDomainEvent({ version: 3 });
     const result = toIntegrationEvent(domainEvent);
 
-    assert.equal(result.schemaVersion, 3);
+    expect(result.schemaVersion).toBe(3);
   });
 
   it("handles Date occurredAt — converts to ISO 8601 string", () => {
@@ -103,8 +102,8 @@ describe("IntegrationEvent", { concurrency: 1 }, () => {
     const domainEvent = createMockDomainEvent({ occurredAt: date });
     const result = toIntegrationEvent(domainEvent);
 
-    assert.equal(typeof result.occurredAt, "string");
-    assert.equal(result.occurredAt, "2026-02-23T15:30:00.000Z");
+    expect(typeof result.occurredAt).toBe("string");
+    expect(result.occurredAt).toBe("2026-02-23T15:30:00.000Z");
   });
 
   it("metadata defaults to empty object when domain event has no metadata", () => {
@@ -120,6 +119,6 @@ describe("IntegrationEvent", { concurrency: 1 }, () => {
 
     const result = toIntegrationEvent(domainEvent);
 
-    assert.deepEqual(result.metadata, {});
+    expect(result.metadata).toEqual({});
   });
 });

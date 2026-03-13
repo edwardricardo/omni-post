@@ -1,5 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SAGA_EVENTS } from "@shared/saga";
 import { DomainEvent } from "@shared/events";
 import {
@@ -16,7 +15,7 @@ import {
 } from "./sagaManager.test-helpers.js";
 import { SagaManagerImpl } from "../../src/saga/SagaManager";
 
-describe("SagaManager - Saga Execution", { concurrency: 1 }, () => {
+describe("SagaManager - Saga Execution", () => {
   let manager: SagaManagerImpl;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -43,9 +42,9 @@ describe("SagaManager - Saga Execution", { concurrency: 1 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const sagaInstance = await manager.getSaga(instance.id);
-    assert.ok(sagaInstance, "Saga instance should exist");
-    assert.strictEqual(sagaInstance.status, "COMPLETED");
-    assert.strictEqual(sagaInstance.currentStep, definition.steps.length);
+    expect(sagaInstance).toBeTruthy();
+    expect(sagaInstance.status).toBe("COMPLETED");
+    expect(sagaInstance.currentStep).toBe(definition.steps.length);
   });
 
   it("should execute multi-step saga sequentially", async () => {
@@ -57,12 +56,12 @@ describe("SagaManager - Saga Execution", { concurrency: 1 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     const sagaInstance = await manager.getSaga(instance.id);
-    assert.ok(sagaInstance, "Saga instance should exist");
-    assert.strictEqual(sagaInstance.status, "COMPLETED");
-    assert.strictEqual(sagaInstance.stepResults.length, definition.steps.length);
+    expect(sagaInstance).toBeTruthy();
+    expect(sagaInstance.status).toBe("COMPLETED");
+    expect(sagaInstance.stepResults.length).toBe(definition.steps.length);
 
     sagaInstance.stepResults.forEach((result, index) => {
-      assert.strictEqual(result.success, true, `Step ${index} should have succeeded`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -78,7 +77,7 @@ describe("SagaManager - Saga Execution", { concurrency: 1 }, () => {
       (e) => e.type === SAGA_EVENTS.SAGA_STEP_COMPLETED
     );
 
-    assert.strictEqual(stepCompletedEvents.length, definition.steps.length);
+    expect(stepCompletedEvents.length).toBe(definition.steps.length);
   });
 
   it("should pass context between steps with stepData", async () => {
@@ -92,9 +91,9 @@ describe("SagaManager - Saga Execution", { concurrency: 1 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     const sagaInstance = await manager.getSaga(instance.id);
-    assert.ok(sagaInstance, "Saga instance should exist");
-    assert.ok(sagaInstance.context.stepData["successful-step"]);
-    assert.ok(sagaInstance.context.stepData["delayed-step"]);
+    expect(sagaInstance).toBeTruthy();
+    expect(sagaInstance.context.stepData["successful-step"]).toBeTruthy();
+    expect(sagaInstance.context.stepData["delayed-step"]).toBeTruthy();
   });
 
   it("should emit saga completed event on successful completion", async () => {
@@ -109,8 +108,8 @@ describe("SagaManager - Saga Execution", { concurrency: 1 }, () => {
       (e) => e.type === SAGA_EVENTS.SAGA_COMPLETED
     );
 
-    assert.strictEqual(completedEvents.length, 1);
-    assert.strictEqual(completedEvents[0]!.data.status, "COMPLETED");
+    expect(completedEvents.length).toBe(1);
+    expect(completedEvents[0]!.data.status).toBe("COMPLETED");
   });
 
   it("should update metrics on saga completion", async () => {
@@ -125,12 +124,12 @@ describe("SagaManager - Saga Execution", { concurrency: 1 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const metricsAfter = manager.getMetrics();
-    assert.strictEqual(metricsAfter.sagasCompleted, completedBefore + 1);
-    assert.ok(metricsAfter.averageExecutionTime >= 0);
+    expect(metricsAfter.sagasCompleted).toBe(completedBefore + 1);
+    expect(metricsAfter.averageExecutionTime >= 0).toBeTruthy();
   });
 });
 
-describe("SagaManager - Saga Failure and Compensation", { concurrency: 1 }, () => {
+describe("SagaManager - Saga Failure and Compensation", () => {
   let manager: SagaManagerImpl;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -158,7 +157,7 @@ describe("SagaManager - Saga Failure and Compensation", { concurrency: 1 }, () =
 
     const _sagaInstance = await manager.getSaga(definition.id);
     const metrics = manager.getMetrics();
-    assert.strictEqual(metrics.sagasFailed, 1);
+    expect(metrics.sagasFailed).toBe(1);
   });
 
   it("should emit saga failed event on failure", async () => {
@@ -173,7 +172,7 @@ describe("SagaManager - Saga Failure and Compensation", { concurrency: 1 }, () =
       (e) => e.type === SAGA_EVENTS.SAGA_FAILED
     );
 
-    assert.ok(failedEvents.length > 0, "Should emit saga failed event");
+    expect(failedEvents.length > 0).toBeTruthy();
   });
 
   it("should compensate saga when manually triggered", async () => {
@@ -187,8 +186,8 @@ describe("SagaManager - Saga Failure and Compensation", { concurrency: 1 }, () =
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     const sagaInstance = await manager.getSaga(instance.id);
-    assert.ok(sagaInstance, "Saga instance should exist");
-    assert.strictEqual(sagaInstance.status, "FAILED", "Saga should be in FAILED state");
+    expect(sagaInstance).toBeTruthy();
+    expect(sagaInstance.status).toBe("FAILED");
 
     // Now trigger manual compensation on the naturally-failed saga
     await manager.compensateSaga(instance.id);
@@ -199,7 +198,7 @@ describe("SagaManager - Saga Failure and Compensation", { concurrency: 1 }, () =
       (e) => e.type === SAGA_EVENTS.SAGA_COMPENSATION_COMPLETED
     );
 
-    assert.ok(compensatedEvents.length > 0, "Should emit compensation completed event");
+    expect(compensatedEvents.length > 0).toBeTruthy();
   });
 
   it("should throw error when compensating non-failed saga", async () => {
@@ -208,11 +207,7 @@ describe("SagaManager - Saga Failure and Compensation", { concurrency: 1 }, () =
 
     const instance = await manager.startSaga(definition.id, {});
 
-    await assert.rejects(
-      async () => await manager.compensateSaga(instance.id),
-      /not in a failed state/,
-      "Should throw error when compensating non-failed saga"
-    );
+    await expect(manager.compensateSaga(instance.id)).rejects.toThrow(/not in a failed state/);
   });
 
   it("should update metrics on saga failure", async () => {
@@ -227,11 +222,11 @@ describe("SagaManager - Saga Failure and Compensation", { concurrency: 1 }, () =
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     const metricsAfter = manager.getMetrics();
-    assert.strictEqual(metricsAfter.sagasFailed, failedBefore + 1);
+    expect(metricsAfter.sagasFailed).toBe(failedBefore + 1);
   });
 });
 
-describe("SagaManager - Retry Logic", { concurrency: 1 }, () => {
+describe("SagaManager - Retry Logic", () => {
   let manager: SagaManagerImpl;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -261,11 +256,11 @@ describe("SagaManager - Retry Logic", { concurrency: 1 }, () => {
       (e) => e.type === SAGA_EVENTS.SAGA_STEP_FAILED
     );
 
-    assert.strictEqual(stepFailedEvents.length, 1);
+    expect(stepFailedEvents.length).toBe(1);
   });
 });
 
-describe("SagaManager - Event Handling", { concurrency: 1 }, () => {
+describe("SagaManager - Event Handling", () => {
   let manager: SagaManagerImpl;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -295,10 +290,7 @@ describe("SagaManager - Event Handling", { concurrency: 1 }, () => {
       metadata: { source: "test", sagaId: "saga-123" },
     };
 
-    await assert.doesNotReject(
-      async () => await manager.handleEvent(testEvent),
-      "handleEvent should complete without error for saga-related events"
-    );
+    await expect(manager.handleEvent(testEvent)).resolves.not.toThrow();
   });
 
   it("should ignore events without saga metadata without throwing", async () => {
@@ -315,24 +307,17 @@ describe("SagaManager - Event Handling", { concurrency: 1 }, () => {
       metadata: { source: "test" },
     };
 
-    await assert.doesNotReject(
-      async () => await manager.handleEvent(testEvent),
-      "handleEvent should complete without error for non-saga events"
-    );
+    await expect(manager.handleEvent(testEvent)).resolves.not.toThrow();
 
     // Verify no saga-related events were emitted (event was ignored)
     const sagaEvents = mockEventService.publishedEvents
       .slice(publishedBefore)
       .filter((e) => e.type.startsWith("saga."));
-    assert.strictEqual(
-      sagaEvents.length,
-      0,
-      "No saga events should be emitted for non-saga events"
-    );
+    expect(sagaEvents.length).toBe(0);
   });
 });
 
-describe("SagaManager - Health Check", { concurrency: 1 }, () => {
+describe("SagaManager - Health Check", () => {
   let manager: SagaManagerImpl;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -353,9 +338,9 @@ describe("SagaManager - Health Check", { concurrency: 1 }, () => {
   it("should return healthy status with all dependencies available", async () => {
     const health = await manager.healthCheck();
 
-    assert.strictEqual(health.status, "healthy");
-    assert.strictEqual(health.details.database, true);
-    assert.strictEqual(health.details.redis, true);
+    expect(health.status).toBe("healthy");
+    expect(health.details.database).toBe(true);
+    expect(health.details.redis).toBe(true);
   });
 
   it("should include saga metrics in health check", async () => {
@@ -364,12 +349,12 @@ describe("SagaManager - Health Check", { concurrency: 1 }, () => {
 
     const health = await manager.healthCheck();
 
-    assert.ok(health.details.definitionsRegistered >= 1);
-    assert.ok(health.details.activeInstances >= 0);
+    expect(health.details.definitionsRegistered >= 1).toBeTruthy();
+    expect(health.details.activeInstances >= 0).toBeTruthy();
   });
 });
 
-describe("SagaManager - Metrics", { concurrency: 1 }, () => {
+describe("SagaManager - Metrics", () => {
   let manager: SagaManagerImpl;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -397,7 +382,7 @@ describe("SagaManager - Metrics", { concurrency: 1 }, () => {
     await manager.startSaga(definition.id, {});
 
     const metricsAfter = manager.getMetrics();
-    assert.strictEqual(metricsAfter.sagasStarted, startedBefore + 1);
+    expect(metricsAfter.sagasStarted).toBe(startedBefore + 1);
   });
 
   it("should track active instances count", async () => {
@@ -409,7 +394,7 @@ describe("SagaManager - Metrics", { concurrency: 1 }, () => {
     await manager.startSaga(definition.id, {});
 
     const metricsAfter = manager.getMetrics();
-    assert.ok(metricsAfter.activeInstances >= metricsBefore.activeInstances);
+    expect(metricsAfter.activeInstances >= metricsBefore.activeInstances).toBeTruthy();
   });
 
   it("should return registered definitions in metrics", async () => {
@@ -420,7 +405,7 @@ describe("SagaManager - Metrics", { concurrency: 1 }, () => {
     manager.registerSaga(definition2);
 
     const metrics = manager.getMetrics();
-    assert.ok(metrics.definitions.includes(definition1.id));
-    assert.ok(metrics.definitions.includes(definition2.id));
+    expect(metrics.definitions.includes(definition1.id)).toBeTruthy();
+    expect(metrics.definitions.includes(definition2.id)).toBeTruthy();
   });
 });

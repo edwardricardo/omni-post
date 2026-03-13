@@ -5,9 +5,7 @@
  * TDD: RED phase - Tests written before implementation
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, expect } from "vitest";
 import {
   TrackedLinkId,
   TrackedLink,
@@ -21,61 +19,61 @@ describe("Link Tracking Domain", () => {
   describe("TrackedLinkId Value Object", () => {
     it("should generate a new TrackedLinkId", () => {
       const id = TrackedLinkId.generate();
-      assert.ok(id, "Should generate an ID");
-      assert.ok(id.value.length > 0, "ID should have a value");
+      expect(id).toBeTruthy();
+      expect(id.value.length > 0).toBeTruthy();
     });
 
     it("should create TrackedLinkId from valid string", () => {
       const uuid = "550e8400-e29b-41d4-a716-446655440000";
       const result = TrackedLinkId.fromString(uuid);
-      assert.ok(result.ok, "Should create from valid UUID");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.value, uuid);
+        expect(result.value.value).toBe(uuid);
       }
     });
 
     it("should reject invalid UUID string", () => {
       const result = TrackedLinkId.fromString("invalid-id");
-      assert.ok(!result.ok, "Should reject invalid UUID");
+      expect(result.ok).toBeFalsy();
     });
 
     it("should compare TrackedLinkIds for equality", () => {
       const uuid = "550e8400-e29b-41d4-a716-446655440000";
       const id1 = TrackedLinkId.fromStringUnsafe(uuid);
       const id2 = TrackedLinkId.fromStringUnsafe(uuid);
-      assert.ok(id1.equals(id2), "Same IDs should be equal");
+      expect(id1.equals(id2)).toBeTruthy();
     });
   });
 
   describe("ShortCode Value Object", () => {
     it("should generate a unique short code", () => {
       const code = ShortCode.generate();
-      assert.ok(code, "Should generate a code");
-      assert.ok(code.value.length >= 6, "Code should be at least 6 chars");
-      assert.ok(code.value.length <= 10, "Code should be at most 10 chars");
+      expect(code).toBeTruthy();
+      expect(code.value.length >= 6).toBeTruthy();
+      expect(code.value.length <= 10).toBeTruthy();
     });
 
     it("should create ShortCode from valid string", () => {
       const result = ShortCode.fromString("abc123");
-      assert.ok(result.ok, "Should create from valid string");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.value, "abc123");
+        expect(result.value.value).toBe("abc123");
       }
     });
 
     it("should reject short code that is too short", () => {
       const result = ShortCode.fromString("ab");
-      assert.ok(!result.ok, "Should reject code less than 3 chars");
+      expect(result.ok).toBeFalsy();
     });
 
     it("should reject short code with invalid characters", () => {
       const result = ShortCode.fromString("abc@123");
-      assert.ok(!result.ok, "Should reject code with special characters");
+      expect(result.ok).toBeFalsy();
     });
 
     it("should allow custom vanity slug", () => {
       const result = ShortCode.fromString("my-brand-link");
-      assert.ok(result.ok, "Should accept hyphenated vanity slug");
+      expect(result.ok).toBeTruthy();
     });
   });
 
@@ -88,12 +86,12 @@ describe("Link Tracking Domain", () => {
         originalUrl: "https://example.com/my-page",
       });
 
-      assert.ok(result.ok, "Should create tracked link");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.originalUrl, "https://example.com/my-page");
-        assert.ok(result.value.shortCode, "Should have generated short code");
-        assert.equal(result.value.clicks, 0, "Should start with 0 clicks");
-        assert.equal(result.value.projectId.value, projectId.value);
+        expect(result.value.originalUrl).toBe("https://example.com/my-page");
+        expect(result.value.shortCode).toBeTruthy();
+        expect(result.value.clicks).toBe(0);
+        expect(result.value.projectId.value).toBe(projectId.value);
       }
     });
 
@@ -103,7 +101,7 @@ describe("Link Tracking Domain", () => {
         originalUrl: "not-a-valid-url",
       });
 
-      assert.ok(!result.ok, "Should reject invalid URL");
+      expect(result.ok).toBeFalsy();
     });
 
     it("should create tracked link with custom vanity slug", () => {
@@ -113,9 +111,9 @@ describe("Link Tracking Domain", () => {
         vanitySlug: "summer-sale",
       });
 
-      assert.ok(result.ok, "Should create with vanity slug");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.vanitySlug, "summer-sale");
+        expect(result.value.vanitySlug).toBe("summer-sale");
       }
     });
 
@@ -125,16 +123,16 @@ describe("Link Tracking Domain", () => {
         originalUrl: "https://example.com",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const link = result.value;
-        assert.equal(link.clicks, 0);
+        expect(link.clicks).toBe(0);
 
         link.recordClick();
-        assert.equal(link.clicks, 1);
+        expect(link.clicks).toBe(1);
 
         link.recordClick();
-        assert.equal(link.clicks, 2);
+        expect(link.clicks).toBe(2);
       }
     });
 
@@ -144,13 +142,13 @@ describe("Link Tracking Domain", () => {
         originalUrl: "https://example.com",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const link = result.value;
-        assert.ok(link.isActive, "Should be active by default");
+        expect(link.isActive).toBeTruthy();
 
         link.deactivate();
-        assert.ok(!link.isActive, "Should be inactive after deactivation");
+        expect(link.isActive).toBeFalsy();
       }
     });
 
@@ -160,12 +158,12 @@ describe("Link Tracking Domain", () => {
         originalUrl: "https://example.com",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const link = result.value;
         link.deactivate();
         link.activate();
-        assert.ok(link.isActive, "Should be active after reactivation");
+        expect(link.isActive).toBeTruthy();
       }
     });
 
@@ -176,14 +174,14 @@ describe("Link Tracking Domain", () => {
         vanitySlug: "my-link",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const json = result.value.toJSON();
-        assert.ok(json.id, "JSON should have id");
-        assert.equal(json.originalUrl, "https://example.com");
-        assert.equal(json.vanitySlug, "my-link");
-        assert.equal(json.clicks, 0);
-        assert.equal(json.isActive, true);
+        expect(json.id).toBeTruthy();
+        expect(json.originalUrl).toBe("https://example.com");
+        expect(json.vanitySlug).toBe("my-link");
+        expect(json.clicks).toBe(0);
+        expect(json.isActive).toBe(true);
       }
     });
   });
@@ -191,13 +189,13 @@ describe("Link Tracking Domain", () => {
   describe("LinkClickId Value Object", () => {
     it("should generate a new LinkClickId", () => {
       const id = LinkClickId.generate();
-      assert.ok(id, "Should generate an ID");
+      expect(id).toBeTruthy();
     });
 
     it("should create from valid UUID string", () => {
       const uuid = "550e8400-e29b-41d4-a716-446655440000";
       const result = LinkClickId.fromString(uuid);
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
     });
   });
 
@@ -209,11 +207,11 @@ describe("Link Tracking Domain", () => {
         trackedLinkId: linkId,
       });
 
-      assert.ok(result.ok, "Should create link click");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.trackedLinkId.value, linkId.value);
-        assert.ok(result.value.timestamp, "Should have timestamp");
-        assert.ok(result.value.timestamp instanceof Date, "timestamp should be a Date");
+        expect(result.value.trackedLinkId.value).toBe(linkId.value);
+        expect(result.value.timestamp).toBeTruthy();
+        expect(result.value.timestamp instanceof Date).toBeTruthy();
       }
     });
 
@@ -227,12 +225,12 @@ describe("Link Tracking Domain", () => {
         city: "New York",
       });
 
-      assert.ok(result.ok, "Should create with full data");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.referrer, "https://google.com");
-        assert.equal(result.value.userAgent, "Mozilla/5.0");
-        assert.equal(result.value.country, "US");
-        assert.equal(result.value.city, "New York");
+        expect(result.value.referrer).toBe("https://google.com");
+        expect(result.value.userAgent).toBe("Mozilla/5.0");
+        expect(result.value.country).toBe("US");
+        expect(result.value.city).toBe("New York");
       }
     });
 
@@ -242,25 +240,25 @@ describe("Link Tracking Domain", () => {
         country: "UK",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const json = result.value.toJSON();
-        assert.ok(json.id);
-        assert.ok(json.trackedLinkId);
-        assert.equal(json.country, "UK");
-        assert.ok(json.timestamp);
+        expect(json.id).toBeTruthy();
+        expect(json.trackedLinkId).toBeTruthy();
+        expect(json.country).toBe("UK");
+        expect(json.timestamp).toBeTruthy();
       }
     });
 
     it("should have undefined optional fields when not provided", () => {
       const result = LinkClick.create({ trackedLinkId: linkId });
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.referrer, undefined);
-        assert.equal(result.value.userAgent, undefined);
-        assert.equal(result.value.ipAddress, undefined);
-        assert.equal(result.value.country, undefined);
-        assert.equal(result.value.city, undefined);
+        expect(result.value.referrer).toBe(undefined);
+        expect(result.value.userAgent).toBe(undefined);
+        expect(result.value.ipAddress).toBe(undefined);
+        expect(result.value.country).toBe(undefined);
+        expect(result.value.city).toBe(undefined);
       }
     });
   });
@@ -272,17 +270,17 @@ describe("Link Tracking Domain", () => {
         codes.add(ShortCode.generate().value);
       }
       // With 8 chars from a 55-char alphabet, collision probability is negligible
-      assert.ok(codes.size >= 18, "Should generate mostly unique codes");
+      expect(codes.size >= 18).toBeTruthy();
     });
 
     it("should only use alphanumeric characters (no ambiguous chars)", () => {
       for (let i = 0; i < 10; i++) {
         const code = ShortCode.generate().value;
-        assert.match(code, /^[a-zA-Z0-9]+$/, "Generated code should only be alphanumeric");
-        assert.ok(!code.includes("0"), "Should not include '0' (ambiguous with 'O')");
-        assert.ok(!code.includes("1"), "Should not include '1' (ambiguous with 'l')");
-        assert.ok(!code.includes("l"), "Should not include 'l' (ambiguous with '1')");
-        assert.ok(!code.includes("O"), "Should not include 'O' (ambiguous with '0')");
+        expect(code).toMatch(/^[a-zA-Z0-9]+$/);
+        expect(code.includes("0")).toBeFalsy();
+        expect(code.includes("1")).toBeFalsy();
+        expect(code.includes("l")).toBeFalsy();
+        expect(code.includes("O")).toBeFalsy();
       }
     });
   });

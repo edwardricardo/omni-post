@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { createPostEvent, createChannelEvent } from "../../src/events/EventService";
 import { EVENT_TYPES, validateEvent } from "@shared/events";
 
@@ -18,12 +17,12 @@ describe("createPostEvent", () => {
         { userId: "user-789", source: "API" }
       );
 
-      assert.strictEqual(event.type, EVENT_TYPES.POST_CREATED);
-      assert.strictEqual(event.aggregateId, "post-123");
-      assert.strictEqual(event.aggregateType, "Post");
-      assert.strictEqual(event.version, 1);
-      assert.ok(event.id, "Event should have an ID");
-      assert.ok(event.timestamp instanceof Date, "Timestamp should be a Date object");
+      expect(event.type).toBe(EVENT_TYPES.POST_CREATED);
+      expect(event.aggregateId).toBe("post-123");
+      expect(event.aggregateType).toBe("Post");
+      expect(event.version).toBe(1);
+      expect(event.id).toBeTruthy();
+      expect(event.timestamp instanceof Date).toBeTruthy();
     });
 
     it("should generate unique event IDs for concurrent events", () => {
@@ -49,9 +48,9 @@ describe("createPostEvent", () => {
         { source: "API" }
       );
 
-      assert.notStrictEqual(event1.id, event2.id, "Event IDs should be unique");
-      assert.notStrictEqual(event2.id, event3.id, "Event IDs should be unique");
-      assert.notStrictEqual(event1.id, event3.id, "Event IDs should be unique");
+      expect(event1.id).not.toBe(event2.id);
+      expect(event2.id).not.toBe(event3.id);
+      expect(event1.id).not.toBe(event3.id);
     });
 
     it("should create timestamps that are chronologically accurate", () => {
@@ -65,10 +64,7 @@ describe("createPostEvent", () => {
       );
       const after = new Date();
 
-      assert.ok(
-        event.timestamp >= before && event.timestamp <= after,
-        "Timestamp should be between before and after"
-      );
+      expect(event.timestamp >= before && event.timestamp <= after).toBeTruthy();
     });
 
     it("should have event ID format that includes type and randomness", () => {
@@ -80,8 +76,8 @@ describe("createPostEvent", () => {
         { source: "API" }
       );
 
-      assert.ok(event.id.startsWith(EVENT_TYPES.POST_CREATED), "ID should start with event type");
-      assert.ok(event.id.length > EVENT_TYPES.POST_CREATED.length + 10, "ID should have entropy");
+      expect(event.id.startsWith(EVENT_TYPES.POST_CREATED)).toBeTruthy();
+      expect(event.id.length > EVENT_TYPES.POST_CREATED.length + 10).toBeTruthy();
     });
   });
 
@@ -95,9 +91,9 @@ describe("createPostEvent", () => {
         { source: "API" }
       );
 
-      assert.strictEqual(event.data.postId, "post-123");
-      assert.strictEqual(event.data.projectId, "project-456");
-      assert.strictEqual(event.data.status, "DRAFT");
+      expect(event.data.postId).toBe("post-123");
+      expect(event.data.projectId).toBe("project-456");
+      expect(event.data.status).toBe("DRAFT");
     });
 
     it("should preserve additional data fields during merge", () => {
@@ -121,11 +117,11 @@ describe("createPostEvent", () => {
         { source: "API" }
       );
 
-      assert.strictEqual(event.data.title, "Test Post");
-      assert.strictEqual(event.data.status, "SCHEDULED");
-      assert.deepStrictEqual(event.data.scheduledAt, new Date("2025-01-15"));
-      assert.deepStrictEqual(event.data.channelIds, ["ch-1", "ch-2"]);
-      assert.deepStrictEqual(event.data.content, additionalData.content);
+      expect(event.data.title).toBe("Test Post");
+      expect(event.data.status).toBe("SCHEDULED");
+      expect(event.data.scheduledAt).toStrictEqual(new Date("2025-01-15"));
+      expect(event.data.channelIds).toStrictEqual(["ch-1", "ch-2"]);
+      expect(event.data.content).toStrictEqual(additionalData.content);
     });
 
     it("should handle empty additional data", () => {
@@ -137,9 +133,9 @@ describe("createPostEvent", () => {
         { source: "API" }
       );
 
-      assert.strictEqual(event.data.postId, "post-123");
-      assert.strictEqual(event.data.projectId, "project-456");
-      assert.strictEqual(Object.keys(event.data).length, 2);
+      expect(event.data.postId).toBe("post-123");
+      expect(event.data.projectId).toBe("project-456");
+      expect(Object.keys(event.data).length).toBe(2);
     });
 
     it("should not override postId if provided in data", () => {
@@ -154,7 +150,7 @@ describe("createPostEvent", () => {
 
       // Due to spread order, data.postId will override parameter postId
       // This tests the actual implementation behavior
-      assert.strictEqual(event.data.postId, "different-post");
+      expect(event.data.postId).toBe("different-post");
     });
 
     it("should handle nested objects in additional data", () => {
@@ -174,7 +170,7 @@ describe("createPostEvent", () => {
         { source: "API" }
       );
 
-      assert.strictEqual(event.data.metadata.nested.deeply.value, 42);
+      expect(event.data.metadata.nested.deeply.value).toBe(42);
     });
   });
 
@@ -188,8 +184,8 @@ describe("createPostEvent", () => {
         { userId: "user-789", source: "API" }
       );
 
-      assert.strictEqual(event.metadata.userId, "user-789");
-      assert.strictEqual(event.metadata.source, "API");
+      expect(event.metadata.userId).toBe("user-789");
+      expect(event.metadata.source).toBe("API");
     });
 
     it("should handle metadata without userId", () => {
@@ -201,8 +197,8 @@ describe("createPostEvent", () => {
         { source: "Worker" }
       );
 
-      assert.strictEqual(event.metadata.userId, undefined);
-      assert.strictEqual(event.metadata.source, "Worker");
+      expect(event.metadata.userId).toBe(undefined);
+      expect(event.metadata.source).toBe("Worker");
     });
 
     it("should preserve source field from different components", () => {
@@ -217,7 +213,7 @@ describe("createPostEvent", () => {
           { source }
         );
 
-        assert.strictEqual(event.metadata.source, source);
+        expect(event.metadata.source).toBe(source);
       });
     });
   });
@@ -237,8 +233,8 @@ describe("createPostEvent", () => {
         { source: "API" }
       );
 
-      assert.strictEqual(event.type, EVENT_TYPES.POST_CREATED);
-      assert.ok(validateEvent(event), "Event should validate against schema");
+      expect(event.type).toBe(EVENT_TYPES.POST_CREATED);
+      expect(validateEvent(event)).toBeTruthy();
     });
 
     it("should create POST_SCHEDULED events correctly", () => {
@@ -255,8 +251,8 @@ describe("createPostEvent", () => {
         { source: "Scheduler" }
       );
 
-      assert.strictEqual(event.type, EVENT_TYPES.POST_SCHEDULED);
-      assert.ok(validateEvent(event), "Event should validate against schema");
+      expect(event.type).toBe(EVENT_TYPES.POST_SCHEDULED);
+      expect(validateEvent(event)).toBeTruthy();
     });
 
     it("should create POST_PUBLISHED events correctly", () => {
@@ -274,8 +270,8 @@ describe("createPostEvent", () => {
         { source: "Worker" }
       );
 
-      assert.strictEqual(event.type, EVENT_TYPES.POST_PUBLISHED);
-      assert.ok(validateEvent(event), "Event should validate against schema");
+      expect(event.type).toBe(EVENT_TYPES.POST_PUBLISHED);
+      expect(validateEvent(event)).toBeTruthy();
     });
   });
 
@@ -289,17 +285,17 @@ describe("createPostEvent", () => {
         { source: "API" }
       );
 
-      assert.strictEqual(event.aggregateId, "post-123-abc_def");
-      assert.strictEqual(event.data.postId, "post-123-abc_def");
-      assert.strictEqual(event.data.projectId, "project-456-xyz_uvw");
+      expect(event.aggregateId).toBe("post-123-abc_def");
+      expect(event.data.postId).toBe("post-123-abc_def");
+      expect(event.data.projectId).toBe("project-456-xyz_uvw");
     });
 
     it("should handle very long event type names", () => {
       const longType = "post.created.with.very.long.hierarchical.namespace";
       const event = createPostEvent(longType, "post-123", "project-456", {}, { source: "API" });
 
-      assert.strictEqual(event.type, longType);
-      assert.ok(event.id.startsWith(longType));
+      expect(event.type).toBe(longType);
+      expect(event.id.startsWith(longType)).toBeTruthy();
     });
 
     it("should handle data with null values", () => {
@@ -311,8 +307,8 @@ describe("createPostEvent", () => {
         { source: "API" }
       );
 
-      assert.strictEqual(event.data.title, null);
-      assert.strictEqual(event.data.description, null);
+      expect(event.data.title).toBe(null);
+      expect(event.data.description).toBe(null);
     });
 
     it("should handle arrays in data", () => {
@@ -327,8 +323,8 @@ describe("createPostEvent", () => {
         { source: "API" }
       );
 
-      assert.deepStrictEqual(event.data.channelIds, []);
-      assert.deepStrictEqual(event.data.tags, ["tag1", "tag2", "tag3"]);
+      expect(event.data.channelIds).toStrictEqual([]);
+      expect(event.data.tags).toStrictEqual(["tag1", "tag2", "tag3"]);
     });
   });
 });
@@ -348,9 +344,9 @@ describe("createChannelEvent", () => {
         { source: "OAuth" }
       );
 
-      assert.strictEqual(event.aggregateType, "Channel");
-      assert.strictEqual(event.aggregateId, "ch-123");
-      assert.strictEqual(event.type, EVENT_TYPES.CHANNEL_CONNECTED);
+      expect(event.aggregateType).toBe("Channel");
+      expect(event.aggregateId).toBe("ch-123");
+      expect(event.type).toBe(EVENT_TYPES.CHANNEL_CONNECTED);
     });
 
     it("should generate unique IDs for different channel events", () => {
@@ -369,7 +365,7 @@ describe("createChannelEvent", () => {
         { source: "API" }
       );
 
-      assert.notStrictEqual(event1.id, event2.id);
+      expect(event1.id).not.toBe(event2.id);
     });
   });
 
@@ -383,9 +379,9 @@ describe("createChannelEvent", () => {
         { source: "OAuth" }
       );
 
-      assert.strictEqual(event.data.channelId, "ch-123");
-      assert.strictEqual(event.data.projectId, "project-456");
-      assert.strictEqual(event.data.provider, "twitter");
+      expect(event.data.channelId).toBe("ch-123");
+      expect(event.data.projectId).toBe("project-456");
+      expect(event.data.provider).toBe("twitter");
     });
 
     it("should preserve complex channel data", () => {
@@ -404,11 +400,11 @@ describe("createChannelEvent", () => {
         { userId: "user-999", source: "OAuth" }
       );
 
-      assert.strictEqual(event.data.provider, "twitter");
-      assert.strictEqual(event.data.externalId, "tw-789");
-      assert.strictEqual(event.data.name, "@testuser");
-      assert.deepStrictEqual(event.data.connectedAt, connectedAt);
-      assert.deepStrictEqual(event.data.permissions, ["read", "write", "delete"]);
+      expect(event.data.provider).toBe("twitter");
+      expect(event.data.externalId).toBe("tw-789");
+      expect(event.data.name).toBe("@testuser");
+      expect(event.data.connectedAt).toStrictEqual(connectedAt);
+      expect(event.data.permissions).toStrictEqual(["read", "write", "delete"]);
     });
   });
 
@@ -428,7 +424,7 @@ describe("createChannelEvent", () => {
         { source: "OAuth" }
       );
 
-      assert.ok(validateEvent(event), "Event should validate against schema");
+      expect(validateEvent(event)).toBeTruthy();
     });
 
     it("should create CHANNEL_DISCONNECTED events correctly", () => {
@@ -444,7 +440,7 @@ describe("createChannelEvent", () => {
         { source: "Worker" }
       );
 
-      assert.ok(validateEvent(event), "Event should validate against schema");
+      expect(validateEvent(event)).toBeTruthy();
     });
 
     it("should create CHANNEL_RATE_LIMIT_REACHED events correctly", () => {
@@ -461,7 +457,7 @@ describe("createChannelEvent", () => {
         { source: "RateLimiter" }
       );
 
-      assert.ok(validateEvent(event), "Event should validate against schema");
+      expect(validateEvent(event)).toBeTruthy();
     });
   });
 
@@ -475,8 +471,8 @@ describe("createChannelEvent", () => {
         { userId: "user-789", source: "OAuth" }
       );
 
-      assert.strictEqual(event.metadata.source, "OAuth");
-      assert.strictEqual(event.metadata.userId, "user-789");
+      expect(event.metadata.source).toBe("OAuth");
+      expect(event.metadata.userId).toBe("user-789");
     });
   });
 });

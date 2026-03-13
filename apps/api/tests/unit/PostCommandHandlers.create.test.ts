@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import "./PostCommandHandlers.test-helpers.js";
 import {
   type TestContext,
@@ -13,7 +12,7 @@ import { POST_COMMANDS } from "@shared/cqrs";
 import { USE_CASE_ERRORS } from "../../src/application/UseCase.js";
 import { randomUUID } from "crypto";
 
-describe("CreatePostCommandHandler", { concurrency: 1 }, () => {
+describe("CreatePostCommandHandler", () => {
   let handler: CreatePostCommandHandler;
   let ctx: TestContext;
 
@@ -23,17 +22,17 @@ describe("CreatePostCommandHandler", { concurrency: 1 }, () => {
   });
 
   it("should have correct command type", () => {
-    assert.strictEqual(handler.commandType, POST_COMMANDS.CREATE_POST);
+    expect(handler.commandType).toBe(POST_COMMANDS.CREATE_POST);
   });
 
   it("should create a post successfully when use case returns ok", async () => {
     const command = buildCreatePostCommand({ userId: "user-1" });
     const result = await handler.handle(command);
 
-    assert.ok(result.success, "Result should be successful");
-    assert.ok(result.data, "Result should contain data");
-    assert.strictEqual(result.data.postId, TEST_POST_ID);
-    assert.strictEqual(result.data.version, 1);
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
+    expect(result.data.postId).toBe(TEST_POST_ID);
+    expect(result.data.version).toBe(1);
   });
 
   it("should delegate to createPostUseCase.execute with correct input", async () => {
@@ -46,11 +45,11 @@ describe("CreatePostCommandHandler", { concurrency: 1 }, () => {
 
     await handler.handle(command);
 
-    assert.strictEqual(ctx.createPostUseCase.executeCalls.length, 1);
+    expect(ctx.createPostUseCase.executeCalls.length).toBe(1);
     const input = ctx.createPostUseCase.executeCalls[0] as Record<string, unknown>;
-    assert.strictEqual(input.body, "My post body");
-    assert.strictEqual(input.title, "My Title");
-    assert.deepStrictEqual(input.tags, ["tag1", "tag2"]);
+    expect(input.body).toBe("My post body");
+    expect(input.title).toBe("My Title");
+    expect(input.tags).toStrictEqual(["tag1", "tag2"]);
   });
 
   it("should validate channels via channelRepository before creating", async () => {
@@ -60,11 +59,8 @@ describe("CreatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.ok(result.success, "Result should be successful");
-    assert.ok(
-      ctx.channelRepository.findByIdCalls.length >= 1,
-      "Should have called channelRepository.findById"
-    );
+    expect(result.success).toBeTruthy();
+    expect(ctx.channelRepository.findByIdCalls.length >= 1).toBeTruthy();
   });
 
   it("should return error for invalid channel ID format", async () => {
@@ -74,12 +70,11 @@ describe("CreatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("Invalid channel ID") || result.error.includes("channel"),
-      `Expected channel-related error, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(
+      result.error.includes("Invalid channel ID") || result.error.includes("channel")
+    ).toBeTruthy();
   });
 
   it("should return error when channel is not found in repository", async () => {
@@ -90,12 +85,9 @@ describe("CreatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("not found") || result.error.includes("Channel"),
-      `Expected channel not found error, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error.includes("not found") || result.error.includes("Channel")).toBeTruthy();
   });
 
   it("should return error when use case fails with validation error", async () => {
@@ -106,12 +98,9 @@ describe("CreatePostCommandHandler", { concurrency: 1 }, () => {
     const command = buildCreatePostCommand();
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("Body cannot be empty"),
-      `Expected use case error message, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error.includes("Body cannot be empty")).toBeTruthy();
   });
 
   it("should handle command schema validation failure", async () => {
@@ -134,33 +123,26 @@ describe("CreatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(invalidCommand);
 
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
     // Schema validation should fail before reaching the use case
-    assert.strictEqual(ctx.createPostUseCase.executeCalls.length, 0);
+    expect(ctx.createPostUseCase.executeCalls.length).toBe(0);
   });
 
   it("should skip channel validation when channelIds is empty", async () => {
     const command = buildCreatePostCommand({ channelIds: [] });
     const result = await handler.handle(command);
 
-    assert.ok(result.success, "Result should be successful");
-    assert.strictEqual(
-      ctx.channelRepository.findByIdCalls.length,
-      0,
-      "Should not call channelRepository when channelIds is empty"
-    );
+    expect(result.success).toBeTruthy();
+    expect(ctx.channelRepository.findByIdCalls.length).toBe(0);
   });
 
   it("should generate post.created event on success", async () => {
     const command = buildCreatePostCommand({ userId: "user-1" });
     const result = await handler.handle(command);
 
-    assert.ok(result.events, "Should have events");
-    assert.ok(result.events.length >= 1, "Should have at least 1 event");
-    assert.ok(
-      result.events.some((e: { type: string }) => e.type === "post.created"),
-      "Should include post.created event"
-    );
+    expect(result.events).toBeTruthy();
+    expect(result.events.length >= 1).toBeTruthy();
+    expect(result.events.some((e: { type: string }) => e.type === "post.created")).toBeTruthy();
   });
 
   it("should generate post.scheduled event when scheduledAt is provided", async () => {
@@ -169,22 +151,16 @@ describe("CreatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.ok(result.events, "Should have events");
-    assert.ok(
-      result.events.some((e: { type: string }) => e.type === "post.scheduled"),
-      "Should include post.scheduled event"
-    );
+    expect(result.events).toBeTruthy();
+    expect(result.events.some((e: { type: string }) => e.type === "post.scheduled")).toBeTruthy();
   });
 
   it("should generate user.action event on success", async () => {
     const command = buildCreatePostCommand({ userId: "user-1" });
     const result = await handler.handle(command);
 
-    assert.ok(result.events, "Should have events");
-    assert.ok(
-      result.events.some((e: { type: string }) => e.type === "user.action"),
-      "Should include user.action event"
-    );
+    expect(result.events).toBeTruthy();
+    expect(result.events.some((e: { type: string }) => e.type === "user.action")).toBeTruthy();
   });
 
   it("should invalidate cache on success", async () => {
@@ -192,6 +168,6 @@ describe("CreatePostCommandHandler", { concurrency: 1 }, () => {
     await handler.handle(command);
 
     const deletedKeys = ctx.redis.getDeletedKeys();
-    assert.ok(deletedKeys.length > 0, "Should have invalidated cache keys");
+    expect(deletedKeys.length > 0).toBeTruthy();
   });
 });

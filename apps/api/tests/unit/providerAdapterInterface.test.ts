@@ -35,8 +35,7 @@
  * @category UnitTests
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   isFullProviderAdapter,
   upgradeAdapter,
@@ -181,33 +180,25 @@ describe("ProviderAdapterInterface - Type Guard", () => {
   it("should detect full provider adapter", () => {
     const fullAdapter = createMockFullAdapter();
 
-    assert.strictEqual(
-      isFullProviderAdapter(fullAdapter),
-      true,
-      "Should identify full provider adapter"
-    );
+    expect(isFullProviderAdapter(fullAdapter)).toBe(true);
   });
 
   it("should reject legacy provider adapter", () => {
     const legacyAdapter = createMockLegacyAdapter();
 
-    assert.strictEqual(
-      isFullProviderAdapter(legacyAdapter),
-      false,
-      "Should reject legacy adapter without metadata"
-    );
+    expect(isFullProviderAdapter(legacyAdapter)).toBe(false);
   });
 
   it("should reject null value", () => {
-    assert.strictEqual(isFullProviderAdapter(null), false, "Should reject null");
+    expect(isFullProviderAdapter(null)).toBe(false);
   });
 
   it("should reject undefined value", () => {
-    assert.strictEqual(isFullProviderAdapter(undefined), false, "Should reject undefined");
+    expect(isFullProviderAdapter(undefined)).toBe(false);
   });
 
   it("should reject plain object", () => {
-    assert.strictEqual(isFullProviderAdapter({}), false, "Should reject empty object");
+    expect(isFullProviderAdapter({})).toBe(false);
   });
 
   it("should reject object with only metadata", () => {
@@ -225,11 +216,7 @@ describe("ProviderAdapterInterface - Type Guard", () => {
       },
     };
 
-    assert.strictEqual(
-      isFullProviderAdapter(partial),
-      false,
-      "Should reject partial implementation"
-    );
+    expect(isFullProviderAdapter(partial)).toBe(false);
   });
 
   it("should require metadata property", () => {
@@ -238,11 +225,7 @@ describe("ProviderAdapterInterface - Type Guard", () => {
       constraints: {},
     };
 
-    assert.strictEqual(
-      isFullProviderAdapter(withoutMetadata),
-      false,
-      "Should require metadata property"
-    );
+    expect(isFullProviderAdapter(withoutMetadata)).toBe(false);
   });
 
   it("should require validateContent method", () => {
@@ -251,11 +234,7 @@ describe("ProviderAdapterInterface - Type Guard", () => {
       constraints: {},
     };
 
-    assert.strictEqual(
-      isFullProviderAdapter(withoutValidateContent),
-      false,
-      "Should require validateContent method"
-    );
+    expect(isFullProviderAdapter(withoutValidateContent)).toBe(false);
   });
 
   it("should require constraints property", () => {
@@ -264,11 +243,7 @@ describe("ProviderAdapterInterface - Type Guard", () => {
       validateContent: async () => ({}) as any,
     };
 
-    assert.strictEqual(
-      isFullProviderAdapter(withoutConstraints),
-      false,
-      "Should require constraints property"
-    );
+    expect(isFullProviderAdapter(withoutConstraints)).toBe(false);
   });
 });
 
@@ -281,83 +256,51 @@ describe("ProviderAdapterInterface - Adapter Upgrade", () => {
     const legacyAdapter = createMockLegacyAdapter();
     const upgradedAdapter = upgradeAdapter(legacyAdapter);
 
-    assert.ok(upgradedAdapter.metadata, "Upgraded adapter should have metadata");
-    assert.ok(upgradedAdapter.constraints, "Upgraded adapter should have constraints");
-    assert.strictEqual(
-      typeof upgradedAdapter.validateContent,
-      "function",
-      "Should have validateContent method"
-    );
-    assert.strictEqual(
-      typeof upgradedAdapter.adaptContent,
-      "function",
-      "Should have adaptContent method"
-    );
-    assert.strictEqual(
-      typeof upgradedAdapter.generatePreview,
-      "function",
-      "Should have generatePreview method"
-    );
+    expect(upgradedAdapter.metadata).toBeTruthy();
+    expect(upgradedAdapter.constraints).toBeTruthy();
+    expect(typeof upgradedAdapter.validateContent).toBe("function");
+    expect(typeof upgradedAdapter.adaptContent).toBe("function");
+    expect(typeof upgradedAdapter.generatePreview).toBe("function");
   });
 
   it("should preserve original adapter properties", () => {
     const legacyAdapter = createMockLegacyAdapter();
     const upgradedAdapter = upgradeAdapter(legacyAdapter);
 
-    assert.strictEqual(upgradedAdapter.id, legacyAdapter.id, "Should preserve ID");
-    assert.deepStrictEqual(upgradedAdapter.limits, legacyAdapter.limits, "Should preserve limits");
-    assert.deepStrictEqual(
-      upgradedAdapter.capabilities,
-      legacyAdapter.capabilities,
-      "Should preserve capabilities"
-    );
+    expect(upgradedAdapter.id).toBe(legacyAdapter.id);
+    expect(upgradedAdapter.limits).toStrictEqual(legacyAdapter.limits);
+    expect(upgradedAdapter.capabilities).toStrictEqual(legacyAdapter.capabilities);
   });
 
   it("should generate metadata from adapter ID", () => {
     const legacyAdapter = createMockLegacyAdapter();
     const upgradedAdapter = upgradeAdapter(legacyAdapter);
 
-    assert.strictEqual(upgradedAdapter.metadata.id, legacyAdapter.id, "Metadata ID should match");
-    assert.strictEqual(
-      upgradedAdapter.metadata.name,
-      legacyAdapter.id,
-      "Metadata name should match ID"
-    );
-    assert.strictEqual(
-      upgradedAdapter.metadata.displayName,
-      legacyAdapter.id.toUpperCase(),
-      "Display name should be uppercase ID"
-    );
-    assert.ok(upgradedAdapter.metadata.description, "Should have description");
+    expect(upgradedAdapter.metadata.id).toBe(legacyAdapter.id);
+    expect(upgradedAdapter.metadata.name).toBe(legacyAdapter.id);
+    expect(upgradedAdapter.metadata.displayName).toBe(legacyAdapter.id.toUpperCase());
+    expect(upgradedAdapter.metadata.description).toBeTruthy();
   });
 
   it("should set default auth type to OAuth", () => {
     const legacyAdapter = createMockLegacyAdapter();
     const upgradedAdapter = upgradeAdapter(legacyAdapter);
 
-    assert.strictEqual(
-      upgradedAdapter.metadata.authType,
-      "oauth",
-      "Default auth type should be OAuth"
-    );
+    expect(upgradedAdapter.metadata.authType).toBe("oauth");
   });
 
   it("should set status to active", () => {
     const legacyAdapter = createMockLegacyAdapter();
     const upgradedAdapter = upgradeAdapter(legacyAdapter);
 
-    assert.strictEqual(
-      upgradedAdapter.metadata.status,
-      "active",
-      "Status should be active by default"
-    );
+    expect(upgradedAdapter.metadata.status).toBe("active");
   });
 
   it("should provide empty constraints by default", () => {
     const legacyAdapter = createMockLegacyAdapter();
     const upgradedAdapter = upgradeAdapter(legacyAdapter);
 
-    assert.deepStrictEqual(upgradedAdapter.constraints, {}, "Constraints should be empty object");
+    expect(upgradedAdapter.constraints).toStrictEqual({});
   });
 });
 
@@ -375,11 +318,11 @@ describe("ProviderAdapterInterface - Default Method Implementations", () => {
       media: [],
     });
 
-    assert.ok(result, "Should return validation result");
-    assert.strictEqual(typeof result.valid, "boolean", "Should have valid flag");
-    assert.ok(Array.isArray(result.errors), "Should have errors array");
-    assert.ok(Array.isArray(result.suggestions), "Should have suggestions array");
-    assert.ok(Array.isArray(result.adaptations), "Should have adaptations array");
+    expect(result).toBeTruthy();
+    expect(typeof result.valid).toBe("boolean");
+    expect(Array.isArray(result.errors)).toBeTruthy();
+    expect(Array.isArray(result.suggestions)).toBeTruthy();
+    expect(Array.isArray(result.adaptations)).toBeTruthy();
   });
 
   it("should validate content using render method", async () => {
@@ -393,8 +336,8 @@ describe("ProviderAdapterInterface - Default Method Implementations", () => {
 
     const result = await upgradedAdapter.validateContent(canonical);
 
-    assert.strictEqual(result.valid, true, "Valid content should pass validation");
-    assert.strictEqual(result.errors.length, 0, "Should have no errors for valid content");
+    expect(result.valid).toBe(true);
+    expect(result.errors.length).toBe(0);
   });
 
   it("should detect render errors in validation", async () => {
@@ -408,8 +351,8 @@ describe("ProviderAdapterInterface - Default Method Implementations", () => {
     const upgradedAdapter = upgradeAdapter(failingAdapter);
     const result = await upgradedAdapter.validateContent({ content: "test", media: [] });
 
-    assert.strictEqual(result.valid, false, "Should mark as invalid when render fails");
-    assert.ok(result.errors.length > 0, "Should have errors when render fails");
+    expect(result.valid).toBe(false);
+    expect(result.errors.length > 0).toBeTruthy();
   });
 
   it("should provide working adaptContent implementation", async () => {
@@ -419,13 +362,9 @@ describe("ProviderAdapterInterface - Default Method Implementations", () => {
     const canonical = { content: "Test", media: [] };
     const result = await upgradedAdapter.adaptContent(canonical);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.deepStrictEqual(
-        result.value,
-        canonical,
-        "Default adaptation should return unchanged content"
-      );
+      expect(result.value).toStrictEqual(canonical);
     }
   });
 
@@ -440,10 +379,10 @@ describe("ProviderAdapterInterface - Default Method Implementations", () => {
 
     const preview = await upgradedAdapter.generatePreview(canonical);
 
-    assert.strictEqual(preview.providerId, legacyAdapter.id, "Should use correct provider ID");
-    assert.ok(preview.content, "Should have content");
-    assert.ok(preview.constraints, "Should have constraints");
-    assert.ok(Array.isArray(preview.warnings), "Should have warnings array");
+    expect(preview.providerId).toBe(legacyAdapter.id);
+    expect(preview.content).toBeTruthy();
+    expect(preview.constraints).toBeTruthy();
+    expect(Array.isArray(preview.warnings)).toBeTruthy();
   });
 
   it("should calculate character counts in preview", async () => {
@@ -457,12 +396,8 @@ describe("ProviderAdapterInterface - Default Method Implementations", () => {
 
     const preview = await upgradedAdapter.generatePreview(canonical);
 
-    assert.strictEqual(preview.constraints.charactersUsed, 5, "Should count characters used");
-    assert.strictEqual(
-      preview.constraints.charactersRemaining,
-      275,
-      "Should calculate remaining (280-5)"
-    );
+    expect(preview.constraints.charactersUsed).toBe(5);
+    expect(preview.constraints.charactersRemaining).toBe(275);
   });
 
   it("should count media items in preview", async () => {
@@ -479,8 +414,8 @@ describe("ProviderAdapterInterface - Default Method Implementations", () => {
 
     const preview = await upgradedAdapter.generatePreview(canonical);
 
-    assert.strictEqual(preview.constraints.mediaCount, 2, "Should count media items");
-    assert.strictEqual(preview.constraints.mediaLimit, 4, "Should use adapter media limit");
+    expect(preview.constraints.mediaCount).toBe(2);
+    expect(preview.constraints.mediaLimit).toBe(4);
   });
 
   it("should provide working getAccountInfo implementation", async () => {
@@ -489,9 +424,9 @@ describe("ProviderAdapterInterface - Default Method Implementations", () => {
 
     const result = await upgradedAdapter.getAccountInfo({} as any);
 
-    assert.ok(!result.ok, "Default implementation should return error");
+    expect(result.ok).toBeFalsy();
     if (!result.ok) {
-      assert.strictEqual(result.error, "AUTH", "Should return AUTH error");
+      expect(result.error).toBe("AUTH");
     }
   });
 
@@ -501,9 +436,9 @@ describe("ProviderAdapterInterface - Default Method Implementations", () => {
 
     const result = await upgradedAdapter.healthCheck();
 
-    assert.ok(result.ok, "Default health check should succeed");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.healthy, true, "Should report healthy status");
+      expect(result.value.healthy).toBe(true);
     }
   });
 });
@@ -517,49 +452,45 @@ describe("ProviderAdapterInterface - Interface Structure", () => {
     const fullAdapter = createMockFullAdapter();
     const metadata = fullAdapter.metadata;
 
-    assert.ok(metadata.id, "Metadata should have ID");
-    assert.ok(metadata.name, "Metadata should have name");
-    assert.ok(metadata.displayName, "Metadata should have display name");
-    assert.ok(metadata.description, "Metadata should have description");
-    assert.ok(metadata.icon, "Metadata should have icon");
-    assert.ok(metadata.color, "Metadata should have color");
-    assert.ok(metadata.website, "Metadata should have website");
-    assert.ok(
-      ["oauth", "api_key", "username_password"].includes(metadata.authType),
-      "Should have valid auth type"
-    );
-    assert.ok(
-      ["active", "beta", "coming_soon", "maintenance", "deprecated"].includes(metadata.status),
-      "Should have valid status"
-    );
+    expect(metadata.id).toBeTruthy();
+    expect(metadata.name).toBeTruthy();
+    expect(metadata.displayName).toBeTruthy();
+    expect(metadata.description).toBeTruthy();
+    expect(metadata.icon).toBeTruthy();
+    expect(metadata.color).toBeTruthy();
+    expect(metadata.website).toBeTruthy();
+    expect(["oauth", "api_key", "username_password"].includes(metadata.authType)).toBeTruthy();
+    expect(
+      ["active", "beta", "coming_soon", "maintenance", "deprecated"].includes(metadata.status)
+    ).toBeTruthy();
   });
 
   it("should validate capabilities structure", () => {
     const fullAdapter = createMockFullAdapter();
     const capabilities = fullAdapter.capabilities;
 
-    assert.strictEqual(typeof capabilities.publish, "boolean", "publish should be boolean");
-    assert.strictEqual(typeof capabilities.schedule, "boolean", "schedule should be boolean");
-    assert.strictEqual(typeof capabilities.analytics, "boolean", "analytics should be boolean");
-    assert.strictEqual(typeof capabilities.comments, "boolean", "comments should be boolean");
-    assert.strictEqual(typeof capabilities.replies, "boolean", "replies should be boolean");
-    assert.strictEqual(typeof capabilities.threading, "boolean", "threading should be boolean");
+    expect(typeof capabilities.publish).toBe("boolean");
+    expect(typeof capabilities.schedule).toBe("boolean");
+    expect(typeof capabilities.analytics).toBe("boolean");
+    expect(typeof capabilities.comments).toBe("boolean");
+    expect(typeof capabilities.replies).toBe("boolean");
+    expect(typeof capabilities.threading).toBe("boolean");
   });
 
   it("should validate limits structure", () => {
     const fullAdapter = createMockFullAdapter();
     const limits = fullAdapter.limits;
 
-    assert.strictEqual(typeof limits.maxChars, "number", "maxChars should be number");
-    assert.strictEqual(typeof limits.maxMediaPerPost, "number", "maxMediaPerPost should be number");
-    assert.ok(Array.isArray(limits.allowedMedia), "allowedMedia should be array");
+    expect(typeof limits.maxChars).toBe("number");
+    expect(typeof limits.maxMediaPerPost).toBe("number");
+    expect(Array.isArray(limits.allowedMedia)).toBeTruthy();
   });
 
   it("should validate constraints structure", () => {
     const fullAdapter = createMockFullAdapter();
     const constraints = fullAdapter.constraints;
 
-    assert.ok(typeof constraints === "object", "Constraints should be object");
+    expect(typeof constraints === "object").toBeTruthy();
   });
 });
 
@@ -571,73 +502,57 @@ describe("ProviderAdapterInterface - Method Signatures", () => {
   it("should have async validateContent method", () => {
     const fullAdapter = createMockFullAdapter();
 
-    assert.strictEqual(
-      typeof fullAdapter.validateContent,
-      "function",
-      "validateContent should be function"
-    );
+    expect(typeof fullAdapter.validateContent).toBe("function");
     const result = fullAdapter.validateContent({ content: "test", media: [] });
-    assert.ok(result instanceof Promise, "validateContent should return Promise");
+    expect(result instanceof Promise).toBeTruthy();
   });
 
   it("should have async adaptContent method", () => {
     const fullAdapter = createMockFullAdapter();
 
-    assert.strictEqual(
-      typeof fullAdapter.adaptContent,
-      "function",
-      "adaptContent should be function"
-    );
+    expect(typeof fullAdapter.adaptContent).toBe("function");
     const result = fullAdapter.adaptContent(
       { content: "test", media: [] },
       "twitter" as ProviderId
     );
-    assert.ok(result instanceof Promise, "adaptContent should return Promise");
+    expect(result instanceof Promise).toBeTruthy();
   });
 
   it("should have async generatePreview method", () => {
     const fullAdapter = createMockFullAdapter();
 
-    assert.strictEqual(
-      typeof fullAdapter.generatePreview,
-      "function",
-      "generatePreview should be function"
-    );
+    expect(typeof fullAdapter.generatePreview).toBe("function");
     const result = fullAdapter.generatePreview({ content: "test", media: [] });
-    assert.ok(result instanceof Promise, "generatePreview should return Promise");
+    expect(result instanceof Promise).toBeTruthy();
   });
 
   it("should have sync render method", () => {
     const fullAdapter = createMockFullAdapter();
 
-    assert.strictEqual(typeof fullAdapter.render, "function", "render should be function");
+    expect(typeof fullAdapter.render).toBe("function");
     const result = fullAdapter.render({ content: "test", media: [] });
-    assert.ok(!(result instanceof Promise), "render should be synchronous");
+    expect(result instanceof Promise).toBeFalsy();
   });
 
   it("should have async publish method", () => {
     const fullAdapter = createMockFullAdapter();
 
-    assert.strictEqual(typeof fullAdapter.publish, "function", "publish should be function");
+    expect(typeof fullAdapter.publish).toBe("function");
     const result = fullAdapter.publish({
       channelId: "ch-123",
       post: { type: "single" as const, content: {} },
       dedupeKey: "key",
       config: {} as any,
     });
-    assert.ok(result instanceof Promise, "publish should return Promise");
+    expect(result instanceof Promise).toBeTruthy();
   });
 
   it("should have async healthCheck method", () => {
     const fullAdapter = createMockFullAdapter();
 
-    assert.strictEqual(
-      typeof fullAdapter.healthCheck,
-      "function",
-      "healthCheck should be function"
-    );
+    expect(typeof fullAdapter.healthCheck).toBe("function");
     const result = fullAdapter.healthCheck();
-    assert.ok(result instanceof Promise, "healthCheck should return Promise");
+    expect(result instanceof Promise).toBeTruthy();
   });
 });
 
@@ -652,12 +567,8 @@ describe("ProviderAdapterInterface - Edge Cases", () => {
 
     const preview = await upgradedAdapter.generatePreview({ content: "", media: [] });
 
-    assert.strictEqual(preview.constraints.charactersUsed, 0, "Empty content should be 0 chars");
-    assert.strictEqual(
-      preview.constraints.charactersRemaining,
-      280,
-      "Should have full character limit"
-    );
+    expect(preview.constraints.charactersUsed).toBe(0);
+    expect(preview.constraints.charactersRemaining).toBe(280);
   });
 
   it("should handle missing content in preview generation", async () => {
@@ -666,7 +577,7 @@ describe("ProviderAdapterInterface - Edge Cases", () => {
 
     const preview = await upgradedAdapter.generatePreview({ media: [] } as any);
 
-    assert.strictEqual(preview.constraints.charactersUsed, 0, "Missing content should be 0 chars");
+    expect(preview.constraints.charactersUsed).toBe(0);
   });
 
   it("should handle missing media in preview generation", async () => {
@@ -675,7 +586,7 @@ describe("ProviderAdapterInterface - Edge Cases", () => {
 
     const preview = await upgradedAdapter.generatePreview({ content: "test" } as any);
 
-    assert.strictEqual(preview.constraints.mediaCount, 0, "Missing media should be 0 count");
+    expect(preview.constraints.mediaCount).toBe(0);
   });
 
   it("should handle adapter with different provider ID", () => {
@@ -686,32 +597,24 @@ describe("ProviderAdapterInterface - Edge Cases", () => {
 
     const upgraded = upgradeAdapter(instagramAdapter);
 
-    assert.strictEqual(upgraded.id, "instagram", "Should preserve Instagram ID");
-    assert.strictEqual(upgraded.metadata.id, "instagram", "Metadata should use Instagram ID");
-    assert.strictEqual(
-      upgraded.metadata.displayName,
-      "INSTAGRAM",
-      "Display name should be INSTAGRAM"
-    );
+    expect(upgraded.id).toBe("instagram");
+    expect(upgraded.metadata.id).toBe("instagram");
+    expect(upgraded.metadata.displayName).toBe("INSTAGRAM");
   });
 
   it("should handle type guard with string primitive", () => {
-    assert.strictEqual(
-      isFullProviderAdapter("not an adapter"),
-      false,
-      "Should reject string primitive"
-    );
+    expect(isFullProviderAdapter("not an adapter")).toBe(false);
   });
 
   it("should handle type guard with number primitive", () => {
-    assert.strictEqual(isFullProviderAdapter(123), false, "Should reject number primitive");
+    expect(isFullProviderAdapter(123)).toBe(false);
   });
 
   it("should handle type guard with boolean primitive", () => {
-    assert.strictEqual(isFullProviderAdapter(true), false, "Should reject boolean primitive");
+    expect(isFullProviderAdapter(true)).toBe(false);
   });
 
   it("should handle type guard with array", () => {
-    assert.strictEqual(isFullProviderAdapter([{ metadata: {} }]), false, "Should reject array");
+    expect(isFullProviderAdapter([{ metadata: {} }])).toBe(false);
   });
 });

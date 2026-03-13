@@ -10,8 +10,7 @@
  * and the SchedulePublishingJobsStep from @shared/saga.
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SagaIntegration } from "../../src/saga/SagaIntegration";
 import {
   buildIntegration,
@@ -31,7 +30,7 @@ console.warn = () => {};
 // Queue Integration Tests
 // ============================================================================
 
-describe("SagaIntegration - Queue Integration", { concurrency: 1 }, () => {
+describe("SagaIntegration - Queue Integration", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
   let mockEventService: MockEventService;
@@ -47,7 +46,7 @@ describe("SagaIntegration - Queue Integration", { concurrency: 1 }, () => {
 
   it("should start a saga and transition through steps asynchronously", async () => {
     const handler = routes.get("POST:/api/sagas/post-publishing/start");
-    assert.ok(handler, "Start route handler should be registered");
+    expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
       body: "Queue integration test content",
@@ -56,26 +55,23 @@ describe("SagaIntegration - Queue Integration", { concurrency: 1 }, () => {
 
     const result = await handler(request, passthroughReply);
 
-    assert.ok(result.success, "Start saga should return success");
-    assert.ok(result.data.sagaId, "Should return a sagaId");
+    expect(result.success).toBeTruthy();
+    expect(result.data.sagaId).toBeTruthy();
 
     // Allow saga steps to begin executing asynchronously
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
 
     // Verify the saga was persisted to Redis
     const sagaData = await mockRedis.get(`saga:${result.data.sagaId}`);
-    assert.ok(sagaData, "Saga instance should be persisted in Redis");
+    expect(sagaData).toBeTruthy();
 
     const parsed = JSON.parse(sagaData);
-    assert.ok(
-      ["RUNNING", "COMPLETED", "FAILED"].includes(parsed.status),
-      `Saga should be in a post-start state, got: ${parsed.status}`
-    );
+    expect(["RUNNING", "COMPLETED", "FAILED"].includes(parsed.status)).toBeTruthy();
   });
 
   it("should emit saga started event containing the sagaId", async () => {
     const handler = routes.get("POST:/api/sagas/post-publishing/start");
-    assert.ok(handler, "Start route handler should be registered");
+    expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
       body: "Event emission test",
@@ -89,25 +85,17 @@ describe("SagaIntegration - Queue Integration", { concurrency: 1 }, () => {
 
     const startedEvents = mockEventService.publishedEvents.filter((e) => e.type === "saga.started");
 
-    assert.ok(startedEvents.length > 0, "Should emit saga.started event");
+    expect(startedEvents.length > 0).toBeTruthy();
 
     const startedEvent = startedEvents[0];
-    assert.ok(startedEvent, "Started event should exist");
-    assert.strictEqual(
-      startedEvent.data.sagaId,
-      result.data.sagaId,
-      "Started event should contain the correct sagaId"
-    );
-    assert.strictEqual(
-      startedEvent.data.definitionId,
-      "post-publishing-saga",
-      "Started event should reference the post-publishing-saga definition"
-    );
+    expect(startedEvent).toBeTruthy();
+    expect(startedEvent.data.sagaId).toBe(result.data.sagaId);
+    expect(startedEvent.data.definitionId).toBe("post-publishing-saga");
   });
 
   it("should include sagaId in the correlationId of the context", async () => {
     const handler = routes.get("POST:/api/sagas/post-publishing/start");
-    assert.ok(handler, "Start route handler should be registered");
+    expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
       body: "CorrelationId test",
@@ -116,16 +104,13 @@ describe("SagaIntegration - Queue Integration", { concurrency: 1 }, () => {
 
     const result = await handler(request, passthroughReply);
 
-    assert.ok(result.data.correlationId, "Result should contain a correlationId");
-    assert.ok(
-      result.data.correlationId.startsWith("post-publish-"),
-      "CorrelationId should follow the expected naming pattern"
-    );
+    expect(result.data.correlationId).toBeTruthy();
+    expect(result.data.correlationId.startsWith("post-publish-")).toBeTruthy();
   });
 
   it("should execute the validate-post-data step with channel data", async () => {
     const handler = routes.get("POST:/api/sagas/post-publishing/start");
-    assert.ok(handler, "Start route handler should be registered");
+    expect(handler).toBeTruthy();
 
     const channelIds = ["ch-1", "ch-2", "ch-3"];
     const request = makeStartRequest({
@@ -139,21 +124,18 @@ describe("SagaIntegration - Queue Integration", { concurrency: 1 }, () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
 
     const sagaData = await mockRedis.get(`saga:${result.data.sagaId}`);
-    assert.ok(sagaData, "Saga should be persisted");
+    expect(sagaData).toBeTruthy();
 
     const parsed = JSON.parse(sagaData);
     // The saga starts executing immediately, and the validate-post-data step
     // is the first step. If the saga advanced past step 0, the validation
     // succeeded.
-    assert.ok(
-      parsed.currentStep >= 1 || parsed.status === "RUNNING",
-      "Saga should have executed at least the validation step"
-    );
+    expect(parsed.currentStep >= 1 || parsed.status === "RUNNING").toBeTruthy();
   });
 
   it("should schedule publishing jobs with sagaId in the job payload", async () => {
     const handler = routes.get("POST:/api/sagas/post-publishing/start");
-    assert.ok(handler, "Start route handler should be registered");
+    expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
       body: "SagaId in job payload test",
@@ -170,7 +152,7 @@ describe("SagaIntegration - Queue Integration", { concurrency: 1 }, () => {
     // receives the sagaId as part of the job data. We verify the saga reached
     // at least the scheduling step by checking step results.
     const sagaData = await mockRedis.get(`saga:${sagaId}`);
-    assert.ok(sagaData, "Saga should be persisted");
+    expect(sagaData).toBeTruthy();
 
     const parsed = JSON.parse(sagaData);
 
@@ -178,16 +160,13 @@ describe("SagaIntegration - Queue Integration", { concurrency: 1 }, () => {
     // callback was invoked with sagaId in the payload.
     if (parsed.currentStep >= 3) {
       const scheduleResult = parsed.stepResults[2];
-      assert.ok(scheduleResult, "Step 2 (schedule-publishing-jobs) should have a result");
-      assert.ok(scheduleResult.success, "Schedule step should have succeeded");
-      assert.ok(scheduleResult.data?.jobIds?.length > 0, "Schedule step should return job IDs");
+      expect(scheduleResult).toBeTruthy();
+      expect(scheduleResult.success).toBeTruthy();
+      expect(scheduleResult.data?.jobIds?.length > 0).toBeTruthy();
     }
     // If the saga is still running or failed at an earlier step, that's also
     // valid -- the important thing is no unhandled errors occurred.
-    assert.ok(
-      ["RUNNING", "COMPLETED", "FAILED"].includes(parsed.status),
-      `Saga should be in a valid state, got: ${parsed.status}`
-    );
+    expect(["RUNNING", "COMPLETED", "FAILED"].includes(parsed.status)).toBeTruthy();
   });
 });
 
@@ -195,7 +174,7 @@ describe("SagaIntegration - Queue Integration", { concurrency: 1 }, () => {
 // Queue Job Payload Shape Tests
 // ============================================================================
 
-describe("SagaIntegration - Job Payload Shape", { concurrency: 1 }, () => {
+describe("SagaIntegration - Job Payload Shape", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
   let mockRedis: MockRedis;
@@ -210,7 +189,7 @@ describe("SagaIntegration - Job Payload Shape", { concurrency: 1 }, () => {
 
   it("should pass postData through the saga context metadata", async () => {
     const handler = routes.get("POST:/api/sagas/post-publishing/start");
-    assert.ok(handler, "Start route handler should be registered");
+    expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
       body: "Payload shape test content",
@@ -223,27 +202,22 @@ describe("SagaIntegration - Job Payload Shape", { concurrency: 1 }, () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 200));
 
     const sagaData = await mockRedis.get(`saga:${result.data.sagaId}`);
-    assert.ok(sagaData, "Saga should be persisted");
+    expect(sagaData).toBeTruthy();
 
     const parsed = JSON.parse(sagaData);
 
     // Verify context metadata contains postData
-    assert.ok(parsed.context.metadata.postData, "Saga context metadata should contain postData");
-    assert.strictEqual(
-      parsed.context.metadata.postData.body,
-      "Payload shape test content",
-      "postData.body should match the request"
-    );
-    assert.deepStrictEqual(
-      parsed.context.metadata.postData.channelIds,
-      ["channel-shape-1", "channel-shape-2"],
-      "postData.channelIds should match the request"
-    );
+    expect(parsed.context.metadata.postData).toBeTruthy();
+    expect(parsed.context.metadata.postData.body).toBe("Payload shape test content");
+    expect(parsed.context.metadata.postData.channelIds).toStrictEqual([
+      "channel-shape-1",
+      "channel-shape-2",
+    ]);
   });
 
   it("should include priority in context metadata when provided", async () => {
     const handler = routes.get("POST:/api/sagas/post-publishing/start");
-    assert.ok(handler, "Start route handler should be registered");
+    expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
       body: "Priority test content",
@@ -256,14 +230,10 @@ describe("SagaIntegration - Job Payload Shape", { concurrency: 1 }, () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 200));
 
     const sagaData = await mockRedis.get(`saga:${result.data.sagaId}`);
-    assert.ok(sagaData, "Saga should be persisted");
+    expect(sagaData).toBeTruthy();
 
     const parsed = JSON.parse(sagaData);
 
-    assert.strictEqual(
-      parsed.context.metadata.priority,
-      "HIGH",
-      "Context metadata should include priority"
-    );
+    expect(parsed.context.metadata.priority).toBe("HIGH");
   });
 });

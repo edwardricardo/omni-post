@@ -3,8 +3,7 @@
  * Tests event persistence, retrieval, and event sourcing patterns
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { DomainEvent, createDomainEvent, EVENT_TYPES } from "@shared/events";
 
 // Mock Prisma Client
@@ -165,7 +164,7 @@ class MockRedis {
 // Import after mocking
 const { PostgreSQLEventStore } = await import("../../src/events/EventStore");
 
-describe("EventStore - Event Appending", { concurrency: 1 }, () => {
+describe("EventStore - Event Appending", () => {
   let eventStore: any;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -191,7 +190,7 @@ describe("EventStore - Event Appending", { concurrency: 1 }, () => {
     await eventStore.append("post-123", [event]);
 
     const storedEvents = mockPrisma.getEvents();
-    assert.equal(storedEvents.length, 1, "Should store one event");
+    expect(storedEvents.length).toBe(1);
   });
 
   it("should append multiple events to stream", async () => {
@@ -215,14 +214,14 @@ describe("EventStore - Event Appending", { concurrency: 1 }, () => {
     await eventStore.append("post-123", events);
 
     const storedEvents = mockPrisma.getEvents();
-    assert.equal(storedEvents.length, 2, "Should store multiple events");
+    expect(storedEvents.length).toBe(2);
   });
 
   it("should handle empty event array gracefully", async () => {
     await eventStore.append("post-123", []);
 
     const storedEvents = mockPrisma.getEvents();
-    assert.equal(storedEvents.length, 0, "Should not store any events");
+    expect(storedEvents.length).toBe(0);
   });
 
   it("should enforce optimistic concurrency control", async () => {
@@ -236,11 +235,7 @@ describe("EventStore - Event Appending", { concurrency: 1 }, () => {
       { source: "TestSuite" }
     );
 
-    await assert.rejects(
-      async () => await eventStore.append("post-123", [event], 3),
-      { message: /Concurrency conflict/ },
-      "Should throw concurrency conflict error"
-    );
+    await expect(eventStore.append("post-123", [event], 3)).rejects.toThrow(/Concurrency conflict/);
   });
 
   it("should publish events to Redis after storing", async () => {
@@ -255,7 +250,7 @@ describe("EventStore - Event Appending", { concurrency: 1 }, () => {
     await eventStore.append("post-123", [event]);
 
     const publishedEvents = mockRedis.getPublishedEvents();
-    assert.equal(publishedEvents.length >= 1, true, "Should publish events to Redis");
+    expect(publishedEvents.length >= 1).toBe(true);
   });
 
   it("should handle max batch size limit", async () => {
@@ -269,11 +264,7 @@ describe("EventStore - Event Appending", { concurrency: 1 }, () => {
       )
     );
 
-    await assert.rejects(
-      async () => await eventStore.append("post-123", events),
-      { message: /Cannot append more than/ },
-      "Should throw error for batch size limit"
-    );
+    await expect(eventStore.append("post-123", events)).rejects.toThrow(/Cannot append more than/);
   });
 
   it("should handle transaction failures", async () => {
@@ -287,15 +278,11 @@ describe("EventStore - Event Appending", { concurrency: 1 }, () => {
       { source: "TestSuite" }
     );
 
-    await assert.rejects(
-      async () => await eventStore.append("post-123", [event]),
-      { message: /Transaction failed/ },
-      "Should throw transaction error"
-    );
+    await expect(eventStore.append("post-123", [event])).rejects.toThrow(/Transaction failed/);
   });
 });
 
-describe("EventStore - Event Retrieval", { concurrency: 1 }, () => {
+describe("EventStore - Event Retrieval", () => {
   let eventStore: any;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -311,47 +298,43 @@ describe("EventStore - Event Retrieval", { concurrency: 1 }, () => {
 
   it("should get events from specific stream", async () => {
     const events = await eventStore.getEvents("post-123");
-    assert.ok(Array.isArray(events), "Should return array of events");
+    expect(Array.isArray(events)).toBeTruthy();
   });
 
   it("should get events from specific version", async () => {
     const events = await eventStore.getEvents("post-123", 5);
-    assert.ok(Array.isArray(events), "Should return array of events from version");
+    expect(Array.isArray(events)).toBeTruthy();
   });
 
   it("should get all events across streams", async () => {
     const events = await eventStore.getAllEvents();
-    assert.ok(Array.isArray(events), "Should return array of all events");
+    expect(Array.isArray(events)).toBeTruthy();
   });
 
   it("should get all events from specific position", async () => {
     const events = await eventStore.getAllEvents(100);
-    assert.ok(Array.isArray(events), "Should return array of events from position");
+    expect(Array.isArray(events)).toBeTruthy();
   });
 
   it("should get events by type", async () => {
     const events = await eventStore.getEventsByType(EVENT_TYPES.POST_CREATED);
-    assert.ok(Array.isArray(events), "Should return array of events by type");
+    expect(Array.isArray(events)).toBeTruthy();
   });
 
   it("should get events by type from timestamp", async () => {
     const fromTimestamp = new Date("2024-01-01T00:00:00Z");
     const events = await eventStore.getEventsByType(EVENT_TYPES.POST_CREATED, fromTimestamp);
-    assert.ok(Array.isArray(events), "Should return array of events from timestamp");
+    expect(Array.isArray(events)).toBeTruthy();
   });
 
   it("should handle query failures gracefully", async () => {
     mockPrisma.setFailQuery(true);
 
-    await assert.rejects(
-      async () => await eventStore.getEvents("post-123"),
-      { message: /Query failed/ },
-      "Should throw query error"
-    );
+    await expect(eventStore.getEvents("post-123")).rejects.toThrow(/Query failed/);
   });
 });
 
-describe("EventStore - Stream Statistics", { concurrency: 1 }, () => {
+describe("EventStore - Stream Statistics", () => {
   let eventStore: any;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -371,21 +354,15 @@ describe("EventStore - Stream Statistics", { concurrency: 1 }, () => {
   it("should get stream statistics", async () => {
     const stats = await eventStore.getStreamStats("post-123");
 
-    assert.equal(typeof stats.eventCount, "number", "Should have event count");
-    assert.equal(typeof stats.currentVersion, "number", "Should have current version");
+    expect(typeof stats.eventCount).toBe("number");
+    expect(typeof stats.currentVersion).toBe("number");
   });
 
   it("should include first and last event timestamps", async () => {
     const stats = await eventStore.getStreamStats("post-123");
 
-    assert.ok(
-      "firstEventAt" in stats || stats.firstEventAt === undefined,
-      "Should have firstEventAt property"
-    );
-    assert.ok(
-      "lastEventAt" in stats || stats.lastEventAt === undefined,
-      "Should have lastEventAt property"
-    );
+    expect("firstEventAt" in stats || stats.firstEventAt === undefined).toBeTruthy();
+    expect("lastEventAt" in stats || stats.lastEventAt === undefined).toBeTruthy();
   });
 
   it("should handle empty stream", async () => {
@@ -393,12 +370,12 @@ describe("EventStore - Stream Statistics", { concurrency: 1 }, () => {
 
     const stats = await eventStore.getStreamStats("empty-stream");
 
-    assert.equal(stats.eventCount, 0, "Should have zero event count");
-    assert.equal(stats.currentVersion, 0, "Should have zero version");
+    expect(stats.eventCount).toBe(0);
+    expect(stats.currentVersion).toBe(0);
   });
 });
 
-describe("EventStore - Snapshots", { concurrency: 1 }, () => {
+describe("EventStore - Snapshots", () => {
   let eventStore: any;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -421,37 +398,30 @@ describe("EventStore - Snapshots", { concurrency: 1 }, () => {
     };
 
     // createSnapshot should complete without throwing
-    await assert.doesNotReject(
-      async () => await eventStore.createSnapshot("post-123", 5, snapshotData),
-      "Should create snapshot successfully without errors"
-    );
+    await expect(eventStore.createSnapshot("post-123", 5, snapshotData)).resolves.not.toThrow();
   });
 
   it("should get latest snapshot", async () => {
     const snapshot = await eventStore.getSnapshot("post-123");
 
     // Snapshot may be null if not created
-    assert.ok(snapshot === null || typeof snapshot === "object", "Should return snapshot or null");
+    expect(snapshot === null || typeof snapshot === "object").toBeTruthy();
   });
 
   it("should handle missing snapshot", async () => {
     const snapshot = await eventStore.getSnapshot("nonexistent-stream");
 
-    assert.equal(snapshot, null, "Should return null for missing snapshot");
+    expect(snapshot).toBe(null);
   });
 
   it("should handle snapshot query failures", async () => {
     mockPrisma.setFailQuery(true);
 
-    await assert.rejects(
-      async () => await eventStore.getSnapshot("post-123"),
-      { message: /Query failed/ },
-      "Should throw query error"
-    );
+    await expect(eventStore.getSnapshot("post-123")).rejects.toThrow(/Query failed/);
   });
 });
 
-describe("EventStore - Health Check", { concurrency: 1 }, () => {
+describe("EventStore - Health Check", () => {
   let eventStore: any;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -468,9 +438,9 @@ describe("EventStore - Health Check", { concurrency: 1 }, () => {
   it("should report healthy status when services are available", async () => {
     const health = await eventStore.healthCheck();
 
-    assert.equal(health.status, "healthy", "Should report healthy status");
-    assert.equal(health.details.database, true, "Should report database as healthy");
-    assert.equal(health.details.redis, true, "Should report Redis as healthy");
+    expect(health.status).toBe("healthy");
+    expect(health.details.database).toBe(true);
+    expect(health.details.redis).toBe(true);
   });
 
   it("should report unhealthy status when database fails", async () => {
@@ -478,8 +448,8 @@ describe("EventStore - Health Check", { concurrency: 1 }, () => {
 
     const health = await eventStore.healthCheck();
 
-    assert.equal(health.status, "unhealthy", "Should report unhealthy status");
-    assert.equal(health.details.database, false, "Should report database as unhealthy");
+    expect(health.status).toBe("unhealthy");
+    expect(health.details.database).toBe(false);
   });
 
   it("should report unhealthy status when Redis fails", async () => {
@@ -487,21 +457,20 @@ describe("EventStore - Health Check", { concurrency: 1 }, () => {
 
     const health = await eventStore.healthCheck();
 
-    assert.equal(health.status, "unhealthy", "Should report unhealthy status");
-    assert.equal(health.details.redis, false, "Should report Redis as unhealthy");
+    expect(health.status).toBe("unhealthy");
+    expect(health.details.redis).toBe(false);
   });
 
   it("should include total events in health check", async () => {
     const health = await eventStore.healthCheck();
 
-    assert.ok(
-      "totalEvents" in health.details || health.details.totalEvents === undefined,
-      "Should have totalEvents property"
-    );
+    expect(
+      "totalEvents" in health.details || health.details.totalEvents === undefined
+    ).toBeTruthy();
   });
 });
 
-describe("EventStore - Cleanup", { concurrency: 1 }, () => {
+describe("EventStore - Cleanup", () => {
   let eventStore: any;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -519,29 +488,25 @@ describe("EventStore - Cleanup", { concurrency: 1 }, () => {
     const olderThan = new Date("2023-01-01T00:00:00Z");
     const deletedCount = await eventStore.cleanup(olderThan);
 
-    assert.equal(typeof deletedCount, "number", "Should return number of deleted events");
+    expect(typeof deletedCount).toBe("number");
   });
 
   it("should keep minimum events when cleaning up", async () => {
     const olderThan = new Date("2023-01-01T00:00:00Z");
     const deletedCount = await eventStore.cleanup(olderThan, 1000);
 
-    assert.equal(typeof deletedCount, "number", "Should return number of deleted events");
+    expect(typeof deletedCount).toBe("number");
   });
 
   it("should handle cleanup failures", async () => {
     mockPrisma.setFailQuery(true);
     const olderThan = new Date("2023-01-01T00:00:00Z");
 
-    await assert.rejects(
-      async () => await eventStore.cleanup(olderThan),
-      { message: /Execute failed/ },
-      "Should throw cleanup error"
-    );
+    await expect(eventStore.cleanup(olderThan)).rejects.toThrow(/Execute failed/);
   });
 });
 
-describe("EventStore - Event Sourcing Patterns", { concurrency: 1 }, () => {
+describe("EventStore - Event Sourcing Patterns", () => {
   let eventStore: any;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -557,15 +522,15 @@ describe("EventStore - Event Sourcing Patterns", { concurrency: 1 }, () => {
 
   it("should retrieve events starting from specific version", async () => {
     const events = await eventStore.getEvents("post-123", 5);
-    assert.ok(Array.isArray(events), "Should return an array");
+    expect(Array.isArray(events)).toBeTruthy();
     // Mock returns empty by default - verifying the method accepts version parameter without error
-    assert.strictEqual(typeof events.length, "number", "Array should have a length property");
+    expect(typeof events.length).toBe("number");
   });
 
   it("should retrieve all events starting from specific position", async () => {
     const events = await eventStore.getAllEvents(100);
-    assert.ok(Array.isArray(events), "Should return an array");
-    assert.strictEqual(typeof events.length, "number", "Array should have a length property");
+    expect(Array.isArray(events)).toBeTruthy();
+    expect(typeof events.length).toBe("number");
   });
 
   it("should maintain event ordering by version", async () => {
@@ -589,7 +554,7 @@ describe("EventStore - Event Sourcing Patterns", { concurrency: 1 }, () => {
     await eventStore.append("post-123", events);
 
     const storedEvents = mockPrisma.getEvents();
-    assert.equal(storedEvents.length, 2, "Should maintain event ordering");
+    expect(storedEvents.length).toBe(2);
   });
 
   it("should support correlation ID tracking", async () => {
@@ -608,8 +573,8 @@ describe("EventStore - Event Sourcing Patterns", { concurrency: 1 }, () => {
     await eventStore.append("post-123", [event]);
 
     const storedEvents = mockPrisma.getEvents();
-    assert.equal(storedEvents.length, 1, "Should store the event");
-    assert.strictEqual(event.correlationId, correlationId, "Event should preserve correlationId");
+    expect(storedEvents.length).toBe(1);
+    expect(event.correlationId).toBe(correlationId);
   });
 
   it("should support causation ID tracking", async () => {
@@ -628,7 +593,7 @@ describe("EventStore - Event Sourcing Patterns", { concurrency: 1 }, () => {
     await eventStore.append("post-123", [event]);
 
     const storedEvents = mockPrisma.getEvents();
-    assert.equal(storedEvents.length, 1, "Should store the event");
-    assert.strictEqual(event.causationId, causationId, "Event should preserve causationId");
+    expect(storedEvents.length).toBe(1);
+    expect(event.causationId).toBe(causationId);
   });
 });

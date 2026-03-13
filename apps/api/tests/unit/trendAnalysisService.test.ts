@@ -40,8 +40,7 @@
  * @category UnitTests
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { TrendAnalysisService } from "../../src/trends/trendAnalysisService.js";
 import { createService } from "./trendAnalysisService.test-helpers.js";
 
@@ -49,51 +48,35 @@ import { createService } from "./trendAnalysisService.test-helpers.js";
 // TEST SUITE: Service Initialization
 // ========================================
 
-describe("TrendAnalysisService - Initialization", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Initialization", () => {
   it("should initialize with prisma and logger", () => {
     const service = createService();
 
-    assert.ok(service, "Service should be created");
+    expect(service).toBeTruthy();
   });
 
   it("should expose trending content method", () => {
     const service = createService();
 
-    assert.strictEqual(
-      typeof service.getTrendingContent,
-      "function",
-      "Should have getTrendingContent method"
-    );
+    expect(typeof service.getTrendingContent).toBe("function");
   });
 
   it("should expose trend prediction method", () => {
     const service = createService();
 
-    assert.strictEqual(
-      typeof service.generateTrendPredictions,
-      "function",
-      "Should have generateTrendPredictions method"
-    );
+    expect(typeof service.generateTrendPredictions).toBe("function");
   });
 
   it("should expose viral content analysis method", () => {
     const service = createService();
 
-    assert.strictEqual(
-      typeof service.analyzeViralContent,
-      "function",
-      "Should have analyzeViralContent method"
-    );
+    expect(typeof service.analyzeViralContent).toBe("function");
   });
 
   it("should expose content opportunity discovery method", () => {
     const service = createService();
 
-    assert.strictEqual(
-      typeof service.discoverContentOpportunities,
-      "function",
-      "Should have discoverContentOpportunities method"
-    );
+    expect(typeof service.discoverContentOpportunities).toBe("function");
   });
 });
 
@@ -101,7 +84,7 @@ describe("TrendAnalysisService - Initialization", { concurrency: 1 }, () => {
 // TEST SUITE: Trending Content Retrieval
 // ========================================
 
-describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Trending Content", () => {
   let service: TrendAnalysisService;
 
   beforeEach(() => {
@@ -111,19 +94,19 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
   it("should retrieve trending content without filters", async () => {
     const result = await service.getTrendingContent();
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.ok(Array.isArray(result.value), "Should return array of trending content");
+      expect(Array.isArray(result.value)).toBeTruthy();
     }
   });
 
   it("should filter trending content by type", async () => {
     const result = await service.getTrendingContent({ type: "hashtag" });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
       result.value.forEach((trend) => {
-        assert.strictEqual(trend.type, "hashtag", "All trends should be hashtags");
+        expect(trend.type).toBe("hashtag");
       });
     }
   });
@@ -131,12 +114,12 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
   it("should filter trending content by category", async () => {
     const result = await service.getTrendingContent({ category: "education" });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok && result.value.length > 0) {
       const hasCategory = result.value.some(
         (trend) => trend.characteristics.category === "education"
       );
-      assert.ok(hasCategory || result.value.length === 0, "Should filter by category");
+      expect(hasCategory || result.value.length === 0).toBeTruthy();
     }
   });
 
@@ -144,28 +127,28 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
     const limit = 1;
     const result = await service.getTrendingContent({ limit });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.ok(result.value.length <= limit, `Should return at most ${limit} results`);
+      expect(result.value.length <= limit).toBeTruthy();
     }
   });
 
   it("should include all required trend fields", async () => {
     const result = await service.getTrendingContent({ limit: 1 });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok && result.value.length > 0) {
       const trend = result.value[0]!;
 
-      assert.ok(trend.id, "Trend should have ID");
-      assert.ok(trend.type, "Trend should have type");
-      assert.ok(trend.title, "Trend should have title");
-      assert.ok(trend.metrics, "Trend should have metrics");
-      assert.ok(trend.trend, "Trend should have trend data");
-      assert.ok(trend.demographics, "Trend should have demographics");
-      assert.ok(trend.characteristics, "Trend should have characteristics");
-      assert.ok(trend.viralFactors, "Trend should have viral factors");
-      assert.ok(trend.opportunity, "Trend should have opportunity data");
+      expect(trend.id).toBeTruthy();
+      expect(trend.type).toBeTruthy();
+      expect(trend.title).toBeTruthy();
+      expect(trend.metrics).toBeTruthy();
+      expect(trend.trend).toBeTruthy();
+      expect(trend.demographics).toBeTruthy();
+      expect(trend.characteristics).toBeTruthy();
+      expect(trend.viralFactors).toBeTruthy();
+      expect(trend.opportunity).toBeTruthy();
     }
   });
 
@@ -175,16 +158,13 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
     if (result.ok && result.value.length > 0) {
       const metrics = result.value[0]!.metrics;
 
-      assert.ok(typeof metrics.views === "number", "Should have views count");
-      assert.ok(typeof metrics.likes === "number", "Should have likes count");
-      assert.ok(typeof metrics.shares === "number", "Should have shares count");
-      assert.ok(typeof metrics.comments === "number", "Should have comments count");
-      assert.ok(typeof metrics.growthRate === "number", "Should have growth rate");
-      assert.ok(typeof metrics.viralScore === "number", "Should have viral score");
-      assert.ok(
-        metrics.viralScore >= 0 && metrics.viralScore <= 100,
-        "Viral score should be 0-100"
-      );
+      expect(typeof metrics.views === "number").toBeTruthy();
+      expect(typeof metrics.likes === "number").toBeTruthy();
+      expect(typeof metrics.shares === "number").toBeTruthy();
+      expect(typeof metrics.comments === "number").toBeTruthy();
+      expect(typeof metrics.growthRate === "number").toBeTruthy();
+      expect(typeof metrics.viralScore === "number").toBeTruthy();
+      expect(metrics.viralScore >= 0 && metrics.viralScore <= 100).toBeTruthy();
     }
   });
 
@@ -195,13 +175,10 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
       const trendInfo = result.value[0]!.trend;
       const validPhases = ["emerging", "growing", "peak", "declining", "stable"];
 
-      assert.ok(validPhases.includes(trendInfo.phase), "Should have valid trend phase");
-      assert.ok(trendInfo.momentum >= 0 && trendInfo.momentum <= 100, "Momentum should be 0-100");
-      assert.ok(
-        trendInfo.sustainability >= 0 && trendInfo.sustainability <= 100,
-        "Sustainability should be 0-100"
-      );
-      assert.ok(typeof trendInfo.estimatedLifespan === "number", "Should have estimated lifespan");
+      expect(validPhases.includes(trendInfo.phase)).toBeTruthy();
+      expect(trendInfo.momentum >= 0 && trendInfo.momentum <= 100).toBeTruthy();
+      expect(trendInfo.sustainability >= 0 && trendInfo.sustainability <= 100).toBeTruthy();
+      expect(typeof trendInfo.estimatedLifespan === "number").toBeTruthy();
     }
   });
 
@@ -212,19 +189,12 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
       const opportunity = result.value[0]!.opportunity;
       const validDifficulties = ["low", "medium", "high"];
 
-      assert.ok(
-        validDifficulties.includes(opportunity.entryDifficulty),
-        "Should have valid entry difficulty"
-      );
-      assert.ok(
-        opportunity.saturationLevel >= 0 && opportunity.saturationLevel <= 100,
-        "Saturation should be 0-100"
-      );
-      assert.ok(
-        opportunity.remainingPotential >= 0 && opportunity.remainingPotential <= 100,
-        "Remaining potential should be 0-100"
-      );
-      assert.ok(Array.isArray(opportunity.recommendedApproach), "Should have recommended approach");
+      expect(validDifficulties.includes(opportunity.entryDifficulty)).toBeTruthy();
+      expect(opportunity.saturationLevel >= 0 && opportunity.saturationLevel <= 100).toBeTruthy();
+      expect(
+        opportunity.remainingPotential >= 0 && opportunity.remainingPotential <= 100
+      ).toBeTruthy();
+      expect(Array.isArray(opportunity.recommendedApproach)).toBeTruthy();
     }
   });
 });
@@ -233,7 +203,7 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
 // TEST SUITE: Trend Predictions
 // ========================================
 
-describe("TrendAnalysisService - Trend Predictions", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Trend Predictions", () => {
   let service: TrendAnalysisService;
 
   beforeEach(() => {
@@ -243,9 +213,9 @@ describe("TrendAnalysisService - Trend Predictions", { concurrency: 1 }, () => {
   it("should generate trend predictions", async () => {
     const result = await service.generateTrendPredictions();
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.ok(Array.isArray(result.value), "Should return array of predictions");
+      expect(Array.isArray(result.value)).toBeTruthy();
     }
   });
 
@@ -255,10 +225,10 @@ describe("TrendAnalysisService - Trend Predictions", { concurrency: 1 }, () => {
     if (result.ok && result.value.length > 0) {
       const prediction = result.value[0]!;
 
-      assert.ok(prediction.trendId, "Prediction should have trend ID");
-      assert.ok(prediction.type, "Prediction should have type");
-      assert.ok(prediction.title, "Prediction should have title");
-      assert.ok(prediction.description, "Prediction should have description");
+      expect(prediction.trendId).toBeTruthy();
+      expect(prediction.type).toBeTruthy();
+      expect(prediction.title).toBeTruthy();
+      expect(prediction.description).toBeTruthy();
     }
   });
 
@@ -268,17 +238,11 @@ describe("TrendAnalysisService - Trend Predictions", { concurrency: 1 }, () => {
     if (result.ok && result.value.length > 0) {
       const prediction = result.value[0]!.prediction;
 
-      assert.ok(
-        prediction.probability >= 0 && prediction.probability <= 1,
-        "Probability should be 0-1"
-      );
-      assert.ok(
-        prediction.confidence >= 0 && prediction.confidence <= 1,
-        "Confidence should be 0-1"
-      );
-      assert.ok(prediction.timeframe, "Should have timeframe");
-      assert.ok(prediction.peakProbability instanceof Date, "Should have peak probability date");
-      assert.ok(typeof prediction.estimatedDuration === "number", "Should have estimated duration");
+      expect(prediction.probability >= 0 && prediction.probability <= 1).toBeTruthy();
+      expect(prediction.confidence >= 0 && prediction.confidence <= 1).toBeTruthy();
+      expect(prediction.timeframe).toBeTruthy();
+      expect(prediction.peakProbability instanceof Date).toBeTruthy();
+      expect(typeof prediction.estimatedDuration === "number").toBeTruthy();
     }
   });
 
@@ -288,13 +252,13 @@ describe("TrendAnalysisService - Trend Predictions", { concurrency: 1 }, () => {
     if (result.ok && result.value.length > 0) {
       const signals = result.value[0]!.earlySignals;
 
-      assert.ok(Array.isArray(signals), "Should have early signals array");
+      expect(Array.isArray(signals)).toBeTruthy();
       if (signals.length > 0) {
         const signal = signals[0]!;
-        assert.ok(signal.signal, "Signal should have description");
-        assert.ok(signal.strength >= 0 && signal.strength <= 100, "Strength should be 0-100");
-        assert.ok(signal.source, "Signal should have source");
-        assert.ok(signal.detectedAt instanceof Date, "Should have detection date");
+        expect(signal.signal).toBeTruthy();
+        expect(signal.strength >= 0 && signal.strength <= 100).toBeTruthy();
+        expect(signal.source).toBeTruthy();
+        expect(signal.detectedAt instanceof Date).toBeTruthy();
       }
     }
   });
@@ -305,12 +269,12 @@ describe("TrendAnalysisService - Trend Predictions", { concurrency: 1 }, () => {
     if (result.ok && result.value.length > 0) {
       const riskFactors = result.value[0]!.riskFactors;
 
-      assert.ok(Array.isArray(riskFactors), "Should have risk factors array");
+      expect(Array.isArray(riskFactors)).toBeTruthy();
       if (riskFactors.length > 0) {
         const risk = riskFactors[0]!;
-        assert.ok(risk.factor, "Risk should have description");
-        assert.ok(["low", "medium", "high"].includes(risk.impact), "Should have valid impact");
-        assert.ok(risk.probability >= 0 && risk.probability <= 1, "Probability should be 0-1");
+        expect(risk.factor).toBeTruthy();
+        expect(["low", "medium", "high"].includes(risk.impact)).toBeTruthy();
+        expect(risk.probability >= 0 && risk.probability <= 1).toBeTruthy();
       }
     }
   });
@@ -321,16 +285,13 @@ describe("TrendAnalysisService - Trend Predictions", { concurrency: 1 }, () => {
     if (result.ok && result.value.length > 0) {
       const actionItems = result.value[0]!.actionItems;
 
-      assert.ok(Array.isArray(actionItems), "Should have action items array");
+      expect(Array.isArray(actionItems)).toBeTruthy();
       if (actionItems.length > 0) {
         const action = actionItems[0]!;
-        assert.ok(action.action, "Action should have description");
-        assert.ok(
-          ["low", "medium", "high", "urgent"].includes(action.priority),
-          "Should have valid priority"
-        );
-        assert.ok(action.deadline instanceof Date, "Should have deadline");
-        assert.ok(action.expectedImpact, "Should have expected impact");
+        expect(action.action).toBeTruthy();
+        expect(["low", "medium", "high", "urgent"].includes(action.priority)).toBeTruthy();
+        expect(action.deadline instanceof Date).toBeTruthy();
+        expect(action.expectedImpact).toBeTruthy();
       }
     }
   });
@@ -341,12 +302,9 @@ describe("TrendAnalysisService - Trend Predictions", { concurrency: 1 }, () => {
     if (result.ok && result.value.length > 0) {
       const competitiveIntel = result.value[0]!.competitiveIntel;
 
-      assert.ok(Array.isArray(competitiveIntel.earlyAdopters), "Should have early adopters");
-      assert.ok(Array.isArray(competitiveIntel.marketGaps), "Should have market gaps");
-      assert.ok(
-        Array.isArray(competitiveIntel.contentOpportunities),
-        "Should have content opportunities"
-      );
+      expect(Array.isArray(competitiveIntel.earlyAdopters)).toBeTruthy();
+      expect(Array.isArray(competitiveIntel.marketGaps)).toBeTruthy();
+      expect(Array.isArray(competitiveIntel.contentOpportunities)).toBeTruthy();
     }
   });
 });
@@ -355,7 +313,7 @@ describe("TrendAnalysisService - Trend Predictions", { concurrency: 1 }, () => {
 // TEST SUITE: Viral Content Analysis
 // ========================================
 
-describe("TrendAnalysisService - Viral Content Analysis", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Viral Content Analysis", () => {
   let service: TrendAnalysisService;
 
   beforeEach(() => {
@@ -366,9 +324,9 @@ describe("TrendAnalysisService - Viral Content Analysis", { concurrency: 1 }, ()
     const contentId = "test-content-123";
     const result = await service.analyzeViralContent(contentId);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.contentId, contentId, "Should return analysis for content");
+      expect(result.value.contentId).toBe(contentId);
     }
   });
 
@@ -378,17 +336,11 @@ describe("TrendAnalysisService - Viral Content Analysis", { concurrency: 1 }, ()
     if (result.ok) {
       const metrics = result.value.viralMetrics;
 
-      assert.ok(typeof metrics.viralCoefficient === "number", "Should have viral coefficient");
-      assert.ok(typeof metrics.peakVelocity === "number", "Should have peak velocity");
-      assert.ok(
-        metrics.sustainabilityIndex >= 0 && metrics.sustainabilityIndex <= 1,
-        "Sustainability index should be 0-1"
-      );
-      assert.ok(typeof metrics.reachAmplification === "number", "Should have reach amplification");
-      assert.ok(
-        metrics.crossPlatformSpread >= 0 && metrics.crossPlatformSpread <= 1,
-        "Cross-platform spread should be 0-1"
-      );
+      expect(typeof metrics.viralCoefficient === "number").toBeTruthy();
+      expect(typeof metrics.peakVelocity === "number").toBeTruthy();
+      expect(metrics.sustainabilityIndex >= 0 && metrics.sustainabilityIndex <= 1).toBeTruthy();
+      expect(typeof metrics.reachAmplification === "number").toBeTruthy();
+      expect(metrics.crossPlatformSpread >= 0 && metrics.crossPlatformSpread <= 1).toBeTruthy();
     }
   });
 
@@ -398,15 +350,15 @@ describe("TrendAnalysisService - Viral Content Analysis", { concurrency: 1 }, ()
     if (result.ok) {
       const viralDNA = result.value.viralDNA;
 
-      assert.ok(viralDNA.contentElements, "Should have content elements");
-      assert.ok(viralDNA.platformFit, "Should have platform fit");
-      assert.ok(viralDNA.socialFactors, "Should have social factors");
+      expect(viralDNA.contentElements).toBeTruthy();
+      expect(viralDNA.platformFit).toBeTruthy();
+      expect(viralDNA.socialFactors).toBeTruthy();
 
       // Check content elements
-      assert.ok(viralDNA.contentElements.hook, "Should have hook analysis");
-      assert.ok(viralDNA.contentElements.narrative, "Should have narrative analysis");
-      assert.ok(viralDNA.contentElements.visual, "Should have visual analysis");
-      assert.ok(viralDNA.contentElements.audio, "Should have audio analysis");
+      expect(viralDNA.contentElements.hook).toBeTruthy();
+      expect(viralDNA.contentElements.narrative).toBeTruthy();
+      expect(viralDNA.contentElements.visual).toBeTruthy();
+      expect(viralDNA.contentElements.audio).toBeTruthy();
     }
   });
 
@@ -416,12 +368,12 @@ describe("TrendAnalysisService - Viral Content Analysis", { concurrency: 1 }, ()
     if (result.ok) {
       const blueprint = result.value.replicationBlueprint;
 
-      assert.ok(Array.isArray(blueprint.coreElements), "Should have core elements");
-      assert.ok(Array.isArray(blueprint.variationPoints), "Should have variation points");
-      assert.ok(Array.isArray(blueprint.timingConsiderations), "Should have timing considerations");
-      assert.ok(Array.isArray(blueprint.audienceTargeting), "Should have audience targeting");
-      assert.ok(Array.isArray(blueprint.distributionStrategy), "Should have distribution strategy");
-      assert.ok(Array.isArray(blueprint.riskMitigation), "Should have risk mitigation");
+      expect(Array.isArray(blueprint.coreElements)).toBeTruthy();
+      expect(Array.isArray(blueprint.variationPoints)).toBeTruthy();
+      expect(Array.isArray(blueprint.timingConsiderations)).toBeTruthy();
+      expect(Array.isArray(blueprint.audienceTargeting)).toBeTruthy();
+      expect(Array.isArray(blueprint.distributionStrategy)).toBeTruthy();
+      expect(Array.isArray(blueprint.riskMitigation)).toBeTruthy();
     }
   });
 
@@ -431,12 +383,11 @@ describe("TrendAnalysisService - Viral Content Analysis", { concurrency: 1 }, ()
     if (result.ok) {
       const competitorResponse = result.value.competitorResponse;
 
-      assert.ok(Array.isArray(competitorResponse.copycats), "Should have copycats");
-      assert.ok(Array.isArray(competitorResponse.variations), "Should have variations");
-      assert.ok(
-        competitorResponse.marketSaturation >= 0 && competitorResponse.marketSaturation <= 1,
-        "Market saturation should be 0-1"
-      );
+      expect(Array.isArray(competitorResponse.copycats)).toBeTruthy();
+      expect(Array.isArray(competitorResponse.variations)).toBeTruthy();
+      expect(
+        competitorResponse.marketSaturation >= 0 && competitorResponse.marketSaturation <= 1
+      ).toBeTruthy();
     }
   });
 });
@@ -445,7 +396,7 @@ describe("TrendAnalysisService - Viral Content Analysis", { concurrency: 1 }, ()
 // TEST SUITE: Content Opportunity Discovery
 // ========================================
 
-describe("TrendAnalysisService - Content Opportunity Discovery", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Content Opportunity Discovery", () => {
   let service: TrendAnalysisService;
 
   beforeEach(() => {
@@ -455,9 +406,9 @@ describe("TrendAnalysisService - Content Opportunity Discovery", { concurrency: 
   it("should discover content opportunities", async () => {
     const result = await service.discoverContentOpportunities();
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.ok(result.value, "Should return content discovery insights");
+      expect(result.value).toBeTruthy();
     }
   });
 
@@ -467,21 +418,15 @@ describe("TrendAnalysisService - Content Opportunity Discovery", { concurrency: 
     if (result.ok) {
       const gaps = result.value.gaps;
 
-      assert.ok(Array.isArray(gaps), "Should have gaps array");
+      expect(Array.isArray(gaps)).toBeTruthy();
       if (gaps.length > 0) {
         const gap = gaps[0]!;
-        assert.ok(gap.contentType, "Gap should have content type");
-        assert.ok(gap.audience, "Gap should have audience");
-        assert.ok(
-          ["low", "medium", "high"].includes(gap.competitionLevel),
-          "Should have valid competition level"
-        );
-        assert.ok(
-          gap.opportunitySize >= 0 && gap.opportunitySize <= 100,
-          "Opportunity size should be 0-100"
-        );
-        assert.ok(Array.isArray(gap.barriers), "Should have barriers");
-        assert.ok(Array.isArray(gap.suggestedApproach), "Should have suggested approach");
+        expect(gap.contentType).toBeTruthy();
+        expect(gap.audience).toBeTruthy();
+        expect(["low", "medium", "high"].includes(gap.competitionLevel)).toBeTruthy();
+        expect(gap.opportunitySize >= 0 && gap.opportunitySize <= 100).toBeTruthy();
+        expect(Array.isArray(gap.barriers)).toBeTruthy();
+        expect(Array.isArray(gap.suggestedApproach)).toBeTruthy();
       }
     }
   });
@@ -492,17 +437,14 @@ describe("TrendAnalysisService - Content Opportunity Discovery", { concurrency: 
     if (result.ok) {
       const emerging = result.value.emerging;
 
-      assert.ok(Array.isArray(emerging), "Should have emerging topics array");
+      expect(Array.isArray(emerging)).toBeTruthy();
       if (emerging.length > 0) {
         const topic = emerging[0]!;
-        assert.ok(topic.topic, "Emerging topic should have name");
-        assert.ok(Array.isArray(topic.signals), "Should have signals");
-        assert.ok(topic.strength >= 0 && topic.strength <= 100, "Strength should be 0-100");
-        assert.ok(typeof topic.timeToMainstream === "number", "Should have time to mainstream");
-        assert.ok(
-          topic.firstMoverAdvantage >= 0 && topic.firstMoverAdvantage <= 100,
-          "First-mover advantage should be 0-100"
-        );
+        expect(topic.topic).toBeTruthy();
+        expect(Array.isArray(topic.signals)).toBeTruthy();
+        expect(topic.strength >= 0 && topic.strength <= 100).toBeTruthy();
+        expect(typeof topic.timeToMainstream === "number").toBeTruthy();
+        expect(topic.firstMoverAdvantage >= 0 && topic.firstMoverAdvantage <= 100).toBeTruthy();
       }
     }
   });
@@ -513,19 +455,13 @@ describe("TrendAnalysisService - Content Opportunity Discovery", { concurrency: 
     if (result.ok) {
       const saturated = result.value.saturated;
 
-      assert.ok(Array.isArray(saturated), "Should have saturated topics array");
+      expect(Array.isArray(saturated)).toBeTruthy();
       if (saturated.length > 0) {
         const topic = saturated[0]!;
-        assert.ok(topic.topic, "Saturated topic should have name");
-        assert.ok(
-          topic.saturationLevel >= 0 && topic.saturationLevel <= 100,
-          "Saturation should be 0-100"
-        );
-        assert.ok(Array.isArray(topic.alternatives), "Should have alternatives");
-        assert.ok(
-          Array.isArray(topic.revitalizationOpportunities),
-          "Should have revitalization opportunities"
-        );
+        expect(topic.topic).toBeTruthy();
+        expect(topic.saturationLevel >= 0 && topic.saturationLevel <= 100).toBeTruthy();
+        expect(Array.isArray(topic.alternatives)).toBeTruthy();
+        expect(Array.isArray(topic.revitalizationOpportunities)).toBeTruthy();
       }
     }
   });
@@ -536,17 +472,14 @@ describe("TrendAnalysisService - Content Opportunity Discovery", { concurrency: 
     if (result.ok) {
       const seasonal = result.value.seasonal;
 
-      assert.ok(Array.isArray(seasonal), "Should have seasonal topics array");
+      expect(Array.isArray(seasonal)).toBeTruthy();
       if (seasonal.length > 0) {
         const topic = seasonal[0]!;
-        assert.ok(topic.topic, "Seasonal topic should have name");
-        assert.ok(topic.pattern, "Should have pattern description");
-        assert.ok(topic.nextPeak instanceof Date, "Should have next peak date");
-        assert.ok(typeof topic.preparationTime === "number", "Should have preparation time");
-        assert.ok(
-          topic.expectedImpact >= 0 && topic.expectedImpact <= 100,
-          "Expected impact should be 0-100"
-        );
+        expect(topic.topic).toBeTruthy();
+        expect(topic.pattern).toBeTruthy();
+        expect(topic.nextPeak instanceof Date).toBeTruthy();
+        expect(typeof topic.preparationTime === "number").toBeTruthy();
+        expect(topic.expectedImpact >= 0 && topic.expectedImpact <= 100).toBeTruthy();
       }
     }
   });
@@ -556,7 +489,7 @@ describe("TrendAnalysisService - Content Opportunity Discovery", { concurrency: 
 // TEST SUITE: Comprehensive Trend Report
 // ========================================
 
-describe("TrendAnalysisService - Comprehensive Trend Report", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Comprehensive Trend Report", () => {
   let service: TrendAnalysisService;
 
   beforeEach(() => {
@@ -570,17 +503,17 @@ describe("TrendAnalysisService - Comprehensive Trend Report", { concurrency: 1 }
 
     const result = await service.generateTrendReport(options);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.ok(result.value.id, "Report should have ID");
-      assert.ok(result.value.generatedAt instanceof Date, "Should have generation date");
-      assert.ok(result.value.period, "Should have period");
-      assert.ok(result.value.summary, "Should have summary");
-      assert.ok(result.value.trending, "Should have trending content");
-      assert.ok(result.value.predictions, "Should have predictions");
-      assert.ok(result.value.opportunities, "Should have opportunities");
-      assert.ok(result.value.insights, "Should have insights");
-      assert.ok(result.value.recommendations, "Should have recommendations");
+      expect(result.value.id).toBeTruthy();
+      expect(result.value.generatedAt instanceof Date).toBeTruthy();
+      expect(result.value.period).toBeTruthy();
+      expect(result.value.summary).toBeTruthy();
+      expect(result.value.trending).toBeTruthy();
+      expect(result.value.predictions).toBeTruthy();
+      expect(result.value.opportunities).toBeTruthy();
+      expect(result.value.insights).toBeTruthy();
+      expect(result.value.recommendations).toBeTruthy();
     }
   });
 
@@ -594,12 +527,12 @@ describe("TrendAnalysisService - Comprehensive Trend Report", { concurrency: 1 }
     if (result.ok) {
       const summary = result.value.summary;
 
-      assert.ok(typeof summary.totalTrends === "number", "Should have total trends count");
-      assert.ok(typeof summary.emergingTrends === "number", "Should have emerging count");
-      assert.ok(typeof summary.peakTrends === "number", "Should have peak count");
-      assert.ok(typeof summary.decliningTrends === "number", "Should have declining count");
-      assert.ok(summary.topCategory, "Should have top category");
-      assert.ok(typeof summary.averageLifespan === "number", "Should have average lifespan");
+      expect(typeof summary.totalTrends === "number").toBeTruthy();
+      expect(typeof summary.emergingTrends === "number").toBeTruthy();
+      expect(typeof summary.peakTrends === "number").toBeTruthy();
+      expect(typeof summary.decliningTrends === "number").toBeTruthy();
+      expect(summary.topCategory).toBeTruthy();
+      expect(typeof summary.averageLifespan === "number").toBeTruthy();
     }
   });
 
@@ -613,10 +546,10 @@ describe("TrendAnalysisService - Comprehensive Trend Report", { concurrency: 1 }
     if (result.ok) {
       const trending = result.value.trending;
 
-      assert.ok(Array.isArray(trending.videos), "Should have videos array");
-      assert.ok(Array.isArray(trending.hashtags), "Should have hashtags array");
-      assert.ok(Array.isArray(trending.sounds), "Should have sounds array");
-      assert.ok(Array.isArray(trending.challenges), "Should have challenges array");
+      expect(Array.isArray(trending.videos)).toBeTruthy();
+      expect(Array.isArray(trending.hashtags)).toBeTruthy();
+      expect(Array.isArray(trending.sounds)).toBeTruthy();
+      expect(Array.isArray(trending.challenges)).toBeTruthy();
     }
   });
 
@@ -630,15 +563,15 @@ describe("TrendAnalysisService - Comprehensive Trend Report", { concurrency: 1 }
     if (result.ok) {
       const opportunities = result.value.opportunities;
 
-      assert.ok(Array.isArray(opportunities.immediate), "Should have immediate opportunities");
-      assert.ok(Array.isArray(opportunities.upcoming), "Should have upcoming opportunities");
+      expect(Array.isArray(opportunities.immediate)).toBeTruthy();
+      expect(Array.isArray(opportunities.upcoming)).toBeTruthy();
 
       if (opportunities.immediate.length > 0) {
         const imm = opportunities.immediate[0]!;
-        assert.ok(imm.type, "Immediate opportunity should have type");
-        assert.ok(imm.description, "Should have description");
-        assert.ok(["low", "medium", "high"].includes(imm.difficulty), "Should have difficulty");
-        assert.ok(imm.deadline instanceof Date, "Should have deadline");
+        expect(imm.type).toBeTruthy();
+        expect(imm.description).toBeTruthy();
+        expect(["low", "medium", "high"].includes(imm.difficulty)).toBeTruthy();
+        expect(imm.deadline instanceof Date).toBeTruthy();
       }
     }
   });
@@ -653,10 +586,10 @@ describe("TrendAnalysisService - Comprehensive Trend Report", { concurrency: 1 }
     if (result.ok) {
       const insights = result.value.insights;
 
-      assert.ok(Array.isArray(insights.patterns), "Should have patterns");
-      assert.ok(Array.isArray(insights.shifts), "Should have shifts");
-      assert.ok(Array.isArray(insights.anomalies), "Should have anomalies");
-      assert.ok(Array.isArray(insights.crossTrends), "Should have cross-trends");
+      expect(Array.isArray(insights.patterns)).toBeTruthy();
+      expect(Array.isArray(insights.shifts)).toBeTruthy();
+      expect(Array.isArray(insights.anomalies)).toBeTruthy();
+      expect(Array.isArray(insights.crossTrends)).toBeTruthy();
     }
   });
 
@@ -670,11 +603,11 @@ describe("TrendAnalysisService - Comprehensive Trend Report", { concurrency: 1 }
     if (result.ok) {
       const recommendations = result.value.recommendations;
 
-      assert.ok(Array.isArray(recommendations.content), "Should have content recommendations");
-      assert.ok(Array.isArray(recommendations.timing), "Should have timing recommendations");
-      assert.ok(Array.isArray(recommendations.hashtags), "Should have hashtag recommendations");
-      assert.ok(Array.isArray(recommendations.sounds), "Should have sound recommendations");
-      assert.ok(Array.isArray(recommendations.strategy), "Should have strategy recommendations");
+      expect(Array.isArray(recommendations.content)).toBeTruthy();
+      expect(Array.isArray(recommendations.timing)).toBeTruthy();
+      expect(Array.isArray(recommendations.hashtags)).toBeTruthy();
+      expect(Array.isArray(recommendations.sounds)).toBeTruthy();
+      expect(Array.isArray(recommendations.strategy)).toBeTruthy();
     }
   });
 
@@ -687,7 +620,7 @@ describe("TrendAnalysisService - Comprehensive Trend Report", { concurrency: 1 }
     const result = await service.generateTrendReport(options);
 
     if (result.ok) {
-      assert.strictEqual(result.value.region, "US", "Report should reflect region filter");
+      expect(result.value.region).toBe("US");
     }
   });
 
@@ -700,11 +633,7 @@ describe("TrendAnalysisService - Comprehensive Trend Report", { concurrency: 1 }
     const result = await service.generateTrendReport(options);
 
     if (result.ok) {
-      assert.strictEqual(
-        result.value.category,
-        "education",
-        "Report should reflect category filter"
-      );
+      expect(result.value.category).toBe("education");
     }
   });
 });
@@ -713,7 +642,7 @@ describe("TrendAnalysisService - Comprehensive Trend Report", { concurrency: 1 }
 // TEST SUITE: Circuit Breaker Integration
 // ========================================
 
-describe("TrendAnalysisService - Circuit Breaker", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Circuit Breaker", () => {
   let service: TrendAnalysisService;
 
   beforeEach(() => {
@@ -723,19 +652,19 @@ describe("TrendAnalysisService - Circuit Breaker", { concurrency: 1 }, () => {
   it("should provide circuit breaker status", () => {
     const status = service.getCircuitBreakerStatus();
 
-    assert.ok(typeof status === "object", "Should return circuit breaker status object");
+    expect(typeof status === "object").toBeTruthy();
   });
 
   it("should expose cache clearing method", () => {
-    assert.doesNotThrow(() => {
+    expect(() => {
       service.clearCache();
-    }, "Should clear cache without error");
+    }).not.toThrow();
   });
 
   it("should expose metrics registry", () => {
     const registry = TrendAnalysisService.getMetricsRegistry();
 
-    assert.ok(registry, "Should return metrics registry");
+    expect(registry).toBeTruthy();
   });
 });
 
@@ -743,7 +672,7 @@ describe("TrendAnalysisService - Circuit Breaker", { concurrency: 1 }, () => {
 // TEST SUITE: Helper Methods
 // ========================================
 
-describe("TrendAnalysisService - Helper Methods", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Helper Methods", () => {
   let service: TrendAnalysisService;
 
   beforeEach(() => {
@@ -761,7 +690,7 @@ describe("TrendAnalysisService - Helper Methods", { concurrency: 1 }, () => {
       });
 
       if (reportResult.ok) {
-        assert.ok(reportResult.value.insights.patterns.length > 0, "Should generate patterns");
+        expect(reportResult.value.insights.patterns.length > 0).toBeTruthy();
       }
     }
   });
@@ -772,7 +701,7 @@ describe("TrendAnalysisService - Helper Methods", { concurrency: 1 }, () => {
     });
 
     if (reportResult.ok) {
-      assert.ok(reportResult.value.insights.shifts.length > 0, "Should generate shifts");
+      expect(reportResult.value.insights.shifts.length > 0).toBeTruthy();
     }
   });
 
@@ -782,7 +711,7 @@ describe("TrendAnalysisService - Helper Methods", { concurrency: 1 }, () => {
     });
 
     if (reportResult.ok) {
-      assert.ok(reportResult.value.insights.anomalies.length > 0, "Should generate anomalies");
+      expect(reportResult.value.insights.anomalies.length > 0).toBeTruthy();
     }
   });
 
@@ -792,7 +721,7 @@ describe("TrendAnalysisService - Helper Methods", { concurrency: 1 }, () => {
     });
 
     if (reportResult.ok) {
-      assert.ok(reportResult.value.insights.crossTrends.length > 0, "Should identify cross-trends");
+      expect(reportResult.value.insights.crossTrends.length > 0).toBeTruthy();
     }
   });
 });

@@ -1,20 +1,104 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for accountRoutes
- * Testing all account management HTTP endpoints
- *
- * Coverage Target: 95%+
+ * @file accountRoutes.test.ts
+ * @description Unit tests for accountRoutes.
+ *              Uses in-memory mocked Prisma stores — no real database needed.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
-import { accountRoutes } from "../../src/accounts/accountRoutes.js";
-import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 
-// Create test Fastify instance with DI container
+// ---------------------------------------------------------------------------
+// Mock setup — must come BEFORE any SUT imports
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+// accountRoutes uses include: { projects: true } and include: { _count: ... }
+// Build an include resolver for the account model
+const originalFindUnique = mockPrisma.prisma.account.findUnique;
+mockPrisma.prisma.account.findUnique = vi.fn(
+  async (args: { where: Record<string, unknown>; include?: Record<string, unknown> }) => {
+    const result = await originalFindUnique(args);
+    if (!result) return null;
+
+    if (args.include?.projects) {
+      const projects = stores.project.all().filter((p) => p.accountId === result.id);
+      (result as Record<string, unknown>).projects = projects;
+    }
+    if (args.include?._count) {
+      const projectCount = stores.project.all().filter((p) => p.accountId === result.id).length;
+      (result as Record<string, unknown>)._count = { projects: projectCount };
+    }
+    return result;
+  }
+);
+
+const originalFindMany = mockPrisma.prisma.account.findMany;
+mockPrisma.prisma.account.findMany = vi.fn(
+  async (args?: {
+    where?: Record<string, unknown>;
+    orderBy?: Record<string, string>;
+    include?: Record<string, unknown>;
+  }) => {
+    const results = await originalFindMany(args);
+    if (args?.include?.projects) {
+      for (const result of results) {
+        const projects = stores.project.all().filter((p) => p.accountId === result.id);
+        (result as Record<string, unknown>).projects = projects;
+      }
+    }
+    return results;
+  }
+);
+
+// Add models used by delete handler
+const noopDeleteMany = vi.fn(async () => ({ count: 0 }));
+const prismaAny = mockPrisma.prisma as Record<string, unknown>;
+prismaAny.postContent = { deleteMany: noopDeleteMany };
+prismaAny.postMedia = { deleteMany: noopDeleteMany };
+prismaAny.post = { deleteMany: noopDeleteMany };
+prismaAny.channel = { deleteMany: noopDeleteMany };
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// Import SUT after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
+const { accountRoutes } = await import("../../src/accounts/accountRoutes.js");
+const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+
+import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+
+// ---------------------------------------------------------------------------
+// Helper
+// ---------------------------------------------------------------------------
+
 async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
 
@@ -22,14 +106,17 @@ async function createTestApp(): Promise<FastifyInstance> {
   typedApp.setValidatorCompiler(validatorCompiler);
   typedApp.setSerializerCompiler(serializerCompiler);
 
-  // Decorate with DI container so route plugin can resolve PrismaClient
-  const container = setupContainer({ prisma });
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
   typedApp.decorate("container", container);
 
   await typedApp.register(accountRoutes);
 
   return typedApp;
 }
+
+// ---------------------------------------------------------------------------
+// Test suite
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const testEmail = `test-account-${timestamp}@example.com`;
@@ -38,26 +125,12 @@ const testName = "Test Account User";
 let app: FastifyInstance;
 let testAccountId: string;
 
-describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("accountRoutes Unit Tests", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  after(async () => {
-    try {
-      // Cleanup test accounts
-      const testAccounts = await prisma.account.findMany({
-        where: { email: { contains: `test-account-${timestamp}` } },
-      });
-
-      for (const account of testAccounts) {
-        await prisma.project.deleteMany({ where: { accountId: account.id } });
-        await prisma.account.delete({ where: { id: account.id } });
-      }
-    } catch (err) {
-      console.warn("Cleanup warning:", err);
-    }
-
+  afterAll(async () => {
     await app.close();
   });
 
@@ -74,14 +147,14 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.id);
-      assert.strictEqual(body.data?.email, testEmail);
-      assert.strictEqual(body.data?.name, testName);
-      assert.strictEqual(body.data?.subscription, "BASIC");
-      assert.strictEqual(body.data?.maxProjects, 1); // BASIC tier default
-      assert.strictEqual(body.data?.isOnTrial, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.id).toBeTruthy();
+      expect(body.data?.email).toBe(testEmail);
+      expect(body.data?.name).toBe(testName);
+      expect(body.data?.subscription).toBe("BASIC");
+      expect(body.data?.maxProjects).toBe(1); // BASIC tier default
+      expect(body.data?.isOnTrial).toBe(true);
 
       testAccountId = body.data?.id || "";
     });
@@ -100,9 +173,9 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.subscription, "PRO");
-      assert.strictEqual(body.data?.maxProjects, 3); // PRO tier default
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.subscription).toBe("PRO");
+      expect(body.data?.maxProjects).toBe(3); // PRO tier default
     });
 
     it("should create ENTERPRISE account with correct maxProjects", async () => {
@@ -119,9 +192,9 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.subscription, "ENTERPRISE");
-      assert.strictEqual(body.data?.maxProjects, 10); // ENTERPRISE tier default
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.subscription).toBe("ENTERPRISE");
+      expect(body.data?.maxProjects).toBe(10); // ENTERPRISE tier default
     });
 
     it("should create account with custom maxProjects", async () => {
@@ -139,8 +212,8 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.maxProjects, 5); // Custom value
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.maxProjects).toBe(5); // Custom value
     });
 
     it("should reject duplicate email", async () => {
@@ -153,11 +226,11 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 409);
+      expect(response.statusCode).toBe(409);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
-      assert.strictEqual(body.error, "EMAIL_TAKEN");
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe("EMAIL_TAKEN");
     });
 
     it("should reject invalid email format", async () => {
@@ -170,7 +243,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject missing email", async () => {
@@ -182,7 +255,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject missing name", async () => {
@@ -194,7 +267,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject invalid subscription tier", async () => {
@@ -208,7 +281,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject negative maxProjects", async () => {
@@ -222,7 +295,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject zero maxProjects", async () => {
@@ -236,7 +309,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -249,12 +322,12 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data?.id, testAccountId);
-      assert.strictEqual(body.data?.email, testEmail);
-      assert.strictEqual(body.data?.name, testName);
-      assert.ok(Array.isArray(body.data?.projects));
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.id).toBe(testAccountId);
+      expect(body.data?.email).toBe(testEmail);
+      expect(body.data?.name).toBe(testName);
+      expect(Array.isArray(body.data?.projects)).toBeTruthy();
     });
 
     it("should return 404 for non-existent account", async () => {
@@ -263,10 +336,10 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/accounts/a0000000-0000-4000-8000-000000000000",
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should reject invalid account ID format", async () => {
@@ -275,7 +348,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/accounts/not-a-uuid",
       });
 
-      assert.strictEqual(response.statusCode, 400); // Invalid UUID format
+      expect(response.statusCode).toBe(400); // Invalid UUID format
     });
   });
 
@@ -288,15 +361,15 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data));
-      assert.ok(body.data.length > 0);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data)).toBeTruthy();
+      expect(body.data.length > 0).toBeTruthy();
 
-      const account = body.data.find((a: any) => a.id === testAccountId);
-      assert.ok(account);
-      assert.strictEqual(account.email, testEmail);
-      assert.strictEqual(typeof account.projectCount, "number");
+      const account = body.data.find((a: Record<string, unknown>) => a.id === testAccountId);
+      expect(account).toBeTruthy();
+      expect(account.email).toBe(testEmail);
+      expect(typeof account.projectCount).toBe("number");
     });
 
     it("should return accounts ordered by createdAt desc", async () => {
@@ -307,14 +380,14 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(body.data.length >= 2);
+      expect(response.statusCode).toBe(200);
+      expect(body.data.length >= 2).toBeTruthy();
 
       // Verify descending order
       for (let i = 0; i < body.data.length - 1; i++) {
         const current = new Date(body.data[i].createdAt);
         const next = new Date(body.data[i + 1].createdAt);
-        assert.ok(current >= next, "Accounts should be ordered by createdAt desc");
+        expect(current >= next).toBeTruthy();
       }
     });
   });
@@ -332,10 +405,10 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data?.name, newName);
-      assert.strictEqual(body.data?.id, testAccountId);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.name).toBe(newName);
+      expect(body.data?.id).toBe(testAccountId);
     });
 
     it("should update account subscription tier", async () => {
@@ -349,9 +422,9 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.subscription, "PRO");
-      assert.strictEqual(body.data?.maxProjects, 3); // Auto-updated to PRO default
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.subscription).toBe("PRO");
+      expect(body.data?.maxProjects).toBe(3); // Auto-updated to PRO default
     });
 
     it("should update maxProjects explicitly", async () => {
@@ -365,8 +438,8 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.maxProjects, 7);
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.maxProjects).toBe(7);
     });
 
     it("should update subscription without overriding explicit maxProjects", async () => {
@@ -381,9 +454,9 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.subscription, "ENTERPRISE");
-      assert.strictEqual(body.data?.maxProjects, 15); // Explicit value preserved
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.subscription).toBe("ENTERPRISE");
+      expect(body.data?.maxProjects).toBe(15); // Explicit value preserved
     });
 
     it("should return 404 for non-existent account", async () => {
@@ -395,7 +468,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
     });
 
     it("should reject invalid subscription tier", async () => {
@@ -407,7 +480,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject negative maxProjects", async () => {
@@ -419,7 +492,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should handle empty update payload", async () => {
@@ -430,14 +503,14 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       // Should succeed with no changes
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
   });
 
   describe("DELETE /accounts/:accountId", () => {
     let deleteAccountId: string;
 
-    before(async () => {
+    beforeAll(async () => {
       // Create account to delete
       const createResponse = await app.inject({
         method: "POST",
@@ -460,9 +533,9 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.message);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.message).toBeTruthy();
     });
 
     it("should verify account is deleted", async () => {
@@ -471,7 +544,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         url: `/accounts/${deleteAccountId}`,
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
     });
 
     it("should return 404 when deleting non-existent account", async () => {
@@ -480,7 +553,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/accounts/a0000000-0000-4000-8000-000000000000",
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
     });
 
     it("should return 404 when deleting already deleted account", async () => {
@@ -489,7 +562,7 @@ describe("accountRoutes Unit Tests", { concurrency: 1 }, () => {
         url: `/accounts/${deleteAccountId}`,
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
     });
   });
 });

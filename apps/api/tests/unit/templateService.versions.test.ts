@@ -5,13 +5,50 @@
  */
 
 import "./templateRoutes.env-setup.js";
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const { vi: _vi } = await import("vitest");
+  const { buildModelMock, createStore } = await import("./helpers/mockPrisma.js");
+
+  const p: Record<string, unknown> = {
+    template: buildModelMock(createStore()),
+    templateVersion: buildModelMock(createStore()),
+    project: buildModelMock(createStore()),
+    aBTest: buildModelMock(createStore()),
+    $connect: _vi.fn(async () => undefined),
+    $disconnect: _vi.fn(async () => undefined),
+  };
+  p.$transaction = _vi.fn(async (fnOrArray: unknown) => {
+    if (typeof fnOrArray === "function") {
+      return (fnOrArray as (tx: unknown) => Promise<unknown>)(p);
+    }
+    return Promise.all(fnOrArray as Promise<unknown>[]);
+  });
+
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: p };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = () => {};
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
 import { prisma } from "@infra/prisma";
 import { TemplateService } from "../../src/templates/templateService";
 import { mockPrismaMethod, restoreMock } from "./templateService.test-helpers.js";
 
-describe("TemplateService - Duplicate Template", { concurrency: 1 }, () => {
+describe("TemplateService - Duplicate Template", () => {
   let service: TemplateService;
   const mocks: any[] = [];
 
@@ -39,7 +76,7 @@ describe("TemplateService - Duplicate Template", { concurrency: 1 }, () => {
     mocks.push(findFirst, projectFindUnique, templateCreate, versionUpdateMany, versionCreate);
 
     // First call: getTemplate (via findFirst) for the original
-    findFirst.mock.mockImplementationOnce(() =>
+    findFirst.mockImplementationOnce(() =>
       Promise.resolve({
         id: "original-template",
         name: "Original",
@@ -56,12 +93,12 @@ describe("TemplateService - Duplicate Template", { concurrency: 1 }, () => {
       })
     );
 
-    projectFindUnique.mock.mockImplementationOnce(() =>
+    projectFindUnique.mockImplementationOnce(() =>
       Promise.resolve({ id: "project-123", accountId: "account-456" })
     );
 
-    templateCreate.mock.mockImplementationOnce((args: any) => {
-      assert.ok(args.data.name.includes("Copy"));
+    templateCreate.mockImplementationOnce((args: any) => {
+      expect(args.data.name.includes("Copy")).toBeTruthy();
       return Promise.resolve({
         id: "duplicated-template",
         name: "Original (Copy)",
@@ -78,9 +115,9 @@ describe("TemplateService - Duplicate Template", { concurrency: 1 }, () => {
       });
     });
 
-    versionUpdateMany.mock.mockImplementationOnce(() => Promise.resolve({ count: 0 }));
+    versionUpdateMany.mockImplementationOnce(() => Promise.resolve({ count: 0 }));
 
-    versionCreate.mock.mockImplementationOnce(() =>
+    versionCreate.mockImplementationOnce(() =>
       Promise.resolve({
         id: "version-1",
         templateId: "duplicated-template",
@@ -99,9 +136,9 @@ describe("TemplateService - Duplicate Template", { concurrency: 1 }, () => {
 
     const result = await service.duplicateTemplate("project-123", "original-template");
 
-    assert.strictEqual(result.ok, true);
-    assert.ok(result.value);
-    assert.ok(result.value.name.includes("Copy"));
+    expect(result.ok).toBe(true);
+    expect(result.value).toBeTruthy();
+    expect(result.value.name.includes("Copy")).toBeTruthy();
   });
 
   it("should use custom name for duplicate", async () => {
@@ -112,7 +149,7 @@ describe("TemplateService - Duplicate Template", { concurrency: 1 }, () => {
     const versionCreate = mockPrismaMethod(prisma.templateVersion, "create");
     mocks.push(findFirst, projectFindUnique, templateCreate, versionUpdateMany, versionCreate);
 
-    findFirst.mock.mockImplementationOnce(() =>
+    findFirst.mockImplementationOnce(() =>
       Promise.resolve({
         id: "original",
         name: "Original",
@@ -129,12 +166,12 @@ describe("TemplateService - Duplicate Template", { concurrency: 1 }, () => {
       })
     );
 
-    projectFindUnique.mock.mockImplementationOnce(() =>
+    projectFindUnique.mockImplementationOnce(() =>
       Promise.resolve({ id: "project-123", accountId: "account-456" })
     );
 
-    templateCreate.mock.mockImplementationOnce((args: any) => {
-      assert.strictEqual(args.data.name, "Custom Name");
+    templateCreate.mockImplementationOnce((args: any) => {
+      expect(args.data.name).toBe("Custom Name");
       return Promise.resolve({
         id: "duplicate",
         name: "Custom Name",
@@ -151,9 +188,9 @@ describe("TemplateService - Duplicate Template", { concurrency: 1 }, () => {
       });
     });
 
-    versionUpdateMany.mock.mockImplementationOnce(() => Promise.resolve({ count: 0 }));
+    versionUpdateMany.mockImplementationOnce(() => Promise.resolve({ count: 0 }));
 
-    versionCreate.mock.mockImplementationOnce(() =>
+    versionCreate.mockImplementationOnce(() =>
       Promise.resolve({
         id: "version-1",
         templateId: "duplicate",
@@ -174,7 +211,7 @@ describe("TemplateService - Duplicate Template", { concurrency: 1 }, () => {
   });
 });
 
-describe("TemplateService - Compile Template", { concurrency: 1 }, () => {
+describe("TemplateService - Compile Template", () => {
   let service: TemplateService;
   const mocks: any[] = [];
 
@@ -197,16 +234,16 @@ describe("TemplateService - Compile Template", { concurrency: 1 }, () => {
     const findFirst = mockPrismaMethod(prisma.template, "findFirst");
     mocks.push(findFirst);
 
-    findFirst.mock.mockImplementationOnce(() => Promise.resolve(null));
+    findFirst.mockImplementationOnce(() => Promise.resolve(null));
 
     const result = await service.compileTemplate("project-123", "nonexistent", {});
 
-    assert.strictEqual(result.ok, true);
-    assert.strictEqual(result.value, null);
+    expect(result.ok).toBe(true);
+    expect(result.value).toBe(null);
   });
 });
 
-describe("TemplateService - Version Management", { concurrency: 1 }, () => {
+describe("TemplateService - Version Management", () => {
   let service: TemplateService;
   const mocks: any[] = [];
 
@@ -229,7 +266,7 @@ describe("TemplateService - Version Management", { concurrency: 1 }, () => {
     const findMany = mockPrismaMethod(prisma.templateVersion, "findMany");
     mocks.push(findMany);
 
-    findMany.mock.mockImplementationOnce(() =>
+    findMany.mockImplementationOnce(() =>
       Promise.resolve([
         {
           id: "version-1",
@@ -250,9 +287,9 @@ describe("TemplateService - Version Management", { concurrency: 1 }, () => {
 
     const result = await service.getTemplateVersions("project-123", "template-1");
 
-    assert.strictEqual(result.ok, true);
-    assert.ok(result.value);
-    assert.strictEqual(result.value.length, 1);
+    expect(result.ok).toBe(true);
+    expect(result.value).toBeTruthy();
+    expect(result.value.length).toBe(1);
   });
 
   it("should create new template version", async () => {
@@ -260,9 +297,9 @@ describe("TemplateService - Version Management", { concurrency: 1 }, () => {
     const create = mockPrismaMethod(prisma.templateVersion, "create");
     mocks.push(updateMany, create);
 
-    updateMany.mock.mockImplementationOnce(() => Promise.resolve({ count: 1 }));
+    updateMany.mockImplementationOnce(() => Promise.resolve({ count: 1 }));
 
-    create.mock.mockImplementationOnce(() =>
+    create.mockImplementationOnce(() =>
       Promise.resolve({
         id: "version-2",
         templateId: "template-1",
@@ -291,8 +328,8 @@ describe("TemplateService - Version Management", { concurrency: 1 }, () => {
       isActive: true,
     });
 
-    assert.strictEqual(result.ok, true);
-    assert.ok(result.value);
+    expect(result.ok).toBe(true);
+    expect(result.value).toBeTruthy();
   });
 
   it("should deactivate previous version when creating new active version", async () => {
@@ -301,12 +338,12 @@ describe("TemplateService - Version Management", { concurrency: 1 }, () => {
     mocks.push(updateMany, create);
 
     let deactivateCalled = false;
-    updateMany.mock.mockImplementationOnce(() => {
+    updateMany.mockImplementationOnce(() => {
       deactivateCalled = true;
       return Promise.resolve({ count: 1 });
     });
 
-    create.mock.mockImplementationOnce(() =>
+    create.mockImplementationOnce(() =>
       Promise.resolve({
         id: "version-new",
         templateId: "template-1",
@@ -335,11 +372,11 @@ describe("TemplateService - Version Management", { concurrency: 1 }, () => {
       isActive: true,
     });
 
-    assert.strictEqual(deactivateCalled, true);
+    expect(deactivateCalled).toBe(true);
   });
 });
 
-describe("TemplateService - A/B Testing", { concurrency: 1 }, () => {
+describe("TemplateService - A/B Testing", () => {
   let service: TemplateService;
   const mocks: any[] = [];
 
@@ -363,9 +400,9 @@ describe("TemplateService - A/B Testing", { concurrency: 1 }, () => {
     const aBTestCreate = mockPrismaMethod(prisma.aBTest, "create");
     mocks.push(templateFindFirst, aBTestCreate);
 
-    templateFindFirst.mock.mockImplementationOnce(() => Promise.resolve({ id: "template-1" }));
+    templateFindFirst.mockImplementationOnce(() => Promise.resolve({ id: "template-1" }));
 
-    aBTestCreate.mock.mockImplementationOnce(() =>
+    aBTestCreate.mockImplementationOnce(() =>
       Promise.resolve({
         id: "test-1",
         name: "Test A/B",
@@ -387,8 +424,8 @@ describe("TemplateService - A/B Testing", { concurrency: 1 }, () => {
       config: { enabled: true, variants: [] },
     });
 
-    assert.strictEqual(result.ok, true);
-    assert.ok(result.value);
+    expect(result.ok).toBe(true);
+    expect(result.value).toBeTruthy();
   });
 
   it("should start A/B test", async () => {
@@ -396,7 +433,7 @@ describe("TemplateService - A/B Testing", { concurrency: 1 }, () => {
     const update = mockPrismaMethod(prisma.aBTest, "update");
     mocks.push(findFirst, update);
 
-    findFirst.mock.mockImplementationOnce(() =>
+    findFirst.mockImplementationOnce(() =>
       Promise.resolve({
         id: "test-1",
         status: "DRAFT",
@@ -404,8 +441,8 @@ describe("TemplateService - A/B Testing", { concurrency: 1 }, () => {
       })
     );
 
-    update.mock.mockImplementationOnce((args: any) => {
-      assert.strictEqual(args.data.status, "RUNNING");
+    update.mockImplementationOnce((args: any) => {
+      expect(args.data.status).toBe("RUNNING");
       return Promise.resolve({
         id: "test-1",
         name: "Test",
@@ -421,8 +458,8 @@ describe("TemplateService - A/B Testing", { concurrency: 1 }, () => {
 
     const result = await service.startABTest("project-123", "test-1");
 
-    assert.strictEqual(result.ok, true);
-    assert.ok(result.value);
+    expect(result.ok).toBe(true);
+    expect(result.value).toBeTruthy();
   });
 
   it("should stop A/B test", async () => {
@@ -430,7 +467,7 @@ describe("TemplateService - A/B Testing", { concurrency: 1 }, () => {
     const update = mockPrismaMethod(prisma.aBTest, "update");
     mocks.push(findFirst, update);
 
-    findFirst.mock.mockImplementationOnce(() =>
+    findFirst.mockImplementationOnce(() =>
       Promise.resolve({
         id: "test-1",
         status: "RUNNING",
@@ -438,8 +475,8 @@ describe("TemplateService - A/B Testing", { concurrency: 1 }, () => {
       })
     );
 
-    update.mock.mockImplementationOnce((args: any) => {
-      assert.strictEqual(args.data.status, "STOPPED");
+    update.mockImplementationOnce((args: any) => {
+      expect(args.data.status).toBe("STOPPED");
       return Promise.resolve({
         id: "test-1",
         name: "Test",
@@ -455,7 +492,7 @@ describe("TemplateService - A/B Testing", { concurrency: 1 }, () => {
 
     const result = await service.stopABTest("project-123", "test-1");
 
-    assert.strictEqual(result.ok, true);
-    assert.ok(result.value);
+    expect(result.ok).toBe(true);
+    expect(result.value).toBeTruthy();
   });
 });

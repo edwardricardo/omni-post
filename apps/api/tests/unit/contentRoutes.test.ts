@@ -35,8 +35,7 @@ console.info = () => {};
 console.warn = () => {};
 console.error = () => {};
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import fastifyCookie from "@fastify/cookie";
 import { contentRoutes } from "../../src/content/contentRoutes.js";
@@ -69,14 +68,14 @@ const sampleContent = {
   locale: "en",
 };
 
-describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("contentRoutes Unit Tests", () => {
+  beforeAll(async () => {
     redis = createRedisConnection({ maxRetriesPerRequest: 1 });
     redis.on("error", () => {});
     app = await createTestApp();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
     await prisma.$disconnect();
     redis.disconnect();
@@ -90,10 +89,10 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "GET",
       url: "/content/sync/metrics",
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data !== undefined, "Should have value field");
+    expect(body.ok).toBeTruthy();
+    expect(body.data !== undefined).toBeTruthy();
   });
 
   it("should return per-channel sync metrics", async () => {
@@ -101,10 +100,10 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "GET",
       url: "/content/sync/metrics/channel-001",
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data !== undefined, "Should have value field");
+    expect(body.ok).toBeTruthy();
+    expect(body.data !== undefined).toBeTruthy();
   });
 
   // ── POST /content/sync/:postId ────────────────────────────────────────────
@@ -118,9 +117,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         direction: "source_to_target",
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should attempt post sync with valid body", async () => {
@@ -133,12 +132,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       },
     });
     // 400 (validation error from SyncEngine: post not found) or 500
-    assert.ok(
-      res.statusCode === 400 || res.statusCode === 500,
-      `Expected 400 or 500, got ${res.statusCode}`
-    );
+    expect(res.statusCode === 400 || res.statusCode === 500).toBeTruthy();
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false, "Should have ok: false for non-existent post");
+    expect(body.ok).toBe(false);
   });
 
   // ── POST /content/sync/:transactionId/rollback ────────────────────────────
@@ -149,12 +145,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/content/sync/tx-nonexistent-001/rollback",
     });
     // 400 (validation/not found) or 500
-    assert.ok(
-      res.statusCode === 400 || res.statusCode === 500,
-      `Expected 400 or 500, got ${res.statusCode}`
-    );
+    expect(res.statusCode === 400 || res.statusCode === 500).toBeTruthy();
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   // ── POST /content/channels ────────────────────────────────────────────────
@@ -168,9 +161,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         bidirectional: false,
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should create a sync channel with valid body", async () => {
@@ -186,12 +179,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       },
     });
     // 201 on success or 400/500 if service fails
-    assert.ok(
-      res.statusCode === 201 || res.statusCode === 400 || res.statusCode === 500,
-      `Expected 201, 400 or 500, got ${res.statusCode}`
-    );
+    expect(res.statusCode === 201 || res.statusCode === 400 || res.statusCode === 500).toBeTruthy();
     const body = JSON.parse(res.body);
-    assert.ok("ok" in body, "Should have ok field");
+    expect("ok" in body).toBeTruthy();
   });
 
   // ── POST /content/channels/realtime/start ────────────────────────────────
@@ -205,9 +195,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         invalid: true,
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should attempt to start realtime sync with valid body", async () => {
@@ -220,12 +210,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       },
     });
     // 200 on success or 400/500 if service fails
-    assert.ok(
-      res.statusCode === 200 || res.statusCode === 400 || res.statusCode === 500,
-      `Expected 200, 400 or 500, got ${res.statusCode}`
-    );
+    expect(res.statusCode === 200 || res.statusCode === 400 || res.statusCode === 500).toBeTruthy();
     const body = JSON.parse(res.body);
-    assert.ok("ok" in body, "Should have ok field");
+    expect("ok" in body).toBeTruthy();
   });
 
   // ── POST /content/channels/realtime/stop/:postId ─────────────────────────
@@ -235,11 +222,11 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "POST",
       url: "/content/channels/realtime/stop/post-stop-001",
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.equal(body.data.postId, "post-stop-001", "postId should match");
-    assert.equal(body.data.status, "realtime_sync_stopped", "status should be stopped");
+    expect(body.ok).toBeTruthy();
+    expect(body.data.postId).toBe("post-stop-001");
+    expect(body.data.status).toBe("realtime_sync_stopped");
   });
 
   // ── GET /content/versions/:postId ────────────────────────────────────────
@@ -249,11 +236,11 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "GET",
       url: "/content/versions/post-version-nonexistent-001",
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
+    expect(body.ok).toBeTruthy();
     // ContentVersionManager.getVersionHistory returns an array (possibly empty)
-    assert.ok(Array.isArray(body.data), "value should be an array");
+    expect(Array.isArray(body.data)).toBeTruthy();
   });
 
   it("should accept branch and limit query params for version list", async () => {
@@ -261,10 +248,10 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "GET",
       url: "/content/versions/post-001?branch=main&limit=5",
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.ok(Array.isArray(body.data));
+    expect(body.ok).toBeTruthy();
+    expect(Array.isArray(body.data)).toBeTruthy();
   });
 
   // ── POST /content/versions/:postId ────────────────────────────────────────
@@ -278,9 +265,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         tags: ["test"],
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should attempt to create version snapshot with valid body", async () => {
@@ -297,12 +284,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       },
     });
     // 201 on success or 400/500 if service fails (e.g., post not found in DB)
-    assert.ok(
-      res.statusCode === 201 || res.statusCode === 400 || res.statusCode === 500,
-      `Expected 201, 400 or 500, got ${res.statusCode}`
-    );
+    expect(res.statusCode === 201 || res.statusCode === 400 || res.statusCode === 500).toBeTruthy();
     const body = JSON.parse(res.body);
-    assert.ok("ok" in body, "Should have ok field");
+    expect("ok" in body).toBeTruthy();
   });
 
   // ── POST /content/versions/:postId/restore/:versionId ────────────────────
@@ -315,9 +299,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         // Missing required 'restoredBy'
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should attempt to restore version with valid body", async () => {
@@ -329,12 +313,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       },
     });
     // 404 (version not found) or 500
-    assert.ok(
-      res.statusCode === 404 || res.statusCode === 500,
-      `Expected 404 or 500, got ${res.statusCode}`
-    );
+    expect(res.statusCode === 404 || res.statusCode === 500).toBeTruthy();
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   // ── POST /content/versions/compare ──────────────────────────────────────
@@ -348,9 +329,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         invalid: true,
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should attempt version comparison with valid body", async () => {
@@ -363,12 +344,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       },
     });
     // 400 (not found) or 500
-    assert.ok(
-      res.statusCode === 400 || res.statusCode === 500,
-      `Expected 400 or 500, got ${res.statusCode}`
-    );
+    expect(res.statusCode === 400 || res.statusCode === 500).toBeTruthy();
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   // ── POST /content/conflicts/resolve ──────────────────────────────────────
@@ -382,9 +360,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         invalid: true,
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should attempt conflict resolution with valid body", async () => {
@@ -402,12 +380,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       },
     });
     // 400 (transaction not found) or 500
-    assert.ok(
-      res.statusCode === 400 || res.statusCode === 500,
-      `Expected 400 or 500, got ${res.statusCode}`
-    );
+    expect(res.statusCode === 400 || res.statusCode === 500).toBeTruthy();
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   // ── GET /content/conflicts/history/:channelId ────────────────────────────
@@ -417,13 +392,13 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "GET",
       url: "/content/conflicts/history/channel-test-001",
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok("channelId" in body.data, "Should have channelId field");
-    assert.ok("conflicts" in body.data, "Should have conflicts field");
-    assert.equal(body.data.channelId, "channel-test-001", "channelId should match");
-    assert.ok(Array.isArray(body.data.conflicts), "conflicts should be an array");
+    expect(body.ok).toBeTruthy();
+    expect("channelId" in body.data).toBeTruthy();
+    expect("conflicts" in body.data).toBeTruthy();
+    expect(body.data.channelId).toBe("channel-test-001");
+    expect(Array.isArray(body.data.conflicts)).toBeTruthy();
   });
 
   // ── POST /content/transform ───────────────────────────────────────────────
@@ -437,9 +412,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         invalid: true,
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should transform content for a single provider", async () => {
@@ -457,10 +432,10 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data !== undefined, "Should have value field");
+    expect(body.ok).toBeTruthy();
+    expect(body.data !== undefined).toBeTruthy();
   });
 
   it("should transform content with minimal body (no userPreferences)", async () => {
@@ -472,9 +447,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         targetProvider: "instagram",
       },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
+    expect(body.ok).toBeTruthy();
   });
 
   // ── POST /content/transform/multi ────────────────────────────────────────
@@ -488,9 +463,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         content: sampleContent,
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should transform content for multiple providers", async () => {
@@ -502,12 +477,12 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         targetProviders: ["x", "instagram", "facebook"],
       },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok("adaptations" in body.data, "Should have adaptations field");
+    expect(body.ok).toBeTruthy();
+    expect("adaptations" in body.data).toBeTruthy();
     // adaptations should be an object keyed by provider
-    assert.ok(typeof body.data.adaptations === "object", "adaptations should be an object");
+    expect(typeof body.data.adaptations === "object").toBeTruthy();
   });
 
   // ── POST /content/transform/recommendations ───────────────────────────────
@@ -521,9 +496,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         invalid: true,
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should return adaptation recommendations", async () => {
@@ -535,11 +510,11 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         targetProviders: ["x", "instagram"],
       },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok("recommendations" in body.data, "Should have recommendations field");
-    assert.ok(typeof body.data.recommendations === "object", "recommendations should be an object");
+    expect(body.ok).toBeTruthy();
+    expect("recommendations" in body.data).toBeTruthy();
+    expect(typeof body.data.recommendations === "object").toBeTruthy();
   });
 
   // ── POST /content/render/:provider ───────────────────────────────────────
@@ -553,9 +528,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         provider: "x",
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should render content for a provider", async () => {
@@ -567,14 +542,14 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         provider: "x",
       },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok("provider" in body.data, "Should have provider field");
-    assert.equal(body.data.provider, "x", "provider should match");
-    assert.ok("adaptedContent" in body.data, "Should have adaptedContent field");
-    assert.ok("confidence" in body.data, "Should have confidence field");
-    assert.ok("warnings" in body.data, "Should have warnings field");
+    expect(body.ok).toBeTruthy();
+    expect("provider" in body.data).toBeTruthy();
+    expect(body.data.provider).toBe("x");
+    expect("adaptedContent" in body.data).toBeTruthy();
+    expect("confidence" in body.data).toBeTruthy();
+    expect("warnings" in body.data).toBeTruthy();
   });
 
   it("should render content for instagram provider", async () => {
@@ -586,10 +561,10 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         provider: "instagram",
       },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.equal(body.data.provider, "instagram");
+    expect(body.ok).toBeTruthy();
+    expect(body.data.provider).toBe("instagram");
   });
 
   // ── POST /content/diff ───────────────────────────────────────────────────
@@ -603,9 +578,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         invalid: true,
       },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should calculate diff between two versions", async () => {
@@ -626,12 +601,12 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         toVersion,
       },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok("diffs" in body.data, "Should have diffs field");
-    assert.ok("summary" in body.data, "Should have summary field");
-    assert.ok(Array.isArray(body.data.diffs), "diffs should be an array");
+    expect(body.ok).toBeTruthy();
+    expect("diffs" in body.data).toBeTruthy();
+    expect("summary" in body.data).toBeTruthy();
+    expect(Array.isArray(body.data.diffs)).toBeTruthy();
   });
 
   it("should return empty diff for identical versions", async () => {
@@ -648,9 +623,9 @@ describe("contentRoutes Unit Tests", { concurrency: 1 }, () => {
         toVersion: version,
       },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.ok(Array.isArray(body.data.diffs));
+    expect(body.ok).toBeTruthy();
+    expect(Array.isArray(body.data.diffs)).toBeTruthy();
   });
 });

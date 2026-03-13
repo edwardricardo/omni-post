@@ -12,8 +12,7 @@
  *   node --import tsx --test bruteForceProtection.test.ts
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { BruteForceProtection } from "../../src/auth/bruteForceProtection.js";
 import type Redis from "ioredis";
 import {
@@ -32,13 +31,13 @@ const testRedis = makeTestRedis();
 const testConfig = makeTestConfig(NAMESPACE);
 let bruteForceProtection: BruteForceProtection;
 
-describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("BruteForceProtection Tests", () => {
+  beforeAll(async () => {
     bruteForceProtection = new BruteForceProtection(testRedis, mockMetrics, testConfig);
     await cleanupRedis(testRedis, NAMESPACE);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await cleanupRedis(testRedis, NAMESPACE);
     await testRedis.quit();
   });
@@ -55,16 +54,16 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
         testUserAgent
       );
 
-      assert.strictEqual(result.allowed, true);
-      assert.strictEqual(result.delaySeconds, 0);
-      assert.strictEqual(result.captchaRequired, false);
+      expect(result.allowed).toBe(true);
+      expect(result.delaySeconds).toBe(0);
+      expect(result.captchaRequired).toBe(false);
     });
 
     it("should return attempts remaining on first check", async () => {
       const email = `new-${timestamp}@example.com`;
       const result = await bruteForceProtection.checkLoginAttempt(email, `10.0.0.2`, testUserAgent);
 
-      assert.strictEqual(result.attemptsRemaining, testConfig.maxFailedAttemptsPerEmail);
+      expect(result.attemptsRemaining).toBe(testConfig.maxFailedAttemptsPerEmail);
     });
   });
 
@@ -81,8 +80,8 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
 
-      assert.strictEqual(result.allowed, true);
-      assert.strictEqual(result.delaySeconds, testConfig.baseDelaySeconds);
+      expect(result.allowed).toBe(true);
+      expect(result.delaySeconds).toBe(testConfig.baseDelaySeconds);
     });
 
     it("should apply exponential backoff after multiple failures", async () => {
@@ -95,7 +94,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
       const result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
 
       const expectedDelay = testConfig.baseDelaySeconds! * Math.pow(testConfig.exponentialBase!, 1);
-      assert.strictEqual(result.delaySeconds, expectedDelay);
+      expect(result.delaySeconds).toBe(expectedDelay);
     });
 
     it("should cap delay at maxDelaySeconds", async () => {
@@ -113,7 +112,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
 
-      assert.ok(result.delaySeconds <= testConfig.maxDelaySeconds!);
+      expect(result.delaySeconds <= testConfig.maxDelaySeconds!).toBeTruthy();
     });
   });
 
@@ -128,7 +127,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
 
-      assert.strictEqual(result.captchaRequired, false);
+      expect(result.captchaRequired).toBe(false);
     });
 
     it("should require CAPTCHA after threshold failures", async () => {
@@ -146,7 +145,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
 
-      assert.strictEqual(result.captchaRequired, true);
+      expect(result.captchaRequired).toBe(true);
     });
 
     it("should require CAPTCHA based on IP failures", async () => {
@@ -167,7 +166,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
         testUserAgent
       );
 
-      assert.strictEqual(result.captchaRequired, true);
+      expect(result.captchaRequired).toBe(true);
     });
   });
 
@@ -191,9 +190,9 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
 
-      assert.strictEqual(result.allowed, false);
-      assert.strictEqual(result.reason, "Account temporarily locked");
-      assert.ok(result.lockoutExpiresAt);
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("Account temporarily locked");
+      expect(result.lockoutExpiresAt).toBeTruthy();
     });
 
     it("should return lockout expiration time", async () => {
@@ -211,8 +210,8 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
 
-      assert.ok(result.lockoutExpiresAt);
-      assert.ok(result.lockoutExpiresAt > new Date());
+      expect(result.lockoutExpiresAt).toBeTruthy();
+      expect(result.lockoutExpiresAt > new Date()).toBeTruthy();
     });
 
     it("should allow admin to unlock account", async () => {
@@ -230,13 +229,13 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
       }
 
       let result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
-      assert.strictEqual(result.allowed, false);
+      expect(result.allowed).toBe(false);
 
       const unlocked = await bruteForceProtection.unlockAccount(email, adminId);
-      assert.strictEqual(unlocked, true);
+      expect(unlocked).toBe(true);
 
       result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
   });
 
@@ -263,8 +262,8 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
         testUserAgent
       );
 
-      assert.strictEqual(result.allowed, false);
-      assert.strictEqual(result.reason, "IP address temporarily blocked");
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("IP address temporarily blocked");
     });
 
     it("should allow admin to unblock IP", async () => {
@@ -285,17 +284,17 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
         ip,
         testUserAgent
       );
-      assert.strictEqual(result.allowed, false);
+      expect(result.allowed).toBe(false);
 
       const unblocked = await bruteForceProtection.unblockIpAddress(ip, adminId);
-      assert.strictEqual(unblocked, true);
+      expect(unblocked).toBe(true);
 
       result = await bruteForceProtection.checkLoginAttempt(
         `test-${timestamp}@example.com`,
         ip,
         testUserAgent
       );
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
 
     it("should return false when unlocking non-blocked IP", async () => {
@@ -304,7 +303,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const result = await bruteForceProtection.unblockIpAddress(ip, adminId);
 
-      assert.strictEqual(result, false);
+      expect(result).toBe(false);
     });
   });
 
@@ -321,12 +320,12 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
       await bruteForceProtection.recordFailedAttempt(email, ip, testUserAgent, "Invalid password");
 
       let result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
-      assert.ok(result.delaySeconds > 0);
+      expect(result.delaySeconds > 0).toBeTruthy();
 
       await bruteForceProtection.recordSuccessfulAttempt(email, ip, testUserAgent);
 
       result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
-      assert.strictEqual(result.delaySeconds, 0);
+      expect(result.delaySeconds).toBe(0);
     });
 
     it("should reset CAPTCHA requirement after successful login", async () => {
@@ -343,12 +342,12 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
       }
 
       let result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
-      assert.strictEqual(result.captchaRequired, true);
+      expect(result.captchaRequired).toBe(true);
 
       await bruteForceProtection.recordSuccessfulAttempt(email, ip, testUserAgent);
 
       result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
-      assert.strictEqual(result.captchaRequired, false);
+      expect(result.captchaRequired).toBe(false);
     });
   });
 
@@ -360,10 +359,10 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
     it("should return accurate protection stats", async () => {
       const stats = await bruteForceProtection.getProtectionStats();
 
-      assert.ok(typeof stats.lockedAccounts === "number");
-      assert.ok(typeof stats.blockedIps === "number");
-      assert.ok(typeof stats.recentFailures === "number");
-      assert.ok(typeof stats.suspiciousActivities === "number");
+      expect(typeof stats.lockedAccounts === "number").toBeTruthy();
+      expect(typeof stats.blockedIps === "number").toBeTruthy();
+      expect(typeof stats.recentFailures === "number").toBeTruthy();
+      expect(typeof stats.suspiciousActivities === "number").toBeTruthy();
     });
 
     it("should track locked accounts in stats", async () => {
@@ -383,7 +382,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const statsAfter = await bruteForceProtection.getProtectionStats();
 
-      assert.ok(statsAfter.lockedAccounts >= statsBefore.lockedAccounts);
+      expect(statsAfter.lockedAccounts >= statsBefore.lockedAccounts).toBeTruthy();
     });
   });
 
@@ -405,7 +404,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
       }
 
       const stats = await bruteForceProtection.getProtectionStats();
-      assert.ok(stats.suspiciousActivities >= 0);
+      expect(stats.suspiciousActivities >= 0).toBeTruthy();
     });
 
     it("should detect distributed attacks", async () => {
@@ -421,7 +420,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
       }
 
       const stats = await bruteForceProtection.getProtectionStats();
-      assert.ok(stats.suspiciousActivities >= 0);
+      expect(stats.suspiciousActivities >= 0).toBeTruthy();
     });
   });
 
@@ -461,8 +460,8 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
         testUserAgent
       );
 
-      assert.strictEqual(result.allowed, true);
-      assert.ok(result.reason);
+      expect(result.allowed).toBe(true);
+      expect(result.reason).toBeTruthy();
     });
 
     it("should handle expired lockouts correctly", async () => {
@@ -480,7 +479,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const result = await bruteForceProtection.checkLoginAttempt(email, ip, testUserAgent);
 
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
 
     it("should return false when unlocking non-locked account", async () => {
@@ -489,7 +488,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const result = await bruteForceProtection.unlockAccount(email, adminId);
 
-      assert.strictEqual(result, false);
+      expect(result).toBe(false);
     });
 
     it("should handle missing user agent", async () => {
@@ -498,7 +497,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
 
       const result = await bruteForceProtection.checkLoginAttempt(email, ip, "");
 
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
   });
 
@@ -510,7 +509,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
     it("should use default configuration when not provided", () => {
       const defaultProtection = new BruteForceProtection(testRedis, mockMetrics);
 
-      assert.ok(defaultProtection);
+      expect(defaultProtection).toBeTruthy();
     });
 
     it("should merge custom config with defaults", () => {
@@ -518,7 +517,7 @@ describe("BruteForceProtection Tests", { concurrency: 1 }, () => {
         maxFailedAttemptsPerEmail: 10,
       });
 
-      assert.ok(customProtection);
+      expect(customProtection).toBeTruthy();
     });
   });
 });

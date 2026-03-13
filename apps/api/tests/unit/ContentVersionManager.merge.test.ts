@@ -5,8 +5,7 @@ console.error = () => {};
 console.log = () => {};
 console.warn = () => {};
 
-import { describe, it, beforeEach, afterEach, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
 import { ContentVersionManager } from "../../src/content/ContentVersionManager";
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
@@ -28,11 +27,11 @@ let mockEventService: MockEventService;
 let mockPrisma: PrismaClient;
 let versionManager: ContentVersionManager;
 
-describe("ContentVersionManager - restoreVersion", { concurrency: 1 }, () => {
+describe("ContentVersionManager - restoreVersion", () => {
   let version1Id: string;
   let _version2Id: string;
 
-  after(() => {
+  afterAll(() => {
     console.error = _origConsoleError;
     console.log = _origConsoleLog;
     console.warn = _origConsoleWarn;
@@ -55,7 +54,7 @@ describe("ContentVersionManager - restoreVersion", { concurrency: 1 }, () => {
       testAdaptations,
       { createdBy: testUserId, changelog: "Version 1" }
     );
-    assert.ok(result1.ok);
+    expect(result1.ok).toBeTruthy();
     if (result1.ok) version1Id = result1.value.id;
 
     const result2 = await versionManager.createVersion(
@@ -64,7 +63,7 @@ describe("ContentVersionManager - restoreVersion", { concurrency: 1 }, () => {
       testAdaptations,
       { createdBy: testUserId, changelog: "Version 2" }
     );
-    assert.ok(result2.ok);
+    expect(result2.ok).toBeTruthy();
     if (result2.ok) _version2Id = result2.value.id;
   });
 
@@ -74,63 +73,63 @@ describe("ContentVersionManager - restoreVersion", { concurrency: 1 }, () => {
     }
   });
 
-  describe("Restoration Success", { concurrency: 1 }, () => {
+  describe("Restoration Success", () => {
     it("should restore content from previous version", async () => {
       const result = await versionManager.restoreVersion(version1Id, testUserId);
 
-      assert.ok(result.ok, "Restoration should succeed");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const restoredVersion = result.value;
-        assert.strictEqual(restoredVersion.version, 3, "Should create new version");
-        assert.strictEqual(restoredVersion.content.title, testCanonicalPost.title);
-        assert.ok(restoredVersion.changelog?.includes("Restored from version"));
+        expect(restoredVersion.version).toBe(3);
+        expect(restoredVersion.content.title).toBe(testCanonicalPost.title);
+        expect(restoredVersion.changelog?.includes("Restored from version")).toBeTruthy();
       }
     });
 
     it("should create new version on restore (not modify original)", async () => {
       const result = await versionManager.restoreVersion(version1Id, testUserId);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.notStrictEqual(result.value.id, version1Id, "Should be new version");
+        expect(result.value.id).not.toBe(version1Id);
       }
     });
 
     it("should preserve adaptations during restoration", async () => {
       const result = await versionManager.restoreVersion(version1Id, testUserId);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.deepStrictEqual(result.value.adaptations, testAdaptations);
+        expect(result.value.adaptations).toStrictEqual(testAdaptations);
       }
     });
 
     it("should include restoration metadata in changelog", async () => {
       const result = await versionManager.restoreVersion(version1Id, testUserId);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(result.value.changelog?.includes("Restored from version"));
-        assert.ok(result.value.changelog?.includes("1"));
+        expect(result.value.changelog?.includes("Restored from version")).toBeTruthy();
+        expect(result.value.changelog?.includes("1")).toBeTruthy();
       }
     });
   });
 
-  describe("Restoration Validation", { concurrency: 1 }, () => {
+  describe("Restoration Validation", () => {
     it("should reject restoration of non-existent version", async () => {
       const result = await versionManager.restoreVersion("non-existent-id", testUserId);
 
-      assert.ok(!result.ok, "Should fail for non-existent version");
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.strictEqual(result.error.type, "validation");
-        assert.ok(result.error.message.includes("Version not found"));
-        assert.strictEqual(result.error.retryable, false);
+        expect(result.error.type).toBe("validation");
+        expect(result.error.message.includes("Version not found")).toBeTruthy();
+        expect(result.error.retryable).toBe(false);
       }
     });
   });
 });
 
-describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () => {
+describe("ContentVersionManager - createMergeRequest", () => {
   let baseVersionId: string;
   let _sourceBranchVersionId: string;
   let _targetBranchVersionId: string;
@@ -152,7 +151,7 @@ describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () =>
       testAdaptations,
       { createdBy: testUserId }
     );
-    assert.ok(baseResult.ok);
+    expect(baseResult.ok).toBeTruthy();
     if (baseResult.ok) baseVersionId = baseResult.value.id;
 
     await versionManager.createBranch(testPostId, "source-branch", baseVersionId, testUserId);
@@ -163,7 +162,7 @@ describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () =>
       testAdaptations,
       { createdBy: testUserId, branchName: "source-branch" }
     );
-    assert.ok(sourceResult.ok);
+    expect(sourceResult.ok).toBeTruthy();
     if (sourceResult.ok) _sourceBranchVersionId = sourceResult.value.id;
 
     await versionManager.createBranch(testPostId, "target-branch", baseVersionId, testUserId);
@@ -174,7 +173,7 @@ describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () =>
       testAdaptations,
       { createdBy: testUserId, branchName: "target-branch" }
     );
-    assert.ok(targetResult.ok);
+    expect(targetResult.ok).toBeTruthy();
     if (targetResult.ok) _targetBranchVersionId = targetResult.value.id;
   });
 
@@ -184,7 +183,7 @@ describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () =>
     }
   });
 
-  describe("Merge Request Creation", { concurrency: 1 }, () => {
+  describe("Merge Request Creation", () => {
     it("should create merge request between branches", async () => {
       const result = await versionManager.createMergeRequest(
         testPostId,
@@ -193,15 +192,15 @@ describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () =>
         testUserId
       );
 
-      assert.ok(result.ok, "Merge request creation should succeed");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const mergeRequest = result.value;
-        assert.strictEqual(mergeRequest.sourceBranch, "source-branch");
-        assert.strictEqual(mergeRequest.targetBranch, "target-branch");
-        assert.strictEqual(mergeRequest.postId, testPostId);
-        assert.strictEqual(mergeRequest.requestedBy, testUserId);
-        assert.ok(mergeRequest.requestedAt instanceof Date);
-        assert.ok(["pending", "conflicted"].includes(mergeRequest.status));
+        expect(mergeRequest.sourceBranch).toBe("source-branch");
+        expect(mergeRequest.targetBranch).toBe("target-branch");
+        expect(mergeRequest.postId).toBe(testPostId);
+        expect(mergeRequest.requestedBy).toBe(testUserId);
+        expect(mergeRequest.requestedAt instanceof Date).toBeTruthy();
+        expect(["pending", "conflicted"].includes(mergeRequest.status)).toBeTruthy();
       }
     });
 
@@ -213,13 +212,13 @@ describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () =>
         testUserId
       );
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const mergeRequest = result.value;
         if (mergeRequest.conflicts.length > 0) {
-          assert.strictEqual(mergeRequest.status, "conflicted");
+          expect(mergeRequest.status).toBe("conflicted");
           const titleConflict = mergeRequest.conflicts.find((c) => c.field === "title");
-          assert.ok(titleConflict, "Should detect title conflict");
+          expect(titleConflict).toBeTruthy();
         }
       }
     });
@@ -231,7 +230,7 @@ describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () =>
         testAdaptations,
         { createdBy: testUserId }
       );
-      assert.ok(base2Result.ok);
+      expect(base2Result.ok).toBeTruthy();
       const base2Id = base2Result.ok ? base2Result.value.id : "";
 
       await versionManager.createBranch(
@@ -268,14 +267,14 @@ describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () =>
         testUserId
       );
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok && result.value.conflicts.length === 0) {
-        assert.strictEqual(result.value.status, "pending");
+        expect(result.value.status).toBe("pending");
       }
     });
   });
 
-  describe("Merge Request Validation", { concurrency: 1 }, () => {
+  describe("Merge Request Validation", () => {
     it("should reject merge request for non-existent source branch", async () => {
       const result = await versionManager.createMergeRequest(
         testPostId,
@@ -284,10 +283,10 @@ describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () =>
         testUserId
       );
 
-      assert.ok(!result.ok, "Should fail for non-existent source");
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.strictEqual(result.error.type, "validation");
-        assert.ok(result.error.message.includes("not found"));
+        expect(result.error.type).toBe("validation");
+        expect(result.error.message.includes("not found")).toBeTruthy();
       }
     });
 
@@ -299,15 +298,15 @@ describe("ContentVersionManager - createMergeRequest", { concurrency: 1 }, () =>
         testUserId
       );
 
-      assert.ok(!result.ok, "Should fail for non-existent target");
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.strictEqual(result.error.type, "validation");
+        expect(result.error.type).toBe("validation");
       }
     });
   });
 });
 
-describe("ContentVersionManager - Event Emissions", { concurrency: 1 }, () => {
+describe("ContentVersionManager - Event Emissions", () => {
   beforeEach(() => {
     mockRedis = createMockRedis();
     mockEventService = createMockEventService();
@@ -335,11 +334,11 @@ describe("ContentVersionManager - Event Emissions", { concurrency: 1 }, () => {
     });
 
     const events = eventService.getPublishedEvents();
-    assert.strictEqual(events.length, initialEventCount + 1, "Should emit one event");
+    expect(events.length).toBe(initialEventCount + 1);
 
     const versionEvent = events[events.length - 1];
-    assert.strictEqual(versionEvent.type, "VERSION_CREATED");
-    assert.strictEqual(versionEvent.aggregateType, "ContentVersion");
+    expect(versionEvent.type).toBe("VERSION_CREATED");
+    expect(versionEvent.aggregateType).toBe("ContentVersion");
   });
 
   it("should emit BRANCH_CREATED event on branch creation", async () => {
@@ -349,7 +348,7 @@ describe("ContentVersionManager - Event Emissions", { concurrency: 1 }, () => {
       testAdaptations,
       { createdBy: testUserId }
     );
-    assert.ok(versionResult.ok);
+    expect(versionResult.ok).toBeTruthy();
 
     const eventService = mockEventService as any;
     const initialEventCount = eventService.getPublishedEvents().length;
@@ -362,11 +361,11 @@ describe("ContentVersionManager - Event Emissions", { concurrency: 1 }, () => {
     );
 
     const events = eventService.getPublishedEvents();
-    assert.ok(events.length > initialEventCount, "Should emit branch event");
+    expect(events.length > initialEventCount).toBeTruthy();
 
     const branchEvent = events[events.length - 1];
-    assert.strictEqual(branchEvent.type, "BRANCH_CREATED");
-    assert.strictEqual(branchEvent.aggregateType, "VersionBranch");
+    expect(branchEvent.type).toBe("BRANCH_CREATED");
+    expect(branchEvent.aggregateType).toBe("VersionBranch");
   });
 
   it("should emit VERSION_RESTORED event on version restoration", async () => {
@@ -376,7 +375,7 @@ describe("ContentVersionManager - Event Emissions", { concurrency: 1 }, () => {
       testAdaptations,
       { createdBy: testUserId }
     );
-    assert.ok(versionResult.ok);
+    expect(versionResult.ok).toBeTruthy();
 
     const eventService = mockEventService as any;
     const _initialEventCount = eventService.getPublishedEvents().length;
@@ -385,6 +384,6 @@ describe("ContentVersionManager - Event Emissions", { concurrency: 1 }, () => {
 
     const events = eventService.getPublishedEvents();
     const restoredEvent = events.find((e: any) => e.type === "VERSION_RESTORED");
-    assert.ok(restoredEvent, "Should emit VERSION_RESTORED event");
+    expect(restoredEvent).toBeTruthy();
   });
 });

@@ -11,8 +11,7 @@
  * - The `UpcasterChain` is exercised in isolation of the consumer.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   UpcasterChain,
   type Upcaster,
@@ -44,7 +43,7 @@ interface PayloadV3 {
 // Single upcaster v1 → v2
 // ---------------------------------------------------------------------------
 
-describe("UpcasterChain — single upcaster v1→v2", { concurrency: 1 }, () => {
+describe("UpcasterChain — single upcaster v1→v2", () => {
   it("upcasts v1 payload to v2 by applying the registered upcaster", () => {
     const chain = new UpcasterChain();
     const upcaster: Upcaster<PayloadV1, PayloadV2> = {
@@ -57,8 +56,8 @@ describe("UpcasterChain — single upcaster v1→v2", { concurrency: 1 }, () => 
 
     const result = chain.upcast("PostCreated", { postId: "p1", body: "Hello" }, 1, 2);
 
-    assert.deepEqual(result.payload, { postId: "p1", body: "Hello", tags: [] });
-    assert.equal(result.version, 2);
+    expect(result.payload).toEqual({ postId: "p1", body: "Hello", tags: [] });
+    expect(result.version).toBe(2);
   });
 
   it("returns original payload when fromVersion already equals targetVersion", () => {
@@ -73,8 +72,8 @@ describe("UpcasterChain — single upcaster v1→v2", { concurrency: 1 }, () => 
     const payload = { postId: "p1", body: "Hello" };
     const result = chain.upcast("PostCreated", payload, 2, 2);
 
-    assert.deepEqual(result.payload, payload);
-    assert.equal(result.version, 2);
+    expect(result.payload).toEqual(payload);
+    expect(result.version).toBe(2);
   });
 
   it("returns original payload when no upcaster registered for that eventType", () => {
@@ -82,8 +81,8 @@ describe("UpcasterChain — single upcaster v1→v2", { concurrency: 1 }, () => 
     const payload = { postId: "p1", body: "Hello" };
     const result = chain.upcast("UnknownEvent", payload, 1, 2);
 
-    assert.deepEqual(result.payload, payload);
-    assert.equal(result.version, 1);
+    expect(result.payload).toEqual(payload);
+    expect(result.version).toBe(1);
   });
 
   it("returns original payload when no upcaster registered for that fromVersion", () => {
@@ -99,8 +98,8 @@ describe("UpcasterChain — single upcaster v1→v2", { concurrency: 1 }, () => 
     // fromVersion=1 has no upcaster registered
     const result = chain.upcast("PostCreated", payload, 1, 3);
 
-    assert.deepEqual(result.payload, payload);
-    assert.equal(result.version, 1); // chain stopped because v1→v2 is missing
+    expect(result.payload).toEqual(payload);
+    expect(result.version).toBe(1); // chain stopped because v1→v2 is missing
   });
 
   it("stops at the highest available version when targetVersion is not provided", () => {
@@ -114,8 +113,8 @@ describe("UpcasterChain — single upcaster v1→v2", { concurrency: 1 }, () => 
 
     const result = chain.upcast("PostCreated", { postId: "p1", body: "Hello" }, 1);
 
-    assert.equal(result.version, 2);
-    assert.deepEqual(result.payload, { postId: "p1", body: "Hello", tags: [] });
+    expect(result.version).toBe(2);
+    expect(result.payload).toEqual({ postId: "p1", body: "Hello", tags: [] });
   });
 });
 
@@ -123,7 +122,7 @@ describe("UpcasterChain — single upcaster v1→v2", { concurrency: 1 }, () => 
 // Chain: v1 → v2 → v3
 // ---------------------------------------------------------------------------
 
-describe("UpcasterChain — chained upcasters v1→v2→v3", { concurrency: 1 }, () => {
+describe("UpcasterChain — chained upcasters v1→v2→v3", () => {
   it("applies both upcasters sequentially to reach v3", () => {
     const chain = new UpcasterChain();
 
@@ -142,8 +141,8 @@ describe("UpcasterChain — chained upcasters v1→v2→v3", { concurrency: 1 },
 
     const result = chain.upcast("PostCreated", { postId: "p1", body: "Hello" }, 1, 3);
 
-    assert.equal(result.version, 3);
-    assert.deepEqual(result.payload, {
+    expect(result.version).toBe(3);
+    expect(result.payload).toEqual({
       postId: "p1",
       body: "Hello",
       tags: [],
@@ -169,8 +168,8 @@ describe("UpcasterChain — chained upcasters v1→v2→v3", { concurrency: 1 },
 
     const result = chain.upcast("PostCreated", { postId: "p1", body: "Hi" }, 1, 2);
 
-    assert.equal(result.version, 2);
-    assert.deepEqual(result.payload, { postId: "p1", body: "Hi", tags: [] });
+    expect(result.version).toBe(2);
+    expect(result.payload).toEqual({ postId: "p1", body: "Hi", tags: [] });
   });
 
   it("starting from v2 only applies v2→v3, skips v1→v2", () => {
@@ -196,10 +195,10 @@ describe("UpcasterChain — chained upcasters v1→v2→v3", { concurrency: 1 },
       3
     );
 
-    assert.equal(result.version, 3);
+    expect(result.version).toBe(3);
     const p = result.payload as PayloadV3;
-    assert.deepEqual(p.tags, ["existing"], "should not re-apply v1→v2 upcaster");
-    assert.equal(p.contentType, "image");
+    expect(p.tags).toEqual(["existing"]);
+    expect(p.contentType).toBe("image");
   });
 
   it("upcast without targetVersion walks the entire chain v1→v3", () => {
@@ -220,10 +219,10 @@ describe("UpcasterChain — chained upcasters v1→v2→v3", { concurrency: 1 },
 
     const result = chain.upcast("PostCreated", { postId: "p1", body: "Hi" }, 1);
 
-    assert.equal(result.version, 3);
+    expect(result.version).toBe(3);
     const p = result.payload as PayloadV3;
-    assert.equal(p.contentType, "video");
-    assert.deepEqual(p.tags, ["auto"]);
+    expect(p.contentType).toBe("video");
+    expect(p.tags).toEqual(["auto"]);
   });
 });
 
@@ -231,7 +230,7 @@ describe("UpcasterChain — chained upcasters v1→v2→v3", { concurrency: 1 },
 // canUpcast
 // ---------------------------------------------------------------------------
 
-describe("UpcasterChain — canUpcast", { concurrency: 1 }, () => {
+describe("UpcasterChain — canUpcast", () => {
   it("returns true when direct v1→v2 path exists", () => {
     const chain = new UpcasterChain();
     chain.register({
@@ -241,7 +240,7 @@ describe("UpcasterChain — canUpcast", { concurrency: 1 }, () => {
       upcast: (p: PayloadV1): PayloadV2 => ({ ...p, tags: [] }),
     });
 
-    assert.equal(chain.canUpcast("PostCreated", 1, 2), true);
+    expect(chain.canUpcast("PostCreated", 1, 2)).toBe(true);
   });
 
   it("returns true when v1→v2→v3 path exists", () => {
@@ -259,7 +258,7 @@ describe("UpcasterChain — canUpcast", { concurrency: 1 }, () => {
       upcast: (p: PayloadV2): PayloadV3 => ({ ...p, contentType: "text" }),
     });
 
-    assert.equal(chain.canUpcast("PostCreated", 1, 3), true);
+    expect(chain.canUpcast("PostCreated", 1, 3)).toBe(true);
   });
 
   it("returns false when the v1→v2 link is missing in a v1→v2→v3 chain", () => {
@@ -272,23 +271,23 @@ describe("UpcasterChain — canUpcast", { concurrency: 1 }, () => {
       upcast: (p: PayloadV2): PayloadV3 => ({ ...p, contentType: "text" }),
     });
 
-    assert.equal(chain.canUpcast("PostCreated", 1, 3), false);
+    expect(chain.canUpcast("PostCreated", 1, 3)).toBe(false);
   });
 
   it("returns false when the event type is not registered", () => {
     const chain = new UpcasterChain();
-    assert.equal(chain.canUpcast("UnknownEvent", 1, 2), false);
+    expect(chain.canUpcast("UnknownEvent", 1, 2)).toBe(false);
   });
 
   it("returns true when fromVersion equals targetVersion (already at target)", () => {
     const chain = new UpcasterChain();
-    assert.equal(chain.canUpcast("PostCreated", 2, 2), true);
+    expect(chain.canUpcast("PostCreated", 2, 2)).toBe(true);
   });
 
   it("returns true when fromVersion is greater than targetVersion", () => {
     const chain = new UpcasterChain();
     // version 3 is already past the target 2 — no upcast needed
-    assert.equal(chain.canUpcast("PostCreated", 3, 2), true);
+    expect(chain.canUpcast("PostCreated", 3, 2)).toBe(true);
   });
 });
 
@@ -296,10 +295,10 @@ describe("UpcasterChain — canUpcast", { concurrency: 1 }, () => {
 // Edge cases
 // ---------------------------------------------------------------------------
 
-describe("UpcasterChain — edge cases", { concurrency: 1 }, () => {
+describe("UpcasterChain — edge cases", () => {
   it("registeredEventTypes is empty for a fresh chain", () => {
     const chain = new UpcasterChain();
-    assert.deepEqual(chain.registeredEventTypes, []);
+    expect(chain.registeredEventTypes).toEqual([]);
   });
 
   it("registeredEventTypes lists event types with registered upcasters", () => {
@@ -318,7 +317,7 @@ describe("UpcasterChain — edge cases", { concurrency: 1 }, () => {
     });
 
     const types = chain.registeredEventTypes.sort();
-    assert.deepEqual(types, ["PostCreated", "PostPublished"]);
+    expect(types).toEqual(["PostCreated", "PostPublished"]);
   });
 
   it("overwriting a registered upcaster replaces the previous one", () => {
@@ -338,7 +337,7 @@ describe("UpcasterChain — edge cases", { concurrency: 1 }, () => {
 
     const result = chain.upcast("PostCreated", { postId: "p1", body: "Hi" }, 1, 2);
     const p = result.payload as PayloadV2;
-    assert.deepEqual(p.tags, ["new"], "second registration should overwrite first");
+    expect(p.tags).toEqual(["new"]);
   });
 
   it("upcaster with non-object payload (e.g. string) passes through unchanged", () => {
@@ -351,7 +350,7 @@ describe("UpcasterChain — edge cases", { concurrency: 1 }, () => {
     });
 
     const result = chain.upcast("TestEvent", "raw_string", 1, 2);
-    assert.equal(result.payload, "raw_string_v2");
-    assert.equal(result.version, 2);
+    expect(result.payload).toBe("raw_string_v2");
+    expect(result.version).toBe(2);
   });
 });

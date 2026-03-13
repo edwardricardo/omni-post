@@ -6,49 +6,63 @@
  * confidence scoring, warnings, and content recommendation generation.
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { prisma } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
 import promClient from "prom-client";
 import { PlatformContentAdapter } from "../../src/content/PlatformContentAdapter.js";
-import { EventService } from "../../src/events/EventService.js";
+import type { EventService } from "../../src/events/EventService.js";
 
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface.js";
 
-describe("PlatformContentAdapter - Media, Errors, and Recommendations", { concurrency: 1 }, () => {
+vi.mock("../../src/lib/logger.js", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
+  },
+}));
+
+const mockRedis = {
+  get: vi.fn(async () => null),
+  set: vi.fn(async () => "OK"),
+  setex: vi.fn(async () => "OK"),
+  del: vi.fn(async () => 1),
+  hget: vi.fn(async () => null),
+  hset: vi.fn(async () => 1),
+  hexists: vi.fn(async () => 0),
+  keys: vi.fn(async () => []),
+  lpush: vi.fn(async () => 1),
+  lrange: vi.fn(async () => []),
+  xack: vi.fn(async () => 0),
+  xgroup: vi.fn(async () => "OK"),
+  xreadgroup: vi.fn(async () => null),
+  disconnect: vi.fn(),
+  quit: vi.fn(),
+  status: "ready",
+} as unknown as import("ioredis").default;
+
+describe("PlatformContentAdapter - Media, Errors, and Recommendations", () => {
   let adapter: PlatformContentAdapter;
-  let prisma: PrismaClient;
-  let redis: Redis;
 
-  before(async () => {
-    prisma = createTestPrismaClient();
-    redis = new Redis({
-      host: process.env.REDIS_HOST || "localhost",
-      port: parseInt(process.env.REDIS_PORT || "6379"),
-      lazyConnect: true,
-      maxRetriesPerRequest: 1,
-      enableReadyCheck: false,
-    });
-
+  beforeAll(async () => {
     const eventService: Pick<EventService, "publishEvent"> = {
       publishEvent: async () => ({ ok: true as const, value: undefined }),
     };
 
     adapter = new PlatformContentAdapter({
-      prisma,
-      redis,
+      prisma: prisma as unknown as PrismaClient,
+      redis: mockRedis,
       eventService: eventService as EventService,
     });
     await adapter.initialize();
   });
 
-  after(async () => {
+  afterAll(async () => {
     promClient.register.clear();
-    redis.disconnect(false);
-    await prisma.$disconnect();
   });
 
   describe("Media Format Transformations", () => {
@@ -71,10 +85,10 @@ describe("PlatformContentAdapter - Media, Errors, and Recommendations", { concur
 
       const result = await adapter.adaptForSingleProvider(manyMedia, "x" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(adapted.media!.length <= 4, "Should limit to platform maximum (4 for Twitter/X)");
+        expect(adapted.media!.length <= 4).toBeTruthy();
       }
     });
 
@@ -106,14 +120,10 @@ describe("PlatformContentAdapter - Media, Errors, and Recommendations", { concur
 
       const result = await adapter.adaptForSingleProvider(fewMedia, "x" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.strictEqual(
-          adapted.media!.length,
-          fewMedia.media!.length,
-          "Should preserve all media when under limit"
-        );
+        expect(adapted.media!.length).toBe(fewMedia.media!.length);
       }
     });
 
@@ -130,13 +140,10 @@ describe("PlatformContentAdapter - Media, Errors, and Recommendations", { concur
 
       const result = await adapter.adaptForSingleProvider(noMedia, "x" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(
-          !adapted.media || adapted.media.length === 0,
-          "Should handle no media gracefully"
-        );
+        expect(!adapted.media || adapted.media.length === 0).toBeTruthy();
       }
     });
   });
@@ -158,12 +165,9 @@ describe("PlatformContentAdapter - Media, Errors, and Recommendations", { concur
         "invalid_provider" as ProviderId
       );
 
-      assert.strictEqual(result.ok, false, "Should fail for invalid provider");
+      expect(result.ok).toBe(false);
       if (!result.ok) {
-        assert.ok(
-          result.error.message.includes("not found"),
-          "Error should indicate provider not found"
-        );
+        expect(result.error.message.includes("not found")).toBeTruthy();
       }
     });
 
@@ -180,13 +184,10 @@ describe("PlatformContentAdapter - Media, Errors, and Recommendations", { concur
 
       const result = await adapter.adaptForSingleProvider(samplePost, "x" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.ok(result.value.confidence !== undefined, "Should have confidence score");
-        assert.ok(
-          result.value.confidence >= 0 && result.value.confidence <= 1,
-          "Confidence should be between 0 and 1"
-        );
+        expect(result.value.confidence !== undefined).toBeTruthy();
+        expect(result.value.confidence >= 0 && result.value.confidence <= 1).toBeTruthy();
       }
     });
 
@@ -203,9 +204,9 @@ describe("PlatformContentAdapter - Media, Errors, and Recommendations", { concur
 
       const result = await adapter.adaptForSingleProvider(samplePost, "x" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed with warnings");
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.ok(result.value.warnings !== undefined, "Should have warnings array");
+        expect(result.value.warnings !== undefined).toBeTruthy();
       }
     });
   });
@@ -232,13 +233,10 @@ describe("PlatformContentAdapter - Media, Errors, and Recommendations", { concur
         "x" as ProviderId,
       ]);
 
-      assert.ok(recommendations.size > 0, "Should generate recommendations");
+      expect(recommendations.size > 0).toBeTruthy();
 
       const xRecommendations = recommendations.get("x" as ProviderId);
-      assert.ok(
-        xRecommendations && xRecommendations.length > 0,
-        "Should have recommendations for Twitter/X"
-      );
+      expect(xRecommendations && xRecommendations.length > 0).toBeTruthy();
     });
 
     it("should recommend text shortening for long content", async () => {
@@ -257,11 +255,8 @@ describe("PlatformContentAdapter - Media, Errors, and Recommendations", { concur
       ]);
 
       const xRecommendations = recommendations.get("x" as ProviderId);
-      assert.ok(xRecommendations, "Should have recommendations");
-      assert.ok(
-        xRecommendations!.some((r) => r.includes("shorten")),
-        "Should recommend shortening text"
-      );
+      expect(xRecommendations).toBeTruthy();
+      expect(xRecommendations!.some((r) => r.includes("shorten"))).toBeTruthy();
     });
   });
 });

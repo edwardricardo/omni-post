@@ -2,10 +2,9 @@
  * TikTokAdapter - Error Handling & Interaction Settings Tests
  *
  * Tests validated here:
- * 1. Error Handling (7 tests) — verifies that failures in hashtag generation,
- *    sound selection, and marketing API are non-blocking (graceful fallback /
- *    circuit-breaker pattern). Also validates the Result<ok/err> shape and
- *    environment-variable initialisation-error paths.
+ * 1. Error Handling (7 tests) — verifies that hashtag generation failures are
+ *    non-blocking, that createPromotedContent throws NOT_IMPLEMENTED (TikTok Ads
+ *    API requires advertiser approval), and validates the Result<ok/err> shape.
  * 2. Interaction Settings (5 tests) — verifies that disableComment, disableDuet,
  *    and disableStitch meta flags are correctly passed through the PublishInput,
  *    both individually and in combination.
@@ -64,19 +63,27 @@ describe("TikTokAdapter - Error Handling", () => {
     );
   });
 
-  it("should handle marketing API failure without failing publish", async () => {
+  it("should throw NOT_IMPLEMENTED when createPromotedContent is called", async () => {
     const adapter = new TikTokAdapter({
       researchClientFactory: () => createMockResearchClient(),
       marketingClientFactory: () => createMockMarketingClient(),
     });
 
-    // Should complete without throwing error
-    const result = await (adapter as any).createPromotedContent(EMPTY_CREDENTIALS, "video-123", {
-      promotedContent: true,
-      marketingBudget: 500,
-    });
-
-    assert.strictEqual(result, undefined, "Should handle error gracefully");
+    // createPromotedContent is not implemented — TikTok Ads API requires advertiser approval
+    await assert.rejects(
+      () =>
+        (adapter as any).createPromotedContent(EMPTY_CREDENTIALS, "video-123", {
+          promotedContent: true,
+          marketingBudget: 500,
+        }),
+      (err: Error) => {
+        assert.ok(
+          err.message.includes("NOT_IMPLEMENTED"),
+          "Error message must include NOT_IMPLEMENTED"
+        );
+        return true;
+      }
+    );
   });
 
   it("should handle hashtag and marketing features failing simultaneously", async () => {
@@ -94,15 +101,24 @@ describe("TikTokAdapter - Error Handling", () => {
       { useHashtagStrategy: true }
     );
 
-    const marketingResult = await (adapter as any).createPromotedContent(
-      EMPTY_CREDENTIALS,
-      "video-123",
-      { promotedContent: true, marketingBudget: 500 }
+    // createPromotedContent throws NOT_IMPLEMENTED — caller must catch
+    await assert.rejects(
+      () =>
+        (adapter as any).createPromotedContent(EMPTY_CREDENTIALS, "video-123", {
+          promotedContent: true,
+          marketingBudget: 500,
+        }),
+      (err: Error) => {
+        assert.ok(
+          err.message.includes("NOT_IMPLEMENTED"),
+          "Error message must include NOT_IMPLEMENTED"
+        );
+        return true;
+      }
     );
 
-    // Both should complete without throwing — circuit breaker provides fallback data
+    // Hashtag result should still work
     assert.ok(hashtagResult !== null, "Hashtag should return result (circuit breaker fallback)");
-    assert.strictEqual(marketingResult, undefined, "Marketing should return undefined");
   });
 
   it("should verify Result pattern returns with ok/err", async () => {
@@ -144,28 +160,26 @@ describe("TikTokAdapter - Error Handling", () => {
     assert.ok(result, "Should return result even with initialization error");
   });
 
-  it("should handle TikTokMarketingApiClient initialization errors", async () => {
+  it("should throw NOT_IMPLEMENTED regardless of env vars", async () => {
     const adapter = new TikTokAdapter({
       researchClientFactory: () => createMockResearchClient(),
       marketingClientFactory: () => createMockMarketingClient(),
     });
 
-    // Simulate init error via env var — preserve and restore
-    const originalEnv = process.env.TIKTOK_ADVERTISER_ACCOUNT_ID;
-    process.env.TIKTOK_ADVERTISER_ACCOUNT_ID = "placeholder";
-
-    const result = await (adapter as any).createPromotedContent(MOCK_CREDENTIALS, "video-123", {
-      promotedContent: true,
-      marketingBudget: 500,
-    });
-
-    if (originalEnv !== undefined) {
-      process.env.TIKTOK_ADVERTISER_ACCOUNT_ID = originalEnv;
-    } else {
-      delete process.env.TIKTOK_ADVERTISER_ACCOUNT_ID;
-    }
-
-    assert.strictEqual(result, undefined, "Should complete without error");
+    await assert.rejects(
+      () =>
+        (adapter as any).createPromotedContent(MOCK_CREDENTIALS, "video-123", {
+          promotedContent: true,
+          marketingBudget: 500,
+        }),
+      (err: Error) => {
+        assert.ok(
+          err.message.includes("NOT_IMPLEMENTED"),
+          "Error message must include NOT_IMPLEMENTED"
+        );
+        return true;
+      }
+    );
   });
 });
 

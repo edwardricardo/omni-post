@@ -1,57 +1,104 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for auditRoutes
- * Testing all audit HTTP endpoints
- *
- * Coverage Target: 95%+
+ * @file auditRoutes.test.ts
+ * @description Unit tests for auditRoutes. Uses in-memory mocked Prisma stores
+ *              and a real Fastify instance with full DI container.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
-import { auditRoutes } from "../../src/audit/auditRoutes.js";
-import type { AuthService } from "../../src/auth/authService.js";
-import { auditService } from "../../src/audit/auditService.js";
-import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
-import { TOKENS } from "../../src/infrastructure/container/types.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 
-// Populated by createTestApp() — must match the instance used by the middleware.
-let containerAuthService: AuthService;
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
 
-// Create test Fastify instance
-async function createTestApp(): Promise<FastifyInstance> {
+const { mockPrisma, stores } = createMockPrismaModule();
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// Import SUT after mocks are in place
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
+const { auditRoutes } = await import("../../src/audit/auditRoutes.js");
+const { auditService } = await import("../../src/audit/auditService.js");
+const { setRedisInstance } = await import("../../src/auth/authService.js");
+const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { TOKENS } = await import("../../src/infrastructure/container/types.js");
+
+type AuthServiceType = Awaited<
+  ReturnType<typeof import("../../src/auth/authService.js")>
+>["AuthService"];
+
+// ---------------------------------------------------------------------------
+// Setup
+// ---------------------------------------------------------------------------
+
+setRedisInstance(null as unknown as import("ioredis").default);
+
+// Populated by createTestApp()
+let containerAuthService: InstanceType<AuthServiceType>;
+
+async function createTestApp() {
   const app = Fastify({ logger: false });
 
-  const typedApp = app.withTypeProvider<ZodTypeProvider>();
-  typedApp.setValidatorCompiler(validatorCompiler);
-  typedApp.setSerializerCompiler(serializerCompiler);
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
-  const container = setupContainer({ prisma });
-  // Capture the container's AuthService so token generation uses the same JWT secret.
-  containerAuthService = container.resolve<AuthService>(TOKENS.AuthService);
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+  containerAuthService = container.resolve(TOKENS.AuthService) as InstanceType<AuthServiceType>;
 
-  typedApp.decorate("container", container);
+  app.decorate("container", container);
 
-  await typedApp.register(auditRoutes);
+  await app.register(auditRoutes);
 
-  return typedApp;
+  return app;
 }
+
+// ---------------------------------------------------------------------------
+// Test data
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const adminEmail = `admin-audit-${timestamp}@example.com`;
 const superAdminEmail = `superadmin-audit-${timestamp}@example.com`;
 const testPassword = "TestPassword123!";
 
-let app: FastifyInstance;
+let app: ReturnType<typeof Fastify>;
 let adminToken: string;
 let superAdminToken: string;
 let adminUserId: string;
 let _testLogId: string;
 
-describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("auditRoutes Unit Tests", () => {
+  beforeAll(async () => {
+    stores.adminUser.clear();
+    stores.adminSession.clear();
+    stores.auditLog.clear();
+
     app = await createTestApp();
 
     // Create admin user
@@ -66,7 +113,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
     }
 
     // Create super admin user
-    const _superAdminResult = await containerAuthService.registerAdmin(
+    await containerAuthService.registerAdmin(
       superAdminEmail,
       testPassword,
       "Super Admin User",
@@ -104,38 +151,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
     });
   });
 
-  after(async () => {
-    try {
-      // Cleanup audit logs created during tests
-      await prisma.auditLog.deleteMany({
-        where: {
-          OR: [
-            { userId: adminUserId },
-            { action: "TEST_ACTION" },
-            { action: "MANUAL_LOG" },
-            { action: "FAILED_ACTION" },
-          ],
-        },
-      });
-
-      // Find all test users by both admin and superadmin email prefixes
-      const testUsers = await prisma.adminUser.findMany({
-        where: {
-          OR: [
-            { email: { startsWith: `admin-audit-${timestamp}` } },
-            { email: { startsWith: `superadmin-audit-${timestamp}` } },
-          ],
-        },
-      });
-
-      for (const user of testUsers) {
-        await prisma.adminSession.deleteMany({ where: { userId: user.id } });
-        await prisma.adminUser.delete({ where: { id: user.id } });
-      }
-    } catch (err) {
-      console.warn("Cleanup warning:", err);
-    }
-
+  afterAll(async () => {
     await app.close();
   });
 
@@ -149,9 +165,9 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data?.logs));
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.logs)).toBeTruthy();
     });
 
     it("should filter by userId", async () => {
@@ -163,9 +179,9 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.filters?.userId);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.filters?.userId).toBeTruthy();
     });
 
     it("should filter by action", async () => {
@@ -177,8 +193,8 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should filter by date range", async () => {
@@ -193,8 +209,8 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should paginate results", async () => {
@@ -206,8 +222,8 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject without authentication", async () => {
@@ -216,7 +232,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/audit/logs",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("should reject invalid limit", async () => {
@@ -226,7 +242,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -240,9 +256,9 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.stats);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.stats).toBeTruthy();
     });
 
     it("should filter stats by userId", async () => {
@@ -254,8 +270,8 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should filter stats by date range", async () => {
@@ -270,8 +286,8 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject without authentication", async () => {
@@ -280,7 +296,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/audit/stats",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -294,9 +310,9 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data?.logs));
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.logs)).toBeTruthy();
     });
 
     it("should paginate user logs", async () => {
@@ -308,8 +324,8 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject without authentication", async () => {
@@ -318,7 +334,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         url: `/admin/audit/users/${adminUserId}/logs`,
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -332,9 +348,9 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data?.logs));
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.logs)).toBeTruthy();
     });
 
     it("should filter by resourceId", async () => {
@@ -346,8 +362,8 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject without authentication", async () => {
@@ -356,7 +372,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/audit/resources/TestResource/logs",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -376,9 +392,9 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 201);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.log);
+      expect(response.statusCode).toBe(201);
+      expect(body.ok).toBe(true);
+      expect(body.data?.log).toBeTruthy();
 
       _testLogId = body.data?.log?.id;
     });
@@ -394,7 +410,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
 
     it("should create log with error details", async () => {
@@ -411,8 +427,8 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 201);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(201);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject without authentication", async () => {
@@ -424,7 +440,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -441,9 +457,9 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(typeof body.data?.deletedCount === "number");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(typeof body.data?.deletedCount === "number").toBeTruthy();
     });
 
     it("should reject without super admin role", async () => {
@@ -456,7 +472,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
 
     it("should reject invalid retention days", async () => {
@@ -469,7 +485,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -481,7 +497,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -495,9 +511,9 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data?.logs));
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.logs)).toBeTruthy();
     });
 
     it("should paginate my logs", async () => {
@@ -509,8 +525,8 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject without authentication", async () => {
@@ -519,7 +535,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/audit/my-logs",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -533,9 +549,9 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(body.export_date);
-      assert.ok(Array.isArray(body.logs));
+      expect(response.statusCode).toBe(200);
+      expect(body.export_date).toBeTruthy();
+      expect(Array.isArray(body.logs)).toBeTruthy();
     });
 
     it("should export audit logs as CSV with super admin", async () => {
@@ -545,10 +561,12 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${superAdminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(response.headers["content-type"]?.includes("text/csv"));
-      assert.ok(response.headers["content-disposition"]?.includes("attachment"));
-      assert.ok(response.body.includes("Timestamp"));
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]?.toString().includes("text/csv")).toBeTruthy();
+      expect(
+        response.headers["content-disposition"]?.toString().includes("attachment")
+      ).toBeTruthy();
+      expect(response.body.includes("Timestamp")).toBeTruthy();
     });
 
     it("should filter export by date range", async () => {
@@ -563,8 +581,8 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(body.filters);
+      expect(response.statusCode).toBe(200);
+      expect(body.filters).toBeTruthy();
     });
 
     it("should reject without super admin role", async () => {
@@ -574,7 +592,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
 
     it("should reject without authentication", async () => {
@@ -583,7 +601,7 @@ describe("auditRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/audit/export",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 });

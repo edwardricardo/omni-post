@@ -4,8 +4,7 @@
  * Suspicious Activity Detection, Fastify Plugin Integration, Cleanup
  */
 
-import { describe, it, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, afterAll, expect } from "vitest";
 import { SlidingWindowRateLimit } from "../../src/security/slidingWindowRateLimit.js";
 import {
   MockRedis,
@@ -15,7 +14,7 @@ import {
 } from "./slidingWindowRateLimit.test-helpers.js";
 
 // Cleanup all rate limiter intervals after all tests
-after(() => {
+afterAll(() => {
   limiterInstances.forEach((limiter) => {
     try {
       limiter.destroy();
@@ -43,7 +42,7 @@ describe("SlidingWindowRateLimit - Reset Time", () => {
     const before = Date.now();
     const result = await limiter.checkRateLimit(req);
 
-    assert.ok(result.resetTime > before, "Reset time is in the future");
+    expect(result.resetTime > before).toBeTruthy();
   });
 });
 
@@ -67,7 +66,7 @@ describe("SlidingWindowRateLimit - JWT User ID Extraction", () => {
 
     const result = await limiter.checkRateLimit(req);
 
-    assert.ok(result !== undefined, "Processes request with Authorization header");
+    expect(result !== undefined).toBeTruthy();
   });
 
   it("Request without Authorization header", async () => {
@@ -83,7 +82,7 @@ describe("SlidingWindowRateLimit - JWT User ID Extraction", () => {
 
     const result = await limiter.checkRateLimit(req);
 
-    assert.ok(result !== undefined, "Processes request without Authorization header");
+    expect(result !== undefined).toBeTruthy();
   });
 
   it("Invalid Authorization header", async () => {
@@ -101,7 +100,7 @@ describe("SlidingWindowRateLimit - JWT User ID Extraction", () => {
 
     const result = await limiter.checkRateLimit(req);
 
-    assert.ok(result !== undefined, "Handles invalid Authorization header gracefully");
+    expect(result !== undefined).toBeTruthy();
   });
 });
 
@@ -126,7 +125,7 @@ describe("SlidingWindowRateLimit - Suspicious Activity Detection", () => {
       await limiter.checkRateLimit(req);
     }
 
-    assert.ok(true, "Suspicious activity detection triggered at 80% threshold");
+    expect(true).toBeTruthy();
   });
 
   it("Blacklisting after persistent violations", async () => {
@@ -149,7 +148,7 @@ describe("SlidingWindowRateLimit - Suspicious Activity Detection", () => {
       }
     }
 
-    assert.ok(true, "Blacklisting triggered after persistent violations");
+    expect(true).toBeTruthy();
   });
 });
 
@@ -169,7 +168,7 @@ describe("SlidingWindowRateLimit - Fastify Plugin Integration", () => {
 
     const plugin = limiter.getPlugin();
 
-    assert.strictEqual(typeof plugin, "function", "getPlugin() returns a function");
+    expect(typeof plugin).toBe("function");
   });
 
   it("Plugin with skipList", async () => {
@@ -200,7 +199,7 @@ describe("SlidingWindowRateLimit - Fastify Plugin Integration", () => {
     const plugin = limiter.getPlugin();
     await plugin(mockFastify as any);
 
-    assert.ok(true, "Plugin registers preHandler hook with skipList support");
+    expect(true).toBeTruthy();
   });
 
   it("Plugin hook is registered", async () => {
@@ -222,7 +221,7 @@ describe("SlidingWindowRateLimit - Fastify Plugin Integration", () => {
     const plugin = limiter.getPlugin();
     await plugin(mockFastify as any);
 
-    assert.strictEqual(hookRegistered, true, "Plugin registers preHandler hook successfully");
+    expect(hookRegistered).toBe(true);
   });
 });
 
@@ -253,11 +252,7 @@ describe("SlidingWindowRateLimit - Cleanup & Memory Management", () => {
 
     cleanupMethod.call(limiter);
 
-    assert.strictEqual(
-      suspiciousPatterns.size,
-      0,
-      "Cleanup clears suspicious patterns when exceeding 10000 entries"
-    );
+    expect(suspiciousPatterns.size).toBe(0);
   });
 
   it("Cleanup doesn't trigger below threshold", () => {
@@ -279,10 +274,6 @@ describe("SlidingWindowRateLimit - Cleanup & Memory Management", () => {
 
     cleanupMethod.call(limiter);
 
-    assert.strictEqual(
-      suspiciousPatterns.size,
-      100,
-      "Cleanup preserves suspicious patterns when below 10000 entries"
-    );
+    expect(suspiciousPatterns.size).toBe(100);
   });
 });

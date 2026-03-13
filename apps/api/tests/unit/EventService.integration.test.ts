@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   createPostEvent,
   createChannelEvent,
@@ -26,10 +25,10 @@ describe("Integration Tests", () => {
       const serialized = serializeEvent(original);
       const deserialized = deserializeEvent(serialized);
 
-      assert.strictEqual(deserialized.type, original.type);
-      assert.strictEqual(deserialized.aggregateId, original.aggregateId);
-      assert.strictEqual(deserialized.aggregateType, original.aggregateType);
-      assert.strictEqual(deserialized.timestamp.toISOString(), original.timestamp.toISOString());
+      expect(deserialized.type).toBe(original.type);
+      expect(deserialized.aggregateId).toBe(original.aggregateId);
+      expect(deserialized.aggregateType).toBe(original.aggregateType);
+      expect(deserialized.timestamp.toISOString()).toBe(original.timestamp.toISOString());
     });
 
     it("should serialize and deserialize analytics events with periods", () => {
@@ -45,8 +44,8 @@ describe("Integration Tests", () => {
 
       // Note: Nested dates in period won't be deserialized automatically
       // This tests current behavior
-      assert.strictEqual(typeof deserialized.data.period.start, "string");
-      assert.strictEqual(typeof deserialized.data.period.end, "string");
+      expect(typeof deserialized.data.period.start).toBe("string");
+      expect(typeof deserialized.data.period.end).toBe("string");
     });
   });
 
@@ -67,9 +66,9 @@ describe("Integration Tests", () => {
         { source: "OAuth" }
       );
 
-      assert.notStrictEqual(postEvent.id, channelEvent.id);
-      assert.strictEqual(postEvent.aggregateType, "Post");
-      assert.strictEqual(channelEvent.aggregateType, "Channel");
+      expect(postEvent.id).not.toBe(channelEvent.id);
+      expect(postEvent.aggregateType).toBe("Post");
+      expect(channelEvent.aggregateType).toBe("Channel");
     });
   });
 
@@ -89,9 +88,9 @@ describe("Integration Tests", () => {
         shares: 2,
       });
 
-      assert.strictEqual(postEvent.aggregateType, "Post");
-      assert.strictEqual(analyticsEvent.aggregateType, "Post");
-      assert.strictEqual(postEvent.aggregateId, analyticsEvent.aggregateId);
+      expect(postEvent.aggregateType).toBe("Post");
+      expect(analyticsEvent.aggregateType).toBe("Post");
+      expect(postEvent.aggregateId).toBe(analyticsEvent.aggregateId);
     });
 
     it("should use consistent version number across all helpers", () => {
@@ -117,10 +116,10 @@ describe("Integration Tests", () => {
         shares: 2,
       });
 
-      assert.strictEqual(postEvent.version, 1);
-      assert.strictEqual(channelEvent.version, 1);
-      assert.strictEqual(userEvent.version, 1);
-      assert.strictEqual(analyticsEvent.version, 1);
+      expect(postEvent.version).toBe(1);
+      expect(channelEvent.version).toBe(1);
+      expect(userEvent.version).toBe(1);
+      expect(analyticsEvent.version).toBe(1);
     });
   });
 });

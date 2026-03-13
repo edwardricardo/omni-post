@@ -38,8 +38,7 @@
  * @category UnitTests
  */
 
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { createHmac } from "crypto";
 import { TikTokWebhookProcessor } from "../../../src/webhooks/processors/tiktokWebhookProcessor.js";
 
@@ -55,11 +54,11 @@ function generateHmacSignature(payload: string, secret: string): string {
 // Signature Verification Tests (8 tests)
 // ===========================
 
-describe("TikTokWebhookProcessor - Signature Verification", { concurrency: 1 }, () => {
+describe("TikTokWebhookProcessor - Signature Verification", () => {
   let processor: TikTokWebhookProcessor;
   const testSecret = "test-tiktok-client-secret";
 
-  before(() => {
+  beforeAll(() => {
     processor = new TikTokWebhookProcessor();
   });
 
@@ -68,7 +67,7 @@ describe("TikTokWebhookProcessor - Signature Verification", { concurrency: 1 }, 
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha256=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should verify valid webhook signature without sha256= prefix", () => {
@@ -76,7 +75,7 @@ describe("TikTokWebhookProcessor - Signature Verification", { concurrency: 1 }, 
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should reject invalid signature", () => {
@@ -84,7 +83,7 @@ describe("TikTokWebhookProcessor - Signature Verification", { concurrency: 1 }, 
     const invalidSignature = "sha256=invalid-signature-value";
 
     const isValid = processor.verify(payload, invalidSignature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should reject signature with tampered payload", () => {
@@ -93,7 +92,7 @@ describe("TikTokWebhookProcessor - Signature Verification", { concurrency: 1 }, 
 
     const tamperedPayload = JSON.stringify({ test: "tampered" });
     const isValid = processor.verify(tamperedPayload, signature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should reject signature with wrong secret", () => {
@@ -101,7 +100,7 @@ describe("TikTokWebhookProcessor - Signature Verification", { concurrency: 1 }, 
     const signature = generateHmacSignature(payload, "wrong-secret");
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should handle empty payload", () => {
@@ -109,7 +108,7 @@ describe("TikTokWebhookProcessor - Signature Verification", { concurrency: 1 }, 
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should handle special characters in payload", () => {
@@ -117,7 +116,7 @@ describe("TikTokWebhookProcessor - Signature Verification", { concurrency: 1 }, 
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha256=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should use constant-time comparison", () => {
@@ -127,7 +126,7 @@ describe("TikTokWebhookProcessor - Signature Verification", { concurrency: 1 }, 
     // Test multiple attempts to verify timing consistency
     for (let i = 0; i < 10; i++) {
       const isValid = processor.verify(payload, correctSignature, testSecret);
-      assert.strictEqual(isValid, true);
+      expect(isValid).toBe(true);
     }
   });
 });
@@ -136,10 +135,10 @@ describe("TikTokWebhookProcessor - Signature Verification", { concurrency: 1 }, 
 // Video Create Event Parsing Tests (5 tests)
 // ===========================
 
-describe("TikTokWebhookProcessor - Video Create Event Parsing", { concurrency: 1 }, () => {
+describe("TikTokWebhookProcessor - Video Create Event Parsing", () => {
   let processor: TikTokWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new TikTokWebhookProcessor();
   });
 
@@ -165,14 +164,14 @@ describe("TikTokWebhookProcessor - Video Create Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_PUBLISHED");
-    assert.strictEqual(result.normalizedData.eventType, "video_created");
-    assert.strictEqual(result.normalizedData.videoId, "video-123");
-    assert.strictEqual(result.normalizedData.userId, "user-456");
-    assert.strictEqual(result.normalizedData.title, "Test TikTok Video");
-    assert.strictEqual(result.normalizedData.description, "Amazing content!");
-    assert.strictEqual(result.normalizedData.duration, 30);
-    assert.strictEqual(result.normalizedData.isPrivate, false);
+    expect(result.eventType).toBe("POST_PUBLISHED");
+    expect(result.normalizedData.eventType).toBe("video_created");
+    expect(result.normalizedData.videoId).toBe("video-123");
+    expect(result.normalizedData.userId).toBe("user-456");
+    expect(result.normalizedData.title).toBe("Test TikTok Video");
+    expect(result.normalizedData.description).toBe("Amazing content!");
+    expect(result.normalizedData.duration).toBe(30);
+    expect(result.normalizedData.isPrivate).toBe(false);
   });
 
   it("should parse video.publish event", async () => {
@@ -191,8 +190,8 @@ describe("TikTokWebhookProcessor - Video Create Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_PUBLISHED");
-    assert.strictEqual(result.normalizedData.videoId, "video-789");
+    expect(result.eventType).toBe("POST_PUBLISHED");
+    expect(result.normalizedData.videoId).toBe("video-789");
   });
 
   it("should handle video with author_id instead of user_id", async () => {
@@ -210,7 +209,7 @@ describe("TikTokWebhookProcessor - Video Create Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.userId, "author-222");
+    expect(result.normalizedData.userId).toBe("author-222");
   });
 
   it("should handle private video flag", async () => {
@@ -229,7 +228,7 @@ describe("TikTokWebhookProcessor - Video Create Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.isPrivate, true);
+    expect(result.normalizedData.isPrivate).toBe(true);
   });
 
   it("should extract all video metadata fields", async () => {
@@ -254,11 +253,11 @@ describe("TikTokWebhookProcessor - Video Create Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.coverUrl, "https://tiktok.com/covers/full.jpg");
-    assert.strictEqual(result.normalizedData.videoUrl, "https://tiktok.com/videos/full");
-    assert.strictEqual(result.normalizedData.shareUrl, "https://tiktok.com/share/full");
-    assert.strictEqual(result.normalizedData.createdAt, "2024-01-15T14:00:00Z");
-    assert.strictEqual(result.normalizedData.publishedAt, "2024-01-15T14:05:00Z");
+    expect(result.normalizedData.coverUrl).toBe("https://tiktok.com/covers/full.jpg");
+    expect(result.normalizedData.videoUrl).toBe("https://tiktok.com/videos/full");
+    expect(result.normalizedData.shareUrl).toBe("https://tiktok.com/share/full");
+    expect(result.normalizedData.createdAt).toBe("2024-01-15T14:00:00Z");
+    expect(result.normalizedData.publishedAt).toBe("2024-01-15T14:05:00Z");
   });
 });
 
@@ -266,10 +265,10 @@ describe("TikTokWebhookProcessor - Video Create Event Parsing", { concurrency: 1
 // Video Remove Event Parsing Tests (3 tests)
 // ===========================
 
-describe("TikTokWebhookProcessor - Video Remove Event Parsing", { concurrency: 1 }, () => {
+describe("TikTokWebhookProcessor - Video Remove Event Parsing", () => {
   let processor: TikTokWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new TikTokWebhookProcessor();
   });
 
@@ -288,12 +287,12 @@ describe("TikTokWebhookProcessor - Video Remove Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_DELETED");
-    assert.strictEqual(result.normalizedData.eventType, "video_removed");
-    assert.strictEqual(result.normalizedData.videoId, "video-removed");
-    assert.strictEqual(result.normalizedData.userId, "user-555");
-    assert.strictEqual(result.normalizedData.removedAt, "2024-01-15T15:00:00Z");
-    assert.strictEqual(result.normalizedData.reason, "user_deleted");
+    expect(result.eventType).toBe("POST_DELETED");
+    expect(result.normalizedData.eventType).toBe("video_removed");
+    expect(result.normalizedData.videoId).toBe("video-removed");
+    expect(result.normalizedData.userId).toBe("user-555");
+    expect(result.normalizedData.removedAt).toBe("2024-01-15T15:00:00Z");
+    expect(result.normalizedData.reason).toBe("user_deleted");
   });
 
   it("should parse video.delete event", async () => {
@@ -310,8 +309,8 @@ describe("TikTokWebhookProcessor - Video Remove Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_DELETED");
-    assert.strictEqual(result.normalizedData.videoId, "video-deleted");
+    expect(result.eventType).toBe("POST_DELETED");
+    expect(result.normalizedData.videoId).toBe("video-deleted");
   });
 
   it("should use current timestamp if removal time not provided", async () => {
@@ -331,8 +330,8 @@ describe("TikTokWebhookProcessor - Video Remove Event Parsing", { concurrency: 1
 
     const afterTime = new Date().toISOString();
 
-    assert.ok(result.normalizedData.removedAt >= beforeTime);
-    assert.ok(result.normalizedData.removedAt <= afterTime);
+    expect(result.normalizedData.removedAt >= beforeTime).toBeTruthy();
+    expect(result.normalizedData.removedAt <= afterTime).toBeTruthy();
   });
 });
 
@@ -340,10 +339,10 @@ describe("TikTokWebhookProcessor - Video Remove Event Parsing", { concurrency: 1
 // Comment Event Parsing Tests (4 tests)
 // ===========================
 
-describe("TikTokWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, () => {
+describe("TikTokWebhookProcessor - Comment Event Parsing", () => {
   let processor: TikTokWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new TikTokWebhookProcessor();
   });
 
@@ -365,14 +364,14 @@ describe("TikTokWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, (
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "comment_received");
-    assert.strictEqual(result.normalizedData.commentId, "comment-123");
-    assert.strictEqual(result.normalizedData.videoId, "video-456");
-    assert.strictEqual(result.normalizedData.text, "Great video!");
-    assert.strictEqual(result.normalizedData.username, "commenter_username");
-    assert.strictEqual(result.normalizedData.isReply, false);
-    assert.strictEqual(result.normalizedData.likeCount, 10);
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("comment_received");
+    expect(result.normalizedData.commentId).toBe("comment-123");
+    expect(result.normalizedData.videoId).toBe("video-456");
+    expect(result.normalizedData.text).toBe("Great video!");
+    expect(result.normalizedData.username).toBe("commenter_username");
+    expect(result.normalizedData.isReply).toBe(false);
+    expect(result.normalizedData.likeCount).toBe(10);
   });
 
   it("should parse comment.reply event", async () => {
@@ -394,10 +393,10 @@ describe("TikTokWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, (
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "comment_reply_received");
-    assert.strictEqual(result.normalizedData.isReply, true);
-    assert.strictEqual(result.normalizedData.parentId, "comment-123");
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("comment_reply_received");
+    expect(result.normalizedData.isReply).toBe(true);
+    expect(result.normalizedData.parentId).toBe("comment-123");
   });
 
   it("should handle alternative field names for comments", async () => {
@@ -417,10 +416,10 @@ describe("TikTokWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, (
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.commentId, "comment-alt");
-    assert.strictEqual(result.normalizedData.text, "Alternative field names");
-    assert.strictEqual(result.normalizedData.userId, "user-222");
-    assert.strictEqual(result.normalizedData.username, "alt_user");
+    expect(result.normalizedData.commentId).toBe("comment-alt");
+    expect(result.normalizedData.text).toBe("Alternative field names");
+    expect(result.normalizedData.userId).toBe("user-222");
+    expect(result.normalizedData.username).toBe("alt_user");
   });
 
   it("should default like count to zero if not provided", async () => {
@@ -439,7 +438,7 @@ describe("TikTokWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, (
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.likeCount, 0);
+    expect(result.normalizedData.likeCount).toBe(0);
   });
 });
 
@@ -447,10 +446,10 @@ describe("TikTokWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, (
 // Authorization Revoke Event Parsing Tests (3 tests)
 // ===========================
 
-describe("TikTokWebhookProcessor - Authorization Revoke Event Parsing", { concurrency: 1 }, () => {
+describe("TikTokWebhookProcessor - Authorization Revoke Event Parsing", () => {
   let processor: TikTokWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new TikTokWebhookProcessor();
   });
 
@@ -469,12 +468,12 @@ describe("TikTokWebhookProcessor - Authorization Revoke Event Parsing", { concur
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "ACCOUNT_DISCONNECTED");
-    assert.strictEqual(result.normalizedData.eventType, "auth_revoked");
-    assert.strictEqual(result.normalizedData.userId, "user-123");
-    assert.strictEqual(result.normalizedData.revokedAt, "2024-01-15T21:00:00Z");
-    assert.strictEqual(result.normalizedData.reason, "user_revoked");
-    assert.deepStrictEqual(result.normalizedData.scopes, ["user.info.basic", "video.list"]);
+    expect(result.eventType).toBe("ACCOUNT_DISCONNECTED");
+    expect(result.normalizedData.eventType).toBe("auth_revoked");
+    expect(result.normalizedData.userId).toBe("user-123");
+    expect(result.normalizedData.revokedAt).toBe("2024-01-15T21:00:00Z");
+    expect(result.normalizedData.reason).toBe("user_revoked");
+    expect(result.normalizedData.scopes).toStrictEqual(["user.info.basic", "video.list"]);
   });
 
   it("should handle open_id field for user identification", async () => {
@@ -490,7 +489,7 @@ describe("TikTokWebhookProcessor - Authorization Revoke Event Parsing", { concur
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.userId, "open-id-456");
+    expect(result.normalizedData.userId).toBe("open-id-456");
   });
 
   it("should use current timestamp if revoke time not provided", async () => {
@@ -509,8 +508,8 @@ describe("TikTokWebhookProcessor - Authorization Revoke Event Parsing", { concur
 
     const afterTime = new Date().toISOString();
 
-    assert.ok(result.normalizedData.revokedAt >= beforeTime);
-    assert.ok(result.normalizedData.revokedAt <= afterTime);
+    expect(result.normalizedData.revokedAt >= beforeTime).toBeTruthy();
+    expect(result.normalizedData.revokedAt <= afterTime).toBeTruthy();
   });
 });
 
@@ -518,10 +517,10 @@ describe("TikTokWebhookProcessor - Authorization Revoke Event Parsing", { concur
 // Video Statistics Event Parsing Tests (4 tests)
 // ===========================
 
-describe("TikTokWebhookProcessor - Video Statistics Event Parsing", { concurrency: 1 }, () => {
+describe("TikTokWebhookProcessor - Video Statistics Event Parsing", () => {
   let processor: TikTokWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new TikTokWebhookProcessor();
   });
 
@@ -544,14 +543,14 @@ describe("TikTokWebhookProcessor - Video Statistics Event Parsing", { concurrenc
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_ENGAGEMENT_UPDATE");
-    assert.strictEqual(result.normalizedData.eventType, "video_statistics_update");
-    assert.strictEqual(result.normalizedData.videoId, "video-stats");
-    assert.strictEqual(result.normalizedData.views, 50000);
-    assert.strictEqual(result.normalizedData.likes, 2500);
-    assert.strictEqual(result.normalizedData.comments, 300);
-    assert.strictEqual(result.normalizedData.shares, 150);
-    assert.strictEqual(result.normalizedData.saves, 100);
+    expect(result.eventType).toBe("POST_ENGAGEMENT_UPDATE");
+    expect(result.normalizedData.eventType).toBe("video_statistics_update");
+    expect(result.normalizedData.videoId).toBe("video-stats");
+    expect(result.normalizedData.views).toBe(50000);
+    expect(result.normalizedData.likes).toBe(2500);
+    expect(result.normalizedData.comments).toBe(300);
+    expect(result.normalizedData.shares).toBe(150);
+    expect(result.normalizedData.saves).toBe(100);
   });
 
   it("should handle alternative field names for statistics", async () => {
@@ -572,8 +571,8 @@ describe("TikTokWebhookProcessor - Video Statistics Event Parsing", { concurrenc
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.views, 75000);
-    assert.strictEqual(result.normalizedData.saves, 150);
+    expect(result.normalizedData.views).toBe(75000);
+    expect(result.normalizedData.saves).toBe(150);
   });
 
   it("should default statistics to zero if not provided", async () => {
@@ -589,10 +588,10 @@ describe("TikTokWebhookProcessor - Video Statistics Event Parsing", { concurrenc
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.views, 0);
-    assert.strictEqual(result.normalizedData.likes, 0);
-    assert.strictEqual(result.normalizedData.comments, 0);
-    assert.strictEqual(result.normalizedData.shares, 0);
+    expect(result.normalizedData.views).toBe(0);
+    expect(result.normalizedData.likes).toBe(0);
+    expect(result.normalizedData.comments).toBe(0);
+    expect(result.normalizedData.shares).toBe(0);
   });
 
   it("should use current timestamp if captured_at not provided", async () => {
@@ -613,8 +612,8 @@ describe("TikTokWebhookProcessor - Video Statistics Event Parsing", { concurrenc
 
     const afterTime = new Date().toISOString();
 
-    assert.ok(result.normalizedData.capturedAt >= beforeTime);
-    assert.ok(result.normalizedData.capturedAt <= afterTime);
+    expect(result.normalizedData.capturedAt >= beforeTime).toBeTruthy();
+    expect(result.normalizedData.capturedAt <= afterTime).toBeTruthy();
   });
 });
 
@@ -622,23 +621,18 @@ describe("TikTokWebhookProcessor - Video Statistics Event Parsing", { concurrenc
 // Error Handling Tests (3 tests)
 // ===========================
 
-describe("TikTokWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
+describe("TikTokWebhookProcessor - Error Handling", () => {
   let processor: TikTokWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new TikTokWebhookProcessor();
   });
 
   it("should throw error for missing event in payload", async () => {
     const payload = { data: "test" };
 
-    await assert.rejects(
-      async () => {
-        await processor.parse(payload);
-      },
-      {
-        message: "Invalid TikTok webhook payload: missing event",
-      }
+    await expect(processor.parse(payload)).rejects.toThrow(
+      "Invalid TikTok webhook payload: missing event"
     );
   });
 
@@ -652,8 +646,8 @@ describe("TikTokWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_UPDATED");
-    assert.strictEqual(result.normalizedData.eventType, "unknown.event.type");
+    expect(result.eventType).toBe("POST_UPDATED");
+    expect(result.normalizedData.eventType).toBe("unknown.event.type");
   });
 
   it("should handle verification errors gracefully", () => {
@@ -661,7 +655,7 @@ describe("TikTokWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
 
     // This should return false instead of throwing
     const isValid = processor.verify("invalid\x00data", "signature", "secret");
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 });
 
@@ -669,10 +663,10 @@ describe("TikTokWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
 // Event Type Field Handling Tests (2 tests)
 // ===========================
 
-describe("TikTokWebhookProcessor - Event Type Field Handling", { concurrency: 1 }, () => {
+describe("TikTokWebhookProcessor - Event Type Field Handling", () => {
   let processor: TikTokWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new TikTokWebhookProcessor();
   });
 
@@ -690,7 +684,7 @@ describe("TikTokWebhookProcessor - Event Type Field Handling", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_PUBLISHED");
+    expect(result.eventType).toBe("POST_PUBLISHED");
   });
 
   it("should handle event.event_type field as fallback", async () => {
@@ -707,7 +701,7 @@ describe("TikTokWebhookProcessor - Event Type Field Handling", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_PUBLISHED");
+    expect(result.eventType).toBe("POST_PUBLISHED");
   });
 });
 
@@ -715,10 +709,10 @@ describe("TikTokWebhookProcessor - Event Type Field Handling", { concurrency: 1 
 // Completion Rate Handling Test (1 test)
 // ===========================
 
-describe("TikTokWebhookProcessor - Completion Rate Handling", { concurrency: 1 }, () => {
+describe("TikTokWebhookProcessor - Completion Rate Handling", () => {
   let processor: TikTokWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new TikTokWebhookProcessor();
   });
 
@@ -738,7 +732,7 @@ describe("TikTokWebhookProcessor - Completion Rate Handling", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.completionRate, 0.75);
+    expect(result.normalizedData.completionRate).toBe(0.75);
   });
 });
 

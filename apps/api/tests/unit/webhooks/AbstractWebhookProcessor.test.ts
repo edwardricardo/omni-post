@@ -3,8 +3,7 @@
  * TDD - RED Phase: Tests for the webhook processor base class
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { createHmac } from "crypto";
 import {
   AbstractWebhookProcessor,
@@ -52,7 +51,7 @@ class TestWebhookProcessor extends AbstractWebhookProcessor {
   }
 }
 
-describe("AbstractWebhookProcessor", { concurrency: 1 }, () => {
+describe("AbstractWebhookProcessor", () => {
   let processor: TestWebhookProcessor;
   const testSecret = "test-webhook-secret";
 
@@ -70,7 +69,7 @@ describe("AbstractWebhookProcessor", { concurrency: 1 }, () => {
 
       const result = processor.verify(payload, signature, testSecret);
 
-      assert.strictEqual(result, true, "Valid signature should be verified");
+      expect(result).toBe(true);
     });
 
     it("should reject invalid signature", () => {
@@ -79,7 +78,7 @@ describe("AbstractWebhookProcessor", { concurrency: 1 }, () => {
 
       const result = processor.verify(payload, signature, testSecret);
 
-      assert.strictEqual(result, false, "Invalid signature should be rejected");
+      expect(result).toBe(false);
     });
 
     it("should handle signature without prefix", () => {
@@ -90,7 +89,7 @@ describe("AbstractWebhookProcessor", { concurrency: 1 }, () => {
 
       const result = processor.verify(payload, expectedSignature, testSecret);
 
-      assert.strictEqual(result, true, "Signature without prefix should work");
+      expect(result).toBe(true);
     });
 
     it("should reject empty signature", () => {
@@ -98,7 +97,7 @@ describe("AbstractWebhookProcessor", { concurrency: 1 }, () => {
 
       const result = processor.verify(payload, "", testSecret);
 
-      assert.strictEqual(result, false, "Empty signature should be rejected");
+      expect(result).toBe(false);
     });
 
     it("should use constant-time comparison (timing attack prevention)", () => {
@@ -110,8 +109,8 @@ describe("AbstractWebhookProcessor", { concurrency: 1 }, () => {
       const validResult = processor.verify(payload, `sha256=${validSig}`, testSecret);
       const invalidResult = processor.verify(payload, `sha256=${invalidSig}`, testSecret);
 
-      assert.strictEqual(validResult, true);
-      assert.strictEqual(invalidResult, false);
+      expect(validResult).toBe(true);
+      expect(invalidResult).toBe(false);
     });
   });
 
@@ -121,9 +120,9 @@ describe("AbstractWebhookProcessor", { concurrency: 1 }, () => {
 
       const result = await processor.parse(payload);
 
-      assert.strictEqual(result.eventType, "POST_PUBLISHED");
-      assert.strictEqual(result.normalizedData.eventType, "POST_PUBLISHED");
-      assert.strictEqual(result.normalizedData.postId, "123");
+      expect(result.eventType).toBe("POST_PUBLISHED");
+      expect(result.normalizedData.eventType).toBe("POST_PUBLISHED");
+      expect(result.normalizedData.postId).toBe("123");
     });
 
     it("should include related entities in parse result", async () => {
@@ -131,10 +130,10 @@ describe("AbstractWebhookProcessor", { concurrency: 1 }, () => {
 
       const result = await processor.parse(payload);
 
-      assert.ok(result.relatedEntities, "Should include relatedEntities");
-      assert.strictEqual(result.relatedEntities.accountId, "test-account");
-      assert.strictEqual(result.relatedEntities.projectId, "test-project");
-      assert.strictEqual(result.relatedEntities.channelId, "test-channel");
+      expect(result.relatedEntities).toBeTruthy();
+      expect(result.relatedEntities.accountId).toBe("test-account");
+      expect(result.relatedEntities.projectId).toBe("test-project");
+      expect(result.relatedEntities.channelId).toBe("test-channel");
     });
   });
 
@@ -169,22 +168,18 @@ describe("AbstractWebhookProcessor", { concurrency: 1 }, () => {
       await trackingProcessor.process(normalizedData, entities);
 
       // processEvent should NOT be called when there are no related entities
-      assert.strictEqual(
-        processEventCalled,
-        false,
-        "Should not call processEvent when no related entities"
-      );
+      expect(processEventCalled).toBe(false);
     });
   });
 
   describe("getProviderId()", () => {
     it("should return the provider ID", () => {
-      assert.strictEqual(processor.getProviderId(), "FACEBOOK");
+      expect(processor.getProviderId()).toBe("FACEBOOK");
     });
   });
 });
 
-describe("AbstractWebhookProcessor with base64 encoding", { concurrency: 1 }, () => {
+describe("AbstractWebhookProcessor with base64 encoding", () => {
   class Base64WebhookProcessor extends AbstractWebhookProcessor {
     protected override providerId = "X" as const; // Use valid Provider enum value (X uses base64)
     protected override signaturePrefix = "sha256=";
@@ -215,19 +210,19 @@ describe("AbstractWebhookProcessor with base64 encoding", { concurrency: 1 }, ()
 
     const result = processor.verify(payload, `sha256=${expectedSignature}`, secret);
 
-    assert.strictEqual(result, true, "Base64 signature should be verified");
+    expect(result).toBe(true);
   });
 });
 
-describe("AbstractWebhookProcessor with broadcaster", { concurrency: 1 }, () => {
+describe("AbstractWebhookProcessor with broadcaster", () => {
   it("should accept broadcaster in constructor", (t) => {
     const mockBroadcaster = {
-      broadcastPostStatusChange: t.mock.fn(),
-      broadcastEngagementUpdate: t.mock.fn(),
+      broadcastPostStatusChange: vi.fn(),
+      broadcastEngagementUpdate: vi.fn(),
     };
 
     const processor = new TestWebhookProcessor(mockBroadcaster as any);
 
-    assert.ok(processor, "Should create processor with broadcaster");
+    expect(processor).toBeTruthy();
   });
 });

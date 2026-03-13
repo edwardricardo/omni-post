@@ -11,8 +11,7 @@
  * - Error Handling (timeout fallback, detailed error info)
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import type { AIMessage } from "../../src/ai/types.js";
 import {
   createOrchestrator,
@@ -26,18 +25,18 @@ import {
 // Suite
 // ---------------------------------------------------------------------------
 
-describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
+describe("AIOrchestrator — Content & Errors", () => {
   let envSnapshot: Record<string, string | undefined>;
 
   // Suppress console.log from AIOrchestrator source (would corrupt TAP output)
   let _originalConsoleLog: typeof console.log;
-  before(() => {
+  beforeAll(() => {
     _originalConsoleLog = console.log;
     console.log = () => {};
     envSnapshot = captureAndClearAIEnv();
   });
 
-  after(() => {
+  afterAll(() => {
     console.log = _originalConsoleLog;
     restoreAIEnv(envSnapshot);
     unrefActiveHandles();
@@ -56,7 +55,7 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
   // Content Generation
   // -------------------------------------------------------------------------
 
-  describe("Content Generation", { concurrency: 1 }, () => {
+  describe("Content Generation", () => {
     it("should generate text content", async () => {
       const messages: AIMessage[] = [
         { role: "system", content: "You are a helpful assistant" },
@@ -65,11 +64,11 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
 
       const result = await orchestrator.generateContent(messages);
 
-      assert.strictEqual(result.ok, true, "Should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.ok(result.value, "Should have generated content");
-        assert.ok(typeof result.value === "string", "Should return string");
-        assert.ok(result.value.includes("AI"), "Should include requested topic");
+        expect(result.value).toBeTruthy();
+        expect(typeof result.value === "string").toBeTruthy();
+        expect(result.value.includes("AI")).toBeTruthy();
       }
     });
 
@@ -79,7 +78,7 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
 
       await orchestrator.generateContent(messages, options);
 
-      assert.strictEqual(mockOpenAI.callCount, 1, "Should call provider");
+      expect(mockOpenAI.callCount).toBe(1);
     });
   });
 
@@ -87,15 +86,15 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
   // Content Analysis
   // -------------------------------------------------------------------------
 
-  describe("Content Analysis", { concurrency: 1 }, () => {
+  describe("Content Analysis", () => {
     it("should analyze content sentiment", async () => {
       const result = await orchestrator.analyzeContent("This is great content!", "sentiment");
 
-      assert.strictEqual(result.ok, true, "Should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.ok(result.value.sentiment, "Should have sentiment analysis");
-        assert.strictEqual(result.value.sentiment?.label, "positive");
-        assert.ok(result.value.sentiment?.confidence > 0.5);
+        expect(result.value.sentiment).toBeTruthy();
+        expect(result.value.sentiment?.label).toBe("positive");
+        expect(result.value.sentiment?.confidence > 0.5).toBeTruthy();
       }
     });
 
@@ -114,9 +113,9 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
           cacheResults: false,
         });
 
-        assert.strictEqual(result.ok, true, `Should analyze ${type}`);
-        assert.ok(mockOpenAI.lastRequest, `Should have called provider for ${type}`);
-        assert.strictEqual(mockOpenAI.lastRequest.analysisType, type);
+        expect(result.ok).toBe(true);
+        expect(mockOpenAI.lastRequest).toBeTruthy();
+        expect(mockOpenAI.lastRequest.analysisType).toBe(type);
       }
     });
   });
@@ -125,16 +124,16 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
   // Content Optimization
   // -------------------------------------------------------------------------
 
-  describe("Content Optimization", { concurrency: 1 }, () => {
+  describe("Content Optimization", () => {
     it("should optimize content for platform", async () => {
       const result = await orchestrator.optimizeContent("Test content", "twitter");
 
-      assert.strictEqual(result.ok, true, "Should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.ok(result.value.optimizedText, "Should have optimized text");
-        assert.ok(Array.isArray(result.value.changes), "Should have changes list");
-        assert.ok(Array.isArray(result.value.hashtags), "Should have hashtags");
-        assert.ok(result.value.platformSpecific, "Should have platform-specific data");
+        expect(result.value.optimizedText).toBeTruthy();
+        expect(Array.isArray(result.value.changes)).toBeTruthy();
+        expect(Array.isArray(result.value.hashtags)).toBeTruthy();
+        expect(result.value.platformSpecific).toBeTruthy();
       }
     });
 
@@ -145,8 +144,8 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
         "Professional and authoritative"
       );
 
-      assert.strictEqual(result.ok, true, "Should succeed");
-      assert.ok(mockOpenAI.lastRequest, "Should have called provider");
+      expect(result.ok).toBe(true);
+      expect(mockOpenAI.lastRequest).toBeTruthy();
     });
   });
 
@@ -154,16 +153,16 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
   // Performance Prediction
   // -------------------------------------------------------------------------
 
-  describe("Performance Prediction", { concurrency: 1 }, () => {
+  describe("Performance Prediction", () => {
     it("should predict content performance", async () => {
       const result = await orchestrator.predictPerformance("Great content about tech", "twitter");
 
-      assert.strictEqual(result.ok, true, "Should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.ok(result.value.metrics, "Should have metrics");
-        assert.ok(result.value.metrics.expectedEngagement, "Should have engagement prediction");
-        assert.ok(result.value.metrics.expectedReach, "Should have reach prediction");
-        assert.ok(result.value.optimalTiming, "Should have timing recommendation");
+        expect(result.value.metrics).toBeTruthy();
+        expect(result.value.metrics.expectedEngagement).toBeTruthy();
+        expect(result.value.metrics.expectedReach).toBeTruthy();
+        expect(result.value.optimalTiming).toBeTruthy();
       }
     });
 
@@ -179,8 +178,8 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
         historicalData
       );
 
-      assert.strictEqual(result.ok, true, "Should succeed");
-      assert.ok(mockPerplexity.lastRequest, "Should call provider");
+      expect(result.ok).toBe(true);
+      expect(mockPerplexity.lastRequest).toBeTruthy();
     });
   });
 
@@ -188,14 +187,14 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
   // Content Variations
   // -------------------------------------------------------------------------
 
-  describe("Content Variations", { concurrency: 1 }, () => {
+  describe("Content Variations", () => {
     it("should generate content variations", async () => {
       const result = await orchestrator.generateVariations("Original content", "tone", 3);
 
-      assert.strictEqual(result.ok, true, "Should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.ok(Array.isArray(result.value), "Should return array");
-        assert.strictEqual(result.value.length, 3, "Should generate requested count");
+        expect(Array.isArray(result.value)).toBeTruthy();
+        expect(result.value.length).toBe(3);
       }
     });
 
@@ -209,9 +208,9 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
           cacheResults: false,
         });
 
-        assert.strictEqual(result.ok, true, `Should generate ${type} variations`);
+        expect(result.ok).toBe(true);
         if (result.ok) {
-          assert.strictEqual(result.value.length, 2, `Should generate 2 ${type} variations`);
+          expect(result.value.length).toBe(2);
         }
       }
     });
@@ -221,10 +220,8 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
   // Error Handling
   // -------------------------------------------------------------------------
 
-  describe("Error Handling", { concurrency: 1 }, () => {
-    it("should handle provider timeout gracefully", async (t) => {
-      t.timeout = 10000;
-
+  describe("Error Handling", () => {
+    it("should handle provider timeout gracefully", { timeout: 10000 }, async () => {
       // Create slow provider (2s latency — will be outrun by fallback providers)
       const slowProvider = new MockAIProvider("openai", true, false, 2000);
       (orchestrator as any).providers.set("openai", slowProvider);
@@ -234,12 +231,10 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
       // Should timeout and fallback — slow provider will take too long
       const result = await orchestrator.generateContent(messages, { cacheResults: false });
 
-      assert.strictEqual(result.ok, true, "Should fallback on timeout");
+      expect(result.ok).toBe(true);
     });
 
-    it("should provide detailed error information", async (t) => {
-      t.timeout = 15000;
-
+    it("should provide detailed error information", { timeout: 15000 }, async () => {
       mockOpenAI.setShouldFail(true);
       // Note: we need a fresh fixture here since mockPerplexity/mockGemini come from createOrchestrator
       const { orchestrator: failOrchestrator } = createOrchestrator();
@@ -253,16 +248,12 @@ describe("AIOrchestrator — Content & Errors", { concurrency: 1 }, () => {
       const messages: AIMessage[] = [{ role: "user", content: "Test" }];
       const result = await failOrchestrator.generateContent(messages, { retryAttempts: 2 });
 
-      assert.strictEqual(result.ok, false, "Should fail");
+      expect(result.ok).toBe(false);
       if (!result.ok) {
-        assert.ok(result.error, "Should have error object");
-        assert.ok(result.error.code, "Should have error code");
-        assert.ok(result.error.message, "Should have error message");
-        assert.strictEqual(
-          typeof result.error.retryable,
-          "boolean",
-          "Should indicate retryability"
-        );
+        expect(result.error).toBeTruthy();
+        expect(result.error.code).toBeTruthy();
+        expect(result.error.message).toBeTruthy();
+        expect(typeof result.error.retryable).toBe("boolean");
       }
     });
   });

@@ -5,8 +5,7 @@
  * behavior, timestamp preservation, and end-to-end business logic coordination.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import type { Provider, WebhookEventType } from "@infra/prisma";
 import {
   createTestJobData,
@@ -37,13 +36,13 @@ describe("WebhookJobProcessor - Job Data Payload and Headers", () => {
 
       const jobData = createTestJobData({ payload: complexPayload });
 
-      assert.deepStrictEqual(jobData.payload, complexPayload);
+      expect(jobData.payload).toStrictEqual(complexPayload);
     });
 
     it("should accept empty payload object", () => {
       const jobData = createTestJobData({ payload: {} });
 
-      assert.deepStrictEqual(jobData.payload, {});
+      expect(jobData.payload).toStrictEqual({});
     });
 
     it("should preserve nested payload structure", () => {
@@ -59,7 +58,7 @@ describe("WebhookJobProcessor - Job Data Payload and Headers", () => {
 
       const jobData = createTestJobData({ payload: nestedPayload });
 
-      assert.strictEqual(jobData.payload.level1.level2.level3.value, "deep nested value");
+      expect(jobData.payload.level1.level2.level3.value).toBe("deep nested value");
     });
   });
 
@@ -74,13 +73,13 @@ describe("WebhookJobProcessor - Job Data Payload and Headers", () => {
 
       const jobData = createTestJobData({ headers });
 
-      assert.deepStrictEqual(jobData.headers, headers);
+      expect(jobData.headers).toStrictEqual(headers);
     });
 
     it("should accept empty headers object", () => {
       const jobData = createTestJobData({ headers: {} });
 
-      assert.deepStrictEqual(jobData.headers, {});
+      expect(jobData.headers).toStrictEqual({});
     });
 
     it("should preserve case-sensitive header names", () => {
@@ -91,8 +90,8 @@ describe("WebhookJobProcessor - Job Data Payload and Headers", () => {
 
       const jobData = createTestJobData({ headers });
 
-      assert.strictEqual(jobData.headers["X-Custom-Header"], "value1");
-      assert.strictEqual(jobData.headers["x-custom-header"], "value2");
+      expect(jobData.headers["X-Custom-Header"]).toBe("value1");
+      expect(jobData.headers["x-custom-header"]).toBe("value2");
     });
   });
 
@@ -100,7 +99,7 @@ describe("WebhookJobProcessor - Job Data Payload and Headers", () => {
     it("should start with retryCount 0 for new jobs", () => {
       const jobData = createTestJobData({ retryCount: 0 });
 
-      assert.strictEqual(jobData.retryCount, 0);
+      expect(jobData.retryCount).toBe(0);
     });
 
     it("should increment retryCount for retried jobs", () => {
@@ -108,15 +107,15 @@ describe("WebhookJobProcessor - Job Data Payload and Headers", () => {
       const jobData2 = createTestJobData({ retryCount: 1 });
       const jobData3 = createTestJobData({ retryCount: 2 });
 
-      assert.strictEqual(jobData1.retryCount, 0);
-      assert.strictEqual(jobData2.retryCount, 1);
-      assert.strictEqual(jobData3.retryCount, 2);
+      expect(jobData1.retryCount).toBe(0);
+      expect(jobData2.retryCount).toBe(1);
+      expect(jobData3.retryCount).toBe(2);
     });
 
     it("should allow high retry counts", () => {
       const jobData = createTestJobData({ retryCount: 10 });
 
-      assert.strictEqual(jobData.retryCount, 10);
+      expect(jobData.retryCount).toBe(10);
     });
   });
 });
@@ -140,10 +139,7 @@ describe("WebhookJobProcessor - Business Logic Integration", () => {
       const engagementPriority = calculateJobPriority(engagementJob);
       const otherPriority = calculateJobPriority(otherJob);
 
-      assert.ok(
-        engagementPriority > otherPriority,
-        "High-priority event should maintain priority regardless of retry count"
-      );
+      expect(engagementPriority > otherPriority).toBeTruthy();
     });
 
     it("should apply appropriate delays to all priority levels", () => {
@@ -165,9 +161,9 @@ describe("WebhookJobProcessor - Business Logic Integration", () => {
       const lowDelay = calculateInitialDelay(lowPriorityJob);
 
       // All should have same delay (20 seconds for retry 3)
-      assert.strictEqual(highDelay, 20000);
-      assert.strictEqual(mediumDelay, 20000);
-      assert.strictEqual(lowDelay, 20000);
+      expect(highDelay).toBe(20000);
+      expect(mediumDelay).toBe(20000);
+      expect(lowDelay).toBe(20000);
     });
   });
 
@@ -187,11 +183,7 @@ describe("WebhookJobProcessor - Business Logic Integration", () => {
       const jobId1 = generateJobId(jobData1);
       const jobId2 = generateJobId(jobData2);
 
-      assert.strictEqual(
-        jobId1,
-        jobId2,
-        "Job ID should remain consistent across retries for idempotency"
-      );
+      expect(jobId1).toBe(jobId2);
     });
 
     it("should ensure unique job IDs per event per provider", () => {
@@ -205,7 +197,7 @@ describe("WebhookJobProcessor - Business Logic Integration", () => {
       const jobIds = jobs.map((job) => generateJobId(createTestJobData(job)));
 
       const uniqueJobIds = new Set(jobIds);
-      assert.strictEqual(uniqueJobIds.size, jobIds.length, "All job IDs should be unique");
+      expect(uniqueJobIds.size).toBe(jobIds.length);
     });
   });
 
@@ -230,11 +222,7 @@ describe("WebhookJobProcessor - Business Logic Integration", () => {
       ];
 
       delays.forEach((delay, index) => {
-        assert.strictEqual(
-          delay,
-          expectedDelays[index],
-          `Retry ${index} should have correct delay`
-        );
+        expect(delay).toBe(expectedDelays[index]);
       });
     });
 
@@ -247,21 +235,21 @@ describe("WebhookJobProcessor - Business Logic Integration", () => {
 
       // Initial attempt
       const attempt0 = createTestJobData({ ...event, retryCount: 0 });
-      assert.strictEqual(calculateJobPriority(attempt0), 10, "High priority maintained");
-      assert.strictEqual(calculateInitialDelay(attempt0), 0, "No initial delay");
-      assert.strictEqual(generateJobId(attempt0), "webhook-X-event-123", "Consistent job ID");
+      expect(calculateJobPriority(attempt0)).toBe(10);
+      expect(calculateInitialDelay(attempt0)).toBe(0);
+      expect(generateJobId(attempt0)).toBe("webhook-X-event-123");
 
       // First retry
       const attempt1 = createTestJobData({ ...event, retryCount: 1 });
-      assert.strictEqual(calculateJobPriority(attempt1), 10, "High priority maintained");
-      assert.strictEqual(calculateInitialDelay(attempt1), 5000, "5s delay for retry 1");
-      assert.strictEqual(generateJobId(attempt1), "webhook-X-event-123", "Same job ID");
+      expect(calculateJobPriority(attempt1)).toBe(10);
+      expect(calculateInitialDelay(attempt1)).toBe(5000);
+      expect(generateJobId(attempt1)).toBe("webhook-X-event-123");
 
       // Second retry
       const attempt2 = createTestJobData({ ...event, retryCount: 2 });
-      assert.strictEqual(calculateJobPriority(attempt2), 10, "High priority maintained");
-      assert.strictEqual(calculateInitialDelay(attempt2), 10000, "10s delay for retry 2");
-      assert.strictEqual(generateJobId(attempt2), "webhook-X-event-123", "Same job ID");
+      expect(calculateJobPriority(attempt2)).toBe(10);
+      expect(calculateInitialDelay(attempt2)).toBe(10000);
+      expect(generateJobId(attempt2)).toBe("webhook-X-event-123");
     });
   });
 });

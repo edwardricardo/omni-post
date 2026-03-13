@@ -13,8 +13,7 @@
  *   Tier-0 tests to avoid needing Redis).
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   IntegrationEventConsumer,
   type IntegrationEventConsumerOptions,
@@ -68,7 +67,7 @@ function makeMockHandler(eventTypes: string[]): IntegrationEventHandler & {
 // IntegrationEventConsumer routing tests
 // ---------------------------------------------------------------------------
 
-describe("IntegrationEventConsumer — routing", { concurrency: 1 }, () => {
+describe("IntegrationEventConsumer — routing", () => {
   it("routes a job to the correct handler based on eventType", async () => {
     const analyticsHandler = makeMockHandler(["PostCreated", "PostPublished"]);
     const webhookHandler = makeMockHandler(["PostCancelled"]);
@@ -81,9 +80,9 @@ describe("IntegrationEventConsumer — routing", { concurrency: 1 }, () => {
     const event = makeEvent("PostCreated");
     await consumer.processJob("PostCreated", event);
 
-    assert.equal(analyticsHandler.handleCalls.length, 1);
-    assert.deepEqual(analyticsHandler.handleCalls[0], event);
-    assert.equal(webhookHandler.handleCalls.length, 0);
+    expect(analyticsHandler.handleCalls.length).toBe(1);
+    expect(analyticsHandler.handleCalls[0]).toEqual(event);
+    expect(webhookHandler.handleCalls.length).toBe(0);
   });
 
   it("routes to multiple handlers when both handle the same event type", async () => {
@@ -98,10 +97,10 @@ describe("IntegrationEventConsumer — routing", { concurrency: 1 }, () => {
     const event = makeEvent("PostPublished");
     await consumer.processJob("PostPublished", event);
 
-    assert.equal(handlerA.handleCalls.length, 1);
-    assert.equal(handlerB.handleCalls.length, 1);
-    assert.deepEqual(handlerA.handleCalls[0], event);
-    assert.deepEqual(handlerB.handleCalls[0], event);
+    expect(handlerA.handleCalls.length).toBe(1);
+    expect(handlerB.handleCalls.length).toBe(1);
+    expect(handlerA.handleCalls[0]).toEqual(event);
+    expect(handlerB.handleCalls[0]).toEqual(event);
   });
 
   it("skips silently when no handler is registered for the event type", async () => {
@@ -113,10 +112,10 @@ describe("IntegrationEventConsumer — routing", { concurrency: 1 }, () => {
     });
 
     // "PostCancelled" has no handler — must not throw, must not call analyticsHandler
-    await assert.doesNotReject(() =>
+    await expect(
       consumer.processJob("PostCancelled", makeEvent("PostCancelled"))
-    );
-    assert.equal(analyticsHandler.handleCalls.length, 0);
+    ).resolves.not.toThrow();
+    expect(analyticsHandler.handleCalls.length).toBe(0);
   });
 
   it("passes the full IntegrationEvent DTO to the handler unchanged", async () => {
@@ -147,8 +146,8 @@ describe("IntegrationEventConsumer — routing", { concurrency: 1 }, () => {
 
     await consumer.processJob("PostScheduled", event);
 
-    assert.ok(capturedEvent !== undefined, "handler was not called");
-    assert.deepEqual(capturedEvent, event);
+    expect(capturedEvent !== undefined).toBeTruthy();
+    expect(capturedEvent).toEqual(event);
   });
 
   it("handles an empty handlers array without throwing", async () => {
@@ -157,7 +156,9 @@ describe("IntegrationEventConsumer — routing", { concurrency: 1 }, () => {
       handlers: [],
     });
 
-    await assert.doesNotReject(() => consumer.processJob("PostCreated", makeEvent("PostCreated")));
+    await expect(
+      consumer.processJob("PostCreated", makeEvent("PostCreated"))
+    ).resolves.not.toThrow();
   });
 
   it("registeredEventTypes lists all event types with at least one handler", () => {
@@ -170,7 +171,7 @@ describe("IntegrationEventConsumer — routing", { concurrency: 1 }, () => {
     });
 
     const registered = consumer.registeredEventTypes.sort();
-    assert.deepEqual(registered, ["PostCancelled", "PostCreated", "PostPublished"]);
+    expect(registered).toEqual(["PostCancelled", "PostCreated", "PostPublished"]);
   });
 
   it("registeredEventTypes is empty when no handlers are registered", () => {
@@ -179,7 +180,7 @@ describe("IntegrationEventConsumer — routing", { concurrency: 1 }, () => {
       handlers: [],
     });
 
-    assert.deepEqual(consumer.registeredEventTypes, []);
+    expect(consumer.registeredEventTypes).toEqual([]);
   });
 });
 
@@ -187,14 +188,14 @@ describe("IntegrationEventConsumer — routing", { concurrency: 1 }, () => {
 // isRunning — lifecycle (no real Worker created)
 // ---------------------------------------------------------------------------
 
-describe("IntegrationEventConsumer — isRunning", { concurrency: 1 }, () => {
+describe("IntegrationEventConsumer — isRunning", () => {
   it("isRunning is false before start() is called", () => {
     const consumer = new IntegrationEventConsumer({
       connection: FAKE_CONNECTION,
       handlers: [],
     });
 
-    assert.equal(consumer.isRunning, false);
+    expect(consumer.isRunning).toBe(false);
   });
 
   it("stop() on a non-running consumer is a no-op and resolves", async () => {
@@ -203,8 +204,8 @@ describe("IntegrationEventConsumer — isRunning", { concurrency: 1 }, () => {
       handlers: [],
     });
 
-    await assert.doesNotReject(() => consumer.stop());
-    assert.equal(consumer.isRunning, false);
+    await expect(consumer.stop()).resolves.not.toThrow();
+    expect(consumer.isRunning).toBe(false);
   });
 });
 
@@ -212,26 +213,26 @@ describe("IntegrationEventConsumer — isRunning", { concurrency: 1 }, () => {
 // AnalyticsEventHandler
 // ---------------------------------------------------------------------------
 
-describe("AnalyticsEventHandler", { concurrency: 1 }, () => {
+describe("AnalyticsEventHandler", () => {
   it("declares the correct event types", () => {
     const handler = new AnalyticsEventHandler();
     const types = Array.from(handler.eventTypes).sort();
-    assert.deepEqual(types, ["PostCreated", "PostPublishingFailed", "PostPublished"].sort());
+    expect(types).toEqual(["PostCreated", "PostPublishingFailed", "PostPublished"].sort());
   });
 
   it("handle() resolves without error for PostCreated", async () => {
     const handler = new AnalyticsEventHandler();
-    await assert.doesNotReject(() => handler.handle(makeEvent("PostCreated")));
+    await expect(handler.handle(makeEvent("PostCreated"))).resolves.not.toThrow();
   });
 
   it("handle() resolves without error for PostPublished", async () => {
     const handler = new AnalyticsEventHandler();
-    await assert.doesNotReject(() => handler.handle(makeEvent("PostPublished")));
+    await expect(handler.handle(makeEvent("PostPublished"))).resolves.not.toThrow();
   });
 
   it("handle() resolves without error for PostPublishingFailed", async () => {
     const handler = new AnalyticsEventHandler();
-    await assert.doesNotReject(() => handler.handle(makeEvent("PostPublishingFailed")));
+    await expect(handler.handle(makeEvent("PostPublishingFailed"))).resolves.not.toThrow();
   });
 });
 
@@ -239,34 +240,33 @@ describe("AnalyticsEventHandler", { concurrency: 1 }, () => {
 // WebhookEventHandler
 // ---------------------------------------------------------------------------
 
-describe("WebhookEventHandler", { concurrency: 1 }, () => {
+describe("WebhookEventHandler", () => {
   it("declares the correct event types", () => {
     const handler = new WebhookEventHandler();
     const types = Array.from(handler.eventTypes).sort();
-    assert.deepEqual(
-      types,
+    expect(types).toEqual(
       ["PostCancelled", "PostPublishingFailed", "PostPublished", "PostScheduled"].sort()
     );
   });
 
   it("handle() resolves without error for PostPublished", async () => {
     const handler = new WebhookEventHandler();
-    await assert.doesNotReject(() => handler.handle(makeEvent("PostPublished")));
+    await expect(handler.handle(makeEvent("PostPublished"))).resolves.not.toThrow();
   });
 
   it("handle() resolves without error for PostPublishingFailed", async () => {
     const handler = new WebhookEventHandler();
-    await assert.doesNotReject(() => handler.handle(makeEvent("PostPublishingFailed")));
+    await expect(handler.handle(makeEvent("PostPublishingFailed"))).resolves.not.toThrow();
   });
 
   it("handle() resolves without error for PostScheduled", async () => {
     const handler = new WebhookEventHandler();
-    await assert.doesNotReject(() => handler.handle(makeEvent("PostScheduled")));
+    await expect(handler.handle(makeEvent("PostScheduled"))).resolves.not.toThrow();
   });
 
   it("handle() resolves without error for PostCancelled", async () => {
     const handler = new WebhookEventHandler();
-    await assert.doesNotReject(() => handler.handle(makeEvent("PostCancelled")));
+    await expect(handler.handle(makeEvent("PostCancelled"))).resolves.not.toThrow();
   });
 });
 
@@ -274,16 +274,16 @@ describe("WebhookEventHandler", { concurrency: 1 }, () => {
 // Routing: real stub handlers wired into consumer
 // ---------------------------------------------------------------------------
 
-describe("IntegrationEventConsumer — wired with real stub handlers", { concurrency: 1 }, () => {
+describe("IntegrationEventConsumer — wired with real stub handlers", () => {
   it("AnalyticsEventHandler is routed PostPublished without error", async () => {
     const consumer = new IntegrationEventConsumer({
       connection: FAKE_CONNECTION,
       handlers: [new AnalyticsEventHandler()],
     });
 
-    await assert.doesNotReject(() =>
+    await expect(
       consumer.processJob("PostPublished", makeEvent("PostPublished"))
-    );
+    ).resolves.not.toThrow();
   });
 
   it("WebhookEventHandler is routed PostScheduled without error", async () => {
@@ -292,9 +292,9 @@ describe("IntegrationEventConsumer — wired with real stub handlers", { concurr
       handlers: [new WebhookEventHandler()],
     });
 
-    await assert.doesNotReject(() =>
+    await expect(
       consumer.processJob("PostScheduled", makeEvent("PostScheduled"))
-    );
+    ).resolves.not.toThrow();
   });
 
   it("both handlers receive PostPublished when both are registered", async () => {
@@ -321,8 +321,8 @@ describe("IntegrationEventConsumer — wired with real stub handlers", { concurr
 
     await consumer.processJob("PostPublished", makeEvent("PostPublished"));
 
-    assert.equal(analyticsCalled, true, "analytics handler was not called");
-    assert.equal(webhookCalled, true, "webhook handler was not called");
+    expect(analyticsCalled).toBe(true);
+    expect(webhookCalled).toBe(true);
   });
 
   it("concurrency defaults to 3 and custom value is accepted", () => {
@@ -331,14 +331,14 @@ describe("IntegrationEventConsumer — wired with real stub handlers", { concurr
       connection: FAKE_CONNECTION,
       handlers: [],
     });
-    assert.equal(defaultConsumer.isRunning, false);
+    expect(defaultConsumer.isRunning).toBe(false);
 
     const customConsumer = new IntegrationEventConsumer({
       connection: FAKE_CONNECTION,
       handlers: [],
       concurrency: 10,
     });
-    assert.equal(customConsumer.isRunning, false);
+    expect(customConsumer.isRunning).toBe(false);
   });
 });
 
@@ -353,7 +353,7 @@ import {
 } from "../../../src/infrastructure/integration-events/EventUpcaster.js";
 import { z } from "zod";
 
-describe("IntegrationEventConsumer — schema validation (P2-5)", { concurrency: 1 }, () => {
+describe("IntegrationEventConsumer — schema validation (P2-5)", () => {
   it("passes event through to handler when payload is valid", async () => {
     const registry = new EventSchemaRegistry();
     let received: IntegrationEvent | undefined;
@@ -384,8 +384,8 @@ describe("IntegrationEventConsumer — schema validation (P2-5)", { concurrency:
 
     await consumer.processJob("PostCreated", validEvent);
 
-    assert.ok(received !== undefined, "handler should have been called");
-    assert.deepEqual(received, validEvent);
+    expect(received !== undefined).toBeTruthy();
+    expect(received).toEqual(validEvent);
   });
 
   it("skips event and does not call handler when payload is invalid", async () => {
@@ -413,8 +413,8 @@ describe("IntegrationEventConsumer — schema validation (P2-5)", { concurrency:
     };
 
     // Must not throw even though payload is invalid
-    await assert.doesNotReject(() => consumer.processJob("PostCreated", invalidEvent));
-    assert.equal(handlerCalled, false, "handler should NOT be called for invalid payload");
+    await expect(consumer.processJob("PostCreated", invalidEvent)).resolves.not.toThrow();
+    expect(handlerCalled).toBe(false);
   });
 
   it("does not validate events with type not in registry (passes through)", async () => {
@@ -443,7 +443,7 @@ describe("IntegrationEventConsumer — schema validation (P2-5)", { concurrency:
 
     await consumer.processJob("UnregisteredEvent", event);
 
-    assert.ok(received !== undefined, "handler should be called for unregistered event types");
+    expect(received !== undefined).toBeTruthy();
   });
 
   it("consumer without registry or upcaster works (backwards compat)", async () => {
@@ -465,12 +465,12 @@ describe("IntegrationEventConsumer — schema validation (P2-5)", { concurrency:
     const event = makeEvent("PostCreated");
     await consumer.processJob("PostCreated", event);
 
-    assert.ok(received !== undefined, "handler should be called without registry");
-    assert.deepEqual(received, event);
+    expect(received !== undefined).toBeTruthy();
+    expect(received).toEqual(event);
   });
 });
 
-describe("IntegrationEventConsumer — upcasting (P2-5)", { concurrency: 1 }, () => {
+describe("IntegrationEventConsumer — upcasting (P2-5)", () => {
   it("upcasts event from v1 to v2 before passing to handler", async () => {
     const registry = new EventSchemaRegistry();
     const chain = new UpcasterChain();
@@ -527,11 +527,11 @@ describe("IntegrationEventConsumer — upcasting (P2-5)", { concurrency: 1 }, ()
 
     await consumer.processJob("PostCreated", v1Event);
 
-    assert.ok(received !== undefined, "handler should have been called after upcast");
+    expect(received !== undefined).toBeTruthy();
     // The handler should receive the upcasted payload (with tags)
-    assert.equal(received.schemaVersion, 2, "event should have been upcasted to v2");
+    expect(received.schemaVersion).toBe(2);
     const payload = received.payload as Record<string, unknown>;
-    assert.ok(Array.isArray(payload["tags"]), "upcasted payload should have tags array");
+    expect(Array.isArray(payload["tags"])).toBeTruthy();
   });
 
   it("does not upcast when event is already at current version", async () => {
@@ -574,10 +574,10 @@ describe("IntegrationEventConsumer — upcasting (P2-5)", { concurrency: 1 }, ()
 
     await consumer.processJob("PostScheduled", event);
 
-    assert.ok(received !== undefined, "handler should have been called");
+    expect(received !== undefined).toBeTruthy();
     // Version stays at 1 — no v2 in schema registry
-    assert.equal(received.schemaVersion, 1, "version should remain 1");
+    expect(received.schemaVersion).toBe(1);
     const payload = received.payload as Record<string, unknown>;
-    assert.equal(payload["newField"], undefined, "upcaster should NOT have been applied");
+    expect(payload["newField"]).toBe(undefined);
   });
 });

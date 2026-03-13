@@ -4,8 +4,7 @@
  * Tests for the correlation ID middleware following TDD principles.
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import {
   correlationMiddleware,
@@ -15,7 +14,7 @@ import {
   REQUEST_ID_HEADER,
 } from "../../src/middleware/correlationMiddleware.js";
 
-describe("Correlation ID Middleware", { concurrency: 1 }, () => {
+describe("Correlation ID Middleware", () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
@@ -45,12 +44,12 @@ describe("Correlation ID Middleware", { concurrency: 1 }, () => {
       });
 
       const correlationId = response.headers[CORRELATION_ID_HEADER];
-      assert.ok(correlationId, "Should have correlation ID header");
-      assert.ok(typeof correlationId === "string");
-      assert.ok(correlationId.length > 0);
+      expect(correlationId).toBeTruthy();
+      expect(typeof correlationId === "string").toBeTruthy();
+      expect(correlationId.length > 0).toBeTruthy();
 
       const body = JSON.parse(response.body);
-      assert.equal(body.correlationId, correlationId);
+      expect(body.correlationId).toBe(correlationId);
     });
 
     it("should use existing correlation ID from request header", async () => {
@@ -65,10 +64,10 @@ describe("Correlation ID Middleware", { concurrency: 1 }, () => {
       });
 
       const correlationId = response.headers[CORRELATION_ID_HEADER];
-      assert.equal(correlationId, existingId);
+      expect(correlationId).toBe(existingId);
 
       const body = JSON.parse(response.body);
-      assert.equal(body.correlationId, existingId);
+      expect(body.correlationId).toBe(existingId);
     });
 
     it("should generate new ID if header is empty string", async () => {
@@ -81,8 +80,8 @@ describe("Correlation ID Middleware", { concurrency: 1 }, () => {
       });
 
       const correlationId = response.headers[CORRELATION_ID_HEADER];
-      assert.ok(correlationId);
-      assert.ok(correlationId !== "");
+      expect(correlationId).toBeTruthy();
+      expect(correlationId !== "").toBeTruthy();
     });
   });
 
@@ -94,12 +93,12 @@ describe("Correlation ID Middleware", { concurrency: 1 }, () => {
       });
 
       const requestId = response.headers[REQUEST_ID_HEADER];
-      assert.ok(requestId, "Should have request ID header");
-      assert.ok(typeof requestId === "string");
-      assert.ok(requestId.length > 0);
+      expect(requestId).toBeTruthy();
+      expect(typeof requestId === "string").toBeTruthy();
+      expect(requestId.length > 0).toBeTruthy();
 
       const body = JSON.parse(response.body);
-      assert.equal(body.requestId, requestId);
+      expect(body.requestId).toBe(requestId);
     });
 
     it("should generate unique request IDs for each request", async () => {
@@ -116,7 +115,7 @@ describe("Correlation ID Middleware", { concurrency: 1 }, () => {
       const requestId1 = response1.headers[REQUEST_ID_HEADER];
       const requestId2 = response2.headers[REQUEST_ID_HEADER];
 
-      assert.notEqual(requestId1, requestId2, "Request IDs should be unique");
+      expect(requestId1).not.toBe(requestId2);
     });
   });
 
@@ -127,7 +126,7 @@ describe("Correlation ID Middleware", { concurrency: 1 }, () => {
         url: "/test",
       });
 
-      assert.ok(response.headers[CORRELATION_ID_HEADER]);
+      expect(response.headers[CORRELATION_ID_HEADER]).toBeTruthy();
     });
 
     it("should set request ID in response headers", async () => {
@@ -136,22 +135,22 @@ describe("Correlation ID Middleware", { concurrency: 1 }, () => {
         url: "/test",
       });
 
-      assert.ok(response.headers[REQUEST_ID_HEADER]);
+      expect(response.headers[REQUEST_ID_HEADER]).toBeTruthy();
     });
   });
 
   describe("header constants", () => {
     it("should export correct correlation ID header name", () => {
-      assert.equal(CORRELATION_ID_HEADER, "x-correlation-id");
+      expect(CORRELATION_ID_HEADER).toBe("x-correlation-id");
     });
 
     it("should export correct request ID header name", () => {
-      assert.equal(REQUEST_ID_HEADER, "x-request-id");
+      expect(REQUEST_ID_HEADER).toBe("x-request-id");
     });
   });
 });
 
-describe("Correlation ID utility functions", { concurrency: 1 }, () => {
+describe("Correlation ID utility functions", () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
@@ -180,8 +179,8 @@ describe("Correlation ID utility functions", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.correlationIdFromUtil);
-      assert.equal(body.correlationIdFromUtil, response.headers[CORRELATION_ID_HEADER]);
+      expect(body.correlationIdFromUtil).toBeTruthy();
+      expect(body.correlationIdFromUtil).toBe(response.headers[CORRELATION_ID_HEADER]);
     });
   });
 
@@ -193,8 +192,8 @@ describe("Correlation ID utility functions", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.requestIdFromUtil);
-      assert.equal(body.requestIdFromUtil, response.headers[REQUEST_ID_HEADER]);
+      expect(body.requestIdFromUtil).toBeTruthy();
+      expect(body.requestIdFromUtil).toBe(response.headers[REQUEST_ID_HEADER]);
     });
   });
 });

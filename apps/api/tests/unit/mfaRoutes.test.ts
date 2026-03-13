@@ -1,57 +1,95 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for mfaRoutes
- * Testing all MFA HTTP endpoints
- *
- * Coverage Target: 95%+
+ * @file mfaRoutes.test.ts
+ * @description Unit tests for mfaRoutes. Uses in-memory mocked Prisma stores
+ *              and a real Fastify instance to test MFA HTTP endpoint behavior.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
-import { mfaRoutes } from "../../src/auth/mfaRoutes.js";
-import { AuthService } from "../../src/auth/authService.js";
-import { MfaService } from "../../src/auth/mfaService.js";
-import { auditService } from "../../src/audit/auditService.js";
-import { prisma } from "@infra/prisma";
-import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
-import { Container } from "../../src/infrastructure/container/Container.js";
-import { TOKENS } from "../../src/infrastructure/container/types.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 
-// Shared service instances — the same AuthService is used both to create tokens
-// (in before()) and to verify them inside the route handler, so JWT secrets match.
-const adminUserRepo = new PrismaAdminUserRepository(prisma);
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// Import SUT after mocks are in place
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
+const { mfaRoutes } = await import("../../src/auth/mfaRoutes.js");
+const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
+const { MfaService } = await import("../../src/auth/mfaService.js");
+const { auditService } = await import("../../src/audit/auditService.js");
+const { PrismaAdminUserRepository } = await import(
+  "../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
+);
+const { Container } = await import("../../src/infrastructure/container/Container.js");
+const { TOKENS } = await import("../../src/infrastructure/container/types.js");
+
+// ---------------------------------------------------------------------------
+// Shared service instances
+// ---------------------------------------------------------------------------
+
+setRedisInstance(null as unknown as import("ioredis").default);
+
+const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const mfaService = new MfaService(adminUserRepo);
 const authService = new AuthService(adminUserRepo, mfaService);
 
-// Create test Fastify instance
-async function createTestApp(): Promise<FastifyInstance> {
+async function createTestApp() {
   const app = Fastify({ logger: false });
 
-  const typedApp = app.withTypeProvider<ZodTypeProvider>();
-  typedApp.setValidatorCompiler(validatorCompiler);
-  typedApp.setSerializerCompiler(serializerCompiler);
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
-  // Register the same service instances used in before() so JWT secrets match.
-  // mfaRoutes resolves MfaService, AuditService, PrismaClient, and AuthService (via middleware).
   const container = new Container();
   container.registerInstance(TOKENS.AuthService, authService);
   container.registerInstance(TOKENS.MfaService, mfaService);
   container.registerInstance(TOKENS.AuditService, auditService);
-  typedApp.decorate("container", container);
+  app.decorate("container", container);
 
-  await typedApp.register(mfaRoutes);
+  await app.register(mfaRoutes);
 
-  return typedApp;
+  return app;
 }
+
+// ---------------------------------------------------------------------------
+// Test data
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const userEmail = `user-mfa-${timestamp}@example.com`;
 const adminEmail = `admin-mfa-${timestamp}@example.com`;
 const testPassword = "TestPassword123!";
 
-let app: FastifyInstance;
+let app: ReturnType<typeof Fastify>;
 let userToken: string;
 let adminToken: string;
 let userId: string;
@@ -59,8 +97,12 @@ let _adminUserId: string;
 let _mfaSecret: string;
 let _backupCodes: string[];
 
-describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("mfaRoutes Unit Tests", () => {
+  beforeAll(async () => {
+    stores.adminUser.clear();
+    stores.adminSession.clear();
+    stores.auditLog.clear();
+
     app = await createTestApp();
 
     // Create regular user
@@ -105,18 +147,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
     }
   });
 
-  after(async () => {
-    // Cleanup
-    const testUsers = await prisma.adminUser.findMany({
-      where: { email: { contains: `-mfa-${timestamp}` } },
-    });
-
-    for (const user of testUsers) {
-      await prisma.auditLog.deleteMany({ where: { userId: user.id } });
-      await prisma.adminSession.deleteMany({ where: { userId: user.id } });
-      await prisma.adminUser.delete({ where: { id: user.id } });
-    }
-
+  afterAll(async () => {
     await app.close();
   });
 
@@ -130,10 +161,10 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.mfa);
-      assert.strictEqual(typeof body.data?.mfa?.enabled, "boolean");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.mfa).toBeTruthy();
+      expect(typeof body.data?.mfa?.enabled).toBe("boolean");
     });
 
     it("should reject without authentication", async () => {
@@ -142,7 +173,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/auth/mfa/status",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -156,12 +187,12 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.setup?.qrCodeUrl);
-      assert.ok(body.data?.setup?.manualEntryKey);
-      assert.ok(Array.isArray(body.data?.setup?.backupCodes));
-      assert.strictEqual(body.data?.setup?.backupCodes?.length, 8);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.setup?.qrCodeUrl).toBeTruthy();
+      expect(body.data?.setup?.manualEntryKey).toBeTruthy();
+      expect(Array.isArray(body.data?.setup?.backupCodes)).toBeTruthy();
+      expect(body.data?.setup?.backupCodes?.length).toBe(8);
 
       _mfaSecret = body.data?.setup?.manualEntryKey || "";
       _backupCodes = body.data?.setup?.backupCodes || [];
@@ -171,7 +202,6 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
       // First, enable MFA by verifying setup
       const setupResult = await mfaService.setupMfa(userId, userEmail);
       if (setupResult.ok) {
-        // Generate a valid token
         const { authenticator } = await import("otplib");
         const token = authenticator.generate(setupResult.value.secret);
         await mfaService.verifyMfaSetup(userId, token);
@@ -183,16 +213,16 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${userToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 409);
+      expect(response.statusCode).toBe(409);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.error, "MFA is already enabled for this user");
+      expect(body.error).toBe("MFA is already enabled for this user");
 
       // Cleanup - disable MFA for subsequent tests
-      await prisma.adminUser.update({
-        where: { id: userId },
-        data: { mfaEnabled: false, mfaSecret: null },
-      });
+      const user = stores.adminUser.all().find((u) => u.id === userId);
+      if (user) {
+        stores.adminUser.update(userId, { mfaEnabled: false, mfaSecret: null });
+      }
     });
 
     it("should reject without authentication", async () => {
@@ -201,7 +231,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/auth/mfa/setup",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -216,7 +246,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without token", async () => {
@@ -227,7 +257,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         payload: {},
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -239,7 +269,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -253,7 +283,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject missing userId", async () => {
@@ -265,7 +295,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject missing token", async () => {
@@ -277,7 +307,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -292,10 +322,10 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.error, "MFA is not enabled for this user");
+      expect(body.error).toBe("MFA is not enabled for this user");
     });
 
     it("should reject invalid token format", async () => {
@@ -308,7 +338,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -320,7 +350,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -335,10 +365,10 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.error, "MFA is not enabled for this user");
+      expect(body.error).toBe("MFA is not enabled for this user");
     });
 
     it("should reject invalid token format", async () => {
@@ -351,7 +381,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -363,7 +393,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -377,10 +407,10 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.userId);
-      assert.ok(body.data?.mfa);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.userId).toBeTruthy();
+      expect(body.data?.mfa).toBeTruthy();
     });
 
     it("should reject invalid userId format", async () => {
@@ -390,7 +420,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject non-existent user", async () => {
@@ -401,7 +431,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
     });
 
     it("should reject without authentication", async () => {
@@ -410,7 +440,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         url: `/admin/users/${userId}/mfa/status`,
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -423,7 +453,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         payload: {},
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject reason too short", async () => {
@@ -436,7 +466,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should force disable MFA with valid reason", async () => {
@@ -451,9 +481,9 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.message);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.message).toBeTruthy();
     });
 
     it("should reject invalid userId format", async () => {
@@ -466,7 +496,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -478,7 +508,7 @@ describe("mfaRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 });

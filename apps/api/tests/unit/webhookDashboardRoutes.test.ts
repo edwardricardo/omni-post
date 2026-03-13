@@ -6,8 +6,7 @@
  * Coverage Target: 95%+
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { registerWebhookDashboardRoutes } from "../../src/webhooks/webhookDashboardRoutes.js";
@@ -186,14 +185,14 @@ async function createTestApp(): Promise<FastifyInstance> {
 
 let app: FastifyInstance;
 
-describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
-  before(async () => {
+describe("webhookDashboardRoutes", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  beforeEach((t) => {
+  beforeEach(() => {
     // Mock authentication service
-    t.mock.method(authService, "verifyAccessToken", async (token: string) => {
+    vi.spyOn(authService, "verifyAccessToken").mockImplementation(async (token: string) => {
       if (token && token !== "invalid-token") {
         return ok(mockUser);
       }
@@ -201,16 +200,28 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
     });
 
     // Mock service methods
-    t.mock.method(webhookDashboardService, "getDashboardMetrics", async () => mockMetrics);
-    t.mock.method(webhookDashboardService, "getRecentEvents", async () => mockEvents);
-    t.mock.method(webhookDashboardService, "getEventDetails", async () => mockEventDetails);
-    t.mock.method(webhookDashboardService, "getSubscriptions", async () => mockSubscriptions);
-    t.mock.method(webhookDashboardService, "getDeadLetterQueue", async () => mockEvents);
-    t.mock.method(webhookDashboardService, "retryDeadLetterEvent", async () => mockRetryResult);
-    t.mock.method(webhookDashboardService, "exportWebhookEvents", async () => mockExportResult);
+    vi.spyOn(webhookDashboardService, "getDashboardMetrics").mockImplementation(
+      async () => mockMetrics
+    );
+    vi.spyOn(webhookDashboardService, "getRecentEvents").mockImplementation(async () => mockEvents);
+    vi.spyOn(webhookDashboardService, "getEventDetails").mockImplementation(
+      async () => mockEventDetails
+    );
+    vi.spyOn(webhookDashboardService, "getSubscriptions").mockImplementation(
+      async () => mockSubscriptions
+    );
+    vi.spyOn(webhookDashboardService, "getDeadLetterQueue").mockImplementation(
+      async () => mockEvents
+    );
+    vi.spyOn(webhookDashboardService, "retryDeadLetterEvent").mockImplementation(
+      async () => mockRetryResult
+    );
+    vi.spyOn(webhookDashboardService, "exportWebhookEvents").mockImplementation(
+      async () => mockExportResult
+    );
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -224,14 +235,14 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data.totalEvents, 100);
-      assert.strictEqual(body.data.processedEvents, 90);
-      assert.strictEqual(body.data.failedEvents, 10);
-      assert.strictEqual(body.data.successRate, 90);
-      assert.ok(body.data.byProvider);
-      assert.ok(body.data.timeline);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data.totalEvents).toBe(100);
+      expect(body.data.processedEvents).toBe(90);
+      expect(body.data.failedEvents).toBe(10);
+      expect(body.data.successRate).toBe(90);
+      expect(body.data.byProvider).toBeTruthy();
+      expect(body.data.timeline).toBeTruthy();
     });
 
     it("should accept valid timeRange query parameter", async () => {
@@ -241,7 +252,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should accept valid provider filter", async () => {
@@ -251,7 +262,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should accept valid projectId filter", async () => {
@@ -261,7 +272,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should accept valid status filter", async () => {
@@ -271,7 +282,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject invalid timeRange", async () => {
@@ -281,7 +292,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject invalid provider", async () => {
@@ -291,7 +302,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject invalid projectId format", async () => {
@@ -301,7 +312,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject invalid status", async () => {
@@ -311,7 +322,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -320,7 +331,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         url: "/api/webhooks/dashboard/metrics",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -334,13 +345,13 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data.events));
-      assert.strictEqual(body.data.events.length, 2);
-      assert.strictEqual(body.data.total, 2);
-      assert.strictEqual(body.data.page, 1);
-      assert.strictEqual(body.data.limit, 20);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data.events)).toBeTruthy();
+      expect(body.data.events.length).toBe(2);
+      expect(body.data.total).toBe(2);
+      expect(body.data.page).toBe(1);
+      expect(body.data.limit).toBe(20);
     });
 
     it("should accept page parameter", async () => {
@@ -350,7 +361,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should accept limit parameter", async () => {
@@ -360,7 +371,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should accept provider filter", async () => {
@@ -370,7 +381,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should accept status filter", async () => {
@@ -380,7 +391,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should accept search parameter", async () => {
@@ -390,7 +401,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject page less than 1", async () => {
@@ -400,7 +411,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject limit greater than 100", async () => {
@@ -410,7 +421,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject invalid provider in events", async () => {
@@ -420,7 +431,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -429,7 +440,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         url: "/api/webhooks/dashboard/events",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -443,13 +454,13 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data.id, "event-123");
-      assert.strictEqual(body.data.provider, "X");
-      assert.strictEqual(body.data.status, "COMPLETED");
-      assert.ok(body.data.payload);
-      assert.ok(body.data.headers);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data.id).toBe("event-123");
+      expect(body.data.provider).toBe("X");
+      expect(body.data.status).toBe("COMPLETED");
+      expect(body.data.payload).toBeTruthy();
+      expect(body.data.headers).toBeTruthy();
     });
 
     it("should reject invalid UUID format", async () => {
@@ -459,7 +470,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -468,7 +479,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         url: "/api/webhooks/dashboard/events/123e4567-e89b-12d3-a456-426614174000",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -482,12 +493,12 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data));
-      assert.strictEqual(body.data.length, 1);
-      assert.strictEqual(body.data[0].provider, "X");
-      assert.ok(body.data[0].stats);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data)).toBeTruthy();
+      expect(body.data.length).toBe(1);
+      expect(body.data[0].provider).toBe("X");
+      expect(body.data[0].stats).toBeTruthy();
     });
 
     it("should reject without authentication", async () => {
@@ -496,7 +507,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         url: "/api/webhooks/dashboard/subscriptions",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -510,10 +521,10 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data.events));
-      assert.strictEqual(body.data.page, 1);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data.events)).toBeTruthy();
+      expect(body.data.page).toBe(1);
     });
 
     it("should accept pagination for dead letter queue", async () => {
@@ -523,7 +534,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should accept provider filter for DLQ", async () => {
@@ -533,7 +544,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject invalid pagination parameters", async () => {
@@ -543,7 +554,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -552,7 +563,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         url: "/api/webhooks/dashboard/dead-letter",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -566,10 +577,10 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data.success, true);
-      assert.strictEqual(body.data.eventId, "event-123");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data.success).toBe(true);
+      expect(body.data.eventId).toBe("event-123");
     });
 
     it("should reject invalid event ID for retry", async () => {
@@ -579,7 +590,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject retry without authentication", async () => {
@@ -588,7 +599,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         url: "/api/webhooks/dashboard/dead-letter/123e4567-e89b-12d3-a456-426614174000/retry",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -604,7 +615,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         url: "/api/webhooks/dashboard/stream",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -616,11 +627,11 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(response.headers["content-type"], "text/csv");
-      assert.ok(response.headers["content-disposition"]?.includes("attachment"));
-      assert.ok(response.headers["content-disposition"]?.includes("webhook-events"));
-      assert.ok(response.body.includes("id,provider,eventType"));
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toBe("text/csv");
+      expect(response.headers["content-disposition"]?.includes("attachment")).toBeTruthy();
+      expect(response.headers["content-disposition"]?.includes("webhook-events")).toBeTruthy();
+      expect(response.body.includes("id,provider,eventType")).toBeTruthy();
     });
 
     it("should accept timeRange for export", async () => {
@@ -630,14 +641,11 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
       const contentDisposition = response.headers["content-disposition"];
-      assert.ok(contentDisposition, "Content-Disposition header should be present");
+      expect(contentDisposition).toBeTruthy();
       // Mock always returns timeRange: "24h", so check for that
-      assert.ok(
-        contentDisposition.includes("24h"),
-        "Content-Disposition should include timeRange from mock"
-      );
+      expect(contentDisposition.includes("24h")).toBeTruthy();
     });
 
     it("should accept provider filter for export", async () => {
@@ -647,7 +655,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject invalid query params for export", async () => {
@@ -657,7 +665,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer valid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject export without authentication", async () => {
@@ -666,7 +674,7 @@ describe("webhookDashboardRoutes", { concurrency: 1 }, () => {
         url: "/api/webhooks/dashboard/export",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 });

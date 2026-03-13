@@ -6,8 +6,7 @@
  * Coverage Target: 95%+
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { AdvancedRateLimit, RateLimitConfigs } from "../../src/security/advancedRateLimit.js";
 import { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import * as promClient from "prom-client";
@@ -49,8 +48,8 @@ const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 // Main Test Suite
 // ============================================================================
 
-describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AdvancedRateLimit Tests", () => {
+  beforeAll(async () => {
     redis = new Redis(REDIS_URL);
     metricsRegistry = new promClient.Registry();
     apiMetrics = new ApiMetrics(metricsRegistry);
@@ -71,7 +70,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
     }
   });
 
-  after(async () => {
+  afterAll(async () => {
     // Cleanup test keys
     const keys = await redis.keys("rate_limit:*");
     if (keys.length > 0) {
@@ -96,9 +95,9 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       const request = createMockRequest();
       const result = await rateLimiter.checkRateLimit(request);
 
-      assert.strictEqual(result.allowed, true);
-      assert.ok(result.remaining >= 0);
-      assert.ok(result.resetTime > Date.now());
+      expect(result.allowed).toBe(true);
+      expect(result.remaining >= 0).toBeTruthy();
+      expect(result.resetTime > Date.now()).toBeTruthy();
     });
 
     it("should decrement remaining count on each request", async () => {
@@ -113,16 +112,16 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       });
 
       const result1 = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(result1.allowed, true);
-      assert.strictEqual(result1.remaining, 4);
+      expect(result1.allowed).toBe(true);
+      expect(result1.remaining).toBe(4);
 
       const result2 = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(result2.allowed, true);
-      assert.strictEqual(result2.remaining, 3);
+      expect(result2.allowed).toBe(true);
+      expect(result2.remaining).toBe(3);
 
       const result3 = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(result3.allowed, true);
-      assert.strictEqual(result3.remaining, 2);
+      expect(result3.allowed).toBe(true);
+      expect(result3.remaining).toBe(2);
     });
 
     it("should track different IPs separately", async () => {
@@ -144,10 +143,10 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       const result1 = await rateLimiter.checkRateLimit(request1);
       const result2 = await rateLimiter.checkRateLimit(request2);
 
-      assert.strictEqual(result1.allowed, true);
-      assert.strictEqual(result2.allowed, true);
-      assert.strictEqual(result1.remaining, 4);
-      assert.strictEqual(result2.remaining, 4);
+      expect(result1.allowed).toBe(true);
+      expect(result2.allowed).toBe(true);
+      expect(result1.remaining).toBe(4);
+      expect(result2.remaining).toBe(4);
     });
 
     it("should handle concurrent requests from same IP", async () => {
@@ -168,7 +167,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       ]);
 
       results.forEach((result) => {
-        assert.strictEqual(result.allowed, true);
+        expect(result.allowed).toBe(true);
       });
     });
   });
@@ -197,9 +196,9 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       // This should be blocked
       const result = await rateLimiter.checkRateLimit(request);
 
-      assert.strictEqual(result.allowed, false);
-      assert.strictEqual(result.remaining, 0);
-      assert.ok(result.resetTime > Date.now());
+      expect(result.allowed).toBe(false);
+      expect(result.remaining).toBe(0);
+      expect(result.resetTime > Date.now()).toBeTruthy();
     });
 
     it("should return retryAfter time when blocked", async () => {
@@ -218,8 +217,8 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
 
       const result = await rateLimiter.checkRateLimit(request);
 
-      assert.strictEqual(result.allowed, false);
-      assert.ok(result.resetTime > Date.now());
+      expect(result.allowed).toBe(false);
+      expect(result.resetTime > Date.now()).toBeTruthy();
     });
 
     it("should implement progressive blocking on repeated violations", async () => {
@@ -239,11 +238,11 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
 
       // First violation
       const violation1 = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(violation1.allowed, false);
+      expect(violation1.allowed).toBe(false);
 
       // Subsequent violation should have longer block
       const violation2 = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(violation2.allowed, false);
+      expect(violation2.allowed).toBe(false);
     });
   });
 
@@ -267,7 +266,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
 
       const result = await rateLimiter.checkRateLimit(request);
 
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
 
     it("should extract IP from X-Real-IP header", async () => {
@@ -285,7 +284,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
 
       const result = await rateLimiter.checkRateLimit(request);
 
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
 
     it("should prioritize X-Forwarded-For over X-Real-IP", async () => {
@@ -304,7 +303,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
 
       const result = await rateLimiter.checkRateLimit(request);
 
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
 
     it("should fallback to socket.remoteAddress", async () => {
@@ -322,7 +321,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
 
       const result = await rateLimiter.checkRateLimit(request);
 
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
 
     it("should handle malformed X-Forwarded-For header", async () => {
@@ -341,7 +340,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
 
       const result = await rateLimiter.checkRateLimit(request);
 
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
   });
 
@@ -376,7 +375,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       await rateLimiter.checkRateLimit(request);
 
       const result = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(result.allowed, false);
+      expect(result.allowed).toBe(false);
     });
 
     it("should match path by prefix", async () => {
@@ -401,7 +400,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       });
 
       const result = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
 
     it("should match path by regex", async () => {
@@ -426,7 +425,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       });
 
       const result = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
 
     it("should match method-specific rules", async () => {
@@ -453,7 +452,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       });
 
       const result = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
 
     it("should match multiple method rules", async () => {
@@ -480,7 +479,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       });
 
       const result = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
 
     it("should not match different method", async () => {
@@ -508,7 +507,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
 
       // Should use global limit, not rule limit
       const result = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
   });
 
@@ -534,9 +533,9 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       const result2 = await rateLimiter.checkRateLimit(request);
       const result3 = await rateLimiter.checkRateLimit(request);
 
-      assert.strictEqual(result1.allowed, true);
-      assert.strictEqual(result2.allowed, true);
-      assert.strictEqual(result3.allowed, true);
+      expect(result1.allowed).toBe(true);
+      expect(result2.allowed).toBe(true);
+      expect(result3.allowed).toBe(true);
     });
 
     it("should skip rate limiting for path prefix match", async () => {
@@ -552,7 +551,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       });
 
       const result = await rateLimiter.checkRateLimit(request);
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
     });
   });
 
@@ -582,8 +581,8 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       const result1 = await rateLimiter.checkRateLimit(request);
       const result2 = await rateLimiter.checkRateLimit(request);
 
-      assert.strictEqual(result1.allowed, true);
-      assert.strictEqual(result2.allowed, true);
+      expect(result1.allowed).toBe(true);
+      expect(result2.allowed).toBe(true);
     });
 
     it("should track different custom keys separately", async () => {
@@ -617,8 +616,8 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       const result1 = await rateLimiter.checkRateLimit(request1);
       const result2 = await rateLimiter.checkRateLimit(request2);
 
-      assert.strictEqual(result1.allowed, false);
-      assert.strictEqual(result2.allowed, true);
+      expect(result1.allowed).toBe(false);
+      expect(result2.allowed).toBe(true);
     });
   });
 
@@ -628,33 +627,33 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
 
   describe("Predefined Rate Limit Configs", () => {
     it("should have STRICT config", () => {
-      assert.strictEqual(RateLimitConfigs.STRICT.windowMs, 60_000);
-      assert.strictEqual(RateLimitConfigs.STRICT.maxRequests, 10);
+      expect(RateLimitConfigs.STRICT.windowMs).toBe(60_000);
+      expect(RateLimitConfigs.STRICT.maxRequests).toBe(10);
     });
 
     it("should have STANDARD config", () => {
-      assert.strictEqual(RateLimitConfigs.STANDARD.windowMs, 60_000);
-      assert.strictEqual(RateLimitConfigs.STANDARD.maxRequests, 100);
+      expect(RateLimitConfigs.STANDARD.windowMs).toBe(60_000);
+      expect(RateLimitConfigs.STANDARD.maxRequests).toBe(100);
     });
 
     it("should have LENIENT config", () => {
-      assert.strictEqual(RateLimitConfigs.LENIENT.windowMs, 60_000);
-      assert.strictEqual(RateLimitConfigs.LENIENT.maxRequests, 300);
+      expect(RateLimitConfigs.LENIENT.windowMs).toBe(60_000);
+      expect(RateLimitConfigs.LENIENT.maxRequests).toBe(300);
     });
 
     it("should have HEALTH config", () => {
-      assert.strictEqual(RateLimitConfigs.HEALTH.windowMs, 60_000);
-      assert.strictEqual(RateLimitConfigs.HEALTH.maxRequests, 600);
+      expect(RateLimitConfigs.HEALTH.windowMs).toBe(60_000);
+      expect(RateLimitConfigs.HEALTH.maxRequests).toBe(600);
     });
 
     it("should have AUTH config", () => {
-      assert.strictEqual(RateLimitConfigs.AUTH.windowMs, 900_000);
-      assert.strictEqual(RateLimitConfigs.AUTH.maxRequests, 5);
+      expect(RateLimitConfigs.AUTH.windowMs).toBe(900_000);
+      expect(RateLimitConfigs.AUTH.maxRequests).toBe(5);
     });
 
     it("should have UPLOAD config", () => {
-      assert.strictEqual(RateLimitConfigs.UPLOAD.windowMs, 300_000);
-      assert.strictEqual(RateLimitConfigs.UPLOAD.maxRequests, 20);
+      expect(RateLimitConfigs.UPLOAD.windowMs).toBe(300_000);
+      expect(RateLimitConfigs.UPLOAD.maxRequests).toBe(20);
     });
   });
 
@@ -685,7 +684,7 @@ describe("AdvancedRateLimit Tests", { concurrency: 1 }, () => {
       const result = await badRateLimiter.checkRateLimit(request);
 
       // Should allow on error
-      assert.strictEqual(result.allowed, true);
+      expect(result.allowed).toBe(true);
 
       await badRedis.quit();
     });

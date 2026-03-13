@@ -2,7 +2,7 @@ console.log = () => {};
 console.error = () => {};
 console.warn = () => {};
 
-import { mock } from "node:test";
+import { vi, expect } from "vitest";
 import { ContentSynchronizer } from "../../src/orchestration/ContentSynchronizer.js";
 import type { SyncContentRequest, OrchestrationResult, SyncResponse } from "@shared/orchestration";
 import type { CanonicalPost } from "@shared/types";
@@ -29,10 +29,10 @@ StreamProcessor.prototype.startScheduledSyncProcessor = function (
 export const createMockPrisma = () =>
   ({
     post: {
-      findUnique: mock.fn(async () => null),
-      findMany: mock.fn(async () => []),
-      create: mock.fn(async () => ({})),
-      update: mock.fn(async () => ({})),
+      findUnique: vi.fn(async () => null),
+      findMany: vi.fn(async () => []),
+      create: vi.fn(async () => ({})),
+      update: vi.fn(async () => ({})),
     },
   }) as any;
 
@@ -40,32 +40,32 @@ export const createMockRedis = () => {
   const redisData = new Map<string, any>();
 
   return {
-    xgroup: mock.fn(async () => "OK"),
-    xreadgroup: mock.fn(async () => null),
-    xadd: mock.fn(async () => "1234567890123-0"),
-    xack: mock.fn(async () => 1),
-    lrange: mock.fn(async (key: string) => {
+    xgroup: vi.fn(async () => "OK"),
+    xreadgroup: vi.fn(async () => null),
+    xadd: vi.fn(async () => "1234567890123-0"),
+    xack: vi.fn(async () => 1),
+    lrange: vi.fn(async (key: string) => {
       const data = redisData.get(key);
       return data || [];
     }),
-    lpush: mock.fn(async (key: string, value: string) => {
+    lpush: vi.fn(async (key: string, value: string) => {
       const existing = redisData.get(key) || [];
       redisData.set(key, [value, ...existing]);
       return existing.length + 1;
     }),
-    setex: mock.fn(async () => "OK"),
-    get: mock.fn(async (key: string) => {
+    setex: vi.fn(async () => "OK"),
+    get: vi.fn(async (key: string) => {
       return redisData.get(key) || null;
     }),
-    del: mock.fn(async () => 1),
+    del: vi.fn(async () => 1),
     _testData: redisData,
   } as any;
 };
 
 export const createMockEventService = () =>
   ({
-    publishEvent: mock.fn(async () => ({ ok: true, value: undefined })),
-    registerHandler: mock.fn(() => {}),
+    publishEvent: vi.fn(async () => ({ ok: true, value: undefined })),
+    registerHandler: vi.fn(() => {}),
   }) as any;
 
 export const createMockPost = (overrides?: Partial<CanonicalPost>): CanonicalPost => ({
@@ -86,7 +86,7 @@ export function stubSyncCoordinatorSuccess(
 ): void {
   // ContentSynchronizer has its own syncContent method (no sub-coordinator).
   // We replace syncContent directly on the instance.
-  (synchronizer as any).syncContent = mock.fn(
+  (synchronizer as any).syncContent = vi.fn(
     async (request: SyncContentRequest): Promise<OrchestrationResult<SyncResponse>> => {
       if (request.dryRun) {
         return {
@@ -120,7 +120,7 @@ export function stubSyncCoordinatorSuccess(
 export function stubSyncCoordinatorValidationFailure(synchronizer: ContentSynchronizer): void {
   // ContentSynchronizer has its own syncContent method (no sub-coordinator).
   // We replace syncContent directly on the instance.
-  (synchronizer as any).syncContent = mock.fn(
+  (synchronizer as any).syncContent = vi.fn(
     async (_request: SyncContentRequest): Promise<OrchestrationResult<SyncResponse>> => ({
       ok: false,
       error: {
@@ -137,7 +137,7 @@ export function stubSyncCoordinatorValidationFailure(synchronizer: ContentSynchr
 export function stubSyncCoordinatorSystemError(synchronizer: ContentSynchronizer): void {
   // ContentSynchronizer has its own syncContent method (no sub-coordinator).
   // We replace syncContent directly on the instance.
-  (synchronizer as any).syncContent = mock.fn(
+  (synchronizer as any).syncContent = vi.fn(
     async (_request: SyncContentRequest): Promise<OrchestrationResult<SyncResponse>> => ({
       ok: false,
       error: {

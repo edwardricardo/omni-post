@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { SecurityValidatedSchemas } from "../../src/validation/secureSchemas.js";
 
 describe("SecurityValidatedSchemas - Post Content Validation", () => {
@@ -12,7 +11,7 @@ describe("SecurityValidatedSchemas - Post Content Validation", () => {
 
     safeContent.forEach((content) => {
       const result = SecurityValidatedSchemas.postContent.safeParse(content);
-      assert.strictEqual(result.success, true, `Failed for: ${content}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -25,7 +24,7 @@ describe("SecurityValidatedSchemas - Post Content Validation", () => {
 
     maliciousContent.forEach((content) => {
       const result = SecurityValidatedSchemas.postContent.safeParse(content);
-      assert.strictEqual(result.success, false, `Should block script: ${content}`);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -33,7 +32,7 @@ describe("SecurityValidatedSchemas - Post Content Validation", () => {
     const result = SecurityValidatedSchemas.postContent.safeParse(
       "Check this <iframe src='evil.com'></iframe>"
     );
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject content with event handlers", () => {
@@ -41,7 +40,7 @@ describe("SecurityValidatedSchemas - Post Content Validation", () => {
 
     maliciousContent.forEach((content) => {
       const result = SecurityValidatedSchemas.postContent.safeParse(content);
-      assert.strictEqual(result.success, false, `Should block event handler: ${content}`);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -50,20 +49,20 @@ describe("SecurityValidatedSchemas - Post Content Validation", () => {
     // Current regex only catches specific patterns like <img onerror>, <svg onload>
     // but not all possible event handlers
     const result = SecurityValidatedSchemas.postContent.safeParse("<div onload='alert(1)'>");
-    assert.strictEqual(result.success, true); // Current behavior
+    expect(result.success).toBe(true); // Current behavior
   });
 
   it("should reject content with javascript protocol", () => {
     const result = SecurityValidatedSchemas.postContent.safeParse(
       "Click here: javascript:alert(1)"
     );
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should enforce length limits", () => {
     const tooLong = "a".repeat(10001);
     const result = SecurityValidatedSchemas.postContent.safeParse(tooLong);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -73,7 +72,7 @@ describe("SecurityValidatedSchemas - Post Title Validation", () => {
 
     safeTitles.forEach((title) => {
       const result = SecurityValidatedSchemas.postTitle.safeParse(title);
-      assert.strictEqual(result.success, true, `Failed for: ${title}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -82,14 +81,14 @@ describe("SecurityValidatedSchemas - Post Title Validation", () => {
 
     maliciousTitles.forEach((title) => {
       const result = SecurityValidatedSchemas.postTitle.safeParse(title);
-      assert.strictEqual(result.success, false, `Should reject HTML: ${title}`);
+      expect(result.success).toBe(false);
     });
   });
 
   it("should enforce maximum length", () => {
     const tooLong = "a".repeat(281);
     const result = SecurityValidatedSchemas.postTitle.safeParse(tooLong);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -99,13 +98,13 @@ describe("SecurityValidatedSchemas - Hashtag Validation", () => {
 
     validHashtags.forEach((hashtag) => {
       const result = SecurityValidatedSchemas.hashtag.safeParse(hashtag);
-      assert.strictEqual(result.success, true, `Failed for: ${hashtag}`);
+      expect(result.success).toBe(true);
     });
   });
 
   it("should reject hashtags without # prefix", () => {
     const result = SecurityValidatedSchemas.hashtag.safeParse("tech");
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject hashtags with special characters", () => {
@@ -113,14 +112,14 @@ describe("SecurityValidatedSchemas - Hashtag Validation", () => {
 
     invalidHashtags.forEach((hashtag) => {
       const result = SecurityValidatedSchemas.hashtag.safeParse(hashtag);
-      assert.strictEqual(result.success, false, `Should reject: ${hashtag}`);
+      expect(result.success).toBe(false);
     });
   });
 
   it("should enforce length limits", () => {
     const tooLong = "#" + "a".repeat(51);
     const result = SecurityValidatedSchemas.hashtag.safeParse(tooLong);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -133,13 +132,13 @@ describe("SecurityValidatedSchemas - Media URL Validation", () => {
 
     validUrls.forEach((url) => {
       const result = SecurityValidatedSchemas.mediaUrl.safeParse(url);
-      assert.strictEqual(result.success, true, `Failed for: ${url}`);
+      expect(result.success).toBe(true);
     });
   });
 
   it("should reject HTTP media URLs", () => {
     const result = SecurityValidatedSchemas.mediaUrl.safeParse("http://example.com/image.jpg");
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -149,7 +148,7 @@ describe("SecurityValidatedSchemas - Channel ID Validation", () => {
 
     validIds.forEach((id) => {
       const result = SecurityValidatedSchemas.channelId.safeParse(id);
-      assert.strictEqual(result.success, true, `Failed for: ${id}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -158,7 +157,7 @@ describe("SecurityValidatedSchemas - Channel ID Validation", () => {
 
     invalidIds.forEach((id) => {
       const result = SecurityValidatedSchemas.channelId.safeParse(id);
-      assert.strictEqual(result.success, false, `Should reject: ${id}`);
+      expect(result.success).toBe(false);
     });
   });
 });
@@ -169,7 +168,7 @@ describe("SecurityValidatedSchemas - Provider Name Validation", () => {
 
     validProviders.forEach((provider) => {
       const result = SecurityValidatedSchemas.providerName.safeParse(provider);
-      assert.strictEqual(result.success, true, `Failed for: ${provider}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -178,7 +177,7 @@ describe("SecurityValidatedSchemas - Provider Name Validation", () => {
 
     invalidProviders.forEach((provider) => {
       const result = SecurityValidatedSchemas.providerName.safeParse(provider);
-      assert.strictEqual(result.success, false, `Should reject: ${provider}`);
+      expect(result.success).toBe(false);
     });
   });
 });
@@ -193,7 +192,7 @@ describe("SecurityValidatedSchemas - OAuth Token Validation", () => {
 
     validTokens.forEach((token) => {
       const result = SecurityValidatedSchemas.oauthToken.safeParse(token);
-      assert.strictEqual(result.success, true, `Failed for token`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -202,14 +201,14 @@ describe("SecurityValidatedSchemas - OAuth Token Validation", () => {
 
     invalidTokens.forEach((token) => {
       const result = SecurityValidatedSchemas.oauthToken.safeParse(token);
-      assert.strictEqual(result.success, false, `Should reject invalid token`);
+      expect(result.success).toBe(false);
     });
   });
 
   it("should enforce minimum length", () => {
     const tooShort = "abc123";
     const result = SecurityValidatedSchemas.oauthToken.safeParse(tooShort);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -219,7 +218,7 @@ describe("SecurityValidatedSchemas - User Role Validation", () => {
 
     validRoles.forEach((role) => {
       const result = SecurityValidatedSchemas.userRole.safeParse(role);
-      assert.strictEqual(result.success, true, `Failed for: ${role}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -228,7 +227,7 @@ describe("SecurityValidatedSchemas - User Role Validation", () => {
 
     invalidRoles.forEach((role) => {
       const result = SecurityValidatedSchemas.userRole.safeParse(role);
-      assert.strictEqual(result.success, false, `Should reject: ${role}`);
+      expect(result.success).toBe(false);
     });
   });
 });
@@ -239,7 +238,7 @@ describe("SecurityValidatedSchemas - Tenant Tier Validation", () => {
 
     validTiers.forEach((tier) => {
       const result = SecurityValidatedSchemas.tenantTier.safeParse(tier);
-      assert.strictEqual(result.success, true, `Failed for: ${tier}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -248,7 +247,7 @@ describe("SecurityValidatedSchemas - Tenant Tier Validation", () => {
 
     invalidTiers.forEach((tier) => {
       const result = SecurityValidatedSchemas.tenantTier.safeParse(tier);
-      assert.strictEqual(result.success, false, `Should reject: ${tier}`);
+      expect(result.success).toBe(false);
     });
   });
 });
@@ -259,7 +258,7 @@ describe("SecurityValidatedSchemas - IP Address Validation", () => {
 
     validIPs.forEach((ip) => {
       const result = SecurityValidatedSchemas.ipAddress.safeParse(ip);
-      assert.strictEqual(result.success, true, `Failed for: ${ip}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -268,7 +267,7 @@ describe("SecurityValidatedSchemas - IP Address Validation", () => {
 
     validIPs.forEach((ip) => {
       const result = SecurityValidatedSchemas.ipAddress.safeParse(ip);
-      assert.strictEqual(result.success, true, `Failed for: ${ip}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -277,7 +276,7 @@ describe("SecurityValidatedSchemas - IP Address Validation", () => {
 
     invalidIPs.forEach((ip) => {
       const result = SecurityValidatedSchemas.ipAddress.safeParse(ip);
-      assert.strictEqual(result.success, false, `Should reject: ${ip}`);
+      expect(result.success).toBe(false);
     });
   });
 });
@@ -294,7 +293,7 @@ describe("SecurityValidatedSchemas - Phone Number Validation", () => {
     phoneNumbers.forEach((phone) => {
       const result = SecurityValidatedSchemas.phoneNumber.safeParse(phone);
       // Currently fails due to \\+ and \\d instead of \+ and \d
-      assert.strictEqual(result.success, false, `Phone validation broken: ${phone}`);
+      expect(result.success).toBe(false);
     });
   });
 });

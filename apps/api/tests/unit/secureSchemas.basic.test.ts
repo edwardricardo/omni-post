@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { SecurityValidatedSchemas } from "../../src/validation/secureSchemas.js";
 
 describe("SecurityValidatedSchemas - Email Validation", () => {
@@ -13,7 +12,7 @@ describe("SecurityValidatedSchemas - Email Validation", () => {
 
     validEmails.forEach((email) => {
       const result = SecurityValidatedSchemas.email.safeParse(email);
-      assert.strictEqual(result.success, true, `Failed for: ${email}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -29,7 +28,7 @@ describe("SecurityValidatedSchemas - Email Validation", () => {
 
     invalidEmails.forEach((email) => {
       const result = SecurityValidatedSchemas.email.safeParse(email);
-      assert.strictEqual(result.success, false, `Should reject: ${email}`);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -44,14 +43,14 @@ describe("SecurityValidatedSchemas - Email Validation", () => {
 
     maliciousEmails.forEach((email) => {
       const result = SecurityValidatedSchemas.email.safeParse(email);
-      assert.strictEqual(result.success, false, `Should block XSS: ${email}`);
+      expect(result.success).toBe(false);
     });
   });
 
   it("should normalize email addresses", () => {
     const result = SecurityValidatedSchemas.email.safeParse("User@Example.COM");
     if (result.success) {
-      assert.match(result.data, /@example\.com$/);
+      expect(result.data).toMatch(/@example\.com$/);
     }
   });
 
@@ -59,8 +58,8 @@ describe("SecurityValidatedSchemas - Email Validation", () => {
     const tooShort = "a@b.c";
     const tooLong = "a".repeat(300) + "@example.com";
 
-    assert.strictEqual(SecurityValidatedSchemas.email.safeParse(tooShort).success, false);
-    assert.strictEqual(SecurityValidatedSchemas.email.safeParse(tooLong).success, false);
+    expect(SecurityValidatedSchemas.email.safeParse(tooShort).success).toBe(false);
+    expect(SecurityValidatedSchemas.email.safeParse(tooLong).success).toBe(false);
   });
 });
 
@@ -75,39 +74,39 @@ describe("SecurityValidatedSchemas - Password Validation", () => {
 
     strongPasswords.forEach((password) => {
       const result = SecurityValidatedSchemas.password.safeParse(password);
-      assert.strictEqual(result.success, true, `Failed for: ${password}`);
+      expect(result.success).toBe(true);
     });
   });
 
   it("should reject passwords without uppercase letters", () => {
     const result = SecurityValidatedSchemas.password.safeParse("weakpassword123!");
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject passwords without lowercase letters", () => {
     const result = SecurityValidatedSchemas.password.safeParse("WEAKPASSWORD123!");
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject passwords without numbers", () => {
     const result = SecurityValidatedSchemas.password.safeParse("WeakPassword!");
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject passwords without special characters", () => {
     const result = SecurityValidatedSchemas.password.safeParse("WeakPassword123");
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject passwords shorter than 12 characters", () => {
     const result = SecurityValidatedSchemas.password.safeParse("Short1!");
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject passwords longer than 128 characters", () => {
     const tooLong = "A1!a" + "x".repeat(130);
     const result = SecurityValidatedSchemas.password.safeParse(tooLong);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject common weak patterns", () => {
@@ -121,7 +120,7 @@ describe("SecurityValidatedSchemas - Password Validation", () => {
 
     weakPasswords.forEach((password) => {
       const result = SecurityValidatedSchemas.password.safeParse(password);
-      assert.strictEqual(result.success, false, `Should reject weak pattern: ${password}`);
+      expect(result.success).toBe(false);
     });
   });
 });
@@ -132,7 +131,7 @@ describe("SecurityValidatedSchemas - Username Validation", () => {
 
     validUsernames.forEach((username) => {
       const result = SecurityValidatedSchemas.username.safeParse(username);
-      assert.strictEqual(result.success, true, `Failed for: ${username}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -148,7 +147,7 @@ describe("SecurityValidatedSchemas - Username Validation", () => {
 
     invalidUsernames.forEach((username) => {
       const result = SecurityValidatedSchemas.username.safeParse(username);
-      assert.strictEqual(result.success, false, `Should reject: ${username}`);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -167,7 +166,7 @@ describe("SecurityValidatedSchemas - Username Validation", () => {
 
     reservedNames.forEach((username) => {
       const result = SecurityValidatedSchemas.username.safeParse(username);
-      assert.strictEqual(result.success, false, `Should reject reserved: ${username}`);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -175,8 +174,8 @@ describe("SecurityValidatedSchemas - Username Validation", () => {
     const tooShort = "ab";
     const tooLong = "a".repeat(31);
 
-    assert.strictEqual(SecurityValidatedSchemas.username.safeParse(tooShort).success, false);
-    assert.strictEqual(SecurityValidatedSchemas.username.safeParse(tooLong).success, false);
+    expect(SecurityValidatedSchemas.username.safeParse(tooShort).success).toBe(false);
+    expect(SecurityValidatedSchemas.username.safeParse(tooLong).success).toBe(false);
   });
 });
 
@@ -190,7 +189,7 @@ describe("SecurityValidatedSchemas - UUID Validation", () => {
 
     validUUIDs.forEach((uuid) => {
       const result = SecurityValidatedSchemas.uuid.safeParse(uuid);
-      assert.strictEqual(result.success, true, `Failed for: ${uuid}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -205,7 +204,7 @@ describe("SecurityValidatedSchemas - UUID Validation", () => {
 
     invalidUUIDs.forEach((uuid) => {
       const result = SecurityValidatedSchemas.uuid.safeParse(uuid);
-      assert.strictEqual(result.success, false, `Should reject: ${uuid}`);
+      expect(result.success).toBe(false);
     });
   });
 });
@@ -221,7 +220,7 @@ describe("SecurityValidatedSchemas - URL Validation", () => {
 
     validUrls.forEach((url) => {
       const result = SecurityValidatedSchemas.url.safeParse(url);
-      assert.strictEqual(result.success, true, `Failed for: ${url}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -235,7 +234,7 @@ describe("SecurityValidatedSchemas - URL Validation", () => {
 
     blockedUrls.forEach((url) => {
       const result = SecurityValidatedSchemas.url.safeParse(url);
-      assert.strictEqual(result.success, false, `Should reject protocol: ${url}`);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -244,20 +243,20 @@ describe("SecurityValidatedSchemas - URL Validation", () => {
 
     localhostUrls.forEach((url) => {
       const result = SecurityValidatedSchemas.url.safeParse(url);
-      assert.strictEqual(result.success, false, `Should reject localhost: ${url}`);
+      expect(result.success).toBe(false);
     });
   });
 
   // NOTE: Current schema only blocks "localhost" string, not IP addresses like 127.0.0.1
   it("should accept IP addresses (current behavior - may need enhancement)", () => {
     const result = SecurityValidatedSchemas.url.safeParse("http://127.0.0.1");
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should enforce maximum URL length", () => {
     const tooLong = "https://example.com/" + "a".repeat(2050);
     const result = SecurityValidatedSchemas.url.safeParse(tooLong);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -267,7 +266,7 @@ describe("SecurityValidatedSchemas - File Path Validation", () => {
 
     safePaths.forEach((path) => {
       const result = SecurityValidatedSchemas.filePath.safeParse(path);
-      assert.strictEqual(result.success, true, `Failed for: ${path}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -285,14 +284,14 @@ describe("SecurityValidatedSchemas - File Path Validation", () => {
 
     maliciousPaths.forEach((path) => {
       const result = SecurityValidatedSchemas.filePath.safeParse(path);
-      assert.strictEqual(result.success, false, `Should block traversal: ${path}`);
+      expect(result.success).toBe(false);
     });
   });
 
   it("should enforce length limits", () => {
     const tooLong = "path/" + "a".repeat(300) + ".txt";
     const result = SecurityValidatedSchemas.filePath.safeParse(tooLong);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -302,13 +301,13 @@ describe("SecurityValidatedSchemas - Filename Validation", () => {
 
     safeFilenames.forEach((filename) => {
       const result = SecurityValidatedSchemas.filename.safeParse(filename);
-      assert.strictEqual(result.success, true, `Failed for: ${filename}`);
+      expect(result.success).toBe(true);
     });
   });
 
   it("should reject filenames starting with dot", () => {
     const result = SecurityValidatedSchemas.filename.safeParse(".htaccess");
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject filenames with special characters", () => {
@@ -316,7 +315,7 @@ describe("SecurityValidatedSchemas - Filename Validation", () => {
 
     invalidFilenames.forEach((filename) => {
       const result = SecurityValidatedSchemas.filename.safeParse(filename);
-      assert.strictEqual(result.success, false, `Should reject: ${filename}`);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -334,7 +333,7 @@ describe("SecurityValidatedSchemas - Filename Validation", () => {
 
     dangerousFiles.forEach((filename) => {
       const result = SecurityValidatedSchemas.filename.safeParse(filename);
-      assert.strictEqual(result.success, false, `Should reject dangerous: ${filename}`);
+      expect(result.success).toBe(false);
     });
   });
 });

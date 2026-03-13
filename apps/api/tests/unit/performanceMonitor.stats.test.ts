@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { PerformanceMonitor } from "../../src/monitoring/performanceMonitor.js";
 import {
   createMockApiMetrics,
@@ -8,7 +7,7 @@ import {
   createMockReply,
 } from "./performanceMonitor.test-helpers.js";
 
-describe("PerformanceMonitor - Endpoint Statistics", { concurrency: 1 }, () => {
+describe("PerformanceMonitor - Endpoint Statistics", () => {
   let monitor: PerformanceMonitor;
 
   beforeEach(() => {
@@ -27,10 +26,10 @@ describe("PerformanceMonitor - Endpoint Statistics", { concurrency: 1 }, () => {
 
     const stats = await monitor.getEndpointStats(60);
 
-    assert.ok(stats.length > 0, "Should have endpoint statistics");
+    expect(stats.length > 0).toBeTruthy();
     const postStats = stats.find((s) => s.route.includes("posts") && s.method === "GET");
-    assert.ok(postStats, "Should have stats for /api/posts endpoint");
-    assert.ok(postStats!.totalRequests >= 5, "Should count all requests");
+    expect(postStats).toBeTruthy();
+    expect(postStats!.totalRequests >= 5).toBeTruthy();
   });
 
   it("should calculate average response time", async () => {
@@ -47,10 +46,7 @@ describe("PerformanceMonitor - Endpoint Statistics", { concurrency: 1 }, () => {
 
     if (postStats) {
       const expectedAvg = Math.round((100 + 150 + 200) / 3);
-      assert.ok(
-        Math.abs(postStats.averageResponseTime - expectedAvg) < 5,
-        "Should calculate correct average response time"
-      );
+      expect(Math.abs(postStats.averageResponseTime - expectedAvg) < 5).toBeTruthy();
     }
   });
 
@@ -66,12 +62,9 @@ describe("PerformanceMonitor - Endpoint Statistics", { concurrency: 1 }, () => {
     const analyticsStats = stats.find((s) => s.route.includes("analytics") && s.method === "GET");
 
     if (analyticsStats) {
-      assert.ok(analyticsStats.p95ResponseTime > 0, "P95 should be calculated");
-      assert.ok(analyticsStats.p99ResponseTime > 0, "P99 should be calculated");
-      assert.ok(
-        analyticsStats.p99ResponseTime >= analyticsStats.p95ResponseTime,
-        "P99 should be >= P95"
-      );
+      expect(analyticsStats.p95ResponseTime > 0).toBeTruthy();
+      expect(analyticsStats.p99ResponseTime > 0).toBeTruthy();
+      expect(analyticsStats.p99ResponseTime >= analyticsStats.p95ResponseTime).toBeTruthy();
     }
   });
 
@@ -92,8 +85,8 @@ describe("PerformanceMonitor - Endpoint Statistics", { concurrency: 1 }, () => {
     const deleteStats = stats.find((s) => s.route.includes("posts") && s.method === "DELETE");
 
     if (deleteStats) {
-      assert.ok(deleteStats.errorRate > 0, "Should calculate error rate");
-      assert.ok(Math.abs(deleteStats.errorRate - 20) < 5, "Error rate should be ~20%");
+      expect(deleteStats.errorRate > 0).toBeTruthy();
+      expect(Math.abs(deleteStats.errorRate - 20) < 5).toBeTruthy();
     }
   });
 
@@ -110,11 +103,8 @@ describe("PerformanceMonitor - Endpoint Statistics", { concurrency: 1 }, () => {
     const healthStats = stats.find((s) => s.route.includes("health"));
 
     if (healthStats) {
-      assert.ok(healthStats.throughput > 0, "Should calculate throughput");
-      assert.ok(
-        healthStats.throughput >= 30,
-        "Throughput should be at least 30 requests per minute"
-      );
+      expect(healthStats.throughput > 0).toBeTruthy();
+      expect(healthStats.throughput >= 30).toBeTruthy();
     }
   });
 
@@ -136,15 +126,12 @@ describe("PerformanceMonitor - Endpoint Statistics", { concurrency: 1 }, () => {
     const stats = await monitor.getEndpointStats(60);
 
     for (let i = 1; i < stats.length; i++) {
-      assert.ok(
-        stats[i - 1]!.totalRequests >= stats[i]!.totalRequests,
-        "Should be sorted by request count descending"
-      );
+      expect(stats[i - 1]!.totalRequests >= stats[i]!.totalRequests).toBeTruthy();
     }
   });
 });
 
-describe("PerformanceMonitor - Percentile Calculation", { concurrency: 1 }, () => {
+describe("PerformanceMonitor - Percentile Calculation", () => {
   let monitor: PerformanceMonitor;
 
   beforeEach(() => {
@@ -165,15 +152,15 @@ describe("PerformanceMonitor - Percentile Calculation", { concurrency: 1 }, () =
 
     if (stats.length > 0) {
       const stat = stats[0]!;
-      assert.ok(stat.p95ResponseTime >= 90 && stat.p95ResponseTime <= 100, "P95 should be ~95");
-      assert.ok(stat.p99ResponseTime >= 95 && stat.p99ResponseTime <= 100, "P99 should be ~99");
+      expect(stat.p95ResponseTime >= 90 && stat.p95ResponseTime <= 100).toBeTruthy();
+      expect(stat.p99ResponseTime >= 95 && stat.p99ResponseTime <= 100).toBeTruthy();
     }
   });
 
   it("should handle empty array for percentiles", async () => {
     const stats = await monitor.getEndpointStats(60);
 
-    assert.ok(Array.isArray(stats), "Should return empty array for no data");
+    expect(Array.isArray(stats)).toBeTruthy();
   });
 
   it("should handle single value for percentiles", async () => {
@@ -185,13 +172,13 @@ describe("PerformanceMonitor - Percentile Calculation", { concurrency: 1 }, () =
 
     if (stats.length > 0) {
       const stat = stats[0]!;
-      assert.strictEqual(stat.p95ResponseTime, 150, "Single value P95 should equal that value");
-      assert.strictEqual(stat.p99ResponseTime, 150, "Single value P99 should equal that value");
+      expect(stat.p95ResponseTime).toBe(150);
+      expect(stat.p99ResponseTime).toBe(150);
     }
   });
 });
 
-describe("PerformanceMonitor - Dashboard Data", { concurrency: 1 }, () => {
+describe("PerformanceMonitor - Dashboard Data", () => {
   let monitor: PerformanceMonitor;
 
   beforeEach(() => {
@@ -209,10 +196,10 @@ describe("PerformanceMonitor - Dashboard Data", { concurrency: 1 }, () => {
 
     const dashboard = await monitor.getDashboardData(60);
 
-    assert.ok(dashboard.systemHealth, "Should include system health");
-    assert.ok(Array.isArray(dashboard.endpointStats), "Should include endpoint stats");
-    assert.ok(Array.isArray(dashboard.recentAlerts), "Should include recent alerts");
-    assert.ok(Array.isArray(dashboard.slowRequests), "Should include slow requests");
+    expect(dashboard.systemHealth).toBeTruthy();
+    expect(Array.isArray(dashboard.endpointStats)).toBeTruthy();
+    expect(Array.isArray(dashboard.recentAlerts)).toBeTruthy();
+    expect(Array.isArray(dashboard.slowRequests)).toBeTruthy();
   });
 
   it("should include slow requests in dashboard", async () => {
@@ -222,7 +209,7 @@ describe("PerformanceMonitor - Dashboard Data", { concurrency: 1 }, () => {
 
     const dashboard = await monitor.getDashboardData(60);
 
-    assert.ok(dashboard.slowRequests.length > 0, "Should have slow requests in dashboard");
+    expect(dashboard.slowRequests.length > 0).toBeTruthy();
   });
 
   it("should sort slow requests by response time", async () => {
@@ -236,15 +223,14 @@ describe("PerformanceMonitor - Dashboard Data", { concurrency: 1 }, () => {
     const dashboard = await monitor.getDashboardData(60);
 
     for (let i = 1; i < dashboard.slowRequests.length; i++) {
-      assert.ok(
-        dashboard.slowRequests[i - 1]!.responseTime >= dashboard.slowRequests[i]!.responseTime,
-        "Slow requests should be sorted by response time descending"
-      );
+      expect(
+        dashboard.slowRequests[i - 1]!.responseTime >= dashboard.slowRequests[i]!.responseTime
+      ).toBeTruthy();
     }
   });
 });
 
-describe("PerformanceMonitor - Alert Management", { concurrency: 1 }, () => {
+describe("PerformanceMonitor - Alert Management", () => {
   let monitor: PerformanceMonitor;
 
   beforeEach(() => {
@@ -256,14 +242,14 @@ describe("PerformanceMonitor - Alert Management", { concurrency: 1 }, () => {
   it("should retrieve recent alerts", async () => {
     const alerts = await monitor.getRecentAlerts(10);
 
-    assert.ok(Array.isArray(alerts), "Should return array of alerts");
+    expect(Array.isArray(alerts)).toBeTruthy();
   });
 
   it("should limit number of alerts retrieved", async () => {
     const limit = 5;
     const alerts = await monitor.getRecentAlerts(limit);
 
-    assert.ok(alerts.length <= limit, `Should return at most ${limit} alerts`);
+    expect(alerts.length <= limit).toBeTruthy();
   });
 
   it("should update alert rule configuration", () => {
@@ -272,7 +258,7 @@ describe("PerformanceMonitor - Alert Management", { concurrency: 1 }, () => {
       enabled: false,
     });
 
-    assert.strictEqual(updated, true, "Should successfully update alert rule");
+    expect(updated).toBe(true);
   });
 
   it("should return false for non-existent alert rule", () => {
@@ -280,6 +266,6 @@ describe("PerformanceMonitor - Alert Management", { concurrency: 1 }, () => {
       threshold: 5,
     });
 
-    assert.strictEqual(updated, false, "Should return false for unknown rule");
+    expect(updated).toBe(false);
   });
 });

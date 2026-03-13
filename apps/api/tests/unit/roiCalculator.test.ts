@@ -11,8 +11,7 @@
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/roiCalculator.test.ts
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { ROICalculator } from "../../src/analytics/roiCalculator.js";
 import type { ProjectQueryRepositoryPort } from "../../src/domain/repositories/ProjectQueryRepository.js";
 
@@ -34,7 +33,7 @@ const stubProjectRepo: ProjectQueryRepositoryPort = {
 describe("ROICalculator - Initialization", () => {
   it("initializes with default cost model", () => {
     const calculator = new ROICalculator(stubProjectRepo);
-    assert.ok(calculator instanceof ROICalculator, "Should be a ROICalculator instance");
+    expect(calculator instanceof ROICalculator).toBeTruthy();
   });
 });
 
@@ -44,7 +43,7 @@ describe("ROICalculator - Date Range Calculation", () => {
     const { startDate, endDate } = calculator.calculateDateRange("7d");
 
     const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    assert.strictEqual(daysDiff, 7);
+    expect(daysDiff).toBe(7);
   });
 
   it("calculates 30 days correctly", () => {
@@ -52,7 +51,7 @@ describe("ROICalculator - Date Range Calculation", () => {
     const { startDate, endDate } = calculator.calculateDateRange("30d");
 
     const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    assert.strictEqual(daysDiff, 30);
+    expect(daysDiff).toBe(30);
   });
 
   it("calculates 90 days correctly", () => {
@@ -60,7 +59,7 @@ describe("ROICalculator - Date Range Calculation", () => {
     const { startDate, endDate } = calculator.calculateDateRange("90d");
 
     const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    assert.strictEqual(daysDiff, 90);
+    expect(daysDiff).toBe(90);
   });
 
   it("calculates 1 year correctly", () => {
@@ -68,7 +67,7 @@ describe("ROICalculator - Date Range Calculation", () => {
     const { startDate, endDate } = calculator.calculateDateRange("1y");
 
     const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    assert.ok(daysDiff >= 365 && daysDiff <= 366);
+    expect(daysDiff >= 365 && daysDiff <= 366).toBeTruthy();
   });
 
   it("uses custom dates when provided", () => {
@@ -78,8 +77,8 @@ describe("ROICalculator - Date Range Calculation", () => {
 
     const { startDate, endDate } = calculator.calculateDateRange("custom", customStart, customEnd);
 
-    assert.strictEqual(startDate.getTime(), customStart.getTime());
-    assert.strictEqual(endDate.getTime(), customEnd.getTime());
+    expect(startDate.getTime()).toBe(customStart.getTime());
+    expect(endDate.getTime()).toBe(customEnd.getTime());
   });
 });
 
@@ -89,7 +88,7 @@ describe("ROICalculator - Seasonal Factors", () => {
     const novemberFactor = calculator.getSeasonalFactor(10); // November is month 10 (0-indexed)
     const averageFactor = 1.0;
 
-    assert.ok(novemberFactor > averageFactor);
+    expect(novemberFactor > averageFactor).toBeTruthy();
   });
 
   it("returns higher factor for December (holiday season)", () => {
@@ -97,7 +96,7 @@ describe("ROICalculator - Seasonal Factors", () => {
     const decemberFactor = calculator.getSeasonalFactor(11); // December is month 11 (0-indexed)
     const averageFactor = 1.0;
 
-    assert.ok(decemberFactor > averageFactor);
+    expect(decemberFactor > averageFactor).toBeTruthy();
   });
 
   it("returns lower factor for February (slow season)", () => {
@@ -105,7 +104,7 @@ describe("ROICalculator - Seasonal Factors", () => {
     const februaryFactor = calculator.getSeasonalFactor(1); // February is month 1 (0-indexed)
     const averageFactor = 1.0;
 
-    assert.ok(februaryFactor < averageFactor);
+    expect(februaryFactor < averageFactor).toBeTruthy();
   });
 
   it("returns factors within reasonable range", () => {
@@ -113,7 +112,7 @@ describe("ROICalculator - Seasonal Factors", () => {
 
     for (let month = 0; month < 12; month++) {
       const factor = calculator.getSeasonalFactor(month);
-      assert.ok(factor >= 0.5 && factor <= 2.0);
+      expect(factor >= 0.5 && factor <= 2.0).toBeTruthy();
     }
   });
 });
@@ -126,8 +125,8 @@ describe("ROICalculator - Cache Key Generation", () => {
       timeRange: "30d",
     });
 
-    assert.ok(key.includes("acc-123"));
-    assert.ok(key.includes("30d"));
+    expect(key.includes("acc-123")).toBeTruthy();
+    expect(key.includes("30d")).toBeTruthy();
   });
 
   it("includes project ID when provided", () => {
@@ -138,7 +137,7 @@ describe("ROICalculator - Cache Key Generation", () => {
       timeRange: "7d",
     });
 
-    assert.ok(key.includes("proj-456"));
+    expect(key.includes("proj-456")).toBeTruthy();
   });
 
   it("creates different keys for different accounts", () => {
@@ -152,7 +151,7 @@ describe("ROICalculator - Cache Key Generation", () => {
       timeRange: "30d",
     });
 
-    assert.notStrictEqual(key1, key2);
+    expect(key1).not.toBe(key2);
   });
 
   it("creates different keys for different time ranges", () => {
@@ -166,6 +165,6 @@ describe("ROICalculator - Cache Key Generation", () => {
       timeRange: "30d",
     });
 
-    assert.notStrictEqual(key1, key2);
+    expect(key1).not.toBe(key2);
   });
 });

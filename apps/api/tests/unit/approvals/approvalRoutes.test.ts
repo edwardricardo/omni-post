@@ -1,48 +1,116 @@
-#!/usr/bin/env tsx
 /**
  * @file approvalRoutes.test.ts
- * @description Integration-style route tests for the content approval workflow endpoints.
- *   Uses real DI container with Prisma for integration-style route testing.
- * @layer infrastructure
+ * @description Unit tests for content approval workflow endpoints.
+ *   Uses mocked Prisma stores and a real Fastify instance to test HTTP endpoint behavior.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { type FastifyInstance } from "fastify";
-import {
-  type ZodTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-type-provider-zod";
-import { approvalRoutes } from "../../../src/approvals/approvalRoutes.js";
-import type { AuthService } from "../../../src/auth/authService.js";
-import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../../src/infrastructure/container/setup.js";
-import { TOKENS } from "../../../src/infrastructure/container/types.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule, createStore, buildModelMock } from "../helpers/mockPrisma.js";
 
-// --- Test helpers ---
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
 
-let containerAuthService: AuthService;
+const { mockPrisma } = createMockPrismaModule();
 
-async function createTestApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false });
-  const typedApp = app.withTypeProvider<ZodTypeProvider>();
-  typedApp.setValidatorCompiler(validatorCompiler);
-  typedApp.setSerializerCompiler(serializerCompiler);
+// Approval request store with include resolver for reviews
+const approvalRequestStore = createStore<Record<string, unknown>>();
+const approvalReviewStore = createStore<Record<string, unknown>>();
 
-  const container = setupContainer({ prisma });
-  containerAuthService = container.resolve<AuthService>(TOKENS.AuthService);
-  typedApp.decorate("container", container);
+const approvalRequestMock = buildModelMock(
+  approvalRequestStore,
+  { status: "PENDING", comment: null },
+  "id",
+  (record, include) => {
+    const result = { ...record };
+    if (include.reviews) {
+      const requestId = record.id as string;
+      result.reviews = approvalReviewStore.all().filter((r) => r.requestId === requestId);
+    }
+    return result;
+  }
+);
 
-  await typedApp.register(approvalRoutes);
-  return typedApp;
-}
+// Post defaults that satisfy the domain mapper (contents, media, contentVersions)
+const postDefaults = {
+  status: "DRAFT",
+  deletedAt: null,
+  publishedAt: null,
+  scheduledAt: null,
+  title: null,
+  excerpt: null,
+  language: "EN",
+  tags: [],
+  platformOverrides: {},
+  contents: [],
+  media: [],
+  contentVersions: [],
+};
+
+// Add extra models needed by approval routes and their repositories
+const extraModels = {
+  approvalRequest: approvalRequestMock,
+  approvalReview: buildModelMock(approvalReviewStore),
+  post: buildModelMock(createStore(), postDefaults),
+  teamMember: buildModelMock(createStore(), {
+    isActive: true,
+    role: "MEMBER",
+    avatarUrl: null,
+    invitedBy: null,
+  }),
+  projectMember: buildModelMock(createStore()),
+  channel: buildModelMock(createStore()),
+  adminUserPermission: buildModelMock(createStore()),
+};
+Object.assign(mockPrisma.prisma, extraModels);
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
+// ---------------------------------------------------------------------------
+// Dynamic imports after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const fastifyCookie = (await import("@fastify/cookie")).default;
+const { approvalRoutes } = await import("../../../src/approvals/approvalRoutes.js");
+const { authRoutes } = await import("../../../src/auth/authRoutes.js");
+const { setupContainer } = await import("../../../src/infrastructure/container/setup.js");
+const { TOKENS } = await import("../../../src/infrastructure/container/types.js");
+const { AuthService, setRedisInstance } = await import("../../../src/auth/authService.js");
+const { MfaService } = await import("../../../src/auth/mfaService.js");
+const { PrismaAdminUserRepository } = await import(
+  "../../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
+);
+
+setRedisInstance(null as never);
+
+// ---------------------------------------------------------------------------
+// Test setup
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const adminEmail = `approval-admin-${timestamp}@example.com`;
-const testPassword = "TestPassword123!";
+const testPassword = "TestPassword123";
 
-let app: FastifyInstance;
+let app: import("fastify").FastifyInstance;
 let adminToken: string;
 let testAccountId: string;
 let testProjectId: string;
@@ -50,12 +118,33 @@ let testPostId: string;
 let submitterMemberId: string;
 let reviewerMemberId: string;
 
-describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
-  before(async () => {
-    app = await createTestApp();
+async function createTestApp() {
+  const localApp = Fastify({ logger: false });
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+
+  const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+  const mfaSvc = new MfaService(adminUserRepo);
+  const authSvc = new AuthService(adminUserRepo, mfaSvc);
+  container.registerInstance(TOKENS.AuthService, authSvc);
+
+  localApp.decorate("container", container);
+  await localApp.register(fastifyCookie);
+  await localApp.register(authRoutes);
+  await localApp.register(approvalRoutes);
+  await localApp.ready();
+  return { app: localApp, authSvc };
+}
+
+describe("approvalRoutes Integration Tests", () => {
+  let authSvc: InstanceType<typeof AuthService>;
+
+  beforeAll(async () => {
+    const result = await createTestApp();
+    app = result.app;
+    authSvc = result.authSvc;
 
     // Create account
-    const account = await prisma.account.create({
+    const account = await (mockPrisma.prisma.account as { create: Function }).create({
       data: {
         email: `approval-account-${timestamp}@example.com`,
         name: "Approval Test Account",
@@ -66,7 +155,7 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
     testAccountId = account.id;
 
     // Create project
-    const project = await prisma.project.create({
+    const project = await (mockPrisma.prisma.project as { create: Function }).create({
       data: {
         accountId: testAccountId,
         name: "Approval Test Project",
@@ -74,17 +163,22 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
     });
     testProjectId = project.id;
 
-    // Create post
-    const post = await prisma.post.create({
+    // Create post (with defaults that satisfy domain mapper)
+    const post = await (mockPrisma.prisma as Record<string, { create: Function }>).post.create({
       data: {
         projectId: testProjectId,
         status: "DRAFT",
+        contents: [],
+        media: [],
+        contentVersions: [],
       },
     });
     testPostId = post.id;
 
     // Create submitter team member
-    const submitter = await prisma.teamMember.create({
+    const submitter = await (
+      mockPrisma.prisma as Record<string, { create: Function }>
+    ).teamMember.create({
       data: {
         accountId: testAccountId,
         email: `submitter-${timestamp}@example.com`,
@@ -95,7 +189,9 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
     submitterMemberId = submitter.id;
 
     // Create reviewer team member
-    const reviewer = await prisma.teamMember.create({
+    const reviewer = await (
+      mockPrisma.prisma as Record<string, { create: Function }>
+    ).teamMember.create({
       data: {
         accountId: testAccountId,
         email: `reviewer-${timestamp}@example.com`,
@@ -105,66 +201,18 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
     });
     reviewerMemberId = reviewer.id;
 
-    // Create admin user for authentication
-    const adminResult = await containerAuthService.registerAdmin(
-      adminEmail,
-      testPassword,
-      "Approval Admin",
-      "ADMIN"
-    );
-    assert.ok(adminResult.ok, "Admin registration should succeed");
-
-    // Get auth token
-    const loginResult = await containerAuthService.login(
-      { email: adminEmail, password: testPassword },
-      "127.0.0.1",
-      "test-agent"
-    );
-    assert.ok(loginResult.ok, "Login should succeed");
-    if (loginResult.ok && "tokens" in loginResult.value) {
-      adminToken = loginResult.value.tokens.accessToken;
-    }
+    // Register admin user and get token
+    await authSvc.registerAdmin(adminEmail, testPassword, "Approval Admin", "ADMIN");
+    const loginRes = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { email: adminEmail, password: testPassword },
+    });
+    const loginBody = JSON.parse(loginRes.body);
+    adminToken = loginBody.data?.accessToken ?? "";
   });
 
-  after(async () => {
-    try {
-      // Clean up in reverse dependency order
-      await prisma.approvalReview.deleteMany({
-        where: { request: { postId: testPostId } },
-      });
-      await prisma.approvalRequest.deleteMany({
-        where: { postId: testPostId },
-      });
-      await prisma.post.deleteMany({
-        where: { projectId: testProjectId },
-      });
-      await prisma.projectMember.deleteMany({
-        where: { member: { accountId: testAccountId } },
-      });
-      await prisma.teamMember.deleteMany({
-        where: { accountId: testAccountId },
-      });
-      await prisma.project.deleteMany({
-        where: { accountId: testAccountId },
-      });
-      await prisma.account.deleteMany({
-        where: { id: testAccountId },
-      });
-
-      // Clean up admin user
-      const adminUser = await prisma.adminUser.findUnique({
-        where: { email: adminEmail },
-      });
-      if (adminUser) {
-        await prisma.session.deleteMany({ where: { userId: adminUser.id } });
-        await prisma.loginAttempt.deleteMany({ where: { userId: adminUser.id } });
-        await prisma.adminRoleHistory.deleteMany({ where: { userId: adminUser.id } });
-        await prisma.adminUser.delete({ where: { id: adminUser.id } });
-      }
-    } catch (_err: unknown) {
-      // Cleanup is best-effort
-    }
-
+  afterAll(async () => {
     await app.close();
   });
 
@@ -179,7 +227,7 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
           submitterId: submitterMemberId,
         },
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("submits post for review successfully", async () => {
@@ -194,9 +242,9 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 201);
-      assert.equal(body.ok, true);
-      assert.ok(body.data?.requestId, "Should return requestId");
+      expect(response.statusCode).toBe(201);
+      expect(body.ok).toBe(true);
+      expect(body.data?.requestId).toBeTruthy();
     });
 
     it("rejects invalid postId format", async () => {
@@ -209,7 +257,7 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.equal(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -218,12 +266,15 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
   describe("POST /approvals/:id/approve", () => {
     let approvalRequestId: string;
 
-    before(async () => {
+    beforeAll(async () => {
       // Create a second post and submit it for review so we can approve it
-      const post = await prisma.post.create({
+      const post = await (mockPrisma.prisma as Record<string, { create: Function }>).post.create({
         data: {
           projectId: testProjectId,
           status: "DRAFT",
+          contents: [],
+          media: [],
+          contentVersions: [],
         },
       });
 
@@ -237,7 +288,7 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const submitBody = JSON.parse(submitResponse.body);
-      assert.ok(submitBody.data?.requestId, "Submit should succeed for approve tests");
+      expect(submitBody.data?.requestId).toBeTruthy();
       approvalRequestId = submitBody.data.requestId;
     });
 
@@ -249,7 +300,7 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
           reviewerId: reviewerMemberId,
         },
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("approves post successfully", async () => {
@@ -264,9 +315,9 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.equal(body.data?.approved, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.approved).toBe(true);
     });
 
     it("returns 404 for non-existent approval", async () => {
@@ -281,8 +332,8 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 404);
-      assert.equal(body.ok, false);
+      expect(response.statusCode).toBe(404);
+      expect(body.ok).toBe(false);
     });
   });
 
@@ -291,12 +342,15 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
   describe("POST /approvals/:id/reject", () => {
     let rejectableRequestId: string;
 
-    before(async () => {
+    beforeAll(async () => {
       // Create a third post and submit it for review so we can reject it
-      const post = await prisma.post.create({
+      const post = await (mockPrisma.prisma as Record<string, { create: Function }>).post.create({
         data: {
           projectId: testProjectId,
           status: "DRAFT",
+          contents: [],
+          media: [],
+          contentVersions: [],
         },
       });
 
@@ -310,7 +364,7 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const submitBody = JSON.parse(submitResponse.body);
-      assert.ok(submitBody.data?.requestId, "Submit should succeed for reject tests");
+      expect(submitBody.data?.requestId).toBeTruthy();
       rejectableRequestId = submitBody.data.requestId;
     });
 
@@ -322,7 +376,7 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
           reviewerId: reviewerMemberId,
         },
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("rejects post successfully", async () => {
@@ -337,9 +391,9 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.equal(body.data?.rejected, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.rejected).toBe(true);
     });
 
     it("returns 404 for non-existent approval", async () => {
@@ -354,8 +408,8 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 404);
-      assert.equal(body.ok, false);
+      expect(response.statusCode).toBe(404);
+      expect(body.ok).toBe(false);
     });
   });
 
@@ -367,7 +421,7 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
         method: "GET",
         url: `/posts/${testPostId}/approvals`,
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("returns approval history for post", async () => {
@@ -378,19 +432,19 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.ok(Array.isArray(body.data?.approvals), "Should return approvals array");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.approvals)).toBeTruthy();
 
       // The first submit-for-review test created an approval for testPostId
       if (body.data.approvals.length > 0) {
         const first = body.data.approvals[0];
-        assert.ok(first.id, "DTO should have id");
-        assert.equal(first.postId, testPostId, "Should match the queried post");
-        assert.ok(first.submitterId, "DTO should have submitterId");
-        assert.ok(first.status, "DTO should have status");
-        assert.ok(first.createdAt, "DTO should have createdAt");
-        assert.ok(Array.isArray(first.reviews), "DTO should have reviews array");
+        expect(first.id).toBeTruthy();
+        expect(first.postId).toBe(testPostId);
+        expect(first.submitterId).toBeTruthy();
+        expect(first.status).toBeTruthy();
+        expect(first.createdAt).toBeTruthy();
+        expect(Array.isArray(first.reviews)).toBeTruthy();
       }
     });
   });
@@ -403,7 +457,7 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
         method: "GET",
         url: `/approvals/pending?reviewerId=${reviewerMemberId}`,
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("returns pending approvals for reviewer", async () => {
@@ -414,9 +468,9 @@ describe("approvalRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.ok(Array.isArray(body.data?.approvals), "Should return approvals array");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.approvals)).toBeTruthy();
     });
   });
 });

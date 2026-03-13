@@ -1,55 +1,292 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { prisma } from "@infra/prisma";
-import { AuditService } from "../../src/audit/auditService";
-import {
-  setupAuditTestUsers,
-  teardownAuditTestData,
-  testUserId,
-  testUser2Id,
-} from "./auditService.test-helpers.js";
+/**
+ * @file auditService.stats.test.ts
+ * @description Unit tests for AuditService.getStats() — statistics aggregation.
+ *              Uses mocked Prisma to avoid database dependency.
+ * @layer test-infrastructure
+ */
 
-describe("AuditService - getStats()", { concurrency: 1 }, () => {
+import { describe, it, beforeEach, expect, vi } from "vitest";
+
+// ---------------------------------------------------------------------------
+// Mock setup — vi.hoisted runs before vi.mock factories
+// ---------------------------------------------------------------------------
+
+const mocks = vi.hoisted(() => {
+  const noop = () => {};
+  const noopAsync = async () => undefined;
+
+  const auditLogCreate = vi.fn();
+  const auditLogFindMany = vi.fn();
+  const auditLogFindUnique = vi.fn();
+  const auditLogCount = vi.fn();
+  const auditLogDeleteMany = vi.fn();
+  const auditLogGroupBy = vi.fn(async () => []);
+  const adminUserFindMany = vi.fn();
+
+  const prismaClient: any = {
+    auditLog: {
+      create: auditLogCreate,
+      findMany: auditLogFindMany,
+      findUnique: auditLogFindUnique,
+      count: auditLogCount,
+      deleteMany: auditLogDeleteMany,
+      groupBy: auditLogGroupBy,
+    },
+    adminUser: {
+      findMany: adminUserFindMany,
+    },
+    $connect: vi.fn(noopAsync),
+    $disconnect: vi.fn(noopAsync),
+    $transaction: vi.fn(async (fn: any) => fn(prismaClient)),
+  };
+
+  const logger = {
+    info: vi.fn(noop),
+    warn: vi.fn(noop),
+    error: vi.fn(noop),
+    debug: vi.fn(noop),
+    child: vi.fn(() => logger),
+  };
+
+  return {
+    prismaClient,
+    logger,
+    auditLogCount,
+    auditLogGroupBy,
+    adminUserFindMany,
+  };
+});
+
+vi.mock("@infra/prisma", () => ({
+  prisma: mocks.prismaClient,
+  AdminRole: { ADMIN: "ADMIN", SUPPORT: "SUPPORT", SUPER_ADMIN: "SUPER_ADMIN" },
+  Prisma: {},
+}));
+
+vi.mock("../../src/lib/logger.js", () => ({
+  logger: mocks.logger,
+}));
+
+import { AuditService } from "../../src/audit/auditService.js";
+
+// ---------------------------------------------------------------------------
+// Test data
+// ---------------------------------------------------------------------------
+
+const TEST_USER_1_ID = "audit-test-user-001";
+const TEST_USER_2_ID = "audit-test-user-002";
+
+const TEST_USER_1 = {
+  id: TEST_USER_1_ID,
+  email: "audit-test-user@example.com",
+  name: "Audit Test User",
+  role: "ADMIN",
+};
+
+const TEST_USER_2 = {
+  id: TEST_USER_2_ID,
+  email: "audit-test-user2@example.com",
+  name: "Audit Test User 2",
+  role: "SUPPORT",
+};
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Filter entries using the same where clause logic AuditService builds */
+function filterEntries(
+  entries: Array<Record<string, unknown>>,
+  where: Record<string, unknown>
+): Array<Record<string, unknown>> {
+  return entries.filter((entry) => {
+    for (const [key, value] of Object.entries(where)) {
+      if (value === undefined || value === null) continue;
+
+      if (key === "createdAt" && typeof value === "object") {
+        const dateFilter = value as Record<string, Date>;
+        const entryDate = entry.createdAt as Date;
+        if (dateFilter.gte && entryDate < dateFilter.gte) return false;
+        if (dateFilter.lte && entryDate > dateFilter.lte) return false;
+        continue;
+      }
+
+      if (typeof value === "object" && value !== null && "contains" in (value as any)) {
+        const filter = value as { contains: string; mode?: string };
+        const entryVal = String(entry[key] ?? "");
+        if (filter.mode === "insensitive") {
+          if (!entryVal.toLowerCase().includes(filter.contains.toLowerCase())) return false;
+        } else {
+          if (!entryVal.includes(filter.contains)) return false;
+        }
+        continue;
+      }
+
+      if (typeof value === "object" && value !== null && "not" in (value as any)) {
+        const notVal = (value as { not: unknown }).not;
+        if (entry[key] === notVal) return false;
+        continue;
+      }
+
+      if (entry[key] !== value) return false;
+    }
+    return true;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe("AuditService - getStats()", () => {
   const auditService = new AuditService();
 
-  before(async () => {
-    await setupAuditTestUsers();
+  const seedRecords: Array<Record<string, unknown>> = [
+    {
+      id: "log-s-1",
+      userId: TEST_USER_1_ID,
+      action: "STATS_LOGIN",
+      resource: "Session",
+      success: true,
+      error: null,
+      resourceId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "log-s-2",
+      userId: TEST_USER_1_ID,
+      action: "STATS_LOGIN",
+      resource: "Session",
+      success: true,
+      error: null,
+      resourceId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "log-s-3",
+      userId: TEST_USER_1_ID,
+      action: "STATS_POST_CREATE",
+      resource: "Post",
+      resourceId: "stats-post-1",
+      success: true,
+      error: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "log-s-4",
+      userId: TEST_USER_2_ID,
+      action: "STATS_LOGIN",
+      resource: "Session",
+      success: false,
+      error: null,
+      resourceId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "log-s-5",
+      userId: TEST_USER_2_ID,
+      action: "STATS_POST_CREATE",
+      resource: "Post",
+      resourceId: "stats-post-2",
+      success: true,
+      error: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "log-s-6",
+      userId: TEST_USER_2_ID,
+      action: "STATS_POST_CREATE",
+      resource: "Post",
+      resourceId: "stats-post-3",
+      success: true,
+      error: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "log-s-7",
+      userId: null,
+      action: "STATS_SYSTEM_HEALTH",
+      resource: "System",
+      success: true,
+      error: null,
+      resourceId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "log-s-8",
+      userId: null,
+      action: "STATS_CACHE_CLEAR",
+      resource: "System",
+      success: true,
+      error: null,
+      resourceId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
 
-    await prisma.auditLog.createMany({
-      data: [
-        { userId: testUserId, action: "STATS_LOGIN", resource: "Session", success: true },
-        { userId: testUserId, action: "STATS_LOGIN", resource: "Session", success: true },
-        {
-          userId: testUserId,
-          action: "STATS_POST_CREATE",
-          resource: "Post",
-          resourceId: "stats-post-1",
-          success: true,
-        },
-        { userId: testUser2Id, action: "STATS_LOGIN", resource: "Session", success: false },
-        {
-          userId: testUser2Id,
-          action: "STATS_POST_CREATE",
-          resource: "Post",
-          resourceId: "stats-post-2",
-          success: true,
-        },
-        {
-          userId: testUser2Id,
-          action: "STATS_POST_CREATE",
-          resource: "Post",
-          resourceId: "stats-post-3",
-          success: true,
-        },
-        { action: "STATS_SYSTEM_HEALTH", resource: "System", success: true },
-        { action: "STATS_CACHE_CLEAR", resource: "System", success: true },
-      ],
+  const adminUsers = [TEST_USER_1, TEST_USER_2];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Mock count — filters records and counts
+    mocks.auditLogCount.mockImplementation(async ({ where }: any = {}) => {
+      if (!where) return seedRecords.length;
+      return filterEntries(seedRecords, where).length;
     });
-  });
 
-  after(async () => {
-    // Only clean up audit logs with "STATS_" prefix created by this file
-    await teardownAuditTestData("STATS_");
+    // Mock groupBy — aggregates from seed data
+    mocks.auditLogGroupBy.mockImplementation(async ({ by, where, _count, take }: any) => {
+      let entries = [...seedRecords];
+      if (where) {
+        entries = filterEntries(entries, where);
+      }
+
+      const groupField = by[0] as string;
+      const countField = _count ? Object.keys(_count)[0] : groupField;
+      const groups = new Map<string, number>();
+
+      for (const entry of entries) {
+        const key = entry[groupField];
+        if (key === null || key === undefined) continue;
+        const keyStr = String(key);
+        groups.set(keyStr, (groups.get(keyStr) ?? 0) + 1);
+      }
+
+      let result = Array.from(groups.entries())
+        .map(([key, count]) => ({
+          [groupField]: key,
+          _count: { [countField]: count },
+        }))
+        .sort((a, b) => {
+          const ca = a._count[countField] as number;
+          const cb = b._count[countField] as number;
+          return cb - ca;
+        });
+
+      if (take) {
+        result = result.slice(0, take);
+      }
+
+      return result;
+    });
+
+    // Mock adminUser.findMany — returns matching users
+    mocks.adminUserFindMany.mockImplementation(async ({ where }: any = {}) => {
+      if (!where) return adminUsers;
+      if (where.id?.in) {
+        return adminUsers.filter((u) => (where.id.in as string[]).includes(u.id));
+      }
+      return adminUsers;
+    });
   });
 
   describe("getStats() - Basic Counts", () => {
@@ -58,8 +295,8 @@ describe("AuditService - getStats()", { concurrency: 1 }, () => {
         action: "STATS_",
       });
 
-      assert.ok(result.ok);
-      assert.ok(result.value.total >= 8, `Expected at least 8, got ${result.value.total}`);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.total >= 8).toBeTruthy();
     });
 
     it("should count successful and failed separately", async () => {
@@ -67,14 +304,10 @@ describe("AuditService - getStats()", { concurrency: 1 }, () => {
         action: "STATS_",
       });
 
-      assert.ok(result.ok);
-      assert.strictEqual(
-        result.value.total,
-        result.value.successful + result.value.failed,
-        "Total should equal successful + failed"
-      );
-      assert.ok(result.value.successful >= 7, "Should have at least 7 successful");
-      assert.ok(result.value.failed >= 1, "Should have at least 1 failed");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.total).toBe(result.value.successful + result.value.failed);
+      expect(result.value.successful >= 7).toBeTruthy();
+      expect(result.value.failed >= 1).toBeTruthy();
     });
   });
 
@@ -84,22 +317,21 @@ describe("AuditService - getStats()", { concurrency: 1 }, () => {
         action: "STATS_",
       });
 
-      assert.ok(result.ok);
-      assert.ok(result.value.topActions.length > 0, "Should have top actions");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.topActions.length > 0).toBeTruthy();
 
       for (let i = 0; i < result.value.topActions.length - 1; i++) {
-        assert.ok(
-          result.value.topActions[i].count >= result.value.topActions[i + 1].count,
-          "Top actions should be sorted by count descending"
-        );
+        expect(
+          result.value.topActions[i].count >= result.value.topActions[i + 1].count
+        ).toBeTruthy();
       }
     });
 
     it("should limit top actions to 10", async () => {
       const result = await auditService.getStats({});
 
-      assert.ok(result.ok);
-      assert.ok(result.value.topActions.length <= 10, "Should return at most 10 top actions");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.topActions.length <= 10).toBeTruthy();
     });
 
     it("should include action name and count", async () => {
@@ -107,10 +339,10 @@ describe("AuditService - getStats()", { concurrency: 1 }, () => {
         action: "STATS_",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       const loginAction = result.value.topActions.find((a) => a.action === "STATS_LOGIN");
-      assert.ok(loginAction, "Should find STATS_LOGIN in top actions");
-      assert.ok(loginAction.count >= 3, "Should have correct count for STATS_LOGIN");
+      expect(loginAction).toBeTruthy();
+      expect(loginAction!.count >= 3).toBeTruthy();
     });
   });
 
@@ -120,31 +352,30 @@ describe("AuditService - getStats()", { concurrency: 1 }, () => {
         action: "STATS_",
       });
 
-      assert.ok(result.ok);
-      assert.ok(result.value.topResources.length > 0, "Should have top resources");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.topResources.length > 0).toBeTruthy();
 
       for (let i = 0; i < result.value.topResources.length - 1; i++) {
-        assert.ok(
-          result.value.topResources[i].count >= result.value.topResources[i + 1].count,
-          "Top resources should be sorted by count descending"
-        );
+        expect(
+          result.value.topResources[i].count >= result.value.topResources[i + 1].count
+        ).toBeTruthy();
       }
     });
 
     it("should filter out null resources", async () => {
       const result = await auditService.getStats({});
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       result.value.topResources.forEach((r) => {
-        assert.ok(r.resource, "Resources should not be null");
+        expect(r.resource).toBeTruthy();
       });
     });
 
     it("should limit top resources to 10", async () => {
       const result = await auditService.getStats({});
 
-      assert.ok(result.ok);
-      assert.ok(result.value.topResources.length <= 10, "Should return at most 10 top resources");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.topResources.length <= 10).toBeTruthy();
     });
   });
 
@@ -154,13 +385,13 @@ describe("AuditService - getStats()", { concurrency: 1 }, () => {
         action: "STATS_",
       });
 
-      assert.ok(result.ok);
-      assert.ok(result.value.topUsers.length >= 2, "Should have at least 2 users");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.topUsers.length >= 2).toBeTruthy();
 
       const testUser = result.value.topUsers.find((u) => u.email === "audit-test-user@example.com");
-      assert.ok(testUser, "Should find test user in top users");
-      assert.strictEqual(testUser.user, "Audit Test User");
-      assert.ok(testUser.count >= 3, "Should have correct count for test user");
+      expect(testUser).toBeTruthy();
+      expect(testUser!.user).toBe("Audit Test User");
+      expect(testUser!.count >= 3).toBeTruthy();
     });
 
     it("should filter out null userIds", async () => {
@@ -168,9 +399,9 @@ describe("AuditService - getStats()", { concurrency: 1 }, () => {
         action: "STATS_",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       result.value.topUsers.forEach((u) => {
-        assert.ok(u.user !== "Unknown" || u.email !== "Unknown", "Should have valid user data");
+        expect(u.user !== "Unknown" || u.email !== "Unknown").toBeTruthy();
       });
     });
 
@@ -179,14 +410,11 @@ describe("AuditService - getStats()", { concurrency: 1 }, () => {
         action: "STATS_",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
 
       if (result.value.topUsers.length >= 2) {
         for (let i = 0; i < result.value.topUsers.length - 1; i++) {
-          assert.ok(
-            result.value.topUsers[i].count >= result.value.topUsers[i + 1].count,
-            "Top users should be sorted by count descending"
-          );
+          expect(result.value.topUsers[i].count >= result.value.topUsers[i + 1].count).toBeTruthy();
         }
       }
     });
@@ -194,32 +422,32 @@ describe("AuditService - getStats()", { concurrency: 1 }, () => {
     it("should limit top users to 10", async () => {
       const result = await auditService.getStats({});
 
-      assert.ok(result.ok);
-      assert.ok(result.value.topUsers.length <= 10, "Should return at most 10 top users");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.topUsers.length <= 10).toBeTruthy();
     });
   });
 
   describe("getStats() - Stats Filtering", () => {
     it("should apply filters to all aggregations", async () => {
       const result = await auditService.getStats({
-        userId: testUserId,
+        userId: TEST_USER_1_ID,
       });
 
-      assert.ok(result.ok);
-      assert.ok(result.value.total >= 3);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.total >= 3).toBeTruthy();
     });
 
     it("should apply date range to stats", async () => {
-      const now = new Date();
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const currentTime = new Date();
+      const oneDayAgo = new Date(currentTime.getTime() - 24 * 60 * 60 * 1000);
 
       const result = await auditService.getStats({
         action: "STATS_",
         startDate: oneDayAgo,
       });
 
-      assert.ok(result.ok);
-      assert.ok(result.value.total >= 0, "Should return stats for filtered date range");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.total >= 0).toBeTruthy();
     });
   });
 });

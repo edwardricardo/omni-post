@@ -1,5 +1,4 @@
-import { describe, it, beforeEach, afterEach, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
 import { ProviderCoordinator } from "../../src/orchestration/ProviderCoordinator.js";
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
@@ -23,8 +22,8 @@ const originalGetAdapter = providerRegistry.getAdapter.bind(providerRegistry);
 providerRegistry.getAllProviders = () => Array.from(mockProviders.values());
 providerRegistry.getAdapter = ((id: string) => mockAdapters.get(id as ProviderId)) as any;
 
-describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () => {
-  after(() => {
+describe("ProviderCoordinator - scoring and strategies", () => {
+  afterAll(() => {
     providerRegistry.getAllProviders = originalGetAllProviders;
     providerRegistry.getAdapter = originalGetAdapter;
   });
@@ -33,7 +32,7 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
   // Provider Scoring Tests
   // ============================================================================
 
-  describe("ProviderCoordinator - Provider Scoring", { concurrency: 1 }, () => {
+  describe("ProviderCoordinator - Provider Scoring", () => {
     let coordinator: ProviderCoordinator;
     let mockPrisma: PrismaClient;
     let mockRedis: Redis;
@@ -79,12 +78,8 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
         content
       );
 
-      assert.ok(result.ok, "Selection should succeed");
-      assert.strictEqual(
-        result.value?.selectedProvider,
-        "x",
-        "Should prefer higher priority provider"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.selectedProvider).toBe("x");
     });
 
     it("should score based on provider health", async () => {
@@ -98,7 +93,7 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
         content
       );
 
-      assert.ok(result.ok, "Selection should succeed");
+      expect(result.ok).toBeTruthy();
       // Healthy provider should score higher
     });
 
@@ -113,7 +108,7 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
         content
       );
 
-      assert.ok(result.ok, "Selection should succeed");
+      expect(result.ok).toBeTruthy();
       // Instagram should be preferred due to lower load
     });
 
@@ -131,7 +126,7 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
         content
       );
 
-      assert.ok(result.ok, "Selection should succeed");
+      expect(result.ok).toBeTruthy();
       // Instagram should be preferred due to faster response time
     });
 
@@ -149,31 +144,24 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
         content
       );
 
-      assert.ok(result.ok, "Selection should succeed");
-      assert.strictEqual(
-        result.value?.selectedProvider,
-        "instagram",
-        "Should prefer lower error rate"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.selectedProvider).toBe("instagram");
     });
 
     it("should include load score in routing decision", async () => {
       const content = createMockCanonicalPost();
       const result = await coordinator.selectOptimalProvider(["x"] as ProviderId[], content);
 
-      assert.ok(result.ok, "Selection should succeed");
-      assert.ok(typeof result.value?.loadScore === "number", "Should include load score");
+      expect(result.ok).toBeTruthy();
+      expect(typeof result.value?.loadScore === "number").toBeTruthy();
     });
 
     it("should include estimated latency in routing decision", async () => {
       const content = createMockCanonicalPost();
       const result = await coordinator.selectOptimalProvider(["x"] as ProviderId[], content);
 
-      assert.ok(result.ok, "Selection should succeed");
-      assert.ok(
-        typeof result.value?.estimatedLatency === "number",
-        "Should include estimated latency"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(typeof result.value?.estimatedLatency === "number").toBeTruthy();
     });
   });
 
@@ -181,7 +169,7 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
   // Coordination Strategy Tests
   // ============================================================================
 
-  describe("ProviderCoordinator - Coordination Strategies", { concurrency: 1 }, () => {
+  describe("ProviderCoordinator - Coordination Strategies", () => {
     let coordinator: ProviderCoordinator;
     let mockPrisma: PrismaClient;
     let mockRedis: Redis;
@@ -224,8 +212,8 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
         strategy: "parallel",
       });
 
-      assert.ok(result.ok, "Coordination should succeed");
-      assert.strictEqual(result.value?.size, 2, "Should publish to both providers");
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.size).toBe(2);
     });
 
     it("should execute sequential coordination strategy", async () => {
@@ -236,8 +224,8 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
         strategy: "sequential",
       });
 
-      assert.ok(result.ok, "Coordination should succeed");
-      assert.strictEqual(result.value?.size, 2, "Should publish to both providers");
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.size).toBe(2);
     });
 
     it("should execute optimized coordination strategy", async () => {
@@ -255,8 +243,8 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
         strategy: "optimized",
       });
 
-      assert.ok(result.ok, "Coordination should succeed");
-      assert.strictEqual(result.value?.size, 2, "Should publish to both providers");
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.size).toBe(2);
     });
 
     it("should default to optimized strategy when not specified", async () => {
@@ -265,7 +253,7 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
 
       const result = await coordinator.coordinatePublishing(content, providers);
 
-      assert.ok(result.ok, "Coordination should succeed");
+      expect(result.ok).toBeTruthy();
     });
 
     it("should track active jobs during coordination", async () => {
@@ -279,7 +267,7 @@ describe("ProviderCoordinator - scoring and strategies", { concurrency: 1 }, () 
       // Job might complete too quickly, so we just check it succeeds
 
       await coordinationPromise;
-      assert.ok(true, "Coordination completed");
+      expect(true).toBeTruthy();
     });
   });
 }); // end outer describe

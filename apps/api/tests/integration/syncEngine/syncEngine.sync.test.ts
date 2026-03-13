@@ -1,5 +1,6 @@
 /**
- * SyncEngine - Real-time Synchronization & Sync Transactions Tests
+ * @file syncEngine.sync.test.ts
+ * @description SyncEngine - Real-time Synchronization & Sync Transactions Tests
  *
  * Covers:
  * - Starting real-time sync for valid/invalid channels
@@ -9,23 +10,23 @@
  * - Rejecting sync with invalid/disabled channels
  * - Bidirectional sync direction
  * - Transaction status tracking
+ * @layer integration
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 // Suppress console.log to prevent TAP protocol corruption in concurrent test mode
-let _originalConsoleLog: typeof console.log;
+const _originalConsoleLog = console.log;
 before(() => {
-  _originalConsoleLog = console.log;
   console.log = () => {};
 });
 after(() => {
   console.log = _originalConsoleLog;
 });
 
-import { SyncEngine } from "../../src/content/SyncEngine";
-import type { ProviderId } from "../../src/providers/providerAdapter.interface";
+import { SyncEngine } from "../../../src/content/SyncEngine";
+import type { ProviderId } from "../../../src/providers/providerAdapter.interface";
 import {
   mockPrisma,
   mockRedis,
@@ -66,7 +67,7 @@ beforeEach(async () => {
 // Real-time Sync Tests
 // ============================================================================
 
-describe("SyncEngine - Real-time Synchronization", { concurrency: 1 }, () => {
+describe("SyncEngine - Real-time Synchronization", () => {
   beforeEach(async () => {
     if (!servicesAvailable) return;
     await syncEngine.initialize();
@@ -92,7 +93,7 @@ describe("SyncEngine - Real-time Synchronization", { concurrency: 1 }, () => {
     assert.strictEqual(channelResult.ok, true);
     if (channelResult.ok) {
       const result = await syncEngine.startRealtimeSync(testPostId, [channelResult.value.id]);
-      assert.strictEqual(result.ok, true, "Real-time sync should start");
+      assert.strictEqual(result.ok, true);
     }
   });
 
@@ -103,7 +104,7 @@ describe("SyncEngine - Real-time Synchronization", { concurrency: 1 }, () => {
       "invalid-channel-2",
     ]);
 
-    assert.strictEqual(result.ok, false, "Should reject invalid channels");
+    assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.strictEqual(result.error.type, "validation");
       assert.match(result.error.message, /no valid sync channels/i);
@@ -135,7 +136,7 @@ describe("SyncEngine - Real-time Synchronization", { concurrency: 1 }, () => {
         "invalid-channel-2",
       ]);
 
-      assert.strictEqual(result.ok, true, "Should succeed with at least one valid channel");
+      assert.strictEqual(result.ok, true);
     }
   });
 
@@ -180,7 +181,7 @@ describe("SyncEngine - Real-time Synchronization", { concurrency: 1 }, () => {
         channel2.value.id,
       ]);
 
-      assert.strictEqual(result.ok, true, "Should handle multiple channels");
+      assert.strictEqual(result.ok, true);
     }
   });
 });
@@ -189,7 +190,7 @@ describe("SyncEngine - Real-time Synchronization", { concurrency: 1 }, () => {
 // Sync Transaction Tests
 // ============================================================================
 
-describe("SyncEngine - Sync Transactions", { concurrency: 1 }, () => {
+describe("SyncEngine - Sync Transactions", () => {
   beforeEach(async () => {
     if (!servicesAvailable) return;
     await syncEngine.initialize();
@@ -220,13 +221,13 @@ describe("SyncEngine - Sync Transactions", { concurrency: 1 }, () => {
         "source_to_target"
       );
 
-      assert.strictEqual(syncResult.ok, true, "Sync should succeed");
+      assert.strictEqual(syncResult.ok, true);
       if (syncResult.ok) {
         assert.strictEqual(syncResult.value.postId, testPostId);
         assert.strictEqual(syncResult.value.channelId, channelResult.value.id);
         assert.strictEqual(syncResult.value.direction, "source_to_target");
-        assert.ok(syncResult.value.id, "Transaction should have ID");
-        assert.ok(syncResult.value.startedAt, "Transaction should have start time");
+        assert.ok(syncResult.value.id);
+        assert.ok(syncResult.value.startedAt);
       }
     }
   });
@@ -235,7 +236,7 @@ describe("SyncEngine - Sync Transactions", { concurrency: 1 }, () => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.syncPost(testPostId, "invalid-channel-id", "source_to_target");
 
-    assert.strictEqual(result.ok, false, "Should reject invalid channel");
+    assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.strictEqual(result.error.type, "validation");
       assert.match(result.error.message, /not found/i);
@@ -289,7 +290,7 @@ describe("SyncEngine - Sync Transactions", { concurrency: 1 }, () => {
         "source_to_target"
       );
 
-      assert.strictEqual(result.ok, false, "Should reject disabled channel");
+      assert.strictEqual(result.ok, false);
       if (!result.ok) {
         assert.match(result.error.message, /disabled/i);
       }
@@ -320,7 +321,7 @@ describe("SyncEngine - Sync Transactions", { concurrency: 1 }, () => {
     if (channelResult.ok) {
       const result = await syncEngine.syncPost(testPostId, channelResult.value.id, "bidirectional");
 
-      assert.strictEqual(result.ok, true, "Bidirectional sync should work");
+      assert.strictEqual(result.ok, true);
       if (result.ok) {
         assert.strictEqual(result.value.direction, "bidirectional");
       }
@@ -354,10 +355,10 @@ describe("SyncEngine - Sync Transactions", { concurrency: 1 }, () => {
 
       assert.strictEqual(result.ok, true);
       if (result.ok) {
-        const validStatuses = ["processing", "completed", "failed"];
+        const validStatuses = ["processing", "completed", "failed", "pending"];
         assert.ok(
-          validStatuses.includes(result.value.status) || result.value.status === "pending",
-          "Status should be valid"
+          validStatuses.includes(result.value.status),
+          `Status should be one of ${validStatuses.join(", ")}, got: ${result.value.status}`
         );
       }
     }

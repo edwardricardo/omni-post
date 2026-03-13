@@ -6,8 +6,7 @@
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/AccountMapper.test.ts
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { AccountMapper } from "../../src/mappers/AccountMapper.js";
 import type { Account, Project } from "@infra/prisma";
 
@@ -57,16 +56,16 @@ describe("AccountMapper - toSubscriptionInfo", () => {
 
     const subscriptionInfo = AccountMapper.toSubscriptionInfo(accountWithProjects);
 
-    assert.strictEqual(subscriptionInfo.id, "test-account-id");
-    assert.strictEqual(subscriptionInfo.email, "test@example.com");
-    assert.strictEqual(subscriptionInfo.subscription, "PRO");
-    assert.strictEqual(subscriptionInfo.maxProjects, 10);
-    assert.strictEqual(subscriptionInfo.currentProjects, 2);
-    assert.strictEqual(subscriptionInfo.plan.name, "PRO");
-    assert.strictEqual(subscriptionInfo.plan.displayName, "Professional Plan");
-    assert.strictEqual(subscriptionInfo.usage.projectsUsed, 2);
-    assert.strictEqual(subscriptionInfo.usage.projectsRemaining, 8);
-    assert.strictEqual(subscriptionInfo.usage.utilizationPercent, 20);
+    expect(subscriptionInfo.id).toBe("test-account-id");
+    expect(subscriptionInfo.email).toBe("test@example.com");
+    expect(subscriptionInfo.subscription).toBe("PRO");
+    expect(subscriptionInfo.maxProjects).toBe(10);
+    expect(subscriptionInfo.currentProjects).toBe(2);
+    expect(subscriptionInfo.plan.name).toBe("PRO");
+    expect(subscriptionInfo.plan.displayName).toBe("Professional Plan");
+    expect(subscriptionInfo.usage.projectsUsed).toBe(2);
+    expect(subscriptionInfo.usage.projectsRemaining).toBe(8);
+    expect(subscriptionInfo.usage.utilizationPercent).toBe(20);
   });
 });
 
@@ -83,10 +82,10 @@ describe("AccountMapper - calculateTrialInfo", () => {
 
     const activeTrialInfo = AccountMapper.calculateTrialInfo(activeTrialAccount);
 
-    assert.strictEqual(activeTrialInfo.isOnTrial, true);
-    assert.strictEqual(activeTrialInfo.trialExpired, false);
-    assert.strictEqual(activeTrialInfo.trialDaysRemaining, 7);
-    assert.strictEqual(activeTrialInfo.trialEndDate?.getTime(), futureDate.getTime());
+    expect(activeTrialInfo.isOnTrial).toBe(true);
+    expect(activeTrialInfo.trialExpired).toBe(false);
+    expect(activeTrialInfo.trialDaysRemaining).toBe(7);
+    expect(activeTrialInfo.trialEndDate?.getTime()).toBe(futureDate.getTime());
   });
 
   it("calculateTrialInfo - Expired trial", () => {
@@ -101,9 +100,9 @@ describe("AccountMapper - calculateTrialInfo", () => {
 
     const expiredTrialInfo = AccountMapper.calculateTrialInfo(expiredTrialAccount);
 
-    assert.strictEqual(expiredTrialInfo.isOnTrial, false);
-    assert.strictEqual(expiredTrialInfo.trialExpired, true);
-    assert.strictEqual(expiredTrialInfo.trialDaysRemaining, 0);
+    expect(expiredTrialInfo.isOnTrial).toBe(false);
+    expect(expiredTrialInfo.trialExpired).toBe(true);
+    expect(expiredTrialInfo.trialDaysRemaining).toBe(0);
   });
 
   it("calculateTrialInfo - No trial end date", () => {
@@ -114,10 +113,10 @@ describe("AccountMapper - calculateTrialInfo", () => {
 
     const noTrialInfo = AccountMapper.calculateTrialInfo(noTrialAccount);
 
-    assert.strictEqual(noTrialInfo.isOnTrial, false);
-    assert.strictEqual(noTrialInfo.trialExpired, false);
-    assert.strictEqual(noTrialInfo.trialDaysRemaining, 0);
-    assert.strictEqual(noTrialInfo.trialEndDate, null);
+    expect(noTrialInfo.isOnTrial).toBe(false);
+    expect(noTrialInfo.trialExpired).toBe(false);
+    expect(noTrialInfo.trialDaysRemaining).toBe(0);
+    expect(noTrialInfo.trialEndDate).toBe(null);
   });
 });
 
@@ -125,17 +124,17 @@ describe("AccountMapper - calculateUsage", () => {
   it("calculateUsage - Basic calculation", () => {
     const usage = AccountMapper.calculateUsage(3, 10);
 
-    assert.strictEqual(usage.projectsUsed, 3);
-    assert.strictEqual(usage.projectsRemaining, 7);
-    assert.strictEqual(usage.utilizationPercent, 30);
+    expect(usage.projectsUsed).toBe(3);
+    expect(usage.projectsRemaining).toBe(7);
+    expect(usage.utilizationPercent).toBe(30);
   });
 
   it("calculateUsage - At limit", () => {
     const fullUsage = AccountMapper.calculateUsage(10, 10);
 
-    assert.strictEqual(fullUsage.projectsUsed, 10);
-    assert.strictEqual(fullUsage.projectsRemaining, 0);
-    assert.strictEqual(fullUsage.utilizationPercent, 100);
+    expect(fullUsage.projectsUsed).toBe(10);
+    expect(fullUsage.projectsRemaining).toBe(0);
+    expect(fullUsage.utilizationPercent).toBe(100);
   });
 });
 
@@ -143,31 +142,31 @@ describe("AccountMapper - getSubscriptionPlan", () => {
   it("getSubscriptionPlan - BASIC tier", () => {
     const basicPlan = AccountMapper.getSubscriptionPlan("BASIC");
 
-    assert.strictEqual(basicPlan.name, "BASIC");
-    assert.strictEqual(basicPlan.displayName, "Basic Plan");
-    assert.strictEqual(basicPlan.maxProjects, 1);
-    assert.ok(basicPlan.features.length >= 4);
-    assert.strictEqual(basicPlan.price, undefined); // BASIC is free
+    expect(basicPlan.name).toBe("BASIC");
+    expect(basicPlan.displayName).toBe("Basic Plan");
+    expect(basicPlan.maxProjects).toBe(1);
+    expect(basicPlan.features.length >= 4).toBeTruthy();
+    expect(basicPlan.price).toBe(undefined); // BASIC is free
   });
 
   it("getSubscriptionPlan - PRO tier", () => {
     const proPlan = AccountMapper.getSubscriptionPlan("PRO");
 
-    assert.strictEqual(proPlan.name, "PRO");
-    assert.strictEqual(proPlan.displayName, "Professional Plan");
-    assert.strictEqual(proPlan.maxProjects, 10);
-    assert.strictEqual(proPlan.price?.monthly, 29);
-    assert.strictEqual(proPlan.price?.yearly, 290);
+    expect(proPlan.name).toBe("PRO");
+    expect(proPlan.displayName).toBe("Professional Plan");
+    expect(proPlan.maxProjects).toBe(10);
+    expect(proPlan.price?.monthly).toBe(29);
+    expect(proPlan.price?.yearly).toBe(290);
   });
 
   it("getSubscriptionPlan - ENTERPRISE tier", () => {
     const enterprisePlan = AccountMapper.getSubscriptionPlan("ENTERPRISE");
 
-    assert.strictEqual(enterprisePlan.name, "ENTERPRISE");
-    assert.strictEqual(enterprisePlan.displayName, "Enterprise Plan");
-    assert.strictEqual(enterprisePlan.maxProjects, -1); // Unlimited
-    assert.strictEqual(enterprisePlan.price?.monthly, 99);
-    assert.strictEqual(enterprisePlan.price?.yearly, 990);
+    expect(enterprisePlan.name).toBe("ENTERPRISE");
+    expect(enterprisePlan.displayName).toBe("Enterprise Plan");
+    expect(enterprisePlan.maxProjects).toBe(-1); // Unlimited
+    expect(enterprisePlan.price?.monthly).toBe(99);
+    expect(enterprisePlan.price?.yearly).toBe(990);
   });
 });
 
@@ -181,8 +180,8 @@ describe("AccountMapper - canCreateProject", () => {
 
     const canCreate = AccountMapper.canCreateProject(allowedAccount, 5);
 
-    assert.strictEqual(canCreate.allowed, true);
-    assert.strictEqual(canCreate.reason, undefined);
+    expect(canCreate.allowed).toBe(true);
+    expect(canCreate.reason).toBe(undefined);
   });
 
   it("canCreateProject - Project limit reached", () => {
@@ -194,8 +193,8 @@ describe("AccountMapper - canCreateProject", () => {
 
     const cannotCreate = AccountMapper.canCreateProject(limitReachedAccount, 1);
 
-    assert.strictEqual(cannotCreate.allowed, false);
-    assert.ok(cannotCreate.reason?.includes("Project limit reached"));
+    expect(cannotCreate.allowed).toBe(false);
+    expect(cannotCreate.reason?.includes("Project limit reached")).toBeTruthy();
   });
 
   it("canCreateProject - Trial expired", () => {
@@ -211,8 +210,8 @@ describe("AccountMapper - canCreateProject", () => {
 
     const cannotCreateExpired = AccountMapper.canCreateProject(expiredAccount, 0);
 
-    assert.strictEqual(cannotCreateExpired.allowed, false);
-    assert.ok(cannotCreateExpired.reason?.includes("Trial has expired"));
+    expect(cannotCreateExpired.allowed).toBe(false);
+    expect(cannotCreateExpired.reason?.includes("Trial has expired")).toBeTruthy();
   });
 
   it("canCreateProject - ENTERPRISE unlimited", () => {
@@ -224,7 +223,7 @@ describe("AccountMapper - canCreateProject", () => {
 
     const enterpriseCreate = AccountMapper.canCreateProject(enterpriseAccount, 1000);
 
-    assert.strictEqual(enterpriseCreate.allowed, true);
+    expect(enterpriseCreate.allowed).toBe(true);
   });
 });
 
@@ -232,14 +231,14 @@ describe("AccountMapper - canUpgradeTo", () => {
   it("canUpgradeTo - Valid upgrade", () => {
     const canUpgrade = AccountMapper.canUpgradeTo("BASIC", "PRO");
 
-    assert.strictEqual(canUpgrade.allowed, true);
+    expect(canUpgrade.allowed).toBe(true);
   });
 
   it("canUpgradeTo - Invalid (downgrade attempt)", () => {
     const cannotDowngrade = AccountMapper.canUpgradeTo("PRO", "BASIC");
 
-    assert.strictEqual(cannotDowngrade.allowed, false);
-    assert.ok(cannotDowngrade.reason?.includes("higher-tier"));
+    expect(cannotDowngrade.allowed).toBe(false);
+    expect(cannotDowngrade.reason?.includes("higher-tier")).toBeTruthy();
   });
 });
 
@@ -247,13 +246,13 @@ describe("AccountMapper - canDowngradeTo", () => {
   it("canDowngradeTo - Valid downgrade", () => {
     const canDowngrade = AccountMapper.canDowngradeTo("PRO", "BASIC", 1);
 
-    assert.strictEqual(canDowngrade.allowed, true);
+    expect(canDowngrade.allowed).toBe(true);
   });
 
   it("canDowngradeTo - Too many projects", () => {
     const cannotDowngradeProjects = AccountMapper.canDowngradeTo("PRO", "BASIC", 5);
 
-    assert.strictEqual(cannotDowngradeProjects.allowed, false);
-    assert.ok(cannotDowngradeProjects.reason?.includes("5 projects"));
+    expect(cannotDowngradeProjects.allowed).toBe(false);
+    expect(cannotDowngradeProjects.reason?.includes("5 projects")).toBeTruthy();
   });
 });

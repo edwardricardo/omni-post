@@ -7,8 +7,7 @@
  * 3. Plan updates with conflict handling
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { PublishingOrchestrator } from "../../src/orchestration/PublishingOrchestrator.js";
 import type {
   CreateOrchestrationRequest,
@@ -27,7 +26,7 @@ import {
   stubOrchestratorInternals,
 } from "./PublishingOrchestrator.test-helpers.js";
 
-describe("PublishingOrchestrator", { concurrency: 1 }, () => {
+describe("PublishingOrchestrator", () => {
   let orchestrator: PublishingOrchestrator;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -61,9 +60,9 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       await orchestrator.initialize();
 
       const events = mockEvents.getEventsByType("ORCHESTRATION_STARTED");
-      assert.strictEqual(events.length, 1);
-      assert.strictEqual(events[0].data.status, "initialized");
-      assert.ok(events[0].data.config);
+      expect(events.length).toBe(1);
+      expect(events[0].data.status).toBe("initialized");
+      expect(events[0].data.config).toBeTruthy();
     });
 
     it("should initialize with custom configuration", async () => {
@@ -84,9 +83,9 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       await customOrchestrator.initialize();
 
       const events = mockEvents.getEventsByType("ORCHESTRATION_STARTED");
-      assert.ok(events.length > 0);
-      assert.strictEqual(events[0].data.config.maxConcurrentExecutions, 20);
-      assert.strictEqual(events[0].data.config.enableRollback, false);
+      expect(events.length > 0).toBeTruthy();
+      expect(events[0].data.config.maxConcurrentExecutions).toBe(20);
+      expect(events[0].data.config.enableRollback).toBe(false);
     });
 
     it("should not reinitialize if already initialized", async () => {
@@ -96,7 +95,7 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       await orchestrator.initialize();
       const eventsAfter = mockEvents.getEvents().length;
 
-      assert.strictEqual(eventsBefore, eventsAfter);
+      expect(eventsBefore).toBe(eventsAfter);
     });
 
     it("should handle initialization errors gracefully", async () => {
@@ -110,9 +109,7 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
         throw new Error("Redis connection failed");
       };
 
-      await assert.rejects(async () => await errorOrchestrator.initialize(), {
-        message: "Redis connection failed",
-      });
+      await expect(errorOrchestrator.initialize()).rejects.toThrow("Redis connection failed");
     });
   });
 
@@ -159,10 +156,10 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
 
       const result = await orchestrator.createPlan(request);
 
-      assert.ok(result.ok);
-      assert.ok(result.value);
-      assert.strictEqual(result.value.postId, "post-123");
-      assert.strictEqual(result.value.providers.length, 2);
+      expect(result.ok).toBeTruthy();
+      expect(result.value).toBeTruthy();
+      expect(result.value.postId).toBe("post-123");
+      expect(result.value.providers.length).toBe(2);
     });
 
     it("should create plan with custom strategy", async () => {
@@ -174,8 +171,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
 
       const result = await orchestrator.createPlan(request);
 
-      assert.ok(result.ok);
-      assert.strictEqual(result.value?.strategy, "SEQUENTIAL");
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.strategy).toBe("SEQUENTIAL");
     });
 
     it("should create plan with dependencies", async () => {
@@ -196,11 +193,11 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
 
       const result = await orchestrator.createPlan(request);
 
-      assert.ok(result.ok);
-      assert.strictEqual(result.value?.dependencies.length, 1);
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.dependencies.length).toBe(1);
       const firstDep = result.value?.dependencies[0];
-      assert.ok(firstDep, "Should have at least one dependency");
-      assert.strictEqual(firstDep.providerId, "facebook");
+      expect(firstDep).toBeTruthy();
+      expect(firstDep.providerId).toBe("facebook");
     });
 
     it("should cache created plan in Redis", async () => {
@@ -210,12 +207,12 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       };
 
       const result = await orchestrator.createPlan(request);
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
 
       const cached = await mockRedis.get(`orchestration:plan:${result.value?.id}`);
-      assert.ok(cached);
+      expect(cached).toBeTruthy();
       const cachedPlan = JSON.parse(cached);
-      assert.strictEqual(cachedPlan.postId, "post-123");
+      expect(cachedPlan.postId).toBe("post-123");
     });
 
     it("should emit ORCHESTRATION_PLANNED event", async () => {
@@ -227,8 +224,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       await orchestrator.createPlan(request);
 
       const events = mockEvents.getEventsByType("ORCHESTRATION_PLANNED");
-      assert.strictEqual(events.length, 1);
-      assert.ok(events[0].data.plan);
+      expect(events.length).toBe(1);
+      expect(events[0].data.plan).toBeTruthy();
     });
 
     it("should handle validation errors", async () => {
@@ -250,9 +247,9 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
 
       const result = await orchestrator.createPlan(request);
 
-      assert.ok(!result.ok);
-      assert.strictEqual(result.error?.type, "validation");
-      assert.strictEqual(result.error?.message, "Invalid provider list");
+      expect(result.ok).toBeFalsy();
+      expect(result.error?.type).toBe("validation");
+      expect(result.error?.message).toBe("Invalid provider list");
     });
 
     it("should handle system errors during plan creation", async () => {
@@ -267,8 +264,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
 
       const result = await orchestrator.createPlan(request);
 
-      assert.ok(!result.ok);
-      assert.ok(result.error?.message.includes("Database connection failed"));
+      expect(result.ok).toBeFalsy();
+      expect(result.error?.message.includes("Database connection failed")).toBeTruthy();
     });
   });
 
@@ -289,8 +286,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
 
       const result = await orchestrator.updatePlan("plan-123", updates);
 
-      assert.ok(result.ok);
-      assert.strictEqual(result.value?.strategy, "SEQUENTIAL");
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.strategy).toBe("SEQUENTIAL");
     });
 
     it("should update plan providers", async () => {
@@ -300,8 +297,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
 
       const result = await orchestrator.updatePlan("plan-123", updates);
 
-      assert.ok(result.ok);
-      assert.strictEqual(result.value?.providers.length, 3);
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.providers.length).toBe(3);
     });
 
     it("should reject update if plan not found", async () => {
@@ -311,8 +308,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
         strategy: "SEQUENTIAL",
       });
 
-      assert.ok(!result.ok);
-      assert.ok(result.error?.message.includes("not found"));
+      expect(result.ok).toBeFalsy();
+      expect(result.error?.message.includes("not found")).toBeTruthy();
     });
 
     it("should reject update if execution is in progress", async () => {
@@ -333,8 +330,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
         strategy: "SEQUENTIAL",
       });
 
-      assert.ok(!result.ok);
-      assert.ok(result.error?.message.includes("execution is in progress"));
+      expect(result.ok).toBeFalsy();
+      expect(result.error?.message.includes("execution is in progress")).toBeTruthy();
     });
 
     it("should preserve undefined values using conditional spreading", async () => {
@@ -345,9 +342,9 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
 
       const result = await orchestrator.updatePlan("plan-123", updates);
 
-      assert.ok(result.ok);
-      assert.strictEqual(result.value?.strategy, "SEQUENTIAL");
-      assert.strictEqual(result.value?.conflictResolution, "BEST_EFFORT"); // Original value preserved
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.strategy).toBe("SEQUENTIAL");
+      expect(result.value?.conflictResolution).toBe("BEST_EFFORT"); // Original value preserved
     });
 
     it("should update Redis cache after plan update", async () => {
@@ -355,12 +352,12 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
         strategy: "SEQUENTIAL",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
 
       const cached = await mockRedis.get(`orchestration:plan:plan-123`);
-      assert.ok(cached);
+      expect(cached).toBeTruthy();
       const cachedPlan = JSON.parse(cached);
-      assert.strictEqual(cachedPlan.strategy, "SEQUENTIAL");
+      expect(cachedPlan.strategy).toBe("SEQUENTIAL");
     });
 
     it("should handle validation errors during update", async () => {
@@ -379,8 +376,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
         strategy: "INVALID" as any,
       });
 
-      assert.ok(!result.ok);
-      assert.strictEqual(result.error?.message, "Invalid strategy");
+      expect(result.ok).toBeFalsy();
+      expect(result.error?.message).toBe("Invalid strategy");
     });
   });
 });

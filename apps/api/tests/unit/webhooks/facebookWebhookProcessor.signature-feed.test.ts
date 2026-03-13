@@ -8,8 +8,7 @@
  * @category UnitTests
  */
 
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { FacebookWebhookProcessor } from "../../../src/webhooks/processors/facebookWebhookProcessor.js";
 import { generateHmacSignature } from "./facebookWebhookProcessor.test-helpers.js";
 
@@ -17,11 +16,11 @@ import { generateHmacSignature } from "./facebookWebhookProcessor.test-helpers.j
 // Signature Verification Tests (8 tests)
 // ===========================
 
-describe("FacebookWebhookProcessor - Signature Verification", { concurrency: 1 }, () => {
+describe("FacebookWebhookProcessor - Signature Verification", () => {
   let processor: FacebookWebhookProcessor;
   const testSecret = "test-facebook-app-secret";
 
-  before(() => {
+  beforeAll(() => {
     processor = new FacebookWebhookProcessor();
   });
 
@@ -30,7 +29,7 @@ describe("FacebookWebhookProcessor - Signature Verification", { concurrency: 1 }
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha256=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should verify valid webhook signature without sha256= prefix", () => {
@@ -38,7 +37,7 @@ describe("FacebookWebhookProcessor - Signature Verification", { concurrency: 1 }
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should reject invalid signature", () => {
@@ -46,7 +45,7 @@ describe("FacebookWebhookProcessor - Signature Verification", { concurrency: 1 }
     const invalidSignature = "sha256=invalid-signature-value";
 
     const isValid = processor.verify(payload, invalidSignature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should reject signature with tampered payload", () => {
@@ -55,7 +54,7 @@ describe("FacebookWebhookProcessor - Signature Verification", { concurrency: 1 }
 
     const tamperedPayload = JSON.stringify({ test: "tampered" });
     const isValid = processor.verify(tamperedPayload, signature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should reject signature with wrong secret", () => {
@@ -63,7 +62,7 @@ describe("FacebookWebhookProcessor - Signature Verification", { concurrency: 1 }
     const signature = generateHmacSignature(payload, "wrong-secret");
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should handle empty payload", () => {
@@ -71,7 +70,7 @@ describe("FacebookWebhookProcessor - Signature Verification", { concurrency: 1 }
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should handle special characters in payload", () => {
@@ -79,7 +78,7 @@ describe("FacebookWebhookProcessor - Signature Verification", { concurrency: 1 }
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha256=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should use constant-time comparison", () => {
@@ -89,7 +88,7 @@ describe("FacebookWebhookProcessor - Signature Verification", { concurrency: 1 }
     // Test multiple attempts to verify timing consistency
     for (let i = 0; i < 10; i++) {
       const isValid = processor.verify(payload, correctSignature, testSecret);
-      assert.strictEqual(isValid, true);
+      expect(isValid).toBe(true);
     }
   });
 });
@@ -98,10 +97,10 @@ describe("FacebookWebhookProcessor - Signature Verification", { concurrency: 1 }
 // Feed Event Parsing Tests (6 tests)
 // ===========================
 
-describe("FacebookWebhookProcessor - Feed Event Parsing", { concurrency: 1 }, () => {
+describe("FacebookWebhookProcessor - Feed Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new FacebookWebhookProcessor();
   });
 
@@ -134,13 +133,13 @@ describe("FacebookWebhookProcessor - Feed Event Parsing", { concurrency: 1 }, ()
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_PUBLISHED");
-    assert.strictEqual(result.normalizedData.eventType, "feed_published");
-    assert.strictEqual(result.normalizedData.postId, "post-456");
-    assert.strictEqual(result.normalizedData.verb, "add");
-    assert.strictEqual(result.normalizedData.item, "status");
-    assert.strictEqual(result.normalizedData.message, "Test status update");
-    assert.strictEqual(result.normalizedData.isPublished, true);
+    expect(result.eventType).toBe("POST_PUBLISHED");
+    expect(result.normalizedData.eventType).toBe("feed_published");
+    expect(result.normalizedData.postId).toBe("post-456");
+    expect(result.normalizedData.verb).toBe("add");
+    expect(result.normalizedData.item).toBe("status");
+    expect(result.normalizedData.message).toBe("Test status update");
+    expect(result.normalizedData.isPublished).toBe(true);
   });
 
   it("should parse feed event for photo post", async () => {
@@ -173,8 +172,8 @@ describe("FacebookWebhookProcessor - Feed Event Parsing", { concurrency: 1 }, ()
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.item, "photo");
-    assert.strictEqual(result.normalizedData.link, "https://facebook.com/photo/789");
+    expect(result.normalizedData.item).toBe("photo");
+    expect(result.normalizedData.link).toBe("https://facebook.com/photo/789");
   });
 
   it("should parse feed event for video post", async () => {
@@ -206,7 +205,7 @@ describe("FacebookWebhookProcessor - Feed Event Parsing", { concurrency: 1 }, ()
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.item, "video");
+    expect(result.normalizedData.item).toBe("video");
   });
 
   it("should parse feed edited event", async () => {
@@ -236,7 +235,7 @@ describe("FacebookWebhookProcessor - Feed Event Parsing", { concurrency: 1 }, ()
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.verb, "edited");
+    expect(result.normalizedData.verb).toBe("edited");
   });
 
   it("should parse hidden post event", async () => {
@@ -267,7 +266,7 @@ describe("FacebookWebhookProcessor - Feed Event Parsing", { concurrency: 1 }, ()
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.isHidden, true);
+    expect(result.normalizedData.isHidden).toBe(true);
   });
 
   it("should extract author information from feed event", async () => {
@@ -297,7 +296,7 @@ describe("FacebookWebhookProcessor - Feed Event Parsing", { concurrency: 1 }, ()
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.from.id, "user-456");
-    assert.strictEqual(result.normalizedData.from.name, "John Doe");
+    expect(result.normalizedData.from.id).toBe("user-456");
+    expect(result.normalizedData.from.name).toBe("John Doe");
   });
 });

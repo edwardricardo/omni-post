@@ -1,49 +1,88 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for rbacRoutes
- * Testing all RBAC HTTP endpoints
- *
- * Coverage Target: 95%+
+ * @file rbacRoutes.test.ts
+ * @description Unit tests for rbacRoutes. Uses in-memory mocked Prisma stores
+ *              and a real Fastify instance to test RBAC HTTP endpoint behavior.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
-import { rbacRoutes } from "../../src/auth/rbacRoutes.js";
-import { AuthService } from "../../src/auth/authService.js";
-import { MfaService } from "../../src/auth/mfaService.js";
-import { RbacService } from "../../src/auth/rbacService.js";
-import { prisma } from "@infra/prisma";
-import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
-import { Container } from "../../src/infrastructure/container/Container.js";
-import { TOKENS } from "../../src/infrastructure/container/types.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 
-// Shared service instances — the same AuthService is used both to create tokens
-// (in before()) and to verify them inside the route handler, so JWT secrets match.
-const adminUserRepo = new PrismaAdminUserRepository(prisma);
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// Import SUT after mocks are in place
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
+const { rbacRoutes } = await import("../../src/auth/rbacRoutes.js");
+const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
+const { MfaService } = await import("../../src/auth/mfaService.js");
+const { RbacService } = await import("../../src/auth/rbacService.js");
+const { PrismaAdminUserRepository } = await import(
+  "../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
+);
+const { Container } = await import("../../src/infrastructure/container/Container.js");
+const { TOKENS } = await import("../../src/infrastructure/container/types.js");
+
+// ---------------------------------------------------------------------------
+// Shared service instances
+// ---------------------------------------------------------------------------
+
+setRedisInstance(null as unknown as import("ioredis").default);
+
+const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const mfaService = new MfaService(adminUserRepo);
 const authService = new AuthService(adminUserRepo, mfaService);
 const rbacService = new RbacService(adminUserRepo);
 
-// Create test Fastify instance
-async function createTestApp(): Promise<FastifyInstance> {
+async function createTestApp() {
   const app = Fastify({ logger: false });
 
-  const typedApp = app.withTypeProvider<ZodTypeProvider>();
-  typedApp.setValidatorCompiler(validatorCompiler);
-  typedApp.setSerializerCompiler(serializerCompiler);
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
-  // Register the same service instances used in before() so JWT secrets match.
   const container = new Container();
   container.registerInstance(TOKENS.AuthService, authService);
   container.registerInstance(TOKENS.RbacService, rbacService);
-  typedApp.decorate("container", container);
+  app.decorate("container", container);
 
-  await typedApp.register(rbacRoutes);
+  await app.register(rbacRoutes);
 
-  return typedApp;
+  return app;
 }
+
+// ---------------------------------------------------------------------------
+// Test data
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const adminEmail = `admin-rbac-${timestamp}@example.com`;
@@ -51,7 +90,7 @@ const superAdminEmail = `superadmin-rbac-${timestamp}@example.com`;
 const supportEmail = `support-rbac-${timestamp}@example.com`;
 const testPassword = "TestPassword123!";
 
-let app: FastifyInstance;
+let app: ReturnType<typeof Fastify>;
 let adminToken: string;
 let superAdminToken: string;
 let supportToken: string;
@@ -59,8 +98,12 @@ let _adminUserId: string;
 let superAdminUserId: string;
 let supportUserId: string;
 
-describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("rbacRoutes Unit Tests", () => {
+  beforeAll(async () => {
+    stores.adminUser.clear();
+    stores.adminSession.clear();
+    stores.auditLog.clear();
+
     app = await createTestApp();
 
     // Create admin user
@@ -125,18 +168,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
     }
   });
 
-  after(async () => {
-    // Cleanup
-    const testUsers = await prisma.adminUser.findMany({
-      where: { email: { contains: `-rbac-${timestamp}` } },
-    });
-
-    for (const user of testUsers) {
-      await prisma.auditLog.deleteMany({ where: { userId: user.id } });
-      await prisma.adminSession.deleteMany({ where: { userId: user.id } });
-      await prisma.adminUser.delete({ where: { id: user.id } });
-    }
-
+  afterAll(async () => {
     await app.close();
   });
 
@@ -150,11 +182,11 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.user);
-      assert.strictEqual(body.data?.user?.role, "ADMIN");
-      assert.ok(Array.isArray(body.data?.permissions));
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.user).toBeTruthy();
+      expect(body.data?.user?.role).toBe("ADMIN");
+      expect(Array.isArray(body.data?.permissions)).toBeTruthy();
     });
 
     it("should get permissions for super admin", async () => {
@@ -166,9 +198,9 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.user?.role, "SUPER_ADMIN");
-      assert.ok(Array.isArray(body.data?.permissions));
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.user?.role).toBe("SUPER_ADMIN");
+      expect(Array.isArray(body.data?.permissions)).toBeTruthy();
     });
 
     it("should get permissions for support user", async () => {
@@ -180,9 +212,9 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.user?.role, "SUPPORT");
-      assert.ok(Array.isArray(body.data?.permissions));
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.user?.role).toBe("SUPPORT");
+      expect(Array.isArray(body.data?.permissions)).toBeTruthy();
     });
 
     it("should reject without authentication", async () => {
@@ -191,7 +223,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/auth/permissions",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -205,11 +237,11 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data?.roles));
-      assert.ok(body.data?.permissionCategories);
-      assert.ok(Array.isArray(body.data?.allPermissions));
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.roles)).toBeTruthy();
+      expect(body.data?.permissionCategories).toBeTruthy();
+      expect(Array.isArray(body.data?.allPermissions)).toBeTruthy();
     });
 
     it("should reject without admin role", async () => {
@@ -219,7 +251,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${supportToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
 
     it("should reject without authentication", async () => {
@@ -228,7 +260,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rbac/roles",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -242,9 +274,9 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.role);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.role).toBeTruthy();
     });
 
     it("should get SUPER_ADMIN role info", async () => {
@@ -256,8 +288,8 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should get SUPPORT role info", async () => {
@@ -269,8 +301,8 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject invalid role", async () => {
@@ -280,7 +312,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -289,7 +321,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rbac/roles/ADMIN",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -303,10 +335,10 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data?.users));
-      assert.ok(body.data?.count >= 0);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.users)).toBeTruthy();
+      expect(body.data?.count >= 0).toBeTruthy();
     });
 
     it("should get users by SUPER_ADMIN role", async () => {
@@ -318,9 +350,9 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data?.users));
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.users)).toBeTruthy();
     });
 
     it("should get users by SUPPORT role", async () => {
@@ -332,8 +364,8 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject invalid role", async () => {
@@ -343,7 +375,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -352,7 +384,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rbac/roles/ADMIN/users",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -370,9 +402,9 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data?.newRole, "ADMIN");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.newRole).toBe("ADMIN");
     });
 
     it("should reject without super admin role", async () => {
@@ -386,7 +418,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
 
     it("should reject invalid role", async () => {
@@ -400,7 +432,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject short reason", async () => {
@@ -414,7 +446,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject modifying own role", async () => {
@@ -428,7 +460,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -441,12 +473,10 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("should restore support user back to SUPPORT role", async () => {
-      // The first test promoted support to ADMIN; restore to SUPPORT so later
-      // tests that depend on the SUPPORT role behave correctly.
       const response = await app.inject({
         method: "PUT",
         url: `/admin/rbac/users/${supportUserId}/role`,
@@ -457,9 +487,9 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.data?.newRole, "SUPPORT");
+      expect(body.data?.newRole).toBe("SUPPORT");
     });
   });
 
@@ -477,10 +507,10 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(typeof body.data?.hasAccess === "boolean");
-      assert.ok(body.data?.permissions);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(typeof body.data?.hasAccess === "boolean").toBeTruthy();
+      expect(body.data?.permissions).toBeTruthy();
     });
 
     it("should check multiple permissions with requireAll", async () => {
@@ -496,8 +526,8 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should check permissions with requireAll false", async () => {
@@ -513,8 +543,8 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject invalid permissions", async () => {
@@ -528,7 +558,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject empty permissions array", async () => {
@@ -542,7 +572,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -554,7 +584,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -568,11 +598,11 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.hierarchy);
-      assert.ok(body.data?.permissionMatrix);
-      assert.ok(Array.isArray(body.data?.roles));
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.hierarchy).toBeTruthy();
+      expect(body.data?.permissionMatrix).toBeTruthy();
+      expect(Array.isArray(body.data?.roles)).toBeTruthy();
     });
 
     it("should show canModifyRoles for super admin", async () => {
@@ -584,8 +614,8 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.currentUser?.canModifyRoles, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.currentUser?.canModifyRoles).toBe(true);
     });
 
     it("should reject without admin role", async () => {
@@ -595,7 +625,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${supportToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
 
     it("should reject without authentication", async () => {
@@ -604,7 +634,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rbac/hierarchy",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -618,12 +648,12 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data?.status, "active");
-      assert.ok(body.data?.statistics);
-      assert.ok(typeof body.data?.statistics?.totalUsers === "number");
-      assert.ok(typeof body.data?.statistics?.totalRoles === "number");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.status).toBe("active");
+      expect(body.data?.statistics).toBeTruthy();
+      expect(typeof body.data?.statistics?.totalUsers === "number").toBeTruthy();
+      expect(typeof body.data?.statistics?.totalRoles === "number").toBeTruthy();
     });
 
     it("should include role distribution", async () => {
@@ -635,8 +665,8 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(Array.isArray(body.data?.statistics?.roleDistribution));
+      expect(response.statusCode).toBe(200);
+      expect(Array.isArray(body.data?.statistics?.roleDistribution)).toBeTruthy();
     });
 
     it("should reject without admin role", async () => {
@@ -646,7 +676,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${supportToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
 
     it("should reject without authentication", async () => {
@@ -655,7 +685,7 @@ describe("rbacRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rbac/status",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 });

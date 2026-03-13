@@ -5,8 +5,7 @@
  * Following TDD principles - validating webhook broadcast functionality.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { EventEmitter } from "events";
 
 // Mock WebSocket module
@@ -31,7 +30,7 @@ class MockWebSocket extends EventEmitter {
 // Create a mock WebSocket that we can reference
 (MockWebSocket as any).WebSocket = MockWebSocket;
 
-describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
+describe("RealtimeWebhookBroadcaster", () => {
   let _broadcaster: any;
 
   // Import the broadcaster class dynamically to control mocking
@@ -68,9 +67,9 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
         }
         subscriptionsByAccount.get(accountId)!.add(connectionId);
 
-        assert.ok(connections.has(connectionId));
-        assert.equal(connections.get(connectionId).userId, userId);
-        assert.ok(subscriptionsByAccount.get(accountId)?.has(connectionId));
+        expect(connections.has(connectionId)).toBeTruthy();
+        expect(connections.get(connectionId).userId).toBe(userId);
+        expect(subscriptionsByAccount.get(accountId)?.has(connectionId)).toBeTruthy();
       });
 
       it("should index connection by project IDs", () => {
@@ -88,8 +87,8 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           subscriptionsByProject.get(projectId)!.add(connectionId);
         }
 
-        assert.ok(subscriptionsByProject.get("project-1")?.has(connectionId));
-        assert.ok(subscriptionsByProject.get("project-2")?.has(connectionId));
+        expect(subscriptionsByProject.get("project-1")?.has(connectionId)).toBeTruthy();
+        expect(subscriptionsByProject.get("project-2")?.has(connectionId)).toBeTruthy();
       });
 
       it("should send connection confirmation message", () => {
@@ -105,10 +104,10 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           })
         );
 
-        assert.equal(socket.sentMessages.length, 1);
+        expect(socket.sentMessages.length).toBe(1);
         const message = JSON.parse(socket.sentMessages[0]);
-        assert.equal(message.type, "connection_established");
-        assert.equal(message.connectionId, connectionId);
+        expect(message.type).toBe("connection_established");
+        expect(message.connectionId).toBe(connectionId);
       });
     });
 
@@ -158,10 +157,10 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           connections.delete(connectionId);
         }
 
-        assert.ok(!connections.has(connectionId));
-        assert.ok(!subscriptionsByAccount.has(accountId));
-        assert.ok(!subscriptionsByProject.has("project-1"));
-        assert.ok(!subscriptionsByProject.has("project-2"));
+        expect(connections.has(connectionId)).toBeFalsy();
+        expect(subscriptionsByAccount.has(accountId)).toBeFalsy();
+        expect(subscriptionsByProject.has("project-1")).toBeFalsy();
+        expect(subscriptionsByProject.has("project-2")).toBeFalsy();
       });
 
       it("should handle non-existent connection gracefully", () => {
@@ -169,7 +168,7 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
 
         // This should not throw
         const subscription = connections.get("non-existent");
-        assert.strictEqual(subscription, undefined);
+        expect(subscription).toBe(undefined);
       });
     });
   });
@@ -238,12 +237,12 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           }
         }
 
-        assert.equal(socket1.sentMessages.length, 1);
-        assert.equal(socket2.sentMessages.length, 1);
+        expect(socket1.sentMessages.length).toBe(1);
+        expect(socket2.sentMessages.length).toBe(1);
 
         const receivedEvent = JSON.parse(socket1.sentMessages[0]);
-        assert.equal(receivedEvent.type, "webhook_event");
-        assert.equal(receivedEvent.event.id, "event-123");
+        expect(receivedEvent.type).toBe("webhook_event");
+        expect(receivedEvent.event.id).toBe("event-123");
       });
 
       it("should filter by event types if specified", () => {
@@ -267,7 +266,7 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
         const shouldReceive =
           subscription.eventTypes.length === 0 || subscription.eventTypes.includes(eventType);
 
-        assert.equal(shouldReceive, false);
+        expect(shouldReceive).toBe(false);
       });
 
       it("should filter by providers if specified", () => {
@@ -291,7 +290,7 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
         const shouldReceive =
           subscription.providers.length === 0 || subscription.providers.includes(provider);
 
-        assert.equal(shouldReceive, false);
+        expect(shouldReceive).toBe(false);
       });
 
       it("should remove dead connections during broadcast", () => {
@@ -310,7 +309,7 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           connections.delete("conn-1");
         }
 
-        assert.ok(!connections.has("conn-1"));
+        expect(connections.has("conn-1")).toBeFalsy();
       });
     });
 
@@ -337,8 +336,8 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           delta,
         };
 
-        assert.equal(payload.metrics.likes, 100);
-        assert.equal(payload.delta?.likes, 5);
+        expect(payload.metrics.likes).toBe(100);
+        expect(payload.delta?.likes).toBe(5);
       });
     });
 
@@ -364,9 +363,9 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           },
         };
 
-        assert.equal(event.eventType, "RATE_LIMIT_REACHED");
-        assert.equal(event.data.type, "system_alert");
-        assert.equal(event.data.payload.message, message);
+        expect(event.eventType).toBe("RATE_LIMIT_REACHED");
+        expect(event.data.type).toBe("system_alert");
+        expect(event.data.payload.message).toBe(message);
       });
 
       it("should create correct event for API error alert", () => {
@@ -374,7 +373,7 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
 
         const eventType = alertType === "rate_limit" ? "RATE_LIMIT_REACHED" : "API_ERROR";
 
-        assert.equal(eventType, "API_ERROR");
+        expect(eventType).toBe("API_ERROR");
       });
     });
   });
@@ -422,10 +421,10 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           subscriptionsByProject.get(projectId)!.add("conn-1");
         }
 
-        assert.ok(!subscriptionsByProject.has("old-project-1"));
-        assert.ok(!subscriptionsByProject.has("old-project-2"));
-        assert.ok(subscriptionsByProject.get("new-project-1")?.has("conn-1"));
-        assert.ok(subscriptionsByProject.get("new-project-3")?.has("conn-1"));
+        expect(subscriptionsByProject.has("old-project-1")).toBeFalsy();
+        expect(subscriptionsByProject.has("old-project-2")).toBeFalsy();
+        expect(subscriptionsByProject.get("new-project-1")?.has("conn-1")).toBeTruthy();
+        expect(subscriptionsByProject.get("new-project-3")?.has("conn-1")).toBeTruthy();
       });
 
       it("should send subscription confirmation", () => {
@@ -445,10 +444,10 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           })
         );
 
-        assert.equal(socket.sentMessages.length, 1);
+        expect(socket.sentMessages.length).toBe(1);
         const message = JSON.parse(socket.sentMessages[0]);
-        assert.equal(message.type, "subscription_updated");
-        assert.deepEqual(message.subscriptions.projects, projectIds);
+        expect(message.type).toBe("subscription_updated");
+        expect(message.subscriptions.projects).toEqual(projectIds);
       });
     });
   });
@@ -470,9 +469,9 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           );
         }
 
-        assert.equal(socket.sentMessages.length, 1);
+        expect(socket.sentMessages.length).toBe(1);
         const response = JSON.parse(socket.sentMessages[0]);
-        assert.equal(response.type, "pong");
+        expect(response.type).toBe("pong");
       });
 
       it("should update last activity on message", () => {
@@ -484,7 +483,7 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
         subscription.lastActivity = new Date();
         const afterTime = subscription.lastActivity.getTime();
 
-        assert.ok(afterTime > beforeTime);
+        expect(afterTime > beforeTime).toBeTruthy();
       });
     });
   });
@@ -498,7 +497,7 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           ["conn-3", { accountId: "acc-2", projectIds: ["proj-2"] }],
         ]);
 
-        assert.equal(connections.size, 3);
+        expect(connections.size).toBe(3);
       });
 
       it("should count connections by account", () => {
@@ -515,8 +514,8 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
             (connectionsByAccount[subscription.accountId] || 0) + 1;
         }
 
-        assert.equal(connectionsByAccount["acc-1"], 2);
-        assert.equal(connectionsByAccount["acc-2"], 1);
+        expect(connectionsByAccount["acc-1"]).toBe(2);
+        expect(connectionsByAccount["acc-2"]).toBe(1);
       });
 
       it("should count connections by project", () => {
@@ -534,8 +533,8 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
           }
         }
 
-        assert.equal(connectionsByProject["proj-1"], 2);
-        assert.equal(connectionsByProject["proj-2"], 2);
+        expect(connectionsByProject["proj-1"]).toBe(2);
+        expect(connectionsByProject["proj-2"]).toBe(2);
       });
     });
   });
@@ -559,8 +558,8 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
         }
       }
 
-      assert.equal(inactiveConnections.length, 1);
-      assert.ok(inactiveConnections.includes("conn-2"));
+      expect(inactiveConnections.length).toBe(1);
+      expect(inactiveConnections.includes("conn-2")).toBeTruthy();
     });
   });
 
@@ -583,9 +582,9 @@ describe("RealtimeWebhookBroadcaster", { concurrency: 1 }, () => {
 
       connections.clear();
 
-      assert.equal(socket1.readyState, MockWebSocket.CLOSED);
-      assert.equal(socket2.readyState, MockWebSocket.CLOSED);
-      assert.equal(connections.size, 0);
+      expect(socket1.readyState).toBe(MockWebSocket.CLOSED);
+      expect(socket2.readyState).toBe(MockWebSocket.CLOSED);
+      expect(connections.size).toBe(0);
     });
   });
 });

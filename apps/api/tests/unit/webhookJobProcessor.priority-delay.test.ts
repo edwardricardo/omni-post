@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import type { Provider, WebhookEventType } from "@infra/prisma";
 import {
   createTestJobData,
@@ -13,21 +12,21 @@ describe("WebhookJobProcessor - Priority Calculation", () => {
       const jobData = createTestJobData({ eventType: "LIKE_RECEIVED" as WebhookEventType });
       const priority = calculateJobPriority(jobData);
 
-      assert.strictEqual(priority, 10, "LIKE_RECEIVED should have priority 10");
+      expect(priority).toBe(10);
     });
 
     it("should assign priority 10 to COMMENT_RECEIVED events", () => {
       const jobData = createTestJobData({ eventType: "COMMENT_RECEIVED" as WebhookEventType });
       const priority = calculateJobPriority(jobData);
 
-      assert.strictEqual(priority, 10, "COMMENT_RECEIVED should have priority 10");
+      expect(priority).toBe(10);
     });
 
     it("should assign priority 10 to SHARE_RECEIVED events", () => {
       const jobData = createTestJobData({ eventType: "SHARE_RECEIVED" as WebhookEventType });
       const priority = calculateJobPriority(jobData);
 
-      assert.strictEqual(priority, 10, "SHARE_RECEIVED should have priority 10");
+      expect(priority).toBe(10);
     });
 
     it("should handle all engagement events consistently", () => {
@@ -37,7 +36,7 @@ describe("WebhookJobProcessor - Priority Calculation", () => {
         const jobData = createTestJobData({ eventType: eventType as WebhookEventType });
         const priority = calculateJobPriority(jobData);
 
-        assert.strictEqual(priority, 10, `${eventType} should have priority 10`);
+        expect(priority).toBe(10);
       });
     });
   });
@@ -47,14 +46,14 @@ describe("WebhookJobProcessor - Priority Calculation", () => {
       const jobData = createTestJobData({ eventType: "POST_PUBLISHED" as WebhookEventType });
       const priority = calculateJobPriority(jobData);
 
-      assert.strictEqual(priority, 5, "POST_PUBLISHED should have priority 5");
+      expect(priority).toBe(5);
     });
 
     it("should assign priority 5 to POST_UPDATED events", () => {
       const jobData = createTestJobData({ eventType: "POST_UPDATED" as WebhookEventType });
       const priority = calculateJobPriority(jobData);
 
-      assert.strictEqual(priority, 5, "POST_UPDATED should have priority 5");
+      expect(priority).toBe(5);
     });
 
     it("should handle all post events consistently", () => {
@@ -64,7 +63,7 @@ describe("WebhookJobProcessor - Priority Calculation", () => {
         const jobData = createTestJobData({ eventType: eventType as WebhookEventType });
         const priority = calculateJobPriority(jobData);
 
-        assert.strictEqual(priority, 5, `${eventType} should have priority 5`);
+        expect(priority).toBe(5);
       });
     });
   });
@@ -76,14 +75,14 @@ describe("WebhookJobProcessor - Priority Calculation", () => {
       });
       const priority = calculateJobPriority(jobData);
 
-      assert.strictEqual(priority, 1, "POST_ENGAGEMENT_UPDATE should have priority 1");
+      expect(priority).toBe(1);
     });
 
     it("should assign priority 1 to unknown event types", () => {
       const jobData = createTestJobData({ eventType: "UNKNOWN_EVENT" as any });
       const priority = calculateJobPriority(jobData);
 
-      assert.strictEqual(priority, 1, "Unknown events should have priority 1");
+      expect(priority).toBe(1);
     });
 
     it("should handle various low-priority events", () => {
@@ -97,7 +96,7 @@ describe("WebhookJobProcessor - Priority Calculation", () => {
         const jobData = createTestJobData({ eventType: eventType as any });
         const priority = calculateJobPriority(jobData);
 
-        assert.strictEqual(priority, 1, `${eventType} should have priority 1`);
+        expect(priority).toBe(1);
       });
     });
   });
@@ -107,7 +106,7 @@ describe("WebhookJobProcessor - Priority Calculation", () => {
       const jobData = createTestJobData({ eventType: "LIKE_RECEIVED" as WebhookEventType });
       const priority = calculateJobPriority(jobData);
 
-      assert.strictEqual(priority, 10, "Should match exact case for event type");
+      expect(priority).toBe(10);
     });
 
     it("should prioritize engagement over posts", () => {
@@ -118,7 +117,7 @@ describe("WebhookJobProcessor - Priority Calculation", () => {
         createTestJobData({ eventType: "POST_PUBLISHED" as WebhookEventType })
       );
 
-      assert.ok(engagementPriority > postPriority, "Engagement events should have higher priority");
+      expect(engagementPriority > postPriority).toBeTruthy();
     });
 
     it("should prioritize posts over other events", () => {
@@ -129,10 +128,7 @@ describe("WebhookJobProcessor - Priority Calculation", () => {
         createTestJobData({ eventType: "POST_ENGAGEMENT_UPDATE" as WebhookEventType })
       );
 
-      assert.ok(
-        postPriority > otherPriority,
-        "Post events should have higher priority than others"
-      );
+      expect(postPriority > otherPriority).toBeTruthy();
     });
   });
 });
@@ -143,7 +139,7 @@ describe("WebhookJobProcessor - Delay Calculation", () => {
       const jobData = createTestJobData({ retryCount: 0 });
       const delay = calculateInitialDelay(jobData);
 
-      assert.strictEqual(delay, 0, "First attempt should have no delay");
+      expect(delay).toBe(0);
     });
 
     it("should handle multiple jobs with retryCount 0 consistently", () => {
@@ -151,9 +147,9 @@ describe("WebhookJobProcessor - Delay Calculation", () => {
       const jobData2 = createTestJobData({ retryCount: 0, eventId: "event-2" });
       const jobData3 = createTestJobData({ retryCount: 0, eventId: "event-3" });
 
-      assert.strictEqual(calculateInitialDelay(jobData1), 0);
-      assert.strictEqual(calculateInitialDelay(jobData2), 0);
-      assert.strictEqual(calculateInitialDelay(jobData3), 0);
+      expect(calculateInitialDelay(jobData1)).toBe(0);
+      expect(calculateInitialDelay(jobData2)).toBe(0);
+      expect(calculateInitialDelay(jobData3)).toBe(0);
     });
   });
 
@@ -162,42 +158,42 @@ describe("WebhookJobProcessor - Delay Calculation", () => {
       const jobData = createTestJobData({ retryCount: 1 });
       const delay = calculateInitialDelay(jobData);
 
-      assert.strictEqual(delay, 5000, "Retry 1 should have 5 second delay");
+      expect(delay).toBe(5000);
     });
 
     it("should calculate correct delay for retry 2 (10 seconds)", () => {
       const jobData = createTestJobData({ retryCount: 2 });
       const delay = calculateInitialDelay(jobData);
 
-      assert.strictEqual(delay, 10000, "Retry 2 should have 10 second delay");
+      expect(delay).toBe(10000);
     });
 
     it("should calculate correct delay for retry 3 (20 seconds)", () => {
       const jobData = createTestJobData({ retryCount: 3 });
       const delay = calculateInitialDelay(jobData);
 
-      assert.strictEqual(delay, 20000, "Retry 3 should have 20 second delay");
+      expect(delay).toBe(20000);
     });
 
     it("should calculate correct delay for retry 4 (40 seconds)", () => {
       const jobData = createTestJobData({ retryCount: 4 });
       const delay = calculateInitialDelay(jobData);
 
-      assert.strictEqual(delay, 40000, "Retry 4 should have 40 second delay");
+      expect(delay).toBe(40000);
     });
 
     it("should calculate correct delay for retry 5 (80 seconds)", () => {
       const jobData = createTestJobData({ retryCount: 5 });
       const delay = calculateInitialDelay(jobData);
 
-      assert.strictEqual(delay, 80000, "Retry 5 should have 80 second delay");
+      expect(delay).toBe(80000);
     });
 
     it("should calculate correct delay for retry 6 (160 seconds)", () => {
       const jobData = createTestJobData({ retryCount: 6 });
       const delay = calculateInitialDelay(jobData);
 
-      assert.strictEqual(delay, 160000, "Retry 6 should have 160 second delay");
+      expect(delay).toBe(160000);
     });
 
     it("should verify exponential growth pattern", () => {
@@ -207,11 +203,7 @@ describe("WebhookJobProcessor - Delay Calculation", () => {
       });
 
       for (let i = 1; i < delays.length; i++) {
-        assert.strictEqual(
-          delays[i],
-          delays[i - 1] * 2,
-          `Delay ${i + 1} should be double delay ${i}`
-        );
+        expect(delays[i]).toBe(delays[i - 1] * 2);
       }
     });
   });
@@ -221,14 +213,14 @@ describe("WebhookJobProcessor - Delay Calculation", () => {
       const jobData = createTestJobData({ retryCount: 7 });
       const delay = calculateInitialDelay(jobData);
 
-      assert.strictEqual(delay, 300000, "Delay should be capped at 5 minutes");
+      expect(delay).toBe(300000);
     });
 
     it("should cap delay at 300000ms for retry 8", () => {
       const jobData = createTestJobData({ retryCount: 8 });
       const delay = calculateInitialDelay(jobData);
 
-      assert.strictEqual(delay, 300000, "Delay should be capped at 5 minutes");
+      expect(delay).toBe(300000);
     });
 
     it("should cap delay at 300000ms for very high retry counts", () => {
@@ -238,7 +230,7 @@ describe("WebhookJobProcessor - Delay Calculation", () => {
         const jobData = createTestJobData({ retryCount });
         const delay = calculateInitialDelay(jobData);
 
-        assert.strictEqual(delay, 300000, `Retry ${retryCount} should be capped at 5 minutes`);
+        expect(delay).toBe(300000);
       });
     });
 
@@ -247,7 +239,7 @@ describe("WebhookJobProcessor - Delay Calculation", () => {
         const jobData = createTestJobData({ retryCount });
         const delay = calculateInitialDelay(jobData);
 
-        assert.ok(delay <= 300000, `Retry ${retryCount} delay should not exceed 5 minutes`);
+        expect(delay <= 300000).toBeTruthy();
       }
     });
   });
@@ -257,7 +249,7 @@ describe("WebhookJobProcessor - Delay Calculation", () => {
       const jobData = createTestJobData({ retryCount: -1 });
       const delay = calculateInitialDelay(jobData);
 
-      assert.ok(delay >= 0, "Delay should never be negative");
+      expect(delay >= 0).toBeTruthy();
     });
 
     it("should provide consistent delays for same retry count", () => {
@@ -267,7 +259,7 @@ describe("WebhookJobProcessor - Delay Calculation", () => {
       const delay1 = calculateInitialDelay(jobData1);
       const delay2 = calculateInitialDelay(jobData2);
 
-      assert.strictEqual(delay1, delay2, "Same retry count should produce same delay");
+      expect(delay1).toBe(delay2);
     });
 
     it("should calculate delays independently of other job properties", () => {
@@ -285,11 +277,7 @@ describe("WebhookJobProcessor - Delay Calculation", () => {
       const delay1 = calculateInitialDelay(jobData1);
       const delay2 = calculateInitialDelay(jobData2);
 
-      assert.strictEqual(
-        delay1,
-        delay2,
-        "Delay should only depend on retryCount, not other properties"
-      );
+      expect(delay1).toBe(delay2);
     });
   });
 });

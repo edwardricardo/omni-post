@@ -1,71 +1,100 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for executiveRoutes
+ * @file executiveRoutes.test.ts
+ * @description Unit tests for executiveRoutes. Uses mocked Prisma stores and
+ *              a real Fastify instance to test HTTP endpoint behavior.
  *
  * Covers:
  *   GET /api/admin/executive/metrics
  *   GET /api/admin/compliance/metrics
  *   GET /api/admin/compliance/audit-logs
  *   GET /api/admin/compliance/gdpr
+ * @layer test
  */
 
-// Suppress console output during tests
-const originalConsole = {
-  log: console.log,
-  info: console.info,
-  warn: console.warn,
-  error: console.error,
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
+
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
+
+const { mockPrisma } = createMockPrismaModule();
+
+// Add extra models that executiveRoutes handlers use (post, channel, analytics,
+// adminUserPermission, publishLog)
+const extraModels = {
+  post: buildModelMock(createStore()),
+  channel: buildModelMock(createStore()),
+  analytics: buildModelMock(createStore()),
+  adminUserPermission: buildModelMock(createStore()),
+  publishLog: buildModelMock(createStore()),
 };
-console.log = () => {};
-console.info = () => {};
-console.warn = () => {};
-console.error = () => {};
+Object.assign(mockPrisma.prisma, extraModels);
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import fastifyCookie from "@fastify/cookie";
-import { executiveRoutes } from "../../src/admin/executiveRoutes.js";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
-import { prisma } from "@infra/prisma";
-import { createTestAdminUser, cleanupTestAdminUsersByEmail } from "./admin/adminTestHelper.js";
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
 
-async function createTestApp(): Promise<FastifyInstance> {
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
+// ---------------------------------------------------------------------------
+// Dynamic imports after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const { executiveRoutes } = await import("../../src/admin/executiveRoutes.js");
+const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { generateAdminToken } = await import("./admin/adminTestHelper.js");
+
+// ---------------------------------------------------------------------------
+// Test setup
+// ---------------------------------------------------------------------------
+
+const timestamp = Date.now();
+const adminEmail = `executive-test-${timestamp}@example.com`;
+
+async function createTestApp() {
   const app = Fastify({ logger: false });
-  const container = setupContainer({ prisma });
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
   app.decorate("container", container);
+  const fastifyCookie = (await import("@fastify/cookie")).default;
   await app.register(fastifyCookie);
   await app.register(executiveRoutes);
   await app.ready();
   return app;
 }
 
-const timestamp = Date.now();
-const adminEmail = `executive-test-${timestamp}@example.com`;
-const testPassword = "TestPassword123";
-
-let app: FastifyInstance;
+let app: import("fastify").FastifyInstance;
 let adminToken: string;
 
-describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("executiveRoutes Unit Tests", () => {
+  beforeAll(async () => {
     app = await createTestApp();
 
-    // Create admin user and generate a valid admin JWT token
-    const result = await createTestAdminUser({
+    // Generate a valid admin JWT token directly
+    adminToken = generateAdminToken({
+      id: "executive-admin-test-id",
       email: adminEmail,
       name: "Executive Test Admin",
-      password: testPassword,
       role: "ADMIN",
     });
-    adminToken = result.token;
   });
 
-  after(async () => {
-    await cleanupTestAdminUsersByEmail(`executive-test-${timestamp}`);
+  afterAll(async () => {
     await app.close();
-    await prisma.$disconnect();
-    Object.assign(console, originalConsole);
   });
 
   // ── GET /api/admin/executive/metrics ──────────────────────────────────────
@@ -75,7 +104,7 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "GET",
       url: "/api/admin/executive/metrics",
     });
-    assert.equal(res.statusCode, 401);
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return executive metrics with auth", async () => {
@@ -84,27 +113,21 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/admin/executive/metrics",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data, "Should have value field");
+    expect(body.ok).toBeTruthy();
+    expect(body.data).toBeTruthy();
     // Verify top-level shape
-    assert.ok("accounts" in body.data, "Should have accounts field");
-    assert.ok("projects" in body.data, "Should have projects field");
-    assert.ok("posts" in body.data, "Should have posts field");
-    assert.ok("channels" in body.data, "Should have channels field");
-    assert.ok("engagement" in body.data, "Should have engagement field");
-    assert.ok("generatedAt" in body.data, "Should have generatedAt field");
+    expect("accounts" in body.data).toBeTruthy();
+    expect("projects" in body.data).toBeTruthy();
+    expect("posts" in body.data).toBeTruthy();
+    expect("channels" in body.data).toBeTruthy();
+    expect("engagement" in body.data).toBeTruthy();
+    expect("generatedAt" in body.data).toBeTruthy();
     // Verify nested shapes
-    assert.ok(typeof body.data.accounts.total === "number", "accounts.total should be a number");
-    assert.ok(
-      typeof body.data.posts.successRate === "number",
-      "posts.successRate should be a number"
-    );
-    assert.ok(
-      typeof body.data.engagement.engagementRate === "number",
-      "engagementRate should be a number"
-    );
+    expect(typeof body.data.accounts.total === "number").toBeTruthy();
+    expect(typeof body.data.posts.successRate === "number").toBeTruthy();
+    expect(typeof body.data.engagement.engagementRate === "number").toBeTruthy();
   });
 
   it("should return executive metrics with date range params", async () => {
@@ -115,12 +138,12 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: `/api/admin/executive/metrics?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
+    expect(body.ok).toBeTruthy();
     // period should be populated
-    assert.ok(body.data.period.startDate !== null, "period.startDate should be set");
-    assert.ok(body.data.period.endDate !== null, "period.endDate should be set");
+    expect(body.data.period.startDate !== null).toBeTruthy();
+    expect(body.data.period.endDate !== null).toBeTruthy();
   });
 
   it("should return executive metrics with provider filter", async () => {
@@ -129,10 +152,10 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/admin/executive/metrics?provider=X",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.ok("channels" in body.data);
+    expect(body.ok).toBeTruthy();
+    expect("channels" in body.data).toBeTruthy();
   });
 
   // ── GET /api/admin/compliance/metrics ────────────────────────────────────
@@ -142,7 +165,7 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "GET",
       url: "/api/admin/compliance/metrics",
     });
-    assert.equal(res.statusCode, 401);
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return compliance metrics with auth", async () => {
@@ -151,39 +174,27 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/admin/compliance/metrics",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data, "Should have value field");
+    expect(body.ok).toBeTruthy();
+    expect(body.data).toBeTruthy();
     // Verify required response shape
-    assert.ok("summary" in body.data, "Should have summary field");
-    assert.ok("userActivity" in body.data, "Should have userActivity field");
-    assert.ok("topActions" in body.data, "Should have topActions field");
-    assert.ok("topResources" in body.data, "Should have topResources field");
-    assert.ok("gdpr" in body.data, "Should have gdpr field");
-    assert.ok("generatedAt" in body.data, "Should have generatedAt field");
+    expect("summary" in body.data).toBeTruthy();
+    expect("userActivity" in body.data).toBeTruthy();
+    expect("topActions" in body.data).toBeTruthy();
+    expect("topResources" in body.data).toBeTruthy();
+    expect("gdpr" in body.data).toBeTruthy();
+    expect("generatedAt" in body.data).toBeTruthy();
     // Verify summary shape
-    assert.ok(
-      typeof body.data.summary.complianceScore === "number",
-      "complianceScore should be a number"
-    );
-    assert.ok(
-      typeof body.data.summary.totalAuditLogs === "number",
-      "totalAuditLogs should be a number"
-    );
-    assert.ok(typeof body.data.summary.successRate === "number", "successRate should be a number");
+    expect(typeof body.data.summary.complianceScore === "number").toBeTruthy();
+    expect(typeof body.data.summary.totalAuditLogs === "number").toBeTruthy();
+    expect(typeof body.data.summary.successRate === "number").toBeTruthy();
     // Verify gdpr shape
-    assert.ok(
-      typeof body.data.gdpr.totalDataSubjects === "number",
-      "gdpr.totalDataSubjects should be a number"
-    );
-    assert.ok(
-      typeof body.data.gdpr.exportRequests === "number",
-      "gdpr.exportRequests should be a number"
-    );
+    expect(typeof body.data.gdpr.totalDataSubjects === "number").toBeTruthy();
+    expect(typeof body.data.gdpr.exportRequests === "number").toBeTruthy();
     // topActions should be an array
-    assert.ok(Array.isArray(body.data.topActions), "topActions should be an array");
-    assert.ok(Array.isArray(body.data.topResources), "topResources should be an array");
+    expect(Array.isArray(body.data.topActions)).toBeTruthy();
+    expect(Array.isArray(body.data.topResources)).toBeTruthy();
   });
 
   // ── GET /api/admin/compliance/audit-logs ─────────────────────────────────
@@ -193,7 +204,7 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "GET",
       url: "/api/admin/compliance/audit-logs",
     });
-    assert.equal(res.statusCode, 401);
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return paginated audit logs with auth", async () => {
@@ -202,19 +213,16 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/admin/compliance/audit-logs",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data, "Should have value field");
+    expect(body.ok).toBeTruthy();
+    expect(body.data).toBeTruthy();
     // formatPaginatedResponse returns { ok, data, pagination } — wrapped in body.data
-    assert.ok("data" in body.data, "Should have data field");
-    assert.ok("pagination" in body.data, "Should have pagination field");
-    assert.ok(Array.isArray(body.data.data), "data should be an array");
-    assert.ok(
-      typeof body.data.pagination.total === "number",
-      "pagination.total should be a number"
-    );
-    assert.ok(typeof body.data.pagination.page === "number", "pagination.page should be a number");
+    expect("data" in body.data).toBeTruthy();
+    expect("pagination" in body.data).toBeTruthy();
+    expect(Array.isArray(body.data.data)).toBeTruthy();
+    expect(typeof body.data.pagination.total === "number").toBeTruthy();
+    expect(typeof body.data.pagination.page === "number").toBeTruthy();
   });
 
   it("should respect page and limit pagination params", async () => {
@@ -223,12 +231,12 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/admin/compliance/audit-logs?page=1&limit=5",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.equal(body.data.pagination.page, 1, "page should be 1");
-    assert.equal(body.data.pagination.limit, 5, "limit should be 5");
-    assert.ok(body.data.data.length <= 5, "Should return at most 5 items");
+    expect(body.ok).toBeTruthy();
+    expect(body.data.pagination.page).toBe(1);
+    expect(body.data.pagination.limit).toBe(5);
+    expect(body.data.data.length <= 5).toBeTruthy();
   });
 
   it("should accept sorting params for audit logs", async () => {
@@ -237,10 +245,10 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/admin/compliance/audit-logs?sortBy=createdAt&sortOrder=asc",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.ok(Array.isArray(body.data.data));
+    expect(body.ok).toBeTruthy();
+    expect(Array.isArray(body.data.data)).toBeTruthy();
   });
 
   it("should filter audit logs by action", async () => {
@@ -249,10 +257,10 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/admin/compliance/audit-logs?action=LOGIN",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.ok(Array.isArray(body.data.data));
+    expect(body.ok).toBeTruthy();
+    expect(Array.isArray(body.data.data)).toBeTruthy();
   });
 
   it("should filter audit logs by date range", async () => {
@@ -263,10 +271,10 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: `/api/admin/compliance/audit-logs?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.ok(Array.isArray(body.data.data));
+    expect(body.ok).toBeTruthy();
+    expect(Array.isArray(body.data.data)).toBeTruthy();
   });
 
   // ── GET /api/admin/compliance/gdpr ───────────────────────────────────────
@@ -276,7 +284,7 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "GET",
       url: "/api/admin/compliance/gdpr",
     });
-    assert.equal(res.statusCode, 401);
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return GDPR data with no query params", async () => {
@@ -285,37 +293,29 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/admin/compliance/gdpr",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data, "Should have value field");
+    expect(body.ok).toBeTruthy();
+    expect(body.data).toBeTruthy();
     // Verify GDPR response shape
-    assert.ok("summary" in body.data, "Should have summary field");
-    assert.ok("dataSubjects" in body.data, "Should have dataSubjects field");
-    assert.ok("generatedAt" in body.data, "Should have generatedAt field");
-    assert.ok(Array.isArray(body.data.dataSubjects), "dataSubjects should be an array");
-    assert.ok(
-      typeof body.data.summary.totalDataSubjects === "number",
-      "totalDataSubjects should be a number"
-    );
+    expect("summary" in body.data).toBeTruthy();
+    expect("dataSubjects" in body.data).toBeTruthy();
+    expect("generatedAt" in body.data).toBeTruthy();
+    expect(Array.isArray(body.data.dataSubjects)).toBeTruthy();
+    expect(typeof body.data.summary.totalDataSubjects === "number").toBeTruthy();
   });
 
   it("should return GDPR data filtered by accountId", async () => {
-    // Use a known non-existent account ID to test filtering without requiring data
     const nonExistentId = "a0000000-0000-4000-8000-000000000000";
     const res = await app.inject({
       method: "GET",
       url: `/api/admin/compliance/gdpr?accountId=${nonExistentId}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.equal(
-      body.data.dataSubjects.length,
-      0,
-      "Should return no data subjects for non-existent account"
-    );
+    expect(body.ok).toBeTruthy();
+    expect(body.data.dataSubjects.length).toBe(0);
   });
 
   it("should return GDPR data with requestType filter", async () => {
@@ -324,10 +324,10 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/admin/compliance/gdpr?requestType=export",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.equal(body.data.requestType, "export", "requestType should be echoed back");
+    expect(body.ok).toBeTruthy();
+    expect(body.data.requestType).toBe("export");
   });
 
   it("should return GDPR data with status filter", async () => {
@@ -336,9 +336,9 @@ describe("executiveRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/admin/compliance/gdpr?status=pending",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.equal(body.data.status, "pending", "status should be echoed back");
+    expect(body.ok).toBeTruthy();
+    expect(body.data.status).toBe("pending");
   });
 });

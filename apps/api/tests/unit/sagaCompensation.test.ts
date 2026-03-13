@@ -8,8 +8,7 @@
  * - compensate() with partial cancellation failures → best-effort continues
  * - compensate() without jobIds → returns success immediately
  */
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { SchedulePublishingJobsStep, createSagaContext } from "@shared/saga";
 
 function createContext(stepData: Record<string, unknown> = {}) {
@@ -18,7 +17,7 @@ function createContext(stepData: Record<string, unknown> = {}) {
   return ctx;
 }
 
-describe("V3: SchedulePublishingJobsStep compensation", { concurrency: 1 }, () => {
+describe("V3: SchedulePublishingJobsStep compensation", () => {
   it("should call cancelJob for each jobId during compensation", async () => {
     const cancelledIds: string[] = [];
     const step = new SchedulePublishingJobsStep(
@@ -38,9 +37,9 @@ describe("V3: SchedulePublishingJobsStep compensation", { concurrency: 1 }, () =
 
     const result = await step.compensate(context, { jobIds: ["job-a", "job-b", "job-c"] });
 
-    assert.ok(result.success, "Compensation should succeed");
-    assert.deepStrictEqual(cancelledIds, ["job-a", "job-b", "job-c"]);
-    assert.strictEqual(result.data?.cancelledCount, 3);
+    expect(result.success).toBeTruthy();
+    expect(cancelledIds).toStrictEqual(["job-a", "job-b", "job-c"]);
+    expect(result.data?.cancelledCount).toBe(3);
   });
 
   it("should work without cancelJob (backward compat)", async () => {
@@ -50,8 +49,8 @@ describe("V3: SchedulePublishingJobsStep compensation", { concurrency: 1 }, () =
     const context = createContext();
     const result = await step.compensate(context, { jobIds: ["job-x", "job-y"] });
 
-    assert.ok(result.success, "Compensation should succeed in backward compat mode");
-    assert.strictEqual(result.data?.cancelledCount, 2);
+    expect(result.success).toBeTruthy();
+    expect(result.data?.cancelledCount).toBe(2);
   });
 
   it("should handle partial cancellation failures (best-effort)", async () => {
@@ -69,10 +68,10 @@ describe("V3: SchedulePublishingJobsStep compensation", { concurrency: 1 }, () =
     const context = createContext();
     const result = await step.compensate(context, { jobIds: ["job-1", "job-2", "job-3"] });
 
-    assert.ok(result.success, "Compensation should succeed even with partial failures");
-    assert.strictEqual(callCount, 3, "Should attempt all 3 cancellations");
+    expect(result.success).toBeTruthy();
+    expect(callCount).toBe(3);
     // Only job-1 and job-3 were successfully cancelled
-    assert.strictEqual(result.data?.cancelledCount, 2);
+    expect(result.data?.cancelledCount).toBe(2);
   });
 
   it("should handle cancelJob throwing errors (best-effort)", async () => {
@@ -87,9 +86,9 @@ describe("V3: SchedulePublishingJobsStep compensation", { concurrency: 1 }, () =
     const context = createContext();
     const result = await step.compensate(context, { jobIds: ["job-ok", "job-err", "job-ok2"] });
 
-    assert.ok(result.success, "Compensation should succeed despite thrown errors");
+    expect(result.success).toBeTruthy();
     // job-ok and job-ok2 cancelled, job-err caught by try/catch
-    assert.strictEqual(result.data?.cancelledCount, 2);
+    expect(result.data?.cancelledCount).toBe(2);
   });
 
   it("should return success immediately when no jobIds exist", async () => {
@@ -105,8 +104,8 @@ describe("V3: SchedulePublishingJobsStep compensation", { concurrency: 1 }, () =
     const context = createContext();
     const result = await step.compensate(context, { jobIds: [] });
 
-    assert.ok(result.success);
-    assert.strictEqual(cancelCalls.length, 0, "Should not call cancelJob when no jobIds");
+    expect(result.success).toBeTruthy();
+    expect(cancelCalls.length).toBe(0);
   });
 
   it("should return success when compensationData is empty", async () => {
@@ -122,6 +121,6 @@ describe("V3: SchedulePublishingJobsStep compensation", { concurrency: 1 }, () =
     // No compensationData, falls back to context.stepData
     const result = await step.compensate(context);
 
-    assert.ok(result.success);
+    expect(result.success).toBeTruthy();
   });
 });

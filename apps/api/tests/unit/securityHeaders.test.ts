@@ -6,8 +6,7 @@
  * Coverage Target: 95%+
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { SecurityManager, SecurityConfigs } from "../../src/security/securityHeaders.js";
 import type { FastifyRequest, FastifyReply } from "fastify";
 
@@ -90,13 +89,13 @@ describe("SecurityManager Tests", () => {
       securityManager = new SecurityManager();
       const config = securityManager.getConfig();
 
-      assert.ok(config);
-      assert.strictEqual(config.contentSecurityPolicy.enabled, true);
-      assert.strictEqual(config.cors.enabled, true);
-      assert.strictEqual(config.hsts.enabled, true);
-      assert.strictEqual(config.xssProtection, true);
-      assert.strictEqual(config.noSniff, true);
-      assert.strictEqual(config.frameOptions, "DENY");
+      expect(config).toBeTruthy();
+      expect(config.contentSecurityPolicy.enabled).toBe(true);
+      expect(config.cors.enabled).toBe(true);
+      expect(config.hsts.enabled).toBe(true);
+      expect(config.xssProtection).toBe(true);
+      expect(config.noSniff).toBe(true);
+      expect(config.frameOptions).toBe("DENY");
     });
 
     it("should initialize with custom config", () => {
@@ -106,8 +105,8 @@ describe("SecurityManager Tests", () => {
       });
 
       const config = securityManager.getConfig();
-      assert.strictEqual(config.frameOptions, "SAMEORIGIN");
-      assert.strictEqual(config.xssProtection, false);
+      expect(config.frameOptions).toBe("SAMEORIGIN");
+      expect(config.xssProtection).toBe(false);
     });
 
     it("should update config at runtime", () => {
@@ -118,24 +117,24 @@ describe("SecurityManager Tests", () => {
       });
 
       const config = securityManager.getConfig();
-      assert.strictEqual(config.frameOptions, "SAMEORIGIN");
+      expect(config.frameOptions).toBe("SAMEORIGIN");
     });
 
     it("should have development config preset", () => {
       const devConfig = SecurityConfigs.development;
 
-      assert.strictEqual(devConfig.contentSecurityPolicy.enabled, false);
-      assert.strictEqual(devConfig.cors.enabled, true);
-      assert.strictEqual(devConfig.hsts.enabled, false);
+      expect(devConfig.contentSecurityPolicy.enabled).toBe(false);
+      expect(devConfig.cors.enabled).toBe(true);
+      expect(devConfig.hsts.enabled).toBe(false);
     });
 
     it("should have production config preset", () => {
       const prodConfig = SecurityConfigs.production;
 
-      assert.strictEqual(prodConfig.contentSecurityPolicy.enabled, true);
-      assert.strictEqual(prodConfig.cors.enabled, true);
-      assert.strictEqual(prodConfig.hsts.enabled, true);
-      assert.strictEqual(prodConfig.hsts.preload, true);
+      expect(prodConfig.contentSecurityPolicy.enabled).toBe(true);
+      expect(prodConfig.cors.enabled).toBe(true);
+      expect(prodConfig.hsts.enabled).toBe(true);
+      expect(prodConfig.hsts.preload).toBe(true);
     });
   });
 
@@ -154,9 +153,9 @@ describe("SecurityManager Tests", () => {
       middleware(request, reply);
 
       const csp = reply.getHeader("content-security-policy");
-      assert.ok(csp);
-      assert.ok(typeof csp === "string");
-      assert.ok(csp.includes("default-src"));
+      expect(csp).toBeTruthy();
+      expect(typeof csp === "string").toBeTruthy();
+      expect(csp.includes("default-src")).toBeTruthy();
     });
 
     it("should build CSP with custom directives", () => {
@@ -178,9 +177,9 @@ describe("SecurityManager Tests", () => {
       middleware(request, reply);
 
       const csp = reply.getHeader("content-security-policy") as string;
-      assert.ok(csp.includes("default-src 'self'"));
-      assert.ok(csp.includes("script-src 'self' https://trusted.cdn.com"));
-      assert.ok(csp.includes("style-src 'self' 'unsafe-inline'"));
+      expect(csp.includes("default-src 'self'")).toBeTruthy();
+      expect(csp.includes("script-src 'self' https://trusted.cdn.com")).toBeTruthy();
+      expect(csp.includes("style-src 'self' 'unsafe-inline'")).toBeTruthy();
     });
 
     it("should handle empty directive arrays", () => {
@@ -200,7 +199,7 @@ describe("SecurityManager Tests", () => {
       middleware(request, reply);
 
       const csp = reply.getHeader("content-security-policy") as string;
-      assert.ok(csp.includes("upgrade-insecure-requests"));
+      expect(csp.includes("upgrade-insecure-requests")).toBeTruthy();
     });
 
     it("should disable CSP when configured", () => {
@@ -217,7 +216,7 @@ describe("SecurityManager Tests", () => {
       middleware(request, reply);
 
       const csp = reply.getHeader("content-security-policy");
-      assert.strictEqual(csp, undefined);
+      expect(csp).toBe(undefined);
     });
   });
 
@@ -242,10 +241,10 @@ describe("SecurityManager Tests", () => {
       middleware(request, reply);
 
       const policy = reply.getHeader("permissions-policy") as string;
-      assert.ok(policy);
-      assert.ok(policy.includes("geolocation=(self)"));
-      assert.ok(policy.includes("microphone=()"));
-      assert.ok(policy.includes("camera=()"));
+      expect(policy).toBeTruthy();
+      expect(policy.includes("geolocation=(self)")).toBeTruthy();
+      expect(policy.includes("microphone=()")).toBeTruthy();
+      expect(policy.includes("camera=()")).toBeTruthy();
     });
 
     it("should handle empty allowlist", () => {
@@ -262,7 +261,7 @@ describe("SecurityManager Tests", () => {
       middleware(request, reply);
 
       const policy = reply.getHeader("permissions-policy") as string;
-      assert.ok(policy.includes("payment=()"));
+      expect(policy.includes("payment=()")).toBeTruthy();
     });
 
     it("should handle multiple sources", () => {
@@ -279,7 +278,7 @@ describe("SecurityManager Tests", () => {
       middleware(request, reply);
 
       const policy = reply.getHeader("permissions-policy") as string;
-      assert.ok(policy.includes("geolocation=(self"));
+      expect(policy.includes("geolocation=(self")).toBeTruthy();
     });
   });
 
@@ -296,7 +295,7 @@ describe("SecurityManager Tests", () => {
       const middleware = securityManager.createSecurityMiddleware();
       middleware(request, reply);
 
-      assert.strictEqual(reply.getHeader("x-content-type-options"), "nosniff");
+      expect(reply.getHeader("x-content-type-options")).toBe("nosniff");
     });
 
     it("should apply X-Download-Options header", () => {
@@ -307,7 +306,7 @@ describe("SecurityManager Tests", () => {
       const middleware = securityManager.createSecurityMiddleware();
       middleware(request, reply);
 
-      assert.strictEqual(reply.getHeader("x-download-options"), "noopen");
+      expect(reply.getHeader("x-download-options")).toBe("noopen");
     });
 
     it("should apply X-Permitted-Cross-Domain-Policies header", () => {
@@ -318,7 +317,7 @@ describe("SecurityManager Tests", () => {
       const middleware = securityManager.createSecurityMiddleware();
       middleware(request, reply);
 
-      assert.strictEqual(reply.getHeader("x-permitted-cross-domain-policies"), "none");
+      expect(reply.getHeader("x-permitted-cross-domain-policies")).toBe("none");
     });
 
     it("should apply Cross-Origin headers", () => {
@@ -329,9 +328,9 @@ describe("SecurityManager Tests", () => {
       const middleware = securityManager.createSecurityMiddleware();
       middleware(request, reply);
 
-      assert.strictEqual(reply.getHeader("cross-origin-embedder-policy"), "require-corp");
-      assert.strictEqual(reply.getHeader("cross-origin-opener-policy"), "same-origin");
-      assert.strictEqual(reply.getHeader("cross-origin-resource-policy"), "cross-origin");
+      expect(reply.getHeader("cross-origin-embedder-policy")).toBe("require-corp");
+      expect(reply.getHeader("cross-origin-opener-policy")).toBe("same-origin");
+      expect(reply.getHeader("cross-origin-resource-policy")).toBe("cross-origin");
     });
 
     it("should remove X-Powered-By header", () => {
@@ -343,7 +342,7 @@ describe("SecurityManager Tests", () => {
       const middleware = securityManager.createSecurityMiddleware();
       middleware(request, reply);
 
-      assert.strictEqual(reply.getHeader("x-powered-by"), undefined);
+      expect(reply.getHeader("x-powered-by")).toBe(undefined);
     });
 
     it("should remove Server header", () => {
@@ -355,7 +354,7 @@ describe("SecurityManager Tests", () => {
       const middleware = securityManager.createSecurityMiddleware();
       middleware(request, reply);
 
-      assert.strictEqual(reply.getHeader("server"), undefined);
+      expect(reply.getHeader("server")).toBe(undefined);
     });
 
     it("should add X-API-Version header", () => {
@@ -366,7 +365,7 @@ describe("SecurityManager Tests", () => {
       const middleware = securityManager.createSecurityMiddleware();
       middleware(request, reply);
 
-      assert.strictEqual(reply.getHeader("x-api-version"), "1.0");
+      expect(reply.getHeader("x-api-version")).toBe("1.0");
     });
 
     it("should add X-Response-Time header", () => {
@@ -379,9 +378,9 @@ describe("SecurityManager Tests", () => {
       middleware(request, reply);
 
       const responseTime = reply.getHeader("x-response-time");
-      assert.ok(responseTime);
-      assert.ok(typeof responseTime === "string");
-      assert.ok(responseTime.includes("ms"));
+      expect(responseTime).toBeTruthy();
+      expect(typeof responseTime === "string").toBeTruthy();
+      expect(responseTime.includes("ms")).toBeTruthy();
     });
   });
 
@@ -396,8 +395,8 @@ describe("SecurityManager Tests", () => {
 
       const validation = securityManager.validateRequest(request);
 
-      assert.strictEqual(validation.isValid, true);
-      assert.strictEqual(validation.violations.length, 0);
+      expect(validation.isValid).toBe(true);
+      expect(validation.violations.length).toBe(0);
     });
 
     it("should detect suspicious user agents", () => {
@@ -408,8 +407,8 @@ describe("SecurityManager Tests", () => {
 
       const validation = securityManager.validateRequest(request);
 
-      assert.strictEqual(validation.isValid, false);
-      assert.ok(validation.violations.includes("Suspicious user agent detected"));
+      expect(validation.isValid).toBe(false);
+      expect(validation.violations.includes("Suspicious user agent detected")).toBeTruthy();
     });
 
     it("should detect nmap user agent", () => {
@@ -420,8 +419,8 @@ describe("SecurityManager Tests", () => {
 
       const validation = securityManager.validateRequest(request);
 
-      assert.strictEqual(validation.isValid, false);
-      assert.ok(validation.violations.includes("Suspicious user agent detected"));
+      expect(validation.isValid).toBe(false);
+      expect(validation.violations.includes("Suspicious user agent detected")).toBeTruthy();
     });
 
     it("should detect nikto user agent", () => {
@@ -432,7 +431,7 @@ describe("SecurityManager Tests", () => {
 
       const validation = securityManager.validateRequest(request);
 
-      assert.strictEqual(validation.isValid, false);
+      expect(validation.isValid).toBe(false);
     });
 
     it("should detect directory traversal in URL", () => {
@@ -443,8 +442,8 @@ describe("SecurityManager Tests", () => {
 
       const validation = securityManager.validateRequest(request);
 
-      assert.strictEqual(validation.isValid, false);
-      assert.ok(validation.violations.includes("Malicious URL pattern detected"));
+      expect(validation.isValid).toBe(false);
+      expect(validation.violations.includes("Malicious URL pattern detected")).toBeTruthy();
     });
 
     it("should detect encoded directory traversal", () => {
@@ -455,8 +454,8 @@ describe("SecurityManager Tests", () => {
 
       const validation = securityManager.validateRequest(request);
 
-      assert.strictEqual(validation.isValid, false);
-      assert.ok(validation.violations.includes("Malicious URL pattern detected"));
+      expect(validation.isValid).toBe(false);
+      expect(validation.violations.includes("Malicious URL pattern detected")).toBeTruthy();
     });
 
     it("should detect XSS attempts in URL", () => {
@@ -467,8 +466,8 @@ describe("SecurityManager Tests", () => {
 
       const validation = securityManager.validateRequest(request);
 
-      assert.strictEqual(validation.isValid, false);
-      assert.ok(validation.violations.includes("Malicious URL pattern detected"));
+      expect(validation.isValid).toBe(false);
+      expect(validation.violations.includes("Malicious URL pattern detected")).toBeTruthy();
     });
 
     it("should detect javascript: protocol", () => {
@@ -479,7 +478,7 @@ describe("SecurityManager Tests", () => {
 
       const validation = securityManager.validateRequest(request);
 
-      assert.strictEqual(validation.isValid, false);
+      expect(validation.isValid).toBe(false);
     });
 
     it("should detect data URLs", () => {
@@ -490,7 +489,7 @@ describe("SecurityManager Tests", () => {
 
       const validation = securityManager.validateRequest(request);
 
-      assert.strictEqual(validation.isValid, false);
+      expect(validation.isValid).toBe(false);
     });
 
     it("should detect oversized headers", () => {
@@ -505,8 +504,8 @@ describe("SecurityManager Tests", () => {
 
       const validation = securityManager.validateRequest(request);
 
-      assert.strictEqual(validation.isValid, false);
-      assert.ok(validation.violations.includes("Oversized headers detected"));
+      expect(validation.isValid).toBe(false);
+      expect(validation.violations.includes("Oversized headers detected")).toBeTruthy();
     });
   });
 
@@ -519,8 +518,8 @@ describe("SecurityManager Tests", () => {
       securityManager = new SecurityManager();
       const middleware = securityManager.createSecurityMiddleware();
 
-      assert.ok(middleware);
-      assert.strictEqual(typeof middleware, "function");
+      expect(middleware).toBeTruthy();
+      expect(typeof middleware).toBe("function");
     });
 
     it("should allow valid requests through middleware", async () => {
@@ -532,8 +531,8 @@ describe("SecurityManager Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual((request as any).startTime > 0, true);
-      assert.strictEqual(reply.sent, false);
+      expect((request as any).startTime > 0).toBe(true);
+      expect(reply.sent).toBe(false);
     });
 
     it("should block malicious URL patterns", async () => {
@@ -547,9 +546,9 @@ describe("SecurityManager Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.sent, true);
-      assert.strictEqual(reply.statusCode, 400);
-      assert.ok(reply.body?.error);
+      expect(reply.sent).toBe(true);
+      expect(reply.statusCode).toBe(400);
+      expect(reply.body?.error).toBeTruthy();
     });
 
     it("should warn about suspicious user agents", async () => {
@@ -564,7 +563,7 @@ describe("SecurityManager Tests", () => {
       await middleware(request, reply);
 
       // Should warn but not block (not a serious violation)
-      assert.strictEqual((request as any).startTime > 0, true);
+      expect((request as any).startTime > 0).toBe(true);
     });
   });
 
@@ -577,42 +576,42 @@ describe("SecurityManager Tests", () => {
       securityManager = new SecurityManager();
       const config = securityManager.getConfig();
 
-      assert.ok(config.cors.allowedOrigins.includes("http://localhost:3000"));
-      assert.ok(config.cors.allowedOrigins.includes("http://localhost:3100"));
-      assert.ok(config.cors.allowedOrigins.includes("http://localhost:3200"));
+      expect(config.cors.allowedOrigins.includes("http://localhost:3000")).toBeTruthy();
+      expect(config.cors.allowedOrigins.includes("http://localhost:3100")).toBeTruthy();
+      expect(config.cors.allowedOrigins.includes("http://localhost:3200")).toBeTruthy();
     });
 
     it("should have default CORS methods", () => {
       securityManager = new SecurityManager();
       const config = securityManager.getConfig();
 
-      assert.ok(config.cors.allowedMethods.includes("GET"));
-      assert.ok(config.cors.allowedMethods.includes("POST"));
-      assert.ok(config.cors.allowedMethods.includes("PUT"));
-      assert.ok(config.cors.allowedMethods.includes("DELETE"));
-      assert.ok(config.cors.allowedMethods.includes("PATCH"));
+      expect(config.cors.allowedMethods.includes("GET")).toBeTruthy();
+      expect(config.cors.allowedMethods.includes("POST")).toBeTruthy();
+      expect(config.cors.allowedMethods.includes("PUT")).toBeTruthy();
+      expect(config.cors.allowedMethods.includes("DELETE")).toBeTruthy();
+      expect(config.cors.allowedMethods.includes("PATCH")).toBeTruthy();
     });
 
     it("should have default CORS headers", () => {
       securityManager = new SecurityManager();
       const config = securityManager.getConfig();
 
-      assert.ok(config.cors.allowedHeaders.includes("Content-Type"));
-      assert.ok(config.cors.allowedHeaders.includes("Authorization"));
+      expect(config.cors.allowedHeaders.includes("Content-Type")).toBeTruthy();
+      expect(config.cors.allowedHeaders.includes("Authorization")).toBeTruthy();
     });
 
     it("should allow credentials by default", () => {
       securityManager = new SecurityManager();
       const config = securityManager.getConfig();
 
-      assert.strictEqual(config.cors.allowCredentials, true);
+      expect(config.cors.allowCredentials).toBe(true);
     });
 
     it("should have 24-hour max age", () => {
       securityManager = new SecurityManager();
       const config = securityManager.getConfig();
 
-      assert.strictEqual(config.cors.maxAge, 86400);
+      expect(config.cors.maxAge).toBe(86400);
     });
   });
 
@@ -625,10 +624,10 @@ describe("SecurityManager Tests", () => {
       securityManager = new SecurityManager();
       const config = securityManager.getConfig();
 
-      assert.strictEqual(config.hsts.enabled, true);
-      assert.strictEqual(config.hsts.maxAge, 31536000); // 1 year
-      assert.strictEqual(config.hsts.includeSubDomains, true);
-      assert.strictEqual(config.hsts.preload, true);
+      expect(config.hsts.enabled).toBe(true);
+      expect(config.hsts.maxAge).toBe(31536000); // 1 year
+      expect(config.hsts.includeSubDomains).toBe(true);
+      expect(config.hsts.preload).toBe(true);
     });
 
     it("should allow disabling HSTS", () => {
@@ -642,7 +641,7 @@ describe("SecurityManager Tests", () => {
       });
 
       const config = securityManager.getConfig();
-      assert.strictEqual(config.hsts.enabled, false);
+      expect(config.hsts.enabled).toBe(false);
     });
 
     it("should allow custom HSTS maxAge", () => {
@@ -656,7 +655,7 @@ describe("SecurityManager Tests", () => {
       });
 
       const config = securityManager.getConfig();
-      assert.strictEqual(config.hsts.maxAge, 15552000);
+      expect(config.hsts.maxAge).toBe(15552000);
     });
   });
 
@@ -669,7 +668,7 @@ describe("SecurityManager Tests", () => {
       securityManager = new SecurityManager();
       const config = securityManager.getConfig();
 
-      assert.strictEqual(config.frameOptions, "DENY");
+      expect(config.frameOptions).toBe("DENY");
     });
 
     it("should allow SAMEORIGIN", () => {
@@ -678,7 +677,7 @@ describe("SecurityManager Tests", () => {
       });
 
       const config = securityManager.getConfig();
-      assert.strictEqual(config.frameOptions, "SAMEORIGIN");
+      expect(config.frameOptions).toBe("SAMEORIGIN");
     });
 
     it("should allow ALLOW-FROM", () => {
@@ -687,7 +686,7 @@ describe("SecurityManager Tests", () => {
       });
 
       const config = securityManager.getConfig();
-      assert.strictEqual(config.frameOptions, "ALLOW-FROM");
+      expect(config.frameOptions).toBe("ALLOW-FROM");
     });
   });
 
@@ -700,7 +699,7 @@ describe("SecurityManager Tests", () => {
       securityManager = new SecurityManager();
       const config = securityManager.getConfig();
 
-      assert.strictEqual(config.referrerPolicy, "strict-origin-when-cross-origin");
+      expect(config.referrerPolicy).toBe("strict-origin-when-cross-origin");
     });
 
     it("should allow custom referrer policy", () => {
@@ -709,7 +708,7 @@ describe("SecurityManager Tests", () => {
       });
 
       const config = securityManager.getConfig();
-      assert.strictEqual(config.referrerPolicy, "no-referrer");
+      expect(config.referrerPolicy).toBe("no-referrer");
     });
   });
 });

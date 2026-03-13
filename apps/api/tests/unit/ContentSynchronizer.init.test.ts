@@ -1,6 +1,5 @@
 import "./ContentSynchronizer.test-helpers.js";
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { ContentSynchronizer } from "../../src/orchestration/ContentSynchronizer.js";
 import type { SyncContentRequest, SyncConfiguration } from "@shared/orchestration";
 import {
@@ -11,7 +10,7 @@ import {
   stubSyncCoordinatorValidationFailure,
 } from "./ContentSynchronizer.test-helpers.js";
 
-describe("ContentSynchronizer - Initialization", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Initialization", () => {
   it("should initialize with Redis streams", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -25,11 +24,8 @@ describe("ContentSynchronizer - Initialization", { concurrency: 1 }, () => {
 
     await synchronizer.initialize();
 
-    assert.ok(mockRedis.xgroup.mock.calls.length > 0, "Should create Redis stream group");
-    assert.ok(
-      mockEventService.publishEvent.mock.calls.length > 0,
-      "Should publish initialization event"
-    );
+    expect(mockRedis.xgroup.mock.calls.length > 0).toBeTruthy();
+    expect(mockEventService.publishEvent.mock.calls.length > 0).toBeTruthy();
   });
 
   it("should register event handlers for POST_UPDATED", async () => {
@@ -45,16 +41,9 @@ describe("ContentSynchronizer - Initialization", { concurrency: 1 }, () => {
 
     await synchronizer.initialize();
 
-    assert.ok(
-      mockEventService.registerHandler.mock.calls.length > 0,
-      "Should register event handlers"
-    );
+    expect(mockEventService.registerHandler.mock.calls.length > 0).toBeTruthy();
     const registerCall = mockEventService.registerHandler.mock.calls[0];
-    assert.strictEqual(
-      registerCall.arguments[0],
-      "POST_UPDATED",
-      "Should register POST_UPDATED handler"
-    );
+    expect(registerCall[0]).toBe("POST_UPDATED");
   });
 
   it("should not reinitialize if already initialized", async () => {
@@ -74,11 +63,11 @@ describe("ContentSynchronizer - Initialization", { concurrency: 1 }, () => {
     await synchronizer.initialize();
     const secondCallCount = mockRedis.xgroup.mock.calls.length;
 
-    assert.strictEqual(firstCallCount, secondCallCount, "Should not reinitialize");
+    expect(firstCallCount).toBe(secondCallCount);
   });
 });
 
-describe("ContentSynchronizer - syncContent()", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - syncContent()", () => {
   it("should validate sync request and reject invalid post", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -107,9 +96,9 @@ describe("ContentSynchronizer - syncContent()", { concurrency: 1 }, () => {
 
     const result = await synchronizer.syncContent(request);
 
-    assert.strictEqual(result.ok, false, "Should fail validation");
-    assert.ok(result.error, "Should have error");
-    assert.strictEqual(result.error?.type, "validation", "Should be validation error");
+    expect(result.ok).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error?.type).toBe("validation");
   });
 
   it("should execute sync with REAL_TIME mode", async () => {
@@ -145,9 +134,9 @@ describe("ContentSynchronizer - syncContent()", { concurrency: 1 }, () => {
 
     const result = await synchronizer.syncContent(request);
 
-    assert.strictEqual(result.ok, true, "Should succeed");
-    assert.ok(result.value, "Should have value");
-    assert.strictEqual(result.value.success, true, "Should be successful");
+    expect(result.ok).toBe(true);
+    expect(result.value).toBeTruthy();
+    expect(result.value.success).toBe(true);
   });
 
   it("should handle dry run simulation", async () => {
@@ -178,13 +167,13 @@ describe("ContentSynchronizer - syncContent()", { concurrency: 1 }, () => {
 
     const result = await synchronizer.syncContent(request);
 
-    assert.strictEqual(result.ok, true, "Should succeed");
-    assert.ok(result.value?.data, "Should have simulation data");
-    assert.ok(Array.isArray(result.value.data.syncedProviders), "Should have synced providers");
+    expect(result.ok).toBe(true);
+    expect(result.value?.data).toBeTruthy();
+    expect(Array.isArray(result.value.data.syncedProviders)).toBeTruthy();
   });
 });
 
-describe("ContentSynchronizer - Sync Modes", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Sync Modes", () => {
   it("should handle REAL_TIME sync mode", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -212,7 +201,7 @@ describe("ContentSynchronizer - Sync Modes", { concurrency: 1 }, () => {
       configuration: config,
     });
 
-    assert.strictEqual(result.ok, true, "Should handle REAL_TIME mode");
+    expect(result.ok).toBe(true);
   });
 
   it("should handle SCHEDULED sync mode", async () => {
@@ -243,7 +232,7 @@ describe("ContentSynchronizer - Sync Modes", { concurrency: 1 }, () => {
       configuration: config,
     });
 
-    assert.strictEqual(result.ok, true, "Should handle SCHEDULED mode");
+    expect(result.ok).toBe(true);
   });
 
   it("should handle ON_DEMAND sync mode", async () => {
@@ -273,6 +262,6 @@ describe("ContentSynchronizer - Sync Modes", { concurrency: 1 }, () => {
       configuration: config,
     });
 
-    assert.strictEqual(result.ok, true, "Should handle ON_DEMAND mode");
+    expect(result.ok).toBe(true);
   });
 });

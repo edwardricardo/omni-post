@@ -755,7 +755,7 @@ describe("PinterestAdapter - Threading", { concurrency: 1 }, () => {
 
 describe("PinterestAdapter - GetCredentialsFromEnvironment", { concurrency: 1 }, () => {
   let adapter: PinterestAdapter;
-  const originalEnv = { ...process.env };
+  const _originalEnv = { ...process.env };
 
   beforeEach(() => {
     adapter = new PinterestAdapter();

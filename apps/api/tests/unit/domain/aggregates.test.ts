@@ -5,9 +5,7 @@
  * Tests for aggregates, domain events, and event dispatching.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, expect } from "vitest";
 import {
   PostAggregate,
   ProjectId,
@@ -36,11 +34,11 @@ describe("Domain Aggregates & Events", () => {
           body: "Hello world!",
         });
 
-        assert.ok(result.ok, "Post should be created");
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
-          assert.equal(result.value.content.body, "Hello world!");
-          assert.ok(result.value.isDraft, "New post should be draft");
-          assert.equal(result.value.version, 0, "New aggregate should have version 0");
+          expect(result.value.content.body).toBe("Hello world!");
+          expect(result.value.isDraft).toBeTruthy();
+          expect(result.value.version).toBe(0);
         }
       });
 
@@ -51,16 +49,16 @@ describe("Domain Aggregates & Events", () => {
           title: "Test Title",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const events = result.value.domainEvents;
-          assert.equal(events.length, 1, "Should have one event");
+          expect(events.length).toBe(1);
 
           const event = events[0] as PostCreated;
-          assert.equal(event.eventType, "PostCreated");
-          assert.equal(event.aggregateId, result.value.id.value);
-          assert.equal(event.body, "Test content");
-          assert.equal(event.title, "Test Title");
+          expect(event.eventType).toBe("PostCreated");
+          expect(event.aggregateId).toBe(result.value.id.value);
+          expect(event.body).toBe("Test content");
+          expect(event.title).toBe("Test Title");
         }
       });
 
@@ -72,16 +70,18 @@ describe("Domain Aggregates & Events", () => {
           scheduledAt: futureDate,
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const events = result.value.domainEvents;
-          assert.equal(events.length, 2, "Should have two events");
+          expect(events.length).toBe(2);
 
-          assert.equal(events[0].eventType, "PostCreated");
-          assert.equal(events[1].eventType, "PostScheduled");
+          expect(events[0].eventType).toBe("PostCreated");
+          expect(events[1].eventType).toBe("PostScheduled");
 
           const scheduleEvent = events[1] as PostScheduled;
-          assert.ok(Math.abs(scheduleEvent.scheduledAt.getTime() - futureDate.getTime()) < 1000);
+          expect(
+            Math.abs(scheduleEvent.scheduledAt.getTime() - futureDate.getTime()) < 1000
+          ).toBeTruthy();
         }
       });
 
@@ -91,49 +91,45 @@ describe("Domain Aggregates & Events", () => {
           body: "",
         });
 
-        assert.ok(!result.ok, "Should reject empty body");
+        expect(result.ok).toBeFalsy();
       });
 
       it("should have scheduledAt undefined on fresh draft", () => {
         const result = PostAggregate.create({ projectId, body: "Hello" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
-          assert.equal(
-            result.value.scheduledAt,
-            undefined,
-            "Fresh draft should have no scheduledAt"
-          );
+          expect(result.value.scheduledAt).toBe(undefined);
         }
       });
 
       it("should have domain event type string PostCreated", () => {
         const result = PostAggregate.create({ projectId, body: "Test" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const events = result.value.domainEvents;
-          assert.ok(events.length >= 1, "Should have at least one event");
-          assert.equal(events[0].eventType, "PostCreated");
+          expect(events.length >= 1).toBeTruthy();
+          expect(events[0].eventType).toBe("PostCreated");
         }
       });
 
       it("should emit PostCreated event with locale matching the content locale", () => {
         const result = PostAggregate.create({ projectId, body: "Test", locale: "es" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const event = result.value.domainEvents[0] as PostCreated;
-          assert.equal(event.eventType, "PostCreated");
-          assert.equal(event.aggregateId, result.value.id.value);
+          expect(event.eventType).toBe("PostCreated");
+          expect(event.aggregateId).toBe(result.value.id.value);
           // Locale in event should match locale passed to create
-          assert.equal(event.locale, "es");
+          expect(event.locale).toBe("es");
         }
       });
 
       it("should default locale to 'en' in PostCreated event when no locale specified", () => {
         const result = PostAggregate.create({ projectId, body: "Test default locale" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const event = result.value.domainEvents[0] as PostCreated;
-          assert.equal(event.locale, "en", "Default locale should be 'en'");
+          expect(event.locale).toBe("en");
         }
       });
     });
@@ -145,22 +141,22 @@ describe("Domain Aggregates & Events", () => {
           body: "Original",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.clearDomainEvents(); // Clear creation event
 
           const updateResult = post.updateContent({ body: "Updated" });
-          assert.ok(updateResult.ok);
-          assert.equal(post.content.body, "Updated");
+          expect(updateResult.ok).toBeTruthy();
+          expect(post.content.body).toBe("Updated");
 
           const events = post.domainEvents;
-          assert.equal(events.length, 1);
-          assert.equal(events[0].eventType, "PostContentUpdated");
+          expect(events.length).toBe(1);
+          expect(events[0].eventType).toBe("PostContentUpdated");
 
           const event = events[0] as PostContentUpdated;
-          assert.equal(event.previousBody, "Original");
-          assert.equal(event.newBody, "Updated");
+          expect(event.previousBody).toBe("Original");
+          expect(event.newBody).toBe("Updated");
         }
       });
 
@@ -170,7 +166,7 @@ describe("Domain Aggregates & Events", () => {
           body: "Original",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.schedule(new Date(Date.now() + 60 * 60 * 1000));
@@ -178,13 +174,13 @@ describe("Domain Aggregates & Events", () => {
           post.markAsPublished({ X: { success: true, externalId: "123" } });
 
           const updateResult = post.updateContent({ body: "New" });
-          assert.ok(!updateResult.ok, "Should not allow update when published");
+          expect(updateResult.ok).toBeFalsy();
         }
       });
 
       it("should have updatedAt after createdAt following content update", () => {
         const result = PostAggregate.create({ projectId, body: "Original" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           const createdAt = post.createdAt.getTime();
@@ -197,22 +193,22 @@ describe("Domain Aggregates & Events", () => {
 
           post.updateContent({ body: "Updated content" });
           const updatedAt = post.updatedAt.getTime();
-          assert.ok(updatedAt >= createdAt, "updatedAt should be >= createdAt after update");
+          expect(updatedAt >= createdAt).toBeTruthy();
         }
       });
 
       it("should add a contentVersion after each content update", () => {
         const result = PostAggregate.create({ projectId, body: "V1" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
-          assert.equal(post.contentVersions.length, 0, "No versions before any update");
+          expect(post.contentVersions.length).toBe(0);
 
           post.updateContent({ body: "V2" });
-          assert.equal(post.contentVersions.length, 1, "One version after first update");
+          expect(post.contentVersions.length).toBe(1);
 
           post.updateContent({ body: "V3" });
-          assert.equal(post.contentVersions.length, 2, "Two versions after second update");
+          expect(post.contentVersions.length).toBe(2);
         }
       });
     });
@@ -224,22 +220,22 @@ describe("Domain Aggregates & Events", () => {
           body: "Test",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.clearDomainEvents();
 
           const futureDate = new Date(Date.now() + 60 * 60 * 1000);
           const scheduleResult = post.schedule(futureDate, "America/New_York");
-          assert.ok(scheduleResult.ok);
-          assert.ok(post.isScheduled);
+          expect(scheduleResult.ok).toBeTruthy();
+          expect(post.isScheduled).toBeTruthy();
 
           const events = post.domainEvents;
-          assert.equal(events.length, 1);
+          expect(events.length).toBe(1);
 
           const event = events[0] as PostScheduled;
-          assert.equal(event.eventType, "PostScheduled");
-          assert.equal(event.timezone, "America/New_York");
+          expect(event.eventType).toBe("PostScheduled");
+          expect(event.timezone).toBe("America/New_York");
         }
       });
 
@@ -250,32 +246,32 @@ describe("Domain Aggregates & Events", () => {
           scheduledAt: new Date(Date.now() + 60 * 60 * 1000),
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.clearDomainEvents();
 
           const unscheduleResult = post.unschedule();
-          assert.ok(unscheduleResult.ok);
-          assert.ok(post.isDraft);
+          expect(unscheduleResult.ok).toBeTruthy();
+          expect(post.isDraft).toBeTruthy();
 
           const events = post.domainEvents;
-          assert.equal(events.length, 1);
-          assert.equal(events[0].eventType, "PostUnscheduled");
+          expect(events.length).toBe(1);
+          expect(events[0].eventType).toBe("PostUnscheduled");
         }
       });
 
       it("should raise PostScheduled event type string after schedule()", () => {
         const result = PostAggregate.create({ projectId, body: "Sched test" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.clearDomainEvents();
 
           post.schedule(new Date(Date.now() + 60 * 60 * 1000));
           const events = post.domainEvents;
-          assert.ok(events.length >= 1);
-          assert.equal(events[events.length - 1].eventType, "PostScheduled");
+          expect(events.length >= 1).toBeTruthy();
+          expect(events[events.length - 1].eventType).toBe("PostScheduled");
         }
       });
     });
@@ -287,35 +283,35 @@ describe("Domain Aggregates & Events", () => {
           body: "Test post",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.clearDomainEvents();
 
           // Schedule
           post.schedule(new Date(Date.now() + 60 * 60 * 1000));
-          assert.ok(post.isScheduled);
+          expect(post.isScheduled).toBeTruthy();
 
           // Start publishing
           const startResult = post.startPublishing(["X", "INSTAGRAM"]);
-          assert.ok(startResult.ok);
-          assert.ok(post.isPublishing);
+          expect(startResult.ok).toBeTruthy();
+          expect(post.isPublishing).toBeTruthy();
 
           // Mark published
           const publishResult = post.markAsPublished({
             X: { success: true, externalId: "x-123" },
             INSTAGRAM: { success: true, externalId: "ig-456" },
           });
-          assert.ok(publishResult.ok);
-          assert.ok(post.isPublished);
-          assert.ok(post.publishedAt);
+          expect(publishResult.ok).toBeTruthy();
+          expect(post.isPublished).toBeTruthy();
+          expect(post.publishedAt).toBeTruthy();
 
           // Check events
           const events = post.domainEvents;
-          assert.equal(events.length, 3);
-          assert.equal(events[0].eventType, "PostScheduled");
-          assert.equal(events[1].eventType, "PostPublishingStarted");
-          assert.equal(events[2].eventType, "PostPublished");
+          expect(events.length).toBe(3);
+          expect(events[0].eventType).toBe("PostScheduled");
+          expect(events[1].eventType).toBe("PostPublishingStarted");
+          expect(events[2].eventType).toBe("PostPublished");
         }
       });
 
@@ -325,7 +321,7 @@ describe("Domain Aggregates & Events", () => {
           body: "Test",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.schedule(new Date(Date.now() + 60 * 60 * 1000));
@@ -333,18 +329,18 @@ describe("Domain Aggregates & Events", () => {
           post.clearDomainEvents();
 
           const failResult = post.markAsFailed("API Error", ["X"], true);
-          assert.ok(failResult.ok);
-          assert.ok(post.isFailed);
-          assert.ok(post.isEditable, "Failed posts should be editable");
+          expect(failResult.ok).toBeTruthy();
+          expect(post.isFailed).toBeTruthy();
+          expect(post.isEditable).toBeTruthy();
 
           const events = post.domainEvents;
-          assert.equal(events.length, 1);
+          expect(events.length).toBe(1);
 
           const event = events[0] as PostPublishingFailed;
-          assert.equal(event.eventType, "PostPublishingFailed");
-          assert.equal(event.error, "API Error");
-          assert.deepEqual(event.failedProviders, ["X"]);
-          assert.equal(event.retryable, true);
+          expect(event.eventType).toBe("PostPublishingFailed");
+          expect(event.error).toBe("API Error");
+          expect(event.failedProviders).toEqual(["X"]);
+          expect(event.retryable).toBe(true);
         }
       });
 
@@ -354,56 +350,53 @@ describe("Domain Aggregates & Events", () => {
           body: "Test",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.schedule(new Date(Date.now() + 60 * 60 * 1000));
           post.clearDomainEvents();
 
           const cancelResult = post.cancel("User requested");
-          assert.ok(cancelResult.ok);
+          expect(cancelResult.ok).toBeTruthy();
 
           const events = post.domainEvents;
-          assert.equal(events.length, 1);
+          expect(events.length).toBe(1);
 
           const event = events[0] as PostCancelled;
-          assert.equal(event.eventType, "PostCancelled");
-          assert.equal(event.previousStatus, PUBLISH_STATUS.SCHEDULED);
-          assert.equal(event.reason, "User requested");
+          expect(event.eventType).toBe("PostCancelled");
+          expect(event.previousStatus).toBe(PUBLISH_STATUS.SCHEDULED);
+          expect(event.reason).toBe("User requested");
         }
       });
 
       it("should set publishedAt after markAsPublished", () => {
         const result = PostAggregate.create({ projectId, body: "Publish me" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.schedule(new Date(Date.now() + 60 * 60 * 1000));
           post.startPublishing(["X"]);
           post.markAsPublished({ X: { success: true, externalId: "x-999" } });
 
-          assert.ok(
-            post.publishedAt instanceof Date,
-            "publishedAt should be a Date after publishing"
-          );
+          expect(post.publishedAt instanceof Date).toBeTruthy();
         }
       });
 
       it("should raise PostCancelled from draft status", () => {
         const result = PostAggregate.create({ projectId, body: "Draft cancel" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.clearDomainEvents();
 
           const cancelResult = post.cancel("testing");
-          assert.ok(cancelResult.ok, "Draft post should be cancellable");
+          expect(cancelResult.ok).toBeTruthy();
 
           const events = post.domainEvents;
-          assert.ok(events.length >= 1);
-          assert.equal(events[events.length - 1].eventType, "PostCancelled");
+          expect(events.length >= 1).toBeTruthy();
+          expect(events[events.length - 1].eventType).toBe("PostCancelled");
           const event = events[events.length - 1] as PostCancelled;
-          assert.equal(event.previousStatus, PUBLISH_STATUS.DRAFT);
+          expect(event.previousStatus).toBe(PUBLISH_STATUS.DRAFT);
         }
       });
     });
@@ -415,7 +408,7 @@ describe("Domain Aggregates & Events", () => {
           body: "Test",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.clearDomainEvents();
@@ -427,16 +420,16 @@ describe("Domain Aggregates & Events", () => {
             height: 800,
           });
 
-          assert.ok(mediaResult.ok);
+          expect(mediaResult.ok).toBeTruthy();
           if (mediaResult.ok) {
-            assert.equal(post.media.length, 1);
+            expect(post.media.length).toBe(1);
 
             const events = post.domainEvents;
-            assert.equal(events.length, 1);
+            expect(events.length).toBe(1);
 
             const event = events[0] as PostMediaAdded;
-            assert.equal(event.eventType, "PostMediaAdded");
-            assert.equal(event.mediaType, "image");
+            expect(event.eventType).toBe("PostMediaAdded");
+            expect(event.mediaType).toBe("image");
           }
         }
       });
@@ -447,7 +440,7 @@ describe("Domain Aggregates & Events", () => {
           body: "Test",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           const mediaResult = post.addMedia({
@@ -455,25 +448,25 @@ describe("Domain Aggregates & Events", () => {
             url: "https://example.com/image.jpg",
           });
 
-          assert.ok(mediaResult.ok);
+          expect(mediaResult.ok).toBeTruthy();
           if (mediaResult.ok) {
             const mediaId = mediaResult.value.id;
             post.clearDomainEvents();
 
             const removeResult = post.removeMedia(mediaId);
-            assert.ok(removeResult.ok);
-            assert.equal(post.media.length, 0);
+            expect(removeResult.ok).toBeTruthy();
+            expect(post.media.length).toBe(0);
 
             const events = post.domainEvents;
-            assert.equal(events.length, 1);
-            assert.equal(events[0].eventType, "PostMediaRemoved");
+            expect(events.length).toBe(1);
+            expect(events[0].eventType).toBe("PostMediaRemoved");
           }
         }
       });
 
       it("media getter returns a copy — push does not affect internal state", () => {
         const result = PostAggregate.create({ projectId, body: "Media immutability" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.addMedia({ type: "image", url: "https://example.com/a.jpg" });
@@ -484,17 +477,13 @@ describe("Domain Aggregates & Events", () => {
           // (readonly arrays cannot be mutated via push at the type level, but we
           //  confirm the getter returns a new copy each time)
           const snapshot2 = post.media;
-          assert.equal(
-            snapshot2.length,
-            lenBefore,
-            "Second call to media getter should return same count"
-          );
+          expect(snapshot2.length).toBe(lenBefore);
         }
       });
 
       it("should emit PostMediaAdded event with correct type", () => {
         const result = PostAggregate.create({ projectId, body: "Media event test" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.clearDomainEvents();
@@ -504,13 +493,13 @@ describe("Domain Aggregates & Events", () => {
             url: "https://example.com/vid.mp4",
             durationMs: 5000,
           });
-          assert.ok(mediaResult.ok);
+          expect(mediaResult.ok).toBeTruthy();
 
           const events = post.domainEvents;
-          assert.ok(events.length >= 1);
+          expect(events.length >= 1).toBeTruthy();
           const event = events[events.length - 1] as PostMediaAdded;
-          assert.equal(event.eventType, "PostMediaAdded");
-          assert.equal(event.mediaType, "video");
+          expect(event.eventType).toBe("PostMediaAdded");
+          expect(event.mediaType).toBe("video");
         }
       });
     });
@@ -518,40 +507,36 @@ describe("Domain Aggregates & Events", () => {
     describe("Reconstitution and Serialization", () => {
       it("should serialize aggregate to JSON correctly", () => {
         const createdResult = PostAggregate.create({ projectId, body: "Original" });
-        assert.ok(createdResult.ok);
+        expect(createdResult.ok).toBeTruthy();
         if (createdResult.ok) {
           const post = createdResult.value;
           const json = post.toJSON();
-          assert.equal(json.id, post.id.value);
-          assert.equal(json.projectId, projectId.value);
-          assert.equal((json.content as Record<string, unknown>).body, "Original");
-          assert.equal(json.status, "DRAFT");
-          assert.equal(typeof json.createdAt, "string");
-          assert.equal(typeof json.updatedAt, "string");
-          assert.equal(typeof json.version, "number");
+          expect(json.id).toBe(post.id.value);
+          expect(json.projectId).toBe(projectId.value);
+          expect((json.content as Record<string, unknown>).body).toBe("Original");
+          expect(json.status).toBe("DRAFT");
+          expect(typeof json.createdAt).toBe("string");
+          expect(typeof json.updatedAt).toBe("string");
+          expect(typeof json.version).toBe("number");
         }
       });
 
       it("isReadyForPublishing should return false for draft post", () => {
         const result = PostAggregate.create({ projectId, body: "Not ready" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
-          assert.equal(
-            result.value.isReadyForPublishing(),
-            false,
-            "Draft should not be ready for publishing"
-          );
+          expect(result.value.isReadyForPublishing()).toBe(false);
         }
       });
 
       it("isReadyForPublishing should return true for scheduled post with past time (via reconstitute)", () => {
         // reconstitute() is used in repository mappers — test the aggregate behavior
         const result = PostAggregate.create({ projectId, body: "Ready" });
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           // A draft post cannot be ready for publishing
-          assert.equal(post.isReadyForPublishing(), false);
+          expect(post.isReadyForPublishing()).toBe(false);
           // Once scheduled with a future time, it will be ready only after time passes
           // This is covered by the ScheduledTime.hasPassed() logic
         }
@@ -565,16 +550,16 @@ describe("Domain Aggregates & Events", () => {
           body: "Test",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
-          assert.equal(post.version, 0);
+          expect(post.version).toBe(0);
 
           post.incrementVersion();
-          assert.equal(post.version, 1);
+          expect(post.version).toBe(1);
 
           post.incrementVersion();
-          assert.equal(post.version, 2);
+          expect(post.version).toBe(2);
         }
       });
 
@@ -584,16 +569,16 @@ describe("Domain Aggregates & Events", () => {
           body: "Version 1",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
-          assert.equal(post.contentVersions.length, 0);
+          expect(post.contentVersions.length).toBe(0);
 
           post.updateContent({ body: "Version 2" });
-          assert.equal(post.contentVersions.length, 1);
+          expect(post.contentVersions.length).toBe(1);
 
           post.updateContent({ body: "Version 3" });
-          assert.equal(post.contentVersions.length, 2);
+          expect(post.contentVersions.length).toBe(2);
         }
       });
     });
@@ -605,16 +590,16 @@ describe("Domain Aggregates & Events", () => {
           body: "Test",
         });
 
-        assert.ok(result.ok);
+        expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
-          assert.ok(post.hasUncommittedEvents());
-          assert.equal(post.uncommittedEventCount, 1);
+          expect(post.hasUncommittedEvents()).toBeTruthy();
+          expect(post.uncommittedEventCount).toBe(1);
 
           post.clearDomainEvents();
 
-          assert.ok(!post.hasUncommittedEvents());
-          assert.equal(post.uncommittedEventCount, 0);
+          expect(post.hasUncommittedEvents()).toBeFalsy();
+          expect(post.uncommittedEventCount).toBe(0);
         }
       });
     });
@@ -638,12 +623,12 @@ describe("Domain Aggregates & Events", () => {
         body: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         await dispatcher.dispatchAll([...result.value.domainEvents]);
 
-        assert.equal(receivedEvents.length, 1);
-        assert.equal(receivedEvents[0].eventType, "PostCreated");
+        expect(receivedEvents.length).toBe(1);
+        expect(receivedEvents[0].eventType).toBe("PostCreated");
       }
     });
 
@@ -669,12 +654,12 @@ describe("Domain Aggregates & Events", () => {
         body: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         await dispatcher.dispatchAll([...result.value.domainEvents]);
 
-        assert.ok(handler1Called, "Handler 1 should be called");
-        assert.ok(handler2Called, "Handler 2 should be called");
+        expect(handler1Called).toBeTruthy();
+        expect(handler2Called).toBeTruthy();
       }
     });
   });
@@ -685,12 +670,12 @@ describe("Domain Aggregates & Events", () => {
 
       const json = event.toJSON();
 
-      assert.equal(json.eventType, "PostCreated");
-      assert.equal(json.aggregateId, "post-123");
-      assert.equal(json.aggregateType, "Post");
-      assert.ok(json.eventId);
-      assert.ok(json.occurredAt);
-      assert.deepEqual(json.payload, {
+      expect(json.eventType).toBe("PostCreated");
+      expect(json.aggregateId).toBe("post-123");
+      expect(json.aggregateType).toBe("Post");
+      expect(json.eventId).toBeTruthy();
+      expect(json.occurredAt).toBeTruthy();
+      expect(json.payload).toEqual({
         postId: "post-123",
         projectId: "project-456",
         body: "Hello",
@@ -708,10 +693,10 @@ describe("Domain Aggregates & Events", () => {
 
       const json = event.toJSON();
 
-      assert.equal(json.eventType, "PostPublished");
+      expect(json.eventType).toBe("PostPublished");
       const payload = json.payload as Record<string, unknown>;
-      assert.equal(payload.postId, "post-123");
-      assert.ok(payload.providerResults);
+      expect(payload.postId).toBe("post-123");
+      expect(payload.providerResults).toBeTruthy();
     });
   });
 });

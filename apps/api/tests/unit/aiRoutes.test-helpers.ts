@@ -1,4 +1,3 @@
-import type { TestContext } from "node:test";
 import Fastify, { FastifyInstance } from "fastify";
 import aiRoutes from "../../src/ai/routes.js";
 import { aiService } from "../../src/ai/aiService.js";
@@ -113,7 +112,6 @@ export const mockClearCacheResponse = {
  * @param overrides - Optional per-method mock implementations to override defaults
  */
 export function setupAiServiceMocks(
-  t: TestContext,
   service: typeof aiService,
   overrides?: Partial<
     Record<
@@ -130,45 +128,31 @@ export function setupAiServiceMocks(
     >
   >
 ): void {
-  t.mock.method(
-    service,
-    "healthCheck",
+  vi.spyOn(service, "healthCheck").mockImplementation(
     overrides?.healthCheck ?? (async () => mockHealthCheckResponse)
   );
-  t.mock.method(
-    service,
-    "generateContent",
+  vi.spyOn(service, "generateContent").mockImplementation(
     overrides?.generateContent ?? (async () => mockGenerateResponse)
   );
-  t.mock.method(
-    service,
-    "analyzeContent",
+  vi.spyOn(service, "analyzeContent").mockImplementation(
     overrides?.analyzeContent ?? (async () => mockAnalyzeResponse)
   );
-  t.mock.method(
-    service,
-    "optimizeContent",
+  vi.spyOn(service, "optimizeContent").mockImplementation(
     overrides?.optimizeContent ?? (async () => mockOptimizeResponse)
   );
-  t.mock.method(
-    service,
-    "predictPerformance",
+  vi.spyOn(service, "predictPerformance").mockImplementation(
     overrides?.predictPerformance ?? (async () => mockPredictResponse)
   );
-  t.mock.method(
-    service,
-    "generateVariations",
+  vi.spyOn(service, "generateVariations").mockImplementation(
     overrides?.generateVariations ?? (async () => mockVariationsResponse)
   );
-  t.mock.method(
-    service,
-    "smartAnalysis",
+  vi.spyOn(service, "smartAnalysis").mockImplementation(
     overrides?.smartAnalysis ?? (async () => mockSmartAnalysisResponse)
   );
-  t.mock.method(service, "getMetrics", overrides?.getMetrics ?? (async () => mockMetricsResponse));
-  t.mock.method(
-    service,
-    "clearCache",
+  vi.spyOn(service, "getMetrics").mockImplementation(
+    overrides?.getMetrics ?? (async () => mockMetricsResponse)
+  );
+  vi.spyOn(service, "clearCache").mockImplementation(
     overrides?.clearCache ?? (async () => mockClearCacheResponse)
   );
 }

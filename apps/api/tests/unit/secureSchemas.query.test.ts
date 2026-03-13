@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   SecurityValidatedSchemas,
   CompositeSchemas,
@@ -13,7 +12,7 @@ describe("SecurityValidatedSchemas - Search Query Validation", () => {
 
     safeQueries.forEach((query) => {
       const result = SecurityValidatedSchemas.searchQuery.safeParse(query);
-      assert.strictEqual(result.success, true, `Failed for: ${query}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -28,7 +27,7 @@ describe("SecurityValidatedSchemas - Search Query Validation", () => {
 
     sqlInjections.forEach((query) => {
       const result = SecurityValidatedSchemas.searchQuery.safeParse(query);
-      assert.strictEqual(result.success, false, `Should block SQL injection: ${query}`);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -42,14 +41,14 @@ describe("SecurityValidatedSchemas - Search Query Validation", () => {
     queries.forEach((query) => {
       const result = SecurityValidatedSchemas.searchQuery.safeParse(query);
       // Current behavior - only blocks specific SQL patterns, not all quotes
-      assert.strictEqual(result.success, true, `Allows quotes: ${query}`);
+      expect(result.success).toBe(true);
     });
   });
 
   it("should enforce length limits", () => {
     const tooLong = "a".repeat(101);
     const result = SecurityValidatedSchemas.searchQuery.safeParse(tooLong);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -68,7 +67,7 @@ describe("SecurityValidatedSchemas - Sort Field Validation", () => {
 
     validFields.forEach((field) => {
       const result = SecurityValidatedSchemas.sortField.safeParse(field);
-      assert.strictEqual(result.success, true, `Failed for: ${field}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -77,7 +76,7 @@ describe("SecurityValidatedSchemas - Sort Field Validation", () => {
 
     invalidFields.forEach((field) => {
       const result = SecurityValidatedSchemas.sortField.safeParse(field);
-      assert.strictEqual(result.success, false, `Should reject: ${field}`);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -86,7 +85,7 @@ describe("SecurityValidatedSchemas - Sort Field Validation", () => {
 
     maliciousFields.forEach((field) => {
       const result = SecurityValidatedSchemas.sortField.safeParse(field);
-      assert.strictEqual(result.success, false, `Should reject malicious: ${field}`);
+      expect(result.success).toBe(false);
     });
   });
 });
@@ -97,7 +96,7 @@ describe("SecurityValidatedSchemas - Sort Order Validation", () => {
 
     validOrders.forEach((order) => {
       const result = SecurityValidatedSchemas.sortOrder.safeParse(order);
-      assert.strictEqual(result.success, true, `Failed for: ${order}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -106,7 +105,7 @@ describe("SecurityValidatedSchemas - Sort Order Validation", () => {
 
     invalidOrders.forEach((order) => {
       const result = SecurityValidatedSchemas.sortOrder.safeParse(order);
-      assert.strictEqual(result.success, false, `Should reject: ${order}`);
+      expect(result.success).toBe(false);
     });
   });
 });
@@ -121,35 +120,35 @@ describe("SecurityValidatedSchemas - Pagination Validation", () => {
 
     validPagination.forEach((params) => {
       const result = SecurityValidatedSchemas.pagination.safeParse(params);
-      assert.strictEqual(result.success, true, `Failed for: ${JSON.stringify(params)}`);
+      expect(result.success).toBe(true);
     });
   });
 
   it("should reject page numbers below 1", () => {
     const result = SecurityValidatedSchemas.pagination.safeParse({ page: 0, limit: 20 });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject page numbers above 1000", () => {
     const result = SecurityValidatedSchemas.pagination.safeParse({ page: 1001, limit: 20 });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject limit below 1", () => {
     const result = SecurityValidatedSchemas.pagination.safeParse({ page: 1, limit: 0 });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject limit above 100", () => {
     const result = SecurityValidatedSchemas.pagination.safeParse({ page: 1, limit: 101 });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should apply default values", () => {
     const result = SecurityValidatedSchemas.pagination.safeParse({});
     if (result.success) {
-      assert.strictEqual(result.data.page, 1);
-      assert.strictEqual(result.data.limit, 20);
+      expect(result.data.page).toBe(1);
+      expect(result.data.limit).toBe(20);
     }
   });
 });
@@ -160,7 +159,7 @@ describe("SecurityValidatedSchemas - ISO Date Validation", () => {
 
     validDates.forEach((date) => {
       const result = SecurityValidatedSchemas.isoDate.safeParse(date);
-      assert.strictEqual(result.success, true, `Failed for: ${date}`);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -170,7 +169,7 @@ describe("SecurityValidatedSchemas - ISO Date Validation", () => {
     const offsetDate = "2024-06-15T12:00:00+00:00";
     const _result = SecurityValidatedSchemas.isoDate.safeParse(offsetDate);
     // Test actual behavior - may fail depending on Zod version
-    // assert.strictEqual(result.success, true);
+    // expect(result.success).toBe(true);
   });
 
   it("should reject invalid ISO date strings", () => {
@@ -184,7 +183,7 @@ describe("SecurityValidatedSchemas - ISO Date Validation", () => {
 
     invalidDates.forEach((date) => {
       const result = SecurityValidatedSchemas.isoDate.safeParse(date);
-      assert.strictEqual(result.success, false, `Should reject: ${date}`);
+      expect(result.success).toBe(false);
     });
   });
 });
@@ -193,19 +192,19 @@ describe("SecurityValidatedSchemas - Future Date Validation", () => {
   it("should accept future dates", () => {
     const futureDate = new Date(Date.now() + 86400000).toISOString(); // Tomorrow
     const result = SecurityValidatedSchemas.futureDate.safeParse(futureDate);
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject past dates", () => {
     const pastDate = new Date(Date.now() - 86400000).toISOString(); // Yesterday
     const result = SecurityValidatedSchemas.futureDate.safeParse(pastDate);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject current date/time", () => {
     const now = new Date().toISOString();
     const result = SecurityValidatedSchemas.futureDate.safeParse(now);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -219,7 +218,7 @@ describe("SecurityValidatedSchemas - File Upload Validation", () => {
     };
 
     const result = SecurityValidatedSchemas.fileUpload.safeParse(validUpload);
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject files exceeding size limit", () => {
@@ -230,7 +229,7 @@ describe("SecurityValidatedSchemas - File Upload Validation", () => {
     };
 
     const result = SecurityValidatedSchemas.fileUpload.safeParse(oversizedUpload);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject invalid MIME types", () => {
@@ -241,7 +240,7 @@ describe("SecurityValidatedSchemas - File Upload Validation", () => {
     };
 
     const result = SecurityValidatedSchemas.fileUpload.safeParse(invalidUpload);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -254,7 +253,7 @@ describe("SecurityValidatedSchemas - Image Metadata Validation", () => {
     };
 
     const result = SecurityValidatedSchemas.imageMetadata.safeParse(validMetadata);
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject images exceeding dimension limits", () => {
@@ -265,7 +264,7 @@ describe("SecurityValidatedSchemas - Image Metadata Validation", () => {
     };
 
     const result = SecurityValidatedSchemas.imageMetadata.safeParse(oversized);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject unsupported image formats", () => {
@@ -276,7 +275,7 @@ describe("SecurityValidatedSchemas - Image Metadata Validation", () => {
     };
 
     const result = SecurityValidatedSchemas.imageMetadata.safeParse(unsupported);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -290,7 +289,7 @@ describe("CompositeSchemas - User Registration", () => {
     };
 
     const result = CompositeSchemas.userRegistration.safeParse(validData);
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject weak passwords", () => {
@@ -301,7 +300,7 @@ describe("CompositeSchemas - User Registration", () => {
     };
 
     const result = CompositeSchemas.userRegistration.safeParse(weakData);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -314,7 +313,7 @@ describe("CompositeSchemas - User Login", () => {
     };
 
     const result = CompositeSchemas.userLogin.safeParse(validData);
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept login without MFA token", () => {
@@ -324,7 +323,7 @@ describe("CompositeSchemas - User Login", () => {
     };
 
     const result = CompositeSchemas.userLogin.safeParse(validData);
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject invalid MFA token format", () => {
@@ -335,7 +334,7 @@ describe("CompositeSchemas - User Login", () => {
     };
 
     const result = CompositeSchemas.userLogin.safeParse(invalidData);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -351,7 +350,7 @@ describe("CompositeSchemas - Post Creation", () => {
     };
 
     const result = CompositeSchemas.postCreation.safeParse(validData);
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should enforce maximum media URL limit", () => {
@@ -361,7 +360,7 @@ describe("CompositeSchemas - Post Creation", () => {
     };
 
     const result = CompositeSchemas.postCreation.safeParse(tooManyMedia);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should enforce maximum hashtag limit", () => {
@@ -371,30 +370,30 @@ describe("CompositeSchemas - Post Creation", () => {
     };
 
     const result = CompositeSchemas.postCreation.safeParse(tooManyHashtags);
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
 describe("Validation Helper Functions", () => {
   it("validateRequestData should return success for valid data", () => {
     const result = validateRequestData(SecurityValidatedSchemas.email, "user@example.com");
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
     if (result.success) {
-      assert.match(result.data, /@example\.com$/);
+      expect(result.data).toMatch(/@example\.com$/);
     }
   });
 
   it("validateRequestData should return errors for invalid data", () => {
     const result = validateRequestData(SecurityValidatedSchemas.email, "not-an-email");
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
     if (!result.success) {
-      assert.ok(result.errors.length > 0);
+      expect(result.errors.length > 0).toBeTruthy();
     }
   });
 
   it("createRouteValidation should create a validation function", () => {
     const validator = createRouteValidation(SecurityValidatedSchemas.email);
     const result = validator("user@example.com");
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 });

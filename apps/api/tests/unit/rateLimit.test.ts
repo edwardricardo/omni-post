@@ -8,8 +8,7 @@
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/rateLimit.test.ts
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { RateLimit, RateLimitConfigs } from "../../src/security/rateLimit.js";
 import type { FastifyRequest } from "fastify";
 
@@ -117,33 +116,17 @@ describe("RateLimit - Constructor & Configuration", () => {
     const config = { windowMs: 60000, maxRequests: 100 };
     const rateLimit = new RateLimit(mockRedis, config);
 
-    assert.ok(rateLimit !== null && rateLimit !== undefined, "Should create RateLimit instance");
+    expect(rateLimit !== null && rateLimit !== undefined).toBeTruthy();
   });
 
   it("Default configurations exist - STANDARD", () => {
-    assert.strictEqual(
-      RateLimitConfigs.STANDARD.windowMs,
-      60_000,
-      "STANDARD config has correct window (60s)"
-    );
-    assert.strictEqual(
-      RateLimitConfigs.STANDARD.maxRequests,
-      100,
-      "STANDARD config has correct max requests (100)"
-    );
+    expect(RateLimitConfigs.STANDARD.windowMs).toBe(60_000);
+    expect(RateLimitConfigs.STANDARD.maxRequests).toBe(100);
   });
 
   it("Default configurations exist - AUTH", () => {
-    assert.strictEqual(
-      RateLimitConfigs.AUTH.windowMs,
-      900_000,
-      "AUTH config has correct window (15min)"
-    );
-    assert.strictEqual(
-      RateLimitConfigs.AUTH.maxRequests,
-      5,
-      "AUTH config has correct max requests (5)"
-    );
+    expect(RateLimitConfigs.AUTH.windowMs).toBe(900_000);
+    expect(RateLimitConfigs.AUTH.maxRequests).toBe(5);
   });
 });
 
@@ -159,7 +142,7 @@ describe("RateLimit - Rule Management", () => {
     rateLimit.addRule("/api/auth", RateLimitConfigs.AUTH);
 
     // Rule added successfully (tested indirectly through checkRateLimit)
-    assert.ok(true, "Custom rule added without error");
+    expect(true).toBeTruthy();
   });
 });
 
@@ -176,8 +159,8 @@ describe("RateLimit - Client Key Generation", () => {
     // Access private method via reflection for testing
     const key = (rateLimit as any).getClientKey(req);
 
-    assert.ok(key.includes("192.168.1.100"), "Client key includes IP from socket");
-    assert.ok(key.includes("/api/test"), "Client key includes request URL");
+    expect(key.includes("192.168.1.100")).toBeTruthy();
+    expect(key.includes("/api/test")).toBeTruthy();
   });
 
   it("Client key from X-Forwarded-For header", () => {
@@ -191,7 +174,7 @@ describe("RateLimit - Client Key Generation", () => {
 
     const key = (rateLimit as any).getClientKey(req);
 
-    assert.ok(key.includes("203.0.113.45"), "Client key uses first IP from X-Forwarded-For");
+    expect(key.includes("203.0.113.45")).toBeTruthy();
   });
 
   it("Client key from X-Real-IP header", () => {
@@ -205,7 +188,7 @@ describe("RateLimit - Client Key Generation", () => {
 
     const key = (rateLimit as any).getClientKey(req);
 
-    assert.ok(key.includes("198.51.100.25"), "Client key uses X-Real-IP when available");
+    expect(key.includes("198.51.100.25")).toBeTruthy();
   });
 
   it("Client key fallback to unknown", () => {
@@ -219,7 +202,7 @@ describe("RateLimit - Client Key Generation", () => {
 
     const key = (rateLimit as any).getClientKey(req);
 
-    assert.ok(key.includes("unknown"), "Client key uses 'unknown' when IP unavailable");
+    expect(key.includes("unknown")).toBeTruthy();
   });
 });
 
@@ -235,8 +218,8 @@ describe("RateLimit - Basic Flow", () => {
 
     const result = await rateLimit.checkRateLimit(req);
 
-    assert.strictEqual(result.allowed, true, "First request is allowed");
-    assert.strictEqual(result.remaining, 9, "Remaining count is correct (9 left)");
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(9);
   });
 
   it("Multiple requests within limit", async () => {
@@ -250,8 +233,8 @@ describe("RateLimit - Basic Flow", () => {
       lastResult = await rateLimit.checkRateLimit(req);
     }
 
-    assert.strictEqual(lastResult!.allowed, true, "5th request within limit of 5 is allowed");
-    assert.strictEqual(lastResult!.remaining, 0, "Remaining count is 0 after hitting limit");
+    expect(lastResult!.allowed).toBe(true);
+    expect(lastResult!.remaining).toBe(0);
   });
 
   it("Request exceeding limit is rejected", async () => {
@@ -267,8 +250,8 @@ describe("RateLimit - Basic Flow", () => {
     // 4th request should be rejected
     const result = await rateLimit.checkRateLimit(req);
 
-    assert.strictEqual(result.allowed, false, "Request exceeding limit is rejected");
-    assert.strictEqual(result.remaining, 0, "Remaining is 0 when rate limited");
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
   });
 });
 
@@ -294,11 +277,7 @@ describe("RateLimit - Custom Rules", () => {
     // 4th request should be rejected due to custom rule
     const result = await rateLimit.checkRateLimit(authReq);
 
-    assert.strictEqual(
-      result.allowed,
-      false,
-      "Custom strict rule limits auth endpoint to 3 requests"
-    );
+    expect(result.allowed).toBe(false);
   });
 
   it("Default rule applied to non-matching path", async () => {
@@ -315,11 +294,7 @@ describe("RateLimit - Custom Rules", () => {
       lastResult = await rateLimit.checkRateLimit(otherReq);
     }
 
-    assert.strictEqual(
-      lastResult!.allowed,
-      true,
-      "Non-matching path uses default limit (5 allowed)"
-    );
+    expect(lastResult!.allowed).toBe(true);
   });
 });
 
@@ -345,8 +320,8 @@ describe("RateLimit - Different Clients", () => {
     // Client 2's first request should be allowed
     const client2Result = await rateLimit.checkRateLimit(client2);
 
-    assert.strictEqual(client1Result.allowed, false, "Client 1 is rate limited after 2 requests");
-    assert.strictEqual(client2Result.allowed, true, "Client 2 has separate limit and is allowed");
+    expect(client1Result.allowed).toBe(false);
+    expect(client2Result.allowed).toBe(true);
   });
 });
 
@@ -363,12 +338,8 @@ describe("RateLimit - Error Handling", () => {
     const req = createMockRequest("/api/test");
     const result = await rateLimit.checkRateLimit(req);
 
-    assert.strictEqual(
-      result.allowed,
-      true,
-      "Request allowed when Redis fails (fail-open behavior)"
-    );
-    assert.strictEqual(result.remaining, 5, "Returns max requests as remaining on Redis failure");
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(5);
   });
 
   it("Graceful handling of null pipeline results", async () => {
@@ -379,7 +350,7 @@ describe("RateLimit - Error Handling", () => {
     const req = createMockRequest("/api/test");
     const result = await rateLimit.checkRateLimit(req);
 
-    assert.strictEqual(result.allowed, true, "Gracefully handles null pipeline results");
+    expect(result.allowed).toBe(true);
   });
 });
 
@@ -397,8 +368,8 @@ describe("RateLimit - Reset Time", () => {
     const result = await rateLimit.checkRateLimit(req);
     const after = Date.now();
 
-    assert.ok(result.resetTime > before, "Reset time is in the future");
-    assert.ok(result.resetTime <= after + 60000, "Reset time is within expected window");
+    expect(result.resetTime > before).toBeTruthy();
+    expect(result.resetTime <= after + 60000).toBeTruthy();
   });
 });
 
@@ -408,43 +379,27 @@ describe("RateLimit - Reset Time", () => {
 
 describe("RateLimit - Predefined Configurations", () => {
   it("HEALTH config", () => {
-    assert.strictEqual(
-      RateLimitConfigs.HEALTH.maxRequests,
-      120,
-      "HEALTH config allows 120 req/min"
-    );
+    expect(RateLimitConfigs.HEALTH.maxRequests).toBe(120);
   });
 
   it("STRICT config", () => {
-    assert.strictEqual(RateLimitConfigs.STRICT.maxRequests, 10, "STRICT config allows 10 req/min");
+    expect(RateLimitConfigs.STRICT.maxRequests).toBe(10);
   });
 
   it("UPLOAD config", () => {
-    assert.strictEqual(RateLimitConfigs.UPLOAD.windowMs, 300_000, "UPLOAD config has 5 min window");
-    assert.strictEqual(RateLimitConfigs.UPLOAD.maxRequests, 20, "UPLOAD config allows 20 req/5min");
+    expect(RateLimitConfigs.UPLOAD.windowMs).toBe(300_000);
+    expect(RateLimitConfigs.UPLOAD.maxRequests).toBe(20);
   });
 
   it("CRITICAL_EXPENSIVE config", () => {
-    assert.strictEqual(
-      RateLimitConfigs.CRITICAL_EXPENSIVE.maxRequests,
-      5,
-      "CRITICAL_EXPENSIVE allows only 5 req/min"
-    );
+    expect(RateLimitConfigs.CRITICAL_EXPENSIVE.maxRequests).toBe(5);
   });
 
   it("HEAVY_EXPENSIVE config", () => {
-    assert.strictEqual(
-      RateLimitConfigs.HEAVY_EXPENSIVE.maxRequests,
-      10,
-      "HEAVY_EXPENSIVE allows 10 req/min"
-    );
+    expect(RateLimitConfigs.HEAVY_EXPENSIVE.maxRequests).toBe(10);
   });
 
   it("MODERATE_EXPENSIVE config", () => {
-    assert.strictEqual(
-      RateLimitConfigs.MODERATE_EXPENSIVE.maxRequests,
-      20,
-      "MODERATE_EXPENSIVE allows 20 req/min"
-    );
+    expect(RateLimitConfigs.MODERATE_EXPENSIVE.maxRequests).toBe(20);
   });
 });

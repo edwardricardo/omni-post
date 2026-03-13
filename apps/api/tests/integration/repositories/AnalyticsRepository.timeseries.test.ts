@@ -1,6 +1,5 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { PrismaAnalyticsReadRepository } from "../../src/infrastructure/repositories/PrismaAnalyticsReadRepository.js";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { PrismaAnalyticsReadRepository } from "../../../src/infrastructure/repositories/PrismaAnalyticsReadRepository.js";
 import { prisma } from "@infra/prisma";
 import {
   setupTestData,
@@ -9,12 +8,12 @@ import {
   testProjectId,
 } from "./AnalyticsRepository.test-helpers.js";
 
-describe("AnalyticsRepository - getTimeSeriesData", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AnalyticsRepository - getTimeSeriesData", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -22,13 +21,13 @@ describe("AnalyticsRepository - getTimeSeriesData", { concurrency: 1 }, () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const timeSeries = await repo.getTimeSeriesData(testPostIds, "day");
 
-    assert.ok(Array.isArray(timeSeries), "Should return an array");
-    assert.ok(timeSeries.length > 0, "Should return time series data");
+    expect(Array.isArray(timeSeries)).toBeTruthy();
+    expect(timeSeries.length > 0).toBeTruthy();
 
     timeSeries.forEach((period) => {
-      assert.ok(period.period, "Should have period key");
-      assert.ok(typeof period.totalViews === "number", "Should have aggregated views");
-      assert.ok(typeof period.recordCount === "number", "Should have record count");
+      expect(period.period).toBeTruthy();
+      expect(typeof period.totalViews === "number").toBeTruthy();
+      expect(typeof period.recordCount === "number").toBeTruthy();
     });
   });
 
@@ -36,10 +35,10 @@ describe("AnalyticsRepository - getTimeSeriesData", { concurrency: 1 }, () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const timeSeries = await repo.getTimeSeriesData(testPostIds, "hour");
 
-    assert.ok(Array.isArray(timeSeries), "Should return hourly data");
+    expect(Array.isArray(timeSeries)).toBeTruthy();
 
     timeSeries.forEach((period) => {
-      assert.ok(period.period.length >= 13, "Hour period should have hour precision");
+      expect(period.period.length >= 13).toBeTruthy();
     });
   });
 
@@ -47,7 +46,7 @@ describe("AnalyticsRepository - getTimeSeriesData", { concurrency: 1 }, () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const timeSeries = await repo.getTimeSeriesData(testPostIds, "week");
 
-    assert.ok(Array.isArray(timeSeries), "Should return weekly data");
+    expect(Array.isArray(timeSeries)).toBeTruthy();
   });
 
   it("includes aggregated metrics per period", async () => {
@@ -55,12 +54,12 @@ describe("AnalyticsRepository - getTimeSeriesData", { concurrency: 1 }, () => {
     const timeSeries = await repo.getTimeSeriesData(testPostIds, "day");
 
     timeSeries.forEach((period) => {
-      assert.ok(typeof period.totalViews === "number", "Should have total views");
-      assert.ok(typeof period.totalLikes === "number", "Should have total likes");
-      assert.ok(typeof period.totalComments === "number", "Should have total comments");
-      assert.ok(typeof period.totalShares === "number", "Should have total shares");
-      assert.ok(typeof period.totalEngagement === "number", "Should have total engagement");
-      assert.ok(typeof period.avgEngagementRate === "number", "Should have engagement rate");
+      expect(typeof period.totalViews === "number").toBeTruthy();
+      expect(typeof period.totalLikes === "number").toBeTruthy();
+      expect(typeof period.totalComments === "number").toBeTruthy();
+      expect(typeof period.totalShares === "number").toBeTruthy();
+      expect(typeof period.totalEngagement === "number").toBeTruthy();
+      expect(typeof period.avgEngagementRate === "number").toBeTruthy();
     });
   });
 
@@ -72,16 +71,16 @@ describe("AnalyticsRepository - getTimeSeriesData", { concurrency: 1 }, () => {
       startDate: twoDaysAgo,
     });
 
-    assert.ok(timeSeries.length > 0, "Should return filtered time series");
+    expect(timeSeries.length > 0).toBeTruthy();
   });
 });
 
-describe("AnalyticsRepository - getPostsWithAnalytics", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AnalyticsRepository - getPostsWithAnalytics", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -89,13 +88,13 @@ describe("AnalyticsRepository - getPostsWithAnalytics", { concurrency: 1 }, () =
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const posts = await repo.getPostsWithAnalytics(testProjectId);
 
-    assert.ok(Array.isArray(posts), "Should return posts array");
-    assert.strictEqual(posts.length, 5, "Should return all posts");
+    expect(Array.isArray(posts)).toBeTruthy();
+    expect(posts.length).toBe(5);
 
     posts.forEach((post) => {
-      assert.ok(Array.isArray(post.analytics), "Should include analytics array");
-      assert.ok(Array.isArray(post.contents), "Should include contents");
-      assert.ok(Array.isArray(post.media), "Should include media");
+      expect(Array.isArray(post.analytics)).toBeTruthy();
+      expect(Array.isArray(post.contents)).toBeTruthy();
+      expect(Array.isArray(post.media)).toBeTruthy();
     });
   });
 
@@ -109,7 +108,7 @@ describe("AnalyticsRepository - getPostsWithAnalytics", { concurrency: 1 }, () =
 
     posts.forEach((post) => {
       post.analytics.forEach((analytics) => {
-        assert.ok(analytics.capturedAt >= twoDaysAgo, "Analytics should be after start date");
+        expect(analytics.capturedAt >= twoDaysAgo).toBeTruthy();
       });
     });
   });
@@ -122,7 +121,7 @@ describe("AnalyticsRepository - getPostsWithAnalytics", { concurrency: 1 }, () =
 
     posts.forEach((post) => {
       post.analytics.forEach((analytics) => {
-        assert.strictEqual(analytics.provider, "X", "Should only include X analytics");
+        expect(analytics.provider).toBe("X");
       });
     });
   });
@@ -131,7 +130,7 @@ describe("AnalyticsRepository - getPostsWithAnalytics", { concurrency: 1 }, () =
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const posts = await repo.getPostsWithAnalytics(testProjectId, { take: 2 });
 
-    assert.strictEqual(posts.length, 2, "Should return paginated posts");
+    expect(posts.length).toBe(2);
   });
 
   it("orders posts by createdAt desc", async () => {
@@ -139,10 +138,7 @@ describe("AnalyticsRepository - getPostsWithAnalytics", { concurrency: 1 }, () =
     const posts = await repo.getPostsWithAnalytics(testProjectId);
 
     for (let i = 0; i < posts.length - 1; i++) {
-      assert.ok(
-        posts[i]!.createdAt >= posts[i + 1]!.createdAt,
-        "Posts should be ordered by createdAt desc"
-      );
+      expect(posts[i]!.createdAt >= posts[i + 1]!.createdAt).toBeTruthy();
     }
   });
 
@@ -152,21 +148,18 @@ describe("AnalyticsRepository - getPostsWithAnalytics", { concurrency: 1 }, () =
 
     posts.forEach((post) => {
       for (let i = 0; i < post.analytics.length - 1; i++) {
-        assert.ok(
-          post.analytics[i]!.capturedAt >= post.analytics[i + 1]!.capturedAt,
-          "Analytics should be ordered by capturedAt desc"
-        );
+        expect(post.analytics[i]!.capturedAt >= post.analytics[i + 1]!.capturedAt).toBeTruthy();
       }
     });
   });
 });
 
-describe("AnalyticsRepository - Edge Cases", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AnalyticsRepository - Edge Cases", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -181,9 +174,9 @@ describe("AnalyticsRepository - Edge Cases", { concurrency: 1 }, () => {
       repo.getLatestForPosts(testPostIds),
     ]);
 
-    assert.ok(results[0]!.length > 0, "First query should succeed");
-    assert.ok(results[1]!.length > 0, "Second query should succeed");
-    assert.ok(results[2]!.length > 0, "Third query should succeed");
+    expect(results[0]!.length > 0).toBeTruthy();
+    expect(results[1]!.length > 0).toBeTruthy();
+    expect(results[2]!.length > 0).toBeTruthy();
   });
 
   it("handles large date ranges", async () => {
@@ -194,19 +187,19 @@ describe("AnalyticsRepository - Edge Cases", { concurrency: 1 }, () => {
       startDate: oneYearAgo,
     });
 
-    assert.ok(Array.isArray(analytics), "Should handle large date ranges");
+    expect(Array.isArray(analytics)).toBeTruthy();
   });
 
   it("handles empty result sets gracefully", async () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
 
     const analytics = await repo.getByPostIds(["non-existent-post"]);
-    assert.strictEqual(analytics.length, 0, "Should return empty array");
+    expect(analytics.length).toBe(0);
 
     const latest = await repo.getLatestForPosts(["non-existent-post"]);
-    assert.strictEqual(latest.length, 0, "Should return empty array");
+    expect(latest.length).toBe(0);
 
     const timeSeries = await repo.getTimeSeriesData(["non-existent-post"]);
-    assert.strictEqual(timeSeries.length, 0, "Should return empty array");
+    expect(timeSeries.length).toBe(0);
   });
 });

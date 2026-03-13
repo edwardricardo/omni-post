@@ -1,4 +1,3 @@
-import type { TestContext } from "node:test";
 import { DomainEvent, EventHandler } from "@shared/events";
 
 export class MockFastify {
@@ -6,8 +5,8 @@ export class MockFastify {
   private hooks: Array<{ event: string; handler: Function }> = [];
   public prisma: any;
 
-  constructor(t: TestContext) {
-    this.prisma = new MockPrisma(t);
+  constructor() {
+    this.prisma = new MockPrisma();
   }
 
   post(path: string, handler: Function): void {
@@ -46,9 +45,9 @@ export class MockFastify {
 export class MockPrisma {
   public post: any;
 
-  constructor(t: TestContext) {
+  constructor() {
     this.post = {
-      create: t.mock.fn(async (args: any) => ({
+      create: vi.fn(async (args: any) => ({
         id: "post-123",
         projectId: args.data.projectId,
         status: args.data.status,
@@ -65,7 +64,7 @@ export class MockPrisma {
           },
         ],
       })),
-      findUnique: t.mock.fn(async (args: any) => ({
+      findUnique: vi.fn(async (args: any) => ({
         id: args.where.id,
         projectId: "project-456",
         status: "DRAFT",
@@ -82,7 +81,7 @@ export class MockPrisma {
           },
         ],
       })),
-      update: t.mock.fn(async (args: any) => ({
+      update: vi.fn(async (args: any) => ({
         id: args.where.id,
         projectId: "project-456",
         status: args.data.status || "DRAFT",

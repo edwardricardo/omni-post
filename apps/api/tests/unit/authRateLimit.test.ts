@@ -21,8 +21,7 @@
  * @module tests/unit/authRateLimit
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import fastifyCookie from "@fastify/cookie";
@@ -199,8 +198,8 @@ async function postLogout(app: FastifyInstance, ip = "192.168.1.4") {
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("Auth endpoint rate limiting", { concurrency: 1 }, () => {
-  before(() => {
+describe("Auth endpoint rate limiting", () => {
+  beforeAll(() => {
     _originalConsoleLog = console.log;
     _originalConsoleError = console.error;
     _originalConsoleWarn = console.warn;
@@ -209,249 +208,218 @@ describe("Auth endpoint rate limiting", { concurrency: 1 }, () => {
     console.warn = () => {};
   });
 
-  after(() => {
+  afterAll(() => {
     console.log = _originalConsoleLog;
     console.error = _originalConsoleError;
     console.warn = _originalConsoleWarn;
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  describe("POST /auth/login — max 5 per 15 minutes", { concurrency: 1 }, () => {
+  describe("POST /auth/login — max 5 per 15 minutes", () => {
     let app: FastifyInstance;
     let authService: AuthService;
 
-    before(async () => {
+    beforeAll(async () => {
       ({ app, authService } = await createTestApp());
     });
 
-    beforeEach((t) => {
-      t.mock.method(authService, "login", async () => MOCK_LOGIN_SUCCESS);
+    beforeEach(() => {
+      vi.spyOn(authService, "login").mockImplementation(async () => MOCK_LOGIN_SUCCESS);
     });
 
-    after(async () => {
+    afterAll(async () => {
       await app.close();
     });
 
     it("should allow the first 5 requests (under the limit)", async () => {
       for (let i = 1; i <= 5; i++) {
         const res = await postLogin(app);
-        assert.notStrictEqual(
-          res.statusCode,
-          429,
-          `Request ${i} should NOT be rate-limited (got ${res.statusCode}: ${res.body})`
-        );
+        expect(res.statusCode).not.toBe(429);
       }
     });
 
     it("should return 429 on the 6th request", async () => {
       const res = await postLogin(app);
-      assert.strictEqual(res.statusCode, 429, `6th request must be rate-limited (got ${res.body})`);
+      expect(res.statusCode).toBe(429);
     });
 
     it("should return the correct error body shape on 429", async () => {
       // Already exceeded from previous tests — any further request returns 429
       const res = await postLogin(app);
-      assert.strictEqual(res.statusCode, 429);
+      expect(res.statusCode).toBe(429);
 
       const body = JSON.parse(res.body);
-      assert.strictEqual(body.ok, false, "ok must be false");
+      expect(body.ok).toBe(false);
       // The centralized error handler wraps in { ok: false, error: { code, message, ... } }
-      assert.strictEqual(body.error?.code, "RATE_LIMIT_EXCEEDED", "error.code must match");
-      assert.ok(
-        typeof body.error?.message === "string" && body.error.message.length > 0,
-        "error.message must be a non-empty string"
-      );
-      assert.ok(typeof body.error?.requestId === "string", "error.requestId must be present");
-      assert.ok(typeof body.error?.timestamp === "string", "error.timestamp must be present");
+      expect(body.error?.code).toBe("RATE_LIMIT_EXCEEDED");
+      expect(typeof body.error?.message === "string" && body.error.message.length > 0).toBeTruthy();
+      expect(typeof body.error?.requestId === "string").toBeTruthy();
+      expect(typeof body.error?.timestamp === "string").toBeTruthy();
     });
 
     it("should include standard rate-limit headers on a 429 response", async () => {
       const res = await postLogin(app);
-      assert.strictEqual(res.statusCode, 429);
+      expect(res.statusCode).toBe(429);
 
       // @fastify/rate-limit v10 uses lowercase header names by default
       const limit = res.headers["x-ratelimit-limit"];
       const remaining = res.headers["x-ratelimit-remaining"];
       const reset = res.headers["x-ratelimit-reset"];
 
-      assert.ok(limit !== undefined, "x-ratelimit-limit header must be present");
-      assert.ok(remaining !== undefined, "x-ratelimit-remaining header must be present");
-      assert.ok(reset !== undefined, "x-ratelimit-reset header must be present");
+      expect(limit !== undefined).toBeTruthy();
+      expect(remaining !== undefined).toBeTruthy();
+      expect(reset !== undefined).toBeTruthy();
 
-      assert.strictEqual(String(limit), "5", "x-ratelimit-limit must equal the route max (5)");
-      assert.strictEqual(String(remaining), "0", "x-ratelimit-remaining must be 0 when exceeded");
+      expect(String(limit)).toBe("5");
+      expect(String(remaining)).toBe("0");
     });
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  describe("POST /auth/register — max 10 per 1 hour", { concurrency: 1 }, () => {
+  describe("POST /auth/register — max 10 per 1 hour", () => {
     let app: FastifyInstance;
     let authService: AuthService;
 
-    before(async () => {
+    beforeAll(async () => {
       ({ app, authService } = await createTestApp());
     });
 
-    beforeEach((t) => {
-      t.mock.method(authService, "registerAdmin", async () => MOCK_REGISTER_SUCCESS);
+    beforeEach(() => {
+      vi.spyOn(authService, "registerAdmin").mockImplementation(async () => MOCK_REGISTER_SUCCESS);
     });
 
-    after(async () => {
+    afterAll(async () => {
       await app.close();
     });
 
     it("should allow the first 10 requests (under the limit)", async () => {
       for (let i = 1; i <= 10; i++) {
         const res = await postRegister(app);
-        assert.notStrictEqual(
-          res.statusCode,
-          429,
-          `Request ${i} should NOT be rate-limited (got ${res.statusCode}: ${res.body})`
-        );
+        expect(res.statusCode).not.toBe(429);
       }
     });
 
     it("should return 429 on the 11th request", async () => {
       const res = await postRegister(app);
-      assert.strictEqual(
-        res.statusCode,
-        429,
-        `11th request must be rate-limited (got ${res.body})`
-      );
+      expect(res.statusCode).toBe(429);
     });
 
     it("should return the correct error body shape on 429", async () => {
       const res = await postRegister(app);
-      assert.strictEqual(res.statusCode, 429);
+      expect(res.statusCode).toBe(429);
 
       const body = JSON.parse(res.body);
-      assert.strictEqual(body.ok, false);
-      assert.strictEqual(body.error?.code, "RATE_LIMIT_EXCEEDED");
-      assert.ok(typeof body.error?.message === "string" && body.error.message.length > 0);
+      expect(body.ok).toBe(false);
+      expect(body.error?.code).toBe("RATE_LIMIT_EXCEEDED");
+      expect(typeof body.error?.message === "string" && body.error.message.length > 0).toBeTruthy();
     });
 
     it("should include rate-limit headers with limit=10 on a 429", async () => {
       const res = await postRegister(app);
-      assert.strictEqual(res.statusCode, 429);
+      expect(res.statusCode).toBe(429);
 
       const limit = res.headers["x-ratelimit-limit"];
       const remaining = res.headers["x-ratelimit-remaining"];
 
-      assert.ok(limit !== undefined, "x-ratelimit-limit header must be present");
-      assert.ok(remaining !== undefined, "x-ratelimit-remaining header must be present");
-      assert.strictEqual(String(limit), "10", "x-ratelimit-limit must equal the route max (10)");
-      assert.strictEqual(String(remaining), "0");
+      expect(limit !== undefined).toBeTruthy();
+      expect(remaining !== undefined).toBeTruthy();
+      expect(String(limit)).toBe("10");
+      expect(String(remaining)).toBe("0");
     });
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  describe("POST /auth/refresh — max 20 per 15 minutes", { concurrency: 1 }, () => {
+  describe("POST /auth/refresh — max 20 per 15 minutes", () => {
     let app: FastifyInstance;
     let authService: AuthService;
 
-    before(async () => {
+    beforeAll(async () => {
       ({ app, authService } = await createTestApp());
     });
 
-    beforeEach((t) => {
-      t.mock.method(authService, "refreshTokens", async () => MOCK_REFRESH_SUCCESS);
+    beforeEach(() => {
+      vi.spyOn(authService, "refreshTokens").mockImplementation(async () => MOCK_REFRESH_SUCCESS);
     });
 
-    after(async () => {
+    afterAll(async () => {
       await app.close();
     });
 
     it("should allow the first 20 requests (under the limit)", async () => {
       for (let i = 1; i <= 20; i++) {
         const res = await postRefresh(app);
-        assert.notStrictEqual(
-          res.statusCode,
-          429,
-          `Request ${i} should NOT be rate-limited (got ${res.statusCode}: ${res.body})`
-        );
+        expect(res.statusCode).not.toBe(429);
       }
     });
 
     it("should return 429 on the 21st request", async () => {
       const res = await postRefresh(app);
-      assert.strictEqual(
-        res.statusCode,
-        429,
-        `21st request must be rate-limited (got ${res.body})`
-      );
+      expect(res.statusCode).toBe(429);
     });
 
     it("should include rate-limit headers with limit=20 on a 429", async () => {
       const res = await postRefresh(app);
-      assert.strictEqual(res.statusCode, 429);
+      expect(res.statusCode).toBe(429);
 
       const limit = res.headers["x-ratelimit-limit"];
-      assert.ok(limit !== undefined, "x-ratelimit-limit header must be present");
-      assert.strictEqual(String(limit), "20");
+      expect(limit !== undefined).toBeTruthy();
+      expect(String(limit)).toBe("20");
     });
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  describe("POST /auth/logout — max 20 per 15 minutes", { concurrency: 1 }, () => {
+  describe("POST /auth/logout — max 20 per 15 minutes", () => {
     let app: FastifyInstance;
     let authService: AuthService;
 
-    before(async () => {
+    beforeAll(async () => {
       ({ app, authService } = await createTestApp());
     });
 
-    beforeEach((t) => {
-      t.mock.method(authService, "logout", async () => MOCK_LOGOUT_SUCCESS);
+    beforeEach(() => {
+      vi.spyOn(authService, "logout").mockImplementation(async () => MOCK_LOGOUT_SUCCESS);
     });
 
-    after(async () => {
+    afterAll(async () => {
       await app.close();
     });
 
     it("should allow the first 20 requests (under the limit)", async () => {
       for (let i = 1; i <= 20; i++) {
         const res = await postLogout(app);
-        assert.notStrictEqual(
-          res.statusCode,
-          429,
-          `Request ${i} should NOT be rate-limited (got ${res.statusCode}: ${res.body})`
-        );
+        expect(res.statusCode).not.toBe(429);
       }
     });
 
     it("should return 429 on the 21st request", async () => {
       const res = await postLogout(app);
-      assert.strictEqual(
-        res.statusCode,
-        429,
-        `21st request must be rate-limited (got ${res.body})`
-      );
+      expect(res.statusCode).toBe(429);
     });
 
     it("should include rate-limit headers with limit=20 on a 429", async () => {
       const res = await postLogout(app);
-      assert.strictEqual(res.statusCode, 429);
+      expect(res.statusCode).toBe(429);
 
       const limit = res.headers["x-ratelimit-limit"];
-      assert.ok(limit !== undefined, "x-ratelimit-limit header must be present");
-      assert.strictEqual(String(limit), "20");
+      expect(limit !== undefined).toBeTruthy();
+      expect(String(limit)).toBe("20");
     });
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  describe("Rate-limit isolation between different IPs", { concurrency: 1 }, () => {
+  describe("Rate-limit isolation between different IPs", () => {
     let app: FastifyInstance;
     let authService: AuthService;
 
-    before(async () => {
+    beforeAll(async () => {
       ({ app, authService } = await createTestApp());
     });
 
-    beforeEach((t) => {
-      t.mock.method(authService, "login", async () => MOCK_LOGIN_SUCCESS);
+    beforeEach(() => {
+      vi.spyOn(authService, "login").mockImplementation(async () => MOCK_LOGIN_SUCCESS);
     });
 
-    after(async () => {
+    afterAll(async () => {
       await app.close();
     });
 
@@ -466,33 +434,29 @@ describe("Auth endpoint rate limiting", { concurrency: 1 }, () => {
 
       // IP-A must now be blocked
       const blockedRes = await postLogin(app, ipA);
-      assert.strictEqual(blockedRes.statusCode, 429, "IP-A must be rate-limited");
+      expect(blockedRes.statusCode).toBe(429);
 
       // IP-B (different address) must still be allowed
       const allowedRes = await postLogin(app, ipB);
-      assert.notStrictEqual(
-        allowedRes.statusCode,
-        429,
-        `IP-B must NOT be rate-limited (got ${allowedRes.statusCode})`
-      );
+      expect(allowedRes.statusCode).not.toBe(429);
     });
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  describe("Rate-limit isolation between routes", { concurrency: 1 }, () => {
+  describe("Rate-limit isolation between routes", () => {
     let app: FastifyInstance;
     let authService: AuthService;
 
-    before(async () => {
+    beforeAll(async () => {
       ({ app, authService } = await createTestApp());
     });
 
-    beforeEach((t) => {
-      t.mock.method(authService, "login", async () => MOCK_LOGIN_SUCCESS);
-      t.mock.method(authService, "registerAdmin", async () => MOCK_REGISTER_SUCCESS);
+    beforeEach(() => {
+      vi.spyOn(authService, "login").mockImplementation(async () => MOCK_LOGIN_SUCCESS);
+      vi.spyOn(authService, "registerAdmin").mockImplementation(async () => MOCK_REGISTER_SUCCESS);
     });
 
-    after(async () => {
+    afterAll(async () => {
       await app.close();
     });
 
@@ -506,15 +470,11 @@ describe("Auth endpoint rate limiting", { concurrency: 1 }, () => {
 
       // Login must be blocked for this IP
       const loginBlocked = await postLogin(app, sharedIp);
-      assert.strictEqual(loginBlocked.statusCode, 429, "/auth/login must be rate-limited");
+      expect(loginBlocked.statusCode).toBe(429);
 
       // Register from the same IP must still be allowed (separate per-route counter)
       const registerAllowed = await postRegister(app, sharedIp);
-      assert.notStrictEqual(
-        registerAllowed.statusCode,
-        429,
-        `/auth/register must NOT be rate-limited (got ${registerAllowed.statusCode})`
-      );
+      expect(registerAllowed.statusCode).not.toBe(429);
     });
   });
 });

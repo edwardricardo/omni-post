@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import "./PostCommandHandlers.test-helpers.js";
 import {
   type TestContext,
@@ -12,7 +11,7 @@ import { DeletePostCommandHandler } from "../../src/cqrs/handlers/PostCommandHan
 import { POST_COMMANDS } from "@shared/cqrs";
 import { USE_CASE_ERRORS } from "../../src/application/UseCase.js";
 
-describe("DeletePostCommandHandler", { concurrency: 1 }, () => {
+describe("DeletePostCommandHandler", () => {
   let handler: DeletePostCommandHandler;
   let ctx: TestContext;
 
@@ -22,35 +21,32 @@ describe("DeletePostCommandHandler", { concurrency: 1 }, () => {
   });
 
   it("should have correct command type", () => {
-    assert.strictEqual(handler.commandType, POST_COMMANDS.DELETE_POST);
+    expect(handler.commandType).toBe(POST_COMMANDS.DELETE_POST);
   });
 
   it("should delete a post successfully", async () => {
     const command = buildDeletePostCommand({ userId: "user-1" });
     const result = await handler.handle(command);
 
-    assert.ok(result.success, "Result should be successful");
-    assert.ok(result.data, "Result should contain data");
-    assert.strictEqual(result.data.deleted, true);
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
+    expect(result.data.deleted).toBe(true);
   });
 
   it("should load post via postRepository.findById before deleting", async () => {
     const command = buildDeletePostCommand();
     await handler.handle(command);
 
-    assert.ok(
-      ctx.postRepository.findByIdCalls.length >= 1,
-      "Should have called postRepository.findById"
-    );
+    expect(ctx.postRepository.findByIdCalls.length >= 1).toBeTruthy();
   });
 
   it("should delegate to deletePostUseCase.execute with correct postId", async () => {
     const command = buildDeletePostCommand({ aggregateId: TEST_POST_ID });
     await handler.handle(command);
 
-    assert.strictEqual(ctx.deletePostUseCase.executeCalls.length, 1);
+    expect(ctx.deletePostUseCase.executeCalls.length).toBe(1);
     const input = ctx.deletePostUseCase.executeCalls[0] as Record<string, string>;
-    assert.strictEqual(input.postId, TEST_POST_ID);
+    expect(input.postId).toBe(TEST_POST_ID);
   });
 
   it("should return error when post is not found in repository", async () => {
@@ -59,14 +55,11 @@ describe("DeletePostCommandHandler", { concurrency: 1 }, () => {
     const command = buildDeletePostCommand();
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("not found") || result.error.includes("Post"),
-      `Expected not found error, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error.includes("not found") || result.error.includes("Post")).toBeTruthy();
     // Should NOT call the use case when post is not found in repo
-    assert.strictEqual(ctx.deletePostUseCase.executeCalls.length, 0);
+    expect(ctx.deletePostUseCase.executeCalls.length).toBe(0);
   });
 
   it("should return error when use case fails", async () => {
@@ -77,12 +70,11 @@ describe("DeletePostCommandHandler", { concurrency: 1 }, () => {
     const command = buildDeletePostCommand();
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("PUBLISHED") || result.error.includes("Cannot delete"),
-      `Expected forbidden error, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(
+      result.error.includes("PUBLISHED") || result.error.includes("Cannot delete")
+    ).toBeTruthy();
   });
 
   it("should return error for invalid post ID format", async () => {
@@ -92,36 +84,27 @@ describe("DeletePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("Invalid post ID"),
-      `Expected invalid post ID error, got: ${result.error}`
-    );
-    assert.strictEqual(ctx.postRepository.findByIdCalls.length, 0);
-    assert.strictEqual(ctx.deletePostUseCase.executeCalls.length, 0);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error.includes("Invalid post ID")).toBeTruthy();
+    expect(ctx.postRepository.findByIdCalls.length).toBe(0);
+    expect(ctx.deletePostUseCase.executeCalls.length).toBe(0);
   });
 
   it("should generate post.deleted event on success", async () => {
     const command = buildDeletePostCommand({ userId: "user-1" });
     const result = await handler.handle(command);
 
-    assert.ok(result.events, "Should have events");
-    assert.ok(
-      result.events.some((e: { type: string }) => e.type === "post.deleted"),
-      "Should include post.deleted event"
-    );
+    expect(result.events).toBeTruthy();
+    expect(result.events.some((e: { type: string }) => e.type === "post.deleted")).toBeTruthy();
   });
 
   it("should generate user.action event on success", async () => {
     const command = buildDeletePostCommand({ userId: "user-1" });
     const result = await handler.handle(command);
 
-    assert.ok(result.events, "Should have events");
-    assert.ok(
-      result.events.some((e: { type: string }) => e.type === "user.action"),
-      "Should include user.action event"
-    );
+    expect(result.events).toBeTruthy();
+    expect(result.events.some((e: { type: string }) => e.type === "user.action")).toBeTruthy();
   });
 
   it("should include previous status in the deleted event data", async () => {
@@ -133,15 +116,11 @@ describe("DeletePostCommandHandler", { concurrency: 1 }, () => {
     const command = buildDeletePostCommand({ userId: "user-1" });
     const result = await handler.handle(command);
 
-    assert.ok(result.events, "Should have events");
+    expect(result.events).toBeTruthy();
     const deletedEvent = result.events.find((e: { type: string }) => e.type === "post.deleted");
-    assert.ok(deletedEvent, "Should have post.deleted event");
-    assert.ok(deletedEvent.data, "Event should have data");
-    assert.strictEqual(
-      deletedEvent.data.previousStatus,
-      "DRAFT",
-      "Should include previousStatus from loaded post"
-    );
+    expect(deletedEvent).toBeTruthy();
+    expect(deletedEvent.data).toBeTruthy();
+    expect(deletedEvent.data.previousStatus).toBe("DRAFT");
   });
 
   it("should invalidate cache on success", async () => {
@@ -149,6 +128,6 @@ describe("DeletePostCommandHandler", { concurrency: 1 }, () => {
     await handler.handle(command);
 
     const deletedKeys = ctx.redis.getDeletedKeys();
-    assert.ok(deletedKeys.length > 0, "Should have invalidated cache keys");
+    expect(deletedKeys.length > 0).toBeTruthy();
   });
 });

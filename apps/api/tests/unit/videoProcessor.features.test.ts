@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { VideoProcessor, type VideoProcessingOptions } from "../../src/video/videoProcessor";
 import {
   spawnResponseQueue,
@@ -10,16 +9,16 @@ import {
   setStatSizeOverride,
 } from "./videoProcessor.test-helpers";
 
-describe("VideoProcessor - Platform Optimizations", { concurrency: 1 }, () => {
+describe("VideoProcessor - Platform Optimizations", () => {
   let processor: VideoProcessor;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     spawnResponseQueue.length = 0;
     spawnResponseQueue.push({ stdout: "", stderr: "", exitCode: 0 });
     setStatSizeOverride(null);
     mockFsData.files.clear();
     processor = new VideoProcessor(createMockSpawn());
-    setupFsMocks(t);
+    setupFsMocks();
   });
 
   it("should optimize for YouTube", async () => {
@@ -52,7 +51,7 @@ describe("VideoProcessor - Platform Optimizations", { concurrency: 1 }, () => {
     mockSpawnState.exitCode = 0;
 
     const result = await processor.processVideo(options);
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 
   it("should optimize for YouTube Shorts", async () => {
@@ -85,7 +84,7 @@ describe("VideoProcessor - Platform Optimizations", { concurrency: 1 }, () => {
     mockSpawnState.exitCode = 0;
 
     const result = await processor.processVideo(options);
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 
   it("should optimize for live streaming", async () => {
@@ -118,20 +117,20 @@ describe("VideoProcessor - Platform Optimizations", { concurrency: 1 }, () => {
     mockSpawnState.exitCode = 0;
 
     const result = await processor.processVideo(options);
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 });
 
-describe("VideoProcessor - Filters", { concurrency: 1 }, () => {
+describe("VideoProcessor - Filters", () => {
   let processor: VideoProcessor;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     spawnResponseQueue.length = 0;
     spawnResponseQueue.push({ stdout: "", stderr: "", exitCode: 0 });
     setStatSizeOverride(null);
     mockFsData.files.clear();
     processor = new VideoProcessor(createMockSpawn());
-    setupFsMocks(t);
+    setupFsMocks();
   });
 
   it("should apply brightness filter", async () => {
@@ -164,7 +163,7 @@ describe("VideoProcessor - Filters", { concurrency: 1 }, () => {
     mockSpawnState.exitCode = 0;
 
     const result = await processor.processVideo(options);
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 
   it("should apply multiple filters", async () => {
@@ -201,33 +200,33 @@ describe("VideoProcessor - Filters", { concurrency: 1 }, () => {
     mockSpawnState.exitCode = 0;
 
     const result = await processor.processVideo(options);
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 });
 
-describe("VideoProcessor - Optimization Presets", { concurrency: 1 }, () => {
+describe("VideoProcessor - Optimization Presets", () => {
   let processor: VideoProcessor;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     spawnResponseQueue.length = 0;
     spawnResponseQueue.push({ stdout: "", stderr: "", exitCode: 0 });
     setStatSizeOverride(null);
     mockFsData.files.clear();
     processor = new VideoProcessor(createMockSpawn());
-    setupFsMocks(t);
+    setupFsMocks();
   });
 
   it("should list available presets", () => {
     const presets = processor.getOptimizationPresets();
 
-    assert.ok(Array.isArray(presets));
-    assert.ok(presets.length > 0);
+    expect(Array.isArray(presets)).toBeTruthy();
+    expect(presets.length > 0).toBeTruthy();
 
     presets.forEach((preset) => {
-      assert.ok(preset.name);
-      assert.ok(preset.description);
-      assert.ok(Array.isArray(preset.platforms));
-      assert.ok(preset.settings);
+      expect(preset.name).toBeTruthy();
+      expect(preset.description).toBeTruthy();
+      expect(Array.isArray(preset.platforms)).toBeTruthy();
+      expect(preset.settings).toBeTruthy();
     });
   });
 
@@ -235,10 +234,10 @@ describe("VideoProcessor - Optimization Presets", { concurrency: 1 }, () => {
     const presets = processor.getOptimizationPresets();
     const youtubePreset = presets.find((p) => p.name === "YouTube 1080p");
 
-    assert.ok(youtubePreset);
-    assert.equal(youtubePreset.settings.resolution, "1080p");
-    assert.equal(youtubePreset.settings.videoCodec, "h264");
-    assert.ok(youtubePreset.platforms.includes("youtube"));
+    expect(youtubePreset).toBeTruthy();
+    expect(youtubePreset.settings.resolution).toBe("1080p");
+    expect(youtubePreset.settings.videoCodec).toBe("h264");
+    expect(youtubePreset.platforms.includes("youtube")).toBeTruthy();
   });
 
   it("should apply preset successfully", async () => {
@@ -266,7 +265,7 @@ describe("VideoProcessor - Optimization Presets", { concurrency: 1 }, () => {
       "YouTube 1080p"
     );
 
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 
   it("should apply preset with custom options", async () => {
@@ -298,18 +297,13 @@ describe("VideoProcessor - Optimization Presets", { concurrency: 1 }, () => {
       }
     );
 
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 
   it("should throw error for unknown preset", async () => {
-    await assert.rejects(
-      async () => {
-        await processor.applyPreset("/test/input.mp4", "/test/output.mp4", "NonExistentPreset");
-      },
-      {
-        message: /Preset "NonExistentPreset" not found/,
-      }
-    );
+    await expect(
+      processor.applyPreset("/test/input.mp4", "/test/output.mp4", "NonExistentPreset")
+    ).rejects.toThrow(/Preset "NonExistentPreset" not found/);
   });
 
   it("should warn about file size exceeding preset limit", async () => {
@@ -341,40 +335,40 @@ describe("VideoProcessor - Optimization Presets", { concurrency: 1 }, () => {
       "Social Media Optimized"
     );
 
-    assert.strictEqual(typeof result, "object", "applyPreset should return a result object");
-    assert.strictEqual(result.status, "completed", "processing should complete successfully");
-    assert.strictEqual(result.progress, 100, "progress should be 100% on completion");
+    expect(typeof result).toBe("object");
+    expect(result.status).toBe("completed");
+    expect(result.progress).toBe(100);
   });
 });
 
-describe("VideoProcessor - Job Cancellation", { concurrency: 1 }, () => {
+describe("VideoProcessor - Job Cancellation", () => {
   let processor: VideoProcessor;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     spawnResponseQueue.length = 0;
     spawnResponseQueue.push({ stdout: "", stderr: "", exitCode: 0 });
     setStatSizeOverride(null);
     mockFsData.files.clear();
     processor = new VideoProcessor(createMockSpawn());
-    setupFsMocks(t);
+    setupFsMocks();
   });
 
   it("should support job cancellation", async () => {
     const cancelled = await processor.cancelJob("test-job-id");
-    assert.equal(cancelled, true);
+    expect(cancelled).toBe(true);
   });
 });
 
-describe("VideoProcessor - Edge Cases", { concurrency: 1 }, () => {
+describe("VideoProcessor - Edge Cases", () => {
   let processor: VideoProcessor;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     spawnResponseQueue.length = 0;
     spawnResponseQueue.push({ stdout: "", stderr: "", exitCode: 0 });
     setStatSizeOverride(null);
     mockFsData.files.clear();
     processor = new VideoProcessor(createMockSpawn());
-    setupFsMocks(t);
+    setupFsMocks();
   });
 
   it("should handle very short videos", async () => {
@@ -400,7 +394,7 @@ describe("VideoProcessor - Edge Cases", { concurrency: 1 }, () => {
 
     const metadata = await processor.getVideoMetadata("/test/short-video.mp4");
 
-    assert.equal(metadata.duration, 1.5);
+    expect(metadata.duration).toBe(1.5);
   });
 
   it("should handle videos with unusual aspect ratios", async () => {
@@ -425,7 +419,7 @@ describe("VideoProcessor - Edge Cases", { concurrency: 1 }, () => {
 
     const metadata = await processor.getVideoMetadata("/test/ultrawide-video.mp4");
 
-    assert.ok(metadata.aspectRatio);
+    expect(metadata.aspectRatio).toBeTruthy();
   });
 
   it("should handle videos with zero or missing FPS", async () => {
@@ -450,7 +444,7 @@ describe("VideoProcessor - Edge Cases", { concurrency: 1 }, () => {
 
     const metadata = await processor.getVideoMetadata("/test/no-fps-video.mp4");
 
-    assert.ok(metadata.fps >= 0);
+    expect(metadata.fps >= 0).toBeTruthy();
   });
 
   it("should handle malformed JSON from ffprobe", async () => {
@@ -458,13 +452,8 @@ describe("VideoProcessor - Edge Cases", { concurrency: 1 }, () => {
     mockSpawnState.stderr = "";
     mockSpawnState.exitCode = 0;
 
-    await assert.rejects(
-      async () => {
-        await processor.getVideoMetadata("/test/corrupt-video.mp4");
-      },
-      {
-        message: /Failed to parse ffprobe output/,
-      }
+    await expect(processor.getVideoMetadata("/test/corrupt-video.mp4")).rejects.toThrow(
+      /Failed to parse ffprobe output/
     );
   });
 
@@ -494,13 +483,6 @@ describe("VideoProcessor - Edge Cases", { concurrency: 1 }, () => {
       quality: "medium",
     };
 
-    await assert.rejects(
-      async () => {
-        await processor.processVideo(options);
-      },
-      {
-        message: /Output file was not created/,
-      }
-    );
+    await expect(processor.processVideo(options)).rejects.toThrow(/Output file was not created/);
   });
 });

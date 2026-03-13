@@ -7,31 +7,30 @@
  * - A/B test results
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { templateAnalytics } from "../../src/templates/templateAnalytics";
 
-describe("Template Analytics - Analytics Retrieval", { concurrency: 1 }, () => {
+describe("Template Analytics - Analytics Retrieval", () => {
   it("should return empty analytics for project", async () => {
     const result = await templateAnalytics.getTemplateAnalytics("project-123");
 
-    assert.strictEqual(typeof result, "object", "result should be an object");
-    assert.ok(Array.isArray(result.templates));
-    assert.strictEqual(result.templates.length, 0);
-    assert.strictEqual(result.totalViews, 0);
-    assert.strictEqual(result.totalUses, 0);
-    assert.strictEqual(result.conversionRate, 0);
+    expect(typeof result).toBe("object");
+    expect(Array.isArray(result.templates)).toBeTruthy();
+    expect(result.templates.length).toBe(0);
+    expect(result.totalViews).toBe(0);
+    expect(result.totalUses).toBe(0);
+    expect(result.conversionRate).toBe(0);
   });
 
   it("should accept project ID parameter", async () => {
     const projectId = "test-project-456";
     const result = await templateAnalytics.getTemplateAnalytics(projectId);
 
-    assert.strictEqual(typeof result, "object", "result should be an object");
-    assert.ok("templates" in result, "result should have templates property");
-    assert.ok("totalViews" in result, "result should have totalViews property");
-    assert.ok("totalUses" in result, "result should have totalUses property");
-    assert.ok("conversionRate" in result, "result should have conversionRate property");
+    expect(typeof result).toBe("object");
+    expect("templates" in result).toBeTruthy();
+    expect("totalViews" in result).toBeTruthy();
+    expect("totalUses" in result).toBeTruthy();
+    expect("conversionRate" in result).toBeTruthy();
   });
 
   it("should accept optional filters parameter", async () => {
@@ -45,58 +44,58 @@ describe("Template Analytics - Analytics Retrieval", { concurrency: 1 }, () => {
 
     const result = await templateAnalytics.getTemplateAnalytics("project-123", filters);
 
-    assert.strictEqual(typeof result, "object", "result should be an object");
-    assert.ok(Array.isArray(result.templates), "result should have templates array");
-    assert.strictEqual(result.totalViews, 0);
+    expect(typeof result).toBe("object");
+    expect(Array.isArray(result.templates)).toBeTruthy();
+    expect(result.totalViews).toBe(0);
   });
 
   it("should return consistent structure without filters", async () => {
     const result1 = await templateAnalytics.getTemplateAnalytics("project-1");
     const result2 = await templateAnalytics.getTemplateAnalytics("project-2");
 
-    assert.deepStrictEqual(Object.keys(result1), Object.keys(result2));
+    expect(Object.keys(result1)).toStrictEqual(Object.keys(result2));
   });
 
   it("should handle undefined filters gracefully", async () => {
     const result = await templateAnalytics.getTemplateAnalytics("project-123", undefined);
 
-    assert.strictEqual(typeof result, "object", "result should be an object");
-    assert.ok(Array.isArray(result.templates), "result should have templates array");
+    expect(typeof result).toBe("object");
+    expect(Array.isArray(result.templates)).toBeTruthy();
   });
 
   it("should return numeric values for metrics", async () => {
     const result = await templateAnalytics.getTemplateAnalytics("project-123");
 
-    assert.strictEqual(typeof result.totalViews, "number");
-    assert.strictEqual(typeof result.totalUses, "number");
-    assert.strictEqual(typeof result.conversionRate, "number");
+    expect(typeof result.totalViews).toBe("number");
+    expect(typeof result.totalUses).toBe("number");
+    expect(typeof result.conversionRate).toBe("number");
   });
 
   it("should return zero values for new project", async () => {
     const result = await templateAnalytics.getTemplateAnalytics("new-project");
 
-    assert.strictEqual(result.totalViews, 0);
-    assert.strictEqual(result.totalUses, 0);
-    assert.strictEqual(result.conversionRate, 0);
+    expect(result.totalViews).toBe(0);
+    expect(result.totalUses).toBe(0);
+    expect(result.conversionRate).toBe(0);
   });
 
   it("should handle empty project ID", async () => {
     const result = await templateAnalytics.getTemplateAnalytics("");
 
-    assert.strictEqual(typeof result, "object", "result should be an object");
-    assert.ok(Array.isArray(result.templates), "result should have templates array");
-    assert.strictEqual(result.templates.length, 0);
+    expect(typeof result).toBe("object");
+    expect(Array.isArray(result.templates)).toBeTruthy();
+    expect(result.templates.length).toBe(0);
   });
 });
 
-describe("Template Analytics - Usage Tracking", { concurrency: 1 }, () => {
+describe("Template Analytics - Usage Tracking", () => {
   it("should track template usage event", async () => {
     const result = await templateAnalytics.trackTemplateUsage("project-123", "template-456", {
       eventType: "view",
     });
 
-    assert.strictEqual(typeof result, "object", "result should be an object");
-    assert.strictEqual(result.success, true, "tracking should succeed");
+    expect(typeof result).toBe("object");
+    expect(result.success).toBe(true);
   });
 
   it("should accept project ID parameter", async () => {
@@ -104,7 +103,7 @@ describe("Template Analytics - Usage Tracking", { concurrency: 1 }, () => {
       eventType: "use",
     });
 
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept template ID parameter", async () => {
@@ -112,7 +111,7 @@ describe("Template Analytics - Usage Tracking", { concurrency: 1 }, () => {
       eventType: "compile",
     });
 
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept event data parameter", async () => {
@@ -129,7 +128,7 @@ describe("Template Analytics - Usage Tracking", { concurrency: 1 }, () => {
       eventData
     );
 
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should handle view events", async () => {
@@ -137,7 +136,7 @@ describe("Template Analytics - Usage Tracking", { concurrency: 1 }, () => {
       eventType: "view",
     });
 
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should handle use events", async () => {
@@ -145,7 +144,7 @@ describe("Template Analytics - Usage Tracking", { concurrency: 1 }, () => {
       eventType: "use",
     });
 
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should handle compile events", async () => {
@@ -154,7 +153,7 @@ describe("Template Analytics - Usage Tracking", { concurrency: 1 }, () => {
       platform: "INSTAGRAM",
     });
 
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should handle publish events", async () => {
@@ -164,19 +163,19 @@ describe("Template Analytics - Usage Tracking", { concurrency: 1 }, () => {
       postId: "post-123",
     });
 
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should handle empty event data", async () => {
     const result = await templateAnalytics.trackTemplateUsage("project-123", "template-456", {});
 
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should handle null event data", async () => {
     const result = await templateAnalytics.trackTemplateUsage("project-123", "template-456", null);
 
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should return success for multiple tracking calls", async () => {
@@ -190,100 +189,100 @@ describe("Template Analytics - Usage Tracking", { concurrency: 1 }, () => {
       eventType: "compile",
     });
 
-    assert.strictEqual(result1.success, true);
-    assert.strictEqual(result2.success, true);
-    assert.strictEqual(result3.success, true);
+    expect(result1.success).toBe(true);
+    expect(result2.success).toBe(true);
+    expect(result3.success).toBe(true);
   });
 });
 
-describe("Template Analytics - A/B Test Results", { concurrency: 1 }, () => {
+describe("Template Analytics - A/B Test Results", () => {
   it("should return A/B test results for test ID", async () => {
     const result = await templateAnalytics.getABTestResults("project-123", "test-456");
 
-    assert.strictEqual(typeof result, "object", "result should be an object");
-    assert.ok("testId" in result, "result should have testId property");
-    assert.ok("variants" in result, "result should have variants property");
-    assert.ok("winner" in result, "result should have winner property");
-    assert.ok("confidence" in result, "result should have confidence property");
-    assert.strictEqual(result.testId, "test-456");
+    expect(typeof result).toBe("object");
+    expect("testId" in result).toBeTruthy();
+    expect("variants" in result).toBeTruthy();
+    expect("winner" in result).toBeTruthy();
+    expect("confidence" in result).toBeTruthy();
+    expect(result.testId).toBe("test-456");
   });
 
   it("should return empty variants array", async () => {
     const result = await templateAnalytics.getABTestResults("project-123", "test-789");
 
-    assert.ok(Array.isArray(result.variants));
-    assert.strictEqual(result.variants.length, 0);
+    expect(Array.isArray(result.variants)).toBeTruthy();
+    expect(result.variants.length).toBe(0);
   });
 
   it("should return null winner initially", async () => {
     const result = await templateAnalytics.getABTestResults("project-123", "test-new");
 
-    assert.strictEqual(result.winner, null);
+    expect(result.winner).toBe(null);
   });
 
   it("should return zero confidence initially", async () => {
     const result = await templateAnalytics.getABTestResults("project-123", "test-new");
 
-    assert.strictEqual(result.confidence, 0);
+    expect(result.confidence).toBe(0);
   });
 
   it("should include test ID in response", async () => {
     const testId = "unique-test-id";
     const result = await templateAnalytics.getABTestResults("project-123", testId);
 
-    assert.strictEqual(result.testId, testId);
+    expect(result.testId).toBe(testId);
   });
 
   it("should handle different project IDs", async () => {
     const result1 = await templateAnalytics.getABTestResults("project-1", "test-1");
     const result2 = await templateAnalytics.getABTestResults("project-2", "test-1");
 
-    assert.ok(result1);
-    assert.ok(result2);
-    assert.strictEqual(result1.testId, "test-1");
-    assert.strictEqual(result2.testId, "test-1");
+    expect(result1).toBeTruthy();
+    expect(result2).toBeTruthy();
+    expect(result1.testId).toBe("test-1");
+    expect(result2.testId).toBe("test-1");
   });
 
   it("should handle different test IDs", async () => {
     const result1 = await templateAnalytics.getABTestResults("project-123", "test-a");
     const result2 = await templateAnalytics.getABTestResults("project-123", "test-b");
 
-    assert.strictEqual(result1.testId, "test-a");
-    assert.strictEqual(result2.testId, "test-b");
+    expect(result1.testId).toBe("test-a");
+    expect(result2.testId).toBe("test-b");
   });
 
   it("should return consistent structure", async () => {
     const result = await templateAnalytics.getABTestResults("project-123", "test-456");
 
-    assert.ok("testId" in result);
-    assert.ok("variants" in result);
-    assert.ok("winner" in result);
-    assert.ok("confidence" in result);
+    expect("testId" in result).toBeTruthy();
+    expect("variants" in result).toBeTruthy();
+    expect("winner" in result).toBeTruthy();
+    expect("confidence" in result).toBeTruthy();
   });
 
   it("should have numeric confidence value", async () => {
     const result = await templateAnalytics.getABTestResults("project-123", "test-456");
 
-    assert.strictEqual(typeof result.confidence, "number");
+    expect(typeof result.confidence).toBe("number");
   });
 
   it("should handle empty test ID", async () => {
     const result = await templateAnalytics.getABTestResults("project-123", "");
 
-    assert.strictEqual(typeof result, "object", "result should be an object");
-    assert.ok("testId" in result, "result should have testId property");
-    assert.strictEqual(result.testId, "");
+    expect(typeof result).toBe("object");
+    expect("testId" in result).toBeTruthy();
+    expect(result.testId).toBe("");
   });
 });
 
-describe("Template Analytics - Stub Implementation Consistency", { concurrency: 1 }, () => {
+describe("Template Analytics - Stub Implementation Consistency", () => {
   it("should maintain consistent return types across calls", async () => {
     const analytics1 = await templateAnalytics.getTemplateAnalytics("project-1");
     const analytics2 = await templateAnalytics.getTemplateAnalytics("project-2");
 
-    assert.strictEqual(typeof analytics1.totalViews, typeof analytics2.totalViews);
-    assert.strictEqual(typeof analytics1.totalUses, typeof analytics2.totalUses);
-    assert.strictEqual(typeof analytics1.conversionRate, typeof analytics2.conversionRate);
+    expect(typeof analytics1.totalViews).toBe(typeof analytics2.totalViews);
+    expect(typeof analytics1.totalUses).toBe(typeof analytics2.totalUses);
+    expect(typeof analytics1.conversionRate).toBe(typeof analytics2.conversionRate);
   });
 
   it("should always return success for tracking", async () => {
@@ -294,7 +293,7 @@ describe("Template Analytics - Stub Implementation Consistency", { concurrency: 
     ]);
 
     results.forEach((result) => {
-      assert.strictEqual(result.success, true);
+      expect(result.success).toBe(true);
     });
   });
 
@@ -305,9 +304,9 @@ describe("Template Analytics - Stub Implementation Consistency", { concurrency: 
 
     const results = await Promise.all(promises);
 
-    assert.strictEqual(results.length, 10);
+    expect(results.length).toBe(10);
     results.forEach((result) => {
-      assert.strictEqual(result.totalViews, 0);
+      expect(result.totalViews).toBe(0);
     });
   });
 
@@ -319,7 +318,7 @@ describe("Template Analytics - Stub Implementation Consistency", { concurrency: 
     const results = await Promise.all(promises);
 
     results.forEach((result) => {
-      assert.strictEqual(result.success, true);
+      expect(result.success).toBe(true);
     });
   });
 });

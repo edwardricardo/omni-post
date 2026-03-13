@@ -3,8 +3,7 @@
  * Tests event publishing, subscription management, and retry logic
  */
 
-import { describe, it, afterEach, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { DomainEvent, EventHandler, createDomainEvent, EVENT_TYPES } from "@shared/events";
 
 // Mock Redis client
@@ -30,16 +29,24 @@ class MockRedis {
     return 1;
   }
 
-  async subscribe(channel: string, callback: (err: Error | null) => void): Promise<void> {
+  async subscribe(channel: string, callback?: (err: Error | null) => void): Promise<void> {
     if (!this.subscriptions.has(channel)) {
       this.subscriptions.set(channel, new Set());
     }
-    callback(null);
+    if (callback) callback(null);
   }
 
-  async unsubscribe(channel: string, callback: (err: Error | null) => void): Promise<void> {
-    this.subscriptions.delete(channel);
-    callback(null);
+  async unsubscribe(channel?: string, callback?: (err: Error | null) => void): Promise<void> {
+    if (channel) {
+      this.subscriptions.delete(channel);
+    } else {
+      this.subscriptions.clear();
+    }
+    if (callback) callback(null);
+  }
+
+  async del(_key: string): Promise<number> {
+    return 0;
   }
 
   on(event: string, _handler: Function): void {
@@ -111,7 +118,7 @@ class MockRedis {
 // Import after mocking
 const { RedisEventPublisher } = await import("../../src/events/EventPublisher");
 
-describe("EventPublisher - Event Publishing", { concurrency: 1 }, () => {
+describe("EventPublisher - Event Publishing", () => {
   let publisher: any;
   let mockRedis: MockRedis;
 
@@ -141,12 +148,12 @@ describe("EventPublisher - Event Publishing", { concurrency: 1 }, () => {
     await publisher.publish(event);
 
     const messages = mockRedis.getPublishedMessages();
-    assert.equal(messages.length >= 2, true, "Should publish to at least 2 channels");
+    expect(messages.length >= 2).toBe(true);
 
     const channelMessages = messages.filter(
       (m) => m.channel === `events:${EVENT_TYPES.POST_CREATED}`
     );
-    assert.equal(channelMessages.length, 1, "Should publish to specific event channel");
+    expect(channelMessages.length).toBe(1);
   });
 
   it("should publish event to global channel", async () => {
@@ -162,7 +169,7 @@ describe("EventPublisher - Event Publishing", { concurrency: 1 }, () => {
 
     const messages = mockRedis.getPublishedMessages();
     const globalMessages = messages.filter((m) => m.channel === "events:all");
-    assert.equal(globalMessages.length, 1, "Should publish to global events channel");
+    expect(globalMessages.length).toBe(1);
   });
 
   it("should increment published metrics", async () => {
@@ -178,11 +185,7 @@ describe("EventPublisher - Event Publishing", { concurrency: 1 }, () => {
     await publisher.publish(event);
     const metricsAfter = publisher.getMetrics();
 
-    assert.equal(
-      metricsAfter.published,
-      metricsBefore.published + 1,
-      "Should increment published count"
-    );
+    expect(metricsAfter.published).toBe(metricsBefore.published + 1);
   });
 
   it("should handle publish failures gracefully", async () => {
@@ -196,14 +199,10 @@ describe("EventPublisher - Event Publishing", { concurrency: 1 }, () => {
       { source: "TestSuite" }
     );
 
-    await assert.rejects(
-      async () => await publisher.publish(event),
-      { message: /Redis publish failed/ },
-      "Should throw error on publish failure"
-    );
+    await expect(publisher.publish(event)).rejects.toThrow(/Redis publish failed/);
 
     const metrics = publisher.getMetrics();
-    assert.equal(metrics.failed >= 1, true, "Should increment failed count");
+    expect(metrics.failed >= 1).toBe(true);
   });
 
   it("should serialize events correctly", async () => {
@@ -230,15 +229,15 @@ describe("EventPublisher - Event Publishing", { concurrency: 1 }, () => {
 
     const messages = mockRedis.getPublishedMessages();
     const message = messages[0];
-    assert.ok(message, "Should have published message");
+    expect(message).toBeTruthy();
 
     const deserialized = JSON.parse(message.message);
-    assert.equal(deserialized.id, event.id, "Should preserve event ID");
-    assert.equal(deserialized.type, event.type, "Should preserve event type");
+    expect(deserialized.id).toBe(event.id);
+    expect(deserialized.type).toBe(event.type);
   });
 });
 
-describe("EventPublisher - Batch Publishing", { concurrency: 1 }, () => {
+describe("EventPublisher - Batch Publishing", () => {
   let publisher: any;
   let mockRedis: MockRedis;
 
@@ -284,18 +283,14 @@ describe("EventPublisher - Batch Publishing", { concurrency: 1 }, () => {
     await publisher.publishBatch(events);
 
     const metrics = publisher.getMetrics();
-    assert.equal(
-      metrics.published >= events.length,
-      true,
-      "Should increment published count by batch size"
-    );
+    expect(metrics.published >= events.length).toBe(true);
   });
 
   it("should handle empty batch gracefully", async () => {
     await publisher.publishBatch([]);
 
     const metrics = publisher.getMetrics();
-    assert.equal(metrics.published, 0, "Should not increment published count for empty batch");
+    expect(metrics.published).toBe(0);
   });
 
   it("should update average latency on batch publish", async () => {
@@ -312,12 +307,12 @@ describe("EventPublisher - Batch Publishing", { concurrency: 1 }, () => {
     await publisher.publishBatch(events);
 
     const metrics = publisher.getMetrics();
-    assert.equal(typeof metrics.averageLatency, "number", "Should have numeric average latency");
-    assert.equal(metrics.averageLatency >= 0, true, "Should have non-negative average latency");
+    expect(typeof metrics.averageLatency).toBe("number");
+    expect(metrics.averageLatency >= 0).toBe(true);
   });
 });
 
-describe("EventPublisher - Subscription Management", { concurrency: 1 }, () => {
+describe("EventPublisher - Subscription Management", () => {
   let publisher: any;
   let mockRedis: MockRedis;
 
@@ -345,7 +340,7 @@ describe("EventPublisher - Subscription Management", { concurrency: 1 }, () => {
     publisher.subscribe(EVENT_TYPES.POST_CREATED, handler);
 
     const health = await publisher.healthCheck();
-    assert.strictEqual(health.details.activeSubscriptions, 1, "Should have 1 active subscription");
+    expect(health.details.activeSubscriptions).toBe(1);
   });
 
   it("should unregister event handler", async () => {
@@ -358,15 +353,11 @@ describe("EventPublisher - Subscription Management", { concurrency: 1 }, () => {
 
     publisher.subscribe(EVENT_TYPES.POST_CREATED, handler);
     const healthBefore = await publisher.healthCheck();
-    assert.strictEqual(healthBefore.details.activeSubscriptions, 1);
+    expect(healthBefore.details.activeSubscriptions).toBe(1);
 
     publisher.unsubscribe(EVENT_TYPES.POST_CREATED, handler);
     const healthAfter = await publisher.healthCheck();
-    assert.strictEqual(
-      healthAfter.details.activeSubscriptions,
-      0,
-      "Should have 0 active subscriptions after unregister"
-    );
+    expect(healthAfter.details.activeSubscriptions).toBe(0);
   });
 
   it("should support multiple handlers for same event type", async () => {
@@ -389,11 +380,7 @@ describe("EventPublisher - Subscription Management", { concurrency: 1 }, () => {
 
     // Both handlers are in same event type bucket, so activeSubscriptions = 1 (1 event type)
     const health = await publisher.healthCheck();
-    assert.strictEqual(
-      health.details.activeSubscriptions,
-      1,
-      "Should have 1 event type with subscriptions"
-    );
+    expect(health.details.activeSubscriptions).toBe(1);
   });
 
   it("should subscribe to all events with wildcard", async () => {
@@ -407,14 +394,11 @@ describe("EventPublisher - Subscription Management", { concurrency: 1 }, () => {
     publisher.subscribeToAll(handler);
 
     const health = await publisher.healthCheck();
-    assert.ok(
-      health.details.activeSubscriptions >= 1,
-      "Should have at least 1 active subscription for wildcard"
-    );
+    expect(health.details.activeSubscriptions >= 1).toBeTruthy();
   });
 });
 
-describe("EventPublisher - Retry Logic", { concurrency: 1 }, () => {
+describe("EventPublisher - Retry Logic", () => {
   let publisher: any;
   let mockRedis: MockRedis;
 
@@ -437,21 +421,21 @@ describe("EventPublisher - Retry Logic", { concurrency: 1 }, () => {
     const metricsBefore = publisher.getMetrics();
 
     // Metrics should be initialized
-    assert.equal(typeof metricsBefore.retried, "number", "Should have retry count");
+    expect(typeof metricsBefore.retried).toBe("number");
   });
 
   it("should send to dead letter queue after max retries", async () => {
     const deadLetterItems = await publisher.getDeadLetterItems();
-    assert.ok(Array.isArray(deadLetterItems), "Should return dead letter items array");
+    expect(Array.isArray(deadLetterItems)).toBeTruthy();
   });
 
   it("should clear dead letter queue", async () => {
     const clearedCount = await publisher.clearDeadLetterQueue();
-    assert.equal(typeof clearedCount, "number", "Should return number of cleared items");
+    expect(typeof clearedCount).toBe("number");
   });
 });
 
-describe("EventPublisher - Metrics", { concurrency: 1 }, () => {
+describe("EventPublisher - Metrics", () => {
   let publisher: any;
   let mockRedis: MockRedis;
 
@@ -482,16 +466,12 @@ describe("EventPublisher - Metrics", { concurrency: 1 }, () => {
     await publisher.publish(event);
     const metricsAfter = publisher.getMetrics();
 
-    assert.equal(
-      metricsAfter.published,
-      metricsBefore.published + 1,
-      "Should increment published count"
-    );
+    expect(metricsAfter.published).toBe(metricsBefore.published + 1);
   });
 
   it("should track delivered events count", async () => {
     const metrics = publisher.getMetrics();
-    assert.equal(typeof metrics.delivered, "number", "Should have delivered count");
+    expect(typeof metrics.delivered).toBe("number");
   });
 
   it("should track failed events count", async () => {
@@ -512,7 +492,7 @@ describe("EventPublisher - Metrics", { concurrency: 1 }, () => {
     }
 
     const metrics = publisher.getMetrics();
-    assert.equal(metrics.failed >= 1, true, "Should increment failed count");
+    expect(metrics.failed >= 1).toBe(true);
   });
 
   it("should track average latency", async () => {
@@ -527,7 +507,7 @@ describe("EventPublisher - Metrics", { concurrency: 1 }, () => {
     await publisher.publish(event);
 
     const metrics = publisher.getMetrics();
-    assert.equal(metrics.averageLatency >= 0, true, "Should have average latency");
+    expect(metrics.averageLatency >= 0).toBe(true);
   });
 
   it("should track last activity timestamp", async () => {
@@ -542,7 +522,7 @@ describe("EventPublisher - Metrics", { concurrency: 1 }, () => {
     await publisher.publish(event);
 
     const metrics = publisher.getMetrics();
-    assert.ok(metrics.lastActivity instanceof Date, "Should have last activity timestamp");
+    expect(metrics.lastActivity instanceof Date).toBeTruthy();
   });
 
   it("should reset metrics", async () => {
@@ -558,13 +538,13 @@ describe("EventPublisher - Metrics", { concurrency: 1 }, () => {
     publisher.resetMetrics();
 
     const metrics = publisher.getMetrics();
-    assert.equal(metrics.published, 0, "Should reset published count");
-    assert.equal(metrics.delivered, 0, "Should reset delivered count");
-    assert.equal(metrics.failed, 0, "Should reset failed count");
+    expect(metrics.published).toBe(0);
+    expect(metrics.delivered).toBe(0);
+    expect(metrics.failed).toBe(0);
   });
 });
 
-describe("EventPublisher - Health Check", { concurrency: 1 }, () => {
+describe("EventPublisher - Health Check", () => {
   let publisher: any;
   let mockRedis: MockRedis;
 
@@ -584,8 +564,8 @@ describe("EventPublisher - Health Check", { concurrency: 1 }, () => {
   it("should report healthy status when Redis is available", async () => {
     const health = await publisher.healthCheck();
 
-    assert.equal(health.status, "healthy", "Should report healthy status");
-    assert.equal(health.details.redis, true, "Should report Redis as healthy");
+    expect(health.status).toBe("healthy");
+    expect(health.details.redis).toBe(true);
   });
 
   it("should report unhealthy status when Redis fails", async () => {
@@ -593,14 +573,14 @@ describe("EventPublisher - Health Check", { concurrency: 1 }, () => {
 
     const health = await publisher.healthCheck();
 
-    assert.equal(health.status, "unhealthy", "Should report unhealthy status");
+    expect(health.status).toBe("unhealthy");
   });
 
   it("should include metrics in health check", async () => {
     const health = await publisher.healthCheck();
 
-    assert.ok(health.details.metrics, "Should include metrics in health check");
-    assert.equal(typeof health.details.metrics.published, "number", "Should have published count");
+    expect(health.details.metrics).toBeTruthy();
+    expect(typeof health.details.metrics.published).toBe("number");
   });
 
   it("should include active subscriptions count", async () => {
@@ -612,15 +592,11 @@ describe("EventPublisher - Health Check", { concurrency: 1 }, () => {
     publisher.subscribe(EVENT_TYPES.POST_CREATED, handler);
 
     const health = await publisher.healthCheck();
-    assert.equal(
-      typeof health.details.activeSubscriptions,
-      "number",
-      "Should have active subscriptions count"
-    );
+    expect(typeof health.details.activeSubscriptions).toBe("number");
   });
 });
 
-describe("EventPublisher - Shutdown", { concurrency: 1 }, () => {
+describe("EventPublisher - Shutdown", () => {
   let publisher: any;
   let mockRedis: MockRedis;
 
@@ -640,10 +616,7 @@ describe("EventPublisher - Shutdown", { concurrency: 1 }, () => {
     publisher.subscribe(EVENT_TYPES.POST_CREATED, handler);
 
     // Shutdown should complete without throwing
-    await assert.doesNotReject(
-      async () => await publisher.shutdown(),
-      "Shutdown should complete without throwing"
-    );
+    await expect(publisher.shutdown()).resolves.not.toThrow();
   });
 
   it("should unsubscribe from all channels on shutdown", async () => {
@@ -654,11 +627,7 @@ describe("EventPublisher - Shutdown", { concurrency: 1 }, () => {
 
     publisher.subscribe(EVENT_TYPES.POST_CREATED, handler);
     const healthBefore = await publisher.healthCheck();
-    assert.strictEqual(
-      healthBefore.details.activeSubscriptions,
-      1,
-      "Should have subscriptions before shutdown"
-    );
+    expect(healthBefore.details.activeSubscriptions).toBe(1);
 
     await publisher.shutdown();
     // After shutdown, Redis connections are disconnected

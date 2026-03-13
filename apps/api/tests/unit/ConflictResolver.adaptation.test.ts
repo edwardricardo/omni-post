@@ -5,8 +5,7 @@
  * since ConflictResolver imports it statically.
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import { ConflictResolver } from "../../src/orchestration/ConflictResolver.js";
 import { providerRegistry } from "../../src/providers/providerRegistry.js";
 import type { TimingConfiguration } from "@shared/orchestration";
@@ -22,23 +21,23 @@ import {
   createTestCanonicalPost,
 } from "./ConflictResolver.test-helpers.js";
 
-describe("ConflictResolver - Content Adaptation", { concurrency: 1 }, () => {
+describe("ConflictResolver - Content Adaptation", () => {
   let resolver: ConflictResolver;
   let originalGetAdapter: typeof providerRegistry.getAdapter;
   let mockValidateContent: ReturnType<typeof import("node:test").mock.fn>;
 
-  before(() => {
+  beforeAll(() => {
     // Save original for restoration
     originalGetAdapter = providerRegistry.getAdapter.bind(providerRegistry);
   });
 
   beforeEach(async (t) => {
-    const mockPrisma = new MockPrismaClient(t);
-    const mockRedis = new MockRedis(t);
-    const mockEventService = new MockEventService(t);
+    const mockPrisma = new MockPrismaClient();
+    const mockRedis = new MockRedis();
+    const mockEventService = new MockEventService();
 
     // Create mock validateContent
-    mockValidateContent = t.mock.fn(
+    mockValidateContent = vi.fn(
       async (_content: CanonicalPost): Promise<ContentValidationResult> => ({
         valid: true,
         errors: [],
@@ -48,7 +47,7 @@ describe("ConflictResolver - Content Adaptation", { concurrency: 1 }, () => {
     );
 
     // Monkey-patch the singleton
-    providerRegistry.getAdapter = t.mock.fn(((id: string) => {
+    providerRegistry.getAdapter = vi.fn(((id: string) => {
       if (id === "twitter") {
         return {
           id: "twitter",
@@ -72,7 +71,7 @@ describe("ConflictResolver - Content Adaptation", { concurrency: 1 }, () => {
     await resolver.initialize();
   });
 
-  after(() => {
+  afterAll(() => {
     // Restore original getAdapter
     providerRegistry.getAdapter = originalGetAdapter;
   });
@@ -86,10 +85,10 @@ describe("ConflictResolver - Content Adaptation", { concurrency: 1 }, () => {
       "TEXT_TOO_LONG",
     ]);
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.ok(result.value.adaptedContent.body.length <= 280);
-      assert.strictEqual(result.value.providerId, "twitter");
+      expect(result.value.adaptedContent.body.length <= 280).toBeTruthy();
+      expect(result.value.providerId).toBe("twitter");
     }
   });
 
@@ -102,10 +101,10 @@ describe("ConflictResolver - Content Adaptation", { concurrency: 1 }, () => {
       "UNSUPPORTED_MEDIA",
     ]);
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.ok(result.value.adaptationRules.length > 0);
-      assert.strictEqual(result.value.adaptationRules[0].type, "media_format");
+      expect(result.value.adaptationRules.length > 0).toBeTruthy();
+      expect(result.value.adaptationRules[0].type).toBe("media_format");
     }
   });
 
@@ -118,15 +117,15 @@ describe("ConflictResolver - Content Adaptation", { concurrency: 1 }, () => {
       "TEXT_TOO_LONG",
     ]);
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.ok(result.value.confidence >= 0 && result.value.confidence <= 1);
+      expect(result.value.confidence >= 0 && result.value.confidence <= 1).toBeTruthy();
     }
   });
 
   it("should set requiresManualReview when validation fails", async () => {
     // Mock adapter to return validation errors
-    mockValidateContent.mock.mockImplementation(
+    mockValidateContent.mockImplementation(
       async (): Promise<ContentValidationResult> => ({
         valid: false,
         errors: [{ field: "content", message: "Invalid", severity: "error" }],
@@ -141,9 +140,9 @@ describe("ConflictResolver - Content Adaptation", { concurrency: 1 }, () => {
       "TEXT_TOO_LONG",
     ]);
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.requiresManualReview, true);
+      expect(result.value.requiresManualReview).toBe(true);
     }
     // No need to reset — beforeEach creates fresh mocks for each test
   });
@@ -156,10 +155,10 @@ describe("ConflictResolver - Content Adaptation", { concurrency: 1 }, () => {
       "TEXT_TOO_LONG",
     ]);
 
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error.type, "validation");
-      assert.ok(result.error.message.includes("not found"));
+      expect(result.error.type).toBe("validation");
+      expect(result.error.message.includes("not found")).toBeTruthy();
     }
   });
 
@@ -171,28 +170,28 @@ describe("ConflictResolver - Content Adaptation", { concurrency: 1 }, () => {
       "INVALID_ERROR",
     ]);
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.ok(result.value.warnings.length >= 0);
+      expect(result.value.warnings.length >= 0).toBeTruthy();
     }
   });
 });
 
-describe("ConflictResolver - Alternative Timing", { concurrency: 1 }, () => {
+describe("ConflictResolver - Alternative Timing", () => {
   let resolver: ConflictResolver;
   let originalGetAdapter: typeof providerRegistry.getAdapter;
   let mockGetOptimalTimes: ReturnType<typeof import("node:test").mock.fn>;
 
-  before(() => {
+  beforeAll(() => {
     originalGetAdapter = providerRegistry.getAdapter.bind(providerRegistry);
   });
 
   beforeEach(async (t) => {
-    const mockPrisma = new MockPrismaClient(t);
-    const mockRedis = new MockRedis(t);
-    const mockEventService = new MockEventService(t);
+    const mockPrisma = new MockPrismaClient();
+    const mockRedis = new MockRedis();
+    const mockEventService = new MockEventService();
 
-    mockGetOptimalTimes = t.mock.fn(async () => ({
+    mockGetOptimalTimes = vi.fn(async () => ({
       ok: true,
       value: [
         { datetime: new Date(Date.now() + 3600000), timezone: "UTC", optimal: true },
@@ -201,7 +200,7 @@ describe("ConflictResolver - Alternative Timing", { concurrency: 1 }, () => {
     }));
 
     // Monkey-patch the singleton
-    providerRegistry.getAdapter = t.mock.fn((() => ({
+    providerRegistry.getAdapter = vi.fn((() => ({
       id: "twitter",
       limits: {
         maxChars: 280,
@@ -220,7 +219,7 @@ describe("ConflictResolver - Alternative Timing", { concurrency: 1 }, () => {
     await resolver.initialize();
   });
 
-  after(() => {
+  afterAll(() => {
     providerRegistry.getAdapter = originalGetAdapter;
   });
 
@@ -237,15 +236,15 @@ describe("ConflictResolver - Alternative Timing", { concurrency: 1 }, () => {
       timingConfig
     );
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.ok(result.value > originalTime);
+      expect(result.value > originalTime).toBeTruthy();
     }
   });
 
   it("should fallback to random delay when getOptimalTimes unavailable", async (t) => {
     // Override the adapter mock to return one without getOptimalTimes
-    providerRegistry.getAdapter = t.mock.fn((() => ({
+    providerRegistry.getAdapter = vi.fn((() => ({
       id: "twitter",
       limits: { maxChars: 280, maxMediaPerPost: 4, allowedMedia: ["image", "video"] },
     })) as any);
@@ -262,18 +261,18 @@ describe("ConflictResolver - Alternative Timing", { concurrency: 1 }, () => {
       timingConfig
     );
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.ok(result.value > originalTime);
+      expect(result.value > originalTime).toBeTruthy();
       // Should be between 15-75 minutes ahead
       const diffMinutes = (result.value.getTime() - originalTime.getTime()) / 60000;
-      assert.ok(diffMinutes >= 15 && diffMinutes <= 75);
+      expect(diffMinutes >= 15 && diffMinutes <= 75).toBeTruthy();
     }
     // No need to restore — beforeEach creates fresh mocks for each test
   });
 
   it("should fallback to next day when no optimal time available", async () => {
-    mockGetOptimalTimes.mock.mockImplementation(async () => ({
+    mockGetOptimalTimes.mockImplementation(async () => ({
       ok: true,
       value: [], // No optimal times
     }));
@@ -290,16 +289,16 @@ describe("ConflictResolver - Alternative Timing", { concurrency: 1 }, () => {
       timingConfig
     );
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
       // Should be approximately 1 day ahead
       const diffHours = (result.value.getTime() - originalTime.getTime()) / 3600000;
-      assert.ok(diffHours >= 23 && diffHours <= 25);
+      expect(diffHours >= 23 && diffHours <= 25).toBeTruthy();
     }
   });
 
   it("should handle getOptimalTimes error", async () => {
-    mockGetOptimalTimes.mock.mockImplementation(async () => ({
+    mockGetOptimalTimes.mockImplementation(async () => ({
       ok: false,
       error: "API_ERROR",
     }));
@@ -316,9 +315,9 @@ describe("ConflictResolver - Alternative Timing", { concurrency: 1 }, () => {
       timingConfig
     );
 
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error.type, "provider");
+      expect(result.error.type).toBe("provider");
     }
   });
 });

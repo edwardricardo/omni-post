@@ -6,10 +6,7 @@
  * Tier 0: No database required.
  */
 
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaChannelRepository } from "../../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { ChannelId, ProjectId } from "../../../src/domain/index.js";
 
@@ -27,28 +24,28 @@ function baseRow() {
   };
 }
 
-function makeMockPrisma(t: TestContext) {
+function makeMockPrisma() {
   return {
     channel: {
-      findFirst: t.mock.fn(async () => baseRow()),
-      findMany: t.mock.fn(async () => [baseRow()]),
-      upsert: t.mock.fn(async () => baseRow()),
-      update: t.mock.fn(async () => baseRow()),
-      delete: t.mock.fn(async () => baseRow()),
+      findFirst: vi.fn(async () => baseRow()),
+      findMany: vi.fn(async () => [baseRow()]),
+      upsert: vi.fn(async () => baseRow()),
+      update: vi.fn(async () => baseRow()),
+      delete: vi.fn(async () => baseRow()),
     },
-    publishLog: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    analytics: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
+    publishLog: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    analytics: { deleteMany: vi.fn(async () => ({ count: 0 })) },
   };
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
-describe("PrismaChannelRepository", { concurrency: 1 }, () => {
+describe("PrismaChannelRepository", () => {
   let prisma: ReturnType<typeof makeMockPrisma>;
   let repo: PrismaChannelRepository;
 
-  beforeEach((t) => {
-    prisma = makeMockPrisma(t);
+  beforeEach(() => {
+    prisma = makeMockPrisma();
     repo = new PrismaChannelRepository(prisma as never);
   });
 
@@ -57,30 +54,30 @@ describe("PrismaChannelRepository", { concurrency: 1 }, () => {
       const id = ChannelId.fromStringUnsafe("f0000000-0000-4000-8000-000000000001");
       const result = await repo.findById(id);
 
-      assert.ok(result.ok);
-      assert.equal(result.value.handle, "@myaccount");
-      assert.equal(result.value.provider.type, "X");
-      assert.equal(result.value.credentials.accessToken, "tok_123");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.handle).toBe("@myaccount");
+      expect(result.value.provider.type).toBe("X");
+      expect(result.value.credentials.accessToken).toBe("tok_123");
       // Uses findFirst (not findUnique) to allow deletedAt: null filter
-      assert.equal(prisma.channel.findFirst.mock.calls.length, 1);
+      expect(prisma.channel.findFirst.mock.calls.length).toBe(1);
     });
 
     it("returns err(EntityNotFoundError) when row is null", async () => {
-      prisma.channel.findFirst.mock.mockImplementation(async () => null);
+      prisma.channel.findFirst.mockImplementation(async () => null);
       const id = ChannelId.fromStringUnsafe("f0000000-0000-4000-8000-000000000001");
       const result = await repo.findById(id);
 
-      assert.ok(!result.ok);
-      assert.match(result.error.message, /Channel/);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Channel/);
     });
 
     it("sets default CONNECTED status when loading from DB", async () => {
       const id = ChannelId.fromStringUnsafe("f0000000-0000-4000-8000-000000000001");
       const result = await repo.findById(id);
 
-      assert.ok(result.ok);
-      assert.equal(result.value.status, "CONNECTED");
-      assert.equal(result.value.errorCount, 0);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.status).toBe("CONNECTED");
+      expect(result.value.errorCount).toBe(0);
     });
   });
 
@@ -89,32 +86,30 @@ describe("PrismaChannelRepository", { concurrency: 1 }, () => {
       const projectId = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const channels = await repo.findByProjectId(projectId);
 
-      assert.equal(channels.length, 1);
-      assert.equal(channels[0]?.handle, "@myaccount");
-      assert.equal(prisma.channel.findMany.mock.calls.length, 1);
+      expect(channels.length).toBe(1);
+      expect(channels[0]?.handle).toBe("@myaccount");
+      expect(prisma.channel.findMany.mock.calls.length).toBe(1);
     });
 
     it("returns empty array when project has no channels", async () => {
-      prisma.channel.findMany.mock.mockImplementation(async () => []);
+      prisma.channel.findMany.mockImplementation(async () => []);
       const projectId = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const channels = await repo.findByProjectId(projectId);
 
-      assert.equal(channels.length, 0);
+      expect(channels.length).toBe(0);
     });
 
     it("filters by deletedAt: null to exclude soft-deleted channels", async () => {
       let capturedWhere: { deletedAt?: null } | undefined;
-      prisma.channel.findMany.mock.mockImplementation(
-        async (args: { where: { deletedAt?: null } }) => {
-          capturedWhere = args.where;
-          return [baseRow()];
-        }
-      );
+      prisma.channel.findMany.mockImplementation(async (args: { where: { deletedAt?: null } }) => {
+        capturedWhere = args.where;
+        return [baseRow()];
+      });
 
       const projectId = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       await repo.findByProjectId(projectId);
 
-      assert.deepEqual(capturedWhere?.deletedAt, null);
+      expect(capturedWhere?.deletedAt).toEqual(null);
     });
   });
 
@@ -122,25 +117,25 @@ describe("PrismaChannelRepository", { concurrency: 1 }, () => {
     it("serializes credentials and calls upsert", async () => {
       const id = ChannelId.fromStringUnsafe("f0000000-0000-4000-8000-000000000001");
       const findResult = await repo.findById(id);
-      assert.ok(findResult.ok);
+      expect(findResult.ok).toBeTruthy();
 
       const saveResult = await repo.save(findResult.value);
-      assert.ok(saveResult.ok);
-      assert.equal(prisma.channel.upsert.mock.calls.length, 1);
+      expect(saveResult.ok).toBeTruthy();
+      expect(prisma.channel.upsert.mock.calls.length).toBe(1);
     });
 
     it("returns err when prisma throws", async () => {
-      prisma.channel.upsert.mock.mockImplementation(async () => {
+      prisma.channel.upsert.mockImplementation(async () => {
         throw new Error("FK violation: project not found");
       });
 
       const id = ChannelId.fromStringUnsafe("f0000000-0000-4000-8000-000000000001");
       const findResult = await repo.findById(id);
-      assert.ok(findResult.ok);
+      expect(findResult.ok).toBeTruthy();
 
       const saveResult = await repo.save(findResult.value);
-      assert.ok(!saveResult.ok);
-      assert.match(saveResult.error.message, /FK violation/);
+      expect(saveResult.ok).toBeFalsy();
+      expect(saveResult.error.message).toMatch(/FK violation/);
     });
   });
 
@@ -149,24 +144,24 @@ describe("PrismaChannelRepository", { concurrency: 1 }, () => {
       const id = ChannelId.fromStringUnsafe("f0000000-0000-4000-8000-000000000001");
       const result = await repo.delete(id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       // Soft delete: update, NOT delete
-      assert.equal(prisma.channel.update.mock.calls.length, 1);
-      assert.equal(prisma.channel.delete.mock.calls.length, 0);
+      expect(prisma.channel.update.mock.calls.length).toBe(1);
+      expect(prisma.channel.delete.mock.calls.length).toBe(0);
 
       const callRecord = prisma.channel.update.mock.calls[0];
-      const args = callRecord?.arguments[0] as { data: { deletedAt: unknown } } | undefined;
-      assert.ok(args?.data.deletedAt instanceof Date);
+      const args = callRecord?.[0] as { data: { deletedAt: unknown } } | undefined;
+      expect(args?.data.deletedAt instanceof Date).toBeTruthy();
     });
 
     it("returns err(EntityNotFoundError) when channel does not exist", async () => {
-      prisma.channel.findFirst.mock.mockImplementation(async () => null);
+      prisma.channel.findFirst.mockImplementation(async () => null);
       const id = ChannelId.fromStringUnsafe("f0000000-0000-4000-8000-000000000001");
       const result = await repo.delete(id);
 
-      assert.ok(!result.ok);
-      assert.match(result.error.message, /Channel/);
-      assert.equal(prisma.channel.update.mock.calls.length, 0);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Channel/);
+      expect(prisma.channel.update.mock.calls.length).toBe(0);
     });
   });
 
@@ -175,21 +170,21 @@ describe("PrismaChannelRepository", { concurrency: 1 }, () => {
       const id = ChannelId.fromStringUnsafe("f0000000-0000-4000-8000-000000000001");
       const result = await repo.hardDelete(id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       // Hard delete: actual DB delete + cascade
-      assert.equal(prisma.channel.delete.mock.calls.length, 1);
-      assert.equal(prisma.publishLog.deleteMany.mock.calls.length, 1);
-      assert.equal(prisma.analytics.deleteMany.mock.calls.length, 1);
+      expect(prisma.channel.delete.mock.calls.length).toBe(1);
+      expect(prisma.publishLog.deleteMany.mock.calls.length).toBe(1);
+      expect(prisma.analytics.deleteMany.mock.calls.length).toBe(1);
     });
 
     it("returns err(EntityNotFoundError) when channel is not found at all", async () => {
-      prisma.channel.findFirst.mock.mockImplementation(async () => null);
+      prisma.channel.findFirst.mockImplementation(async () => null);
       const id = ChannelId.fromStringUnsafe("f0000000-0000-4000-8000-000000000001");
       const result = await repo.hardDelete(id);
 
-      assert.ok(!result.ok);
-      assert.match(result.error.message, /Channel/);
-      assert.equal(prisma.channel.delete.mock.calls.length, 0);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Channel/);
+      expect(prisma.channel.delete.mock.calls.length).toBe(0);
     });
   });
 
@@ -197,11 +192,11 @@ describe("PrismaChannelRepository", { concurrency: 1 }, () => {
     const providers = ["X", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "TIKTOK"] as const;
     for (const provider of providers) {
       it(`maps Prisma provider "${provider}" correctly`, async () => {
-        prisma.channel.findFirst.mock.mockImplementation(async () => ({ ...baseRow(), provider }));
+        prisma.channel.findFirst.mockImplementation(async () => ({ ...baseRow(), provider }));
         const id = ChannelId.fromStringUnsafe("f0000000-0000-4000-8000-000000000001");
         const result = await repo.findById(id);
-        assert.ok(result.ok);
-        assert.equal(result.value.provider.type, provider);
+        expect(result.ok).toBeTruthy();
+        expect(result.value.provider.type).toBe(provider);
       });
     }
   });

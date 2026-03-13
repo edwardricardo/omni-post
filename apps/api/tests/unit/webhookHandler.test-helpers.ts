@@ -1,5 +1,12 @@
-import { createHmac } from "crypto";
-import { prisma } from "@infra/prisma";
+/**
+ * @file webhookHandler.test-helpers.ts
+ * @description Shared helpers for webhookHandler unit tests.
+ *              Provides signature creation and mock data factories
+ *              that work with the in-memory mock prisma stores.
+ * @layer test-infrastructure
+ */
+
+import { createHmac, randomUUID } from "crypto";
 
 export function createSignature(
   payload: string,
@@ -11,58 +18,47 @@ export function createSignature(
   return `sha256=${signature}`;
 }
 
-export async function cleanupTestData(): Promise<void> {
-  try {
-    await prisma.webhookDeadLetter.deleteMany({});
-    await prisma.webhookEvent.deleteMany({});
-    await prisma.webhookSubscription.deleteMany({});
-    await prisma.instagramAnalytics.deleteMany({});
-    await prisma.analytics.deleteMany({});
-    await prisma.publishLog.deleteMany({});
-    await prisma.channel.deleteMany({});
-    await prisma.postContent.deleteMany({});
-    await prisma.postMedia.deleteMany({});
-    await prisma.post.deleteMany({});
-    await prisma.project.deleteMany({});
-    await prisma.account.deleteMany({});
-  } catch (error) {
-    console.warn("Cleanup warning:", error);
-  }
-}
-
-export async function createTestSubscription(
+/**
+ * Creates a test webhook subscription in the mock prisma stores.
+ * Returns account, project, and subscription objects with generated IDs.
+ */
+export function createTestSubscriptionData(
   provider: "X" | "INSTAGRAM" | "FACEBOOK" | "YOUTUBE" | "TIKTOK"
 ) {
   const timestamp = Date.now();
   const randomId = Math.random().toString(36).substring(7);
 
-  const account = await prisma.account.create({
-    data: {
-      email: `test-${provider.toLowerCase()}-${timestamp}-${randomId}@example.com`,
-      name: `Test Account ${provider} ${timestamp}`,
-      subscription: "PRO",
-    },
-  });
+  const account = {
+    id: randomUUID(),
+    email: `test-${provider.toLowerCase()}-${timestamp}-${randomId}@example.com`,
+    name: `Test Account ${provider} ${timestamp}`,
+    subscription: "PRO",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
-  const project = await prisma.project.create({
-    data: {
-      accountId: account.id,
-      name: `Test Project ${provider} ${timestamp}`,
-      locale: "en",
-    },
-  });
+  const project = {
+    id: randomUUID(),
+    accountId: account.id,
+    name: `Test Project ${provider} ${timestamp}`,
+    locale: "en",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
-  const subscription = await prisma.webhookSubscription.create({
-    data: {
-      accountId: account.id,
-      provider,
-      webhookUrl: `https://example.com/webhooks/${provider.toLowerCase()}`,
-      secretKey: "test-secret-key",
-      isActive: true,
-      eventsReceived: 0,
-      eventsProcessed: 0,
-    },
-  });
+  const subscription = {
+    id: randomUUID(),
+    accountId: account.id,
+    provider,
+    webhookUrl: `https://example.com/webhooks/${provider.toLowerCase()}`,
+    secretKey: "test-secret-key",
+    isActive: true,
+    eventsReceived: 0,
+    eventsProcessed: 0,
+    lastEventAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
   return { account, project, subscription };
 }

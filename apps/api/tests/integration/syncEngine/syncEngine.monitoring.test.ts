@@ -1,5 +1,6 @@
 /**
- * SyncEngine - Metrics Collection, Error Handling & Content Change Monitoring Tests
+ * @file syncEngine.monitoring.test.ts
+ * @description SyncEngine - Metrics Collection, Error Handling & Content Change Monitoring Tests
  *
  * Covers:
  * - Default metrics structure and field types
@@ -12,15 +13,15 @@
  * - Content changes for posts without subscriptions
  * - Processing changes for subscribed channels
  * - Filtering changes by provider involvement
+ * @layer integration
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 // Suppress console.log to prevent TAP protocol corruption in concurrent test mode
-let _originalConsoleLog: typeof console.log;
+const _originalConsoleLog = console.log;
 before(() => {
-  _originalConsoleLog = console.log;
   console.log = () => {};
 });
 after(() => {
@@ -28,8 +29,8 @@ after(() => {
 });
 
 import Redis from "ioredis";
-import { SyncEngine } from "../../src/content/SyncEngine";
-import type { ProviderId } from "../../src/providers/providerAdapter.interface";
+import { SyncEngine } from "../../../src/content/SyncEngine";
+import type { ProviderId } from "../../../src/providers/providerAdapter.interface";
 import {
   mockPrisma,
   mockRedis,
@@ -70,7 +71,7 @@ beforeEach(async () => {
 // Metrics Tests
 // ============================================================================
 
-describe("SyncEngine - Metrics Collection", { concurrency: 1 }, () => {
+describe("SyncEngine - Metrics Collection", () => {
   beforeEach(async () => {
     if (!servicesAvailable) return;
     await syncEngine.initialize();
@@ -80,7 +81,7 @@ describe("SyncEngine - Metrics Collection", { concurrency: 1 }, () => {
     if (skipIfUnavailable(t)) return;
     const metrics = await syncEngine.getSyncMetrics();
 
-    assert.ok(metrics, "Metrics should be returned");
+    assert.ok(metrics);
     assert.strictEqual(typeof metrics.totalTransactions, "number");
     assert.strictEqual(typeof metrics.successfulSyncs, "number");
     assert.strictEqual(typeof metrics.failedSyncs, "number");
@@ -95,7 +96,7 @@ describe("SyncEngine - Metrics Collection", { concurrency: 1 }, () => {
     if (skipIfUnavailable(t)) return;
     const metrics = await syncEngine.getSyncMetrics();
 
-    assert.ok(metrics, "Global metrics should be available");
+    assert.ok(metrics);
     assert.ok(metrics.totalTransactions >= 0);
   });
 
@@ -120,7 +121,7 @@ describe("SyncEngine - Metrics Collection", { concurrency: 1 }, () => {
     if (channelResult.ok) {
       const metrics = await syncEngine.getSyncMetrics(channelResult.value.id);
 
-      assert.ok(metrics, "Channel metrics should be returned");
+      assert.ok(metrics);
       assert.ok(metrics.totalTransactions >= 0);
     }
   });
@@ -173,7 +174,7 @@ describe("SyncEngine - Metrics Collection", { concurrency: 1 }, () => {
 // Error Handling Tests
 // ============================================================================
 
-describe("SyncEngine - Error Handling", { concurrency: 1 }, () => {
+describe("SyncEngine - Error Handling", () => {
   beforeEach(async () => {
     if (!servicesAvailable) return;
     await syncEngine.initialize();
@@ -199,9 +200,9 @@ describe("SyncEngine - Error Handling", { concurrency: 1 }, () => {
 
     try {
       await badEngine.initialize();
-      assert.ok(true, "Should handle Redis errors");
+      assert.ok(true);
     } catch (error) {
-      assert.ok(error, "Error should be catchable");
+      assert.ok(error);
     } finally {
       try {
         await badEngine.shutdown();
@@ -243,10 +244,10 @@ describe("SyncEngine - Error Handling", { concurrency: 1 }, () => {
       );
 
       if (!result.ok) {
-        assert.ok(result.error.id, "Error should have ID");
-        assert.ok(result.error.type, "Error should have type");
-        assert.ok(result.error.message, "Error should have message");
-        assert.ok(result.error.occurredAt, "Error should have timestamp");
+        assert.ok(result.error.id);
+        assert.ok(result.error.type);
+        assert.ok(result.error.message);
+        assert.ok(result.error.occurredAt);
       }
     }
   });
@@ -256,10 +257,8 @@ describe("SyncEngine - Error Handling", { concurrency: 1 }, () => {
     await syncEngine.initialize();
 
     // handleContentChange for a non-existent post should not throw
-    await assert.doesNotReject(
-      () => syncEngine.handleContentChange("non-existent-post", [], "twitter" as ProviderId),
-      "Should handle invalid content changes gracefully"
-    );
+    await syncEngine.handleContentChange("non-existent-post", [], "twitter" as ProviderId);
+    assert.ok(true, "handleContentChange should not throw");
   });
 });
 
@@ -267,7 +266,7 @@ describe("SyncEngine - Error Handling", { concurrency: 1 }, () => {
 // Content Change Monitoring Tests
 // ============================================================================
 
-describe("SyncEngine - Content Change Monitoring", { concurrency: 1 }, () => {
+describe("SyncEngine - Content Change Monitoring", () => {
   beforeEach(async () => {
     if (!servicesAvailable) return;
     await syncEngine.initialize();
@@ -277,10 +276,8 @@ describe("SyncEngine - Content Change Monitoring", { concurrency: 1 }, () => {
     if (skipIfUnavailable(t)) return;
 
     // Should not throw when no sync channels are subscribed to this post
-    await assert.doesNotReject(
-      () => syncEngine.handleContentChange(testPostId, [], "twitter" as ProviderId),
-      "Should handle posts without subscriptions without throwing"
-    );
+    await syncEngine.handleContentChange(testPostId, [], "twitter" as ProviderId);
+    assert.ok(true, "handleContentChange should not throw");
   });
 
   it("should process content changes for subscribed channels", async (t) => {
@@ -305,22 +302,19 @@ describe("SyncEngine - Content Change Monitoring", { concurrency: 1 }, () => {
       await syncEngine.startRealtimeSync(testPostId, [channelResult.value.id]);
 
       // Should not throw when processing content changes
-      await assert.doesNotReject(
-        () =>
-          syncEngine.handleContentChange(
-            testPostId,
-            [
-              {
-                field: "content",
-                oldValue: "old content",
-                newValue: "new content",
-                changeType: "modified" as const,
-              },
-            ],
-            "twitter" as ProviderId
-          ),
-        "Should process content changes without errors"
+      await syncEngine.handleContentChange(
+        testPostId,
+        [
+          {
+            field: "content",
+            oldValue: "old content",
+            newValue: "new content",
+            changeType: "modified" as const,
+          },
+        ],
+        "twitter" as ProviderId
       );
+      assert.ok(true, "handleContentChange should not throw");
     }
   });
 
@@ -346,22 +340,19 @@ describe("SyncEngine - Content Change Monitoring", { concurrency: 1 }, () => {
       await syncEngine.startRealtimeSync(testPostId, [channelResult.value.id]);
 
       // Change from provider not in channel should be silently ignored (no throw)
-      await assert.doesNotReject(
-        () =>
-          syncEngine.handleContentChange(
-            testPostId,
-            [
-              {
-                field: "content",
-                oldValue: "old",
-                newValue: "new",
-                changeType: "modified" as const,
-              },
-            ],
-            "facebook" as ProviderId
-          ),
-        "Should filter out irrelevant provider changes without errors"
+      await syncEngine.handleContentChange(
+        testPostId,
+        [
+          {
+            field: "content",
+            oldValue: "old",
+            newValue: "new",
+            changeType: "modified" as const,
+          },
+        ],
+        "facebook" as ProviderId
       );
+      assert.ok(true, "handleContentChange should not throw");
     }
   });
 });

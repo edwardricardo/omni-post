@@ -1,5 +1,4 @@
-import { describe, it, mock, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { oauthProviders } from "../../src/auth/providerOAuth.js";
 
 let globalFetch: typeof global.fetch;
@@ -14,7 +13,7 @@ function setupMocks() {
 // OAuth Flow - Token Exchange Tests (X/Twitter)
 // ============================================================================
 
-describe("ProviderOAuth - Token Exchange (X/Twitter)", { concurrency: 1 }, () => {
+describe("ProviderOAuth - Token Exchange (X/Twitter)", () => {
   beforeEach(() => {
     setupMocks();
   });
@@ -26,7 +25,7 @@ describe("ProviderOAuth - Token Exchange (X/Twitter)", { concurrency: 1 }, () =>
   it("should exchange authorization code for access token", async () => {
     const provider = oauthProviders.x;
 
-    global.fetch = mock.fn(async (url: string) => {
+    global.fetch = vi.fn(async (url: string) => {
       if (url.includes("oauth2/token")) {
         return {
           ok: true,
@@ -54,34 +53,31 @@ describe("ProviderOAuth - Token Exchange (X/Twitter)", { concurrency: 1 }, () =>
 
     const result = await provider.validateCode("auth-code", "state");
 
-    assert.strictEqual(result.accessToken, "x-access-token", "Should return access token");
-    assert.strictEqual(result.refreshToken, "x-refresh-token", "Should return refresh token");
-    assert.strictEqual(result.expiresIn, 7200, "Should return expiration time");
-    assert.ok(result.accountInfo, "Should return account info");
-    assert.strictEqual(result.accountInfo.id, "12345", "Should return user ID");
+    expect(result.accessToken).toBe("x-access-token");
+    expect(result.refreshToken).toBe("x-refresh-token");
+    expect(result.expiresIn).toBe(7200);
+    expect(result.accountInfo).toBeTruthy();
+    expect(result.accountInfo.id).toBe("12345");
   });
 
   it("should handle token exchange failure", async () => {
     const provider = oauthProviders.x;
 
-    global.fetch = mock.fn(async () => ({
+    global.fetch = vi.fn(async () => ({
       ok: false,
       status: 400,
       text: async () => "Invalid authorization code",
     })) as typeof global.fetch;
 
-    await assert.rejects(
-      async () => {
-        await provider.validateCode("invalid-code", "state");
-      },
-      { message: /token_exchange_failure/ }
+    await expect(provider.validateCode("invalid-code", "state")).rejects.toThrow(
+      /token_exchange_failure/
     );
   });
 
   it("should handle user info fetch failure", async () => {
     const provider = oauthProviders.x;
 
-    global.fetch = mock.fn(async (url: string) => {
+    global.fetch = vi.fn(async (url: string) => {
       if (url.includes("oauth2/token")) {
         return {
           ok: true,
@@ -97,12 +93,7 @@ describe("ProviderOAuth - Token Exchange (X/Twitter)", { concurrency: 1 }, () =>
       };
     }) as typeof global.fetch;
 
-    await assert.rejects(
-      async () => {
-        await provider.validateCode("code", "state");
-      },
-      { message: /user_info_fetch_failure/ }
-    );
+    await expect(provider.validateCode("code", "state")).rejects.toThrow(/user_info_fetch_failure/);
   });
 });
 
@@ -110,7 +101,7 @@ describe("ProviderOAuth - Token Exchange (X/Twitter)", { concurrency: 1 }, () =>
 // OAuth Flow - Token Exchange Tests (Instagram)
 // ============================================================================
 
-describe("ProviderOAuth - Token Exchange (Instagram)", { concurrency: 1 }, () => {
+describe("ProviderOAuth - Token Exchange (Instagram)", () => {
   beforeEach(() => {
     setupMocks();
   });
@@ -122,7 +113,7 @@ describe("ProviderOAuth - Token Exchange (Instagram)", { concurrency: 1 }, () =>
   it("should exchange authorization code for Instagram access token", async () => {
     const provider = oauthProviders.instagram;
 
-    global.fetch = mock.fn(async (url: string) => {
+    global.fetch = vi.fn(async (url: string) => {
       if (url.includes("api.instagram.com/oauth/")) {
         return {
           ok: true,
@@ -145,9 +136,9 @@ describe("ProviderOAuth - Token Exchange (Instagram)", { concurrency: 1 }, () =>
 
     const result = await provider.validateCode("auth-code", "state");
 
-    assert.strictEqual(result.accessToken, "ig-access-token", "Should return access token");
-    assert.strictEqual(result.accountInfo.username, "testuser", "Should return username");
-    assert.strictEqual(result.accountInfo.verified, true, "Business accounts should be verified");
+    expect(result.accessToken).toBe("ig-access-token");
+    expect(result.accountInfo.username).toBe("testuser");
+    expect(result.accountInfo.verified).toBe(true);
   });
 });
 
@@ -155,7 +146,7 @@ describe("ProviderOAuth - Token Exchange (Instagram)", { concurrency: 1 }, () =>
 // OAuth Flow - Token Exchange Tests (YouTube)
 // ============================================================================
 
-describe("ProviderOAuth - Token Exchange (YouTube)", { concurrency: 1 }, () => {
+describe("ProviderOAuth - Token Exchange (YouTube)", () => {
   beforeEach(() => {
     setupMocks();
   });
@@ -167,7 +158,7 @@ describe("ProviderOAuth - Token Exchange (YouTube)", { concurrency: 1 }, () => {
   it("should exchange authorization code for YouTube access token", async () => {
     const provider = oauthProviders.youtube;
 
-    global.fetch = mock.fn(async (url: string) => {
+    global.fetch = vi.fn(async (url: string) => {
       if (url.includes("oauth2.googleapis.com/token")) {
         return {
           ok: true,
@@ -201,14 +192,14 @@ describe("ProviderOAuth - Token Exchange (YouTube)", { concurrency: 1 }, () => {
 
     const result = await provider.validateCode("auth-code", "state");
 
-    assert.strictEqual(result.accessToken, "yt-access-token", "Should return access token");
-    assert.strictEqual(result.accountInfo.name, "Test Channel", "Should return channel name");
+    expect(result.accessToken).toBe("yt-access-token");
+    expect(result.accountInfo.name).toBe("Test Channel");
   });
 
   it("should handle missing YouTube channel", async () => {
     const provider = oauthProviders.youtube;
 
-    global.fetch = mock.fn(async (url: string) => {
+    global.fetch = vi.fn(async (url: string) => {
       if (url.includes("oauth2.googleapis.com/token")) {
         return {
           ok: true,
@@ -225,12 +216,7 @@ describe("ProviderOAuth - Token Exchange (YouTube)", { concurrency: 1 }, () => {
       };
     }) as typeof global.fetch;
 
-    await assert.rejects(
-      async () => {
-        await provider.validateCode("code", "state");
-      },
-      { message: /channel_not_found/ }
-    );
+    await expect(provider.validateCode("code", "state")).rejects.toThrow(/channel_not_found/);
   });
 });
 
@@ -238,7 +224,7 @@ describe("ProviderOAuth - Token Exchange (YouTube)", { concurrency: 1 }, () => {
 // OAuth Flow - Error Handling Tests
 // ============================================================================
 
-describe("ProviderOAuth - Error Handling", { concurrency: 1 }, () => {
+describe("ProviderOAuth - Error Handling", () => {
   beforeEach(() => {
     setupMocks();
   });
@@ -247,7 +233,7 @@ describe("ProviderOAuth - Error Handling", { concurrency: 1 }, () => {
     const errorParam = "access_denied";
     const errorMessage = `OAuth error: ${errorParam}`;
 
-    assert.strictEqual(errorMessage, "OAuth error: access_denied", "Should format error message");
+    expect(errorMessage).toBe("OAuth error: access_denied");
   });
 
   it("should validate required callback parameters", () => {
@@ -256,8 +242,8 @@ describe("ProviderOAuth - Error Handling", { concurrency: 1 }, () => {
     const hasCode = "code" in query;
     const hasState = "state" in query;
 
-    assert.strictEqual(hasCode, false, "Should detect missing code");
-    assert.strictEqual(hasState, true, "Should detect present state");
+    expect(hasCode).toBe(false);
+    expect(hasState).toBe(true);
   });
 
   it("should handle invalid state validation", () => {
@@ -268,7 +254,7 @@ describe("ProviderOAuth - Error Handling", { concurrency: 1 }, () => {
     });
 
     const stateData = oauthStates.get("invalid-state");
-    assert.strictEqual(stateData, undefined, "Should return undefined for invalid state");
+    expect(stateData).toBe(undefined);
   });
 
   it("should handle provider mismatch in state", () => {
@@ -281,11 +267,7 @@ describe("ProviderOAuth - Error Handling", { concurrency: 1 }, () => {
     const stateData = oauthStates.get("state-123");
     const requestedProvider = "x";
 
-    assert.ok(stateData, "Should retrieve state data");
-    assert.notStrictEqual(
-      stateData.providerId,
-      requestedProvider,
-      "Should detect provider mismatch"
-    );
+    expect(stateData).toBeTruthy();
+    expect(stateData.providerId).not.toBe(requestedProvider);
   });
 });

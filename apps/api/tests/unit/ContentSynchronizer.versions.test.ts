@@ -1,6 +1,5 @@
 import "./ContentSynchronizer.test-helpers.js";
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { ContentSynchronizer } from "../../src/orchestration/ContentSynchronizer.js";
 import type { ContentVersion } from "@shared/orchestration";
 import {
@@ -10,7 +9,7 @@ import {
   createMockPost,
 } from "./ContentSynchronizer.test-helpers.js";
 
-describe("ContentSynchronizer - Version History", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Version History", () => {
   it("should retrieve version history from Redis", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -38,7 +37,7 @@ describe("ContentSynchronizer - Version History", { concurrency: 1 }, () => {
       isActive: true,
     };
 
-    mockRedis.lrange.mock.mockImplementationOnce(async () => [
+    mockRedis.lrange.mockImplementationOnce(async () => [
       JSON.stringify(version2),
       JSON.stringify(version1),
     ]);
@@ -51,9 +50,9 @@ describe("ContentSynchronizer - Version History", { concurrency: 1 }, () => {
 
     const versions = await synchronizer.getVersionHistory("post-123");
 
-    assert.strictEqual(versions.length, 2, "Should return 2 versions");
-    assert.strictEqual(versions[0].version, 2, "Should have correct version number");
-    assert.strictEqual(versions[0].isActive, true, "Latest version should be active");
+    expect(versions.length).toBe(2);
+    expect(versions[0].version).toBe(2);
+    expect(versions[0].isActive).toBe(true);
   });
 
   it("should return empty array if no versions exist", async () => {
@@ -61,7 +60,7 @@ describe("ContentSynchronizer - Version History", { concurrency: 1 }, () => {
     const mockRedis = createMockRedis();
     const mockEventService = createMockEventService();
 
-    mockRedis.lrange.mock.mockImplementationOnce(async () => []);
+    mockRedis.lrange.mockImplementationOnce(async () => []);
 
     const synchronizer = new ContentSynchronizer({
       prisma: mockPrisma,
@@ -71,11 +70,11 @@ describe("ContentSynchronizer - Version History", { concurrency: 1 }, () => {
 
     const versions = await synchronizer.getVersionHistory("post-999");
 
-    assert.strictEqual(versions.length, 0, "Should return empty array");
+    expect(versions.length).toBe(0);
   });
 });
 
-describe("ContentSynchronizer - Version Creation", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Version Creation", () => {
   it("should create new version with incremented version number", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -92,7 +91,7 @@ describe("ContentSynchronizer - Version Creation", { concurrency: 1 }, () => {
       isActive: true,
     };
 
-    mockRedis.lrange.mock.mockImplementationOnce(async () => [JSON.stringify(existingVersion)]);
+    mockRedis.lrange.mockImplementationOnce(async () => [JSON.stringify(existingVersion)]);
 
     const synchronizer = new ContentSynchronizer({
       prisma: mockPrisma,
@@ -109,10 +108,10 @@ describe("ContentSynchronizer - Version Creation", { concurrency: 1 }, () => {
       "Updated title"
     );
 
-    assert.strictEqual(version.version, 2, "Should increment version number");
-    assert.strictEqual(version.createdBy, "user-2", "Should set correct creator");
-    assert.strictEqual(version.changelog, "Updated title", "Should include changelog");
-    assert.strictEqual(version.isActive, true, "New version should be active");
+    expect(version.version).toBe(2);
+    expect(version.createdBy).toBe("user-2");
+    expect(version.changelog).toBe("Updated title");
+    expect(version.isActive).toBe(true);
   });
 
   it("should cache current version in Redis", async () => {
@@ -120,7 +119,7 @@ describe("ContentSynchronizer - Version Creation", { concurrency: 1 }, () => {
     const mockRedis = createMockRedis();
     const mockEventService = createMockEventService();
 
-    mockRedis.lrange.mock.mockImplementationOnce(async () => []);
+    mockRedis.lrange.mockImplementationOnce(async () => []);
 
     const synchronizer = new ContentSynchronizer({
       prisma: mockPrisma,
@@ -131,16 +130,13 @@ describe("ContentSynchronizer - Version Creation", { concurrency: 1 }, () => {
     const content = createMockPost();
     await synchronizer.createVersion("post-123", content, { instagram: content }, "user-1");
 
-    assert.ok(mockRedis.setex.mock.calls.length > 0, "Should cache version");
+    expect(mockRedis.setex.mock.calls.length > 0).toBeTruthy();
     const setexCall = mockRedis.setex.mock.calls[0];
-    assert.ok(
-      String(setexCall.arguments[0]).includes("current_version"),
-      "Should cache current version"
-    );
+    expect(String(setexCall[0]).includes("current_version")).toBeTruthy();
   });
 });
 
-describe("ContentSynchronizer - Version Comparison", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Version Comparison", () => {
   it("should generate diff for modified fields", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -168,7 +164,7 @@ describe("ContentSynchronizer - Version Comparison", { concurrency: 1 }, () => {
       isActive: true,
     };
 
-    mockRedis.lrange.mock.mockImplementationOnce(async () => [
+    mockRedis.lrange.mockImplementationOnce(async () => [
       JSON.stringify(version2),
       JSON.stringify(version1),
     ]);
@@ -181,12 +177,12 @@ describe("ContentSynchronizer - Version Comparison", { concurrency: 1 }, () => {
 
     const diffs = await synchronizer.compareVersions("post-123", 1, 2);
 
-    assert.ok(diffs.length > 0, "Should generate diffs");
+    expect(diffs.length > 0).toBeTruthy();
     const titleDiff = diffs.find((d) => d.field === "title");
-    assert.ok(titleDiff, "Should detect title change");
-    assert.strictEqual(titleDiff?.oldValue, "Original Title", "Should have old value");
-    assert.strictEqual(titleDiff?.newValue, "Updated Title", "Should have new value");
-    assert.strictEqual(titleDiff?.changeType, "modified", "Should be modification");
+    expect(titleDiff).toBeTruthy();
+    expect(titleDiff?.oldValue).toBe("Original Title");
+    expect(titleDiff?.newValue).toBe("Updated Title");
+    expect(titleDiff?.changeType).toBe("modified");
   });
 
   it("should detect added fields", async () => {
@@ -216,7 +212,7 @@ describe("ContentSynchronizer - Version Comparison", { concurrency: 1 }, () => {
       isActive: true,
     };
 
-    mockRedis.lrange.mock.mockImplementationOnce(async () => [
+    mockRedis.lrange.mockImplementationOnce(async () => [
       JSON.stringify(version2),
       JSON.stringify(version1),
     ]);
@@ -230,8 +226,8 @@ describe("ContentSynchronizer - Version Comparison", { concurrency: 1 }, () => {
     const diffs = await synchronizer.compareVersions("post-123", 1, 2);
 
     const tagsDiff = diffs.find((d) => d.field === "tags");
-    assert.ok(tagsDiff, "Should detect tags addition");
-    assert.strictEqual(tagsDiff?.changeType, "added", "Should be addition");
+    expect(tagsDiff).toBeTruthy();
+    expect(tagsDiff?.changeType).toBe("added");
   });
 
   it("should detect removed fields", async () => {
@@ -261,7 +257,7 @@ describe("ContentSynchronizer - Version Comparison", { concurrency: 1 }, () => {
       isActive: true,
     };
 
-    mockRedis.lrange.mock.mockImplementationOnce(async () => [
+    mockRedis.lrange.mockImplementationOnce(async () => [
       JSON.stringify(version2),
       JSON.stringify(version1),
     ]);
@@ -275,7 +271,7 @@ describe("ContentSynchronizer - Version Comparison", { concurrency: 1 }, () => {
     const diffs = await synchronizer.compareVersions("post-123", 1, 2);
 
     const tagsDiff = diffs.find((d) => d.field === "tags");
-    assert.ok(tagsDiff, "Should detect tags removal");
-    assert.strictEqual(tagsDiff?.changeType, "removed", "Should be removal");
+    expect(tagsDiff).toBeTruthy();
+    expect(tagsDiff?.changeType).toBe("removed");
   });
 });

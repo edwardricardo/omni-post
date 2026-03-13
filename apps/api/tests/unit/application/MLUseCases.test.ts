@@ -5,8 +5,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { randomUUID } from "crypto";
 
 import {
@@ -101,10 +100,10 @@ function createSuccessfulAIServiceMock() {
   } as any;
 }
 
-describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
+describe("ML Use Cases (Tier 0)", () => {
   const testAccountId = randomUUID();
 
-  describe("OptimizeContentUseCase — Heuristic Fallback", { concurrency: 1 }, () => {
+  describe("OptimizeContentUseCase — Heuristic Fallback", () => {
     let useCase: OptimizeContentUseCase;
 
     beforeEach(() => {
@@ -120,13 +119,13 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok, "Should succeed via heuristic fallback");
-      assert.ok(result.value.optimizedContent.length > 0);
-      assert.ok(Array.isArray(result.value.recommendations));
-      assert.ok(result.value.recommendations.length > 0);
-      assert.equal(typeof result.value.predictedImprovement, "number");
-      assert.equal(result.value.optimizationGoal, "engagement");
-      assert.equal(result.value.originalContent, input.content);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.optimizedContent.length > 0).toBeTruthy();
+      expect(Array.isArray(result.value.recommendations)).toBeTruthy();
+      expect(result.value.recommendations.length > 0).toBeTruthy();
+      expect(typeof result.value.predictedImprovement).toBe("number");
+      expect(result.value.optimizationGoal).toBe("engagement");
+      expect(result.value.originalContent).toBe(input.content);
     });
 
     it("optimizes content for reach on Facebook via heuristic fallback", async () => {
@@ -138,8 +137,8 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
-      assert.equal(result.value.optimizationGoal, "reach");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.optimizationGoal).toBe("reach");
     });
 
     it("generates requested number of heuristic variations", async () => {
@@ -153,13 +152,13 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
-      assert.ok(result.value.variations, "Should include variations");
-      assert.equal(result.value.variations?.length, 3);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.variations).toBeTruthy();
+      expect(result.value.variations?.length).toBe(3);
       for (const variation of result.value.variations ?? []) {
-        assert.ok(variation.content.length > 0);
-        assert.ok(Array.isArray(variation.changes));
-        assert.equal(typeof variation.expectedImprovement, "number");
+        expect(variation.content.length > 0).toBeTruthy();
+        expect(Array.isArray(variation.changes)).toBeTruthy();
+        expect(typeof variation.expectedImprovement).toBe("number");
       }
     });
 
@@ -172,8 +171,8 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
     });
 
     it("truncates content exceeding X platform limit of 280 chars", async () => {
@@ -186,11 +185,11 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
-      assert.ok(result.value.optimizedContent.length <= 280);
-      assert.ok(
+      expect(result.ok).toBeTruthy();
+      expect(result.value.optimizedContent.length <= 280).toBeTruthy();
+      expect(
         result.value.recommendations.some((r) => r.includes("truncat") || r.includes("limit"))
-      );
+      ).toBeTruthy();
     });
 
     it("includes heuristic tone analysis when requested", async () => {
@@ -203,14 +202,14 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
-      assert.ok(result.value.toneAnalysis);
-      assert.ok(result.value.toneAnalysis?.currentTone);
-      assert.ok(Array.isArray(result.value.toneAnalysis?.suggestedTones));
+      expect(result.ok).toBeTruthy();
+      expect(result.value.toneAnalysis).toBeTruthy();
+      expect(result.value.toneAnalysis?.currentTone).toBeTruthy();
+      expect(Array.isArray(result.value.toneAnalysis?.suggestedTones)).toBeTruthy();
     });
   });
 
-  describe("OptimizeContentUseCase — AI-powered", { concurrency: 1 }, () => {
+  describe("OptimizeContentUseCase — AI-powered", () => {
     let useCase: OptimizeContentUseCase;
 
     beforeEach(() => {
@@ -226,10 +225,10 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
-      assert.equal(result.value.optimizedContent, "AI-optimized content here");
-      assert.ok(result.value.recommendations.some((r) => r.includes("engagement hooks")));
-      assert.ok(result.value.recommendations.some((r) => r.includes("#trending")));
+      expect(result.ok).toBeTruthy();
+      expect(result.value.optimizedContent).toBe("AI-optimized content here");
+      expect(result.value.recommendations.some((r) => r.includes("engagement hooks"))).toBeTruthy();
+      expect(result.value.recommendations.some((r) => r.includes("#trending"))).toBeTruthy();
     });
 
     it("returns AI-generated variations when requested", async () => {
@@ -243,10 +242,10 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
-      assert.ok(result.value.variations);
-      assert.equal(result.value.variations?.length, 2);
-      assert.equal(result.value.variations?.[0]?.content, "Variation 1");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.variations).toBeTruthy();
+      expect(result.value.variations?.length).toBe(2);
+      expect(result.value.variations?.[0]?.content).toBe("Variation 1");
     });
 
     it("returns AI tone analysis when requested", async () => {
@@ -259,17 +258,14 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
-      assert.ok(result.value.toneAnalysis);
-      assert.equal(result.value.toneAnalysis?.currentTone, "enthusiastic");
-      assert.deepEqual(result.value.toneAnalysis?.suggestedTones, [
-        "conversational",
-        "professional",
-      ]);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.toneAnalysis).toBeTruthy();
+      expect(result.value.toneAnalysis?.currentTone).toBe("enthusiastic");
+      expect(result.value.toneAnalysis?.suggestedTones).toEqual(["conversational", "professional"]);
     });
   });
 
-  describe("PredictOptimalTimingUseCase", { concurrency: 1 }, () => {
+  describe("PredictOptimalTimingUseCase", () => {
     it("predicts optimal posting times with scored slots", async () => {
       const useCase = new PredictOptimalTimingUseCase();
 
@@ -282,20 +278,20 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok, "Should successfully predict timing");
-      assert.ok(Array.isArray(result.value.optimalSlots));
-      assert.ok(result.value.optimalSlots.length > 0);
+      expect(result.ok).toBeTruthy();
+      expect(Array.isArray(result.value.optimalSlots)).toBeTruthy();
+      expect(result.value.optimalSlots.length > 0).toBeTruthy();
 
       const firstSlot = result.value.optimalSlots[0];
-      assert.ok(firstSlot);
-      assert.ok(firstSlot.dayOfWeek >= 0 && firstSlot.dayOfWeek <= 6);
-      assert.ok(firstSlot.hour >= 0 && firstSlot.hour <= 23);
-      assert.equal(typeof firstSlot.score, "number");
-      assert.ok(firstSlot.score > 0);
+      expect(firstSlot).toBeTruthy();
+      expect(firstSlot.dayOfWeek >= 0 && firstSlot.dayOfWeek <= 6).toBeTruthy();
+      expect(firstSlot.hour >= 0 && firstSlot.hour <= 23).toBeTruthy();
+      expect(typeof firstSlot.score).toBe("number");
+      expect(firstSlot.score > 0).toBeTruthy();
       for (let i = 1; i < result.value.optimalSlots.length; i++) {
         const prev = result.value.optimalSlots[i - 1]!;
         const curr = result.value.optimalSlots[i]!;
-        assert.ok(prev.score >= curr.score, "Slots should be sorted by score descending");
+        expect(prev.score >= curr.score).toBeTruthy();
       }
     });
 
@@ -316,11 +312,11 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
         timezone: "UTC",
       });
 
-      assert.ok(textResult.ok && videoResult.ok);
+      expect(textResult.ok && videoResult.ok).toBeTruthy();
       const textTop = textResult.value.optimalSlots[0];
       const videoTop = videoResult.value.optimalSlots[0];
-      assert.ok(textTop && videoTop);
-      assert.ok(videoTop.score >= textTop.score, "Video should have equal or higher score bonus");
+      expect(textTop && videoTop).toBeTruthy();
+      expect(videoTop.score >= textTop.score).toBeTruthy();
     });
 
     it("includes activity patterns when requested", async () => {
@@ -336,10 +332,10 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
-      assert.ok(result.value.activityPatterns);
-      assert.ok(Array.isArray(result.value.activityPatterns));
-      assert.equal(result.value.activityPatterns.length, 168);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.activityPatterns).toBeTruthy();
+      expect(Array.isArray(result.value.activityPatterns)).toBeTruthy();
+      expect(result.value.activityPatterns.length).toBe(168);
     });
 
     it("rejects invalid provider with VALIDATION_FAILED", async () => {
@@ -354,9 +350,9 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
-      assert.match(result.error.message, /invalid provider/i);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(result.error.message).toMatch(/invalid provider/i);
     });
 
     it("includes recommendations", async () => {
@@ -369,9 +365,9 @@ describe("ML Use Cases (Tier 0)", { concurrency: 1 }, () => {
         timezone: "UTC",
       });
 
-      assert.ok(result.ok);
-      assert.ok(Array.isArray(result.value.recommendations));
-      assert.ok(result.value.recommendations.length > 0, "Should have recommendations");
+      expect(result.ok).toBeTruthy();
+      expect(Array.isArray(result.value.recommendations)).toBeTruthy();
+      expect(result.value.recommendations.length > 0).toBeTruthy();
     });
   });
 });

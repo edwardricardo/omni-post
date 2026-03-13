@@ -1,10 +1,9 @@
-import { describe, it, beforeEach, after, mock } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterAll, vi, expect } from "vitest";
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import { signPayload } from "./webhookSignatureVerification.test-helpers.js";
 
-describe("Webhook HTTP route — signature enforcement at Fastify layer", { concurrency: 1 }, () => {
+describe("Webhook HTTP route — signature enforcement at Fastify layer", () => {
   let app: FastifyInstance;
 
   const MOCK_SECRET = "route-test-secret";
@@ -41,9 +40,9 @@ describe("Webhook HTTP route — signature enforcement at Fastify layer", { conc
     await app.ready();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
-    mock.restoreAll();
+    vi.restoreAllMocks();
   });
 
   it("returns 200 when signature is valid", async () => {
@@ -60,9 +59,9 @@ describe("Webhook HTTP route — signature enforcement at Fastify layer", { conc
       payload,
     });
 
-    assert.strictEqual(response.statusCode, 200, "Valid signature should return 200");
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body) as { ok: boolean };
-    assert.strictEqual(body.ok, true);
+    expect(body.ok).toBe(true);
   });
 
   it("returns 401 when body has been tampered (signature mismatch)", async () => {
@@ -85,10 +84,10 @@ describe("Webhook HTTP route — signature enforcement at Fastify layer", { conc
       payload: tamperedPayload,
     });
 
-    assert.strictEqual(response.statusCode, 401, "Tampered body must return 401");
+    expect(response.statusCode).toBe(401);
     const body = JSON.parse(response.body) as { ok: boolean; error: string };
-    assert.strictEqual(body.ok, false);
-    assert.ok(body.error.includes("Signature"), "Error message should mention signature");
+    expect(body.ok).toBe(false);
+    expect(body.error.includes("Signature")).toBeTruthy();
   });
 
   it("returns 400 when X-Hub-Signature-256 header is absent", async () => {
@@ -101,10 +100,10 @@ describe("Webhook HTTP route — signature enforcement at Fastify layer", { conc
       payload,
     });
 
-    assert.strictEqual(response.statusCode, 400, "Missing signature must return 400");
+    expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body) as { ok: boolean; error: string };
-    assert.strictEqual(body.ok, false);
-    assert.ok(body.error.toLowerCase().includes("missing"), "Error must mention 'missing'");
+    expect(body.ok).toBe(false);
+    expect(body.error.toLowerCase().includes("missing")).toBeTruthy();
   });
 
   it("returns 400 when Facebook X-Hub-Signature-256 header is absent", async () => {
@@ -117,9 +116,9 @@ describe("Webhook HTTP route — signature enforcement at Fastify layer", { conc
       payload,
     });
 
-    assert.strictEqual(response.statusCode, 400, "Missing Facebook signature must return 400");
+    expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body) as { ok: boolean };
-    assert.strictEqual(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("returns 401 when Facebook body is tampered", async () => {
@@ -144,7 +143,7 @@ describe("Webhook HTTP route — signature enforcement at Fastify layer", { conc
       payload: tamperedPayload,
     });
 
-    assert.strictEqual(response.statusCode, 401, "Tampered Facebook payload must return 401");
+    expect(response.statusCode).toBe(401);
   });
 
   it("returns 200 when X provider x-signature header contains valid sig", async () => {
@@ -161,6 +160,6 @@ describe("Webhook HTTP route — signature enforcement at Fastify layer", { conc
       payload,
     });
 
-    assert.strictEqual(response.statusCode, 200, "Valid X signature must return 200");
+    expect(response.statusCode).toBe(200);
   });
 });

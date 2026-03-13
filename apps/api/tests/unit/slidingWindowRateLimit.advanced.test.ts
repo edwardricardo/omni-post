@@ -4,8 +4,7 @@
  * Custom Key Generator, Limit Reached Callback, Different Clients
  */
 
-import { describe, it, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, afterAll, expect } from "vitest";
 import { SlidingWindowRateLimit } from "../../src/security/slidingWindowRateLimit.js";
 import type { FastifyRequest } from "fastify";
 import {
@@ -16,7 +15,7 @@ import {
 } from "./slidingWindowRateLimit.test-helpers.js";
 
 // Cleanup all rate limiter intervals after all tests
-after(() => {
+afterAll(() => {
   limiterInstances.forEach((limiter) => {
     try {
       limiter.destroy();
@@ -48,7 +47,7 @@ describe("SlidingWindowRateLimit - Progressive Blocking", () => {
       await limiter.checkRateLimit(req);
     }
 
-    assert.ok(true, "Progressive blocking triggered without errors");
+    expect(true).toBeTruthy();
   });
 
   it("Block persists across requests", async () => {
@@ -75,11 +74,7 @@ describe("SlidingWindowRateLimit - Progressive Blocking", () => {
     // Third request should be blocked
     const result = await limiter.checkRateLimit(req);
 
-    assert.strictEqual(
-      result.allowed,
-      false,
-      "Request is blocked when progressive block is active"
-    );
+    expect(result.allowed).toBe(false);
   });
 });
 
@@ -101,12 +96,8 @@ describe("SlidingWindowRateLimit - Error Handling", () => {
     const req = createMockRequest("/api/test");
     const result = await limiter.checkRateLimit(req);
 
-    assert.strictEqual(
-      result.allowed,
-      true,
-      "Request allowed when Redis fails (fail-open behavior)"
-    );
-    assert.strictEqual(result.remaining, 5, "Returns max requests as remaining on Redis failure");
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(5);
   });
 
   it("Graceful handling of null pipeline results", async () => {
@@ -122,12 +113,8 @@ describe("SlidingWindowRateLimit - Error Handling", () => {
     const req = createMockRequest("/api/test");
     const result = await limiter.checkRateLimit(req);
 
-    assert.strictEqual(result.allowed, true, "Gracefully handles null pipeline results");
-    assert.strictEqual(
-      result.windowInfo.requestsInWindow,
-      0,
-      "Returns 0 requests in window on error"
-    );
+    expect(result.allowed).toBe(true);
+    expect(result.windowInfo.requestsInWindow).toBe(0);
   });
 });
 
@@ -156,7 +143,7 @@ describe("SlidingWindowRateLimit - Custom Key Generator", () => {
     const req = createMockRequest("/api/test");
     await limiter.checkRateLimit(req);
 
-    assert.strictEqual(customKeyCalled, true, "Custom key generator is called");
+    expect(customKeyCalled).toBe(true);
   });
 });
 
@@ -188,11 +175,7 @@ describe("SlidingWindowRateLimit - Limit Reached Callback", () => {
       await limiter.checkRateLimit(req);
     }
 
-    assert.strictEqual(
-      callbackCalled,
-      true,
-      "onLimitReached callback is triggered when limit exceeded"
-    );
+    expect(callbackCalled).toBe(true);
   });
 });
 
@@ -221,11 +204,7 @@ describe("SlidingWindowRateLimit - Different Clients", () => {
     // Client 2's first request should be allowed
     const client2Result = await limiter.checkRateLimit(client2);
 
-    assert.strictEqual(
-      client1Result.allowed,
-      false,
-      "Client 1 is rate limited after exceeding limit"
-    );
-    assert.strictEqual(client2Result.allowed, true, "Client 2 has separate limit and is allowed");
+    expect(client1Result.allowed).toBe(false);
+    expect(client2Result.allowed).toBe(true);
   });
 });

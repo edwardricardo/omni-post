@@ -1,6 +1,7 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for queueRoutes (admin/queueRoutes)
+ * @file queueRoutes.test.ts
+ * @description Unit tests for queueRoutes (admin/queueRoutes). Uses mocked Prisma
+ *              and a real Fastify instance to test HTTP endpoint behavior.
  *
  * Tests the 5 BullMQ queue management endpoints:
  *   GET  /admin/queue/stats
@@ -9,63 +10,77 @@
  *   POST /admin/queue/jobs/:id/retry
  *   POST /admin/queue/jobs/:id/remove
  *
- * These routes create a BullMQ Queue connection with lazyConnect:true, so Redis
- * is not required for HTTP-layer tests. Empty-queue responses are expected in
- * the test environment.
- *
  * Routes are protected with requireAdminAuth + requireAdmin middleware.
+ * @layer test
  */
 
-const originalConsole = {
-  log: console.log,
-  info: console.info,
-  warn: console.warn,
-  error: console.error,
-};
-console.log = () => {};
-console.info = () => {};
-console.warn = () => {};
-console.error = () => {};
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import { queueRoutes } from "../../src/admin/queueRoutes.js";
-import { prisma } from "@infra/prisma";
-import { createTestAdminUser, cleanupTestAdminUsersByEmail } from "./admin/adminTestHelper.js";
+// ---------------------------------------------------------------------------
+// Mock setup (must be before any dynamic imports)
+// ---------------------------------------------------------------------------
+
+const { mockPrisma } = createMockPrismaModule();
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
+// ---------------------------------------------------------------------------
+// Dynamic imports after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const { queueRoutes } = await import("../../src/admin/queueRoutes.js");
+const { generateAdminToken } = await import("./admin/adminTestHelper.js");
+
+// ---------------------------------------------------------------------------
+// Test helpers
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
-const adminEmail = `queue-test-${timestamp}@example.com`;
 
-async function createTestApp(): Promise<FastifyInstance> {
+async function createTestApp() {
   const app = Fastify({ logger: false });
   await app.register(queueRoutes);
   await app.ready();
   return app;
 }
 
-let app: FastifyInstance;
+let app: import("fastify").FastifyInstance;
 let adminToken: string;
 
-describe("queueRoutes", { concurrency: 1 }, () => {
-  before(async () => {
+describe("queueRoutes", () => {
+  beforeAll(async () => {
     app = await createTestApp();
 
-    // Create admin user with valid admin JWT token (routes require requireAdminAuth + requireAdmin)
-    const result = await createTestAdminUser({
-      email: adminEmail,
+    // Generate a valid admin JWT token directly (no DB needed for token generation)
+    adminToken = generateAdminToken({
+      id: "admin-queue-test-id",
+      email: `queue-test-${timestamp}@example.com`,
       name: "Queue Test Admin",
-      password: "TestPassword123!",
       role: "ADMIN",
     });
-    adminToken = result.token;
   });
 
-  after(async () => {
-    await cleanupTestAdminUsersByEmail(`queue-test-${timestamp}`);
+  afterAll(async () => {
     await app.close();
-    await prisma.$disconnect();
-    Object.assign(console, originalConsole);
   });
 
   // ── GET /admin/queue/stats ─────────────────────────────────────────────
@@ -73,7 +88,7 @@ describe("queueRoutes", { concurrency: 1 }, () => {
   describe("GET /admin/queue/stats", () => {
     it("should return 401 without auth", async () => {
       const res = await app.inject({ method: "GET", url: "/admin/queue/stats" });
-      assert.equal(res.statusCode, 401);
+      expect(res.statusCode).toBe(401);
     });
 
     it("should return queue statistics with expected shape", async () => {
@@ -85,20 +100,18 @@ describe("queueRoutes", { concurrency: 1 }, () => {
 
       // With lazyConnect the BullMQ client connects on demand; in a test env
       // without Redis it may return either 200 (empty counts) or 500 (ECONNREFUSED).
-      // Both are valid — we assert the response is valid JSON and has the right
-      // shape when successful, or a structured error when Redis is unavailable.
       const body = JSON.parse(res.body);
       if (res.statusCode === 200) {
-        assert.equal(body.ok, true);
-        assert.ok(typeof body.data.total === "number", "total should be a number");
-        assert.ok(typeof body.data.queued === "number", "queued should be a number");
-        assert.ok(typeof body.data.processing === "number", "processing should be a number");
-        assert.ok(typeof body.data.published === "number", "published should be a number");
-        assert.ok(typeof body.data.failed === "number", "failed should be a number");
-        assert.ok(typeof body.data.successRate === "number", "successRate should be a number");
+        expect(body.ok).toBe(true);
+        expect(typeof body.data.total === "number").toBeTruthy();
+        expect(typeof body.data.queued === "number").toBeTruthy();
+        expect(typeof body.data.processing === "number").toBeTruthy();
+        expect(typeof body.data.published === "number").toBeTruthy();
+        expect(typeof body.data.failed === "number").toBeTruthy();
+        expect(typeof body.data.successRate === "number").toBeTruthy();
       } else {
-        assert.equal(res.statusCode, 500);
-        assert.equal(body.ok, false);
+        expect(res.statusCode).toBe(500);
+        expect(body.ok).toBe(false);
       }
     });
 
@@ -111,8 +124,8 @@ describe("queueRoutes", { concurrency: 1 }, () => {
       if (res.statusCode !== 200) return; // skip when Redis unavailable
 
       const body = JSON.parse(res.body);
-      assert.ok(body.data.successRate >= 0, "successRate should be >= 0");
-      assert.ok(body.data.successRate <= 100, "successRate should be <= 100");
+      expect(body.data.successRate >= 0).toBeTruthy();
+      expect(body.data.successRate <= 100).toBeTruthy();
     });
   });
 
@@ -128,12 +141,12 @@ describe("queueRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(res.body);
       if (res.statusCode === 200) {
-        assert.equal(body.ok, true);
-        assert.ok(Array.isArray(body.data.items), "items should be an array");
-        assert.ok(typeof body.data.total === "number", "total should be a number");
+        expect(body.ok).toBe(true);
+        expect(Array.isArray(body.data.items)).toBeTruthy();
+        expect(typeof body.data.total === "number").toBeTruthy();
       } else {
-        assert.equal(res.statusCode, 500);
-        assert.equal(body.ok, false);
+        expect(res.statusCode).toBe(500);
+        expect(body.ok).toBe(false);
       }
     });
 
@@ -146,11 +159,11 @@ describe("queueRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(res.body);
       if (res.statusCode === 200) {
-        assert.equal(body.ok, true);
-        assert.ok(Array.isArray(body.data.items));
+        expect(body.ok).toBe(true);
+        expect(Array.isArray(body.data.items)).toBeTruthy();
       } else {
         // Redis unavailable — 500 is acceptable
-        assert.equal(res.statusCode, 500);
+        expect(res.statusCode).toBe(500);
       }
     });
 
@@ -163,9 +176,9 @@ describe("queueRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(res.body);
       if (res.statusCode === 200) {
-        assert.equal(body.ok, true);
+        expect(body.ok).toBe(true);
       } else {
-        assert.equal(res.statusCode, 500);
+        expect(res.statusCode).toBe(500);
       }
     });
 
@@ -176,9 +189,9 @@ describe("queueRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, false);
+      expect(body.ok).toBe(false);
     });
   });
 
@@ -194,11 +207,11 @@ describe("queueRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(res.body);
       if (res.statusCode === 404) {
-        assert.equal(body.ok, false);
+        expect(body.ok).toBe(false);
       } else {
         // Redis unavailable → 500
-        assert.equal(res.statusCode, 500);
-        assert.equal(body.ok, false);
+        expect(res.statusCode).toBe(500);
+        expect(body.ok).toBe(false);
       }
     });
 
@@ -210,8 +223,7 @@ describe("queueRoutes", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, false);
-      // Either 404 (job not found) or 500 (Redis down) — both have ok: false
+      expect(body.ok).toBe(false);
     });
   });
 
@@ -227,11 +239,11 @@ describe("queueRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(res.body);
       if (res.statusCode === 404) {
-        assert.equal(body.ok, false);
+        expect(body.ok).toBe(false);
       } else {
         // Redis unavailable
-        assert.equal(res.statusCode, 500);
-        assert.equal(body.ok, false);
+        expect(res.statusCode).toBe(500);
+        expect(body.ok).toBe(false);
       }
     });
 
@@ -243,7 +255,7 @@ describe("queueRoutes", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, false);
+      expect(body.ok).toBe(false);
     });
   });
 
@@ -259,10 +271,10 @@ describe("queueRoutes", { concurrency: 1 }, () => {
 
       const body = JSON.parse(res.body);
       if (res.statusCode === 404) {
-        assert.equal(body.ok, false);
+        expect(body.ok).toBe(false);
       } else {
-        assert.equal(res.statusCode, 500);
-        assert.equal(body.ok, false);
+        expect(res.statusCode).toBe(500);
+        expect(body.ok).toBe(false);
       }
     });
 
@@ -274,7 +286,7 @@ describe("queueRoutes", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, false);
+      expect(body.ok).toBe(false);
     });
   });
 });

@@ -1,22 +1,67 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for accountLifecycleRoutes
- * Testing all admin account lifecycle HTTP endpoints
- *
- * Coverage Target: 95%+
+ * @file accountLifecycleRoutes.test.ts
+ * @description Unit tests for accountLifecycleRoutes.
+ *              Uses in-memory mocked Prisma stores — no real database needed.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
-import fastifyCookie from "@fastify/cookie";
-import { accountLifecycleRoutes } from "../../src/admin/accountLifecycleRoutes.js";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
-import { prisma } from "@infra/prisma";
-import { createTestAdminUser, cleanupTestAdminUsersByEmail } from "./admin/adminTestHelper.js";
+import { describe, it, beforeAll, afterAll, beforeEach, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 
-// Create test Fastify instance with admin auth
+// ---------------------------------------------------------------------------
+// Mock setup — must come BEFORE any SUT imports
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+// Add adminUserPermission model (used by cleanup helper but not in default stores)
+(mockPrisma.prisma as Record<string, unknown>).adminUserPermission = {
+  deleteMany: vi.fn(async () => ({ count: 0 })),
+};
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// Import SUT after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
+const fastifyCookie = (await import("@fastify/cookie")).default;
+const { accountLifecycleRoutes } = await import("../../src/admin/accountLifecycleRoutes.js");
+const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { createTestAdminUser, cleanupTestAdminUsersByEmail } = await import(
+  "./admin/adminTestHelper.js"
+);
+
+import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+
+// ---------------------------------------------------------------------------
+// Helper
+// ---------------------------------------------------------------------------
+
 async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
 
@@ -24,7 +69,7 @@ async function createTestApp(): Promise<FastifyInstance> {
   typedApp.setValidatorCompiler(validatorCompiler);
   typedApp.setSerializerCompiler(serializerCompiler);
 
-  const container = setupContainer({ prisma });
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
   typedApp.decorate("container", container);
 
   await typedApp.register(fastifyCookie);
@@ -32,6 +77,10 @@ async function createTestApp(): Promise<FastifyInstance> {
 
   return typedApp;
 }
+
+// ---------------------------------------------------------------------------
+// Test suite
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const superAdminEmail = `superadmin-lifecycle-${timestamp}@example.com`;
@@ -43,8 +92,8 @@ let superAdminToken: string;
 let adminToken: string;
 let testAccountId: string;
 
-describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("accountLifecycleRoutes Unit Tests", () => {
+  beforeAll(async () => {
     app = await createTestApp();
 
     // Create super admin user with valid admin JWT token
@@ -66,25 +115,17 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
     adminToken = adminResult.token;
   });
 
-  after(async () => {
+  afterAll(async () => {
     try {
-      // Cleanup test users and related data
       await cleanupTestAdminUsersByEmail(`lifecycle-${timestamp}`);
-      // Also clean up accounts created during bulk/delete tests
       await cleanupTestAdminUsersByEmail(`bulk1-${timestamp}`);
       await cleanupTestAdminUsersByEmail(`bulk2-${timestamp}`);
       await cleanupTestAdminUsersByEmail(`new-account-${timestamp}`);
       await cleanupTestAdminUsersByEmail(`removal-${timestamp}`);
-    } catch (err) {
-      console.warn("Cleanup warning:", err);
+    } catch (_err) {
+      // cleanup best-effort
     }
-
     await app.close();
-    try {
-      await prisma.$disconnect();
-    } catch (err) {
-      console.warn("Prisma disconnect warning:", err);
-    }
   });
 
   describe("POST /admin/accounts", () => {
@@ -103,10 +144,10 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 201);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.account?.id);
-      assert.strictEqual(body.data?.account?.role, "ADMIN");
+      expect(response.statusCode).toBe(201);
+      expect(body.ok).toBe(true);
+      expect(body.data?.account?.id).toBeTruthy();
+      expect(body.data?.account?.role).toBe("ADMIN");
 
       testAccountId = body.data?.account?.id || "";
     });
@@ -122,7 +163,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("should reject creation with admin role (not super admin)", async () => {
@@ -137,7 +178,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
 
     it("should reject duplicate email", async () => {
@@ -152,7 +193,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 409);
+      expect(response.statusCode).toBe(409);
     });
 
     it("should reject weak password", async () => {
@@ -167,7 +208,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject invalid email format", async () => {
@@ -182,7 +223,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -196,9 +237,9 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data?.account?.id, testAccountId);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.account?.id).toBe(testAccountId);
     });
 
     it("should reject without authentication", async () => {
@@ -207,7 +248,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         url: `/admin/accounts/${testAccountId}`,
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("should return 404 for non-existent account", async () => {
@@ -217,7 +258,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
     });
   });
 
@@ -231,12 +272,12 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data?.accounts));
-      assert.ok(body.data?.pagination);
-      assert.strictEqual(body.data?.pagination?.page, 1);
-      assert.strictEqual(body.data?.pagination?.limit, 10);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.accounts)).toBeTruthy();
+      expect(body.data?.pagination).toBeTruthy();
+      expect(body.data?.pagination?.page).toBe(1);
+      expect(body.data?.pagination?.limit).toBe(10);
     });
 
     it("should filter accounts by role", async () => {
@@ -248,8 +289,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(Array.isArray(body.data?.accounts));
+      expect(response.statusCode).toBe(200);
+      expect(Array.isArray(body.data?.accounts)).toBeTruthy();
     });
 
     it("should filter accounts by active status", async () => {
@@ -259,9 +300,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      const _body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject without authentication", async () => {
@@ -270,7 +309,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/accounts",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -287,8 +326,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.account?.name, "Updated Name");
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.account?.name).toBe("Updated Name");
     });
 
     it("should update account role as super admin", async () => {
@@ -303,8 +342,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.account?.role, "SUPPORT");
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.account?.role).toBe("SUPPORT");
     });
 
     it("should reject role change by admin (not super admin)", async () => {
@@ -317,7 +356,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
 
     it("should return 404 for non-existent account", async () => {
@@ -330,7 +369,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
     });
   });
 
@@ -347,8 +386,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject suspending already suspended account", async () => {
@@ -361,7 +400,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 409);
+      expect(response.statusCode).toBe(409);
     });
 
     it("should reject without reason", async () => {
@@ -372,7 +411,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         payload: {},
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -386,8 +425,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject reactivating already active account", async () => {
@@ -397,7 +436,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 409);
+      expect(response.statusCode).toBe(409);
     });
   });
 
@@ -415,8 +454,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject weak new password", async () => {
@@ -429,7 +468,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -443,8 +482,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(Array.isArray(body.data?.sessions));
+      expect(response.statusCode).toBe(200);
+      expect(Array.isArray(body.data?.sessions)).toBeTruthy();
     });
 
     it("should return 404 for non-existent account", async () => {
@@ -454,7 +493,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
     });
   });
 
@@ -468,8 +507,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(typeof body.data?.revokedCount, "number");
+      expect(response.statusCode).toBe(200);
+      expect(typeof body.data?.revokedCount).toBe("number");
     });
   });
 
@@ -483,8 +522,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(body.data?.stats);
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.stats).toBeTruthy();
     });
   });
 
@@ -492,7 +531,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
     let bulkAccountId1: string;
     let bulkAccountId2: string;
 
-    before(async () => {
+    beforeAll(async () => {
       // Create accounts for bulk operations
       const response1 = await app.inject({
         method: "POST",
@@ -532,8 +571,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.successful, 2);
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.successful).toBe(2);
     });
 
     it("should reject bulk suspend without super admin", async () => {
@@ -547,7 +586,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
   });
 
@@ -561,7 +600,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const listBody = JSON.parse(listResponse.body);
-      const suspendedIds = listBody.data?.accounts?.map((a: any) => a.id) || [];
+      const suspendedIds = listBody.data?.accounts?.map((a: Record<string, unknown>) => a.id) || [];
 
       const response = await app.inject({
         method: "POST",
@@ -574,15 +613,15 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(typeof body.data?.successful === "number");
+      expect(response.statusCode).toBe(200);
+      expect(typeof body.data?.successful === "number").toBeTruthy();
     });
   });
 
   describe("DELETE /admin/accounts/:accountId", () => {
     let deleteAccountId: string;
 
-    before(async () => {
+    beforeAll(async () => {
       const response = await app.inject({
         method: "POST",
         url: "/admin/accounts",
@@ -606,8 +645,8 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject deletion without super admin", async () => {
@@ -617,7 +656,7 @@ describe("accountLifecycleRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
     });
   });
 });

@@ -725,7 +725,7 @@ describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
     // We need to mock LinkedInApiClient constructor
     // Since getComments creates its own apiClient via `new LinkedInApiClient(creds)`,
     // we override the method to inject our mock
-    const originalGetComments = adapter.getComments.bind(adapter);
+    const _originalGetComments = adapter.getComments.bind(adapter);
     adapter.getComments = async (params) => {
       // Temporarily replace LinkedInApiClient behavior
       (adapter as any).createApiClient = () => ({ getComments: mockGetComments });
@@ -812,12 +812,12 @@ describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
 
 describe("LinkedInAdapter - PostReply", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
-  let mockPostComment: ReturnType<typeof mock.fn>;
+  let _mockPostComment: ReturnType<typeof mock.fn>;
 
   beforeEach(() => {
     adapter = new LinkedInAdapter();
 
-    mockPostComment = mock.fn(async () => ({
+    _mockPostComment = mock.fn(async () => ({
       id: "reply-001",
       actor: "urn:li:person:abc123",
       message: { text: "Thank you!" },
@@ -854,7 +854,7 @@ describe("LinkedInAdapter - PostReply", { concurrency: 1 }, () => {
 
   it("returns RATE_LIMIT error on 429 status", async () => {
     // Override postReply to simulate the error path
-    const originalPostReply = adapter.postReply.bind(adapter);
+    const _originalPostReply = adapter.postReply.bind(adapter);
     adapter.postReply = async (params) => {
       const creds = params.channelCredentials as Record<string, string>;
       if (!creds.accessToken || !creds.personUrn) {

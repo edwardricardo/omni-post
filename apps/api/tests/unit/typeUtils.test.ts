@@ -15,8 +15,7 @@
  * No database dependencies - pure logic functions
  */
 
-import { describe, it } from "node:test";
-import * as assert from "node:assert";
+import { describe, it, expect } from "vitest";
 import {
   removeUndefinedProperties,
   conditionalProperty,
@@ -36,10 +35,10 @@ describe("typeUtils", () => {
 
         const result = removeUndefinedProperties(obj);
 
-        assert.strictEqual(result.name, "John");
-        assert.strictEqual(result.email, "john@example.com");
-        assert.ok(!("age" in result), "Should remove undefined age");
-        assert.ok(!("phone" in result), "Should remove undefined phone");
+        expect(result.name).toBe("John");
+        expect(result.email).toBe("john@example.com");
+        expect("age" in result).toBeFalsy();
+        expect("phone" in result).toBeFalsy();
       });
 
       it("should keep null values", () => {
@@ -51,8 +50,8 @@ describe("typeUtils", () => {
 
         const result = removeUndefinedProperties(obj);
 
-        assert.strictEqual(result.age, null);
-        assert.ok("age" in result, "Null property should be present in result");
+        expect(result.age).toBe(null);
+        expect("age" in result).toBeTruthy();
       });
 
       it("should keep zero values", () => {
@@ -64,9 +63,9 @@ describe("typeUtils", () => {
 
         const result = removeUndefinedProperties(obj);
 
-        assert.strictEqual(result.count, 0);
-        assert.strictEqual(result.enabled, false);
-        assert.ok(!("value" in result), "Should remove undefined value");
+        expect(result.count).toBe(0);
+        expect(result.enabled).toBe(false);
+        expect("value" in result).toBeFalsy();
       });
 
       it("should handle empty object", () => {
@@ -74,7 +73,7 @@ describe("typeUtils", () => {
 
         const result = removeUndefinedProperties(obj);
 
-        assert.strictEqual(Object.keys(result).length, 0);
+        expect(Object.keys(result).length).toBe(0);
       });
 
       it("should handle all undefined properties", () => {
@@ -86,7 +85,7 @@ describe("typeUtils", () => {
 
         const result = removeUndefinedProperties(obj);
 
-        assert.strictEqual(Object.keys(result).length, 0);
+        expect(Object.keys(result).length).toBe(0);
       });
 
       it("should handle no undefined properties", () => {
@@ -98,10 +97,10 @@ describe("typeUtils", () => {
 
         const result = removeUndefinedProperties(obj);
 
-        assert.strictEqual(Object.keys(result).length, 3);
-        assert.strictEqual(result.name, "Alice");
-        assert.strictEqual(result.age, 30);
-        assert.strictEqual(result.active, true);
+        expect(Object.keys(result).length).toBe(3);
+        expect(result.name).toBe("Alice");
+        expect(result.age).toBe(30);
+        expect(result.active).toBe(true);
       });
     });
 
@@ -114,9 +113,9 @@ describe("typeUtils", () => {
 
         const result = removeUndefinedProperties(obj);
 
-        assert.strictEqual(result.name, "");
-        assert.ok("name" in result, "Empty string property should be present");
-        assert.ok(!("age" in result), "Should remove undefined age");
+        expect(result.name).toBe("");
+        expect("name" in result).toBeTruthy();
+        expect("age" in result).toBeFalsy();
       });
 
       it("should handle nested objects", () => {
@@ -127,8 +126,8 @@ describe("typeUtils", () => {
 
         const result = removeUndefinedProperties(obj);
 
-        assert.ok(result.user !== undefined);
-        assert.ok(!("settings" in result));
+        expect(result.user !== undefined).toBeTruthy();
+        expect("settings" in result).toBeFalsy();
       });
 
       it("should handle arrays", () => {
@@ -139,9 +138,9 @@ describe("typeUtils", () => {
 
         const result = removeUndefinedProperties(obj);
 
-        assert.ok(Array.isArray(result.items));
-        assert.strictEqual(result.items?.length, 3);
-        assert.ok(!("tags" in result));
+        expect(Array.isArray(result.items)).toBeTruthy();
+        expect(result.items?.length).toBe(3);
+        expect("tags" in result).toBeFalsy();
       });
     });
   });
@@ -151,15 +150,15 @@ describe("typeUtils", () => {
       it("should return value when condition is true", () => {
         const result = conditionalProperty(true, { key: "value" });
 
-        assert.strictEqual(typeof result, "object");
-        assert.strictEqual((result as any).key, "value");
+        expect(typeof result).toBe("object");
+        expect((result as any).key).toBe("value");
       });
 
       it("should return empty object when condition is false", () => {
         const result = conditionalProperty(false, { key: "value" });
 
-        assert.strictEqual(typeof result, "object");
-        assert.strictEqual(Object.keys(result).length, 0);
+        expect(typeof result).toBe("object");
+        expect(Object.keys(result).length).toBe(0);
       });
     });
 
@@ -170,8 +169,8 @@ describe("typeUtils", () => {
 
         const merged = { ...base, ...optional };
 
-        assert.strictEqual(merged.id, 1);
-        assert.strictEqual((merged as any).extra, "data");
+        expect(merged.id).toBe(1);
+        expect((merged as any).extra).toBe("data");
       });
 
       it("should work with spread operator (false case)", () => {
@@ -180,9 +179,9 @@ describe("typeUtils", () => {
 
         const merged = { ...base, ...optional };
 
-        assert.strictEqual(merged.id, 1);
-        assert.ok(!("extra" in merged));
-        assert.strictEqual(Object.keys(merged).length, 2);
+        expect(merged.id).toBe(1);
+        expect("extra" in merged).toBeFalsy();
+        expect(Object.keys(merged).length).toBe(2);
       });
     });
 
@@ -190,25 +189,25 @@ describe("typeUtils", () => {
       it("should handle string values", () => {
         const result = conditionalProperty(true, "test-value");
 
-        assert.strictEqual(result, "test-value");
+        expect(result).toBe("test-value");
       });
 
       it("should handle number values", () => {
         const result = conditionalProperty(true, 42);
 
-        assert.strictEqual(result, 42);
+        expect(result).toBe(42);
       });
 
       it("should handle null", () => {
         const result = conditionalProperty(true, null);
 
-        assert.strictEqual(result, null);
+        expect(result).toBe(null);
       });
 
       it("should handle undefined", () => {
         const result = conditionalProperty(true, undefined);
 
-        assert.strictEqual(result, undefined);
+        expect(result).toBe(undefined);
       });
     });
   });
@@ -225,10 +224,10 @@ describe("typeUtils", () => {
 
         const result = extractDefinedProperties(source, ["name", "email"]);
 
-        assert.strictEqual(result.name, "John");
-        assert.strictEqual(result.email, "john@example.com");
-        assert.ok(!("age" in result));
-        assert.ok(!("password" in result));
+        expect(result.name).toBe("John");
+        expect(result.email).toBe("john@example.com");
+        expect("age" in result).toBeFalsy();
+        expect("password" in result).toBeFalsy();
       });
 
       it("should skip undefined values", () => {
@@ -240,9 +239,9 @@ describe("typeUtils", () => {
 
         const result = extractDefinedProperties(source, ["name", "age", "email"]);
 
-        assert.strictEqual(result.name, "John");
-        assert.strictEqual(result.email, "john@example.com");
-        assert.ok(!("age" in result));
+        expect(result.name).toBe("John");
+        expect(result.email).toBe("john@example.com");
+        expect("age" in result).toBeFalsy();
       });
 
       it("should handle empty allowed keys", () => {
@@ -253,7 +252,7 @@ describe("typeUtils", () => {
 
         const result = extractDefinedProperties(source, []);
 
-        assert.strictEqual(Object.keys(result).length, 0);
+        expect(Object.keys(result).length).toBe(0);
       });
 
       it("should handle non-existent keys", () => {
@@ -263,8 +262,8 @@ describe("typeUtils", () => {
 
         const result = extractDefinedProperties(source, ["name", "age" as any]);
 
-        assert.strictEqual(result.name, "John");
-        assert.ok(!("age" in result));
+        expect(result.name).toBe("John");
+        expect("age" in result).toBeFalsy();
       });
     });
 
@@ -277,9 +276,9 @@ describe("typeUtils", () => {
 
         const result = extractDefinedProperties(source, ["name", "age"]);
 
-        assert.strictEqual(result.name, "John");
-        assert.strictEqual(result.age, null);
-        assert.ok("age" in result);
+        expect(result.name).toBe("John");
+        expect(result.age).toBe(null);
+        expect("age" in result).toBeTruthy();
       });
 
       it("should preserve zero and false", () => {
@@ -291,9 +290,9 @@ describe("typeUtils", () => {
 
         const result = extractDefinedProperties(source, ["count", "enabled", "name"]);
 
-        assert.strictEqual(result.count, 0);
-        assert.strictEqual(result.enabled, false);
-        assert.strictEqual(result.name, "Test");
+        expect(result.count).toBe(0);
+        expect(result.enabled).toBe(false);
+        expect(result.name).toBe("Test");
       });
 
       it("should preserve empty string", () => {
@@ -304,9 +303,9 @@ describe("typeUtils", () => {
 
         const result = extractDefinedProperties(source, ["name", "description"]);
 
-        assert.strictEqual(result.name, "");
-        assert.ok("name" in result);
-        assert.ok(!("description" in result));
+        expect(result.name).toBe("");
+        expect("name" in result).toBeTruthy();
+        expect("description" in result).toBeFalsy();
       });
     });
 
@@ -320,7 +319,7 @@ describe("typeUtils", () => {
 
         const result = extractDefinedProperties(source, ["name", "age", "email"]);
 
-        assert.strictEqual(Object.keys(result).length, 0);
+        expect(Object.keys(result).length).toBe(0);
       });
 
       it("should handle objects and arrays", () => {
@@ -332,11 +331,11 @@ describe("typeUtils", () => {
 
         const result = extractDefinedProperties(source, ["user", "tags", "metadata"]);
 
-        assert.ok(result.user !== undefined);
-        assert.strictEqual((result.user as any).id, 1);
-        assert.ok(Array.isArray(result.tags));
-        assert.strictEqual(result.tags?.length, 3);
-        assert.ok(!("metadata" in result));
+        expect(result.user !== undefined).toBeTruthy();
+        expect((result.user as any).id).toBe(1);
+        expect(Array.isArray(result.tags)).toBeTruthy();
+        expect(result.tags?.length).toBe(3);
+        expect("metadata" in result).toBeFalsy();
       });
     });
   });
@@ -352,10 +351,10 @@ describe("typeUtils", () => {
       const cleaned = removeUndefinedProperties(updates);
       const result = { id: 1, ...cleaned };
 
-      assert.strictEqual(result.id, 1);
-      assert.strictEqual(result.name, "Updated Name");
-      assert.strictEqual(result.email, "new@example.com");
-      assert.ok(!("age" in result));
+      expect(result.id).toBe(1);
+      expect(result.name).toBe("Updated Name");
+      expect(result.email).toBe("new@example.com");
+      expect("age" in result).toBeFalsy();
     });
 
     it("should use conditionalProperty in object construction", () => {
@@ -366,8 +365,8 @@ describe("typeUtils", () => {
         ...conditionalProperty(includeExtra, { extra: "data" }),
       };
 
-      assert.strictEqual(obj.id, 1);
-      assert.strictEqual((obj as any).extra, "data");
+      expect(obj.id).toBe(1);
+      expect((obj as any).extra).toBe("data");
     });
   });
 
@@ -380,9 +379,9 @@ describe("typeUtils", () => {
 
       const result = removeUndefinedProperties(source);
 
-      assert.strictEqual(Object.keys(result).length, 50);
-      assert.strictEqual(result.key0, 0);
-      assert.ok(!("key1" in result));
+      expect(Object.keys(result).length).toBe(50);
+      expect(result.key0).toBe(0);
+      expect("key1" in result).toBeFalsy();
     });
   });
 });

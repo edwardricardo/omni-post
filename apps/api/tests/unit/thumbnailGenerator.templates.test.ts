@@ -3,8 +3,7 @@
  * Tests getThumbnailTemplates(), applyTemplate(), generateABTestThumbnails(),
  * and edge cases (zero timestamp, max quality, small resolution).
  */
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { ThumbnailGenerator, type ThumbnailOptions } from "../../src/video/thumbnailGenerator";
 import { promises as fs } from "fs";
 import {
@@ -16,29 +15,29 @@ import {
 
 // --- Templates ---
 
-describe("ThumbnailGenerator - Templates", { concurrency: 1 }, () => {
+describe("ThumbnailGenerator - Templates", () => {
   let generator: ThumbnailGenerator;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     generator = new ThumbnailGenerator(createMockSpawn());
-    setupFsMocks(t, fs);
+    setupFsMocks(fs);
   });
 
   it("should list available templates", () => {
     const templates = generator.getThumbnailTemplates();
 
-    assert.ok(Array.isArray(templates));
-    assert.ok(templates.length > 0);
+    expect(Array.isArray(templates)).toBeTruthy();
+    expect(templates.length > 0).toBeTruthy();
 
     templates.forEach((template) => {
-      assert.ok(template.name);
-      assert.ok(template.description);
-      assert.ok(Array.isArray(template.platform));
-      assert.ok(template.options);
-      assert.ok(template.options.width);
-      assert.ok(template.options.height);
-      assert.ok(template.options.quality);
-      assert.ok(template.options.format);
+      expect(template.name).toBeTruthy();
+      expect(template.description).toBeTruthy();
+      expect(Array.isArray(template.platform)).toBeTruthy();
+      expect(template.options).toBeTruthy();
+      expect(template.options.width).toBeTruthy();
+      expect(template.options.height).toBeTruthy();
+      expect(template.options.quality).toBeTruthy();
+      expect(template.options.format).toBeTruthy();
     });
   });
 
@@ -46,20 +45,20 @@ describe("ThumbnailGenerator - Templates", { concurrency: 1 }, () => {
     const templates = generator.getThumbnailTemplates();
     const youtubeTemplate = templates.find((t) => t.name === "YouTube Standard");
 
-    assert.ok(youtubeTemplate);
-    assert.equal(youtubeTemplate.options.width, 1280);
-    assert.equal(youtubeTemplate.options.height, 720);
-    assert.ok(youtubeTemplate.platform.includes("youtube"));
+    expect(youtubeTemplate).toBeTruthy();
+    expect(youtubeTemplate.options.width).toBe(1280);
+    expect(youtubeTemplate.options.height).toBe(720);
+    expect(youtubeTemplate.platform.includes("youtube")).toBeTruthy();
   });
 
   it("should include Instagram Story template", () => {
     const templates = generator.getThumbnailTemplates();
     const igTemplate = templates.find((t) => t.name === "Instagram Story");
 
-    assert.ok(igTemplate);
-    assert.equal(igTemplate.options.width, 1080);
-    assert.equal(igTemplate.options.height, 1920);
-    assert.ok(igTemplate.platform.includes("instagram"));
+    expect(igTemplate).toBeTruthy();
+    expect(igTemplate.options.width).toBe(1080);
+    expect(igTemplate.options.height).toBe(1920);
+    expect(igTemplate.platform.includes("instagram")).toBeTruthy();
   });
 
   it("should apply template successfully", async () => {
@@ -74,17 +73,10 @@ describe("ThumbnailGenerator - Templates", { concurrency: 1 }, () => {
 
     const result = await generator.applyTemplate(videoPath, outputPath, "YouTube Standard");
 
-    assert.strictEqual(
-      typeof result,
-      "object",
-      "applyTemplate should return a ThumbnailResult object"
-    );
-    assert.ok(
-      typeof result.id === "string" && result.id.length > 0,
-      "result should have a non-empty id"
-    );
-    assert.equal(result.width, 1280);
-    assert.equal(result.height, 720);
+    expect(typeof result).toBe("object");
+    expect(typeof result.id === "string" && result.id.length > 0).toBeTruthy();
+    expect(result.width).toBe(1280);
+    expect(result.height).toBe(720);
   });
 
   it("should apply template with custom options", async () => {
@@ -102,30 +94,25 @@ describe("ThumbnailGenerator - Templates", { concurrency: 1 }, () => {
       quality: 90,
     });
 
-    assert.equal(result.timestamp, 15);
-    assert.equal(result.quality, 90);
+    expect(result.timestamp).toBe(15);
+    expect(result.quality).toBe(90);
   });
 
   it("should throw error for unknown template", async () => {
-    await assert.rejects(
-      async () => {
-        await generator.applyTemplate("/test/video.mp4", "/test/output.jpg", "NonExistentTemplate");
-      },
-      {
-        message: /Template "NonExistentTemplate" not found/,
-      }
-    );
+    await expect(
+      generator.applyTemplate("/test/video.mp4", "/test/output.jpg", "NonExistentTemplate")
+    ).rejects.toThrow(/Template "NonExistentTemplate" not found/);
   });
 });
 
 // --- A/B Testing ---
 
-describe("ThumbnailGenerator - A/B Testing", { concurrency: 1 }, () => {
+describe("ThumbnailGenerator - A/B Testing", () => {
   let generator: ThumbnailGenerator;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     generator = new ThumbnailGenerator(createMockSpawn());
-    setupFsMocks(t, fs);
+    setupFsMocks(fs);
   });
 
   it("should generate A/B test variations", async () => {
@@ -162,8 +149,8 @@ describe("ThumbnailGenerator - A/B Testing", { concurrency: 1 }, () => {
       variations
     );
 
-    assert.ok(results.length >= 3); // At minimum 3 variants
-    assert.ok(results.every((r) => r.outputPath.includes("variant")));
+    expect(results.length >= 3).toBeTruthy(); // At minimum 3 variants
+    expect(results.every((r) => r.outputPath.includes("variant"))).toBeTruthy();
   });
 
   it("should use custom timestamps for A/B test", async () => {
@@ -196,7 +183,7 @@ describe("ThumbnailGenerator - A/B Testing", { concurrency: 1 }, () => {
     );
 
     // Should have timestamp x filter combinations
-    assert.ok(results.length >= variations.timestamps.length);
+    expect(results.length >= variations.timestamps.length).toBeTruthy();
   });
 
   it("should apply custom filter variations", async () => {
@@ -229,18 +216,18 @@ describe("ThumbnailGenerator - A/B Testing", { concurrency: 1 }, () => {
       variations
     );
 
-    assert.equal(results.length, variations.filters.length);
+    expect(results.length).toBe(variations.filters.length);
   });
 });
 
 // --- Edge Cases ---
 
-describe("ThumbnailGenerator - Edge Cases", { concurrency: 1 }, () => {
+describe("ThumbnailGenerator - Edge Cases", () => {
   let generator: ThumbnailGenerator;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     generator = new ThumbnailGenerator(createMockSpawn());
-    setupFsMocks(t, fs);
+    setupFsMocks(fs);
   });
 
   it("should handle zero timestamp", async () => {
@@ -261,7 +248,7 @@ describe("ThumbnailGenerator - Edge Cases", { concurrency: 1 }, () => {
 
     const result = await generator.generateThumbnail("/test/video.mp4", outputPath, options);
 
-    assert.equal(result.timestamp, 0);
+    expect(result.timestamp).toBe(0);
   });
 
   it("should handle very high quality setting", async () => {
@@ -281,7 +268,7 @@ describe("ThumbnailGenerator - Edge Cases", { concurrency: 1 }, () => {
 
     const result = await generator.generateThumbnail("/test/video.mp4", outputPath, options);
 
-    assert.equal(result.quality, 100);
+    expect(result.quality).toBe(100);
   });
 
   it("should handle small resolution", async () => {
@@ -301,7 +288,7 @@ describe("ThumbnailGenerator - Edge Cases", { concurrency: 1 }, () => {
 
     const result = await generator.generateThumbnail("/test/video.mp4", outputPath, options);
 
-    assert.equal(result.width, 320);
-    assert.equal(result.height, 180);
+    expect(result.width).toBe(320);
+    expect(result.height).toBe(180);
   });
 });

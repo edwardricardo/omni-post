@@ -1,4 +1,4 @@
-import { mock } from "node:test";
+import { vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { templateRoutes } from "../../src/templates/templateRoutes.js";
 import { templateService } from "../../src/templates/templateService.js";
@@ -10,7 +10,7 @@ import { TOKENS } from "../../src/infrastructure/container/types.js";
 const mockPrisma = {} as any;
 
 export const mockTemplateService = {
-  getTemplates: mock.fn(async () => ({
+  getTemplates: vi.fn(async () => ({
     ok: true,
     value: [
       {
@@ -28,7 +28,7 @@ export const mockTemplateService = {
       },
     ],
   })),
-  getTemplate: mock.fn(async () => ({
+  getTemplate: vi.fn(async () => ({
     ok: true,
     value: {
       id: "template-1",
@@ -41,7 +41,7 @@ export const mockTemplateService = {
       version: 1,
     },
   })),
-  createTemplate: mock.fn(async (_projectId: string, data: any) => ({
+  createTemplate: vi.fn(async (_projectId: string, data: any) => ({
     ok: true,
     value: {
       id: "new-template-id",
@@ -50,7 +50,7 @@ export const mockTemplateService = {
       updatedAt: new Date(),
     },
   })),
-  updateTemplate: mock.fn(async (_projectId: string, _templateId: string, data: any) => ({
+  updateTemplate: vi.fn(async (_projectId: string, _templateId: string, data: any) => ({
     ok: true,
     value: {
       id: "template-1",
@@ -58,8 +58,8 @@ export const mockTemplateService = {
       updatedAt: new Date(),
     },
   })),
-  deleteTemplate: mock.fn(async () => ({ ok: true, value: true })),
-  duplicateTemplate: mock.fn(async (_projectId: string, _templateId: string, name: string) => ({
+  deleteTemplate: vi.fn(async () => ({ ok: true, value: true })),
+  duplicateTemplate: vi.fn(async (_projectId: string, _templateId: string, name: string) => ({
     ok: true,
     value: {
       id: "duplicated-template-id",
@@ -71,18 +71,18 @@ export const mockTemplateService = {
       tags: [],
     },
   })),
-  compileTemplate: mock.fn(async () => ({
+  compileTemplate: vi.fn(async () => ({
     ok: true,
     value: {
       compiled: "Hello John",
       platforms: ["x"],
     },
   })),
-  validateTemplate: mock.fn(async () => ({
+  validateTemplate: vi.fn(async () => ({
     ok: true,
     value: { valid: true, errors: [] },
   })),
-  getTemplateVersions: mock.fn(async () => ({
+  getTemplateVersions: vi.fn(async () => ({
     ok: true,
     value: [
       {
@@ -101,7 +101,7 @@ export const mockTemplateService = {
       },
     ],
   })),
-  createTemplateVersion: mock.fn(async () => ({
+  createTemplateVersion: vi.fn(async () => ({
     ok: true,
     value: {
       id: "new-version-id",
@@ -110,7 +110,7 @@ export const mockTemplateService = {
       isActive: true,
     },
   })),
-  restoreTemplateVersion: mock.fn(async () => ({
+  restoreTemplateVersion: vi.fn(async () => ({
     ok: true,
     value: {
       id: "template-1",
@@ -118,7 +118,7 @@ export const mockTemplateService = {
       version: 3,
     },
   })),
-  getABTests: mock.fn(async () => ({
+  getABTests: vi.fn(async () => ({
     ok: true,
     value: [
       {
@@ -132,7 +132,7 @@ export const mockTemplateService = {
       },
     ],
   })),
-  createABTest: mock.fn(async (_projectId: string, data: any) => ({
+  createABTest: vi.fn(async (_projectId: string, data: any) => ({
     ok: true,
     value: {
       id: "new-test-id",
@@ -142,7 +142,7 @@ export const mockTemplateService = {
       updatedAt: new Date(),
     },
   })),
-  startABTest: mock.fn(async () => ({
+  startABTest: vi.fn(async () => ({
     ok: true,
     value: {
       id: "test-1",
@@ -150,7 +150,7 @@ export const mockTemplateService = {
       startDate: new Date(),
     },
   })),
-  stopABTest: mock.fn(async () => ({
+  stopABTest: vi.fn(async () => ({
     ok: true,
     value: {
       id: "test-1",
@@ -158,7 +158,7 @@ export const mockTemplateService = {
       endDate: new Date(),
     },
   })),
-  getPlatformLimits: mock.fn(async (platform: string) => ({
+  getPlatformLimits: vi.fn(async (platform: string) => ({
     ok: true,
     value: {
       platform,
@@ -166,7 +166,7 @@ export const mockTemplateService = {
       maxMediaPerPost: platform === "x" ? 4 : 10,
     },
   })),
-  getSupportedPlatforms: mock.fn(async () => ({
+  getSupportedPlatforms: vi.fn(async () => ({
     ok: true,
     value: ["x", "instagram", "facebook", "linkedin"],
   })),

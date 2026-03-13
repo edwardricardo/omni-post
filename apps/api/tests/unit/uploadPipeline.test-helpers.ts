@@ -2,14 +2,9 @@
  * Shared test helpers for VideoUploadPipeline tests.
  *
  * Exports mockFsData (shared mutable state) and setupFsMocks() which applies
- * mock.method() overrides for all fs.promises operations used by uploadPipeline.ts.
- *
- * When called with a TestContext argument, uses t.mock.method() for auto-cleanup.
- * When called without arguments, falls back to the global mock.method() for
- * backward compatibility with test files that haven't been migrated yet.
+ * vi.spyOn() overrides for all fs.promises operations used by uploadPipeline.ts.
  */
-import { mock } from "node:test";
-import type { TestContext } from "node:test";
+import { vi } from "vitest";
 import { promises as fs } from "fs";
 
 export const mockFsData = {
@@ -19,64 +14,70 @@ export const mockFsData = {
 };
 
 /**
- * Install fs mocks. Accepts an optional TestContext for scoped cleanup.
- * If no TestContext is provided, uses the global mock API.
+ * Install fs mocks using vi.spyOn for automatic cleanup.
  */
-export function setupFsMocks(t?: TestContext): void {
-  const mockApi = t ? t.mock : mock;
-
-  mockApi.method(fs, "stat", async (path: string) => {
-    const stats = mockFsData.stats.get(path);
+export function setupFsMocks(): void {
+  vi.spyOn(fs, "stat").mockImplementation(async (path: Parameters<typeof fs.stat>[0]) => {
+    const pathStr = String(path);
+    const stats = mockFsData.stats.get(pathStr);
     if (!stats) {
-      throw new Error(`ENOENT: no such file or directory, stat '${path}'`);
+      throw new Error(`ENOENT: no such file or directory, stat '${pathStr}'`);
     }
-    return stats as ReturnType<typeof fs.stat> extends Promise<infer S> ? S : never;
+    return stats as Awaited<ReturnType<typeof fs.stat>>;
   });
 
-  mockApi.method(fs, "open", async (path: string, _flags: string) => {
-    const buffer = mockFsData.files.get(path);
-    if (!buffer) {
-      throw new Error(`ENOENT: no such file or directory, open '${path}'`);
+  vi.spyOn(fs, "open").mockImplementation(
+    async (path: Parameters<typeof fs.open>[0], _flags?: Parameters<typeof fs.open>[1]) => {
+      const pathStr = String(path);
+      const buffer = mockFsData.files.get(pathStr);
+      if (!buffer) {
+        throw new Error(`ENOENT: no such file or directory, open '${pathStr}'`);
+      }
+
+      const handle = {
+        path: pathStr,
+        buffer,
+        async read(targetBuffer: Buffer, offset: number, length: number, position: number) {
+          const sourceData = buffer.slice(position, position + length);
+          sourceData.copy(targetBuffer, offset);
+          return { bytesRead: sourceData.length, buffer: targetBuffer };
+        },
+        async close() {
+          return;
+        },
+      };
+
+      mockFsData.fileHandles.set(pathStr, handle);
+      return handle as Awaited<ReturnType<typeof fs.open>>;
     }
+  );
 
-    const handle = {
-      path,
-      buffer,
-      async read(targetBuffer: Buffer, offset: number, length: number, position: number) {
-        const sourceData = buffer.slice(position, position + length);
-        sourceData.copy(targetBuffer, offset);
-        return { bytesRead: sourceData.length, buffer: targetBuffer };
-      },
-      async close() {
-        return;
-      },
-    };
+  vi.spyOn(fs, "writeFile").mockImplementation(
+    async (path: Parameters<typeof fs.writeFile>[0], data: Parameters<typeof fs.writeFile>[1]) => {
+      const pathStr = String(path);
+      const buf = Buffer.isBuffer(data) ? data : Buffer.from(String(data));
+      mockFsData.files.set(pathStr, buf);
+    }
+  );
 
-    mockFsData.fileHandles.set(path, handle);
-    return handle as ReturnType<typeof fs.open> extends Promise<infer H> ? H : never;
-  });
-
-  mockApi.method(fs, "writeFile", async (path: string, data: Buffer | string) => {
-    mockFsData.files.set(path, Buffer.isBuffer(data) ? data : Buffer.from(data));
-  });
-
-  mockApi.method(fs, "readFile", async (path: string) => {
-    const content = mockFsData.files.get(path);
+  vi.spyOn(fs, "readFile").mockImplementation(async (path: Parameters<typeof fs.readFile>[0]) => {
+    const pathStr = String(path);
+    const content = mockFsData.files.get(pathStr);
     if (!content) {
-      throw new Error(`ENOENT: no such file or directory, readFile '${path}'`);
+      throw new Error(`ENOENT: no such file or directory, readFile '${pathStr}'`);
     }
     return content;
   });
 
-  mockApi.method(fs, "mkdir", async () => {
+  vi.spyOn(fs, "mkdir").mockImplementation(async () => {
+    return undefined as unknown as string | undefined;
+  });
+
+  vi.spyOn(fs, "rm").mockImplementation(async () => {
     return undefined;
   });
 
-  mockApi.method(fs, "rm", async () => {
-    return undefined;
-  });
-
-  mockApi.method(fs, "unlink", async () => {
+  vi.spyOn(fs, "unlink").mockImplementation(async () => {
     return undefined;
   });
 }

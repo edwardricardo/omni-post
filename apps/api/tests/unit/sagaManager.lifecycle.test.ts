@@ -1,5 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SAGA_EVENTS } from "@shared/saga";
 import {
   MockPrismaClient,
@@ -14,7 +13,7 @@ import {
 } from "./sagaManager.test-helpers.js";
 import { SagaManagerImpl } from "../../src/saga/SagaManager";
 
-describe("SagaManager - Saga Registration", { concurrency: 1 }, () => {
+describe("SagaManager - Saga Registration", () => {
   let manager: SagaManagerImpl;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -32,18 +31,14 @@ describe("SagaManager - Saga Registration", { concurrency: 1 }, () => {
     manager.registerSaga(definition);
 
     const metrics = manager.getMetrics();
-    assert.ok(metrics.definitions.includes(definition.id));
+    expect(metrics.definitions.includes(definition.id)).toBeTruthy();
   });
 
   it("should throw error when registering duplicate saga definition", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    assert.throws(
-      () => manager.registerSaga(definition),
-      /already registered/,
-      "Should throw error for duplicate registration"
-    );
+    expect(() => manager.registerSaga(definition)).toThrow(/already registered/);
   });
 
   it("should register multiple different saga definitions", () => {
@@ -54,13 +49,13 @@ describe("SagaManager - Saga Registration", { concurrency: 1 }, () => {
     manager.registerSaga(definition2);
 
     const metrics = manager.getMetrics();
-    assert.strictEqual(metrics.definitions.length, 2);
-    assert.ok(metrics.definitions.includes(definition1.id));
-    assert.ok(metrics.definitions.includes(definition2.id));
+    expect(metrics.definitions.length).toBe(2);
+    expect(metrics.definitions.includes(definition1.id)).toBeTruthy();
+    expect(metrics.definitions.includes(definition2.id)).toBeTruthy();
   });
 });
 
-describe("SagaManager - Saga Lifecycle", { concurrency: 1 }, () => {
+describe("SagaManager - Saga Lifecycle", () => {
   let manager: SagaManagerImpl;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -88,21 +83,17 @@ describe("SagaManager - Saga Lifecycle", { concurrency: 1 }, () => {
       metadata: { source: "test" },
     });
 
-    assert.ok(instance.id, "Saga instance should have an ID");
-    assert.strictEqual(instance.definitionId, definition.id);
-    assert.strictEqual(instance.status, "PENDING");
-    assert.strictEqual(instance.currentStep, 0);
-    assert.strictEqual(instance.retryCount, 0);
-    assert.strictEqual(instance.context.correlationId, "test-corr-123");
-    assert.strictEqual(instance.context.userId, "user-456");
+    expect(instance.id).toBeTruthy();
+    expect(instance.definitionId).toBe(definition.id);
+    expect(instance.status).toBe("PENDING");
+    expect(instance.currentStep).toBe(0);
+    expect(instance.retryCount).toBe(0);
+    expect(instance.context.correlationId).toBe("test-corr-123");
+    expect(instance.context.userId).toBe("user-456");
   });
 
   it("should throw error when starting saga with unknown definition", async () => {
-    await assert.rejects(
-      async () => await manager.startSaga("unknown-saga", {}),
-      /not found/,
-      "Should throw error for unknown saga definition"
-    );
+    await expect(manager.startSaga("unknown-saga", {})).rejects.toThrow(/not found/);
   });
 
   it("should emit saga started event on saga start", async () => {
@@ -117,9 +108,9 @@ describe("SagaManager - Saga Lifecycle", { concurrency: 1 }, () => {
       (e) => e.type === SAGA_EVENTS.SAGA_STARTED
     );
 
-    assert.strictEqual(startedEvents.length, 1);
-    assert.strictEqual(startedEvents[0]!.data.definitionId, definition.id);
-    assert.strictEqual(startedEvents[0]!.data.correlationId, "test-corr-123");
+    expect(startedEvents.length).toBe(1);
+    expect(startedEvents[0]!.data.definitionId).toBe(definition.id);
+    expect(startedEvents[0]!.data.correlationId).toBe("test-corr-123");
   });
 
   it("should increment active instances metric on saga start", async () => {
@@ -132,11 +123,11 @@ describe("SagaManager - Saga Lifecycle", { concurrency: 1 }, () => {
     await manager.startSaga(definition.id, {});
 
     const metricsAfter = manager.getMetrics();
-    assert.strictEqual(metricsAfter.activeInstances, activeInstancesBefore + 1);
+    expect(metricsAfter.activeInstances).toBe(activeInstancesBefore + 1);
   });
 });
 
-describe("SagaManager - State Persistence", { concurrency: 1 }, () => {
+describe("SagaManager - State Persistence", () => {
   let manager: SagaManagerImpl;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -163,11 +154,11 @@ describe("SagaManager - State Persistence", { concurrency: 1 }, () => {
     const key = `saga:${instance.id}`;
     const data = await mockRedis.get(key);
 
-    assert.ok(data, "Saga instance should be persisted to Redis");
+    expect(data).toBeTruthy();
 
     const parsed = JSON.parse(data!);
-    assert.strictEqual(parsed.id, instance.id);
-    assert.strictEqual(parsed.definitionId, definition.id);
+    expect(parsed.id).toBe(instance.id);
+    expect(parsed.definitionId).toBe(definition.id);
   });
 
   it("should retrieve saga instance from Redis", async () => {
@@ -178,18 +169,18 @@ describe("SagaManager - State Persistence", { concurrency: 1 }, () => {
 
     const retrieved = await manager.getSaga(instance.id);
 
-    assert.ok(retrieved, "Should retrieve saga instance");
-    assert.strictEqual(retrieved.id, instance.id);
-    assert.strictEqual(retrieved.definitionId, instance.definitionId);
+    expect(retrieved).toBeTruthy();
+    expect(retrieved.id).toBe(instance.id);
+    expect(retrieved.definitionId).toBe(instance.definitionId);
   });
 
   it("should return null for non-existent saga", async () => {
     const retrieved = await manager.getSaga("non-existent-saga-id");
-    assert.strictEqual(retrieved, null);
+    expect(retrieved).toBe(null);
   });
 });
 
-describe("SagaManager - Shutdown", { concurrency: 1 }, () => {
+describe("SagaManager - Shutdown", () => {
   let manager: SagaManagerImpl;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -210,8 +201,8 @@ describe("SagaManager - Shutdown", { concurrency: 1 }, () => {
     await manager.shutdown();
 
     const metrics = manager.getMetrics();
-    assert.strictEqual(metrics.activeInstances, 0);
-    assert.strictEqual(metrics.definitions.length, 0);
+    expect(metrics.activeInstances).toBe(0);
+    expect(metrics.definitions.length).toBe(0);
   });
 
   it("should persist running sagas as pending on shutdown", async () => {
@@ -223,6 +214,6 @@ describe("SagaManager - Shutdown", { concurrency: 1 }, () => {
     await manager.shutdown();
 
     const data = await mockRedis.get(`saga:${instance.id}`);
-    assert.ok(data, "Saga should be persisted on shutdown");
+    expect(data).toBeTruthy();
   });
 });

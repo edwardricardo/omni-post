@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import type { ProviderCapabilities } from "../../src/providers/providerAdapter.interface.js";
 import {
   ProviderCapabilityManager,
@@ -15,7 +14,7 @@ describe("ProviderCapabilityManager - Initialization & Basic Operations", () => 
     const manager = new ProviderCapabilityManager([]);
 
     const providers = manager.getAllProviders();
-    assert.strictEqual(providers.length, 0, "Manager should have no providers initially");
+    expect(providers.length).toBe(0);
   });
 
   it("should initialize with providers", () => {
@@ -23,11 +22,7 @@ describe("ProviderCapabilityManager - Initialization & Basic Operations", () => 
     const manager = new ProviderCapabilityManager(testProviders);
 
     const providers = manager.getAllProviders();
-    assert.strictEqual(
-      providers.length,
-      testProviders.length,
-      `Manager should have ${testProviders.length} providers`
-    );
+    expect(providers.length).toBe(testProviders.length);
   });
 
   it("should register a provider", () => {
@@ -37,8 +32,8 @@ describe("ProviderCapabilityManager - Initialization & Basic Operations", () => 
     manager.registerProvider(testProviders[0]!);
 
     const providers = manager.getAllProviders();
-    assert.strictEqual(providers.length, 1, "Manager should have 1 provider after registration");
-    assert.strictEqual(providers[0]!.id, testProviders[0]!.id, "Registered provider should match");
+    expect(providers.length).toBe(1);
+    expect(providers[0]!.id).toBe(testProviders[0]!.id);
   });
 
   it("should unregister a provider", () => {
@@ -48,16 +43,8 @@ describe("ProviderCapabilityManager - Initialization & Basic Operations", () => 
     manager.unregisterProvider(testProviders[0]!.id);
 
     const providers = manager.getAllProviders();
-    assert.strictEqual(
-      providers.length,
-      testProviders.length - 1,
-      "Manager should have one less provider"
-    );
-    assert.strictEqual(
-      providers.some((p) => p.id === testProviders[0]!.id),
-      false,
-      "Unregistered provider should be removed"
-    );
+    expect(providers.length).toBe(testProviders.length - 1);
+    expect(providers.some((p) => p.id === testProviders[0]!.id)).toBe(false);
   });
 });
 
@@ -70,11 +57,8 @@ describe("ProviderCapabilityManager - Capability Queries", () => {
     const manager = new ProviderCapabilityManager(testProviders);
 
     const threadingProviders = manager.getProvidersByCapability("threading");
-    assert.ok(threadingProviders.length > 0, "Should find providers with threading capability");
-    assert.ok(
-      threadingProviders.every((p) => p.capabilities.threading === true),
-      "All returned providers should support threading"
-    );
+    expect(threadingProviders.length > 0).toBeTruthy();
+    expect(threadingProviders.every((p) => p.capabilities.threading === true)).toBeTruthy();
   });
 
   it("should return empty for unsupported capability", () => {
@@ -107,11 +91,7 @@ describe("ProviderCapabilityManager - Capability Queries", () => {
 
     if (unsupportedCapability) {
       const providers = manager.getProvidersByCapability(unsupportedCapability);
-      assert.strictEqual(
-        providers.length,
-        0,
-        "Should return no providers for unsupported capability"
-      );
+      expect(providers.length).toBe(0);
     }
   });
 
@@ -125,15 +105,11 @@ describe("ProviderCapabilityManager - Capability Queries", () => {
     };
 
     const compatibleProviders = manager.getCompatibleProviders(query);
-    assert.ok(compatibleProviders.length > 0, "Should find compatible providers");
-    assert.ok(
-      compatibleProviders.every((p) => p.score > 0),
-      "All compatible providers should have score > 0"
-    );
-    assert.ok(
-      compatibleProviders[0]!.score >= compatibleProviders[compatibleProviders.length - 1]!.score,
-      "Providers should be sorted by score (descending)"
-    );
+    expect(compatibleProviders.length > 0).toBeTruthy();
+    expect(compatibleProviders.every((p) => p.score > 0)).toBeTruthy();
+    expect(
+      compatibleProviders[0]!.score >= compatibleProviders[compatibleProviders.length - 1]!.score
+    ).toBeTruthy();
   });
 
   it("should exclude providers missing required capabilities", () => {
@@ -145,13 +121,12 @@ describe("ProviderCapabilityManager - Capability Queries", () => {
     };
 
     const compatibleProviders = manager.getCompatibleProviders(query);
-    assert.ok(
+    expect(
       compatibleProviders.every((p) => {
         const provider = manager.getAllProviders().find((pr) => pr.id === p.providerId);
         return provider?.capabilities.stories && provider?.capabilities.reels;
-      }),
-      "Only providers with both stories and reels should be returned"
-    );
+      })
+    ).toBeTruthy();
   });
 
   it("should handle character limit constraints", () => {
@@ -167,10 +142,7 @@ describe("ProviderCapabilityManager - Capability Queries", () => {
     const xProvider = compatibleProviders.find((p) => p.providerId === "x");
 
     if (xProvider) {
-      assert.ok(
-        xProvider.limitations.some((l) => l.includes("Character limit")),
-        "X provider should have character limit limitation"
-      );
+      expect(xProvider.limitations.some((l) => l.includes("Character limit"))).toBeTruthy();
     }
   });
 
@@ -184,12 +156,11 @@ describe("ProviderCapabilityManager - Capability Queries", () => {
     };
 
     const compatibleProviders = manager.getCompatibleProviders(query);
-    assert.ok(
+    expect(
       compatibleProviders.every((p) => {
         const provider = manager.getAllProviders().find((pr) => pr.id === p.providerId);
         return provider && provider.limits.maxMediaPerPost > 0;
-      }),
-      "All compatible providers should support media"
-    );
+      })
+    ).toBeTruthy();
   });
 });

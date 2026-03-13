@@ -6,10 +6,7 @@
  * Tier 0: No database required.
  */
 
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaApiKeyRepository } from "../../../src/infrastructure/repositories/PrismaApiKeyRepository.js";
 import { ApiKeyNotFoundError } from "../../../src/domain/repositories/ApiKeyRepository.js";
 
@@ -36,27 +33,27 @@ function baseRow() {
   };
 }
 
-function makeMockPrisma(t: TestContext) {
+function makeMockPrisma() {
   return {
     apiKey: {
-      findUnique: t.mock.fn(async () => baseRow()),
-      findFirst: t.mock.fn(async () => baseRow()),
-      findMany: t.mock.fn(async () => [baseRow()]),
-      create: t.mock.fn(async () => baseRow()),
-      update: t.mock.fn(async () => baseRow()),
-      deleteMany: t.mock.fn(async () => ({ count: 1 })),
+      findUnique: vi.fn(async () => baseRow()),
+      findFirst: vi.fn(async () => baseRow()),
+      findMany: vi.fn(async () => [baseRow()]),
+      create: vi.fn(async () => baseRow()),
+      update: vi.fn(async () => baseRow()),
+      deleteMany: vi.fn(async () => ({ count: 1 })),
     },
   };
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
-describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
+describe("PrismaApiKeyRepository", () => {
   let prisma: ReturnType<typeof makeMockPrisma>;
   let repo: PrismaApiKeyRepository;
 
-  beforeEach((t) => {
-    prisma = makeMockPrisma(t);
+  beforeEach(() => {
+    prisma = makeMockPrisma();
     repo = new PrismaApiKeyRepository(prisma as never);
   });
 
@@ -66,32 +63,32 @@ describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
     it("returns ok(key) when row exists", async () => {
       const result = await repo.findById(BASE_ID);
 
-      assert.ok(result.ok);
-      assert.equal(result.value.id, BASE_ID);
-      assert.equal(result.value.name, "Test Key");
-      assert.equal(result.value.prefix, "op_aabbccdd");
-      assert.deepEqual(result.value.permissions, ["read", "write"]);
-      assert.equal(result.value.isActive, true);
-      assert.equal(result.value.expiresAt, undefined);
-      assert.equal(result.value.lastUsedAt, undefined);
-      assert.equal(result.value.rotationSchedule, undefined);
-      assert.equal(prisma.apiKey.findUnique.mock.calls.length, 1);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.id).toBe(BASE_ID);
+      expect(result.value.name).toBe("Test Key");
+      expect(result.value.prefix).toBe("op_aabbccdd");
+      expect(result.value.permissions).toEqual(["read", "write"]);
+      expect(result.value.isActive).toBe(true);
+      expect(result.value.expiresAt).toBe(undefined);
+      expect(result.value.lastUsedAt).toBe(undefined);
+      expect(result.value.rotationSchedule).toBe(undefined);
+      expect(prisma.apiKey.findUnique.mock.calls.length).toBe(1);
     });
 
     it("returns err(ApiKeyNotFoundError) when row is null", async () => {
-      prisma.apiKey.findUnique.mock.mockImplementation(async () => null);
+      prisma.apiKey.findUnique.mockImplementation(async () => null);
 
       const result = await repo.findById(BASE_ID);
 
-      assert.ok(!result.ok);
-      assert.ok(result.error instanceof ApiKeyNotFoundError);
-      assert.match(result.error.message, new RegExp(BASE_ID));
+      expect(result.ok).toBeFalsy();
+      expect(result.error instanceof ApiKeyNotFoundError).toBeTruthy();
+      expect(result.error.message).toMatch(new RegExp(BASE_ID));
     });
 
     it("maps nullable fields to undefined correctly", async () => {
       const expiresAt = new Date("2027-01-01");
       const lastUsedAt = new Date("2026-06-01");
-      prisma.apiKey.findUnique.mock.mockImplementation(async () => ({
+      prisma.apiKey.findUnique.mockImplementation(async () => ({
         ...baseRow(),
         expiresAt,
         lastUsedAt,
@@ -100,10 +97,10 @@ describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
 
       const result = await repo.findById(BASE_ID);
 
-      assert.ok(result.ok);
-      assert.deepEqual(result.value.expiresAt, expiresAt);
-      assert.deepEqual(result.value.lastUsedAt, lastUsedAt);
-      assert.equal(result.value.rotationSchedule, "0 0 * * 0");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.expiresAt).toEqual(expiresAt);
+      expect(result.value.lastUsedAt).toEqual(lastUsedAt);
+      expect(result.value.rotationSchedule).toBe("0 0 * * 0");
     });
   });
 
@@ -113,21 +110,21 @@ describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
     it("returns array of domain keys for account", async () => {
       const keys = await repo.findByAccountId(BASE_ACCOUNT_ID);
 
-      assert.equal(keys.length, 1);
-      assert.equal(keys[0]?.id, BASE_ID);
-      assert.equal(prisma.apiKey.findMany.mock.calls.length, 1);
+      expect(keys.length).toBe(1);
+      expect(keys[0]?.id).toBe(BASE_ID);
+      expect(prisma.apiKey.findMany.mock.calls.length).toBe(1);
       const callRecord = prisma.apiKey.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { accountId: string; isActive: boolean } };
-      assert.equal(args.where.accountId, BASE_ACCOUNT_ID);
-      assert.equal(args.where.isActive, true);
+      const args = callRecord?.[0] as { where: { accountId: string; isActive: boolean } };
+      expect(args.where.accountId).toBe(BASE_ACCOUNT_ID);
+      expect(args.where.isActive).toBe(true);
     });
 
     it("returns empty array when no keys found", async () => {
-      prisma.apiKey.findMany.mock.mockImplementation(async () => []);
+      prisma.apiKey.findMany.mockImplementation(async () => []);
 
       const keys = await repo.findByAccountId(BASE_ACCOUNT_ID);
 
-      assert.equal(keys.length, 0);
+      expect(keys.length).toBe(0);
     });
   });
 
@@ -137,17 +134,17 @@ describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
     it("returns domain key when found", async () => {
       const key = await repo.findActiveByPrefix("op_aabbccdd");
 
-      assert.ok(key !== null);
-      assert.equal(key.prefix, "op_aabbccdd");
-      assert.equal(prisma.apiKey.findFirst.mock.calls.length, 1);
+      expect(key !== null).toBeTruthy();
+      expect(key.prefix).toBe("op_aabbccdd");
+      expect(prisma.apiKey.findFirst.mock.calls.length).toBe(1);
     });
 
     it("returns null when prefix not found", async () => {
-      prisma.apiKey.findFirst.mock.mockImplementation(async () => null);
+      prisma.apiKey.findFirst.mockImplementation(async () => null);
 
       const key = await repo.findActiveByPrefix("op_notexist");
 
-      assert.equal(key, null);
+      expect(key).toBe(null);
     });
   });
 
@@ -164,12 +161,12 @@ describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
         rateLimit: 500,
       });
 
-      assert.equal(key.id, BASE_ID);
-      assert.equal(prisma.apiKey.create.mock.calls.length, 1);
+      expect(key.id).toBe(BASE_ID);
+      expect(prisma.apiKey.create.mock.calls.length).toBe(1);
       const callRecord = prisma.apiKey.create.mock.calls[0];
-      const args = callRecord?.arguments[0] as { data: { name: string; rateLimit: number } };
-      assert.equal(args.data.name, "My Key");
-      assert.equal(args.data.rateLimit, 500);
+      const args = callRecord?.[0] as { data: { name: string; rateLimit: number } };
+      expect(args.data.name).toBe("My Key");
+      expect(args.data.rateLimit).toBe(500);
     });
 
     it("includes expiresAt when provided", async () => {
@@ -185,8 +182,8 @@ describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
       });
 
       const callRecord = prisma.apiKey.create.mock.calls[0];
-      const args = callRecord?.arguments[0] as { data: { expiresAt?: Date } };
-      assert.deepEqual(args.data.expiresAt, expiresAt);
+      const args = callRecord?.[0] as { data: { expiresAt?: Date } };
+      expect(args.data.expiresAt).toEqual(expiresAt);
     });
   });
 
@@ -196,14 +193,14 @@ describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
     it("calls update with lastUsedAt", async () => {
       await repo.recordUsage(BASE_ID);
 
-      assert.equal(prisma.apiKey.update.mock.calls.length, 1);
+      expect(prisma.apiKey.update.mock.calls.length).toBe(1);
       const callRecord = prisma.apiKey.update.mock.calls[0];
-      const args = callRecord?.arguments[0] as {
+      const args = callRecord?.[0] as {
         where: { id: string };
         data: { lastUsedAt: Date };
       };
-      assert.equal(args.where.id, BASE_ID);
-      assert.ok(args.data.lastUsedAt instanceof Date);
+      expect(args.where.id).toBe(BASE_ID);
+      expect(args.data.lastUsedAt instanceof Date).toBeTruthy();
     });
   });
 
@@ -213,21 +210,21 @@ describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
     it("returns ok when key exists and is deactivated", async () => {
       const result = await repo.deactivate(BASE_ID);
 
-      assert.ok(result.ok);
-      assert.equal(prisma.apiKey.update.mock.calls.length, 1);
+      expect(result.ok).toBeTruthy();
+      expect(prisma.apiKey.update.mock.calls.length).toBe(1);
       const callRecord = prisma.apiKey.update.mock.calls[0];
-      const args = callRecord?.arguments[0] as { data: { isActive: boolean } };
-      assert.equal(args.data.isActive, false);
+      const args = callRecord?.[0] as { data: { isActive: boolean } };
+      expect(args.data.isActive).toBe(false);
     });
 
     it("returns err(ApiKeyNotFoundError) when key does not exist", async () => {
-      prisma.apiKey.findUnique.mock.mockImplementation(async () => null);
+      prisma.apiKey.findUnique.mockImplementation(async () => null);
 
       const result = await repo.deactivate("nonexistent-id");
 
-      assert.ok(!result.ok);
-      assert.ok(result.error instanceof ApiKeyNotFoundError);
-      assert.equal(prisma.apiKey.update.mock.calls.length, 0);
+      expect(result.ok).toBeFalsy();
+      expect(result.error instanceof ApiKeyNotFoundError).toBeTruthy();
+      expect(prisma.apiKey.update.mock.calls.length).toBe(0);
     });
   });
 
@@ -240,26 +237,26 @@ describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
 
       const result = await repo.rotate(BASE_ID, newPrefix, newHash);
 
-      assert.ok(result.ok);
-      assert.equal(prisma.apiKey.update.mock.calls.length, 1);
+      expect(result.ok).toBeTruthy();
+      expect(prisma.apiKey.update.mock.calls.length).toBe(1);
       const callRecord = prisma.apiKey.update.mock.calls[0];
-      const args = callRecord?.arguments[0] as {
+      const args = callRecord?.[0] as {
         where: { id: string };
         data: { prefix: string; keyHash: string };
       };
-      assert.equal(args.where.id, BASE_ID);
-      assert.equal(args.data.prefix, newPrefix);
-      assert.equal(args.data.keyHash, newHash);
+      expect(args.where.id).toBe(BASE_ID);
+      expect(args.data.prefix).toBe(newPrefix);
+      expect(args.data.keyHash).toBe(newHash);
     });
 
     it("returns err(ApiKeyNotFoundError) when key does not exist", async () => {
-      prisma.apiKey.findUnique.mock.mockImplementation(async () => null);
+      prisma.apiKey.findUnique.mockImplementation(async () => null);
 
       const result = await repo.rotate("nonexistent-id", "op_x", "$2b$10$h");
 
-      assert.ok(!result.ok);
-      assert.ok(result.error instanceof ApiKeyNotFoundError);
-      assert.equal(prisma.apiKey.update.mock.calls.length, 0);
+      expect(result.ok).toBeFalsy();
+      expect(result.error instanceof ApiKeyNotFoundError).toBeTruthy();
+      expect(prisma.apiKey.update.mock.calls.length).toBe(0);
     });
   });
 
@@ -269,10 +266,10 @@ describe("PrismaApiKeyRepository", { concurrency: 1 }, () => {
     it("calls deleteMany with accountId", async () => {
       await repo.deleteByAccountId(BASE_ACCOUNT_ID);
 
-      assert.equal(prisma.apiKey.deleteMany.mock.calls.length, 1);
+      expect(prisma.apiKey.deleteMany.mock.calls.length).toBe(1);
       const callRecord = prisma.apiKey.deleteMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { accountId: string } };
-      assert.equal(args.where.accountId, BASE_ACCOUNT_ID);
+      const args = callRecord?.[0] as { where: { accountId: string } };
+      expect(args.where.accountId).toBe(BASE_ACCOUNT_ID);
     });
   });
 });

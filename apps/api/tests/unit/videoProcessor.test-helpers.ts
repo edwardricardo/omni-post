@@ -103,17 +103,17 @@ export function setStatSizeOverride(value: number | null): void {
 }
 
 /**
- * Sets up fs mocks scoped to the current test via t.mock.method().
+ * Sets up fs mocks scoped to the current test via vi.spyOn().
  * Automatically restored after each test completes.
  */
-export function setupFsMocks(t: import("node:test").TestContext): void {
-  t.mock.method(fs, "access", async (path: string) => {
+export function setupFsMocks(t: import("vitest").TestContext): void {
+  vi.spyOn(fs, "access").mockImplementation(async (path: string) => {
     if (!mockFsData.files.has(path as string)) {
       throw new Error(`ENOENT: no such file or directory, access '${path}'`);
     }
   });
 
-  t.mock.method(fs, "stat", async (path: string) => {
+  vi.spyOn(fs, "stat").mockImplementation(async (path: string) => {
     if (!mockFsData.files.has(path)) {
       throw new Error(`ENOENT: no such file or directory, stat '${path}'`);
     }
@@ -123,7 +123,7 @@ export function setupFsMocks(t: import("node:test").TestContext): void {
     } as any;
   });
 
-  t.mock.method(fs, "mkdir", async () => {
+  vi.spyOn(fs, "mkdir").mockImplementation(async () => {
     return undefined;
   });
 }

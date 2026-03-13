@@ -1,5 +1,4 @@
-import { describe, it, beforeEach, afterEach, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
 import { ProviderCoordinator } from "../../src/orchestration/ProviderCoordinator.js";
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
@@ -23,8 +22,8 @@ const originalGetAdapter = providerRegistry.getAdapter.bind(providerRegistry);
 providerRegistry.getAllProviders = () => Array.from(mockProviders.values());
 providerRegistry.getAdapter = ((id: string) => mockAdapters.get(id as ProviderId)) as any;
 
-describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
-  after(() => {
+describe("ProviderCoordinator - init and selection", () => {
+  afterAll(() => {
     providerRegistry.getAllProviders = originalGetAllProviders;
     providerRegistry.getAdapter = originalGetAdapter;
   });
@@ -33,7 +32,7 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
   // Initialization Tests
   // ============================================================================
 
-  describe("ProviderCoordinator - Initialization", { concurrency: 1 }, () => {
+  describe("ProviderCoordinator - Initialization", () => {
     let coordinator: ProviderCoordinator;
     let mockPrisma: PrismaClient;
     let mockRedis: Redis;
@@ -70,9 +69,9 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
       await coordinator.initialize();
 
       const providerNodes = (coordinator as any).providerNodes;
-      assert.strictEqual(providerNodes.size, 2, "Should load 2 providers");
-      assert.ok(providerNodes.has("x" as ProviderId), "Should have X provider");
-      assert.ok(providerNodes.has("instagram" as ProviderId), "Should have Instagram provider");
+      expect(providerNodes.size).toBe(2);
+      expect(providerNodes.has("x" as ProviderId)).toBeTruthy();
+      expect(providerNodes.has("instagram" as ProviderId)).toBeTruthy();
     });
 
     it("should set up default configuration for each provider", async () => {
@@ -81,24 +80,20 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
       const providerNodes = (coordinator as any).providerNodes;
       const xNode = providerNodes.get("x" as ProviderId);
 
-      assert.ok(xNode, "X provider node should exist");
-      assert.strictEqual(xNode.status, "active", "Provider should be active");
-      assert.strictEqual(xNode.configuration.priority, 1, "Should have default priority");
-      assert.strictEqual(
-        xNode.configuration.maxConcurrentRequests,
-        10,
-        "Should have default max concurrent requests"
-      );
-      assert.ok(xNode.configuration.circuitBreaker.enabled, "Circuit breaker should be enabled");
+      expect(xNode).toBeTruthy();
+      expect(xNode.status).toBe("active");
+      expect(xNode.configuration.priority).toBe(1);
+      expect(xNode.configuration.maxConcurrentRequests).toBe(10);
+      expect(xNode.configuration.circuitBreaker.enabled).toBeTruthy();
     });
 
     it("should initialize load balancing strategy", async () => {
       await coordinator.initialize();
 
       const loadBalancer = (coordinator as any).loadBalancer;
-      assert.strictEqual(loadBalancer.type, "weighted", "Should use weighted strategy");
-      assert.strictEqual(loadBalancer.enabled, true, "Load balancer should be enabled");
-      assert.ok(loadBalancer.parameters.responseTimeWeight, "Should have response time weight");
+      expect(loadBalancer.type).toBe("weighted");
+      expect(loadBalancer.enabled).toBe(true);
+      expect(loadBalancer.parameters.responseTimeWeight).toBeTruthy();
     });
 
     it("should not reinitialize if already initialized", async () => {
@@ -106,11 +101,7 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
       const providerNodesSize = (coordinator as any).providerNodes.size;
 
       await coordinator.initialize();
-      assert.strictEqual(
-        (coordinator as any).providerNodes.size,
-        providerNodesSize,
-        "Should not reload providers"
-      );
+      expect((coordinator as any).providerNodes.size).toBe(providerNodesSize);
     });
 
     it("should register event handlers on initialization", async () => {
@@ -119,8 +110,8 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
       const healthHandler = (mockEventService as any).getHandler("PROVIDER_HEALTH_CHANGED");
       const errorHandler = (mockEventService as any).getHandler("PROVIDER_ERROR");
 
-      assert.ok(healthHandler, "Should register health changed handler");
-      assert.ok(errorHandler, "Should register error handler");
+      expect(healthHandler).toBeTruthy();
+      expect(errorHandler).toBeTruthy();
     });
   });
 
@@ -128,7 +119,7 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
   // Provider Selection Tests
   // ============================================================================
 
-  describe("ProviderCoordinator - Provider Selection", { concurrency: 1 }, () => {
+  describe("ProviderCoordinator - Provider Selection", () => {
     let coordinator: ProviderCoordinator;
     let mockPrisma: PrismaClient;
     let mockRedis: Redis;
@@ -176,12 +167,9 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
 
       const result = await coordinator.selectOptimalProvider(providers, content);
 
-      assert.ok(result.ok, "Selection should succeed");
-      assert.ok(result.value, "Should return routing decision");
-      assert.ok(
-        providers.includes(result.value.selectedProvider),
-        "Should select one of available providers"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value).toBeTruthy();
+      expect(providers.includes(result.value.selectedProvider)).toBeTruthy();
     });
 
     it("should exclude inactive providers from selection", async () => {
@@ -193,11 +181,8 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
 
       const result = await coordinator.selectOptimalProvider(["x"] as ProviderId[], content);
 
-      assert.strictEqual(result.ok, false, "Should fail when no active providers");
-      assert.ok(
-        result.error?.message.includes("No valid providers"),
-        "Should indicate no valid providers"
-      );
+      expect(result.ok).toBe(false);
+      expect(result.error?.message.includes("No valid providers")).toBeTruthy();
     });
 
     it("should exclude providers in excludeProviders criteria", async () => {
@@ -208,8 +193,8 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
         excludeProviders: ["x", "instagram"] as ProviderId[],
       });
 
-      assert.ok(result.ok, "Selection should succeed");
-      assert.strictEqual(result.value?.selectedProvider, "facebook", "Should select Facebook");
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.selectedProvider).toBe("facebook");
     });
 
     it("should return alternative providers in routing decision", async () => {
@@ -218,12 +203,9 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
 
       const result = await coordinator.selectOptimalProvider(providers, content);
 
-      assert.ok(result.ok, "Selection should succeed");
-      assert.ok(result.value?.alternativeProviders, "Should have alternative providers");
-      assert.ok(
-        result.value!.alternativeProviders.length > 0,
-        "Should have at least one alternative"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.alternativeProviders).toBeTruthy();
+      expect(result.value!.alternativeProviders.length > 0).toBeTruthy();
     });
 
     it("should include reasoning in routing decision", async () => {
@@ -231,9 +213,9 @@ describe("ProviderCoordinator - init and selection", { concurrency: 1 }, () => {
 
       const result = await coordinator.selectOptimalProvider(["x"] as ProviderId[], content);
 
-      assert.ok(result.ok, "Selection should succeed");
-      assert.ok(result.value?.reasoning, "Should have reasoning");
-      assert.ok(result.value!.reasoning.length > 0, "Should have reasoning items");
+      expect(result.ok).toBeTruthy();
+      expect(result.value?.reasoning).toBeTruthy();
+      expect(result.value!.reasoning.length > 0).toBeTruthy();
     });
   });
 }); // end outer describe

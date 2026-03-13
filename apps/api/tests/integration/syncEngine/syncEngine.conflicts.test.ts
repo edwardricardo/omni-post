@@ -1,5 +1,6 @@
 /**
- * SyncEngine - Conflict Resolution & Transaction Rollback Tests
+ * @file syncEngine.conflicts.test.ts
+ * @description SyncEngine - Conflict Resolution & Transaction Rollback Tests
  *
  * Covers:
  * - Conflict detection during sync
@@ -7,23 +8,23 @@
  * - source_wins and merge conflict resolution strategies
  * - Rollback of non-existent transactions
  * - Rollback without a rollback plan
+ * @layer integration
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 // Suppress console.log to prevent TAP protocol corruption in concurrent test mode
-let _originalConsoleLog: typeof console.log;
+const _originalConsoleLog = console.log;
 before(() => {
-  _originalConsoleLog = console.log;
   console.log = () => {};
 });
 after(() => {
   console.log = _originalConsoleLog;
 });
 
-import { SyncEngine } from "../../src/content/SyncEngine";
-import type { ProviderId } from "../../src/providers/providerAdapter.interface";
+import { SyncEngine } from "../../../src/content/SyncEngine";
+import type { ProviderId } from "../../../src/providers/providerAdapter.interface";
 import {
   mockPrisma,
   mockRedis,
@@ -64,7 +65,7 @@ beforeEach(async () => {
 // Conflict Resolution Tests
 // ============================================================================
 
-describe("SyncEngine - Conflict Resolution", { concurrency: 1 }, () => {
+describe("SyncEngine - Conflict Resolution", () => {
   beforeEach(async () => {
     if (!servicesAvailable) return;
     await syncEngine.initialize();
@@ -97,7 +98,7 @@ describe("SyncEngine - Conflict Resolution", { concurrency: 1 }, () => {
 
       assert.strictEqual(syncResult.ok, true);
       if (syncResult.ok) {
-        assert.ok(Array.isArray(syncResult.value.conflicts), "Conflicts should be an array");
+        assert.ok(Array.isArray(syncResult.value.conflicts));
       }
     }
   });
@@ -106,7 +107,7 @@ describe("SyncEngine - Conflict Resolution", { concurrency: 1 }, () => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.resolveSyncConflicts("invalid-transaction-id", []);
 
-    assert.strictEqual(result.ok, false, "Should reject invalid transaction");
+    assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.strictEqual(result.error.type, "validation");
       assert.match(result.error.message, /not found/i);
@@ -141,9 +142,9 @@ describe("SyncEngine - Conflict Resolution", { concurrency: 1 }, () => {
       assert.strictEqual(syncResult.ok, true);
       if (syncResult.ok && syncResult.value.conflicts.length > 0) {
         const resolvedConflicts = syncResult.value.conflicts.filter(
-          (c) => c.resolution === "source_wins"
+          (c: { resolution: string }) => c.resolution === "source_wins"
         );
-        assert.ok(resolvedConflicts.length >= 0, "Source wins conflicts should be tracked");
+        assert.ok(resolvedConflicts.length >= 0);
       }
     }
   });
@@ -173,7 +174,7 @@ describe("SyncEngine - Conflict Resolution", { concurrency: 1 }, () => {
         "source_to_target"
       );
 
-      assert.strictEqual(syncResult.ok, true, "Merge strategy should work");
+      assert.strictEqual(syncResult.ok, true);
     }
   });
 });
@@ -182,7 +183,7 @@ describe("SyncEngine - Conflict Resolution", { concurrency: 1 }, () => {
 // Rollback Tests
 // ============================================================================
 
-describe("SyncEngine - Transaction Rollback", { concurrency: 1 }, () => {
+describe("SyncEngine - Transaction Rollback", () => {
   beforeEach(async () => {
     if (!servicesAvailable) return;
     await syncEngine.initialize();
@@ -192,7 +193,7 @@ describe("SyncEngine - Transaction Rollback", { concurrency: 1 }, () => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.rollbackTransaction("invalid-transaction-id");
 
-    assert.strictEqual(result.ok, false, "Should reject invalid transaction");
+    assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.strictEqual(result.error.type, "validation");
       assert.match(result.error.message, /not found/i);

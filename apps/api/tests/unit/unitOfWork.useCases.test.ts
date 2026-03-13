@@ -9,8 +9,7 @@
  * - UpdatePostUseCase with UoW → calls executeInTransaction
  * - If save fails inside UoW → transaction is rolled back (error propagates)
  */
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { CreatePostUseCase } from "../../src/application/posts/CreatePostUseCase.js";
 import { UpdatePostUseCase } from "../../src/application/posts/UpdatePostUseCase.js";
@@ -54,7 +53,7 @@ function createMockEventDispatcher(): EventDispatcher & { dispatched: unknown[][
   };
 }
 
-describe("D3.3: CreatePostUseCase with UnitOfWork", { concurrency: 1 }, () => {
+describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
   const validInput = {
     projectId: randomUUID(),
     body: "Hello world!",
@@ -69,8 +68,8 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", { concurrency: 1 }, () => {
     const useCase = new CreatePostUseCase(repo, dispatcher, uow);
     const result = await useCase.execute(validInput);
 
-    assert.ok(result.ok, `Expected success, got error: ${!result.ok && result.error}`);
-    assert.strictEqual(uow.calls, 1, "UoW.executeInTransaction should be called once");
+    expect(result.ok).toBeTruthy();
+    expect(uow.calls).toBe(1);
   });
 
   it("should work without UoW (backward compat)", async () => {
@@ -80,7 +79,7 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", { concurrency: 1 }, () => {
     const useCase = new CreatePostUseCase(repo, dispatcher);
     const result = await useCase.execute(validInput);
 
-    assert.ok(result.ok, "Should succeed without UoW");
+    expect(result.ok).toBeTruthy();
   });
 
   it("should propagate save errors through UoW", async () => {
@@ -93,15 +92,12 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", { concurrency: 1 }, () => {
     const useCase = new CreatePostUseCase(repo, dispatcher, uow);
     const result = await useCase.execute(validInput);
 
-    assert.ok(!result.ok, "Should fail when save fails");
-    assert.ok(
-      result.error.message.includes("Failed to save post"),
-      `Error should mention save failure, got: ${result.error.message}`
-    );
+    expect(result.ok).toBeFalsy();
+    expect(result.error.message.includes("Failed to save post")).toBeTruthy();
   });
 });
 
-describe("D3.3: UpdatePostUseCase with UnitOfWork", { concurrency: 1 }, () => {
+describe("D3.3: UpdatePostUseCase with UnitOfWork", () => {
   it("should use UoW.executeInTransaction when UoW is provided", async () => {
     const uow = createMockUoW();
     // Need a repo that returns a real PostAggregate from findById
@@ -116,8 +112,8 @@ describe("D3.3: UpdatePostUseCase with UnitOfWork", { concurrency: 1 }, () => {
     const result = await useCase.execute({ postId: "post-missing", body: "new" });
 
     // findById returns err, so result should be err (NOT_FOUND)
-    assert.ok(!result.ok, "Should fail when post not found");
+    expect(result.ok).toBeFalsy();
     // But UoW should NOT have been called since we fail before save
-    assert.strictEqual(uow.calls, 0, "UoW should not be called when findById fails");
+    expect(uow.calls).toBe(0);
   });
 });

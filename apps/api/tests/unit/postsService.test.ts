@@ -3,12 +3,10 @@
  * Testing optimized queries, caching layers, performance metrics
  *
  * Pure unit test — no database, no Redis, no env-setup imports.
- * All dependencies are injected via constructor with t.mock.fn() mocks.
+ * All dependencies are injected via constructor with vi.fn() mocks.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-import type { TestContext } from "node:test";
+import { describe, it, vi, expect } from "vitest";
 import { PostsService } from "../../src/posts/postsService.js";
 import type { DatabaseOptimizer } from "../../src/database/DatabaseOptimizer.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
@@ -33,9 +31,9 @@ interface Mocks {
 
 // ─── Factory ─────────────────────────────────────────────────────────
 
-function createMocks(t: TestContext): Mocks {
+function createMocks(): Mocks {
   const dbOptimizer: MockDbOptimizer = {
-    getDashboardPosts: t.mock.fn(async (_accountId: string, _limit: number, _offset: number) => [
+    getDashboardPosts: vi.fn(async (_accountId: string, _limit: number, _offset: number) => [
       {
         id: "post-1",
         title: "Test Post 1",
@@ -55,8 +53,8 @@ function createMocks(t: TestContext): Mocks {
         totalViews: 0,
       },
     ]),
-    getDashboardPostsCount: t.mock.fn(async (_accountId: string): Promise<number> => 10),
-    getTenantDashboardStats: t.mock.fn(async (_accountId: string) => ({
+    getDashboardPostsCount: vi.fn(async (_accountId: string): Promise<number> => 10),
+    getTenantDashboardStats: vi.fn(async (_accountId: string) => ({
       totalPosts: 10,
       publishedPosts: 5,
       scheduledPosts: 3,
@@ -65,13 +63,13 @@ function createMocks(t: TestContext): Mocks {
       lastActivity: new Date(),
       avgPostViews: 500,
     })),
-    recordPerformanceMetric: t.mock.fn(async () => {}),
+    recordPerformanceMetric: vi.fn(async () => {}),
   };
 
   const cacheManager: MockCacheManager = {
-    get: t.mock.fn(async (_key: string) => ({ ok: true as const, value: null })),
-    set: t.mock.fn(async () => ({ ok: true as const, value: undefined })),
-    warmCache: t.mock.fn(async () => ({ ok: true as const, value: 0 })),
+    get: vi.fn(async (_key: string) => ({ ok: true as const, value: null })),
+    set: vi.fn(async () => ({ ok: true as const, value: undefined })),
+    warmCache: vi.fn(async () => ({ ok: true as const, value: 0 })),
   };
 
   const service = new PostsService(
@@ -86,20 +84,26 @@ function createMocks(t: TestContext): Mocks {
 
 const TEST_ACCOUNT_ID = "account-test-001";
 
-function cacheMiss(t: TestContext, cacheManager: MockCacheManager): void {
-  t.mock.method(cacheManager, "get", async () => ({ ok: true as const, value: null }));
+function cacheMiss(cacheManager: MockCacheManager): void {
+  vi.spyOn(cacheManager, "get").mockImplementation(async () => ({
+    ok: true as const,
+    value: null,
+  }));
 }
 
-function cacheHit<T>(t: TestContext, cacheManager: MockCacheManager, data: T): void {
-  t.mock.method(cacheManager, "get", async () => ({ ok: true as const, value: data }));
+function cacheHit<T>(cacheManager: MockCacheManager, data: T): void {
+  vi.spyOn(cacheManager, "get").mockImplementation(async () => ({
+    ok: true as const,
+    value: data,
+  }));
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────
 
-describe("PostsService", { concurrency: 1 }, () => {
+describe("PostsService", () => {
   describe("getOptimizedPosts", () => {
     it("should return cached results on cache hit", async (t) => {
-      const { cacheManager, service } = createMocks(t);
+      const { cacheManager, service } = createMocks();
 
       const cachedData = {
         data: [
@@ -123,7 +127,7 @@ describe("PostsService", { concurrency: 1 }, () => {
         cacheLevel: "database" as const,
       };
 
-      cacheHit(t, cacheManager, cachedData);
+      cacheHit(cacheManager, cachedData);
 
       const result = await service.getOptimizedPosts({
         accountId: TEST_ACCOUNT_ID,
@@ -132,15 +136,15 @@ describe("PostsService", { concurrency: 1 }, () => {
         offset: 0,
       });
 
-      assert.strictEqual(result.cached, true);
-      assert.strictEqual(result.cacheLevel, "multi-level");
-      assert.strictEqual(result.data.length, 1);
-      assert.strictEqual(result.data[0].id, "cached-1");
+      expect(result.cached).toBe(true);
+      expect(result.cacheLevel).toBe("multi-level");
+      expect(result.data.length).toBe(1);
+      expect(result.data[0].id).toBe("cached-1");
     });
 
     it("should fetch from database on cache miss", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       const result = await service.getOptimizedPosts({
         accountId: TEST_ACCOUNT_ID,
@@ -149,17 +153,17 @@ describe("PostsService", { concurrency: 1 }, () => {
         offset: 0,
       });
 
-      assert.strictEqual(result.cached, false);
-      assert.strictEqual(result.cacheLevel, "database");
-      assert.ok(Array.isArray(result.data));
-      assert.strictEqual(result.total, 10);
-      assert.strictEqual(result.page, 1);
-      assert.strictEqual(result.limit, 20);
+      expect(result.cached).toBe(false);
+      expect(result.cacheLevel).toBe("database");
+      expect(Array.isArray(result.data)).toBeTruthy();
+      expect(result.total).toBe(10);
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(20);
     });
 
     it("should store results in cache after database fetch", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       await service.getOptimizedPosts({
         accountId: TEST_ACCOUNT_ID,
@@ -170,21 +174,17 @@ describe("PostsService", { concurrency: 1 }, () => {
 
       // Verify cache.set was called
       const setCalls = (cacheManager.set as any).mock.calls;
-      assert.ok(setCalls.length > 0, "cache.set should have been called");
+      expect(setCalls.length > 0).toBeTruthy();
       const setCall = setCalls.find(
-        (call: any) =>
-          typeof call.arguments[0] === "string" && call.arguments[0].includes("dashboard:posts:")
+        (call: any) => typeof call[0] === "string" && call[0].includes("dashboard:posts:")
       );
-      assert.ok(setCall, "cache.set should be called with a key containing 'dashboard:posts'");
-      assert.ok(
-        setCall.arguments[0].includes("dashboard:posts"),
-        `Expected key to contain 'dashboard:posts', got '${setCall.arguments[0]}'`
-      );
+      expect(setCall).toBeTruthy();
+      expect(setCall[0].includes("dashboard:posts")).toBeTruthy();
     });
 
     it("should use correct cache key format", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       const accountId = "test-account-123";
       const page = 2;
@@ -199,16 +199,15 @@ describe("PostsService", { concurrency: 1 }, () => {
 
       const getCalls = (cacheManager.get as any).mock.calls;
       const getCall = getCalls.find(
-        (call: any) =>
-          typeof call.arguments[0] === "string" && call.arguments[0].includes("dashboard:posts:")
+        (call: any) => typeof call[0] === "string" && call[0].includes("dashboard:posts:")
       );
-      assert.ok(getCall, "cache.get should be called with a dashboard:posts key");
-      assert.strictEqual(getCall.arguments[0], `dashboard:posts:${accountId}:${page}:${limit}`);
+      expect(getCall).toBeTruthy();
+      expect(getCall[0]).toBe(`dashboard:posts:${accountId}:${page}:${limit}`);
     });
 
     it("should calculate pagination correctly", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       const result = await service.getOptimizedPosts({
         accountId: TEST_ACCOUNT_ID,
@@ -218,12 +217,12 @@ describe("PostsService", { concurrency: 1 }, () => {
       });
 
       // getDashboardPostsCount returns 10, limit=10 → totalPages = ceil(10/10) = 1
-      assert.strictEqual(result.totalPages, 1);
+      expect(result.totalPages).toBe(1);
     });
 
     it("should transform database results to API schema", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       const result = await service.getOptimizedPosts({
         accountId: TEST_ACCOUNT_ID,
@@ -232,28 +231,28 @@ describe("PostsService", { concurrency: 1 }, () => {
         offset: 0,
       });
 
-      assert.strictEqual(result.data.length, 2, "Should have 2 posts from mock");
+      expect(result.data.length).toBe(2);
       const post = result.data[0];
-      assert.ok("id" in post);
-      assert.ok("title" in post);
-      assert.ok("status" in post);
-      assert.ok("createdAt" in post);
-      assert.ok("tags" in post);
-      assert.ok("channelCount" in post);
-      assert.ok("totalViews" in post);
+      expect("id" in post).toBeTruthy();
+      expect("title" in post).toBeTruthy();
+      expect("status" in post).toBeTruthy();
+      expect("createdAt" in post).toBeTruthy();
+      expect("tags" in post).toBeTruthy();
+      expect("channelCount" in post).toBeTruthy();
+      expect("totalViews" in post).toBeTruthy();
 
       // Verify transformation details
-      assert.strictEqual(post.id, "post-1");
-      assert.strictEqual(post.title, "Test Post 1");
-      assert.strictEqual(post.status, "PUBLISHED");
-      assert.strictEqual(typeof post.createdAt, "string"); // Date → ISO string
-      assert.deepStrictEqual(post.tags, []);
-      assert.strictEqual(post.channelCount, 3);
-      assert.strictEqual(post.totalViews, 1000);
+      expect(post.id).toBe("post-1");
+      expect(post.title).toBe("Test Post 1");
+      expect(post.status).toBe("PUBLISHED");
+      expect(typeof post.createdAt).toBe("string"); // Date → ISO string
+      expect(post.tags).toStrictEqual([]);
+      expect(post.channelCount).toBe(3);
+      expect(post.totalViews).toBe(1000);
     });
 
     it("should record performance metrics on cache hit", async (t) => {
-      const { dbOptimizer, cacheManager, service } = createMocks(t);
+      const { dbOptimizer, cacheManager, service } = createMocks();
 
       const cachedData = {
         data: [],
@@ -265,7 +264,7 @@ describe("PostsService", { concurrency: 1 }, () => {
         cacheLevel: "database" as const,
       };
 
-      cacheHit(t, cacheManager, cachedData);
+      cacheHit(cacheManager, cachedData);
 
       await service.getOptimizedPosts({
         accountId: TEST_ACCOUNT_ID,
@@ -277,15 +276,15 @@ describe("PostsService", { concurrency: 1 }, () => {
       // Verify performance metric was recorded
       const metricCalls = (dbOptimizer.recordPerformanceMetric as any).mock.calls;
       const metricCall = metricCalls.find(
-        (call: any) => call.arguments[0] === "optimized_posts_response_time"
+        (call: any) => call[0] === "optimized_posts_response_time"
       );
-      assert.ok(metricCall, "Should record optimized_posts_response_time metric");
-      assert.strictEqual(metricCall.arguments[3].cached, true);
+      expect(metricCall).toBeTruthy();
+      expect(metricCall[3].cached).toBe(true);
     });
 
     it("should record performance metrics on cache miss", async (t) => {
-      const { dbOptimizer, cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { dbOptimizer, cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       await service.getOptimizedPosts({
         accountId: TEST_ACCOUNT_ID,
@@ -296,15 +295,15 @@ describe("PostsService", { concurrency: 1 }, () => {
 
       const metricCalls = (dbOptimizer.recordPerformanceMetric as any).mock.calls;
       const metricCall = metricCalls.find(
-        (call: any) => call.arguments[0] === "optimized_posts_response_time"
+        (call: any) => call[0] === "optimized_posts_response_time"
       );
-      assert.ok(metricCall, "Should record optimized_posts_response_time metric");
-      assert.strictEqual(metricCall.arguments[3].cached, false);
+      expect(metricCall).toBeTruthy();
+      expect(metricCall[3].cached).toBe(false);
     });
 
     it("should handle multi-tenant isolation correctly", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       const accountId1 = "account-1";
       const accountId2 = "account-2";
@@ -326,22 +325,20 @@ describe("PostsService", { concurrency: 1 }, () => {
       // Verify different cache keys were used
       const getCalls = (cacheManager.get as any).mock.calls;
       const key1 = getCalls.find(
-        (call: any) =>
-          typeof call.arguments[0] === "string" && call.arguments[0].includes(accountId1)
+        (call: any) => typeof call[0] === "string" && call[0].includes(accountId1)
       );
       const key2 = getCalls.find(
-        (call: any) =>
-          typeof call.arguments[0] === "string" && call.arguments[0].includes(accountId2)
+        (call: any) => typeof call[0] === "string" && call[0].includes(accountId2)
       );
 
-      assert.ok(key1, "Should have a cache key containing account-1");
-      assert.ok(key2, "Should have a cache key containing account-2");
-      assert.notStrictEqual(key1.arguments[0], key2.arguments[0]);
+      expect(key1).toBeTruthy();
+      expect(key2).toBeTruthy();
+      expect(key1[0]).not.toBe(key2[0]);
     });
 
     it("should cache total count separately", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       await service.getOptimizedPosts({
         accountId: TEST_ACCOUNT_ID,
@@ -353,17 +350,15 @@ describe("PostsService", { concurrency: 1 }, () => {
       // Verify total count cache key was used
       const getCalls = (cacheManager.get as any).mock.calls;
       const totalCacheCall = getCalls.find(
-        (call: any) =>
-          typeof call.arguments[0] === "string" &&
-          call.arguments[0].includes("dashboard:posts:total")
+        (call: any) => typeof call[0] === "string" && call[0].includes("dashboard:posts:total")
       );
-      assert.ok(totalCacheCall, "Should attempt to get total count from cache");
+      expect(totalCacheCall).toBeTruthy();
     });
   });
 
   describe("getDashboardStats", () => {
     it("should return cached stats on cache hit", async (t) => {
-      const { cacheManager, service } = createMocks(t);
+      const { cacheManager, service } = createMocks();
 
       const cachedStats = {
         totalPosts: 15,
@@ -377,196 +372,189 @@ describe("PostsService", { concurrency: 1 }, () => {
         cacheLevel: "materialized-view" as const,
       };
 
-      cacheHit(t, cacheManager, cachedStats);
+      cacheHit(cacheManager, cachedStats);
 
       const result = await service.getDashboardStats(TEST_ACCOUNT_ID);
 
-      assert.strictEqual(result.cached, true);
-      assert.strictEqual(result.cacheLevel, "multi-level");
-      assert.strictEqual(result.totalPosts, 15);
-      assert.strictEqual(result.publishedPosts, 10);
+      expect(result.cached).toBe(true);
+      expect(result.cacheLevel).toBe("multi-level");
+      expect(result.totalPosts).toBe(15);
+      expect(result.publishedPosts).toBe(10);
     });
 
     it("should fetch from materialized view on cache miss", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       const result = await service.getDashboardStats(TEST_ACCOUNT_ID);
 
-      assert.strictEqual(result.cached, false);
-      assert.strictEqual(result.cacheLevel, "materialized-view");
-      assert.strictEqual(result.totalPosts, 10);
-      assert.strictEqual(result.publishedPosts, 5);
+      expect(result.cached).toBe(false);
+      expect(result.cacheLevel).toBe("materialized-view");
+      expect(result.totalPosts).toBe(10);
+      expect(result.publishedPosts).toBe(5);
     });
 
     it("should return fallback stats when materialized view has no data", async (t) => {
-      const { dbOptimizer, cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { dbOptimizer, cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       // Mock empty materialized view
-      t.mock.method(dbOptimizer, "getTenantDashboardStats", async () => null);
+      vi.spyOn(dbOptimizer, "getTenantDashboardStats").mockImplementation(async () => null);
 
       const result = await service.getDashboardStats(TEST_ACCOUNT_ID);
 
-      assert.strictEqual(result.totalPosts, 0);
-      assert.strictEqual(result.publishedPosts, 0);
-      assert.strictEqual(result.scheduledPosts, 0);
-      assert.strictEqual(result.failedPosts, 0);
-      assert.strictEqual(result.cacheLevel, "fallback");
+      expect(result.totalPosts).toBe(0);
+      expect(result.publishedPosts).toBe(0);
+      expect(result.scheduledPosts).toBe(0);
+      expect(result.failedPosts).toBe(0);
+      expect(result.cacheLevel).toBe("fallback");
     });
 
     it("should cache fallback stats", async (t) => {
-      const { dbOptimizer, cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { dbOptimizer, cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
-      t.mock.method(dbOptimizer, "getTenantDashboardStats", async () => null);
+      vi.spyOn(dbOptimizer, "getTenantDashboardStats").mockImplementation(async () => null);
 
       await service.getDashboardStats(TEST_ACCOUNT_ID);
 
       // Verify set was called for fallback
       const setCalls = (cacheManager.set as any).mock.calls;
       const fallbackSetCall = setCalls.find(
-        (call: any) =>
-          typeof call.arguments[0] === "string" && call.arguments[0].includes("tenant:stats")
+        (call: any) => typeof call[0] === "string" && call[0].includes("tenant:stats")
       );
-      assert.ok(fallbackSetCall, "Should cache fallback stats");
-      assert.strictEqual(fallbackSetCall.arguments[2].ttl, 300); // 5 minutes for fallback
+      expect(fallbackSetCall).toBeTruthy();
+      expect(fallbackSetCall[2].ttl).toBe(300); // 5 minutes for fallback
     });
 
     it("should use correct cache key for stats", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       const accountId = "stats-account-123";
       await service.getDashboardStats(accountId);
 
       const getCalls = (cacheManager.get as any).mock.calls;
       const getCall = getCalls.find(
-        (call: any) =>
-          typeof call.arguments[0] === "string" && call.arguments[0].includes("tenant:stats")
+        (call: any) => typeof call[0] === "string" && call[0].includes("tenant:stats")
       );
-      assert.ok(getCall, "Should attempt to get stats from cache");
-      assert.strictEqual(getCall.arguments[0], `tenant:stats:${accountId}`);
+      expect(getCall).toBeTruthy();
+      expect(getCall[0]).toBe(`tenant:stats:${accountId}`);
     });
 
     it("should record performance metrics", async (t) => {
-      const { dbOptimizer, cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { dbOptimizer, cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       await service.getDashboardStats(TEST_ACCOUNT_ID);
 
       const metricCalls = (dbOptimizer.recordPerformanceMetric as any).mock.calls;
       const metricCall = metricCalls.find(
-        (call: any) => call.arguments[0] === "dashboard_stats_response_time"
+        (call: any) => call[0] === "dashboard_stats_response_time"
       );
-      assert.ok(metricCall, "Should record dashboard_stats_response_time metric");
+      expect(metricCall).toBeTruthy();
     });
 
     it("should transform lastActivity to ISO string", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       const result = await service.getDashboardStats(TEST_ACCOUNT_ID);
 
       if (result.lastActivity) {
-        assert.strictEqual(typeof result.lastActivity, "string");
+        expect(typeof result.lastActivity).toBe("string");
         // Verify it's a valid ISO date string
         const parsed = new Date(result.lastActivity);
-        assert.ok(!isNaN(parsed.getTime()), "lastActivity should be a valid ISO date string");
+        expect(isNaN(parsed.getTime())).toBeFalsy();
       }
     });
 
     it("should include all required stats fields", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       const result = await service.getDashboardStats(TEST_ACCOUNT_ID);
 
-      assert.ok("totalPosts" in result);
-      assert.ok("publishedPosts" in result);
-      assert.ok("scheduledPosts" in result);
-      assert.ok("failedPosts" in result);
-      assert.ok("totalChannels" in result);
-      assert.ok("lastActivity" in result);
-      assert.ok("avgPostViews" in result);
-      assert.ok("cached" in result);
-      assert.ok("cacheLevel" in result);
+      expect("totalPosts" in result).toBeTruthy();
+      expect("publishedPosts" in result).toBeTruthy();
+      expect("scheduledPosts" in result).toBeTruthy();
+      expect("failedPosts" in result).toBeTruthy();
+      expect("totalChannels" in result).toBeTruthy();
+      expect("lastActivity" in result).toBeTruthy();
+      expect("avgPostViews" in result).toBeTruthy();
+      expect("cached" in result).toBeTruthy();
+      expect("cacheLevel" in result).toBeTruthy();
     });
 
     it("should cache stats with correct TTL", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       await service.getDashboardStats(TEST_ACCOUNT_ID);
 
       const setCalls = (cacheManager.set as any).mock.calls;
       const statsSetCall = setCalls.find(
-        (call: any) =>
-          typeof call.arguments[0] === "string" && call.arguments[0].includes("tenant:stats")
+        (call: any) => typeof call[0] === "string" && call[0].includes("tenant:stats")
       );
-      assert.ok(statsSetCall, "Should cache stats");
-      assert.strictEqual(statsSetCall.arguments[2].ttl, 600); // 10 minutes
+      expect(statsSetCall).toBeTruthy();
+      expect(statsSetCall[2].ttl).toBe(600); // 10 minutes
     });
 
     it("should tag cache entries correctly", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       await service.getDashboardStats(TEST_ACCOUNT_ID);
 
       const setCalls = (cacheManager.set as any).mock.calls;
       const statsSetCall = setCalls.find(
-        (call: any) =>
-          typeof call.arguments[0] === "string" && call.arguments[0].includes("tenant:stats")
+        (call: any) => typeof call[0] === "string" && call[0].includes("tenant:stats")
       );
-      assert.ok(statsSetCall, "Should cache stats");
-      const tags = statsSetCall.arguments[2].tags;
-      assert.ok(tags.includes("dashboard"), "Should have 'dashboard' tag");
-      assert.ok(tags.includes("stats"), "Should have 'stats' tag");
-      assert.ok(
-        tags.some((tag: string) => tag.includes("account:")),
-        "Should have an 'account:' tag"
-      );
+      expect(statsSetCall).toBeTruthy();
+      const tags = statsSetCall[2].tags;
+      expect(tags.includes("dashboard")).toBeTruthy();
+      expect(tags.includes("stats")).toBeTruthy();
+      expect(tags.some((tag: string) => tag.includes("account:"))).toBeTruthy();
     });
   });
 
   describe("warmCache", () => {
     it("should successfully warm cache", async (t) => {
-      const { service } = createMocks(t);
+      const { service } = createMocks();
 
       const result = await service.warmCache(TEST_ACCOUNT_ID);
 
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(result.message, "Cache warming completed");
-      assert.strictEqual(result.accountId, TEST_ACCOUNT_ID);
+      expect(result.success).toBe(true);
+      expect(result.message).toBe("Cache warming completed");
+      expect(result.accountId).toBe(TEST_ACCOUNT_ID);
     });
 
     it("should call cache manager warmCache method", async (t) => {
-      const { cacheManager, service } = createMocks(t);
+      const { cacheManager, service } = createMocks();
 
       await service.warmCache(TEST_ACCOUNT_ID);
 
       const warmCacheCalls = (cacheManager.warmCache as any).mock.calls;
-      assert.ok(warmCacheCalls.length > 0, "warmCache should have been called");
-      assert.strictEqual(warmCacheCalls[0].arguments[0], Number(TEST_ACCOUNT_ID));
+      expect(warmCacheCalls.length > 0).toBeTruthy();
+      expect(warmCacheCalls[0][0]).toBe(Number(TEST_ACCOUNT_ID));
     });
 
     it("should handle string accountId conversion to number", async (t) => {
-      const { cacheManager, service } = createMocks(t);
+      const { cacheManager, service } = createMocks();
       const stringAccountId = "12345";
 
       await service.warmCache(stringAccountId);
 
       const warmCacheCalls = (cacheManager.warmCache as any).mock.calls;
-      assert.ok(warmCacheCalls.length > 0, "warmCache should have been called");
-      assert.strictEqual(warmCacheCalls[0].arguments[0], 12345);
+      expect(warmCacheCalls.length > 0).toBeTruthy();
+      expect(warmCacheCalls[0][0]).toBe(12345);
     });
   });
 
   describe("BaseService integration", () => {
     it("should log operations with context", async (t) => {
-      const { cacheManager, service } = createMocks(t);
-      cacheMiss(t, cacheManager);
+      const { cacheManager, service } = createMocks();
+      cacheMiss(cacheManager);
 
       // This should trigger logging through BaseService.execute
       const result = await service.getOptimizedPosts({
@@ -577,33 +565,28 @@ describe("PostsService", { concurrency: 1 }, () => {
       });
 
       // Verify operation completed with valid PaginatedPostsResponse structure
-      assert.ok(typeof result === "object" && result !== null, "Should return a result object");
-      assert.ok("data" in result, "Should have data field");
-      assert.ok("total" in result, "Should have total field");
-      assert.ok("page" in result, "Should have page field");
+      expect(typeof result === "object" && result !== null).toBeTruthy();
+      expect("data" in result).toBeTruthy();
+      expect("total" in result).toBeTruthy();
+      expect("page" in result).toBeTruthy();
     });
 
     it("should handle errors gracefully", async (t) => {
-      const { cacheManager, service } = createMocks(t);
+      const { cacheManager, service } = createMocks();
 
-      t.mock.method(cacheManager, "get", async () => {
+      vi.spyOn(cacheManager, "get").mockImplementation(async () => {
         throw new Error("Cache error");
       });
 
       // BaseService.execute rethrows errors
-      await assert.rejects(
-        async () => {
-          await service.getOptimizedPosts({
-            accountId: TEST_ACCOUNT_ID,
-            page: 1,
-            limit: 20,
-            offset: 0,
-          });
-        },
-        {
-          message: "Cache error",
-        }
-      );
+      await expect(
+        service.getOptimizedPosts({
+          accountId: TEST_ACCOUNT_ID,
+          page: 1,
+          limit: 20,
+          offset: 0,
+        })
+      ).rejects.toThrow("Cache error");
     });
   });
 });

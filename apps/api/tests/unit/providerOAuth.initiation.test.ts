@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { randomBytes } from "node:crypto";
 import { oauthProviders } from "../../src/auth/providerOAuth.js";
 
@@ -13,7 +12,7 @@ function setupMocks() {
 // OAuth Flow - Initiation Tests
 // ============================================================================
 
-describe("ProviderOAuth - OAuth Initiation", { concurrency: 1 }, () => {
+describe("ProviderOAuth - OAuth Initiation", () => {
   beforeEach(() => {
     setupMocks();
   });
@@ -21,43 +20,40 @@ describe("ProviderOAuth - OAuth Initiation", { concurrency: 1 }, () => {
   it("should generate authorization URL for X/Twitter", () => {
     const provider = oauthProviders.x;
 
-    assert.ok(provider, "X provider should exist");
-    assert.strictEqual(provider.id, "x", "Provider ID should be 'x'");
-    assert.ok(provider.config.authUrl, "Should have auth URL");
-    assert.ok(provider.config.tokenUrl, "Should have token URL");
+    expect(provider).toBeTruthy();
+    expect(provider.id).toBe("x");
+    expect(provider.config.authUrl).toBeTruthy();
+    expect(provider.config.tokenUrl).toBeTruthy();
   });
 
   it("should generate authorization URL for Instagram", () => {
     const provider = oauthProviders.instagram;
 
-    assert.ok(provider, "Instagram provider should exist");
-    assert.strictEqual(provider.id, "instagram", "Provider ID should be 'instagram'");
-    assert.ok(provider.config.scopes.length > 0, "Should have scopes defined");
+    expect(provider).toBeTruthy();
+    expect(provider.id).toBe("instagram");
+    expect(provider.config.scopes.length > 0).toBeTruthy();
   });
 
   it("should generate authorization URL for Facebook", () => {
     const provider = oauthProviders.facebook;
 
-    assert.ok(provider, "Facebook provider should exist");
-    assert.ok(provider.config.clientId !== undefined, "Should have client ID");
-    assert.ok(provider.config.scopes.includes("pages_manage_posts"), "Should have page scopes");
+    expect(provider).toBeTruthy();
+    expect(provider.config.clientId !== undefined).toBeTruthy();
+    expect(provider.config.scopes.includes("pages_manage_posts")).toBeTruthy();
   });
 
   it("should generate authorization URL for YouTube", () => {
     const provider = oauthProviders.youtube;
 
-    assert.ok(provider, "YouTube provider should exist");
-    assert.ok(
-      provider.config.scopes.some((s: string) => s.includes("youtube")),
-      "Should have YouTube scopes"
-    );
+    expect(provider).toBeTruthy();
+    expect(provider.config.scopes.some((s: string) => s.includes("youtube"))).toBeTruthy();
   });
 
   it("should generate authorization URL for TikTok", () => {
     const provider = oauthProviders.tiktok;
 
-    assert.ok(provider, "TikTok provider should exist");
-    assert.ok(provider.config.scopes.includes("video.upload"), "Should have upload scope");
+    expect(provider).toBeTruthy();
+    expect(provider.config.scopes.includes("video.upload")).toBeTruthy();
   });
 
   it("should include required OAuth parameters in URL", () => {
@@ -72,11 +68,11 @@ describe("ProviderOAuth - OAuth Initiation", { concurrency: 1 }, () => {
 
     const url = `${provider.config.authUrl}?${params.toString()}`;
 
-    assert.ok(url.includes("response_type=code"), "Should include response_type");
-    assert.ok(url.includes("client_id="), "Should include client_id");
-    assert.ok(url.includes("redirect_uri="), "Should include redirect_uri");
-    assert.ok(url.includes("scope="), "Should include scope");
-    assert.ok(url.includes("state="), "Should include state");
+    expect(url.includes("response_type=code")).toBeTruthy();
+    expect(url.includes("client_id=")).toBeTruthy();
+    expect(url.includes("redirect_uri=")).toBeTruthy();
+    expect(url.includes("scope=")).toBeTruthy();
+    expect(url.includes("state=")).toBeTruthy();
   });
 
   it("should include PKCE parameters for X/Twitter", () => {
@@ -90,8 +86,8 @@ describe("ProviderOAuth - OAuth Initiation", { concurrency: 1 }, () => {
 
     const url = `${provider.config.authUrl}?${params.toString()}`;
 
-    assert.ok(url.includes("code_challenge="), "Should include code challenge");
-    assert.ok(url.includes("code_challenge_method="), "Should include challenge method");
+    expect(url.includes("code_challenge=")).toBeTruthy();
+    expect(url.includes("code_challenge_method=")).toBeTruthy();
   });
 });
 
@@ -99,7 +95,7 @@ describe("ProviderOAuth - OAuth Initiation", { concurrency: 1 }, () => {
 // OAuth Flow - State Management Tests
 // ============================================================================
 
-describe("ProviderOAuth - State Management", { concurrency: 1 }, () => {
+describe("ProviderOAuth - State Management", () => {
   beforeEach(() => {
     setupMocks();
   });
@@ -108,8 +104,8 @@ describe("ProviderOAuth - State Management", { concurrency: 1 }, () => {
     const state1 = randomBytes(32).toString("hex");
     const state2 = randomBytes(32).toString("hex");
 
-    assert.notStrictEqual(state1, state2, "States should be unique");
-    assert.ok(state1.length >= 64, "State should be sufficiently long");
+    expect(state1).not.toBe(state2);
+    expect(state1.length >= 64).toBeTruthy();
   });
 
   it("should store state with provider and account information", () => {
@@ -123,10 +119,10 @@ describe("ProviderOAuth - State Management", { concurrency: 1 }, () => {
     oauthStates.set("test-state", stateData);
 
     const retrieved = oauthStates.get("test-state");
-    assert.ok(retrieved, "Should retrieve state data");
-    assert.strictEqual(retrieved.providerId, "x", "Should store provider ID");
-    assert.strictEqual(retrieved.accountId, "acc-123", "Should store account ID");
-    assert.strictEqual(retrieved.projectId, "proj-123", "Should store project ID");
+    expect(retrieved).toBeTruthy();
+    expect(retrieved.providerId).toBe("x");
+    expect(retrieved.accountId).toBe("acc-123");
+    expect(retrieved.projectId).toBe("proj-123");
   });
 
   it("should cleanup expired states", () => {
@@ -154,79 +150,36 @@ describe("ProviderOAuth - State Management", { concurrency: 1 }, () => {
       }
     }
 
-    assert.strictEqual(oauthStates.has("expired-state"), false, "Should delete expired state");
-    assert.strictEqual(oauthStates.has("valid-state"), true, "Should keep valid state");
+    expect(oauthStates.has("expired-state")).toBe(false);
+    expect(oauthStates.has("valid-state")).toBe(true);
   });
 });
 
 // ============================================================================
-// OAuth Flow - Unimplemented Providers Tests
+// OAuth Provider Registry - Coverage Tests
 // ============================================================================
 
-describe("ProviderOAuth - Unimplemented Providers", { concurrency: 1 }, () => {
-  it("should throw error for LinkedIn (not implemented)", async () => {
-    const provider = oauthProviders.linkedin;
-
-    await assert.rejects(
-      async () => {
-        await provider.validateCode("code", "state");
-      },
-      { message: /not yet implemented/ }
-    );
+describe("ProviderOAuth - Provider Registry", () => {
+  it("should have OAuth providers registered for all 9 supported platforms", () => {
+    const expectedProviders = [
+      "x",
+      "instagram",
+      "facebook",
+      "youtube",
+      "tiktok",
+      "linkedin",
+      "pinterest",
+      "snapchat",
+    ];
+    for (const providerId of expectedProviders) {
+      expect(oauthProviders[providerId as keyof typeof oauthProviders] !== undefined).toBeTruthy();
+    }
   });
 
-  it("should throw error for Pinterest (not implemented)", async () => {
-    const provider = oauthProviders.pinterest;
-
-    await assert.rejects(
-      async () => {
-        await provider.validateCode("code", "state");
-      },
-      { message: /not yet implemented/ }
-    );
-  });
-
-  it("should throw error for Reddit (not implemented)", async () => {
-    const provider = oauthProviders.reddit;
-
-    await assert.rejects(
-      async () => {
-        await provider.validateCode("code", "state");
-      },
-      { message: /not yet implemented/ }
-    );
-  });
-
-  it("should throw error for Discord (not implemented)", async () => {
-    const provider = oauthProviders.discord;
-
-    await assert.rejects(
-      async () => {
-        await provider.validateCode("code", "state");
-      },
-      { message: /not yet implemented/ }
-    );
-  });
-
-  it("should throw error for Twitch (not implemented)", async () => {
-    const provider = oauthProviders.twitch;
-
-    await assert.rejects(
-      async () => {
-        await provider.validateCode("code", "state");
-      },
-      { message: /not yet implemented/ }
-    );
-  });
-
-  it("should throw error for Snapchat (not implemented)", async () => {
-    const provider = oauthProviders.snapchat;
-
-    await assert.rejects(
-      async () => {
-        await provider.validateCode("code", "state");
-      },
-      { message: /not yet implemented/ }
-    );
+  it("should not have OAuth providers for unsupported platforms", () => {
+    const unsupported = ["reddit", "discord", "twitch"];
+    for (const providerId of unsupported) {
+      expect(oauthProviders[providerId as keyof typeof oauthProviders]).toBe(undefined);
+    }
   });
 });

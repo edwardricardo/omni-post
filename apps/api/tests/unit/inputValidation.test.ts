@@ -107,8 +107,7 @@
  * Dependencies: NONE (pure logic tests, no database required)
  */
 
-import { describe, it } from "node:test";
-import * as assert from "node:assert";
+import { describe, it, expect } from "vitest";
 import {
   SecurityValidator,
   SecureSchemas,
@@ -135,11 +134,8 @@ describe("Input Validation - SQL Injection Detection", () => {
 
     sqlInjections.forEach((injection) => {
       const result = SecurityValidator.validateString(injection, "default");
-      assert.ok(!result.isValid, `Should detect SQL injection: "${injection.substring(0, 30)}..."`);
-      assert.ok(
-        result.threats.includes("SQL_INJECTION"),
-        `Should flag SQL_INJECTION threat for: "${injection.substring(0, 30)}..."`
-      );
+      expect(result.isValid).toBeFalsy();
+      expect(result.threats.includes("SQL_INJECTION")).toBeTruthy();
     });
   });
 
@@ -152,10 +148,7 @@ describe("Input Validation - SQL Injection Detection", () => {
 
     safeStrings.forEach((str) => {
       const result = SecurityValidator.validateString(str, "default");
-      assert.ok(
-        !result.threats.includes("SQL_INJECTION"),
-        `Should not flag safe string as SQL injection: "${str}"`
-      );
+      expect(result.threats.includes("SQL_INJECTION")).toBeFalsy();
     });
   });
 
@@ -169,10 +162,7 @@ describe("Input Validation - SQL Injection Detection", () => {
 
     strictlyFlagged.forEach((str) => {
       const result = SecurityValidator.validateString(str, "default");
-      assert.ok(
-        result.threats.includes("SQL_INJECTION"),
-        `Strict validator should flag SQL keyword in: "${str}"`
-      );
+      expect(result.threats.includes("SQL_INJECTION")).toBeTruthy();
     });
   });
 });
@@ -197,11 +187,8 @@ describe("Input Validation - XSS Detection", () => {
 
     xssAttacks.forEach((xss) => {
       const result = SecurityValidator.validateString(xss, "default");
-      assert.ok(!result.isValid, `Should detect XSS attack: "${xss.substring(0, 40)}..."`);
-      assert.ok(
-        result.threats.includes("XSS"),
-        `Should flag XSS threat for: "${xss.substring(0, 40)}..."`
-      );
+      expect(result.isValid).toBeFalsy();
+      expect(result.threats.includes("XSS")).toBeTruthy();
     });
   });
 
@@ -214,7 +201,7 @@ describe("Input Validation - XSS Detection", () => {
 
     safeHtmlStrings.forEach((str) => {
       const result = SecurityValidator.validateString(str, "default");
-      assert.ok(!result.threats.includes("XSS"), `Should not flag safe HTML-like string: "${str}"`);
+      expect(result.threats.includes("XSS")).toBeFalsy();
     });
   });
 });
@@ -236,11 +223,8 @@ describe("Input Validation - Path Traversal Detection", () => {
 
     pathTraversals.forEach((path) => {
       const result = SecurityValidator.validateString(path, "filePath");
-      assert.ok(!result.isValid, `Should detect path traversal: "${path}"`);
-      assert.ok(
-        result.threats.includes("PATH_TRAVERSAL"),
-        `Should flag PATH_TRAVERSAL threat for: "${path}"`
-      );
+      expect(result.isValid).toBeFalsy();
+      expect(result.threats.includes("PATH_TRAVERSAL")).toBeTruthy();
     });
   });
 
@@ -249,7 +233,7 @@ describe("Input Validation - Path Traversal Detection", () => {
 
     safePaths.forEach((path) => {
       const result = SecurityValidator.validateString(path, "filePath");
-      assert.ok(!result.threats.includes("PATH_TRAVERSAL"), `Should allow safe path: "${path}"`);
+      expect(result.threats.includes("PATH_TRAVERSAL")).toBeFalsy();
     });
   });
 });
@@ -271,11 +255,8 @@ describe("Input Validation - Command Injection Detection", () => {
 
     commandInjections.forEach((cmd) => {
       const result = SecurityValidator.validateString(cmd, "default");
-      assert.ok(!result.isValid, `Should detect command injection: "${cmd}"`);
-      assert.ok(
-        result.threats.includes("COMMAND_INJECTION"),
-        `Should flag COMMAND_INJECTION threat for: "${cmd}"`
-      );
+      expect(result.isValid).toBeFalsy();
+      expect(result.threats.includes("COMMAND_INJECTION")).toBeTruthy();
     });
   });
 
@@ -284,10 +265,7 @@ describe("Input Validation - Command Injection Detection", () => {
 
     safeCommands.forEach((cmd) => {
       const result = SecurityValidator.validateString(cmd, "default");
-      assert.ok(
-        !result.threats.includes("COMMAND_INJECTION"),
-        `Should allow safe command-like string: "${cmd}"`
-      );
+      expect(result.threats.includes("COMMAND_INJECTION")).toBeFalsy();
     });
   });
 });
@@ -301,18 +279,15 @@ describe("Input Validation - Length Validation", () => {
     const longEmail = "a".repeat(330) + "@example.com";
     const result = SecurityValidator.validateString(longEmail, "email");
 
-    assert.ok(!result.isValid, "Should detect excessive email length");
-    assert.ok(
-      result.threats.includes("EXCESSIVE_LENGTH"),
-      "Should flag EXCESSIVE_LENGTH for long email"
-    );
+    expect(result.isValid).toBeFalsy();
+    expect(result.threats.includes("EXCESSIVE_LENGTH")).toBeTruthy();
   });
 
   it("should allow valid length emails", () => {
     const validEmail = "user@example.com";
     const result = SecurityValidator.validateString(validEmail, "email");
 
-    assert.ok(!result.threats.includes("EXCESSIVE_LENGTH"), "Should allow valid length email");
+    expect(result.threats.includes("EXCESSIVE_LENGTH")).toBeFalsy();
   });
 
   it("should enforce context-specific length limits", () => {
@@ -327,10 +302,7 @@ describe("Input Validation - Length Validation", () => {
       const tooLong = "a".repeat(maxLength + 1);
       const result = SecurityValidator.validateString(tooLong, context);
 
-      assert.ok(
-        result.threats.includes("EXCESSIVE_LENGTH"),
-        `Should detect excessive length for context: ${context}`
-      );
+      expect(result.threats.includes("EXCESSIVE_LENGTH")).toBeTruthy();
     });
   });
 });
@@ -344,19 +316,16 @@ describe("Input Validation - Null Byte & Control Characters", () => {
     const nullByteString = "test\0data";
     const result = SecurityValidator.validateString(nullByteString, "default");
 
-    assert.ok(!result.isValid, "Should detect null byte in string");
-    assert.ok(result.threats.includes("NULL_BYTE"), "Should flag NULL_BYTE threat");
+    expect(result.isValid).toBeFalsy();
+    expect(result.threats.includes("NULL_BYTE")).toBeTruthy();
   });
 
   it("should detect control characters in names", () => {
     const controlChars = "test\x00\x01\x02data";
     const result = SecurityValidator.validateString(controlChars, "name");
 
-    assert.ok(!result.isValid, "Should detect control characters");
-    assert.ok(
-      result.threats.includes("CONTROL_CHARACTERS"),
-      "Should flag CONTROL_CHARACTERS threat"
-    );
+    expect(result.isValid).toBeFalsy();
+    expect(result.threats.includes("CONTROL_CHARACTERS")).toBeTruthy();
   });
 
   it("should allow control characters in body context", () => {
@@ -364,10 +333,7 @@ describe("Input Validation - Null Byte & Control Characters", () => {
     const result = SecurityValidator.validateString(bodyWithNewlines, "body");
 
     // Body context allows some control characters (like newlines)
-    assert.ok(
-      result.isValid || !result.threats.includes("CONTROL_CHARACTERS"),
-      "Body context should allow newlines and tabs"
-    );
+    expect(result.isValid || !result.threats.includes("CONTROL_CHARACTERS")).toBeTruthy();
   });
 });
 
@@ -380,21 +346,21 @@ describe("Input Validation - String Sanitization", () => {
     const dirtyString = "test\x00\x01\x02data";
     const cleaned = SecurityValidator.sanitizeString(dirtyString);
 
-    assert.strictEqual(cleaned, "testdata", "Should remove control characters");
+    expect(cleaned).toBe("testdata");
   });
 
   it("should remove null bytes", () => {
     const withNullBytes = "test\0null\0bytes";
     const cleaned = SecurityValidator.sanitizeString(withNullBytes);
 
-    assert.strictEqual(cleaned, "testnullbytes", "Should remove null bytes");
+    expect(cleaned).toBe("testnullbytes");
   });
 
   it("should trim whitespace", () => {
     const withSpaces = "  test string  ";
     const cleaned = SecurityValidator.sanitizeString(withSpaces);
 
-    assert.strictEqual(cleaned, "test string", "Should trim whitespace");
+    expect(cleaned).toBe("test string");
   });
 });
 
@@ -406,19 +372,19 @@ describe("Secure Zod Schemas - Email", () => {
   it("should validate correct email format", () => {
     const result = SecureSchemas.userEmail.safeParse("user@example.com");
 
-    assert.ok(result.success, "Should accept valid email");
+    expect(result.success).toBeTruthy();
   });
 
   it("should reject email with SQL injection", () => {
     const result = SecureSchemas.userEmail.safeParse("admin'--@example.com");
 
-    assert.ok(!result.success, "Should reject email with SQL injection");
+    expect(result.success).toBeFalsy();
   });
 
   it("should reject invalid email format", () => {
     const result = SecureSchemas.userEmail.safeParse("not-an-email");
 
-    assert.ok(!result.success, "Should reject invalid email format");
+    expect(result.success).toBeFalsy();
   });
 });
 
@@ -430,25 +396,25 @@ describe("Secure Zod Schemas - URL", () => {
   it("should validate HTTPS URLs", () => {
     const result = SecureSchemas.url.safeParse("https://example.com/page");
 
-    assert.ok(result.success, "Should accept valid HTTPS URL");
+    expect(result.success).toBeTruthy();
   });
 
   it("should validate HTTP URLs", () => {
     const result = SecureSchemas.url.safeParse("http://example.com");
 
-    assert.ok(result.success, "Should accept valid HTTP URL");
+    expect(result.success).toBeTruthy();
   });
 
   it("should reject javascript protocol", () => {
     const result = SecureSchemas.url.safeParse("javascript:alert(1)");
 
-    assert.ok(!result.success, "Should reject javascript: protocol");
+    expect(result.success).toBeFalsy();
   });
 
   it("should reject file protocol", () => {
     const result = SecureSchemas.url.safeParse("file:///etc/passwd");
 
-    assert.ok(!result.success, "Should reject file: protocol");
+    expect(result.success).toBeFalsy();
   });
 });
 
@@ -460,13 +426,13 @@ describe("Secure Zod Schemas - File Path", () => {
   it("should validate safe file paths", () => {
     const result = SecureSchemas.filePath.safeParse("uploads/image.jpg");
 
-    assert.ok(result.success, "Should accept valid file path");
+    expect(result.success).toBeTruthy();
   });
 
   it("should reject path traversal in file paths", () => {
     const result = SecureSchemas.filePath.safeParse("../../../etc/passwd");
 
-    assert.ok(!result.success, "Should reject path traversal");
+    expect(result.success).toBeFalsy();
   });
 });
 
@@ -479,20 +445,20 @@ describe("Secure Zod Schemas - Post Body", () => {
     const validBody = "This is a normal post with some content.";
     const result = SecureSchemas.postBody.safeParse(validBody);
 
-    assert.ok(result.success, "Should accept valid post body");
+    expect(result.success).toBeTruthy();
   });
 
   it("should reject post body with XSS", () => {
     const xssBody = "Check this out: <script>alert('XSS')</script>";
     const result = SecureSchemas.postBody.safeParse(xssBody);
 
-    assert.ok(!result.success, "Should reject post body with XSS");
+    expect(result.success).toBeFalsy();
   });
 
   it("should reject empty post body", () => {
     const result = SecureSchemas.postBody.safeParse("");
 
-    assert.ok(!result.success, "Should reject empty post body (min length 1)");
+    expect(result.success).toBeFalsy();
   });
 });
 
@@ -505,13 +471,13 @@ describe("Secure Zod Schemas - UUID", () => {
     const validUuid = "123e4567-e89b-12d3-a456-426614174000";
     const result = SecureSchemas.uuid.safeParse(validUuid);
 
-    assert.ok(result.success, "Should accept valid UUID");
+    expect(result.success).toBeTruthy();
   });
 
   it("should reject invalid UUID", () => {
     const result = SecureSchemas.uuid.safeParse("not-a-uuid");
 
-    assert.ok(!result.success, "Should reject invalid UUID");
+    expect(result.success).toBeFalsy();
   });
 });
 
@@ -543,7 +509,7 @@ describe("Secure Schemas - Recursive Validation", () => {
 
     const result = testSchema.safeParse(maliciousData);
 
-    assert.ok(!result.success, "Should detect XSS in nested content through recursive validation");
+    expect(result.success).toBeFalsy();
   });
 
   it("should detect SQL injection in arrays", () => {
@@ -559,7 +525,7 @@ describe("Secure Schemas - Recursive Validation", () => {
 
     const result = testSchema.safeParse(maliciousData);
 
-    assert.ok(!result.success, "Should detect SQL injection in array through recursive validation");
+    expect(result.success).toBeFalsy();
   });
 
   it("should validate clean nested data", () => {
@@ -577,7 +543,7 @@ describe("Secure Schemas - Recursive Validation", () => {
 
     const result = testSchema.safeParse(cleanData);
 
-    assert.ok(result.success, "Should accept clean nested data");
+    expect(result.success).toBeTruthy();
   });
 });
 
@@ -590,34 +556,28 @@ describe("Input Validation - Multiple Threat Detection", () => {
     const multiThreat = "<script>alert('XSS')</script>' OR 1=1-- ../../../etc/passwd";
     const result = SecurityValidator.validateString(multiThreat, "default");
 
-    assert.ok(!result.isValid, "Should invalidate multi-threat string");
+    expect(result.isValid).toBeFalsy();
   });
 
   it("should report XSS in multi-threat string", () => {
     const multiThreat = "<script>alert('XSS')</script>' OR 1=1-- ../../../etc/passwd";
     const result = SecurityValidator.validateString(multiThreat, "default");
 
-    assert.ok(result.threats.includes("XSS"), "Should detect XSS in multi-threat string");
+    expect(result.threats.includes("XSS")).toBeTruthy();
   });
 
   it("should report SQL injection in multi-threat string", () => {
     const multiThreat = "<script>alert('XSS')</script>' OR 1=1-- ../../../etc/passwd";
     const result = SecurityValidator.validateString(multiThreat, "default");
 
-    assert.ok(
-      result.threats.includes("SQL_INJECTION"),
-      "Should detect SQL injection in multi-threat string"
-    );
+    expect(result.threats.includes("SQL_INJECTION")).toBeTruthy();
   });
 
   it("should report path traversal in multi-threat string", () => {
     const multiThreat = "<script>alert('XSS')</script>' OR 1=1-- ../../../etc/passwd";
     const result = SecurityValidator.validateString(multiThreat, "default");
 
-    assert.ok(
-      result.threats.includes("PATH_TRAVERSAL"),
-      "Should detect path traversal in multi-threat string"
-    );
+    expect(result.threats.includes("PATH_TRAVERSAL")).toBeTruthy();
   });
 });
 
@@ -629,25 +589,25 @@ describe("Secure Zod Schemas - Media URL", () => {
   it("should validate HTTPS media URLs", () => {
     const result = SecureSchemas.mediaUrl.safeParse("https://cdn.example.com/media/video.mp4");
 
-    assert.ok(result.success, "Should accept valid HTTPS media URL");
+    expect(result.success).toBeTruthy();
   });
 
   it("should allow HTTP protocol for media URLs", () => {
     const result = SecureSchemas.mediaUrl.safeParse("http://example.com/image.jpg");
 
-    assert.ok(result.success, "Should allow HTTP protocol for media URLs");
+    expect(result.success).toBeTruthy();
   });
 
   it("should reject invalid media URL format", () => {
     const result = SecureSchemas.mediaUrl.safeParse("not-a-url");
 
-    assert.ok(!result.success, "Should reject invalid media URL format");
+    expect(result.success).toBeFalsy();
   });
 
   it("should reject javascript protocol in media URLs", () => {
     const result = SecureSchemas.mediaUrl.safeParse("javascript:alert(1)");
 
-    assert.ok(!result.success, "Should reject javascript: protocol for media URLs");
+    expect(result.success).toBeFalsy();
   });
 });
 
@@ -659,31 +619,31 @@ describe("Secure Zod Schemas - User Name", () => {
   it("should validate alphanumeric user names", () => {
     const result = SecureSchemas.userName.safeParse("JohnDoe123");
 
-    assert.ok(result.success, "Should accept valid alphanumeric user name");
+    expect(result.success).toBeTruthy();
   });
 
   it("should validate user names with spaces", () => {
     const result = SecureSchemas.userName.safeParse("John Doe");
 
-    assert.ok(result.success, "Should accept user name with spaces");
+    expect(result.success).toBeTruthy();
   });
 
   it("should reject XSS attempts in user names", () => {
     const result = SecureSchemas.userName.safeParse("<script>alert('xss')</script>");
 
-    assert.ok(!result.success, "Should reject XSS attempt in user name");
+    expect(result.success).toBeFalsy();
   });
 
   it("should reject empty user names", () => {
     const result = SecureSchemas.userName.safeParse("");
 
-    assert.ok(!result.success, "Should reject empty user name");
+    expect(result.success).toBeFalsy();
   });
 
   it("should reject SQL injection in user names", () => {
     const result = SecureSchemas.userName.safeParse("admin' OR '1'='1");
 
-    assert.ok(!result.success, "Should reject SQL injection in user name");
+    expect(result.success).toBeFalsy();
   });
 });
 
@@ -695,24 +655,24 @@ describe("Secure Zod Schemas - Channel ID", () => {
   it("should validate alphanumeric channel IDs with hyphens/underscores", () => {
     const result = SecureSchemas.channelId.safeParse("channel-123_abc");
 
-    assert.ok(result.success, "Should accept valid channel ID");
+    expect(result.success).toBeTruthy();
   });
 
   it("should reject SQL injection in channel IDs", () => {
     const result = SecureSchemas.channelId.safeParse("' OR 1=1--");
 
-    assert.ok(!result.success, "Should reject SQL injection in channel ID");
+    expect(result.success).toBeFalsy();
   });
 
   it("should reject XSS in channel IDs", () => {
     const result = SecureSchemas.channelId.safeParse("<script>alert(1)</script>");
 
-    assert.ok(!result.success, "Should reject XSS in channel ID");
+    expect(result.success).toBeFalsy();
   });
 
   it("should reject channel IDs exceeding length limit", () => {
     const result = SecureSchemas.channelId.safeParse("a".repeat(201));
 
-    assert.ok(!result.success, "Should reject channel ID exceeding 200 characters");
+    expect(result.success).toBeFalsy();
   });
 });

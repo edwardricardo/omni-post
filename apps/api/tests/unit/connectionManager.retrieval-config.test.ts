@@ -2,8 +2,7 @@
  * ConnectionManager Tests - Connection Retrieval & Configuration
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import * as assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { ConnectionManager } from "../../src/auth/connectionManager.js";
 import type { ConnectionManagerPrisma } from "../../src/auth/connectionManager.js";
 import { createMockConnection, createMockDb } from "./connectionManager.test-helpers.js";
@@ -12,12 +11,12 @@ import { createMockConnection, createMockDb } from "./connectionManager.test-hel
 // ConnectionManager - Connection Retrieval Tests
 // ============================================================================
 
-describe("ConnectionManager - Connection Retrieval", { concurrency: 1 }, () => {
+describe("ConnectionManager - Connection Retrieval", () => {
   let manager: ConnectionManager;
   let mockDb: ConnectionManagerPrisma;
 
-  beforeEach((t) => {
-    mockDb = createMockDb(t);
+  beforeEach(() => {
+    mockDb = createMockDb();
     manager = new ConnectionManager(mockDb);
     // Stop health monitoring to avoid interference
     manager.stopHealthMonitoring();
@@ -29,7 +28,7 @@ describe("ConnectionManager - Connection Retrieval", { concurrency: 1 }, () => {
 
   it("should retrieve connection by ID", async (t) => {
     const mockConnection = createMockConnection();
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -37,14 +36,14 @@ describe("ConnectionManager - Connection Retrieval", { concurrency: 1 }, () => {
 
     const result = await manager.getConnection("conn-123");
 
-    assert.ok(result, "Should return a connection");
-    assert.strictEqual(result?.id, "conn-123");
+    expect(result).toBeTruthy();
+    expect(result?.id).toBe("conn-123");
   });
 
   it("should return null for non-existent connection", async () => {
     const result = await manager.getConnection("non-existent");
 
-    assert.strictEqual(result, null, "Should return null for non-existent connection");
+    expect(result).toBe(null);
   });
 
   it("should retrieve connections by account ID", async (t) => {
@@ -52,7 +51,7 @@ describe("ConnectionManager - Connection Retrieval", { concurrency: 1 }, () => {
       createMockConnection({ id: "conn-1" }),
       createMockConnection({ id: "conn-2" }),
     ];
-    (mockDb.providerConnection.findMany as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnections
     );
     manager = new ConnectionManager(mockDb);
@@ -60,65 +59,55 @@ describe("ConnectionManager - Connection Retrieval", { concurrency: 1 }, () => {
 
     const result = await manager.getConnections("acc-123");
 
-    assert.ok(Array.isArray(result), "Should return an array");
-    assert.strictEqual(result.length, 2, "Should return 2 connections");
+    expect(Array.isArray(result)).toBeTruthy();
+    expect(result.length).toBe(2);
   });
 
   it("should filter connections by provider ID (uppercased)", async (t) => {
     let capturedArgs: any = null;
-    (mockDb.providerConnection.findMany as ReturnType<typeof t.mock.fn>) = t.mock.fn(
-      async (args: any) => {
-        capturedArgs = args;
-        return [];
-      }
-    );
+    (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(async (args: any) => {
+      capturedArgs = args;
+      return [];
+    });
     manager = new ConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.getConnections("acc-123", undefined, "x" as any);
 
-    assert.ok(capturedArgs, "Should have been called");
-    assert.strictEqual(capturedArgs.where.providerId, "X", "Should uppercase provider ID");
+    expect(capturedArgs).toBeTruthy();
+    expect(capturedArgs.where.providerId).toBe("X");
   });
 
   it("should filter connections by project ID", async (t) => {
     let capturedArgs: any = null;
-    (mockDb.providerConnection.findMany as ReturnType<typeof t.mock.fn>) = t.mock.fn(
-      async (args: any) => {
-        capturedArgs = args;
-        return [];
-      }
-    );
+    (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(async (args: any) => {
+      capturedArgs = args;
+      return [];
+    });
     manager = new ConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.getConnections("acc-123", "proj-123");
 
-    assert.ok(capturedArgs, "Should have been called");
-    assert.strictEqual(capturedArgs.where.projectId, "proj-123", "Should filter by project ID");
+    expect(capturedArgs).toBeTruthy();
+    expect(capturedArgs.where.projectId).toBe("proj-123");
   });
 
   it("should order connections by status, last used, and creation date", async (t) => {
     let capturedArgs: any = null;
-    (mockDb.providerConnection.findMany as ReturnType<typeof t.mock.fn>) = t.mock.fn(
-      async (args: any) => {
-        capturedArgs = args;
-        return [];
-      }
-    );
+    (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(async (args: any) => {
+      capturedArgs = args;
+      return [];
+    });
     manager = new ConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.getConnections("acc-123");
 
-    assert.ok(capturedArgs, "Should have been called");
-    assert.ok(Array.isArray(capturedArgs.orderBy), "Should have orderBy array");
-    assert.strictEqual(capturedArgs.orderBy[0].status, "asc", "Should order by status ascending");
-    assert.strictEqual(
-      capturedArgs.orderBy[1].lastUsedAt,
-      "desc",
-      "Should order by lastUsedAt descending"
-    );
+    expect(capturedArgs).toBeTruthy();
+    expect(Array.isArray(capturedArgs.orderBy)).toBeTruthy();
+    expect(capturedArgs.orderBy[0].status).toBe("asc");
+    expect(capturedArgs.orderBy[1].lastUsedAt).toBe("desc");
   });
 });
 
@@ -126,12 +115,12 @@ describe("ConnectionManager - Connection Retrieval", { concurrency: 1 }, () => {
 // ConnectionManager - Connection Configuration Tests
 // ============================================================================
 
-describe("ConnectionManager - Connection Configuration", { concurrency: 1 }, () => {
+describe("ConnectionManager - Connection Configuration", () => {
   let manager: ConnectionManager;
   let mockDb: ConnectionManagerPrisma;
 
-  beforeEach((t) => {
-    mockDb = createMockDb(t);
+  beforeEach(() => {
+    mockDb = createMockDb();
     manager = new ConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
@@ -152,7 +141,7 @@ describe("ConnectionManager - Connection Configuration", { concurrency: 1 }, () 
       expiresAt: new Date("2025-12-31"),
     });
 
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -160,15 +149,15 @@ describe("ConnectionManager - Connection Configuration", { concurrency: 1 }, () 
 
     const config = await manager.getConnectionConfig("conn-123");
 
-    assert.ok(config, "Should return config");
-    assert.strictEqual((config as any).accessToken, "access-123", "Should include access token");
-    assert.strictEqual((config as any).refreshToken, "refresh-123", "Should include refresh token");
-    assert.strictEqual((config as any).apiKey, "api-key-123", "Should include API key");
+    expect(config).toBeTruthy();
+    expect((config as any).accessToken).toBe("access-123");
+    expect((config as any).refreshToken).toBe("refresh-123");
+    expect((config as any).apiKey).toBe("api-key-123");
   });
 
   it("should return null for inactive connection", async (t) => {
     const mockConnection = createMockConnection({ isActive: false });
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -176,20 +165,20 @@ describe("ConnectionManager - Connection Configuration", { concurrency: 1 }, () 
 
     const config = await manager.getConnectionConfig("conn-123");
 
-    assert.strictEqual(config, null, "Should return null for inactive connection");
+    expect(config).toBe(null);
   });
 
   it("should return null for non-existent connection", async () => {
     const config = await manager.getConnectionConfig("conn-123");
 
-    assert.strictEqual(config, null, "Should return null for non-existent connection");
+    expect(config).toBe(null);
   });
 
   it("should include connection metadata in config", async (t) => {
     const connectedAt = new Date("2024-01-01");
     const expiresAt = new Date("2025-12-31");
     const mockConnection = createMockConnection({ connectedAt, expiresAt });
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -197,8 +186,8 @@ describe("ConnectionManager - Connection Configuration", { concurrency: 1 }, () 
 
     const config = await manager.getConnectionConfig("conn-123");
 
-    assert.ok(config, "Should return config");
-    assert.ok((config as any).connectedAt instanceof Date, "Should include connectedAt");
-    assert.ok((config as any).expiresAt instanceof Date, "Should include expiresAt");
+    expect(config).toBeTruthy();
+    expect((config as any).connectedAt instanceof Date).toBeTruthy();
+    expect((config as any).expiresAt instanceof Date).toBeTruthy();
   });
 });

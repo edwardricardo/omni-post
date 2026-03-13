@@ -7,8 +7,7 @@
  * Test Count: 25
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   auditMiddleware,
   setAuditInfo,
@@ -86,7 +85,7 @@ const testUserId = `test-user-${timestamp}`;
 // Main Test Suite
 // ============================================================================
 
-describe("auditMiddleware Tests", { concurrency: 1 }, () => {
+describe("auditMiddleware Tests", () => {
   // ============================================================================
   // Middleware Behavior Tests
   // ============================================================================
@@ -102,7 +101,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
 
       // auditLog should not be initialized for skip routes
-      assert.strictEqual(request.auditLog, undefined);
+      expect(request.auditLog).toBe(undefined);
     });
 
     it("should skip audit logging for metrics routes", async () => {
@@ -114,7 +113,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
 
       await auditMiddleware(request, reply);
 
-      assert.strictEqual(request.auditLog, undefined);
+      expect(request.auditLog).toBe(undefined);
     });
 
     it("should skip audit logging for /auth/me route", async () => {
@@ -126,7 +125,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
 
       await auditMiddleware(request, reply);
 
-      assert.strictEqual(request.auditLog, undefined);
+      expect(request.auditLog).toBe(undefined);
     });
 
     it("should initialize auditLog object for non-skip routes", async () => {
@@ -138,8 +137,8 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
 
       await auditMiddleware(request, reply);
 
-      assert.ok(request.auditLog);
-      assert.deepStrictEqual(request.auditLog, {});
+      expect(request.auditLog).toBeTruthy();
+      expect(request.auditLog).toStrictEqual({});
     });
 
     it("should wrap reply.send function", async () => {
@@ -152,7 +151,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
 
       await auditMiddleware(request, reply);
 
-      assert.notStrictEqual(reply.send, originalSend);
+      expect(reply.send).not.toBe(originalSend);
     });
   });
 
@@ -174,7 +173,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       reply.send({ success: true });
 
       // The middleware should detect LOGIN action
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
 
     it("should detect LOGOUT action from /auth/logout POST", async () => {
@@ -187,7 +186,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ success: true });
 
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
 
     it("should detect USER_CREATED action from /auth/register POST", async () => {
@@ -200,7 +199,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ success: true });
 
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
 
     it("should detect PROJECT_CREATED action from /projects POST", async () => {
@@ -213,7 +212,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ success: true });
 
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
 
     it("should detect PROJECT_UPDATED action from /projects PUT", async () => {
@@ -226,7 +225,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ success: true });
 
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
 
     it("should detect PROJECT_DELETED action from /projects DELETE", async () => {
@@ -239,7 +238,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ success: true });
 
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
 
     it("should detect POST_CREATED action from /posts POST", async () => {
@@ -252,7 +251,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ success: true });
 
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
 
     it("should detect POST_PUBLISHED action from /publish route", async () => {
@@ -265,7 +264,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ success: true });
 
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
 
     it("should detect CACHE_CLEARED action from admin cache routes", async () => {
@@ -278,7 +277,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ success: true });
 
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
 
     it("should return undefined for GET requests on unknown routes", async () => {
@@ -291,7 +290,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ success: true });
 
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
   });
 
@@ -313,7 +312,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       reply.send({ success: true });
 
       // Success should be determined from statusCode
-      assert.strictEqual(reply.getStatusCode(), 200);
+      expect(reply.getStatusCode()).toBe(200);
     });
 
     it("should mark request as failed for 4xx status codes", async () => {
@@ -328,7 +327,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ error: "Unauthorized" });
 
-      assert.strictEqual(reply.getStatusCode(), 401);
+      expect(reply.getStatusCode()).toBe(401);
     });
 
     it("should mark request as failed for 5xx status codes", async () => {
@@ -343,7 +342,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ error: "Internal server error" });
 
-      assert.strictEqual(reply.getStatusCode(), 500);
+      expect(reply.getStatusCode()).toBe(500);
     });
 
     it("should use explicit success flag when provided", async () => {
@@ -362,7 +361,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
 
       reply.send({ success: false });
 
-      assert.strictEqual(request.auditLog?.success, false);
+      expect(request.auditLog?.success).toBe(false);
     });
   });
 
@@ -379,9 +378,9 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
         resource: "TEST_RESOURCE",
       });
 
-      assert.ok(request.auditLog);
-      assert.strictEqual(request.auditLog.action, "TEST_ACTION");
-      assert.strictEqual(request.auditLog.resource, "TEST_RESOURCE");
+      expect(request.auditLog).toBeTruthy();
+      expect(request.auditLog.action).toBe("TEST_ACTION");
+      expect(request.auditLog.resource).toBe("TEST_RESOURCE");
     });
 
     it("setAuditInfo should merge with existing auditLog", () => {
@@ -393,9 +392,9 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
         resourceId: "123",
       });
 
-      assert.strictEqual(request.auditLog.action, "EXISTING_ACTION");
-      assert.strictEqual(request.auditLog.resource, "TEST_RESOURCE");
-      assert.strictEqual(request.auditLog.resourceId, "123");
+      expect(request.auditLog.action).toBe("EXISTING_ACTION");
+      expect(request.auditLog.resource).toBe("TEST_RESOURCE");
+      expect(request.auditLog.resourceId).toBe("123");
     });
 
     it("extractResourceId should extract ID from params", () => {
@@ -405,7 +404,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
 
       const resourceId = extractResourceId(request);
 
-      assert.strictEqual(resourceId, "resource-123");
+      expect(resourceId).toBe("resource-123");
     });
 
     it("extractResourceId should extract custom param name", () => {
@@ -415,7 +414,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
 
       const resourceId = extractResourceId(request, "projectId");
 
-      assert.strictEqual(resourceId, "project-456");
+      expect(resourceId).toBe("project-456");
     });
 
     it("extractResourceId should return undefined for missing params", () => {
@@ -423,7 +422,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
 
       const resourceId = extractResourceId(request);
 
-      assert.strictEqual(resourceId, undefined);
+      expect(resourceId).toBe(undefined);
     });
   });
 
@@ -450,10 +449,10 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
         ...(resourceId ? { resourceId } : {}),
       });
 
-      assert.ok(request.auditLog);
-      assert.strictEqual(request.auditLog.action, "TEST_ACTION");
-      assert.strictEqual(request.auditLog.resource, "TEST_RESOURCE");
-      assert.strictEqual(request.auditLog.resourceId, "test-123");
+      expect(request.auditLog).toBeTruthy();
+      expect(request.auditLog.action).toBe("TEST_ACTION");
+      expect(request.auditLog.resource).toBe("TEST_RESOURCE");
+      expect(request.auditLog.resourceId).toBe("test-123");
     });
 
     it("should work without resource parameter", async () => {
@@ -465,9 +464,9 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
         action: "SIMPLE_ACTION",
       });
 
-      assert.ok(request.auditLog);
-      assert.strictEqual(request.auditLog.action, "SIMPLE_ACTION");
-      assert.strictEqual(request.auditLog.resource, undefined);
+      expect(request.auditLog).toBeTruthy();
+      expect(request.auditLog.action).toBe("SIMPLE_ACTION");
+      expect(request.auditLog.resource).toBe(undefined);
     });
   });
 
@@ -489,7 +488,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       // Send should still work even if audit logging fails
       reply.send({ success: true });
 
-      assert.strictEqual(reply.wasSent(), true);
+      expect(reply.wasSent()).toBe(true);
     });
 
     it("should handle missing user gracefully", async () => {
@@ -503,7 +502,7 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       await auditMiddleware(request, reply);
       reply.send({ success: true });
 
-      assert.ok(request.auditLog);
+      expect(request.auditLog).toBeTruthy();
     });
 
     it("should handle malformed URLs gracefully", async () => {
@@ -517,8 +516,8 @@ describe("auditMiddleware Tests", { concurrency: 1 }, () => {
       reply.send({ success: true });
 
       // Middleware should still initialize auditLog and process the send
-      assert.ok(request.auditLog, "auditLog should be initialized even for empty URLs");
-      assert.strictEqual(reply.wasSent(), true, "reply.send should still complete successfully");
+      expect(request.auditLog).toBeTruthy();
+      expect(reply.wasSent()).toBe(true);
     });
   });
 });

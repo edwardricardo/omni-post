@@ -1,6 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { EVENT_TYPES } from "@shared/events";
 import { MockFastify, MockEventService } from "./eventIntegration.test-helpers.js";
 
@@ -8,14 +6,14 @@ const { EventIntegration, eventContextMiddleware } = await import(
   "../../src/events/EventIntegration"
 );
 
-describe("EventIntegration - Post Publishing with Events", { concurrency: 1 }, () => {
+describe("EventIntegration - Post Publishing with Events", () => {
   let integration: any;
   let mockEventService: MockEventService;
   let mockFastify: MockFastify;
 
-  beforeEach(async (t: TestContext) => {
+  beforeEach(async () => {
     mockEventService = new MockEventService();
-    mockFastify = new MockFastify(t);
+    mockFastify = new MockFastify();
     integration = new EventIntegration(mockEventService, mockFastify as any);
     await integration.registerRoutes();
   });
@@ -30,8 +28,8 @@ describe("EventIntegration - Post Publishing with Events", { concurrency: 1 }, (
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute(
@@ -41,8 +39,8 @@ describe("EventIntegration - Post Publishing with Events", { concurrency: 1 }, (
       reply
     );
 
-    assert.equal(result.success, true, "Should publish post successfully");
-    assert.equal(result.publishedTo >= 1, true, "Should publish to at least one channel");
+    expect(result.success).toBe(true);
+    expect(result.publishedTo >= 1).toBe(true);
   });
 
   it("should emit USER_ACTION event for publishing", async (t) => {
@@ -55,19 +53,19 @@ describe("EventIntegration - Post Publishing with Events", { concurrency: 1 }, (
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     await mockFastify.callRoute("POST", "/api/posts/:postId/publish", request, reply);
 
     const publishedEvents = mockEventService.getPublishedEvents();
     const userActionEvents = publishedEvents.filter((e) => e.type === EVENT_TYPES.USER_ACTION);
-    assert.equal(userActionEvents.length >= 1, true, "Should emit USER_ACTION event");
+    expect(userActionEvents.length >= 1).toBe(true);
   });
 
   it("should handle post not found during publishing", async (t) => {
-    mockFastify.prisma.post.findUnique = t.mock.fn(async () => null);
+    mockFastify.prisma.post.findUnique = vi.fn(async () => null);
 
     const request: any = {
       params: { postId: "nonexistent-post" },
@@ -78,8 +76,8 @@ describe("EventIntegration - Post Publishing with Events", { concurrency: 1 }, (
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const _result = await mockFastify.callRoute(
@@ -89,18 +87,18 @@ describe("EventIntegration - Post Publishing with Events", { concurrency: 1 }, (
       reply
     );
 
-    assert.equal(reply.status.mock.calls.length >= 1, true, "Should call reply.status");
+    expect(reply.status.mock.calls.length >= 1).toBe(true);
   });
 });
 
-describe("EventIntegration - Event History Retrieval", { concurrency: 1 }, () => {
+describe("EventIntegration - Event History Retrieval", () => {
   let integration: any;
   let mockEventService: MockEventService;
   let mockFastify: MockFastify;
 
-  beforeEach(async (t: TestContext) => {
+  beforeEach(async () => {
     mockEventService = new MockEventService();
-    mockFastify = new MockFastify(t);
+    mockFastify = new MockFastify();
     integration = new EventIntegration(mockEventService, mockFastify as any);
     await integration.registerRoutes();
   });
@@ -111,14 +109,14 @@ describe("EventIntegration - Event History Retrieval", { concurrency: 1 }, () =>
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute("GET", "/api/posts/:postId/events", request, reply);
 
-    assert.equal(result.success, true, "Should retrieve events successfully");
-    assert.ok(Array.isArray(result.events), "Should return events array");
+    expect(result.success).toBe(true);
+    expect(Array.isArray(result.events)).toBeTruthy();
   });
 
   it("should include event count in response", async (t) => {
@@ -127,24 +125,24 @@ describe("EventIntegration - Event History Retrieval", { concurrency: 1 }, () =>
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute("GET", "/api/posts/:postId/events", request, reply);
 
-    assert.equal(typeof result.eventCount, "number", "Should include event count");
+    expect(typeof result.eventCount).toBe("number");
   });
 });
 
-describe("EventIntegration - Analytics Events", { concurrency: 1 }, () => {
+describe("EventIntegration - Analytics Events", () => {
   let integration: any;
   let mockEventService: MockEventService;
   let mockFastify: MockFastify;
 
-  beforeEach(async (t: TestContext) => {
+  beforeEach(async () => {
     mockEventService = new MockEventService();
-    mockFastify = new MockFastify(t);
+    mockFastify = new MockFastify();
     integration = new EventIntegration(mockEventService, mockFastify as any);
     await integration.registerRoutes();
   });
@@ -155,14 +153,14 @@ describe("EventIntegration - Analytics Events", { concurrency: 1 }, () => {
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute("GET", "/api/events/analytics", request, reply);
 
-    assert.equal(result.success, true, "Should retrieve analytics events successfully");
-    assert.ok(Array.isArray(result.events), "Should return events array");
+    expect(result.success).toBe(true);
+    expect(Array.isArray(result.events)).toBeTruthy();
   });
 
   it("should support date filtering for analytics", async (t) => {
@@ -173,25 +171,25 @@ describe("EventIntegration - Analytics Events", { concurrency: 1 }, () => {
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute("GET", "/api/events/analytics", request, reply);
 
-    assert.equal(result.success, true, "Should support date filtering");
-    assert.ok(result.period, "Should include period in response");
+    expect(result.success).toBe(true);
+    expect(result.period).toBeTruthy();
   });
 });
 
-describe("EventIntegration - Health Check", { concurrency: 1 }, () => {
+describe("EventIntegration - Health Check", () => {
   let integration: any;
   let mockEventService: MockEventService;
   let mockFastify: MockFastify;
 
-  beforeEach(async (t: TestContext) => {
+  beforeEach(async () => {
     mockEventService = new MockEventService();
-    mockFastify = new MockFastify(t);
+    mockFastify = new MockFastify();
     integration = new EventIntegration(mockEventService, mockFastify as any);
     await integration.registerRoutes();
   });
@@ -199,37 +197,37 @@ describe("EventIntegration - Health Check", { concurrency: 1 }, () => {
   it("should get event service health status", async (t) => {
     const request: any = {};
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute("GET", "/api/events/health", request, reply);
 
-    assert.equal(result.status, "healthy", "Should report healthy status");
-    assert.ok(result.statistics, "Should include statistics");
+    expect(result.status).toBe("healthy");
+    expect(result.statistics).toBeTruthy();
   });
 
   it("should include timestamp in health check", async (t) => {
     const request: any = {};
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute("GET", "/api/events/health", request, reply);
 
-    assert.ok(result.timestamp instanceof Date, "Should include timestamp");
+    expect(result.timestamp instanceof Date).toBeTruthy();
   });
 });
 
-describe("EventIntegration - Custom Event Handlers", { concurrency: 1 }, () => {
+describe("EventIntegration - Custom Event Handlers", () => {
   let integration: any;
   let mockEventService: MockEventService;
   let mockFastify: MockFastify;
 
-  beforeEach((t: TestContext) => {
+  beforeEach(() => {
     mockEventService = new MockEventService();
-    mockFastify = new MockFastify(t);
+    mockFastify = new MockFastify();
     integration = new EventIntegration(mockEventService, mockFastify as any);
   });
 
@@ -237,25 +235,25 @@ describe("EventIntegration - Custom Event Handlers", { concurrency: 1 }, () => {
     integration.registerCustomHandlers();
 
     const handlers = mockEventService.getHandlers(EVENT_TYPES.POST_PUBLISHED);
-    assert.ok(handlers && handlers.size >= 1, "Should register POST_PUBLISHED handler");
+    expect(handlers && handlers.size >= 1).toBeTruthy();
   });
 
   it("should register POST_PUBLISH_FAILED handler", () => {
     integration.registerCustomHandlers();
 
     const handlers = mockEventService.getHandlers(EVENT_TYPES.POST_PUBLISH_FAILED);
-    assert.ok(handlers && handlers.size >= 1, "Should register POST_PUBLISH_FAILED handler");
+    expect(handlers && handlers.size >= 1).toBeTruthy();
   });
 
   it("should register ANALYTICS_COLLECTED handler", () => {
     integration.registerCustomHandlers();
 
     const handlers = mockEventService.getHandlers(EVENT_TYPES.ANALYTICS_COLLECTED);
-    assert.ok(handlers && handlers.size >= 1, "Should register ANALYTICS_COLLECTED handler");
+    expect(handlers && handlers.size >= 1).toBeTruthy();
   });
 });
 
-describe("EventIntegration - Event Context Middleware", { concurrency: 1 }, () => {
+describe("EventIntegration - Event Context Middleware", () => {
   it("should add correlation ID to request", async () => {
     const request: any = {
       headers: {},
@@ -267,8 +265,8 @@ describe("EventIntegration - Event Context Middleware", { concurrency: 1 }, () =
 
     await eventContextMiddleware(request, reply);
 
-    assert.ok(request.correlationId, "Should add correlation ID to request");
-    assert.ok(request.eventMetadata, "Should add event metadata to request");
+    expect(request.correlationId).toBeTruthy();
+    expect(request.eventMetadata).toBeTruthy();
   });
 
   it("should preserve existing correlation ID", async () => {
@@ -285,7 +283,7 @@ describe("EventIntegration - Event Context Middleware", { concurrency: 1 }, () =
 
     await eventContextMiddleware(request, reply);
 
-    assert.equal(request.correlationId, existingCorrelationId, "Should preserve correlation ID");
+    expect(request.correlationId).toBe(existingCorrelationId);
   });
 
   it("should include user metadata when available", async () => {
@@ -300,6 +298,6 @@ describe("EventIntegration - Event Context Middleware", { concurrency: 1 }, () =
 
     await eventContextMiddleware(request, reply);
 
-    assert.ok(request.eventMetadata, "Should add event metadata");
+    expect(request.eventMetadata).toBeTruthy();
   });
 });

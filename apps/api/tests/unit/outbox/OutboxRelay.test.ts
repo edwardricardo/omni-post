@@ -5,36 +5,34 @@
  * Tier-0 tests with mocked Prisma and EventDispatcher.
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { OutboxRelay } from "../../../src/infrastructure/outbox/OutboxRelay.js";
 
-function createMockPrisma(t: TestContext) {
+function createMockPrisma() {
   return {
     outboxEvent: {
-      findMany: t.mock.fn(async () => []),
-      update: t.mock.fn(async () => ({})),
+      findMany: vi.fn(async () => []),
+      update: vi.fn(async () => ({})),
     },
   };
 }
 
-function createMockDispatcher(t: TestContext) {
+function createMockDispatcher() {
   return {
-    dispatch: t.mock.fn(async () => {}),
-    dispatchAll: t.mock.fn(async () => {}),
-    register: t.mock.fn(() => {}),
+    dispatch: vi.fn(async () => {}),
+    dispatchAll: vi.fn(async () => {}),
+    register: vi.fn(() => {}),
   };
 }
 
-describe("OutboxRelay", { concurrency: 1 }, () => {
+describe("OutboxRelay", () => {
   let mockPrisma: ReturnType<typeof createMockPrisma>;
   let mockDispatcher: ReturnType<typeof createMockDispatcher>;
   let relay: OutboxRelay;
 
-  beforeEach((t: TestContext) => {
-    mockPrisma = createMockPrisma(t);
-    mockDispatcher = createMockDispatcher(t);
+  beforeEach(() => {
+    mockPrisma = createMockPrisma();
+    mockDispatcher = createMockDispatcher();
     relay = new OutboxRelay({
       prisma: mockPrisma as never,
       eventDispatcher: mockDispatcher,
@@ -48,23 +46,23 @@ describe("OutboxRelay", { concurrency: 1 }, () => {
   });
 
   it("should start and stop correctly", () => {
-    assert.ok(!relay.isRunning);
+    expect(relay.isRunning).toBeFalsy();
     relay.start();
-    assert.ok(relay.isRunning);
+    expect(relay.isRunning).toBeTruthy();
     relay.stop();
-    assert.ok(!relay.isRunning);
+    expect(relay.isRunning).toBeFalsy();
   });
 
   it("should not start twice", () => {
     relay.start();
     relay.start();
-    assert.ok(relay.isRunning);
+    expect(relay.isRunning).toBeTruthy();
     relay.stop();
   });
 
   it("should poll and dispatch unpublished events", async (t) => {
     const now = new Date();
-    mockPrisma.outboxEvent.findMany = t.mock.fn(async () => [
+    mockPrisma.outboxEvent.findMany = vi.fn(async () => [
       {
         id: "evt-1",
         eventType: "PostCreated",
@@ -83,35 +81,31 @@ describe("OutboxRelay", { concurrency: 1 }, () => {
 
     await relay.poll();
 
-    assert.equal(mockDispatcher.dispatch.mock.calls.length, 1);
+    expect(mockDispatcher.dispatch.mock.calls.length).toBe(1);
 
     // Verify event was dispatched correctly
-    const dispatchedEvent = mockDispatcher.dispatch.mock.calls[0]?.arguments[0] as Record<
-      string,
-      unknown
-    >;
-    assert.equal(dispatchedEvent.eventId, "evt-1");
-    assert.equal(dispatchedEvent.eventType, "PostCreated");
+    const dispatchedEvent = mockDispatcher.dispatch.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(dispatchedEvent.eventId).toBe("evt-1");
+    expect(dispatchedEvent.eventType).toBe("PostCreated");
 
     // Verify event was marked as published
-    assert.equal(mockPrisma.outboxEvent.update.mock.calls.length, 1);
-    const updateArgs = mockPrisma.outboxEvent.update.mock.calls[0]?.arguments[0] as Record<
-      string,
-      unknown
-    >;
-    assert.deepEqual((updateArgs as { where: { id: string } }).where, { id: "evt-1" });
-    assert.ok((updateArgs as { data: { publishedAt: Date } }).data.publishedAt instanceof Date);
+    expect(mockPrisma.outboxEvent.update.mock.calls.length).toBe(1);
+    const updateArgs = mockPrisma.outboxEvent.update.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect((updateArgs as { where: { id: string } }).where).toEqual({ id: "evt-1" });
+    expect(
+      (updateArgs as { data: { publishedAt: Date } }).data.publishedAt instanceof Date
+    ).toBeTruthy();
   });
 
   it("should do nothing when no unpublished events exist", async () => {
     await relay.poll();
-    assert.equal(mockDispatcher.dispatch.mock.calls.length, 0);
-    assert.equal(mockPrisma.outboxEvent.update.mock.calls.length, 0);
+    expect(mockDispatcher.dispatch.mock.calls.length).toBe(0);
+    expect(mockPrisma.outboxEvent.update.mock.calls.length).toBe(0);
   });
 
   it("should retry with exponential backoff on dispatch failure", async (t) => {
     const now = new Date();
-    mockPrisma.outboxEvent.findMany = t.mock.fn(async () => [
+    mockPrisma.outboxEvent.findMany = vi.fn(async () => [
       {
         id: "evt-fail",
         eventType: "PostCreated",
@@ -128,31 +122,31 @@ describe("OutboxRelay", { concurrency: 1 }, () => {
       },
     ]);
 
-    mockDispatcher.dispatch = t.mock.fn(async () => {
+    mockDispatcher.dispatch = vi.fn(async () => {
       throw new Error("Dispatch failed");
     });
 
     await relay.poll();
 
     // Should have attempted dispatch
-    assert.equal(mockDispatcher.dispatch.mock.calls.length, 1);
+    expect(mockDispatcher.dispatch.mock.calls.length).toBe(1);
 
     // Should have updated retry count
-    assert.equal(mockPrisma.outboxEvent.update.mock.calls.length, 1);
-    const updateArgs = mockPrisma.outboxEvent.update.mock.calls[0]?.arguments[0] as {
+    expect(mockPrisma.outboxEvent.update.mock.calls.length).toBe(1);
+    const updateArgs = mockPrisma.outboxEvent.update.mock.calls[0]?.[0] as {
       data: { retryCount: number; nextRetryAt: Date };
     };
-    assert.equal(updateArgs.data.retryCount, 3); // was 2, now 3
-    assert.ok(updateArgs.data.nextRetryAt instanceof Date);
+    expect(updateArgs.data.retryCount).toBe(3); // was 2, now 3
+    expect(updateArgs.data.nextRetryAt instanceof Date).toBeTruthy();
     // Exponential backoff: 2^(2+1) * 1000 = 8000ms
-    assert.ok(updateArgs.data.nextRetryAt.getTime() > Date.now());
+    expect(updateArgs.data.nextRetryAt.getTime() > Date.now()).toBeTruthy();
   });
 
   it("should skip dead letters (retryCount >= maxRetries)", async () => {
     // findMany returns nothing because the WHERE clause filters out dead letters
     // (retryCount: { lt: 5 })
     await relay.poll();
-    assert.equal(mockDispatcher.dispatch.mock.calls.length, 0);
+    expect(mockDispatcher.dispatch.mock.calls.length).toBe(0);
   });
 
   it("should dispatch multiple events in order", async (t) => {
@@ -188,11 +182,11 @@ describe("OutboxRelay", { concurrency: 1 }, () => {
       },
     ];
 
-    mockPrisma.outboxEvent.findMany = t.mock.fn(async () => events);
+    mockPrisma.outboxEvent.findMany = vi.fn(async () => events);
 
     await relay.poll();
 
-    assert.equal(mockDispatcher.dispatch.mock.calls.length, 2);
-    assert.equal(mockPrisma.outboxEvent.update.mock.calls.length, 2);
+    expect(mockDispatcher.dispatch.mock.calls.length).toBe(2);
+    expect(mockPrisma.outboxEvent.update.mock.calls.length).toBe(2);
   });
 });

@@ -9,8 +9,7 @@
  * those chunks and throws ENOENT because they were only marked as uploaded in
  * memory but were never physically written.
  */
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import {
   VideoUploadPipeline,
   type UploadOptions,
@@ -22,10 +21,10 @@ import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers";
 // Apply fs mocks before any describe/it blocks run
 setupFsMocks();
 
-describe("VideoUploadPipeline - File Upload", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - File Upload", () => {
   let pipeline: VideoUploadPipeline;
 
-  before(() => {
+  beforeAll(() => {
     pipeline = new VideoUploadPipeline(0);
   });
 
@@ -47,10 +46,10 @@ describe("VideoUploadPipeline - File Upload", { concurrency: 1 }, () => {
 
     const session = await pipeline.uploadFile(filePath, destination);
 
-    assert.ok(session);
-    assert.equal(session.status, "completed");
-    assert.equal(session.progress, 100);
-    assert.ok(session.finalUrl);
+    expect(session).toBeTruthy();
+    expect(session.status).toBe("completed");
+    expect(session.progress).toBe(100);
+    expect(session.finalUrl).toBeTruthy();
   });
 
   it("should track upload progress", async () => {
@@ -73,12 +72,12 @@ describe("VideoUploadPipeline - File Upload", { concurrency: 1 }, () => {
       progressUpdates.push({ ...progress });
     });
 
-    assert.ok(session);
-    assert.ok(progressUpdates.length > 0);
+    expect(session).toBeTruthy();
+    expect(progressUpdates.length > 0).toBeTruthy();
 
     // Verify progress increases monotonically
     for (let i = 1; i < progressUpdates.length; i++) {
-      assert.ok(progressUpdates[i]!.progress >= progressUpdates[i - 1]!.progress);
+      expect(progressUpdates[i]!.progress >= progressUpdates[i - 1]!.progress).toBeTruthy();
     }
   });
 
@@ -102,8 +101,8 @@ describe("VideoUploadPipeline - File Upload", { concurrency: 1 }, () => {
 
     const session = await pipeline.uploadFile(filePath, destination, options);
 
-    assert.ok(session);
-    assert.ok(session.chunks.every((chunk) => chunk.checksum));
+    expect(session).toBeTruthy();
+    expect(session.chunks.every((chunk) => chunk.checksum)).toBeTruthy();
   });
 
   it("should handle upload with custom retry settings", async () => {
@@ -127,7 +126,7 @@ describe("VideoUploadPipeline - File Upload", { concurrency: 1 }, () => {
 
     const session = await pipeline.uploadFile(filePath, destination, options);
 
-    assert.equal(session.status, "completed");
+    expect(session.status).toBe("completed");
   });
 
   it("should detect correct MIME type from extension", async () => {
@@ -153,15 +152,15 @@ describe("VideoUploadPipeline - File Upload", { concurrency: 1 }, () => {
 
       const session = await pipeline.uploadFile(testCase.file, destination);
 
-      assert.equal(session.mimeType, testCase.expected);
+      expect(session.mimeType).toBe(testCase.expected);
     }
   });
 });
 
-describe("VideoUploadPipeline - Resumable Uploads", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - Resumable Uploads", () => {
   let pipeline: VideoUploadPipeline;
 
-  before(() => {
+  beforeAll(() => {
     pipeline = new VideoUploadPipeline(0);
   });
 
@@ -206,9 +205,9 @@ describe("VideoUploadPipeline - Resumable Uploads", { concurrency: 1 }, () => {
     // Resume upload — should only upload chunks 2, 3, 4 then finalize
     const completedSession = await pipeline.resumeUpload(session.sessionId, filePath, destination);
 
-    assert.equal(completedSession.status, "completed");
-    assert.equal(completedSession.progress, 100);
-    assert.equal(completedSession.uploadedChunks, session.totalChunks);
+    expect(completedSession.status).toBe("completed");
+    expect(completedSession.progress).toBe(100);
+    expect(completedSession.uploadedChunks).toBe(session.totalChunks);
   });
 
   it("should return completed session if already finished", async () => {
@@ -223,7 +222,7 @@ describe("VideoUploadPipeline - Resumable Uploads", { concurrency: 1 }, () => {
 
     const result = await pipeline.resumeUpload(session.sessionId, "/test/file.mp4", destination);
 
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 
   it("should throw error if resuming non-existent session", async () => {
@@ -232,13 +231,8 @@ describe("VideoUploadPipeline - Resumable Uploads", { concurrency: 1 }, () => {
       config: { directory: "/test" },
     };
 
-    await assert.rejects(
-      async () => {
-        await pipeline.resumeUpload("non-existent-session", "/test/file.mp4", destination);
-      },
-      {
-        message: /Upload session not found/,
-      }
-    );
+    await expect(
+      pipeline.resumeUpload("non-existent-session", "/test/file.mp4", destination)
+    ).rejects.toThrow(/Upload session not found/);
   });
 });

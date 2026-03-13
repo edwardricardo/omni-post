@@ -1,35 +1,130 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for projectRoutes
- * Testing project CRUD operations endpoints
- *
- * Coverage Target: 95%+
+ * @file projectRoutes.test.ts
+ * @description Unit tests for projectRoutes — project CRUD operations.
+ *              Uses in-memory mocked Prisma stores — no real database needed.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import { projectRoutes } from "../../src/projects/projectRoutes.js";
-import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import type { FastifyInstance } from "fastify";
 
-// Test data
+// ---------------------------------------------------------------------------
+// Mock setup — must come BEFORE any SUT imports
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+// Patch account.findUnique to resolve include: { _count: { select: { projects: true } } }
+const origAccountFindUnique = mockPrisma.prisma.account.findUnique;
+mockPrisma.prisma.account.findUnique = vi.fn(async (args: Record<string, unknown>) => {
+  const result = await origAccountFindUnique(args);
+  if (!result) return null;
+  const include = args.include as Record<string, unknown> | undefined;
+  if (include?._count) {
+    (result as Record<string, unknown>)._count = {
+      projects: stores.project.all().filter((p) => p.accountId === result.id).length,
+    };
+  }
+  if (include?.projects) {
+    (result as Record<string, unknown>).projects = stores.project
+      .all()
+      .filter((p) => p.accountId === result.id);
+  }
+  return result;
+});
+
+// Patch project.findUnique to support compound unique key accountId_name
+const origProjectFindUnique = mockPrisma.prisma.project.findUnique;
+mockPrisma.prisma.project.findUnique = vi.fn(
+  async (args: { where: Record<string, unknown>; include?: Record<string, unknown> }) => {
+    const where = args.where;
+
+    // Handle compound unique key: { accountId_name: { accountId, name } }
+    if (where.accountId_name) {
+      const compound = where.accountId_name as { accountId: string; name: string };
+      const found =
+        stores.project
+          .all()
+          .find((p) => p.accountId === compound.accountId && p.name === compound.name) ?? null;
+      return found ? { ...found } : null;
+    }
+
+    // Fall back to default behavior (by id)
+    return origProjectFindUnique(args);
+  }
+);
+
+// Add models used by delete handler (postContent, postMedia, post, channel)
+const noopDeleteMany = vi.fn(async () => ({ count: 0 }));
+const prismaAny = mockPrisma.prisma as Record<string, unknown>;
+prismaAny.postContent = { deleteMany: noopDeleteMany };
+prismaAny.postMedia = { deleteMany: noopDeleteMany };
+prismaAny.post = { deleteMany: noopDeleteMany };
+prismaAny.channel = { deleteMany: noopDeleteMany };
+prismaAny.publishLog = { findMany: vi.fn(async () => []) };
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// Import SUT after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const { projectRoutes } = await import("../../src/projects/projectRoutes.js");
+const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { prisma } = await import("@infra/prisma");
+
+// ---------------------------------------------------------------------------
+// Helper
+// ---------------------------------------------------------------------------
+
+async function createTestApp(): Promise<FastifyInstance> {
+  const app = Fastify({ logger: false });
+
+  const container = setupContainer({ prisma: prisma as never });
+  app.decorate("container", container);
+
+  await app.register(projectRoutes);
+
+  return app;
+}
+
+// ---------------------------------------------------------------------------
+// Test suite
+// ---------------------------------------------------------------------------
+
 const timestamp = Date.now();
 const testProjectName = `Test Project ${timestamp}`;
 
-describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
+describe("projectRoutes - Unit Tests", () => {
   let app: FastifyInstance;
   let createdAccountId: string;
   let _createdProjectId: string;
 
-  before(async () => {
-    app = Fastify({ logger: false });
-
-    // Decorate with DI container so route plugin can resolve PrismaClient
-    const container = setupContainer({ prisma });
-    app.decorate("container", container);
-
-    await app.register(projectRoutes);
+  beforeAll(async () => {
+    app = await createTestApp();
 
     // Create test account
     const testAccount = await prisma.account.create({
@@ -43,9 +138,8 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
     createdAccountId = testAccount.id;
   });
 
-  after(async () => {
+  afterAll(async () => {
     try {
-      // Cleanup - delete projects and account
       if (createdAccountId) {
         await prisma.project.deleteMany({
           where: { accountId: createdAccountId },
@@ -58,8 +152,8 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
             /* may already be deleted */
           });
       }
-    } catch (err) {
-      console.warn("Cleanup warning:", err);
+    } catch (_err) {
+      // best-effort cleanup
     }
     await app.close();
   });
@@ -75,15 +169,15 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.id);
-      assert.strictEqual(body.data?.accountId, createdAccountId);
-      assert.strictEqual(body.data?.name, testProjectName);
-      assert.strictEqual(body.data?.locale, "en");
-      assert.ok(body.data?.createdAt);
+      expect(body.ok).toBe(true);
+      expect(body.data?.id).toBeTruthy();
+      expect(body.data?.accountId).toBe(createdAccountId);
+      expect(body.data?.name).toBe(testProjectName);
+      expect(body.data?.locale).toBe("en");
+      expect(body.data?.createdAt).toBeTruthy();
 
       _createdProjectId = body.data?.id;
     });
@@ -97,10 +191,10 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.data?.locale, "en");
+      expect(body.data?.locale).toBe("en");
 
       // Cleanup
       if (body.data?.id) {
@@ -118,10 +212,10 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
 
       const body = JSON.parse(response.body);
-      assert.ok(body.error);
+      expect(body.error).toBeTruthy();
     });
 
     it("should return 409 when project name already exists", async () => {
@@ -134,11 +228,11 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 409);
+      expect(response.statusCode).toBe(409);
 
       const body = JSON.parse(response.body);
-      assert.ok(body.error);
-      assert.strictEqual(body.error, "NAME_TAKEN");
+      expect(body.error).toBeTruthy();
+      expect(body.error).toBe("NAME_TAKEN");
     });
 
     it("should return 403 when quota exceeded", async () => {
@@ -161,11 +255,11 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
 
       const body = JSON.parse(response.body);
-      assert.ok(body.error);
-      assert.strictEqual(body.error, "QUOTA_EXCEEDED");
+      expect(body.error).toBeTruthy();
+      expect(body.error).toBe("QUOTA_EXCEEDED");
 
       // Cleanup
       await prisma.account.delete({ where: { id: quotaAccount.id } });
@@ -181,7 +275,7 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should validate locale format", async () => {
@@ -194,7 +288,7 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject invalid account ID format", async () => {
@@ -207,7 +301,7 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should accept valid locales", async () => {
@@ -223,10 +317,10 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
           },
         });
 
-        assert.strictEqual(response.statusCode, 200);
+        expect(response.statusCode).toBe(200);
 
         const body = JSON.parse(response.body);
-        assert.strictEqual(body.data?.locale, locale);
+        expect(body.data?.locale).toBe(locale);
 
         // Cleanup
         if (body.data?.id) {
@@ -243,12 +337,12 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: `/accounts/${createdAccountId}/projects`,
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data));
-      assert.ok(body.data.length >= 1);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data)).toBeTruthy();
+      expect(body.data.length >= 1).toBeTruthy();
     });
 
     it("should return projects in descending order by creation date", async () => {
@@ -280,13 +374,15 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data.length >= 2);
+      expect(body.ok).toBe(true);
+      expect(body.data.length >= 2).toBeTruthy();
 
       // First project should be the most recent
-      const dates = body.data.map((p: any) => new Date(p.createdAt).getTime());
+      const dates = body.data.map((p: Record<string, unknown>) =>
+        new Date(p.createdAt as string).getTime()
+      );
       for (let i = 1; i < dates.length; i++) {
-        assert.ok(dates[i - 1] >= dates[i]);
+        expect(dates[i - 1] >= dates[i]).toBeTruthy();
       }
 
       // Cleanup
@@ -309,12 +405,12 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: `/accounts/${emptyAccount.id}/projects`,
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data));
-      assert.strictEqual(body.data.length, 0);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data)).toBeTruthy();
+      expect(body.data.length).toBe(0);
 
       // Cleanup
       await prisma.account.delete({ where: { id: emptyAccount.id } });
@@ -326,7 +422,7 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/accounts/a0000000-0000-4000-8000-000000000000/projects",
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
     });
 
     it("should include all project fields", async () => {
@@ -336,15 +432,15 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data.length > 0);
+      expect(body.ok).toBe(true);
+      expect(body.data.length > 0).toBeTruthy();
 
       const project = body.data[0];
-      assert.ok(project.id);
-      assert.ok(project.accountId);
-      assert.ok(project.name);
-      assert.ok(project.locale);
-      assert.ok(project.createdAt);
+      expect(project.id).toBeTruthy();
+      expect(project.accountId).toBeTruthy();
+      expect(project.name).toBeTruthy();
+      expect(project.locale).toBeTruthy();
+      expect(project.createdAt).toBeTruthy();
     });
 
     it("should reject invalid account ID format", async () => {
@@ -353,7 +449,7 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/accounts/invalid!/projects",
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -373,17 +469,17 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: `/projects/${projectToDelete.id}`,
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.message);
+      expect(body.ok).toBe(true);
+      expect(body.data?.message).toBeTruthy();
 
       // Verify project is deleted
       const deletedProject = await prisma.project.findUnique({
         where: { id: projectToDelete.id },
       });
-      assert.strictEqual(deletedProject, null);
+      expect(deletedProject).toBe(null);
     });
 
     it("should return 404 for non-existent project", async () => {
@@ -392,10 +488,10 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/projects/a0000000-0000-4000-8000-000000000000",
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
 
       const body = JSON.parse(response.body);
-      assert.ok(body.error);
+      expect(body.error).toBeTruthy();
     });
 
     it("should reject invalid project ID format", async () => {
@@ -404,10 +500,10 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/projects/invalid!",
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const body = JSON.parse(response.body);
-      assert.ok(body.error);
+      expect(body.error).toBeTruthy();
     });
 
     it("should return success message after deletion", async () => {
@@ -425,8 +521,8 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data?.message, "Project deleted successfully");
+      expect(body.ok).toBe(true);
+      expect(body.data?.message).toBe("Project deleted successfully");
     });
 
     it("should handle cascade deletion properly", async () => {
@@ -445,26 +541,24 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: `/projects/${projectWithData.id}`,
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       // Verify project is deleted
       const deletedProject = await prisma.project.findUnique({
         where: { id: projectWithData.id },
       });
-      assert.strictEqual(deletedProject, null);
+      expect(deletedProject).toBe(null);
     });
   });
 
   describe("Error Handling", () => {
     it("should handle database errors gracefully", async () => {
-      // This test would require mocking Prisma to simulate database errors
-      // For now, we verify that valid requests don't throw unhandled errors
       const response = await app.inject({
         method: "GET",
         url: `/accounts/${createdAccountId}/projects`,
       });
 
-      assert.ok(response.statusCode < 500 || response.statusCode === 500);
+      expect(response.statusCode < 500 || response.statusCode === 500).toBeTruthy();
     });
 
     it("should return proper error structure", async () => {
@@ -474,8 +568,8 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.error);
-      assert.strictEqual(typeof body.error, "string");
+      expect(body.error).toBeTruthy();
+      expect(typeof body.error).toBe("string");
     });
   });
 
@@ -487,7 +581,7 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         payload: {},
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should validate name length constraints", async () => {
@@ -500,7 +594,7 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should validate locale format constraints", async () => {
@@ -513,7 +607,7 @@ describe("projectRoutes - Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 });

@@ -5,9 +5,7 @@
  * Tests for GetCrossPlatformAnalytics, ComparePerformance, and CalculateROI use cases.
  */
 
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { randomUUID } from "crypto";
 
 import {
@@ -20,9 +18,9 @@ import {
 } from "../../../src/application/analytics/index.js";
 import { USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
 
-function createMocks(t: TestContext) {
+function createMocks() {
   const mockCrossPlatformEngine = {
-    generateCrossPlatformMetrics: t.mock.fn(async () => ({
+    generateCrossPlatformMetrics: vi.fn(async () => ({
       summary: {
         totalPosts: 150,
         totalEngagements: 25000,
@@ -40,7 +38,7 @@ function createMocks(t: TestContext) {
   };
 
   const mockPerformanceComparator = {
-    generatePerformanceComparison: t.mock.fn(async () => ({
+    generatePerformanceComparison: vi.fn(async () => ({
       currentPerformance: {
         totalPosts: 50,
         totalEngagements: 8000,
@@ -51,7 +49,7 @@ function createMocks(t: TestContext) {
       keyInsights: [],
       recommendations: [],
     })),
-    compareMetricsOverTime: t.mock.fn(async () => ({
+    compareMetricsOverTime: vi.fn(async () => ({
       metrics: ["engagement_rate", "reach"],
       periods: [],
       trends: {},
@@ -60,14 +58,14 @@ function createMocks(t: TestContext) {
   };
 
   const mockROICalculator = {
-    calculateROI: t.mock.fn(async () => ({
+    calculateROI: vi.fn(async () => ({
       totalInvestment: 5000,
       totalRevenue: 15000,
       roi: 200,
       roiPercentage: 200,
       breakdown: {},
     })),
-    calculateChannelROI: t.mock.fn(async () => ({
+    calculateChannelROI: vi.fn(async () => ({
       channels: [],
       bestPerforming: "INSTAGRAM",
       recommendations: [],
@@ -81,20 +79,20 @@ function createMocks(t: TestContext) {
   };
 }
 
-describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
+describe("Analytics Use Cases (TDD)", () => {
   // Mock dependencies
   let mockCrossPlatformEngine: ReturnType<typeof createMocks>["mockCrossPlatformEngine"];
   let mockPerformanceComparator: ReturnType<typeof createMocks>["mockPerformanceComparator"];
   let mockROICalculator: ReturnType<typeof createMocks>["mockROICalculator"];
 
-  beforeEach((t) => {
-    const mocks = createMocks(t);
+  beforeEach(() => {
+    const mocks = createMocks();
     mockCrossPlatformEngine = mocks.mockCrossPlatformEngine;
     mockPerformanceComparator = mocks.mockPerformanceComparator;
     mockROICalculator = mocks.mockROICalculator;
   });
 
-  describe("GetCrossPlatformAnalyticsUseCase", { concurrency: 1 }, () => {
+  describe("GetCrossPlatformAnalyticsUseCase", () => {
     it("should get cross-platform analytics for an account", async () => {
       const useCase = new GetCrossPlatformAnalyticsUseCase(mockCrossPlatformEngine);
 
@@ -105,11 +103,11 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok, "Should successfully get analytics");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(result.value.summary, "Should have summary");
-        assert.ok(result.value.summary.totalPosts >= 0, "Should have total posts");
-        assert.ok(result.value.summary.avgEngagementRate >= 0, "Should have engagement rate");
+        expect(result.value.summary).toBeTruthy();
+        expect(result.value.summary.totalPosts >= 0).toBeTruthy();
+        expect(result.value.summary.avgEngagementRate >= 0).toBeTruthy();
       }
     });
 
@@ -124,7 +122,7 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
     });
 
     it("should filter analytics by providers", async () => {
@@ -138,7 +136,7 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
     });
 
     it("should support custom date range", async () => {
@@ -153,7 +151,7 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
     });
 
     it("should reject empty account ID", async () => {
@@ -166,9 +164,9 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(!result.ok);
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+        expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
       }
     });
 
@@ -183,11 +181,11 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
     });
   });
 
-  describe("ComparePerformanceUseCase", { concurrency: 1 }, () => {
+  describe("ComparePerformanceUseCase", () => {
     it("should compare performance across time periods", async () => {
       const useCase = new ComparePerformanceUseCase(mockPerformanceComparator);
 
@@ -198,10 +196,10 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok, "Should successfully compare performance");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(result.value.currentPerformance, "Should have current performance");
-        assert.ok(result.value.keyInsights, "Should have key insights");
+        expect(result.value.currentPerformance).toBeTruthy();
+        expect(result.value.keyInsights).toBeTruthy();
       }
     });
 
@@ -216,9 +214,9 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(result.value.industryBenchmarks !== undefined);
+        expect(result.value.industryBenchmarks !== undefined).toBeTruthy();
       }
     });
 
@@ -233,9 +231,9 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(result.value.historicalComparison !== undefined);
+        expect(result.value.historicalComparison !== undefined).toBeTruthy();
       }
     });
 
@@ -251,7 +249,7 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
     });
 
     it("should reject empty account ID", async () => {
@@ -264,14 +262,14 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(!result.ok);
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+        expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
       }
     });
   });
 
-  describe("CalculateROIUseCase", { concurrency: 1 }, () => {
+  describe("CalculateROIUseCase", () => {
     it("should calculate ROI for a project", async () => {
       const useCase = new CalculateROIUseCase(mockROICalculator);
 
@@ -283,11 +281,11 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok, "Should successfully calculate ROI");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(result.value.roi !== undefined, "Should have ROI value");
-        assert.ok(result.value.totalInvestment !== undefined, "Should have total investment");
-        assert.ok(result.value.totalRevenue !== undefined, "Should have total revenue");
+        expect(result.value.roi !== undefined).toBeTruthy();
+        expect(result.value.totalInvestment !== undefined).toBeTruthy();
+        expect(result.value.totalRevenue !== undefined).toBeTruthy();
       }
     });
 
@@ -302,11 +300,11 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(
+        expect(
           result.value.channelBreakdown !== undefined || result.value.breakdown !== undefined
-        );
+        ).toBeTruthy();
       }
     });
 
@@ -325,7 +323,7 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
     });
 
     it("should reject empty account ID", async () => {
@@ -338,9 +336,9 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(!result.ok);
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+        expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
       }
     });
 
@@ -355,7 +353,7 @@ describe("Analytics Use Cases (TDD)", { concurrency: 1 }, () => {
 
       const result = await useCase.execute(input);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
     });
   });
 });

@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { createUserActionEvent, createAnalyticsEvent } from "../../src/events/EventService";
 import { EVENT_TYPES, validateEvent } from "@shared/events";
 
@@ -12,15 +11,15 @@ describe("createUserActionEvent", () => {
     it("should create event with aggregateType 'User'", () => {
       const event = createUserActionEvent("user-123", "login", "Session", "session-456");
 
-      assert.strictEqual(event.aggregateType, "User");
-      assert.strictEqual(event.aggregateId, "user-123");
-      assert.strictEqual(event.type, EVENT_TYPES.USER_ACTION);
+      expect(event.aggregateType).toBe("User");
+      expect(event.aggregateId).toBe("user-123");
+      expect(event.type).toBe(EVENT_TYPES.USER_ACTION);
     });
 
     it("should always use EVENT_TYPES.USER_ACTION as type", () => {
       const event = createUserActionEvent("user-123", "delete_post", "Post", "post-789");
 
-      assert.strictEqual(event.type, EVENT_TYPES.USER_ACTION);
+      expect(event.type).toBe(EVENT_TYPES.USER_ACTION);
     });
   });
 
@@ -28,11 +27,11 @@ describe("createUserActionEvent", () => {
     it("should include all required user action fields", () => {
       const event = createUserActionEvent("user-123", "create_post", "Post", "post-789");
 
-      assert.strictEqual(event.data.userId, "user-123");
-      assert.strictEqual(event.data.action, "create_post");
-      assert.strictEqual(event.data.resourceType, "Post");
-      assert.strictEqual(event.data.resourceId, "post-789");
-      assert.ok(event.data.timestamp instanceof Date);
+      expect(event.data.userId).toBe("user-123");
+      expect(event.data.action).toBe("create_post");
+      expect(event.data.resourceType).toBe("Post");
+      expect(event.data.resourceId).toBe("post-789");
+      expect(event.data.timestamp instanceof Date).toBeTruthy();
     });
 
     it("should create timestamp at action time", () => {
@@ -40,7 +39,7 @@ describe("createUserActionEvent", () => {
       const event = createUserActionEvent("user-123", "update_post", "Post", "post-789");
       const after = new Date();
 
-      assert.ok(event.data.timestamp >= before && event.data.timestamp <= after);
+      expect(event.data.timestamp >= before && event.data.timestamp <= after).toBeTruthy();
     });
   });
 
@@ -49,13 +48,13 @@ describe("createUserActionEvent", () => {
       const event = createUserActionEvent("user-123", "view_post", "Post", "post-789", undefined);
 
       // Details should be undefined, not included in data
-      assert.strictEqual(event.data.details, undefined);
+      expect(event.data.details).toBe(undefined);
     });
 
     it("should handle empty details object", () => {
       const event = createUserActionEvent("user-123", "view_post", "Post", "post-789", {});
 
-      assert.deepStrictEqual(event.data.details, {});
+      expect(event.data.details).toStrictEqual({});
     });
 
     it("should preserve details when provided", () => {
@@ -66,7 +65,7 @@ describe("createUserActionEvent", () => {
       };
       const event = createUserActionEvent("user-123", "login", "Session", "session-456", details);
 
-      assert.deepStrictEqual(event.data.details, details);
+      expect(event.data.details).toStrictEqual(details);
     });
 
     it("should handle undefined sessionId correctly", () => {
@@ -80,9 +79,9 @@ describe("createUserActionEvent", () => {
       );
 
       // sessionId should be undefined
-      assert.strictEqual(event.data.sessionId, undefined);
+      expect(event.data.sessionId).toBe(undefined);
       // Metadata should not have sessionId field due to conditional spread
-      assert.strictEqual(event.metadata.sessionId, undefined);
+      expect(event.metadata.sessionId).toBe(undefined);
     });
 
     it("should propagate sessionId when provided", () => {
@@ -95,8 +94,8 @@ describe("createUserActionEvent", () => {
         "session-999"
       );
 
-      assert.strictEqual(event.data.sessionId, "session-999");
-      assert.strictEqual(event.metadata.sessionId, "session-999");
+      expect(event.data.sessionId).toBe("session-999");
+      expect(event.metadata.sessionId).toBe("session-999");
     });
 
     it("should handle both details and sessionId", () => {
@@ -110,9 +109,9 @@ describe("createUserActionEvent", () => {
         "session-888"
       );
 
-      assert.deepStrictEqual(event.data.details, details);
-      assert.strictEqual(event.data.sessionId, "session-888");
-      assert.strictEqual(event.metadata.sessionId, "session-888");
+      expect(event.data.details).toStrictEqual(details);
+      expect(event.data.sessionId).toBe("session-888");
+      expect(event.metadata.sessionId).toBe("session-888");
     });
   });
 
@@ -120,13 +119,13 @@ describe("createUserActionEvent", () => {
     it("should set default source to 'API'", () => {
       const event = createUserActionEvent("user-123", "login", "Session", "session-456");
 
-      assert.strictEqual(event.metadata.source, "API");
+      expect(event.metadata.source).toBe("API");
     });
 
     it("should propagate userId to metadata", () => {
       const event = createUserActionEvent("user-123", "logout", "Session", "session-456");
 
-      assert.strictEqual(event.metadata.userId, "user-123");
+      expect(event.metadata.userId).toBe("user-123");
     });
 
     it("should include sessionId in metadata when provided", () => {
@@ -139,7 +138,7 @@ describe("createUserActionEvent", () => {
         "session-777"
       );
 
-      assert.strictEqual(event.metadata.sessionId, "session-777");
+      expect(event.metadata.sessionId).toBe("session-777");
     });
   });
 
@@ -158,7 +157,7 @@ describe("createUserActionEvent", () => {
 
       actions.forEach((action) => {
         const event = createUserActionEvent("user-123", action, "Resource", "res-456");
-        assert.strictEqual(event.data.action, action);
+        expect(event.data.action).toBe(action);
       });
     });
 
@@ -173,8 +172,8 @@ describe("createUserActionEvent", () => {
 
       resources.forEach(({ type, id }) => {
         const event = createUserActionEvent("user-123", "view", type, id);
-        assert.strictEqual(event.data.resourceType, type);
-        assert.strictEqual(event.data.resourceId, id);
+        expect(event.data.resourceType).toBe(type);
+        expect(event.data.resourceId).toBe(id);
       });
     });
   });
@@ -185,7 +184,7 @@ describe("createUserActionEvent", () => {
         title: "New Post",
       });
 
-      assert.ok(validateEvent(event), "Event should validate against schema");
+      expect(validateEvent(event)).toBeTruthy();
     });
   });
 });
@@ -204,9 +203,9 @@ describe("createAnalyticsEvent", () => {
         shares: 2,
       });
 
-      assert.strictEqual(event.aggregateType, "Post");
-      assert.strictEqual(event.aggregateId, "post-123");
-      assert.strictEqual(event.type, EVENT_TYPES.ANALYTICS_COLLECTED);
+      expect(event.aggregateType).toBe("Post");
+      expect(event.aggregateId).toBe("post-123");
+      expect(event.type).toBe(EVENT_TYPES.ANALYTICS_COLLECTED);
     });
 
     it("should always use EVENT_TYPES.ANALYTICS_COLLECTED as type", () => {
@@ -217,7 +216,7 @@ describe("createAnalyticsEvent", () => {
         shares: 0,
       });
 
-      assert.strictEqual(event.type, EVENT_TYPES.ANALYTICS_COLLECTED);
+      expect(event.type).toBe(EVENT_TYPES.ANALYTICS_COLLECTED);
     });
   });
 
@@ -231,14 +230,14 @@ describe("createAnalyticsEvent", () => {
       };
       const event = createAnalyticsEvent("post-123", "ch-456", "twitter", metrics);
 
-      assert.strictEqual(event.data.postId, "post-123");
-      assert.strictEqual(event.data.channelId, "ch-456");
-      assert.strictEqual(event.data.provider, "twitter");
-      assert.deepStrictEqual(event.data.metrics, metrics);
-      assert.ok(event.data.collectedAt instanceof Date);
-      assert.ok(event.data.period);
-      assert.ok(event.data.period.start instanceof Date);
-      assert.ok(event.data.period.end instanceof Date);
+      expect(event.data.postId).toBe("post-123");
+      expect(event.data.channelId).toBe("ch-456");
+      expect(event.data.provider).toBe("twitter");
+      expect(event.data.metrics).toStrictEqual(metrics);
+      expect(event.data.collectedAt instanceof Date).toBeTruthy();
+      expect(event.data.period).toBeTruthy();
+      expect(event.data.period.start instanceof Date).toBeTruthy();
+      expect(event.data.period.end instanceof Date).toBeTruthy();
     });
 
     it("should create collectedAt timestamp at event creation time", () => {
@@ -251,10 +250,7 @@ describe("createAnalyticsEvent", () => {
       });
       const after = new Date();
 
-      assert.ok(
-        event.data.collectedAt >= before && event.data.collectedAt <= after,
-        "collectedAt should be current timestamp"
-      );
+      expect(event.data.collectedAt >= before && event.data.collectedAt <= after).toBeTruthy();
     });
   });
 
@@ -273,17 +269,11 @@ describe("createAnalyticsEvent", () => {
       const actualStart = event.data.period.start.getTime();
 
       // Allow 100ms tolerance for test execution time
-      assert.ok(
-        Math.abs(actualStart - expectedStart) < 100,
-        `Period start should be ~24 hours before creation. Expected: ${expectedStart}, Got: ${actualStart}, Diff: ${Math.abs(actualStart - expectedStart)}ms`
-      );
+      expect(Math.abs(actualStart - expectedStart) < 100).toBeTruthy();
 
       // Period end should be at event creation time
       const actualEnd = event.data.period.end.getTime();
-      assert.ok(
-        actualEnd >= beforeCreation && actualEnd <= afterCreation,
-        "Period end should be at event creation time"
-      );
+      expect(actualEnd >= beforeCreation && actualEnd <= afterCreation).toBeTruthy();
     });
 
     it("should have period.start exactly 24 hours before period.end", () => {
@@ -297,7 +287,7 @@ describe("createAnalyticsEvent", () => {
       const duration = event.data.period.end.getTime() - event.data.period.start.getTime();
       const expectedDuration = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
-      assert.strictEqual(duration, expectedDuration, "Period should be exactly 24 hours");
+      expect(duration).toBe(expectedDuration);
     });
 
     it("should create different periods for events created at different times", async () => {
@@ -318,16 +308,8 @@ describe("createAnalyticsEvent", () => {
         shares: 2,
       });
 
-      assert.notStrictEqual(
-        event1.data.period.start.getTime(),
-        event2.data.period.start.getTime(),
-        "Period starts should differ"
-      );
-      assert.notStrictEqual(
-        event1.data.period.end.getTime(),
-        event2.data.period.end.getTime(),
-        "Period ends should differ"
-      );
+      expect(event1.data.period.start.getTime()).not.toBe(event2.data.period.start.getTime());
+      expect(event1.data.period.end.getTime()).not.toBe(event2.data.period.end.getTime());
     });
   });
 
@@ -341,7 +323,7 @@ describe("createAnalyticsEvent", () => {
       };
       const event = createAnalyticsEvent("post-123", "ch-456", "twitter", metrics);
 
-      assert.deepStrictEqual(event.data.metrics, metrics);
+      expect(event.data.metrics).toStrictEqual(metrics);
     });
 
     it("should handle optional metrics fields", () => {
@@ -356,9 +338,9 @@ describe("createAnalyticsEvent", () => {
       };
       const event = createAnalyticsEvent("post-123", "ch-456", "instagram", metrics);
 
-      assert.strictEqual(event.data.metrics.reach, 5000);
-      assert.strictEqual(event.data.metrics.impressions, 8000);
-      assert.strictEqual(event.data.metrics.engagementRate, 0.065);
+      expect(event.data.metrics.reach).toBe(5000);
+      expect(event.data.metrics.impressions).toBe(8000);
+      expect(event.data.metrics.engagementRate).toBe(0.065);
     });
 
     it("should handle zero metrics", () => {
@@ -370,7 +352,7 @@ describe("createAnalyticsEvent", () => {
       };
       const event = createAnalyticsEvent("post-123", "ch-456", "facebook", metrics);
 
-      assert.deepStrictEqual(event.data.metrics, metrics);
+      expect(event.data.metrics).toStrictEqual(metrics);
     });
 
     it("should handle large metric numbers", () => {
@@ -383,7 +365,7 @@ describe("createAnalyticsEvent", () => {
       };
       const event = createAnalyticsEvent("post-123", "ch-456", "youtube", metrics);
 
-      assert.deepStrictEqual(event.data.metrics, metrics);
+      expect(event.data.metrics).toStrictEqual(metrics);
     });
   });
 
@@ -399,7 +381,7 @@ describe("createAnalyticsEvent", () => {
           shares: 2,
         });
 
-        assert.strictEqual(event.data.provider, provider);
+        expect(event.data.provider).toBe(provider);
       });
     });
   });
@@ -413,7 +395,7 @@ describe("createAnalyticsEvent", () => {
         shares: 2,
       });
 
-      assert.strictEqual(event.metadata.source, "AnalyticsCollector");
+      expect(event.metadata.source).toBe("AnalyticsCollector");
     });
 
     it("should not include userId in metadata by default", () => {
@@ -424,7 +406,7 @@ describe("createAnalyticsEvent", () => {
         shares: 5,
       });
 
-      assert.strictEqual(event.metadata.userId, undefined);
+      expect(event.metadata.userId).toBe(undefined);
     });
   });
 
@@ -437,7 +419,7 @@ describe("createAnalyticsEvent", () => {
         shares: 10,
       });
 
-      assert.ok(validateEvent(event), "Event should validate against schema");
+      expect(validateEvent(event)).toBeTruthy();
     });
 
     it("should validate with optional metrics fields", () => {
@@ -451,7 +433,7 @@ describe("createAnalyticsEvent", () => {
         engagementRate: 0.065,
       });
 
-      assert.ok(validateEvent(event), "Event with optional fields should validate");
+      expect(validateEvent(event)).toBeTruthy();
     });
   });
 });

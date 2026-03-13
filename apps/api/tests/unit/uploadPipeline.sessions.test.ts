@@ -2,18 +2,17 @@
  * Unit Tests for VideoUploadPipeline — Upload Session Management
  * Tests session creation, chunk boundary calculation, retrieval, and listing.
  */
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { VideoUploadPipeline, type UploadOptions } from "../../src/video/uploadPipeline";
 import { setupFsMocks } from "./uploadPipeline.test-helpers";
 
 // Apply fs mocks before any describe/it blocks run
 setupFsMocks();
 
-describe("VideoUploadPipeline - Upload Session Management", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - Upload Session Management", () => {
   let pipeline: VideoUploadPipeline;
 
-  before(() => {
+  beforeAll(() => {
     // Pass 0 ms simulated delay so cloud-destination chunk uploads complete immediately in tests
     pipeline = new VideoUploadPipeline(0);
   });
@@ -25,18 +24,18 @@ describe("VideoUploadPipeline - Upload Session Management", { concurrency: 1 }, 
       "video/mp4"
     );
 
-    assert.ok(session);
-    assert.ok(session.sessionId);
-    assert.equal(session.fileName, "test-video.mp4");
-    assert.equal(session.fileSize, 10 * 1024 * 1024);
-    assert.equal(session.mimeType, "video/mp4");
-    assert.equal(session.status, "created");
-    assert.equal(session.progress, 0);
-    assert.equal(session.uploadedChunks, 0);
-    assert.equal(session.chunkSize, 5 * 1024 * 1024); // Default 5MB
-    assert.equal(session.totalChunks, 2); // 10MB / 5MB = 2 chunks
-    assert.ok(Array.isArray(session.chunks));
-    assert.equal(session.chunks.length, 2);
+    expect(session).toBeTruthy();
+    expect(session.sessionId).toBeTruthy();
+    expect(session.fileName).toBe("test-video.mp4");
+    expect(session.fileSize).toBe(10 * 1024 * 1024);
+    expect(session.mimeType).toBe("video/mp4");
+    expect(session.status).toBe("created");
+    expect(session.progress).toBe(0);
+    expect(session.uploadedChunks).toBe(0);
+    expect(session.chunkSize).toBe(5 * 1024 * 1024); // Default 5MB
+    expect(session.totalChunks).toBe(2); // 10MB / 5MB = 2 chunks
+    expect(Array.isArray(session.chunks)).toBeTruthy();
+    expect(session.chunks.length).toBe(2);
   });
 
   it("should create upload session with custom chunk size", async () => {
@@ -51,8 +50,8 @@ describe("VideoUploadPipeline - Upload Session Management", { concurrency: 1 }, 
       options
     );
 
-    assert.equal(session.chunkSize, 1 * 1024 * 1024);
-    assert.equal(session.totalChunks, 10); // 10MB / 1MB = 10 chunks
+    expect(session.chunkSize).toBe(1 * 1024 * 1024);
+    expect(session.totalChunks).toBe(10); // 10MB / 1MB = 10 chunks
   });
 
   it("should calculate chunk boundaries correctly", async () => {
@@ -61,20 +60,20 @@ describe("VideoUploadPipeline - Upload Session Management", { concurrency: 1 }, 
       chunkSize: 3 * 1024 * 1024, // 3MB chunks
     });
 
-    assert.equal(session.chunks.length, 4); // ceil(10/3) = 4 chunks
+    expect(session.chunks.length).toBe(4); // ceil(10/3) = 4 chunks
 
     // First chunk
-    assert.equal(session.chunks[0]!.index, 0);
-    assert.equal(session.chunks[0]!.start, 0);
-    assert.equal(session.chunks[0]!.end, 3 * 1024 * 1024 - 1);
-    assert.equal(session.chunks[0]!.size, 3 * 1024 * 1024);
+    expect(session.chunks[0]!.index).toBe(0);
+    expect(session.chunks[0]!.start).toBe(0);
+    expect(session.chunks[0]!.end).toBe(3 * 1024 * 1024 - 1);
+    expect(session.chunks[0]!.size).toBe(3 * 1024 * 1024);
 
     // Last chunk (smaller)
     const lastChunk = session.chunks[3]!;
-    assert.equal(lastChunk.index, 3);
-    assert.equal(lastChunk.start, 9 * 1024 * 1024);
-    assert.equal(lastChunk.end, fileSize - 1);
-    assert.equal(lastChunk.size, 1 * 1024 * 1024);
+    expect(lastChunk.index).toBe(3);
+    expect(lastChunk.start).toBe(9 * 1024 * 1024);
+    expect(lastChunk.end).toBe(fileSize - 1);
+    expect(lastChunk.size).toBe(1 * 1024 * 1024);
   });
 
   it("should get upload session by ID", async () => {
@@ -82,14 +81,14 @@ describe("VideoUploadPipeline - Upload Session Management", { concurrency: 1 }, 
 
     const retrieved = pipeline.getUploadSession(session.sessionId);
 
-    assert.ok(retrieved);
-    assert.equal(retrieved.sessionId, session.sessionId);
-    assert.equal(retrieved.fileName, "test.mp4");
+    expect(retrieved).toBeTruthy();
+    expect(retrieved.sessionId).toBe(session.sessionId);
+    expect(retrieved.fileName).toBe("test.mp4");
   });
 
   it("should return undefined for non-existent session", () => {
     const retrieved = pipeline.getUploadSession("non-existent-id");
-    assert.equal(retrieved, undefined);
+    expect(retrieved).toBe(undefined);
   });
 
   it("should list all upload sessions", async () => {
@@ -100,8 +99,8 @@ describe("VideoUploadPipeline - Upload Session Management", { concurrency: 1 }, 
 
     const sessions = pipeline2.listUploadSessions();
 
-    assert.equal(sessions.length, 2);
-    assert.ok(sessions.some((s) => s.fileName === "video1.mp4"));
-    assert.ok(sessions.some((s) => s.fileName === "video2.mp4"));
+    expect(sessions.length).toBe(2);
+    expect(sessions.some((s) => s.fileName === "video1.mp4")).toBeTruthy();
+    expect(sessions.some((s) => s.fileName === "video2.mp4")).toBeTruthy();
   });
 });

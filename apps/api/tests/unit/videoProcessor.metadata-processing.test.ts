@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import {
   VideoProcessor,
   type VideoProcessingOptions,
@@ -15,17 +14,17 @@ import {
   setStatSizeOverride,
 } from "./videoProcessor.test-helpers";
 
-describe("VideoProcessor - Metadata Extraction", { concurrency: 1 }, () => {
+describe("VideoProcessor - Metadata Extraction", () => {
   let processor: VideoProcessor;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     // Initialise queue with a default empty response so setters work
     spawnResponseQueue.length = 0;
     spawnResponseQueue.push({ stdout: "", stderr: "", exitCode: 0 });
     setStatSizeOverride(null);
     mockFsData.files.clear();
     processor = new VideoProcessor(createMockSpawn());
-    setupFsMocks(t);
+    setupFsMocks();
   });
 
   it("should extract video metadata successfully", async () => {
@@ -58,18 +57,18 @@ describe("VideoProcessor - Metadata Extraction", { concurrency: 1 }, () => {
 
     const metadata = await processor.getVideoMetadata("/test/video.mp4");
 
-    assert.equal(metadata.duration, 120.5);
-    assert.equal(metadata.width, 1920);
-    assert.equal(metadata.height, 1080);
-    assert.equal(metadata.fps, 30);
-    assert.equal(metadata.bitrate, 5000000);
-    assert.equal(metadata.codec, "h264");
-    assert.equal(metadata.audioCodec, "aac");
-    assert.equal(metadata.fileSize, 75000000);
-    assert.equal(metadata.aspectRatio, "16:9");
-    assert.equal(metadata.hasAudio, true);
-    assert.equal(metadata.hasVideo, true);
-    assert.ok(metadata.colorSpace);
+    expect(metadata.duration).toBe(120.5);
+    expect(metadata.width).toBe(1920);
+    expect(metadata.height).toBe(1080);
+    expect(metadata.fps).toBe(30);
+    expect(metadata.bitrate).toBe(5000000);
+    expect(metadata.codec).toBe("h264");
+    expect(metadata.audioCodec).toBe("aac");
+    expect(metadata.fileSize).toBe(75000000);
+    expect(metadata.aspectRatio).toBe("16:9");
+    expect(metadata.hasAudio).toBe(true);
+    expect(metadata.hasVideo).toBe(true);
+    expect(metadata.colorSpace).toBeTruthy();
   });
 
   it("should handle video without audio stream", async () => {
@@ -96,9 +95,9 @@ describe("VideoProcessor - Metadata Extraction", { concurrency: 1 }, () => {
 
     const metadata = await processor.getVideoMetadata("/test/silent-video.mp4");
 
-    assert.equal(metadata.hasAudio, false);
-    assert.equal(metadata.audioCodec, "none");
-    assert.equal(metadata.hasVideo, true);
+    expect(metadata.hasAudio).toBe(false);
+    expect(metadata.audioCodec).toBe("none");
+    expect(metadata.hasVideo).toBe(true);
   });
 
   it("should parse fractional frame rates correctly", async () => {
@@ -123,7 +122,7 @@ describe("VideoProcessor - Metadata Extraction", { concurrency: 1 }, () => {
 
     const metadata = await processor.getVideoMetadata("/test/ntsc-video.mp4");
 
-    assert.ok(Math.abs(metadata.fps - 29.97) < 0.01);
+    expect(Math.abs(metadata.fps - 29.97) < 0.01).toBeTruthy();
   });
 
   it("should calculate aspect ratio correctly", async () => {
@@ -153,7 +152,7 @@ describe("VideoProcessor - Metadata Extraction", { concurrency: 1 }, () => {
       mockSpawnState.exitCode = 0;
 
       const metadata = await processor.getVideoMetadata("/test/video.mp4");
-      assert.equal(metadata.aspectRatio, testCase.expected);
+      expect(metadata.aspectRatio).toBe(testCase.expected);
     }
   });
 
@@ -162,13 +161,8 @@ describe("VideoProcessor - Metadata Extraction", { concurrency: 1 }, () => {
     mockSpawnState.stderr = "Invalid data found when processing input";
     mockSpawnState.exitCode = 1;
 
-    await assert.rejects(
-      async () => {
-        await processor.getVideoMetadata("/test/invalid-video.mp4");
-      },
-      {
-        message: /ffprobe failed/,
-      }
+    await expect(processor.getVideoMetadata("/test/invalid-video.mp4")).rejects.toThrow(
+      /ffprobe failed/
     );
   });
 
@@ -189,27 +183,22 @@ describe("VideoProcessor - Metadata Extraction", { concurrency: 1 }, () => {
     mockSpawnState.stderr = "";
     mockSpawnState.exitCode = 0;
 
-    await assert.rejects(
-      async () => {
-        await processor.getVideoMetadata("/test/audio-only.m4a");
-      },
-      {
-        message: /No video stream found/,
-      }
+    await expect(processor.getVideoMetadata("/test/audio-only.m4a")).rejects.toThrow(
+      /No video stream found/
     );
   });
 });
 
-describe("VideoProcessor - Video Processing", { concurrency: 1 }, () => {
+describe("VideoProcessor - Video Processing", () => {
   let processor: VideoProcessor;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     spawnResponseQueue.length = 0;
     spawnResponseQueue.push({ stdout: "", stderr: "", exitCode: 0 });
     setStatSizeOverride(null);
     mockFsData.files.clear();
     processor = new VideoProcessor(createMockSpawn());
-    setupFsMocks(t);
+    setupFsMocks();
   });
 
   it("should process video with basic options", async () => {
@@ -249,10 +238,10 @@ describe("VideoProcessor - Video Processing", { concurrency: 1 }, () => {
 
     const result = await processor.processVideo(options);
 
-    assert.equal(result.status, "completed");
-    assert.equal(result.progress, 100);
-    assert.equal(result.outputPath, "/test/output.mp4");
-    assert.ok(result.jobId);
+    expect(result.status).toBe("completed");
+    expect(result.progress).toBe(100);
+    expect(result.outputPath).toBe("/test/output.mp4");
+    expect(result.jobId).toBeTruthy();
   });
 
   it("should track processing progress", async () => {
@@ -293,10 +282,10 @@ describe("VideoProcessor - Video Processing", { concurrency: 1 }, () => {
       progressUpdates.push({ ...progress });
     });
 
-    assert.ok(progressUpdates.length > 0);
-    assert.ok(progressUpdates.some((p) => p.stage === "Analyzing input video"));
-    assert.ok(progressUpdates.some((p) => p.stage === "Processing video"));
-    assert.ok(progressUpdates.some((p) => p.status === "completed"));
+    expect(progressUpdates.length > 0).toBeTruthy();
+    expect(progressUpdates.some((p) => p.stage === "Analyzing input video")).toBeTruthy();
+    expect(progressUpdates.some((p) => p.stage === "Processing video")).toBeTruthy();
+    expect(progressUpdates.some((p) => p.status === "completed")).toBeTruthy();
   });
 
   it("should handle processing errors", async () => {
@@ -330,27 +319,20 @@ describe("VideoProcessor - Video Processing", { concurrency: 1 }, () => {
       quality: "medium",
     };
 
-    await assert.rejects(
-      async () => {
-        await processor.processVideo(options);
-      },
-      {
-        message: /FFmpeg failed/,
-      }
-    );
+    await expect(processor.processVideo(options)).rejects.toThrow(/FFmpeg failed/);
   });
 });
 
-describe("VideoProcessor - Codec Options", { concurrency: 1 }, () => {
+describe("VideoProcessor - Codec Options", () => {
   let processor: VideoProcessor;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     spawnResponseQueue.length = 0;
     spawnResponseQueue.push({ stdout: "", stderr: "", exitCode: 0 });
     setStatSizeOverride(null);
     mockFsData.files.clear();
     processor = new VideoProcessor(createMockSpawn());
-    setupFsMocks(t);
+    setupFsMocks();
   });
 
   it("should support H.264 codec", async () => {
@@ -381,7 +363,7 @@ describe("VideoProcessor - Codec Options", { concurrency: 1 }, () => {
     mockSpawnState.exitCode = 0;
 
     const result = await processor.processVideo(options);
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 
   it("should support H.265/HEVC codec", async () => {
@@ -412,7 +394,7 @@ describe("VideoProcessor - Codec Options", { concurrency: 1 }, () => {
     mockSpawnState.exitCode = 0;
 
     const result = await processor.processVideo(options);
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 
   it("should support VP9 codec", async () => {
@@ -443,7 +425,7 @@ describe("VideoProcessor - Codec Options", { concurrency: 1 }, () => {
     mockSpawnState.exitCode = 0;
 
     const result = await processor.processVideo(options);
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 
   it("should support different audio codecs", async () => {
@@ -477,21 +459,21 @@ describe("VideoProcessor - Codec Options", { concurrency: 1 }, () => {
       mockSpawnState.exitCode = 0;
 
       const result = await processor.processVideo(options);
-      assert.equal(result.status, "completed");
+      expect(result.status).toBe("completed");
     }
   });
 });
 
-describe("VideoProcessor - Resolution and Quality", { concurrency: 1 }, () => {
+describe("VideoProcessor - Resolution and Quality", () => {
   let processor: VideoProcessor;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     spawnResponseQueue.length = 0;
     spawnResponseQueue.push({ stdout: "", stderr: "", exitCode: 0 });
     setStatSizeOverride(null);
     mockFsData.files.clear();
     processor = new VideoProcessor(createMockSpawn());
-    setupFsMocks(t);
+    setupFsMocks();
   });
 
   it("should support different resolutions", async () => {
@@ -530,7 +512,7 @@ describe("VideoProcessor - Resolution and Quality", { concurrency: 1 }, () => {
       mockSpawnState.exitCode = 0;
 
       const result = await processor.processVideo(options);
-      assert.equal(result.status, "completed");
+      expect(result.status).toBe("completed");
     }
   });
 
@@ -564,7 +546,7 @@ describe("VideoProcessor - Resolution and Quality", { concurrency: 1 }, () => {
       mockSpawnState.exitCode = 0;
 
       const result = await processor.processVideo(options);
-      assert.equal(result.status, "completed");
+      expect(result.status).toBe("completed");
     }
   });
 
@@ -596,7 +578,7 @@ describe("VideoProcessor - Resolution and Quality", { concurrency: 1 }, () => {
     mockSpawnState.exitCode = 0;
 
     const result = await processor.processVideo(options);
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 
   it("should support custom FPS", async () => {
@@ -627,6 +609,6 @@ describe("VideoProcessor - Resolution and Quality", { concurrency: 1 }, () => {
     mockSpawnState.exitCode = 0;
 
     const result = await processor.processVideo(options);
-    assert.equal(result.status, "completed");
+    expect(result.status).toBe("completed");
   });
 });

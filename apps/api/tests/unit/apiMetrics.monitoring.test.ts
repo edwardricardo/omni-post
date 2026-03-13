@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import * as client from "prom-client";
 import { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import { createTestRegistry, getCounterValue, getGaugeValue } from "./apiMetrics.test-helpers.js";
@@ -18,7 +17,7 @@ describe("ApiMetrics - Health Status Management", () => {
 
     const healthValue = await getGaugeValue(apiMetrics.metrics.apiHealth);
 
-    assert.strictEqual(healthValue, 1, "Should set health to 1");
+    expect(healthValue).toBe(1);
   });
 
   it("should set API as unhealthy", async () => {
@@ -26,21 +25,21 @@ describe("ApiMetrics - Health Status Management", () => {
 
     const healthValue = await getGaugeValue(apiMetrics.metrics.apiHealth);
 
-    assert.strictEqual(healthValue, 0, "Should set health to 0");
+    expect(healthValue).toBe(0);
   });
 
   it("should transition between health states", async () => {
     apiMetrics.setHealthy();
     let health = await getGaugeValue(apiMetrics.metrics.apiHealth);
-    assert.strictEqual(health, 1, "Should be healthy");
+    expect(health).toBe(1);
 
     apiMetrics.setUnhealthy();
     health = await getGaugeValue(apiMetrics.metrics.apiHealth);
-    assert.strictEqual(health, 0, "Should be unhealthy");
+    expect(health).toBe(0);
 
     apiMetrics.setHealthy();
     health = await getGaugeValue(apiMetrics.metrics.apiHealth);
-    assert.strictEqual(health, 1, "Should be healthy again");
+    expect(health).toBe(1);
   });
 });
 
@@ -61,10 +60,10 @@ describe("ApiMetrics - System Metrics Updates", () => {
     const heapTotal = await getGaugeValue(apiMetrics.metrics.memoryUsage, { type: "heapTotal" });
     const external = await getGaugeValue(apiMetrics.metrics.memoryUsage, { type: "external" });
 
-    assert.ok(rss > 0, "RSS should be positive");
-    assert.ok(heapUsed > 0, "Heap used should be positive");
-    assert.ok(heapTotal > 0, "Heap total should be positive");
-    assert.ok(external >= 0, "External should be non-negative");
+    expect(rss > 0).toBeTruthy();
+    expect(heapUsed > 0).toBeTruthy();
+    expect(heapTotal > 0).toBeTruthy();
+    expect(external >= 0).toBeTruthy();
   });
 
   it("should update active connections count", async () => {
@@ -74,7 +73,7 @@ describe("ApiMetrics - System Metrics Updates", () => {
 
     const gaugeValue = await getGaugeValue(apiMetrics.metrics.activeConnections);
 
-    assert.strictEqual(gaugeValue, count, "Should set active connections count");
+    expect(gaugeValue).toBe(count);
   });
 });
 
@@ -91,9 +90,9 @@ describe("ApiMetrics - Correlation ID Management", () => {
     const id1 = apiMetrics.generateCorrelationId("request-1");
     const id2 = apiMetrics.generateCorrelationId("request-2");
 
-    assert.notStrictEqual(id1, id2, "Correlation IDs should be unique");
-    assert.ok(id1.length > 0, "Correlation ID should not be empty");
-    assert.ok(id2.length > 0, "Correlation ID should not be empty");
+    expect(id1).not.toBe(id2);
+    expect(id1.length > 0).toBeTruthy();
+    expect(id2.length > 0).toBeTruthy();
   });
 
   it("should retrieve correlation ID by request ID", () => {
@@ -102,13 +101,13 @@ describe("ApiMetrics - Correlation ID Management", () => {
 
     const retrieved = apiMetrics.getCorrelationId(requestId);
 
-    assert.strictEqual(retrieved, correlationId, "Should retrieve same correlation ID");
+    expect(retrieved).toBe(correlationId);
   });
 
   it("should return undefined for non-existent request ID", () => {
     const retrieved = apiMetrics.getCorrelationId("non-existent");
 
-    assert.strictEqual(retrieved, undefined, "Should return undefined for missing ID");
+    expect(retrieved).toBe(undefined);
   });
 
   it("should remove correlation ID", () => {
@@ -119,7 +118,7 @@ describe("ApiMetrics - Correlation ID Management", () => {
 
     const retrieved = apiMetrics.getCorrelationId(requestId);
 
-    assert.strictEqual(retrieved, undefined, "Should not find removed correlation ID");
+    expect(retrieved).toBe(undefined);
   });
 
   it("should track correlation count", async () => {
@@ -135,8 +134,8 @@ describe("ApiMetrics - Correlation ID Management", () => {
 
     const after = await getGaugeValue(apiMetrics.metrics.correlationTracker);
 
-    assert.ok(during > before, "Should increment tracker on generate");
-    assert.strictEqual(after, before, "Should decrement tracker on remove");
+    expect(during > before).toBeTruthy();
+    expect(after).toBe(before);
   });
 });
 
@@ -168,7 +167,7 @@ describe("ApiMetrics - Provider API Metrics", () => {
       status: "success",
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment provider API call counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should record provider error", async () => {
@@ -190,7 +189,7 @@ describe("ApiMetrics - Provider API Metrics", () => {
       operation,
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment provider error counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should update provider health status", async () => {
@@ -198,11 +197,11 @@ describe("ApiMetrics - Provider API Metrics", () => {
 
     apiMetrics.updateProviderHealth(provider, true);
     let health = await getGaugeValue(apiMetrics.metrics.providerHealthStatus, { provider });
-    assert.strictEqual(health, 1, "Should set provider as healthy");
+    expect(health).toBe(1);
 
     apiMetrics.updateProviderHealth(provider, false);
     health = await getGaugeValue(apiMetrics.metrics.providerHealthStatus, { provider });
-    assert.strictEqual(health, 0, "Should set provider as unhealthy");
+    expect(health).toBe(0);
   });
 });
 
@@ -234,7 +233,7 @@ describe("ApiMetrics - Cache Metrics", () => {
       result: "hit",
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment cache hit counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should record cache miss", async () => {
@@ -256,7 +255,7 @@ describe("ApiMetrics - Cache Metrics", () => {
       result: "miss",
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment cache miss counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should update cache size", async () => {
@@ -269,7 +268,7 @@ describe("ApiMetrics - Cache Metrics", () => {
       cache_type: cacheType,
     });
 
-    assert.strictEqual(gaugeValue, sizeInBytes, "Should set cache size");
+    expect(gaugeValue).toBe(sizeInBytes);
   });
 
   it("should record cache eviction", async () => {
@@ -288,7 +287,7 @@ describe("ApiMetrics - Cache Metrics", () => {
       reason,
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment cache eviction counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should track different eviction reasons", async () => {
@@ -303,7 +302,7 @@ describe("ApiMetrics - Cache Metrics", () => {
         reason,
       });
 
-      assert.ok(count > 0, `Should record ${reason} eviction`);
+      expect(count > 0).toBeTruthy();
     }
   });
 });

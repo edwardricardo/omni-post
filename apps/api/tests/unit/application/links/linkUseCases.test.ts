@@ -6,9 +6,7 @@
  * GetLinkStats, and DeleteTrackedLink use cases.
  */
 
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { ok, err } from "@shared/types";
 import {
   TrackedLink,
@@ -27,28 +25,28 @@ import {
 } from "../../../../src/application/links/index.js";
 
 // Mock repository factory
-function createMockRepository(t: TestContext) {
+function createMockRepository() {
   return {
-    save: t.mock.fn(async () => ok(undefined)),
-    findById: t.mock.fn(async () => err(new EntityNotFoundError("TrackedLink", "test"))),
-    findByShortCode: t.mock.fn(async () => err(new EntityNotFoundError("TrackedLink", "test"))),
-    findByProjectId: t.mock.fn(async () => []),
-    delete: t.mock.fn(async () => ok(undefined)),
-    recordClick: t.mock.fn(async () => ok(undefined)),
-    getClickStats: t.mock.fn(async () => ({
+    save: vi.fn(async () => ok(undefined)),
+    findById: vi.fn(async () => err(new EntityNotFoundError("TrackedLink", "test"))),
+    findByShortCode: vi.fn(async () => err(new EntityNotFoundError("TrackedLink", "test"))),
+    findByProjectId: vi.fn(async () => []),
+    delete: vi.fn(async () => ok(undefined)),
+    recordClick: vi.fn(async () => ok(undefined)),
+    getClickStats: vi.fn(async () => ({
       totalClicks: 0,
       clicksByCountry: {},
     })),
-    isShortCodeAvailable: t.mock.fn(async () => true),
+    isShortCodeAvailable: vi.fn(async () => true),
   };
 }
 
-describe("CreateTrackedLinkUseCase", { concurrency: 1 }, () => {
+describe("CreateTrackedLinkUseCase", () => {
   let useCase: CreateTrackedLinkUseCase;
   let mockRepo: ReturnType<typeof createMockRepository>;
 
-  beforeEach((t) => {
-    mockRepo = createMockRepository(t);
+  beforeEach(() => {
+    mockRepo = createMockRepository();
     useCase = new CreateTrackedLinkUseCase(mockRepo);
   });
 
@@ -60,13 +58,13 @@ describe("CreateTrackedLinkUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(result.ok, "Should succeed");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.ok(result.value.id);
-      assert.equal(result.value.originalUrl, input.originalUrl);
-      assert.ok(result.value.shortCode);
+      expect(result.value.id).toBeTruthy();
+      expect(result.value.originalUrl).toBe(input.originalUrl);
+      expect(result.value.shortCode).toBeTruthy();
     }
-    assert.equal(mockRepo.save.mock.calls.length, 1);
+    expect(mockRepo.save.mock.calls.length).toBe(1);
   });
 
   it("should create a tracked link with vanity slug", async () => {
@@ -78,9 +76,9 @@ describe("CreateTrackedLinkUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(result.ok);
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.vanitySlug, "summer-sale");
+      expect(result.value.vanitySlug).toBe("summer-sale");
     }
   });
 
@@ -92,7 +90,7 @@ describe("CreateTrackedLinkUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(!result.ok, "Should fail with invalid URL");
+    expect(result.ok).toBeFalsy();
   });
 
   it("should fail with invalid project ID", async () => {
@@ -103,11 +101,11 @@ describe("CreateTrackedLinkUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(!result.ok, "Should fail with invalid project ID");
+    expect(result.ok).toBeFalsy();
   });
 
   it("should fail when vanity slug is already taken", async () => {
-    mockRepo.isShortCodeAvailable.mock.mockImplementation(async () => false);
+    mockRepo.isShortCodeAvailable.mockImplementation(async () => false);
 
     const input: CreateTrackedLinkInput = {
       projectId: ProjectId.generate().value,
@@ -117,16 +115,16 @@ describe("CreateTrackedLinkUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(!result.ok, "Should fail when slug is taken");
+    expect(result.ok).toBeFalsy();
   });
 });
 
-describe("GetTrackedLinkUseCase", { concurrency: 1 }, () => {
+describe("GetTrackedLinkUseCase", () => {
   let useCase: GetTrackedLinkUseCase;
   let mockRepo: ReturnType<typeof createMockRepository>;
 
-  beforeEach((t) => {
-    mockRepo = createMockRepository(t);
+  beforeEach(() => {
+    mockRepo = createMockRepository();
     useCase = new GetTrackedLinkUseCase(mockRepo);
   });
 
@@ -136,32 +134,32 @@ describe("GetTrackedLinkUseCase", { concurrency: 1 }, () => {
       projectId,
       originalUrl: "https://example.com",
     });
-    assert.ok(linkResult.ok);
+    expect(linkResult.ok).toBeTruthy();
     const link = linkResult.value;
 
-    mockRepo.findById.mock.mockImplementation(async () => ok(link));
+    mockRepo.findById.mockImplementation(async () => ok(link));
 
     const result = await useCase.execute({ linkId: link.id.value });
 
-    assert.ok(result.ok);
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.id, link.id.value);
+      expect(result.value.id).toBe(link.id.value);
     }
   });
 
   it("should return error when link not found", async () => {
     const result = await useCase.execute({ linkId: TrackedLinkId.generate().value });
 
-    assert.ok(!result.ok, "Should return error for non-existent link");
+    expect(result.ok).toBeFalsy();
   });
 });
 
-describe("RedirectAndTrackClickUseCase", { concurrency: 1 }, () => {
+describe("RedirectAndTrackClickUseCase", () => {
   let useCase: RedirectAndTrackClickUseCase;
   let mockRepo: ReturnType<typeof createMockRepository>;
 
-  beforeEach((t) => {
-    mockRepo = createMockRepository(t);
+  beforeEach(() => {
+    mockRepo = createMockRepository();
     useCase = new RedirectAndTrackClickUseCase(mockRepo);
   });
 
@@ -171,10 +169,10 @@ describe("RedirectAndTrackClickUseCase", { concurrency: 1 }, () => {
       projectId,
       originalUrl: "https://example.com/target",
     });
-    assert.ok(linkResult.ok);
+    expect(linkResult.ok).toBeTruthy();
     const link = linkResult.value;
 
-    mockRepo.findByShortCode.mock.mockImplementation(async () => ok(link));
+    mockRepo.findByShortCode.mockImplementation(async () => ok(link));
 
     const input: RedirectInput = {
       shortCode: link.shortCode.value,
@@ -187,17 +185,17 @@ describe("RedirectAndTrackClickUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(result.ok);
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.originalUrl, "https://example.com/target");
+      expect(result.value.originalUrl).toBe("https://example.com/target");
     }
-    assert.equal(mockRepo.recordClick.mock.calls.length, 1);
+    expect(mockRepo.recordClick.mock.calls.length).toBe(1);
   });
 
   it("should return error for non-existent short code", async () => {
     const result = await useCase.execute({ shortCode: "non-existent" });
 
-    assert.ok(!result.ok);
+    expect(result.ok).toBeFalsy();
   });
 
   it("should return error for inactive link", async () => {
@@ -206,24 +204,24 @@ describe("RedirectAndTrackClickUseCase", { concurrency: 1 }, () => {
       projectId,
       originalUrl: "https://example.com",
     });
-    assert.ok(linkResult.ok);
+    expect(linkResult.ok).toBeTruthy();
     const link = linkResult.value;
     link.deactivate();
 
-    mockRepo.findByShortCode.mock.mockImplementation(async () => ok(link));
+    mockRepo.findByShortCode.mockImplementation(async () => ok(link));
 
     const result = await useCase.execute({ shortCode: link.shortCode.value });
 
-    assert.ok(!result.ok, "Should not redirect to inactive link");
+    expect(result.ok).toBeFalsy();
   });
 });
 
-describe("GetLinkStatsUseCase", { concurrency: 1 }, () => {
+describe("GetLinkStatsUseCase", () => {
   let useCase: GetLinkStatsUseCase;
   let mockRepo: ReturnType<typeof createMockRepository>;
 
-  beforeEach((t) => {
-    mockRepo = createMockRepository(t);
+  beforeEach(() => {
+    mockRepo = createMockRepository();
     useCase = new GetLinkStatsUseCase(mockRepo);
   });
 
@@ -233,37 +231,37 @@ describe("GetLinkStatsUseCase", { concurrency: 1 }, () => {
       projectId,
       originalUrl: "https://example.com",
     });
-    assert.ok(linkResult.ok);
+    expect(linkResult.ok).toBeTruthy();
     const link = linkResult.value;
 
-    mockRepo.findById.mock.mockImplementation(async () => ok(link));
-    mockRepo.getClickStats.mock.mockImplementation(async () => ({
+    mockRepo.findById.mockImplementation(async () => ok(link));
+    mockRepo.getClickStats.mockImplementation(async () => ({
       totalClicks: 150,
       clicksByCountry: { US: 100, UK: 50 },
     }));
 
     const result = await useCase.execute({ linkId: link.id.value });
 
-    assert.ok(result.ok);
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.totalClicks, 150);
-      assert.equal(result.value.clicksByCountry["US"], 100);
+      expect(result.value.totalClicks).toBe(150);
+      expect(result.value.clicksByCountry["US"]).toBe(100);
     }
   });
 
   it("should return error when link not found", async () => {
     const result = await useCase.execute({ linkId: TrackedLinkId.generate().value });
 
-    assert.ok(!result.ok);
+    expect(result.ok).toBeFalsy();
   });
 });
 
-describe("DeleteTrackedLinkUseCase", { concurrency: 1 }, () => {
+describe("DeleteTrackedLinkUseCase", () => {
   let useCase: DeleteTrackedLinkUseCase;
   let mockRepo: ReturnType<typeof createMockRepository>;
 
-  beforeEach((t) => {
-    mockRepo = createMockRepository(t);
+  beforeEach(() => {
+    mockRepo = createMockRepository();
     useCase = new DeleteTrackedLinkUseCase(mockRepo);
   });
 
@@ -273,20 +271,20 @@ describe("DeleteTrackedLinkUseCase", { concurrency: 1 }, () => {
       projectId,
       originalUrl: "https://example.com",
     });
-    assert.ok(linkResult.ok);
+    expect(linkResult.ok).toBeTruthy();
     const link = linkResult.value;
 
-    mockRepo.findById.mock.mockImplementation(async () => ok(link));
+    mockRepo.findById.mockImplementation(async () => ok(link));
 
     const result = await useCase.execute({ linkId: link.id.value });
 
-    assert.ok(result.ok);
-    assert.equal(mockRepo.delete.mock.calls.length, 1);
+    expect(result.ok).toBeTruthy();
+    expect(mockRepo.delete.mock.calls.length).toBe(1);
   });
 
   it("should return error when link not found", async () => {
     const result = await useCase.execute({ linkId: TrackedLinkId.generate().value });
 
-    assert.ok(!result.ok);
+    expect(result.ok).toBeFalsy();
   });
 });

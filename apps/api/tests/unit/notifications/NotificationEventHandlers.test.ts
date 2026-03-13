@@ -7,8 +7,7 @@
  * @layer application
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { ok } from "@shared/types";
 import {
   NotificationEventHandlers,
@@ -81,33 +80,33 @@ describe("NotificationEventHandlers", () => {
       const ctx = makeContext();
       await handlers.onPostSubmittedForReview("post-001", "project-001", ctx);
 
-      assert.equal(mock.calls.length, 1);
+      expect(mock.calls.length).toBe(1);
       const input = mock.calls[0]!.input;
-      assert.equal(input.recipientId, "member-recipient-001");
-      assert.equal(input.type, "APPROVAL_REQUESTED");
-      assert.equal(input.title, "Post submitted for review");
-      assert.equal(input.body, "A post has been submitted for your review");
-      assert.equal(input.resourceType, "post");
-      assert.equal(input.resourceId, "post-001");
-      assert.equal(input.actorId, "member-actor-001");
-      assert.equal(input.actorName, "Alice");
+      expect(input.recipientId).toBe("member-recipient-001");
+      expect(input.type).toBe("APPROVAL_REQUESTED");
+      expect(input.title).toBe("Post submitted for review");
+      expect(input.body).toBe("A post has been submitted for your review");
+      expect(input.resourceType).toBe("post");
+      expect(input.resourceId).toBe("post-001");
+      expect(input.actorId).toBe("member-actor-001");
+      expect(input.actorName).toBe("Alice");
     });
 
     it("omits actorId and actorName when not provided in context", async () => {
       const ctx = makeContext({ actorId: undefined, actorName: undefined });
       await handlers.onPostSubmittedForReview("post-002", "project-001", ctx);
 
-      assert.equal(mock.calls.length, 1);
+      expect(mock.calls.length).toBe(1);
       const input = mock.calls[0]!.input;
-      assert.equal(input.actorId, undefined);
-      assert.equal(input.actorName, undefined);
+      expect(input.actorId).toBe(undefined);
+      expect(input.actorName).toBe(undefined);
     });
 
     it("passes the correct recipientId from context", async () => {
       const ctx = makeContext({ recipientId: "reviewer-999" });
       await handlers.onPostSubmittedForReview("post-003", "project-002", ctx);
 
-      assert.equal(mock.calls[0]!.input.recipientId, "reviewer-999");
+      expect(mock.calls[0]!.input.recipientId).toBe("reviewer-999");
     });
   });
 
@@ -121,13 +120,13 @@ describe("NotificationEventHandlers", () => {
       const ctx = makeContext();
       await handlers.onPostApproved("post-010", scheduledAt, ctx);
 
-      assert.equal(mock.calls.length, 1);
+      expect(mock.calls.length).toBe(1);
       const input = mock.calls[0]!.input;
-      assert.equal(input.type, "POST_APPROVED");
-      assert.equal(input.title, "Post approved");
-      assert.ok(input.body.includes("2026-04-01T10:00:00.000Z"));
-      assert.equal(input.resourceType, "post");
-      assert.equal(input.resourceId, "post-010");
+      expect(input.type).toBe("POST_APPROVED");
+      expect(input.title).toBe("Post approved");
+      expect(input.body.includes("2026-04-01T10:00:00.000Z")).toBeTruthy();
+      expect(input.resourceType).toBe("post");
+      expect(input.resourceId).toBe("post-010");
     });
 
     it("includes actor context when provided", async () => {
@@ -135,8 +134,8 @@ describe("NotificationEventHandlers", () => {
       await handlers.onPostApproved("post-011", new Date(), ctx);
 
       const input = mock.calls[0]!.input;
-      assert.equal(input.actorId, "approver-001");
-      assert.equal(input.actorName, "Bob");
+      expect(input.actorId).toBe("approver-001");
+      expect(input.actorName).toBe("Bob");
     });
   });
 
@@ -149,12 +148,12 @@ describe("NotificationEventHandlers", () => {
       const ctx = makeContext();
       await handlers.onPostRejected("post-020", "Needs more detail", ctx);
 
-      assert.equal(mock.calls.length, 1);
+      expect(mock.calls.length).toBe(1);
       const input = mock.calls[0]!.input;
-      assert.equal(input.type, "POST_REJECTED");
-      assert.equal(input.title, "Post rejected");
-      assert.equal(input.body, "Your post was rejected: Needs more detail");
-      assert.equal(input.resourceId, "post-020");
+      expect(input.type).toBe("POST_REJECTED");
+      expect(input.title).toBe("Post rejected");
+      expect(input.body).toBe("Your post was rejected: Needs more detail");
+      expect(input.resourceId).toBe("post-020");
     });
 
     it("creates a POST_REJECTED notification without reason when undefined", async () => {
@@ -162,7 +161,7 @@ describe("NotificationEventHandlers", () => {
       await handlers.onPostRejected("post-021", undefined, ctx);
 
       const input = mock.calls[0]!.input;
-      assert.equal(input.body, "Your post was rejected");
+      expect(input.body).toBe("Your post was rejected");
     });
   });
 
@@ -175,13 +174,13 @@ describe("NotificationEventHandlers", () => {
       const ctx = makeContext();
       await handlers.onCommentAdded("post-030", "comment-001", "author-001", undefined, [], ctx);
 
-      assert.equal(mock.calls.length, 1);
+      expect(mock.calls.length).toBe(1);
       const input = mock.calls[0]!.input;
-      assert.equal(input.type, "COMMENT_ADDED");
-      assert.equal(input.title, "New comment on your post");
-      assert.equal(input.body, "A new comment was added to your post");
-      assert.equal(input.resourceType, "comment");
-      assert.equal(input.resourceId, "comment-001");
+      expect(input.type).toBe("COMMENT_ADDED");
+      expect(input.title).toBe("New comment on your post");
+      expect(input.body).toBe("A new comment was added to your post");
+      expect(input.resourceType).toBe("comment");
+      expect(input.resourceId).toBe("comment-001");
     });
 
     it("creates a COMMENT_REPLY notification when parentId is present", async () => {
@@ -195,11 +194,11 @@ describe("NotificationEventHandlers", () => {
         ctx
       );
 
-      assert.equal(mock.calls.length, 1);
+      expect(mock.calls.length).toBe(1);
       const input = mock.calls[0]!.input;
-      assert.equal(input.type, "COMMENT_REPLY");
-      assert.equal(input.title, "New reply to your comment");
-      assert.equal(input.body, "Someone replied to your comment");
+      expect(input.type).toBe("COMMENT_REPLY");
+      expect(input.title).toBe("New reply to your comment");
+      expect(input.body).toBe("Someone replied to your comment");
     });
 
     it("creates MENTION notifications for each mentioned user", async () => {
@@ -215,13 +214,13 @@ describe("NotificationEventHandlers", () => {
       );
 
       // 1 COMMENT_ADDED + 2 MENTION = 3 calls
-      assert.equal(mock.calls.length, 3);
+      expect(mock.calls.length).toBe(3);
 
       const mentionCalls = mock.calls.filter((c) => c.input.type === "MENTION");
-      assert.equal(mentionCalls.length, 2);
-      assert.equal(mentionCalls[0]!.input.recipientId, "user-a");
-      assert.equal(mentionCalls[1]!.input.recipientId, "user-b");
-      assert.equal(mentionCalls[0]!.input.title, "You were mentioned");
+      expect(mentionCalls.length).toBe(2);
+      expect(mentionCalls[0]!.input.recipientId).toBe("user-a");
+      expect(mentionCalls[1]!.input.recipientId).toBe("user-b");
+      expect(mentionCalls[0]!.input.title).toBe("You were mentioned");
     });
 
     it("skips MENTION notification when mentioned user is the post owner", async () => {
@@ -237,11 +236,11 @@ describe("NotificationEventHandlers", () => {
       );
 
       // 1 COMMENT_ADDED + 1 MENTION (skipped self) = 2 calls
-      assert.equal(mock.calls.length, 2);
+      expect(mock.calls.length).toBe(2);
 
       const mentionCalls = mock.calls.filter((c) => c.input.type === "MENTION");
-      assert.equal(mentionCalls.length, 1);
-      assert.equal(mentionCalls[0]!.input.recipientId, "user-b");
+      expect(mentionCalls.length).toBe(1);
+      expect(mentionCalls[0]!.input.recipientId).toBe("user-b");
     });
   });
 });

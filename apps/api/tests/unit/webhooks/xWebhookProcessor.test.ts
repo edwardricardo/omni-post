@@ -37,8 +37,7 @@
  * @category UnitTests
  */
 
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { createHmac } from "crypto";
 import { XWebhookProcessor } from "../../../src/webhooks/processors/xWebhookProcessor.js";
 
@@ -58,11 +57,11 @@ function generateHmacSignatureHex(payload: string, secret: string): string {
 // Signature Verification Tests (9 tests)
 // ===========================
 
-describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () => {
+describe("XWebhookProcessor - Signature Verification", () => {
   let processor: XWebhookProcessor;
   const testSecret = "test-x-consumer-secret";
 
-  before(() => {
+  beforeAll(() => {
     processor = new XWebhookProcessor();
   });
 
@@ -71,7 +70,7 @@ describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () =>
     const signature = generateHmacSignatureBase64(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha256=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should verify valid webhook signature in hex format", () => {
@@ -79,7 +78,7 @@ describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () =>
     const signature = generateHmacSignatureHex(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha256=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should verify signature without sha256= prefix", () => {
@@ -87,7 +86,7 @@ describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () =>
     const signature = generateHmacSignatureBase64(payload, testSecret);
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should reject invalid signature", () => {
@@ -95,7 +94,7 @@ describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () =>
     const invalidSignature = "sha256=invalid-signature-value";
 
     const isValid = processor.verify(payload, invalidSignature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should reject signature with tampered payload", () => {
@@ -104,7 +103,7 @@ describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () =>
 
     const tamperedPayload = JSON.stringify({ test: "tampered" });
     const isValid = processor.verify(tamperedPayload, signature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should reject signature with wrong secret", () => {
@@ -112,7 +111,7 @@ describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () =>
     const signature = generateHmacSignatureBase64(payload, "wrong-secret");
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should handle empty payload", () => {
@@ -120,7 +119,7 @@ describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () =>
     const signature = generateHmacSignatureBase64(payload, testSecret);
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should handle unicode characters in payload", () => {
@@ -128,7 +127,7 @@ describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () =>
     const signature = generateHmacSignatureBase64(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha256=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should use constant-time comparison", () => {
@@ -138,7 +137,7 @@ describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () =>
     // Test multiple attempts to verify timing consistency
     for (let i = 0; i < 10; i++) {
       const isValid = processor.verify(payload, correctSignature, testSecret);
-      assert.strictEqual(isValid, true);
+      expect(isValid).toBe(true);
     }
   });
 });
@@ -147,10 +146,10 @@ describe("XWebhookProcessor - Signature Verification", { concurrency: 1 }, () =>
 // Tweet Create Event Tests (5 tests)
 // ===========================
 
-describe("XWebhookProcessor - Tweet Create Events", { concurrency: 1 }, () => {
+describe("XWebhookProcessor - Tweet Create Events", () => {
   let processor: XWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new XWebhookProcessor();
   });
 
@@ -174,13 +173,13 @@ describe("XWebhookProcessor - Tweet Create Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_PUBLISHED");
-    assert.strictEqual(result.normalizedData.eventType, "tweet_created");
-    assert.strictEqual(result.normalizedData.tweetId, "tweet-123456");
-    assert.strictEqual(result.normalizedData.text, "Hello Twitter!");
-    assert.strictEqual(result.normalizedData.screenName, "testuser");
-    assert.strictEqual(result.normalizedData.retweetCount, 5);
-    assert.strictEqual(result.normalizedData.favoriteCount, 10);
+    expect(result.eventType).toBe("POST_PUBLISHED");
+    expect(result.normalizedData.eventType).toBe("tweet_created");
+    expect(result.normalizedData.tweetId).toBe("tweet-123456");
+    expect(result.normalizedData.text).toBe("Hello Twitter!");
+    expect(result.normalizedData.screenName).toBe("testuser");
+    expect(result.normalizedData.retweetCount).toBe(5);
+    expect(result.normalizedData.favoriteCount).toBe(10);
   });
 
   it("should detect retweet in tweet create event", async () => {
@@ -204,7 +203,7 @@ describe("XWebhookProcessor - Tweet Create Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.isRetweet, true);
+    expect(result.normalizedData.isRetweet).toBe(true);
   });
 
   it("should detect thread tweet", async () => {
@@ -226,8 +225,8 @@ describe("XWebhookProcessor - Tweet Create Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.isThread, true);
-    assert.strictEqual(result.normalizedData.replyToTweetId, "thread-tweet-1");
+    expect(result.normalizedData.isThread).toBe(true);
+    expect(result.normalizedData.replyToTweetId).toBe("thread-tweet-1");
   });
 
   it("should use full_text when text is not available", async () => {
@@ -247,8 +246,7 @@ describe("XWebhookProcessor - Tweet Create Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(
-      result.normalizedData.text,
+    expect(result.normalizedData.text).toBe(
       "This is the full extended tweet text with more than 140 characters"
     );
   });
@@ -277,7 +275,7 @@ describe("XWebhookProcessor - Tweet Create Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.deepStrictEqual(result.normalizedData.entities, entities);
+    expect(result.normalizedData.entities).toStrictEqual(entities);
   });
 });
 
@@ -285,10 +283,10 @@ describe("XWebhookProcessor - Tweet Create Events", { concurrency: 1 }, () => {
 // Tweet Delete Event Tests (2 tests)
 // ===========================
 
-describe("XWebhookProcessor - Tweet Delete Events", { concurrency: 1 }, () => {
+describe("XWebhookProcessor - Tweet Delete Events", () => {
   let processor: XWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new XWebhookProcessor();
   });
 
@@ -306,10 +304,10 @@ describe("XWebhookProcessor - Tweet Delete Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_DELETED");
-    assert.strictEqual(result.normalizedData.eventType, "tweet_deleted");
-    assert.strictEqual(result.normalizedData.tweetId, "deleted-tweet-123");
-    assert.strictEqual(result.normalizedData.userId, "user-789");
+    expect(result.eventType).toBe("POST_DELETED");
+    expect(result.normalizedData.eventType).toBe("tweet_deleted");
+    expect(result.normalizedData.tweetId).toBe("deleted-tweet-123");
+    expect(result.normalizedData.userId).toBe("user-789");
   });
 
   it("should include deletion timestamp", async () => {
@@ -326,8 +324,8 @@ describe("XWebhookProcessor - Tweet Delete Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.ok(result.normalizedData.deletedAt);
-    assert.ok(new Date(result.normalizedData.deletedAt).getTime() > 0);
+    expect(result.normalizedData.deletedAt).toBeTruthy();
+    expect(new Date(result.normalizedData.deletedAt).getTime() > 0).toBeTruthy();
   });
 });
 
@@ -335,10 +333,10 @@ describe("XWebhookProcessor - Tweet Delete Events", { concurrency: 1 }, () => {
 // Favorite (Like) Event Tests (2 tests)
 // ===========================
 
-describe("XWebhookProcessor - Favorite Events", { concurrency: 1 }, () => {
+describe("XWebhookProcessor - Favorite Events", () => {
   let processor: XWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new XWebhookProcessor();
   });
 
@@ -361,12 +359,12 @@ describe("XWebhookProcessor - Favorite Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "LIKE_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "like_received");
-    assert.strictEqual(result.normalizedData.tweetId, "tweet-to-like");
-    assert.strictEqual(result.normalizedData.userId, "liker-user");
-    assert.strictEqual(result.normalizedData.screenName, "liker");
-    assert.strictEqual(result.normalizedData.targetTweetUserId, "original-user");
+    expect(result.eventType).toBe("LIKE_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("like_received");
+    expect(result.normalizedData.tweetId).toBe("tweet-to-like");
+    expect(result.normalizedData.userId).toBe("liker-user");
+    expect(result.normalizedData.screenName).toBe("liker");
+    expect(result.normalizedData.targetTweetUserId).toBe("original-user");
   });
 
   it("should extract favorite timestamp", async () => {
@@ -389,7 +387,7 @@ describe("XWebhookProcessor - Favorite Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.createdAt, createdAt);
+    expect(result.normalizedData.createdAt).toBe(createdAt);
   });
 });
 
@@ -397,10 +395,10 @@ describe("XWebhookProcessor - Favorite Events", { concurrency: 1 }, () => {
 // Retweet Event Tests (2 tests)
 // ===========================
 
-describe("XWebhookProcessor - Retweet Events", { concurrency: 1 }, () => {
+describe("XWebhookProcessor - Retweet Events", () => {
   let processor: XWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new XWebhookProcessor();
   });
 
@@ -424,11 +422,11 @@ describe("XWebhookProcessor - Retweet Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "SHARE_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "retweet_received");
-    assert.strictEqual(result.normalizedData.retweetId, "retweet-123");
-    assert.strictEqual(result.normalizedData.originalTweetId, "original-tweet-456");
-    assert.strictEqual(result.normalizedData.userId, "retweeter-789");
+    expect(result.eventType).toBe("SHARE_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("retweet_received");
+    expect(result.normalizedData.retweetId).toBe("retweet-123");
+    expect(result.normalizedData.originalTweetId).toBe("original-tweet-456");
+    expect(result.normalizedData.userId).toBe("retweeter-789");
   });
 
   it("should extract retweet text", async () => {
@@ -453,7 +451,7 @@ describe("XWebhookProcessor - Retweet Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.retweetText, retweetText);
+    expect(result.normalizedData.retweetText).toBe(retweetText);
   });
 });
 
@@ -461,10 +459,10 @@ describe("XWebhookProcessor - Retweet Events", { concurrency: 1 }, () => {
 // Reply Event Tests (3 tests)
 // ===========================
 
-describe("XWebhookProcessor - Reply Events", { concurrency: 1 }, () => {
+describe("XWebhookProcessor - Reply Events", () => {
   let processor: XWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new XWebhookProcessor();
   });
 
@@ -487,12 +485,12 @@ describe("XWebhookProcessor - Reply Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "reply_received");
-    assert.strictEqual(result.normalizedData.replyId, "reply-123");
-    assert.strictEqual(result.normalizedData.text, "@original Great tweet!");
-    assert.strictEqual(result.normalizedData.inReplyToTweetId, "original-tweet-789");
-    assert.strictEqual(result.normalizedData.inReplyToUserId, "original-user-111");
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("reply_received");
+    expect(result.normalizedData.replyId).toBe("reply-123");
+    expect(result.normalizedData.text).toBe("@original Great tweet!");
+    expect(result.normalizedData.inReplyToTweetId).toBe("original-tweet-789");
+    expect(result.normalizedData.inReplyToUserId).toBe("original-user-111");
   });
 
   it("should use full_text when text is not available in reply", async () => {
@@ -516,7 +514,7 @@ describe("XWebhookProcessor - Reply Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.text, fullText);
+    expect(result.normalizedData.text).toBe(fullText);
   });
 
   it("should extract reply user information", async () => {
@@ -538,8 +536,8 @@ describe("XWebhookProcessor - Reply Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.userId, "user-999");
-    assert.strictEqual(result.normalizedData.screenName, "thanker");
+    expect(result.normalizedData.userId).toBe("user-999");
+    expect(result.normalizedData.screenName).toBe("thanker");
   });
 });
 
@@ -547,10 +545,10 @@ describe("XWebhookProcessor - Reply Events", { concurrency: 1 }, () => {
 // Direct Message Event Tests (2 tests)
 // ===========================
 
-describe("XWebhookProcessor - Direct Message Events", { concurrency: 1 }, () => {
+describe("XWebhookProcessor - Direct Message Events", () => {
   let processor: XWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new XWebhookProcessor();
   });
 
@@ -575,13 +573,13 @@ describe("XWebhookProcessor - Direct Message Events", { concurrency: 1 }, () => 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "direct_message");
-    assert.strictEqual(result.normalizedData.messageId, "dm-123");
-    assert.strictEqual(result.normalizedData.text, "Hello via DM!");
-    assert.strictEqual(result.normalizedData.senderId, "sender-456");
-    assert.strictEqual(result.normalizedData.recipientId, "recipient-789");
-    assert.strictEqual(result.normalizedData.isDirectMessage, true);
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("direct_message");
+    expect(result.normalizedData.messageId).toBe("dm-123");
+    expect(result.normalizedData.text).toBe("Hello via DM!");
+    expect(result.normalizedData.senderId).toBe("sender-456");
+    expect(result.normalizedData.recipientId).toBe("recipient-789");
+    expect(result.normalizedData.isDirectMessage).toBe(true);
   });
 
   it("should handle DM without message text", async () => {
@@ -603,7 +601,7 @@ describe("XWebhookProcessor - Direct Message Events", { concurrency: 1 }, () => 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.text, undefined);
+    expect(result.normalizedData.text).toBe(undefined);
   });
 });
 
@@ -611,10 +609,10 @@ describe("XWebhookProcessor - Direct Message Events", { concurrency: 1 }, () => 
 // Follow Event Tests (3 tests)
 // ===========================
 
-describe("XWebhookProcessor - Follow Events", { concurrency: 1 }, () => {
+describe("XWebhookProcessor - Follow Events", () => {
   let processor: XWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new XWebhookProcessor();
   });
 
@@ -638,11 +636,11 @@ describe("XWebhookProcessor - Follow Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "ACCOUNT_CONNECTED");
-    assert.strictEqual(result.normalizedData.eventType, "follow_event");
-    assert.strictEqual(result.normalizedData.followerId, "follower-123");
-    assert.strictEqual(result.normalizedData.followedId, "followed-456");
-    assert.strictEqual(result.normalizedData.type, "follow");
+    expect(result.eventType).toBe("ACCOUNT_CONNECTED");
+    expect(result.normalizedData.eventType).toBe("follow_event");
+    expect(result.normalizedData.followerId).toBe("follower-123");
+    expect(result.normalizedData.followedId).toBe("followed-456");
+    expect(result.normalizedData.type).toBe("follow");
   });
 
   it("should parse unfollow event", async () => {
@@ -665,7 +663,7 @@ describe("XWebhookProcessor - Follow Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.type, "unfollow");
+    expect(result.normalizedData.type).toBe("unfollow");
   });
 
   it("should extract follow screen names", async () => {
@@ -688,8 +686,8 @@ describe("XWebhookProcessor - Follow Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.followerScreenName, "new_follower");
-    assert.strictEqual(result.normalizedData.followedScreenName, "popular_account");
+    expect(result.normalizedData.followerScreenName).toBe("new_follower");
+    expect(result.normalizedData.followedScreenName).toBe("popular_account");
   });
 });
 
@@ -697,10 +695,10 @@ describe("XWebhookProcessor - Follow Events", { concurrency: 1 }, () => {
 // User Event Tests (2 tests)
 // ===========================
 
-describe("XWebhookProcessor - User Events", { concurrency: 1 }, () => {
+describe("XWebhookProcessor - User Events", () => {
   let processor: XWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new XWebhookProcessor();
   });
 
@@ -718,9 +716,9 @@ describe("XWebhookProcessor - User Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "ACCOUNT_DISCONNECTED");
-    assert.strictEqual(result.normalizedData.eventType, "account_disconnected");
-    assert.strictEqual(result.normalizedData.userId, "user-456");
+    expect(result.eventType).toBe("ACCOUNT_DISCONNECTED");
+    expect(result.normalizedData.eventType).toBe("account_disconnected");
+    expect(result.normalizedData.userId).toBe("user-456");
   });
 
   it("should parse account updated event", async () => {
@@ -733,7 +731,7 @@ describe("XWebhookProcessor - User Events", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.eventType, "account_updated");
+    expect(result.normalizedData.eventType).toBe("account_updated");
   });
 });
 
@@ -741,10 +739,10 @@ describe("XWebhookProcessor - User Events", { concurrency: 1 }, () => {
 // Error Handling Tests (2 tests)
 // ===========================
 
-describe("XWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
+describe("XWebhookProcessor - Error Handling", () => {
   let processor: XWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new XWebhookProcessor();
   });
 
@@ -753,14 +751,7 @@ describe("XWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
       unknown_event: [{ data: "test" }],
     };
 
-    await assert.rejects(
-      async () => {
-        await processor.parse(payload);
-      },
-      {
-        message: /Unsupported X webhook event type/,
-      }
-    );
+    await expect(processor.parse(payload)).rejects.toThrow(/Unsupported X webhook event type/);
   });
 
   it("should handle verification errors gracefully", () => {
@@ -768,7 +759,7 @@ describe("XWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
 
     // This should return false instead of throwing
     const isValid = processor.verify("invalid\x00data", "signature", "secret");
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 });
 

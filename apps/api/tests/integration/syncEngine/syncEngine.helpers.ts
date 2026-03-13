@@ -8,10 +8,10 @@
 
 import { createTestPrismaClient } from "@infra/prisma";
 import Redis from "ioredis";
-import { ContentSynchronizer } from "../../src/orchestration/ContentSynchronizer";
-import { ContentVersionManager } from "../../src/content/ContentVersionManager";
-import { SyncScheduler } from "../../src/content/SyncScheduler";
-import { SyncEngine } from "../../src/content/SyncEngine";
+import { ContentSynchronizer } from "../../../src/orchestration/ContentSynchronizer";
+import { ContentVersionManager } from "../../../src/content/ContentVersionManager";
+import { SyncScheduler } from "../../../src/content/SyncScheduler";
+import { SyncEngine } from "../../../src/content/SyncEngine";
 
 // ---------------------------------------------------------------------------
 // Prevent blocking xreadgroup BLOCK 1000 loop during tests.

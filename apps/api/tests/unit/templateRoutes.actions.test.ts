@@ -1,7 +1,6 @@
 #!/usr/bin/env tsx
 import "./templateRoutes.env-setup.js";
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { FastifyInstance } from "fastify";
 import {
   createTestApp,
@@ -10,203 +9,191 @@ import {
   templateId,
 } from "./templateRoutes.test-helpers.js";
 
-describe(
-  "Template Routes - POST /projects/:projectId/templates/:templateId/duplicate",
-  { concurrency: 1 },
-  () => {
-    let app: FastifyInstance;
+describe("Template Routes - POST /projects/:projectId/templates/:templateId/duplicate", () => {
+  let app: FastifyInstance;
 
-    before(async () => {
-      app = await createTestApp();
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("should duplicate template with new name", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: `/projects/${projectId}/templates/${templateId}/duplicate`,
+      payload: {
+        name: "Duplicated Template",
+      },
     });
 
-    after(async () => {
-      await app.close();
+    const body = JSON.parse(response.body);
+
+    expect(response.statusCode).toBe(201);
+    expect(body.ok).toBe(true);
+  });
+
+  it("should reject duplicate without name", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: `/projects/${projectId}/templates/${templateId}/duplicate`,
+      payload: {},
     });
 
-    it("should duplicate template with new name", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: `/projects/${projectId}/templates/${templateId}/duplicate`,
-        payload: {
-          name: "Duplicated Template",
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("should return 404 when source template not found", async () => {
+    mockTemplateService.duplicateTemplate.mockImplementationOnce(async () => ({
+      ok: true,
+      value: null,
+    }));
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/projects/${projectId}/templates/${templateId}/duplicate`,
+      payload: {
+        name: "Copy",
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("Template Routes - POST /projects/:projectId/templates/:templateId/compile", () => {
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("should compile template with context", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: `/projects/${projectId}/templates/${templateId}/compile`,
+      payload: {
+        context: {
+          name: "John",
+          age: 30,
         },
-      });
-
-      const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 201);
-      assert.strictEqual(body.ok, true);
+      },
     });
 
-    it("should reject duplicate without name", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: `/projects/${projectId}/templates/${templateId}/duplicate`,
-        payload: {},
-      });
+    const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+  });
+
+  it("should compile with specific platforms", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: `/projects/${projectId}/templates/${templateId}/compile`,
+      payload: {
+        context: { name: "John" },
+        platforms: ["x", "instagram"],
+      },
     });
 
-    it("should return 404 when source template not found", async () => {
-      mockTemplateService.duplicateTemplate.mock.mockImplementationOnce(async () => ({
-        ok: true,
-        value: null,
-      }));
+    expect(response.statusCode).toBe(200);
+  });
 
-      const response = await app.inject({
-        method: "POST",
-        url: `/projects/${projectId}/templates/${templateId}/duplicate`,
-        payload: {
-          name: "Copy",
+  it("should compile with A/B test config", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: `/projects/${projectId}/templates/${templateId}/compile`,
+      payload: {
+        context: { name: "John" },
+        abTestConfig: {
+          enabled: true,
+          variants: [
+            { id: "v1", content: "Variant 1" },
+            { id: "v2", content: "Variant 2" },
+          ],
         },
-      });
-
-      assert.strictEqual(response.statusCode, 404);
-    });
-  }
-);
-
-describe(
-  "Template Routes - POST /projects/:projectId/templates/:templateId/compile",
-  { concurrency: 1 },
-  () => {
-    let app: FastifyInstance;
-
-    before(async () => {
-      app = await createTestApp();
+      },
     });
 
-    after(async () => {
-      await app.close();
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("should reject compilation without context", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: `/projects/${projectId}/templates/${templateId}/compile`,
+      payload: {},
     });
 
-    it("should compile template with context", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: `/projects/${projectId}/templates/${templateId}/compile`,
-        payload: {
-          context: {
-            name: "John",
-            age: 30,
-          },
-        },
-      });
+    expect(response.statusCode).toBe(400);
+  });
 
-      const body = JSON.parse(response.body);
+  it("should return 404 when template not found", async () => {
+    mockTemplateService.compileTemplate.mockImplementationOnce(async () => ({
+      ok: true,
+      value: null,
+    }));
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+    const response = await app.inject({
+      method: "POST",
+      url: `/projects/${projectId}/templates/${templateId}/compile`,
+      payload: {
+        context: { name: "John" },
+      },
     });
 
-    it("should compile with specific platforms", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: `/projects/${projectId}/templates/${templateId}/compile`,
-        payload: {
-          context: { name: "John" },
-          platforms: ["x", "instagram"],
-        },
-      });
+    expect(response.statusCode).toBe(404);
+  });
+});
 
-      assert.strictEqual(response.statusCode, 200);
+describe("Template Routes - POST /projects/:projectId/templates/:templateId/validate", () => {
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("should validate template successfully", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: `/projects/${projectId}/templates/${templateId}/validate`,
     });
 
-    it("should compile with A/B test config", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: `/projects/${projectId}/templates/${templateId}/compile`,
-        payload: {
-          context: { name: "John" },
-          abTestConfig: {
-            enabled: true,
-            variants: [
-              { id: "v1", content: "Variant 1" },
-              { id: "v2", content: "Variant 2" },
-            ],
-          },
-        },
-      });
+    const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.valid).toBe(true);
+  });
+
+  it("should return validation errors", async () => {
+    mockTemplateService.validateTemplate.mockImplementationOnce(async () => ({
+      ok: true,
+      value: {
+        valid: false,
+        errors: ["Missing required variable", "Invalid syntax"],
+      },
+    }));
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/projects/${projectId}/templates/${templateId}/validate`,
     });
 
-    it("should reject compilation without context", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: `/projects/${projectId}/templates/${templateId}/compile`,
-        payload: {},
-      });
+    const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 400);
-    });
-
-    it("should return 404 when template not found", async () => {
-      mockTemplateService.compileTemplate.mock.mockImplementationOnce(async () => ({
-        ok: true,
-        value: null,
-      }));
-
-      const response = await app.inject({
-        method: "POST",
-        url: `/projects/${projectId}/templates/${templateId}/compile`,
-        payload: {
-          context: { name: "John" },
-        },
-      });
-
-      assert.strictEqual(response.statusCode, 404);
-    });
-  }
-);
-
-describe(
-  "Template Routes - POST /projects/:projectId/templates/:templateId/validate",
-  { concurrency: 1 },
-  () => {
-    let app: FastifyInstance;
-
-    before(async () => {
-      app = await createTestApp();
-    });
-
-    after(async () => {
-      await app.close();
-    });
-
-    it("should validate template successfully", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: `/projects/${projectId}/templates/${templateId}/validate`,
-      });
-
-      const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data.valid, true);
-    });
-
-    it("should return validation errors", async () => {
-      mockTemplateService.validateTemplate.mock.mockImplementationOnce(async () => ({
-        ok: true,
-        value: {
-          valid: false,
-          errors: ["Missing required variable", "Invalid syntax"],
-        },
-      }));
-
-      const response = await app.inject({
-        method: "POST",
-        url: `/projects/${projectId}/templates/${templateId}/validate`,
-      });
-
-      const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data.valid, false);
-      assert.ok(Array.isArray(body.data.errors));
-    });
-  }
-);
+    expect(response.statusCode).toBe(200);
+    expect(body.data.valid).toBe(false);
+    expect(Array.isArray(body.data.errors)).toBeTruthy();
+  });
+});

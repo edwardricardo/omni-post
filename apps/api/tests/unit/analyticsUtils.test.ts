@@ -33,8 +33,7 @@
  * @category UnitTests
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   AnalyticsAggregator,
   type EngagementMetrics,
@@ -88,21 +87,13 @@ describe("AnalyticsAggregator - Calculate Engagement Metrics", () => {
 
     const metrics = AnalyticsAggregator.calculateEngagementMetrics(analytics);
 
-    assert.strictEqual(metrics.totalViews, 1000, "Should have correct total views");
-    assert.strictEqual(metrics.totalLikes, 100, "Should have correct total likes");
-    assert.strictEqual(metrics.totalComments, 50, "Should have correct total comments");
-    assert.strictEqual(metrics.totalShares, 25, "Should have correct total shares");
-    assert.strictEqual(
-      metrics.totalEngagement,
-      175,
-      "Should calculate total engagement (100+50+25)"
-    );
-    assert.strictEqual(metrics.avgViewsPerPost, 1000, "Should have correct avg views per post");
-    assert.strictEqual(
-      metrics.avgEngagementRate,
-      17.5,
-      "Should calculate engagement rate (175/1000*100)"
-    );
+    expect(metrics.totalViews).toBe(1000);
+    expect(metrics.totalLikes).toBe(100);
+    expect(metrics.totalComments).toBe(50);
+    expect(metrics.totalShares).toBe(25);
+    expect(metrics.totalEngagement).toBe(175);
+    expect(metrics.avgViewsPerPost).toBe(1000);
+    expect(metrics.avgEngagementRate).toBe(17.5);
   });
 
   it("should calculate correct metrics for multiple analytics entries", () => {
@@ -114,23 +105,23 @@ describe("AnalyticsAggregator - Calculate Engagement Metrics", () => {
 
     const metrics = AnalyticsAggregator.calculateEngagementMetrics(analytics);
 
-    assert.strictEqual(metrics.totalViews, 3500, "Should sum all views");
-    assert.strictEqual(metrics.totalLikes, 350, "Should sum all likes");
-    assert.strictEqual(metrics.totalComments, 175, "Should sum all comments");
-    assert.strictEqual(metrics.totalShares, 85, "Should sum all shares");
-    assert.strictEqual(metrics.totalEngagement, 610, "Should sum all engagement");
-    assert.strictEqual(metrics.avgViewsPerPost, 3500 / 3, "Should calculate avg views per post");
+    expect(metrics.totalViews).toBe(3500);
+    expect(metrics.totalLikes).toBe(350);
+    expect(metrics.totalComments).toBe(175);
+    expect(metrics.totalShares).toBe(85);
+    expect(metrics.totalEngagement).toBe(610);
+    expect(metrics.avgViewsPerPost).toBe(3500 / 3);
   });
 
   it("should return zero metrics for empty array", () => {
     const metrics = AnalyticsAggregator.calculateEngagementMetrics([]);
 
-    assert.strictEqual(metrics.totalViews, 0, "Should have zero views");
-    assert.strictEqual(metrics.totalLikes, 0, "Should have zero likes");
-    assert.strictEqual(metrics.totalComments, 0, "Should have zero comments");
-    assert.strictEqual(metrics.totalShares, 0, "Should have zero shares");
-    assert.strictEqual(metrics.totalEngagement, 0, "Should have zero engagement");
-    assert.strictEqual(metrics.avgEngagementRate, 0, "Should have zero engagement rate");
+    expect(metrics.totalViews).toBe(0);
+    expect(metrics.totalLikes).toBe(0);
+    expect(metrics.totalComments).toBe(0);
+    expect(metrics.totalShares).toBe(0);
+    expect(metrics.totalEngagement).toBe(0);
+    expect(metrics.avgEngagementRate).toBe(0);
   });
 
   it("should handle null values in analytics", () => {
@@ -145,10 +136,10 @@ describe("AnalyticsAggregator - Calculate Engagement Metrics", () => {
 
     const metrics = AnalyticsAggregator.calculateEngagementMetrics(analytics);
 
-    assert.strictEqual(metrics.totalViews, 0, "Should treat null views as 0");
-    assert.strictEqual(metrics.totalLikes, 0, "Should treat null likes as 0");
-    assert.strictEqual(metrics.totalComments, 0, "Should treat null comments as 0");
-    assert.strictEqual(metrics.totalShares, 0, "Should treat null shares as 0");
+    expect(metrics.totalViews).toBe(0);
+    expect(metrics.totalLikes).toBe(0);
+    expect(metrics.totalComments).toBe(0);
+    expect(metrics.totalShares).toBe(0);
   });
 });
 
@@ -167,7 +158,7 @@ describe("AnalyticsAggregator - Calculate Engagement Rate", () => {
 
     const rate = AnalyticsAggregator.calculateEngagementRate(analytics);
 
-    assert.strictEqual(rate, 17.5, "Should calculate correct rate (175/1000*100)");
+    expect(rate).toBe(17.5);
   });
 
   it("should return zero rate when views is zero", () => {
@@ -180,7 +171,7 @@ describe("AnalyticsAggregator - Calculate Engagement Rate", () => {
 
     const rate = AnalyticsAggregator.calculateEngagementRate(analytics);
 
-    assert.strictEqual(rate, 0, "Should return 0 when views is 0");
+    expect(rate).toBe(0);
   });
 
   it("should handle null engagement metrics", () => {
@@ -193,7 +184,7 @@ describe("AnalyticsAggregator - Calculate Engagement Rate", () => {
 
     const rate = AnalyticsAggregator.calculateEngagementRate(analytics);
 
-    assert.strictEqual(rate, 0, "Should return 0 when all engagement is null");
+    expect(rate).toBe(0);
   });
 });
 
@@ -211,12 +202,12 @@ describe("AnalyticsAggregator - Group By Period", () => {
 
     const grouped = AnalyticsAggregator.groupByPeriod(analytics, "day");
 
-    assert.strictEqual(grouped.length, 2, "Should group into 2 days");
-    assert.strictEqual(grouped[0]!.date, "2024-01-15", "First group should be Jan 15");
-    assert.strictEqual(grouped[0]!.views, 3000, "First group should have combined views");
-    assert.strictEqual(grouped[0]!.posts, 2, "First group should have 2 posts");
-    assert.strictEqual(grouped[1]!.date, "2024-01-16", "Second group should be Jan 16");
-    assert.strictEqual(grouped[1]!.views, 500, "Second group should have 500 views");
+    expect(grouped.length).toBe(2);
+    expect(grouped[0]!.date).toBe("2024-01-15");
+    expect(grouped[0]!.views).toBe(3000);
+    expect(grouped[0]!.posts).toBe(2);
+    expect(grouped[1]!.date).toBe("2024-01-16");
+    expect(grouped[1]!.views).toBe(500);
   });
 
   it("should group analytics by hour", () => {
@@ -228,15 +219,11 @@ describe("AnalyticsAggregator - Group By Period", () => {
 
     const grouped = AnalyticsAggregator.groupByPeriod(analytics, "hour");
 
-    assert.strictEqual(grouped.length, 2, "Should group into 2 hours");
-    assert.strictEqual(
-      grouped[0]!.views,
-      3000,
-      "First group should have combined views from same hour"
-    );
-    assert.strictEqual(grouped[1]!.views, 500, "Second group should have 500 views");
-    assert.strictEqual(grouped[0]!.posts, 2, "First group should have 2 posts");
-    assert.strictEqual(grouped[1]!.posts, 1, "Second group should have 1 post");
+    expect(grouped.length).toBe(2);
+    expect(grouped[0]!.views).toBe(3000);
+    expect(grouped[1]!.views).toBe(500);
+    expect(grouped[0]!.posts).toBe(2);
+    expect(grouped[1]!.posts).toBe(1);
   });
 
   it("should group analytics by month", () => {
@@ -248,10 +235,10 @@ describe("AnalyticsAggregator - Group By Period", () => {
 
     const grouped = AnalyticsAggregator.groupByPeriod(analytics, "month");
 
-    assert.strictEqual(grouped.length, 2, "Should group into 2 months");
-    assert.strictEqual(grouped[0]!.date, "2024-01", "First group should be January");
-    assert.strictEqual(grouped[0]!.views, 3000, "First group should have combined views");
-    assert.strictEqual(grouped[1]!.date, "2024-02", "Second group should be February");
+    expect(grouped.length).toBe(2);
+    expect(grouped[0]!.date).toBe("2024-01");
+    expect(grouped[0]!.views).toBe(3000);
+    expect(grouped[1]!.date).toBe("2024-02");
   });
 
   it("should return sorted time series data", () => {
@@ -263,8 +250,8 @@ describe("AnalyticsAggregator - Group By Period", () => {
 
     const grouped = AnalyticsAggregator.groupByPeriod(analytics, "day");
 
-    assert.ok(grouped[0]!.date < grouped[1]!.date, "Should be sorted by date ascending");
-    assert.ok(grouped[1]!.date < grouped[2]!.date, "Should be sorted by date ascending");
+    expect(grouped[0]!.date < grouped[1]!.date).toBeTruthy();
+    expect(grouped[1]!.date < grouped[2]!.date).toBeTruthy();
   });
 });
 
@@ -282,9 +269,9 @@ describe("AnalyticsAggregator - Top and Poor Performing", () => {
 
     const topPerforming = AnalyticsAggregator.findTopPerforming(analytics, 2);
 
-    assert.strictEqual(topPerforming.length, 2, "Should return 2 top posts");
-    assert.strictEqual(topPerforming[0]!.id, "2", "First should be highest engagement rate");
-    assert.strictEqual(topPerforming[1]!.id, "1", "Second should be next highest");
+    expect(topPerforming.length).toBe(2);
+    expect(topPerforming[0]!.id).toBe("2");
+    expect(topPerforming[1]!.id).toBe("1");
   });
 
   it("should find poor performing posts", () => {
@@ -296,9 +283,9 @@ describe("AnalyticsAggregator - Top and Poor Performing", () => {
 
     const poorPerforming = AnalyticsAggregator.findPoorPerforming(analytics, 2);
 
-    assert.strictEqual(poorPerforming.length, 2, "Should return 2 poor posts");
-    assert.strictEqual(poorPerforming[0]!.id, "3", "First should be lowest engagement rate");
-    assert.strictEqual(poorPerforming[1]!.id, "1", "Second should be next lowest");
+    expect(poorPerforming.length).toBe(2);
+    expect(poorPerforming[0]!.id).toBe("3");
+    expect(poorPerforming[1]!.id).toBe("1");
   });
 
   it("should filter out low view posts from poor performing", () => {
@@ -309,12 +296,8 @@ describe("AnalyticsAggregator - Top and Poor Performing", () => {
 
     const poorPerforming = AnalyticsAggregator.findPoorPerforming(analytics, 10);
 
-    assert.strictEqual(poorPerforming.length, 1, "Should exclude posts with <100 views");
-    assert.strictEqual(
-      poorPerforming[0]!.id,
-      "2",
-      "Should only include posts with meaningful views"
-    );
+    expect(poorPerforming.length).toBe(1);
+    expect(poorPerforming[0]!.id).toBe("2");
   });
 });
 
@@ -352,8 +335,8 @@ describe("AnalyticsAggregator - Growth Rate Calculation", () => {
 
     const growth = AnalyticsAggregator.calculateGrowthRate(current, previous);
 
-    assert.strictEqual(growth.viewsGrowth, 50, "Should calculate 50% views growth");
-    assert.strictEqual(growth.likesGrowth, 50, "Should calculate 50% likes growth");
+    expect(growth.viewsGrowth).toBe(50);
+    expect(growth.likesGrowth).toBe(50);
   });
 
   it("should handle zero previous values", () => {
@@ -385,7 +368,7 @@ describe("AnalyticsAggregator - Growth Rate Calculation", () => {
 
     const growth = AnalyticsAggregator.calculateGrowthRate(current, previous);
 
-    assert.strictEqual(growth.viewsGrowth, 100, "Should return 100% when previous is 0");
+    expect(growth.viewsGrowth).toBe(100);
   });
 });
 
@@ -405,7 +388,7 @@ describe("AnalyticsAggregator - Percentile Calculation", () => {
 
     const percentile = AnalyticsAggregator.calculatePercentile(analytics, "views", 300);
 
-    assert.strictEqual(percentile, 40, "Should be at 40th percentile (2/5 * 100)");
+    expect(percentile).toBe(40);
   });
 
   it("should return 100 for value above all", () => {
@@ -413,7 +396,7 @@ describe("AnalyticsAggregator - Percentile Calculation", () => {
 
     const percentile = AnalyticsAggregator.calculatePercentile(analytics, "views", 300);
 
-    assert.strictEqual(percentile, 100, "Should return 100 for value above all");
+    expect(percentile).toBe(100);
   });
 });
 
@@ -458,8 +441,8 @@ describe("AnalyticsAggregator - Moving Average", () => {
 
     const movingAvg = AnalyticsAggregator.calculateMovingAverage(dataPoints, 2);
 
-    assert.strictEqual(movingAvg.length, 2, "Should return 2 data points for window size 2");
-    assert.strictEqual(movingAvg[0]!.views, 150, "Should average first two points (100+200)/2");
+    expect(movingAvg.length).toBe(2);
+    expect(movingAvg[0]!.views).toBe(150);
   });
 
   it("should return original data when window size exceeds data length", () => {
@@ -488,8 +471,8 @@ describe("AnalyticsAggregator - Moving Average", () => {
 
     const movingAvg = AnalyticsAggregator.calculateMovingAverage(dataPoints, 5);
 
-    assert.strictEqual(movingAvg.length, 2, "Should return original data");
-    assert.strictEqual(movingAvg, dataPoints, "Should return same reference");
+    expect(movingAvg.length).toBe(2);
+    expect(movingAvg).toBe(dataPoints);
   });
 });
 
@@ -505,14 +488,10 @@ describe("AnalyticsAggregator - Compare Groups", () => {
 
     const comparison = AnalyticsAggregator.compareGroups(groupA, groupB);
 
-    assert.strictEqual(comparison.groupA.totalViews, 1000, "Should have groupA metrics");
-    assert.strictEqual(comparison.groupB.totalViews, 500, "Should have groupB metrics");
-    assert.strictEqual(comparison.difference.totalViews, 500, "Should calculate difference");
-    assert.strictEqual(
-      comparison.percentChange.totalViews,
-      100,
-      "Should calculate percent change (100%)"
-    );
+    expect(comparison.groupA.totalViews).toBe(1000);
+    expect(comparison.groupB.totalViews).toBe(500);
+    expect(comparison.difference.totalViews).toBe(500);
+    expect(comparison.percentChange.totalViews).toBe(100);
   });
 
   it("should handle zero values in comparison", () => {
@@ -522,11 +501,7 @@ describe("AnalyticsAggregator - Compare Groups", () => {
 
     const comparison = AnalyticsAggregator.compareGroups(groupA, groupB);
 
-    assert.strictEqual(comparison.groupB.totalViews, 0, "Should have zero for empty group");
-    assert.strictEqual(
-      comparison.percentChange.totalViews,
-      100,
-      "Should return 100% when comparing to zero"
-    );
+    expect(comparison.groupB.totalViews).toBe(0);
+    expect(comparison.percentChange.totalViews).toBe(100);
   });
 });

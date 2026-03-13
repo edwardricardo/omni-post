@@ -1,75 +1,140 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for channelRoutes
+ * @file channelRoutes.test.ts
+ * @description Unit tests for channelRoutes. Uses mocked Prisma stores and
+ *              a real Fastify instance to test HTTP endpoint behavior.
  *
  * Tests all 6 channel management endpoints:
- *   POST   /channels                    — create channel
- *   GET    /channels/:channelId         — get channel by ID
- *   GET    /projects/:projectId/channels — list channels by project
- *   PUT    /channels/:channelId         — update channel
- *   DELETE /channels/:channelId         — soft-delete channel
- *   DELETE /channels/:channelId/hard    — hard-delete (SUPER_ADMIN only)
- *
- * Tier 1: requires PostgreSQL.
- * channelRoutes has NO auth middleware on the first 5 routes (protected at
- * the network layer). Only /channels/:channelId/hard requires SUPER_ADMIN.
+ *   POST   /channels                    - create channel
+ *   GET    /channels/:channelId         - get channel by ID
+ *   GET    /projects/:projectId/channels - list channels by project
+ *   PUT    /channels/:channelId         - update channel
+ *   DELETE /channels/:channelId         - soft-delete channel
+ *   DELETE /channels/:channelId/hard    - hard-delete (SUPER_ADMIN only)
+ * @layer test
  */
 
-const originalConsole = {
-  log: console.log,
-  info: console.info,
-  warn: console.warn,
-  error: console.error,
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
+
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+// Channel routes use channel, publishLog, analytics models via repositories.
+// Project store records need domain-mapper-compatible defaults.
+const projectDefaults = {
+  locale: "en",
+  isInCrisisMode: false,
+  crisisStartedAt: null,
+  crisisReason: null,
+  crisisModeHistory: [],
+  deletedAt: null,
+  channels: [],
+  posts: [],
 };
-console.log = () => {};
-console.info = () => {};
-console.warn = () => {};
-console.error = () => {};
+const channelDefaults = {
+  handle: "",
+  provider: "X",
+  credentials: {},
+  deletedAt: null,
+};
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import fastifyCookie from "@fastify/cookie";
-import { channelRoutes } from "../../src/channels/channelRoutes.js";
-import { authRoutes } from "../../src/auth/authRoutes.js";
-import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
-import { TOKENS } from "../../src/infrastructure/container/types.js";
-import { AuthService } from "../../src/auth/authService.js";
-import { MfaService } from "../../src/auth/mfaService.js";
-import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+// Replace project mock with one that has correct defaults
+(mockPrisma.prisma as Record<string, unknown>).project = buildModelMock(
+  stores.project,
+  projectDefaults
+);
 
-async function createTestApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false });
-  const container = setupContainer({ prisma });
-  // Override AuthService with a locally-constructed instance (no global singleton)
-  const adminUserRepo = new PrismaAdminUserRepository(prisma);
-  const mfaSvc = new MfaService(adminUserRepo);
-  container.registerInstance(TOKENS.AuthService, new AuthService(adminUserRepo, mfaSvc));
-  app.decorate("container", container);
-  await app.register(fastifyCookie);
-  await app.register(authRoutes);
-  await app.register(channelRoutes);
-  await app.ready();
-  return app;
-}
+const extraModels = {
+  channel: buildModelMock(createStore(), channelDefaults),
+  publishLog: buildModelMock(createStore()),
+  analytics: buildModelMock(createStore()),
+  adminUserPermission: buildModelMock(createStore()),
+  post: buildModelMock(createStore()),
+};
+Object.assign(mockPrisma.prisma, extraModels);
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
+// ---------------------------------------------------------------------------
+// Dynamic imports after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const fastifyCookie = (await import("@fastify/cookie")).default;
+const { channelRoutes } = await import("../../src/channels/channelRoutes.js");
+const { authRoutes } = await import("../../src/auth/authRoutes.js");
+const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { TOKENS } = await import("../../src/infrastructure/container/types.js");
+const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
+const { MfaService } = await import("../../src/auth/mfaService.js");
+const { PrismaAdminUserRepository } = await import(
+  "../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
+);
+
+setRedisInstance(null as never);
+
+// ---------------------------------------------------------------------------
+// Test setup
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const adminEmail = `channel-admin-${timestamp}@example.com`;
 const testPassword = "TestPassword123";
 const NONEXISTENT_UUID = "a0000000-0000-4000-8000-000000000000";
 
-let app: FastifyInstance;
+let app: import("fastify").FastifyInstance;
 let testProjectId: string;
 let testAccountId: string;
 let createdChannelId: string;
 
-describe("channelRoutes", { concurrency: 1 }, () => {
-  before(async () => {
-    app = await createTestApp();
+async function createTestApp() {
+  const localApp = Fastify({ logger: false });
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
 
-    // Create account and project directly via Prisma (faster, no route dependency)
-    const account = await prisma.account.create({
+  // Wire up AuthService so auth routes work for hard-delete SUPER_ADMIN test
+  const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+  const mfaSvc = new MfaService(adminUserRepo);
+  const authSvc = new AuthService(adminUserRepo, mfaSvc);
+  container.registerInstance(TOKENS.AuthService, authSvc);
+
+  localApp.decorate("container", container);
+  await localApp.register(fastifyCookie);
+  await localApp.register(authRoutes);
+  await localApp.register(channelRoutes);
+  await localApp.ready();
+  return { app: localApp, authSvc };
+}
+
+describe("channelRoutes", () => {
+  let authSvc: InstanceType<typeof AuthService>;
+
+  beforeAll(async () => {
+    const result = await createTestApp();
+    app = result.app;
+    authSvc = result.authSvc;
+
+    // Create account and project via mock prisma
+    const account = await (mockPrisma.prisma.account as { create: Function }).create({
       data: {
         email: `account-channel-${timestamp}@example.com`,
         name: "Channel Test Account",
@@ -79,7 +144,7 @@ describe("channelRoutes", { concurrency: 1 }, () => {
     });
     testAccountId = account.id;
 
-    const project = await prisma.project.create({
+    const project = await (mockPrisma.prisma.project as { create: Function }).create({
       data: {
         accountId: testAccountId,
         name: `Channel Test Project ${timestamp}`,
@@ -88,22 +153,12 @@ describe("channelRoutes", { concurrency: 1 }, () => {
     });
     testProjectId = project.id;
 
-    // Create SUPER_ADMIN via AuthService resolved from the app's DI container
-    const authSvc = app.container!.resolve<AuthService>(TOKENS.AuthService);
+    // Register SUPER_ADMIN via AuthService
     await authSvc.registerAdmin(adminEmail, testPassword, "Channel Super Admin", "SUPER_ADMIN");
   });
 
-  after(async () => {
-    // Clean up channels, project, account, user
-    await prisma.channel.deleteMany({ where: { projectId: testProjectId } });
-    await prisma.project.deleteMany({ where: { accountId: testAccountId } });
-    await prisma.account.delete({ where: { id: testAccountId } });
-    await prisma.adminUser.deleteMany({
-      where: { email: { startsWith: `channel-admin-${timestamp}` } },
-    });
+  afterAll(async () => {
     await app.close();
-    await prisma.$disconnect();
-    Object.assign(console, originalConsole);
   });
 
   // ── POST /channels ─────────────────────────────────────────────────────
@@ -113,22 +168,17 @@ describe("channelRoutes", { concurrency: 1 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/channels",
-        payload: {
-          projectId: testProjectId,
-          name: "@testhandle",
-          platform: "X",
-        },
+        payload: { projectId: testProjectId, name: "@testhandle", platform: "X" },
       });
 
-      assert.equal(res.statusCode, 201);
+      expect(res.statusCode).toBe(201);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.ok(body.data.id, "channel id should be present");
-      assert.equal(body.data.projectId, testProjectId);
-      assert.equal(body.data.name, "@testhandle");
-      assert.equal(body.data.platform, "X");
-      assert.equal(body.data.status, "PENDING");
-
+      expect(body.ok).toBe(true);
+      expect(body.data.id).toBeTruthy();
+      expect(body.data.projectId).toBe(testProjectId);
+      expect(body.data.name).toBe("@testhandle");
+      expect(body.data.platform).toBe("X");
+      expect(body.data.status).toBe("PENDING");
       createdChannelId = body.data.id;
     });
 
@@ -143,54 +193,39 @@ describe("channelRoutes", { concurrency: 1 }, () => {
           credentials: { accessToken: "test-token-123" },
         },
       });
-
-      assert.equal(res.statusCode, 201);
+      expect(res.statusCode).toBe(201);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.equal(body.data.platform, "INSTAGRAM");
+      expect(body.ok).toBe(true);
+      expect(body.data.platform).toBe("INSTAGRAM");
     });
 
     it("should return 404 for non-existent project", async () => {
       const res = await app.inject({
         method: "POST",
         url: "/channels",
-        payload: {
-          projectId: NONEXISTENT_UUID,
-          name: "@noproject",
-          platform: "X",
-        },
+        payload: { projectId: NONEXISTENT_UUID, name: "@noproject", platform: "X" },
       });
-
-      assert.equal(res.statusCode, 404);
+      expect(res.statusCode).toBe(404);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should return 400 for invalid platform", async () => {
       const res = await app.inject({
         method: "POST",
         url: "/channels",
-        payload: {
-          projectId: testProjectId,
-          name: "@badplatform",
-          platform: "SNAPCHAT",
-        },
+        payload: { projectId: testProjectId, name: "@badplatform", platform: "SNAPCHAT" },
       });
-
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
 
     it("should return 400 for missing required fields", async () => {
       const res = await app.inject({
         method: "POST",
         url: "/channels",
-        payload: {
-          projectId: testProjectId,
-          // missing name and platform
-        },
+        payload: { projectId: testProjectId },
       });
-
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
   });
 
@@ -202,12 +237,11 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         method: "GET",
         url: `/channels/${createdChannelId}`,
       });
-
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.equal(body.data.id, createdChannelId);
-      assert.equal(body.data.projectId, testProjectId);
+      expect(body.ok).toBe(true);
+      expect(body.data.id).toBe(createdChannelId);
+      expect(body.data.projectId).toBe(testProjectId);
     });
 
     it("should return 404 for non-existent channel", async () => {
@@ -215,10 +249,9 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         method: "GET",
         url: `/channels/${NONEXISTENT_UUID}`,
       });
-
-      assert.equal(res.statusCode, 404);
+      expect(res.statusCode).toBe(404);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should return 400 for invalid UUID format", async () => {
@@ -226,8 +259,7 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         method: "GET",
         url: "/channels/not-a-valid-uuid",
       });
-
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
   });
 
@@ -239,12 +271,11 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         method: "GET",
         url: `/projects/${testProjectId}/channels`,
       });
-
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.ok(Array.isArray(body.data), "value should be an array");
-      assert.ok(body.data.length >= 1, "should have at least one channel");
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data)).toBeTruthy();
+      expect(body.data.length >= 1).toBeTruthy();
     });
 
     it("should return 404 for non-existent project", async () => {
@@ -252,10 +283,9 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         method: "GET",
         url: `/projects/${NONEXISTENT_UUID}/channels`,
       });
-
-      assert.equal(res.statusCode, 404);
+      expect(res.statusCode).toBe(404);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should return 400 for invalid project UUID", async () => {
@@ -263,8 +293,7 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         method: "GET",
         url: "/projects/not-a-uuid/channels",
       });
-
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
   });
 
@@ -277,11 +306,10 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         url: `/channels/${createdChannelId}`,
         payload: { name: "@updated-handle" },
       });
-
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.equal(body.data.name, "@updated-handle");
+      expect(body.ok).toBe(true);
+      expect(body.data.name).toBe("@updated-handle");
     });
 
     it("should update channel credentials", async () => {
@@ -290,10 +318,9 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         url: `/channels/${createdChannelId}`,
         payload: { credentials: { accessToken: "new-token-456" } },
       });
-
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
+      expect(body.ok).toBe(true);
     });
 
     it("should return 404 for non-existent channel", async () => {
@@ -302,8 +329,7 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         url: `/channels/${NONEXISTENT_UUID}`,
         payload: { name: "@ghost" },
       });
-
-      assert.equal(res.statusCode, 404);
+      expect(res.statusCode).toBe(404);
     });
 
     it("should return 400 for name exceeding max length", async () => {
@@ -312,8 +338,7 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         url: `/channels/${createdChannelId}`,
         payload: { name: "x".repeat(257) },
       });
-
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
   });
 
@@ -322,16 +347,11 @@ describe("channelRoutes", { concurrency: 1 }, () => {
   describe("DELETE /channels/:channelId", () => {
     let softDeleteChannelId: string;
 
-    before(async () => {
-      // Create a dedicated channel for soft-delete tests
+    beforeAll(async () => {
       const res = await app.inject({
         method: "POST",
         url: "/channels",
-        payload: {
-          projectId: testProjectId,
-          name: "@tobe-softdeleted",
-          platform: "FACEBOOK",
-        },
+        payload: { projectId: testProjectId, name: "@tobe-softdeleted", platform: "FACEBOOK" },
       });
       const body = JSON.parse(res.body);
       softDeleteChannelId = body.data.id;
@@ -342,11 +362,10 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         method: "DELETE",
         url: `/channels/${softDeleteChannelId}`,
       });
-
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.equal(body.data.deleted, true);
+      expect(body.ok).toBe(true);
+      expect(body.data.deleted).toBe(true);
     });
 
     it("should return 404 for non-existent channel", async () => {
@@ -354,8 +373,7 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         method: "DELETE",
         url: `/channels/${NONEXISTENT_UUID}`,
       });
-
-      assert.equal(res.statusCode, 404);
+      expect(res.statusCode).toBe(404);
     });
   });
 
@@ -365,8 +383,8 @@ describe("channelRoutes", { concurrency: 1 }, () => {
     let hardDeleteChannelId: string;
     let superAdminToken: string;
 
-    before(async () => {
-      // Get SUPER_ADMIN token
+    beforeAll(async () => {
+      // Login as SUPER_ADMIN
       const loginRes = await app.inject({
         method: "POST",
         url: "/auth/login",
@@ -375,15 +393,11 @@ describe("channelRoutes", { concurrency: 1 }, () => {
       const loginBody = JSON.parse(loginRes.body);
       superAdminToken = loginBody.data?.accessToken ?? "";
 
-      // Create a dedicated channel for hard-delete tests
+      // Create a channel to hard-delete
       const res = await app.inject({
         method: "POST",
         url: "/channels",
-        payload: {
-          projectId: testProjectId,
-          name: "@tobe-harddeleted",
-          platform: "YOUTUBE",
-        },
+        payload: { projectId: testProjectId, name: "@tobe-harddeleted", platform: "YOUTUBE" },
       });
       const body = JSON.parse(res.body);
       hardDeleteChannelId = body.data.id;
@@ -394,8 +408,7 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         method: "DELETE",
         url: `/channels/${hardDeleteChannelId}/hard`,
       });
-
-      assert.equal(res.statusCode, 401);
+      expect(res.statusCode).toBe(401);
     });
 
     it("should hard-delete channel with SUPER_ADMIN token", async () => {
@@ -404,11 +417,10 @@ describe("channelRoutes", { concurrency: 1 }, () => {
         url: `/channels/${hardDeleteChannelId}/hard`,
         headers: { authorization: `Bearer ${superAdminToken}` },
       });
-
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.equal(body.data.deleted, true);
+      expect(body.ok).toBe(true);
+      expect(body.data.deleted).toBe(true);
     });
   });
 });

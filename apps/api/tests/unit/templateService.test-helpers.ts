@@ -1,9 +1,9 @@
-import { mock } from "node:test";
+import { vi, expect } from "vitest";
 
-export type MockedMethod = ReturnType<typeof mock.fn>;
+export type MockedMethod = ReturnType<typeof vi.fn>;
 
 export function mockPrismaMethod(model: any, methodName: string): MockedMethod {
-  const mockFn = mock.fn();
+  const mockFn = vi.fn();
   const original = model[methodName];
   model[methodName] = mockFn;
   (mockFn as any)._original = original;

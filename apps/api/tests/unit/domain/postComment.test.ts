@@ -4,9 +4,7 @@
  * @layer domain
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, beforeEach, expect } from "vitest";
 import { CommentId } from "../../../src/domain/value-objects/CommentId.js";
 import {
   PostCommentAggregate,
@@ -30,7 +28,7 @@ const makeProps = (overrides?: Partial<CreateCommentProps>): CreateCommentProps 
 
 const createComment = (overrides?: Partial<CreateCommentProps>): PostCommentAggregate => {
   const result = PostCommentAggregate.create(makeProps(overrides));
-  assert.ok(result.ok, "Setup: comment creation should succeed");
+  expect(result.ok).toBeTruthy();
   return result.value;
 };
 
@@ -42,29 +40,29 @@ describe("CommentId", () => {
   it("generates unique IDs on each call", () => {
     const id1 = CommentId.generate();
     const id2 = CommentId.generate();
-    assert.ok(id1.value.length > 0, "Generated ID should have a value");
-    assert.notEqual(id1.value, id2.value, "Two generated IDs should differ");
+    expect(id1.value.length > 0).toBeTruthy();
+    expect(id1.value).not.toBe(id2.value);
   });
 
   it("creates from valid UUID string", () => {
     const result = CommentId.fromString(VALID_UUID);
-    assert.ok(result.ok, "Should accept valid UUID");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.value, VALID_UUID);
+      expect(result.value.value).toBe(VALID_UUID);
     }
   });
 
   it("returns error for invalid UUID", () => {
     const result = CommentId.fromString("not-a-uuid");
-    assert.ok(!result.ok, "Should reject invalid UUID");
+    expect(result.ok).toBeFalsy();
   });
 
   it("equals returns true for same value and false for different", () => {
     const id1 = CommentId.fromStringUnsafe(VALID_UUID);
     const id2 = CommentId.fromStringUnsafe(VALID_UUID);
     const id3 = CommentId.generate();
-    assert.ok(id1.equals(id2), "Same UUID should be equal");
-    assert.ok(!id1.equals(id3), "Different UUIDs should not be equal");
+    expect(id1.equals(id2)).toBeTruthy();
+    expect(id1.equals(id3)).toBeFalsy();
   });
 });
 
@@ -75,52 +73,52 @@ describe("CommentId", () => {
 describe("PostCommentAggregate create", () => {
   it("creates aggregate with valid props", () => {
     const result = PostCommentAggregate.create(makeProps());
-    assert.ok(result.ok, "Should create successfully");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
       const comment = result.value;
-      assert.equal(comment.postId, "post-uuid-001");
-      assert.equal(comment.authorId, AUTHOR_ID);
-      assert.equal(comment.body, "This is a valid comment body");
-      assert.equal(comment.isEdited, false);
-      assert.equal(comment.isDeleted(), false);
-      assert.equal(comment.isReply(), false);
-      assert.ok(comment.id.value.length > 0);
+      expect(comment.postId).toBe("post-uuid-001");
+      expect(comment.authorId).toBe(AUTHOR_ID);
+      expect(comment.body).toBe("This is a valid comment body");
+      expect(comment.isEdited).toBe(false);
+      expect(comment.isDeleted()).toBe(false);
+      expect(comment.isReply()).toBe(false);
+      expect(comment.id.value.length > 0).toBeTruthy();
     }
   });
 
   it("rejects empty body", () => {
     const result = PostCommentAggregate.create(makeProps({ body: "" }));
-    assert.ok(!result.ok, "Should reject empty body");
+    expect(result.ok).toBeFalsy();
   });
 
   it("rejects empty postId", () => {
     const result = PostCommentAggregate.create(makeProps({ postId: "" }));
-    assert.ok(!result.ok, "Should reject empty postId");
+    expect(result.ok).toBeFalsy();
   });
 
   it("rejects empty authorId", () => {
     const result = PostCommentAggregate.create(makeProps({ authorId: "" }));
-    assert.ok(!result.ok, "Should reject empty authorId");
+    expect(result.ok).toBeFalsy();
   });
 
   it("extracts @mentions from body", () => {
     const result = PostCommentAggregate.create(makeProps({ body: "Hey @john check this @jane!" }));
-    assert.ok(result.ok);
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
       const mentions = result.value.mentions;
-      assert.equal(mentions.length, 2);
-      assert.ok(mentions.includes("john"), "Should extract john");
-      assert.ok(mentions.includes("jane"), "Should extract jane");
+      expect(mentions.length).toBe(2);
+      expect(mentions.includes("john")).toBeTruthy();
+      expect(mentions.includes("jane")).toBeTruthy();
     }
   });
 
   it("creates reply with parentId", () => {
     const parentCommentId = "parent-uuid-001";
     const result = PostCommentAggregate.create(makeProps({ parentId: parentCommentId }));
-    assert.ok(result.ok);
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.parentId, parentCommentId);
-      assert.ok(result.value.isReply(), "Should be marked as reply");
+      expect(result.value.parentId).toBe(parentCommentId);
+      expect(result.value.isReply()).toBeTruthy();
     }
   });
 });
@@ -138,29 +136,29 @@ describe("PostCommentAggregate editBody", () => {
 
   it("edits body when editor is the author", () => {
     const result = comment.editBody("Updated body text", AUTHOR_ID);
-    assert.ok(result.ok, "Author should be able to edit");
-    assert.equal(comment.body, "Updated body text");
+    expect(result.ok).toBeTruthy();
+    expect(comment.body).toBe("Updated body text");
   });
 
   it("rejects edit from non-author", () => {
     const result = comment.editBody("Hacked body", OTHER_USER);
-    assert.ok(!result.ok, "Non-author should be rejected");
+    expect(result.ok).toBeFalsy();
   });
 
   it("rejects edit on deleted comment", () => {
     comment.softDelete(AUTHOR_ID, false);
     const result = comment.editBody("Should fail", AUTHOR_ID);
-    assert.ok(!result.ok, "Deleted comment should not be editable");
+    expect(result.ok).toBeFalsy();
   });
 
   it("sets isEdited flag and editedAt after editing", () => {
-    assert.equal(comment.isEdited, false, "Should not be edited initially");
-    assert.equal(comment.editedAt, undefined, "editedAt should be undefined initially");
+    expect(comment.isEdited).toBe(false);
+    expect(comment.editedAt).toBe(undefined);
 
     const result = comment.editBody("New body", AUTHOR_ID);
-    assert.ok(result.ok);
-    assert.equal(comment.isEdited, true, "isEdited should be true after edit");
-    assert.ok(comment.editedAt instanceof Date, "editedAt should be a Date after edit");
+    expect(result.ok).toBeTruthy();
+    expect(comment.isEdited).toBe(true);
+    expect(comment.editedAt instanceof Date).toBeTruthy();
   });
 });
 
@@ -177,26 +175,26 @@ describe("PostCommentAggregate softDelete", () => {
 
   it("soft deletes when deleter is the author", () => {
     const result = comment.softDelete(AUTHOR_ID, false);
-    assert.ok(result.ok, "Author should be able to delete");
-    assert.ok(comment.isDeleted(), "Comment should be deleted");
-    assert.ok(comment.deletedAt instanceof Date);
+    expect(result.ok).toBeTruthy();
+    expect(comment.isDeleted()).toBeTruthy();
+    expect(comment.deletedAt instanceof Date).toBeTruthy();
   });
 
   it("soft deletes when deleter is admin", () => {
     const result = comment.softDelete(OTHER_USER, true);
-    assert.ok(result.ok, "Admin should be able to delete");
-    assert.ok(comment.isDeleted());
+    expect(result.ok).toBeTruthy();
+    expect(comment.isDeleted()).toBeTruthy();
   });
 
   it("rejects delete from non-author non-admin", () => {
     const result = comment.softDelete(OTHER_USER, false);
-    assert.ok(!result.ok, "Non-author non-admin should be rejected");
+    expect(result.ok).toBeFalsy();
   });
 
   it("returns error when deleting already deleted comment", () => {
     comment.softDelete(AUTHOR_ID, false);
     const result = comment.softDelete(AUTHOR_ID, false);
-    assert.ok(!result.ok, "Should reject double deletion");
+    expect(result.ok).toBeFalsy();
   });
 });
 
@@ -207,18 +205,18 @@ describe("PostCommentAggregate softDelete", () => {
 describe("PostCommentAggregate predicates", () => {
   it("isDeleted returns true after soft delete", () => {
     const comment = createComment();
-    assert.equal(comment.isDeleted(), false);
+    expect(comment.isDeleted()).toBe(false);
     comment.softDelete(AUTHOR_ID, false);
-    assert.equal(comment.isDeleted(), true);
+    expect(comment.isDeleted()).toBe(true);
   });
 
   it("isReply returns true when parentId exists", () => {
     const comment = createComment({ parentId: "parent-uuid-001" });
-    assert.equal(comment.isReply(), true);
+    expect(comment.isReply()).toBe(true);
   });
 
   it("isReply returns false when no parentId", () => {
     const comment = createComment();
-    assert.equal(comment.isReply(), false);
+    expect(comment.isReply()).toBe(false);
   });
 });

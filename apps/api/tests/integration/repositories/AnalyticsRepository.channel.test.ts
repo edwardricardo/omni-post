@@ -1,6 +1,5 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { PrismaAnalyticsReadRepository } from "../../src/infrastructure/repositories/PrismaAnalyticsReadRepository.js";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { PrismaAnalyticsReadRepository } from "../../../src/infrastructure/repositories/PrismaAnalyticsReadRepository.js";
 import { prisma } from "@infra/prisma";
 import {
   setupTestData,
@@ -9,12 +8,12 @@ import {
   testProjectId,
 } from "./AnalyticsRepository.test-helpers.js";
 
-describe("AnalyticsRepository - getLatestForPosts", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AnalyticsRepository - getLatestForPosts", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -22,8 +21,8 @@ describe("AnalyticsRepository - getLatestForPosts", { concurrency: 1 }, () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const latest = await repo.getLatestForPosts(testPostIds);
 
-    assert.ok(Array.isArray(latest), "Should return an array");
-    assert.strictEqual(latest.length, 5, "Should return one record per post");
+    expect(Array.isArray(latest)).toBeTruthy();
+    expect(latest.length).toBe(5);
 
     const postIdCounts = new Map<string, number>();
     latest.forEach((record) => {
@@ -33,7 +32,7 @@ describe("AnalyticsRepository - getLatestForPosts", { concurrency: 1 }, () => {
     });
 
     postIdCounts.forEach((count, postId) => {
-      assert.strictEqual(count, 1, `Post ${postId} should have exactly one latest record`);
+      expect(count).toBe(1);
     });
   });
 
@@ -41,25 +40,21 @@ describe("AnalyticsRepository - getLatestForPosts", { concurrency: 1 }, () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const latest = await repo.getLatestForPosts([testPostIds[0]!]);
 
-    assert.strictEqual(latest.length, 1, "Should return one record");
+    expect(latest.length).toBe(1);
 
     const allAnalytics = await prisma.analytics.findMany({
       where: { postId: testPostIds[0] },
       orderBy: { capturedAt: "desc" },
     });
 
-    assert.strictEqual(
-      latest[0]!.id,
-      allAnalytics[0]!.id,
-      "Should return the most recent analytics record"
-    );
+    expect(latest[0]!.id).toBe(allAnalytics[0]!.id);
   });
 
   it("returns empty array for empty post IDs", async () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const latest = await repo.getLatestForPosts([]);
 
-    assert.strictEqual(latest.length, 0, "Should return empty array");
+    expect(latest.length).toBe(0);
   });
 
   it("handles posts with no analytics", async () => {
@@ -76,19 +71,19 @@ describe("AnalyticsRepository - getLatestForPosts", { concurrency: 1 }, () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const latest = await repo.getLatestForPosts([postWithoutAnalytics.id]);
 
-    assert.strictEqual(latest.length, 0, "Should return empty array for posts without analytics");
+    expect(latest.length).toBe(0);
 
     await prisma.postContent.deleteMany({ where: { postId: postWithoutAnalytics.id } });
     await prisma.post.delete({ where: { id: postWithoutAnalytics.id } });
   });
 });
 
-describe("AnalyticsRepository - aggregateEngagement", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AnalyticsRepository - aggregateEngagement", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -98,15 +93,12 @@ describe("AnalyticsRepository - aggregateEngagement", { concurrency: 1 }, () => 
 
     const metrics = repo.aggregateEngagement(analytics);
 
-    assert.ok(typeof metrics.totalViews === "number", "Should calculate total views");
-    assert.ok(typeof metrics.totalLikes === "number", "Should calculate total likes");
-    assert.ok(typeof metrics.totalComments === "number", "Should calculate total comments");
-    assert.ok(typeof metrics.totalShares === "number", "Should calculate total shares");
-    assert.ok(typeof metrics.totalEngagement === "number", "Should calculate total engagement");
-    assert.ok(
-      typeof metrics.avgEngagementRate === "number",
-      "Should calculate avg engagement rate"
-    );
+    expect(typeof metrics.totalViews === "number").toBeTruthy();
+    expect(typeof metrics.totalLikes === "number").toBeTruthy();
+    expect(typeof metrics.totalComments === "number").toBeTruthy();
+    expect(typeof metrics.totalShares === "number").toBeTruthy();
+    expect(typeof metrics.totalEngagement === "number").toBeTruthy();
+    expect(typeof metrics.avgEngagementRate === "number").toBeTruthy();
   });
 
   it("calculates total engagement as sum of likes, comments, and shares", async () => {
@@ -116,11 +108,7 @@ describe("AnalyticsRepository - aggregateEngagement", { concurrency: 1 }, () => 
     const metrics = repo.aggregateEngagement(analytics);
 
     const expectedTotal = metrics.totalLikes + metrics.totalComments + metrics.totalShares;
-    assert.strictEqual(
-      metrics.totalEngagement,
-      expectedTotal,
-      "Total engagement should equal sum of interactions"
-    );
+    expect(metrics.totalEngagement).toBe(expectedTotal);
   });
 
   it("calculates engagement rate as percentage", async () => {
@@ -131,11 +119,7 @@ describe("AnalyticsRepository - aggregateEngagement", { concurrency: 1 }, () => 
 
     if (metrics.totalViews > 0) {
       const expectedRate = (metrics.totalEngagement / metrics.totalViews) * 100;
-      assert.strictEqual(
-        metrics.avgEngagementRate,
-        expectedRate,
-        "Engagement rate should be correct percentage"
-      );
+      expect(metrics.avgEngagementRate).toBe(expectedRate);
     }
   });
 
@@ -165,23 +149,19 @@ describe("AnalyticsRepository - aggregateEngagement", { concurrency: 1 }, () => 
 
     const metrics = repo.aggregateEngagement(zeroAnalytics);
 
-    assert.strictEqual(
-      metrics.avgEngagementRate,
-      0,
-      "Engagement rate should be 0 when views are 0"
-    );
+    expect(metrics.avgEngagementRate).toBe(0);
   });
 
   it("handles empty analytics array", async () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const metrics = repo.aggregateEngagement([]);
 
-    assert.strictEqual(metrics.totalViews, 0, "Total views should be 0");
-    assert.strictEqual(metrics.totalLikes, 0, "Total likes should be 0");
-    assert.strictEqual(metrics.totalComments, 0, "Total comments should be 0");
-    assert.strictEqual(metrics.totalShares, 0, "Total shares should be 0");
-    assert.strictEqual(metrics.totalEngagement, 0, "Total engagement should be 0");
-    assert.strictEqual(metrics.avgEngagementRate, 0, "Engagement rate should be 0");
+    expect(metrics.totalViews).toBe(0);
+    expect(metrics.totalLikes).toBe(0);
+    expect(metrics.totalComments).toBe(0);
+    expect(metrics.totalShares).toBe(0);
+    expect(metrics.totalEngagement).toBe(0);
+    expect(metrics.avgEngagementRate).toBe(0);
   });
 
   it("handles null/undefined values in analytics", async () => {
@@ -210,7 +190,7 @@ describe("AnalyticsRepository - aggregateEngagement", { concurrency: 1 }, () => 
 
     const metrics = repo.aggregateEngagement(analyticsWithNulls);
 
-    assert.strictEqual(metrics.totalViews, 0, "Should treat null as 0");
-    assert.strictEqual(metrics.totalLikes, 0, "Should treat null as 0");
+    expect(metrics.totalViews).toBe(0);
+    expect(metrics.totalLikes).toBe(0);
   });
 });

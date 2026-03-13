@@ -1,21 +1,20 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { UniversalWebhookHandler } from "../../src/webhooks/webhookHandler.js";
 import { createSignature } from "./webhookHandler.test-helpers.js";
 
-describe("WebhookHandler - Initialization", { concurrency: 1 }, () => {
+describe("WebhookHandler - Initialization", () => {
   it("should create handler without broadcaster", () => {
     const handler = new UniversalWebhookHandler();
-    assert.ok(handler, "Handler should be created");
+    expect(handler).toBeTruthy();
   });
 
   it("should create handler with broadcaster", () => {
     const handler = new UniversalWebhookHandler(undefined);
-    assert.ok(handler, "Handler should be created with undefined broadcaster");
+    expect(handler).toBeTruthy();
   });
 });
 
-describe("WebhookHandler - Event ID Extraction", { concurrency: 1 }, () => {
+describe("WebhookHandler - Event ID Extraction", () => {
   let handler: UniversalWebhookHandler;
 
   beforeEach(() => {
@@ -32,7 +31,7 @@ describe("WebhookHandler - Event ID Extraction", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("INSTAGRAM", signature, payload, headers);
 
-    assert.ok(result.eventId, "Event ID should be extracted");
+    expect(result.eventId).toBeTruthy();
   });
 
   it("should extract event ID from X payload", async () => {
@@ -45,7 +44,7 @@ describe("WebhookHandler - Event ID Extraction", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("X", signature, payload, headers);
 
-    assert.ok(result.eventId, "Event ID should be extracted");
+    expect(result.eventId).toBeTruthy();
   });
 
   it("should generate MD5 hash for payload without identifiable ID", async () => {
@@ -56,7 +55,7 @@ describe("WebhookHandler - Event ID Extraction", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("X", signature, payload, headers);
 
-    assert.ok(result.eventId, "Event ID should be generated");
-    assert.strictEqual(result.eventId.length, 32, "Should be MD5 hash (32 chars)");
+    expect(result.eventId).toBeTruthy();
+    expect(result.eventId.length).toBe(32);
   });
 });

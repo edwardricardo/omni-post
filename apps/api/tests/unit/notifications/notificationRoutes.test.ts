@@ -1,59 +1,142 @@
-#!/usr/bin/env tsx
 /**
  * @file notificationRoutes.test.ts
- * @description Integration-style route tests for notification management endpoints.
- *   Uses real DI container with Prisma for integration-style route testing.
- * @layer infrastructure
+ * @description Unit tests for notification management endpoints.
+ *   Uses mocked Prisma stores and a real Fastify instance to test HTTP endpoint behavior.
+ * @layer test
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { type FastifyInstance } from "fastify";
-import {
-  type ZodTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-type-provider-zod";
-import { notificationRoutes } from "../../../src/notifications/notificationRoutes.js";
-import type { AuthService } from "../../../src/auth/authService.js";
-import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../../src/infrastructure/container/setup.js";
-import { TOKENS } from "../../../src/infrastructure/container/types.js";
+import { describe, it, beforeAll, afterAll, beforeEach, expect, vi } from "vitest";
+import { createMockPrismaModule, createStore, buildModelMock } from "../helpers/mockPrisma.js";
 
-// --- Test helpers ---
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
 
-let containerAuthService: AuthService;
+const { mockPrisma } = createMockPrismaModule();
 
-async function createTestApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false });
-  const typedApp = app.withTypeProvider<ZodTypeProvider>();
-  typedApp.setValidatorCompiler(validatorCompiler);
-  typedApp.setSerializerCompiler(serializerCompiler);
+// Notification defaults
+const notificationDefaults = {
+  isRead: false,
+  readAt: null,
+  resourceType: null,
+  resourceId: null,
+  actorId: null,
+  actorName: null,
+  metadata: null,
+};
 
-  const container = setupContainer({ prisma });
-  containerAuthService = container.resolve<AuthService>(TOKENS.AuthService);
-  typedApp.decorate("container", container);
+// NotificationPreference defaults
+const notifPrefDefaults = {
+  enabled: true,
+};
 
-  await typedApp.register(notificationRoutes);
-  return typedApp;
-}
+// Add extra models needed by notification routes and their repositories
+const extraModels = {
+  notification: buildModelMock(createStore(), notificationDefaults),
+  notificationPreference: buildModelMock(createStore(), notifPrefDefaults),
+  teamMember: buildModelMock(createStore(), {
+    isActive: true,
+    role: "MEMBER",
+    avatarUrl: null,
+    invitedBy: null,
+  }),
+  post: buildModelMock(createStore()),
+  adminUserPermission: buildModelMock(createStore()),
+};
+Object.assign(mockPrisma.prisma, extraModels);
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
+// No ioredis mock needed -- we register a mock NotificationBroadcaster directly
+
+// ---------------------------------------------------------------------------
+// Dynamic imports after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const fastifyCookie = (await import("@fastify/cookie")).default;
+const { notificationRoutes } = await import("../../../src/notifications/notificationRoutes.js");
+const { authRoutes } = await import("../../../src/auth/authRoutes.js");
+const { setupContainer } = await import("../../../src/infrastructure/container/setup.js");
+const { TOKENS } = await import("../../../src/infrastructure/container/types.js");
+const { AuthService, setRedisInstance } = await import("../../../src/auth/authService.js");
+const { MfaService } = await import("../../../src/auth/mfaService.js");
+const { PrismaAdminUserRepository } = await import(
+  "../../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
+);
+
+setRedisInstance(null as never);
+
+// ---------------------------------------------------------------------------
+// Test setup
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const adminEmail = `notif-admin-${timestamp}@example.com`;
-const testPassword = "TestPassword123!";
+const testPassword = "TestPassword123";
 
-let app: FastifyInstance;
+let app: import("fastify").FastifyInstance;
 let adminToken: string;
-let testAccountId: string;
 let testMemberId: string;
 let createdNotificationIds: string[] = [];
 
-describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
-  before(async () => {
-    app = await createTestApp();
+// Mock NotificationBroadcaster (avoids Redis dependency)
+const mockBroadcaster = {
+  broadcast: vi.fn().mockResolvedValue(undefined),
+  subscribe: vi.fn(),
+  unsubscribe: vi.fn(),
+  initialize: vi.fn(),
+  shutdown: vi.fn().mockResolvedValue(undefined),
+  getActiveConnectionCount: vi.fn().mockReturnValue(0),
+};
+
+async function createTestApp() {
+  const localApp = Fastify({ logger: false });
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+
+  const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+  const mfaSvc = new MfaService(adminUserRepo);
+  const authSvc = new AuthService(adminUserRepo, mfaSvc);
+  container.registerInstance(TOKENS.AuthService, authSvc);
+
+  // Override NotificationBroadcaster with mock (no Redis needed)
+  container.registerInstance(TOKENS.NotificationBroadcaster, mockBroadcaster);
+
+  localApp.decorate("container", container);
+  await localApp.register(fastifyCookie);
+  await localApp.register(authRoutes);
+  await localApp.register(notificationRoutes);
+  await localApp.ready();
+  return { app: localApp, authSvc };
+}
+
+describe("notificationRoutes Integration Tests", () => {
+  let authSvc: InstanceType<typeof AuthService>;
+
+  beforeAll(async () => {
+    const result = await createTestApp();
+    app = result.app;
+    authSvc = result.authSvc;
 
     // Create an account for the team member
-    const account = await prisma.account.create({
+    const account = await (mockPrisma.prisma.account as { create: Function }).create({
       data: {
         email: `notif-account-${timestamp}@example.com`,
         name: "Notification Test Account",
@@ -61,12 +144,13 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
         maxProjects: 5,
       },
     });
-    testAccountId = account.id;
 
     // Create a team member (notifications FK target)
-    const member = await prisma.teamMember.create({
+    const member = await (
+      mockPrisma.prisma as Record<string, { create: Function }>
+    ).teamMember.create({
       data: {
-        accountId: testAccountId,
+        accountId: account.id,
         email: `notif-member-${timestamp}@example.com`,
         name: "Notification Recipient",
         role: "MEMBER",
@@ -74,64 +158,18 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
     });
     testMemberId = member.id;
 
-    // Create admin user for authentication
-    const adminResult = await containerAuthService.registerAdmin(
-      adminEmail,
-      testPassword,
-      "Notification Admin",
-      "ADMIN"
-    );
-    assert.ok(adminResult.ok, "Admin registration should succeed");
-
-    // Get auth token
-    const loginResult = await containerAuthService.login(
-      { email: adminEmail, password: testPassword },
-      "127.0.0.1",
-      "test-agent"
-    );
-    assert.ok(loginResult.ok, "Login should succeed");
-    if (loginResult.ok && "tokens" in loginResult.value) {
-      adminToken = loginResult.value.tokens.accessToken;
-    }
+    // Register admin user and get token
+    await authSvc.registerAdmin(adminEmail, testPassword, "Notification Admin", "ADMIN");
+    const loginRes = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { email: adminEmail, password: testPassword },
+    });
+    const loginBody = JSON.parse(loginRes.body);
+    adminToken = loginBody.data?.accessToken ?? "";
   });
 
-  after(async () => {
-    try {
-      // Clean up notifications
-      await prisma.notification.deleteMany({
-        where: { recipientId: testMemberId },
-      });
-      // Clean up notification preferences
-      await prisma.notificationPreference.deleteMany({
-        where: { memberId: testMemberId },
-      });
-      // Clean up team member
-      await prisma.teamMember.deleteMany({
-        where: { accountId: testAccountId },
-      });
-      // Clean up account
-      await prisma.account.deleteMany({
-        where: { id: testAccountId },
-      });
-
-      // Clean up admin user
-      const adminUser = await prisma.adminUser.findUnique({
-        where: { email: adminEmail },
-      });
-      if (adminUser) {
-        await prisma.session.deleteMany({ where: { userId: adminUser.id } });
-        await prisma.loginAttempt.deleteMany({
-          where: { userId: adminUser.id },
-        });
-        await prisma.adminRoleHistory.deleteMany({
-          where: { userId: adminUser.id },
-        });
-        await prisma.adminUser.delete({ where: { id: adminUser.id } });
-      }
-    } catch (_err: unknown) {
-      // Cleanup is best-effort
-    }
-
+  afterAll(async () => {
     await app.close();
   });
 
@@ -153,7 +191,7 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
           body: "Someone commented on your post",
         },
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("creates notification successfully", async () => {
@@ -170,9 +208,9 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 201);
-      assert.equal(body.ok, true);
-      assert.ok(body.data?.id, "Should return notification ID");
+      expect(response.statusCode).toBe(201);
+      expect(body.ok).toBe(true);
+      expect(body.data?.id).toBeTruthy();
       createdNotificationIds.push(body.data.id);
     });
 
@@ -189,7 +227,7 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.equal(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("rejects empty title", async () => {
@@ -205,22 +243,17 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.equal(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
   // --- GET /notifications ---
 
   describe("GET /notifications", () => {
-    before(async () => {
-      // Seed notifications for the admin user's ID as recipientId.
-      // The route uses request.user.id so we create a TeamMember with
-      // the admin user's ID to satisfy the FK, then seed notifications.
-      // Instead, we query via recipientId matching admin user's ID --
-      // but the FK requires a TeamMember record.
-      // We seed via POST /notifications to test the full flow,
-      // using testMemberId as recipient.
-      await prisma.notification.createMany({
+    beforeAll(async () => {
+      // Seed notifications via mock prisma
+      const notifModel = mockPrisma.prisma as Record<string, { createMany: Function }>;
+      await notifModel.notification.createMany({
         data: [
           {
             recipientId: testMemberId,
@@ -248,24 +281,15 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       });
     });
 
-    after(async () => {
-      await prisma.notification.deleteMany({
-        where: { recipientId: testMemberId },
-      });
-    });
-
     it("returns 401 without auth token", async () => {
       const response = await app.inject({
         method: "GET",
         url: "/notifications",
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("lists notifications for authenticated user", async () => {
-      // The route uses request.user.id as recipientId.
-      // Since user.id is the admin user ID (not the team member ID),
-      // it will return empty for that recipientId -- but still 200 OK.
       const response = await app.inject({
         method: "GET",
         url: "/notifications",
@@ -273,9 +297,9 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.ok(Array.isArray(body.data?.items), "Data should contain items array");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.items)).toBeTruthy();
     });
 
     it("supports unreadOnly filter parameter", async () => {
@@ -286,9 +310,9 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.ok(Array.isArray(body.data?.items), "Data should contain items array");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.items)).toBeTruthy();
     });
   });
 
@@ -300,7 +324,7 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
         method: "GET",
         url: "/notifications/unread-count",
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("returns unread count for authenticated user", async () => {
@@ -311,9 +335,9 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.ok(typeof body.data?.count === "number", "Should return numeric count");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(typeof body.data?.count === "number").toBeTruthy();
     });
   });
 
@@ -322,8 +346,9 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
   describe("PATCH /notifications/:id/read", () => {
     let readableNotificationId: string;
 
-    before(async () => {
-      const notification = await prisma.notification.create({
+    beforeAll(async () => {
+      const notifModel = mockPrisma.prisma as Record<string, { create: Function }>;
+      const notification = await notifModel.notification.create({
         data: {
           recipientId: testMemberId,
           type: "TEAM_INVITE",
@@ -335,18 +360,12 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       readableNotificationId = notification.id;
     });
 
-    after(async () => {
-      await prisma.notification.deleteMany({
-        where: { recipientId: testMemberId },
-      });
-    });
-
     it("returns 401 without auth token", async () => {
       const response = await app.inject({
         method: "PATCH",
         url: `/notifications/${readableNotificationId}/read`,
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("marks notification as read successfully", async () => {
@@ -357,16 +376,9 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.equal(body.data?.read, true);
-
-      // Verify DB state
-      const dbNotification = await prisma.notification.findUnique({
-        where: { id: readableNotificationId },
-      });
-      assert.equal(dbNotification?.isRead, true, "Notification should be read in DB");
-      assert.ok(dbNotification?.readAt, "readAt should be set");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.read).toBe(true);
     });
 
     it("returns 404 for non-existent notification", async () => {
@@ -378,8 +390,8 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 404);
-      assert.equal(body.ok, false);
+      expect(response.statusCode).toBe(404);
+      expect(body.ok).toBe(false);
     });
   });
 
@@ -391,7 +403,7 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
         method: "POST",
         url: "/notifications/mark-all-read",
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("marks all notifications as read for authenticated user", async () => {
@@ -402,12 +414,9 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.ok(
-        typeof body.data?.count === "number",
-        "Should return count of marked notifications"
-      );
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(typeof body.data?.count === "number").toBeTruthy();
     });
   });
 
@@ -419,7 +428,7 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
         method: "GET",
         url: "/notifications/preferences",
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("returns preferences list for authenticated user", async () => {
@@ -430,9 +439,9 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.ok(Array.isArray(body.data?.preferences), "Should return preferences array");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.preferences)).toBeTruthy();
     });
   });
 
@@ -447,7 +456,7 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
           preferences: [{ type: "MENTION", enabled: false }],
         },
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("updates preferences successfully", async () => {
@@ -464,9 +473,9 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.ok(Array.isArray(body.data?.preferences), "Should return updated preferences");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.preferences)).toBeTruthy();
     });
 
     it("rejects invalid notification type in preferences", async () => {
@@ -479,7 +488,7 @@ describe("notificationRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.equal(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 });

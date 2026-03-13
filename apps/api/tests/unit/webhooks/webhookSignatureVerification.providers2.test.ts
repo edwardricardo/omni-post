@@ -1,20 +1,26 @@
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import { createHmac } from "node:crypto";
+
+vi.mock("@infra/prisma", () => ({
+  prisma: {},
+  Prisma: {},
+  WebhookEventType: {},
+  WebhookProcessingStatus: {},
+}));
 import { TikTokWebhookProcessor } from "../../../src/webhooks/processors/tiktokWebhookProcessor.js";
 import { XWebhookProcessor } from "../../../src/webhooks/processors/xWebhookProcessor.js";
 import { signPayload } from "./webhookSignatureVerification.test-helpers.js";
 
-describe("Webhook signature verification — TikTokWebhookProcessor", { concurrency: 1 }, () => {
+describe("Webhook signature verification — TikTokWebhookProcessor", () => {
   const secret = "tiktok-test-secret-tok";
   let processor: TikTokWebhookProcessor;
 
   let _originalConsoleLog: typeof console.log;
-  before(() => {
+  beforeAll(() => {
     _originalConsoleLog = console.log;
     console.log = () => {};
   });
-  after(() => {
+  afterAll(() => {
     console.log = _originalConsoleLog;
   });
 
@@ -35,11 +41,7 @@ describe("Webhook signature verification — TikTokWebhookProcessor", { concurre
     });
     const signature = signPayload(payload, secret);
 
-    assert.strictEqual(
-      processor.verify(payload, signature, secret),
-      true,
-      "TikTok: valid sha256-hex signature must be accepted"
-    );
+    expect(processor.verify(payload, signature, secret)).toBe(true);
   });
 
   it("scenario 2: tampered body (attacker injects extra field after signing) → rejected", () => {
@@ -59,11 +61,7 @@ describe("Webhook signature verification — TikTokWebhookProcessor", { concurre
       injected_field: "attacker-data",
     });
 
-    assert.strictEqual(
-      processor.verify(tamperedPayload, signature, secret),
-      false,
-      "TikTok: tampered body must be rejected"
-    );
+    expect(processor.verify(tamperedPayload, signature, secret)).toBe(false);
   });
 
   it("scenario 3: missing x-tiktok-signature header (empty string) → rejected", () => {
@@ -71,11 +69,7 @@ describe("Webhook signature verification — TikTokWebhookProcessor", { concurre
       event: { type: "video.remove", content: { video_id: "vid-tiktok-003" } },
     });
 
-    assert.strictEqual(
-      processor.verify(payload, "", secret),
-      false,
-      "TikTok: missing signature must be rejected"
-    );
+    expect(processor.verify(payload, "", secret)).toBe(false);
   });
 
   it("scenario 3b: completely wrong signature value → rejected", () => {
@@ -84,11 +78,7 @@ describe("Webhook signature verification — TikTokWebhookProcessor", { concurre
     });
     const wrongSig = "sha256=0000000000000000000000000000000000000000000000000000000000000000";
 
-    assert.strictEqual(
-      processor.verify(payload, wrongSig, secret),
-      false,
-      "TikTok: all-zero signature must be rejected"
-    );
+    expect(processor.verify(payload, wrongSig, secret)).toBe(false);
   });
 
   it("rejects signature computed with wrong secret", () => {
@@ -97,24 +87,20 @@ describe("Webhook signature verification — TikTokWebhookProcessor", { concurre
     });
     const signatureWithWrongSecret = signPayload(payload, "attacker-fake-secret");
 
-    assert.strictEqual(
-      processor.verify(payload, signatureWithWrongSecret, secret),
-      false,
-      "TikTok: wrong-secret signature must be rejected"
-    );
+    expect(processor.verify(payload, signatureWithWrongSecret, secret)).toBe(false);
   });
 });
 
-describe("Webhook signature verification — XWebhookProcessor", { concurrency: 1 }, () => {
+describe("Webhook signature verification — XWebhookProcessor", () => {
   const secret = "x-twitter-test-secret-consumer";
   let processor: XWebhookProcessor;
 
   let _originalConsoleLog: typeof console.log;
-  before(() => {
+  beforeAll(() => {
     _originalConsoleLog = console.log;
     console.log = () => {};
   });
-  after(() => {
+  afterAll(() => {
     console.log = _originalConsoleLog;
   });
 
@@ -137,11 +123,7 @@ describe("Webhook signature verification — XWebhookProcessor", { concurrency: 
     });
     const signature = signX_base64(payload, secret);
 
-    assert.strictEqual(
-      processor.verify(payload, signature, secret),
-      true,
-      "X: valid base64 signature must be accepted"
-    );
+    expect(processor.verify(payload, signature, secret)).toBe(true);
   });
 
   it("scenario 1b: valid payload with correct hex-encoded signature → accepted (dual-format tolerance)", () => {
@@ -150,11 +132,7 @@ describe("Webhook signature verification — XWebhookProcessor", { concurrency: 
     });
     const signature = signX_hex(payload, secret);
 
-    assert.strictEqual(
-      processor.verify(payload, signature, secret),
-      true,
-      "X: valid hex signature must also be accepted (dual-format)"
-    );
+    expect(processor.verify(payload, signature, secret)).toBe(true);
   });
 
   it("scenario 2: tampered body (body modified after signing) → rejected", () => {
@@ -167,11 +145,7 @@ describe("Webhook signature verification — XWebhookProcessor", { concurrency: 
       tweet_create_events: [{ id_str: "tweet-003", text: "EVIL MODIFIED TEXT" }],
     });
 
-    assert.strictEqual(
-      processor.verify(tamperedPayload, signature, secret),
-      false,
-      "X: tampered body must be rejected"
-    );
+    expect(processor.verify(tamperedPayload, signature, secret)).toBe(false);
   });
 
   it("scenario 3: missing x-signature header (empty string) → rejected", () => {
@@ -179,11 +153,7 @@ describe("Webhook signature verification — XWebhookProcessor", { concurrency: 
       tweet_delete_events: [{ status: { id_str: "tweet-deleted-001" } }],
     });
 
-    assert.strictEqual(
-      processor.verify(payload, "", secret),
-      false,
-      "X: missing signature must be rejected"
-    );
+    expect(processor.verify(payload, "", secret)).toBe(false);
   });
 
   it("scenario 3b: garbage signature value → rejected", () => {
@@ -192,11 +162,7 @@ describe("Webhook signature verification — XWebhookProcessor", { concurrency: 
     });
     const garbage = "sha256=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
-    assert.strictEqual(
-      processor.verify(payload, garbage, secret),
-      false,
-      "X: garbage signature must be rejected"
-    );
+    expect(processor.verify(payload, garbage, secret)).toBe(false);
   });
 
   it("rejects signature computed with wrong consumer secret", () => {
@@ -205,10 +171,6 @@ describe("Webhook signature verification — XWebhookProcessor", { concurrency: 
     });
     const wrongSecretSig = signX_base64(payload, "attacker-consumer-secret");
 
-    assert.strictEqual(
-      processor.verify(payload, wrongSecretSig, secret),
-      false,
-      "X: wrong-secret signature must be rejected"
-    );
+    expect(processor.verify(payload, wrongSecretSig, secret)).toBe(false);
   });
 });

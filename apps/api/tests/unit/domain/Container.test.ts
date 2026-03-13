@@ -5,9 +5,7 @@
  * Tests for the dependency injection container.
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, beforeEach, expect } from "vitest";
 import {
   Container,
   TOKENS,
@@ -16,7 +14,7 @@ import {
   createTestContainer,
 } from "../../../src/infrastructure/container/index.js";
 
-describe("Container", { concurrency: 1 }, () => {
+describe("Container", () => {
   let container: Container;
 
   beforeEach(() => {
@@ -30,7 +28,7 @@ describe("Container", { concurrency: 1 }, () => {
       container.register(TOKENS.PostRepository, () => mockService);
 
       const resolved = container.resolve(TOKENS.PostRepository);
-      assert.equal(resolved, mockService);
+      expect(resolved).toBe(mockService);
     });
 
     it("should create singleton by default", () => {
@@ -43,8 +41,8 @@ describe("Container", { concurrency: 1 }, () => {
       const first = container.resolve(TOKENS.PostRepository);
       const second = container.resolve(TOKENS.PostRepository);
 
-      assert.equal(callCount, 1, "Factory should only be called once");
-      assert.equal(first, second, "Should return same instance");
+      expect(callCount).toBe(1);
+      expect(first).toBe(second);
     });
 
     it("should create transient when configured", () => {
@@ -61,13 +59,12 @@ describe("Container", { concurrency: 1 }, () => {
       const first = container.resolve(TOKENS.PostRepository);
       const second = container.resolve(TOKENS.PostRepository);
 
-      assert.equal(callCount, 2, "Factory should be called twice");
-      assert.notEqual(first, second, "Should return different instances");
+      expect(callCount).toBe(2);
+      expect(first).not.toBe(second);
     });
 
     it("should throw error for unregistered service", () => {
-      assert.throws(
-        () => container.resolve(Symbol.for("UnknownService")),
+      expect(() => container.resolve(Symbol.for("UnknownService"))).toThrow(
         /Service not registered/
       );
     });
@@ -80,7 +77,7 @@ describe("Container", { concurrency: 1 }, () => {
       container.registerInstance(TOKENS.PostRepository, instance);
 
       const resolved = container.resolve(TOKENS.PostRepository);
-      assert.equal(resolved, instance);
+      expect(resolved).toBe(instance);
     });
 
     it("should always return same instance", () => {
@@ -91,8 +88,8 @@ describe("Container", { concurrency: 1 }, () => {
       const first = container.resolve(TOKENS.PostRepository);
       const second = container.resolve(TOKENS.PostRepository);
 
-      assert.equal(first, instance);
-      assert.equal(second, instance);
+      expect(first).toBe(instance);
+      expect(second).toBe(instance);
     });
   });
 
@@ -102,12 +99,12 @@ describe("Container", { concurrency: 1 }, () => {
       container.register(TOKENS.PostRepository, () => service);
 
       const result = container.tryResolve(TOKENS.PostRepository);
-      assert.equal(result, service);
+      expect(result).toBe(service);
     });
 
     it("should return undefined if not registered", () => {
       const result = container.tryResolve(Symbol.for("Unknown"));
-      assert.equal(result, undefined);
+      expect(result).toBe(undefined);
     });
   });
 
@@ -115,11 +112,11 @@ describe("Container", { concurrency: 1 }, () => {
     it("should return true for registered service", () => {
       container.register(TOKENS.PostRepository, () => ({}));
 
-      assert.ok(container.has(TOKENS.PostRepository));
+      expect(container.has(TOKENS.PostRepository)).toBeTruthy();
     });
 
     it("should return false for unregistered service", () => {
-      assert.ok(!container.has(Symbol.for("Unknown")));
+      expect(container.has(Symbol.for("Unknown"))).toBeFalsy();
     });
   });
 
@@ -131,7 +128,7 @@ describe("Container", { concurrency: 1 }, () => {
       const child = container.createChild();
       const resolved = child.resolve(TOKENS.PostRepository);
 
-      assert.equal(resolved, parentService);
+      expect(resolved).toBe(parentService);
     });
 
     it("should allow child to override parent", () => {
@@ -143,8 +140,8 @@ describe("Container", { concurrency: 1 }, () => {
       const child = container.createChild();
       child.register(TOKENS.PostRepository, () => childService);
 
-      assert.equal(container.resolve(TOKENS.PostRepository), parentService);
-      assert.equal(child.resolve(TOKENS.PostRepository), childService);
+      expect(container.resolve(TOKENS.PostRepository)).toBe(parentService);
+      expect(child.resolve(TOKENS.PostRepository)).toBe(childService);
     });
 
     it("should check parent for has()", () => {
@@ -152,7 +149,7 @@ describe("Container", { concurrency: 1 }, () => {
 
       const child = container.createChild();
 
-      assert.ok(child.has(TOKENS.PostRepository));
+      expect(child.has(TOKENS.PostRepository)).toBeTruthy();
     });
   });
 
@@ -163,8 +160,8 @@ describe("Container", { concurrency: 1 }, () => {
 
       container.clear();
 
-      assert.ok(!container.has(TOKENS.PostRepository));
-      assert.ok(!container.has(TOKENS.EventDispatcher));
+      expect(container.has(TOKENS.PostRepository)).toBeFalsy();
+      expect(container.has(TOKENS.EventDispatcher)).toBeFalsy();
     });
   });
 
@@ -175,9 +172,9 @@ describe("Container", { concurrency: 1 }, () => {
 
       const tokens = container.getRegisteredTokens();
 
-      assert.ok(tokens.includes(TOKENS.PostRepository));
-      assert.ok(tokens.includes(TOKENS.EventDispatcher));
-      assert.equal(tokens.length, 2);
+      expect(tokens.includes(TOKENS.PostRepository)).toBeTruthy();
+      expect(tokens.includes(TOKENS.EventDispatcher)).toBeTruthy();
+      expect(tokens.length).toBe(2);
     });
 
     it("should include parent tokens", () => {
@@ -188,8 +185,8 @@ describe("Container", { concurrency: 1 }, () => {
 
       const tokens = child.getRegisteredTokens();
 
-      assert.ok(tokens.includes(TOKENS.PostRepository));
-      assert.ok(tokens.includes(TOKENS.EventDispatcher));
+      expect(tokens.includes(TOKENS.PostRepository)).toBeTruthy();
+      expect(tokens.includes(TOKENS.EventDispatcher)).toBeTruthy();
     });
   });
 
@@ -202,17 +199,17 @@ describe("Container", { concurrency: 1 }, () => {
       });
 
       const first = container.resolve(TOKENS.PostRepository);
-      assert.equal((first as { id: number }).id, 1);
+      expect((first as { id: number }).id).toBe(1);
 
       container.resetSingletons();
 
       const second = container.resolve(TOKENS.PostRepository);
-      assert.equal((second as { id: number }).id, 2);
+      expect((second as { id: number }).id).toBe(2);
     });
   });
 });
 
-describe("Global Container", { concurrency: 1 }, () => {
+describe("Global Container", () => {
   beforeEach(() => {
     resetContainer();
   });
@@ -222,7 +219,7 @@ describe("Global Container", { concurrency: 1 }, () => {
       const first = getContainer();
       const second = getContainer();
 
-      assert.equal(first, second);
+      expect(first).toBe(second);
     });
   });
 
@@ -234,16 +231,16 @@ describe("Global Container", { concurrency: 1 }, () => {
       resetContainer();
 
       const second = getContainer();
-      assert.ok(!second.has(TOKENS.PostRepository));
+      expect(second.has(TOKENS.PostRepository)).toBeFalsy();
     });
   });
 });
 
-describe("createTestContainer", { concurrency: 1 }, () => {
+describe("createTestContainer", () => {
   it("should create container with EventDispatcher by default", () => {
     const container = createTestContainer();
 
-    assert.ok(container.has(TOKENS.EventDispatcher));
+    expect(container.has(TOKENS.EventDispatcher)).toBeTruthy();
   });
 
   it("should apply symbol overrides", () => {
@@ -254,6 +251,6 @@ describe("createTestContainer", { concurrency: 1 }, () => {
     const container = createTestContainer(overrides);
 
     const resolved = container.resolve(TOKENS.PostRepository);
-    assert.equal(resolved, mockRepo);
+    expect(resolved).toBe(mockRepo);
   });
 });

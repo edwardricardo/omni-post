@@ -14,8 +14,7 @@
  * Converted to node:test standard
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import {
   createErrorHandler,
   asyncHandler,
@@ -94,12 +93,12 @@ describe("Error Handler - createErrorHandler", () => {
     await errorHandler(error, request, reply);
 
     const payload = (reply as any).getSentPayload();
-    assert.strictEqual((reply as any).getStatusCode(), 400);
-    assert.strictEqual(payload.ok, false);
-    assert.strictEqual(payload.error.code, ErrorCode.VALIDATION_ERROR);
-    assert.strictEqual(payload.error.message, "Validation failed");
-    assert.strictEqual(payload.error.requestId, "req-123");
-    assert.ok(payload.error.timestamp);
+    expect((reply as any).getStatusCode()).toBe(400);
+    expect(payload.ok).toBe(false);
+    expect(payload.error.code).toBe(ErrorCode.VALIDATION_ERROR);
+    expect(payload.error.message).toBe("Validation failed");
+    expect(payload.error.requestId).toBe("req-123");
+    expect(payload.error.timestamp).toBeTruthy();
   });
 
   it("should log operational errors as warnings", async () => {
@@ -111,9 +110,9 @@ describe("Error Handler - createErrorHandler", () => {
 
     await errorHandler(error, request, reply);
 
-    assert.strictEqual(mockLogger.logs.length, 1);
-    assert.strictEqual(mockLogger.logs[0].level, "warn");
-    assert.strictEqual(mockLogger.logs[0].message, "Operational error occurred");
+    expect(mockLogger.logs.length).toBe(1);
+    expect(mockLogger.logs[0].level).toBe("warn");
+    expect(mockLogger.logs[0].message).toBe("Operational error occurred");
   });
 
   it("should log non-operational errors as errors", async () => {
@@ -125,9 +124,9 @@ describe("Error Handler - createErrorHandler", () => {
 
     await errorHandler(error, request, reply);
 
-    assert.strictEqual(mockLogger.logs.length, 1);
-    assert.strictEqual(mockLogger.logs[0].level, "error");
-    assert.strictEqual(mockLogger.logs[0].message, "Unexpected error occurred");
+    expect(mockLogger.logs.length).toBe(1);
+    expect(mockLogger.logs[0].level).toBe("error");
+    expect(mockLogger.logs[0].message).toBe("Unexpected error occurred");
   });
 
   it("should log standard errors as errors", async () => {
@@ -139,8 +138,8 @@ describe("Error Handler - createErrorHandler", () => {
 
     await errorHandler(error, request, reply);
 
-    assert.strictEqual(mockLogger.logs.length, 1);
-    assert.strictEqual(mockLogger.logs[0].level, "error");
+    expect(mockLogger.logs.length).toBe(1);
+    expect(mockLogger.logs[0].level).toBe("error");
   });
 
   it("should include request context in logs", async () => {
@@ -158,10 +157,10 @@ describe("Error Handler - createErrorHandler", () => {
     await errorHandler(error, request, reply);
 
     const logContext = mockLogger.logs[0].context;
-    assert.strictEqual(logContext.requestId, "req-456");
-    assert.strictEqual(logContext.method, "POST");
-    assert.strictEqual(logContext.url, "/api/posts");
-    assert.strictEqual(logContext.ip, "192.168.1.1");
+    expect(logContext.requestId).toBe("req-456");
+    expect(logContext.method).toBe("POST");
+    expect(logContext.url).toBe("/api/posts");
+    expect(logContext.ip).toBe("192.168.1.1");
   });
 
   it("should include error details in development", async () => {
@@ -178,7 +177,7 @@ describe("Error Handler - createErrorHandler", () => {
     await errorHandler(error, request, reply);
 
     const payload = (reply as any).getSentPayload();
-    assert.deepStrictEqual(payload.error.details, { field: "email" });
+    expect(payload.error.details).toStrictEqual({ field: "email" });
 
     process.env.NODE_ENV = "test";
   });
@@ -197,7 +196,7 @@ describe("Error Handler - createErrorHandler", () => {
     await errorHandler(error, request, reply);
 
     const payload = (reply as any).getSentPayload();
-    assert.strictEqual(payload.error.details, undefined);
+    expect(payload.error.details).toBe(undefined);
 
     process.env.NODE_ENV = "test";
   });
@@ -211,7 +210,7 @@ describe("Error Handler - createErrorHandler", () => {
 
     await errorHandler(error, request, reply);
 
-    assert.strictEqual((reply as any).getStatusCode(), 500);
+    expect((reply as any).getStatusCode()).toBe(500);
   });
 
   it("should sanitize error messages", async () => {
@@ -224,7 +223,7 @@ describe("Error Handler - createErrorHandler", () => {
     await errorHandler(error, request, reply);
 
     const payload = (reply as any).getSentPayload();
-    assert.strictEqual(payload.error.message, "An unexpected error occurred");
+    expect(payload.error.message).toBe("An unexpected error occurred");
   });
 });
 
@@ -235,7 +234,7 @@ describe("Error Handler - asyncHandler", () => {
     const reply = createMockReply();
 
     const result = await handler(request, reply);
-    assert.deepStrictEqual(result, { data: "success" });
+    expect(result).toStrictEqual({ data: "success" });
   });
 
   it("should propagate async errors", async () => {
@@ -245,7 +244,7 @@ describe("Error Handler - asyncHandler", () => {
     const request = createMockRequest();
     const reply = createMockReply();
 
-    await assert.rejects(async () => await handler(request, reply), { message: "Async error" });
+    await expect(handler(request, reply)).rejects.toThrow("Async error");
   });
 
   it("should handle Promise rejections", async () => {
@@ -255,7 +254,7 @@ describe("Error Handler - asyncHandler", () => {
     const request = createMockRequest();
     const reply = createMockReply();
 
-    await assert.rejects(async () => await handler(request, reply), { message: "Rejected" });
+    await expect(handler(request, reply)).rejects.toThrow("Rejected");
   });
 });
 
@@ -268,9 +267,9 @@ describe("Error Handler - convertPrismaError", () => {
 
     const appError = convertPrismaError(prismaError);
 
-    assert.strictEqual(appError.code, ErrorCode.RESOURCE_CONFLICT);
-    assert.strictEqual(appError.statusCode, 409);
-    assert.strictEqual(appError.message, "Resource already exists");
+    expect(appError.code).toBe(ErrorCode.RESOURCE_CONFLICT);
+    expect(appError.statusCode).toBe(409);
+    expect(appError.message).toBe("Resource already exists");
   });
 
   it("should convert P2025 record not found", () => {
@@ -281,9 +280,9 @@ describe("Error Handler - convertPrismaError", () => {
 
     const appError = convertPrismaError(prismaError);
 
-    assert.strictEqual(appError.code, ErrorCode.RESOURCE_NOT_FOUND);
-    assert.strictEqual(appError.statusCode, 404);
-    assert.strictEqual(appError.message, "Resource not found");
+    expect(appError.code).toBe(ErrorCode.RESOURCE_NOT_FOUND);
+    expect(appError.statusCode).toBe(404);
+    expect(appError.message).toBe("Resource not found");
   });
 
   it("should convert P2003 foreign key constraint violation", () => {
@@ -294,9 +293,9 @@ describe("Error Handler - convertPrismaError", () => {
 
     const appError = convertPrismaError(prismaError);
 
-    assert.strictEqual(appError.code, ErrorCode.VALIDATION_ERROR);
-    assert.strictEqual(appError.statusCode, 400);
-    assert.strictEqual(appError.message, "Invalid reference");
+    expect(appError.code).toBe(ErrorCode.VALIDATION_ERROR);
+    expect(appError.statusCode).toBe(400);
+    expect(appError.message).toBe("Invalid reference");
   });
 
   it("should convert P2011 null constraint violation", () => {
@@ -307,9 +306,9 @@ describe("Error Handler - convertPrismaError", () => {
 
     const appError = convertPrismaError(prismaError);
 
-    assert.strictEqual(appError.code, ErrorCode.VALIDATION_MISSING_FIELD);
-    assert.strictEqual(appError.statusCode, 400);
-    assert.strictEqual(appError.message, "Required field is missing");
+    expect(appError.code).toBe(ErrorCode.VALIDATION_MISSING_FIELD);
+    expect(appError.statusCode).toBe(400);
+    expect(appError.message).toBe("Required field is missing");
   });
 
   it("should include field details in development", () => {
@@ -321,8 +320,8 @@ describe("Error Handler - convertPrismaError", () => {
     };
 
     const appError = convertPrismaError(prismaError);
-    assert.ok(appError.details);
-    assert.deepStrictEqual(appError.details.field, ["email"]);
+    expect(appError.details).toBeTruthy();
+    expect(appError.details.field).toStrictEqual(["email"]);
 
     process.env.NODE_ENV = "test";
   });
@@ -336,7 +335,7 @@ describe("Error Handler - convertPrismaError", () => {
     };
 
     const appError = convertPrismaError(prismaError);
-    assert.strictEqual(appError.details, undefined);
+    expect(appError.details).toBe(undefined);
 
     process.env.NODE_ENV = "test";
   });
@@ -349,9 +348,9 @@ describe("Error Handler - convertPrismaError", () => {
 
     const appError = convertPrismaError(prismaError);
 
-    assert.strictEqual(appError.code, ErrorCode.DATABASE_ERROR);
-    assert.strictEqual(appError.statusCode, 500);
-    assert.strictEqual(appError.message, "Database operation failed");
+    expect(appError.code).toBe(ErrorCode.DATABASE_ERROR);
+    expect(appError.statusCode).toBe(500);
+    expect(appError.message).toBe("Database operation failed");
   });
 });
 
@@ -366,9 +365,9 @@ describe("Error Handler - convertZodError", () => {
 
     const appError = convertZodError(zodError);
 
-    assert.strictEqual(appError.code, ErrorCode.VALIDATION_ERROR);
-    assert.strictEqual(appError.statusCode, 400);
-    assert.strictEqual(appError.message, "Validation failed");
+    expect(appError.code).toBe(ErrorCode.VALIDATION_ERROR);
+    expect(appError.statusCode).toBe(400);
+    expect(appError.message).toBe("Validation failed");
   });
 
   it("should include issues in development", () => {
@@ -379,9 +378,9 @@ describe("Error Handler - convertZodError", () => {
     };
 
     const appError = convertZodError(zodError);
-    assert.ok(appError.details);
-    assert.ok(Array.isArray(appError.details.issues));
-    assert.strictEqual(appError.details.issues[0].message, "Invalid email");
+    expect(appError.details).toBeTruthy();
+    expect(Array.isArray(appError.details.issues)).toBeTruthy();
+    expect(appError.details.issues[0].message).toBe("Invalid email");
 
     process.env.NODE_ENV = "test";
   });
@@ -394,7 +393,7 @@ describe("Error Handler - convertZodError", () => {
     };
 
     const appError = convertZodError(zodError);
-    assert.strictEqual(appError.details, undefined);
+    expect(appError.details).toBe(undefined);
 
     process.env.NODE_ENV = "test";
   });
@@ -411,7 +410,7 @@ describe("Error Handler - handleAnyError", () => {
     const error = new AppError(ErrorCode.VALIDATION_ERROR, 400, "Validation failed");
     const result = handleAnyError(error, mockLogger);
 
-    assert.strictEqual(result, error);
+    expect(result).toBe(error);
   });
 
   it("should convert Prisma errors", () => {
@@ -422,8 +421,8 @@ describe("Error Handler - handleAnyError", () => {
 
     const result = handleAnyError(prismaError, mockLogger);
 
-    assert.ok(result instanceof AppError);
-    assert.strictEqual(result.code, ErrorCode.RESOURCE_CONFLICT);
+    expect(result instanceof AppError).toBeTruthy();
+    expect(result.code).toBe(ErrorCode.RESOURCE_CONFLICT);
   });
 
   it("should convert Zod errors", () => {
@@ -433,62 +432,62 @@ describe("Error Handler - handleAnyError", () => {
 
     const result = handleAnyError(zodError, mockLogger);
 
-    assert.ok(result instanceof AppError);
-    assert.strictEqual(result.code, ErrorCode.VALIDATION_ERROR);
+    expect(result instanceof AppError).toBeTruthy();
+    expect(result.code).toBe(ErrorCode.VALIDATION_ERROR);
   });
 
   it("should handle standard Error", () => {
     const error = new Error("Standard error");
     const result = handleAnyError(error, mockLogger);
 
-    assert.ok(result instanceof AppError);
-    assert.strictEqual(result.code, ErrorCode.INTERNAL_SERVER_ERROR);
-    assert.strictEqual(result.statusCode, 500);
+    expect(result instanceof AppError).toBeTruthy();
+    expect(result.code).toBe(ErrorCode.INTERNAL_SERVER_ERROR);
+    expect(result.statusCode).toBe(500);
   });
 
   it("should log standard errors", () => {
     const error = new Error("Test error");
     handleAnyError(error, mockLogger);
 
-    assert.strictEqual(mockLogger.logs.length, 1);
-    assert.strictEqual(mockLogger.logs[0].level, "error");
+    expect(mockLogger.logs.length).toBe(1);
+    expect(mockLogger.logs[0].level).toBe("error");
   });
 
   it("should handle unknown error types", () => {
     const unknownError = { something: "unexpected" };
     const result = handleAnyError(unknownError, mockLogger);
 
-    assert.ok(result instanceof AppError);
-    assert.strictEqual(result.code, ErrorCode.INTERNAL_SERVER_ERROR);
+    expect(result instanceof AppError).toBeTruthy();
+    expect(result.code).toBe(ErrorCode.INTERNAL_SERVER_ERROR);
   });
 
   it("should log unknown error types", () => {
     const unknownError = { something: "unexpected" };
     handleAnyError(unknownError, mockLogger);
 
-    assert.strictEqual(mockLogger.logs.length, 1);
-    assert.strictEqual(mockLogger.logs[0].level, "error");
+    expect(mockLogger.logs.length).toBe(1);
+    expect(mockLogger.logs[0].level).toBe("error");
   });
 });
 
 describe("Error Handler - shouldTerminateProcess", () => {
   it("should return false for operational errors", () => {
     const error = new AppError(ErrorCode.VALIDATION_ERROR, 400, "Validation failed", true);
-    assert.strictEqual(shouldTerminateProcess(error), false);
+    expect(shouldTerminateProcess(error)).toBe(false);
   });
 
   it("should return true for non-operational errors", () => {
     const error = new AppError(ErrorCode.INTERNAL_SERVER_ERROR, 500, "Internal error", false);
-    assert.strictEqual(shouldTerminateProcess(error), true);
+    expect(shouldTerminateProcess(error)).toBe(true);
   });
 
   it("should return true for standard errors", () => {
     const error = new Error("Standard error");
-    assert.strictEqual(shouldTerminateProcess(error), true);
+    expect(shouldTerminateProcess(error)).toBe(true);
   });
 
   it("should return false for authentication errors", () => {
     const error = new AuthenticationError("Invalid token");
-    assert.strictEqual(shouldTerminateProcess(error), false);
+    expect(shouldTerminateProcess(error)).toBe(false);
   });
 });

@@ -6,8 +6,7 @@
  * Coverage Target: 95%+
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import {
   createMetricsMiddleware,
   getRoutePattern,
@@ -79,13 +78,13 @@ let middleware: ReturnType<typeof createMetricsMiddleware>;
 // ============================================================================
 
 describe("metricsMiddleware Tests", () => {
-  before(() => {
+  beforeAll(() => {
     metricsRegistry = new promClient.Registry();
     apiMetrics = new ApiMetrics(metricsRegistry);
     middleware = createMetricsMiddleware(apiMetrics);
   });
 
-  after(() => {
+  afterAll(() => {
     metricsRegistry.clear();
   });
 
@@ -101,9 +100,9 @@ describe("metricsMiddleware Tests", () => {
 
       middleware.preHandler(request, reply, done as any);
 
-      assert.ok((request as any).correlationId, "Correlation ID should be attached");
-      assert.strictEqual(typeof (request as any).correlationId, "string");
-      assert.ok(done.wasCalled(), "Done callback should be called");
+      expect((request as any).correlationId).toBeTruthy();
+      expect(typeof (request as any).correlationId).toBe("string");
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should attach finishRequest function", async () => {
@@ -113,8 +112,8 @@ describe("metricsMiddleware Tests", () => {
 
       middleware.preHandler(request, reply, done as any);
 
-      assert.ok((request as any).finishRequest, "finishRequest should be attached");
-      assert.strictEqual(typeof (request as any).finishRequest, "function");
+      expect((request as any).finishRequest).toBeTruthy();
+      expect(typeof (request as any).finishRequest).toBe("function");
     });
 
     it("should attach finishEndpoint function", async () => {
@@ -124,8 +123,8 @@ describe("metricsMiddleware Tests", () => {
 
       middleware.preHandler(request, reply, done as any);
 
-      assert.ok((request as any).finishEndpoint, "finishEndpoint should be attached");
-      assert.strictEqual(typeof (request as any).finishEndpoint, "function");
+      expect((request as any).finishEndpoint).toBeTruthy();
+      expect(typeof (request as any).finishEndpoint).toBe("function");
     });
 
     it("should use routeOptions.url for endpoint tracking", async () => {
@@ -139,7 +138,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
 
       // Verify finishEndpoint was created with correct endpoint
-      assert.ok((request as any).finishEndpoint);
+      expect((request as any).finishEndpoint).toBeTruthy();
     });
 
     it("should fallback to url when routeOptions.url not available", async () => {
@@ -152,7 +151,7 @@ describe("metricsMiddleware Tests", () => {
 
       middleware.preHandler(request, reply, done as any);
 
-      assert.ok((request as any).finishEndpoint);
+      expect((request as any).finishEndpoint).toBeTruthy();
     });
 
     it("should handle POST requests", async () => {
@@ -165,8 +164,8 @@ describe("metricsMiddleware Tests", () => {
 
       middleware.preHandler(request, reply, done as any);
 
-      assert.ok((request as any).correlationId);
-      assert.ok(done.wasCalled());
+      expect((request as any).correlationId).toBeTruthy();
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should handle PUT requests", async () => {
@@ -179,8 +178,8 @@ describe("metricsMiddleware Tests", () => {
 
       middleware.preHandler(request, reply, done as any);
 
-      assert.ok((request as any).correlationId);
-      assert.ok(done.wasCalled());
+      expect((request as any).correlationId).toBeTruthy();
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should handle DELETE requests", async () => {
@@ -193,8 +192,8 @@ describe("metricsMiddleware Tests", () => {
 
       middleware.preHandler(request, reply, done as any);
 
-      assert.ok((request as any).correlationId);
-      assert.ok(done.wasCalled());
+      expect((request as any).correlationId).toBeTruthy();
+      expect(done.wasCalled()).toBeTruthy();
     });
   });
 
@@ -214,7 +213,7 @@ describe("metricsMiddleware Tests", () => {
       // Complete with onResponse
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should track successful endpoint request", async () => {
@@ -225,7 +224,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
 
       const finishEndpoint = (request as any).finishEndpoint;
-      assert.ok(finishEndpoint);
+      expect(finishEndpoint).toBeTruthy();
 
       middleware.onResponse(request, reply, done as any);
     });
@@ -239,7 +238,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should handle 201 status code as success", async () => {
@@ -250,7 +249,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should handle 204 status code as success", async () => {
@@ -261,7 +260,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should clean up correlation ID after response", async () => {
@@ -275,7 +274,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.onResponse(request, reply, done as any);
 
       // Correlation ID should be removed from apiMetrics
-      assert.strictEqual(apiMetrics.getCorrelationId(request.id), undefined);
+      expect(apiMetrics.getCorrelationId(request.id)).toBe(undefined);
     });
   });
 
@@ -292,7 +291,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should track 401 unauthorized error", async () => {
@@ -303,7 +302,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should track 403 forbidden error", async () => {
@@ -314,7 +313,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should track 404 not found error", async () => {
@@ -325,7 +324,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should track 429 rate limit error", async () => {
@@ -336,7 +335,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should track 500 server error", async () => {
@@ -347,7 +346,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should track 502 bad gateway error", async () => {
@@ -358,7 +357,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should track 503 service unavailable error", async () => {
@@ -369,7 +368,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onResponse(request, reply, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should categorize 4xx as client_error", async () => {
@@ -381,7 +380,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.onResponse(request, reply, done as any);
 
       // Error category should be client_error for 4xx
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should categorize 5xx as server_error", async () => {
@@ -393,7 +392,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.onResponse(request, reply, done as any);
 
       // Error category should be server_error for 5xx
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
   });
 
@@ -411,7 +410,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onError(request, reply, error, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should record error with custom name", async () => {
@@ -424,7 +423,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onError(request, reply, error, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should attach correlation ID to error", async () => {
@@ -438,7 +437,7 @@ describe("metricsMiddleware Tests", () => {
 
       middleware.onError(request, reply, error, done as any);
 
-      assert.strictEqual(error.correlationId, correlationId);
+      expect(error.correlationId).toBe(correlationId);
     });
 
     it("should handle error without name", async () => {
@@ -451,7 +450,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onError(request, reply, error, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should record client error for 4xx status", async () => {
@@ -463,7 +462,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onError(request, reply, error, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should record server error for 5xx status", async () => {
@@ -475,7 +474,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onError(request, reply, error, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
 
     it("should default to 500 status if not set", async () => {
@@ -487,7 +486,7 @@ describe("metricsMiddleware Tests", () => {
       middleware.preHandler(request, reply, done as any);
       middleware.onError(request, reply, error, done as any);
 
-      assert.ok(done.wasCalled());
+      expect(done.wasCalled()).toBeTruthy();
     });
   });
 
@@ -503,7 +502,7 @@ describe("metricsMiddleware Tests", () => {
       });
 
       const pattern = getRoutePattern(request);
-      assert.strictEqual(pattern, "/api/posts/:id");
+      expect(pattern).toBe("/api/posts/:id");
     });
 
     it("should fallback to url when routeOptions not available", () => {
@@ -513,7 +512,7 @@ describe("metricsMiddleware Tests", () => {
       });
 
       const pattern = getRoutePattern(request);
-      assert.strictEqual(pattern, "/api/test");
+      expect(pattern).toBe("/api/test");
     });
 
     it("should strip query parameters from url", () => {
@@ -523,7 +522,7 @@ describe("metricsMiddleware Tests", () => {
       });
 
       const pattern = getRoutePattern(request);
-      assert.strictEqual(pattern, "/api/test");
+      expect(pattern).toBe("/api/test");
     });
 
     it("should return 'unknown' when url is undefined", () => {
@@ -533,7 +532,7 @@ describe("metricsMiddleware Tests", () => {
       });
 
       const pattern = getRoutePattern(request);
-      assert.strictEqual(pattern, "unknown");
+      expect(pattern).toBe("unknown");
     });
 
     it("should handle root path", () => {
@@ -543,7 +542,7 @@ describe("metricsMiddleware Tests", () => {
       });
 
       const pattern = getRoutePattern(request);
-      assert.strictEqual(pattern, "/");
+      expect(pattern).toBe("/");
     });
 
     it("should handle complex query parameters", () => {
@@ -553,7 +552,7 @@ describe("metricsMiddleware Tests", () => {
       });
 
       const pattern = getRoutePattern(request);
-      assert.strictEqual(pattern, "/api/search");
+      expect(pattern).toBe("/api/search");
     });
   });
 
@@ -573,7 +572,7 @@ describe("metricsMiddleware Tests", () => {
 
       const afterMetric = await apiMetrics.metrics.postsCreated.get();
       const afterValue = afterMetric.values.reduce((sum, v) => sum + v.value, 0);
-      assert.ok(afterValue > beforeValue, "postsCreated counter should have incremented");
+      expect(afterValue > beforeValue).toBeTruthy();
     });
 
     it("should record post_published metric", async () => {
@@ -587,7 +586,7 @@ describe("metricsMiddleware Tests", () => {
 
       const afterMetric = await apiMetrics.metrics.postsPublished.get();
       const afterValue = afterMetric.values.reduce((sum, v) => sum + v.value, 0);
-      assert.ok(afterValue > beforeValue, "postsPublished counter should have incremented");
+      expect(afterValue > beforeValue).toBeTruthy();
     });
 
     it("should record media_uploaded metric", async () => {
@@ -601,7 +600,7 @@ describe("metricsMiddleware Tests", () => {
 
       const afterMetric = await apiMetrics.metrics.mediaUploads.get();
       const afterValue = afterMetric.values.reduce((sum, v) => sum + v.value, 0);
-      assert.ok(afterValue > beforeValue, "mediaUploads counter should have incremented");
+      expect(afterValue > beforeValue).toBeTruthy();
     });
 
     it("should record thread_created metric", async () => {
@@ -615,7 +614,7 @@ describe("metricsMiddleware Tests", () => {
 
       const afterMetric = await apiMetrics.metrics.threadsCreated.get();
       const afterValue = afterMetric.values.reduce((sum, v) => sum + v.value, 0);
-      assert.ok(afterValue > beforeValue, "threadsCreated counter should have incremented");
+      expect(afterValue > beforeValue).toBeTruthy();
     });
 
     it("should record tweet_created metric", async () => {
@@ -628,7 +627,7 @@ describe("metricsMiddleware Tests", () => {
 
       const afterMetric = await apiMetrics.metrics.tweetsCreated.get();
       const afterValue = afterMetric.values.reduce((sum, v) => sum + v.value, 0);
-      assert.ok(afterValue > beforeValue, "tweetsCreated counter should have incremented");
+      expect(afterValue > beforeValue).toBeTruthy();
     });
 
     it("should record preview_requested metric", async () => {
@@ -642,7 +641,7 @@ describe("metricsMiddleware Tests", () => {
 
       const afterMetric = await apiMetrics.metrics.previewRequests.get();
       const afterValue = afterMetric.values.reduce((sum, v) => sum + v.value, 0);
-      assert.ok(afterValue > beforeValue, "previewRequests counter should have incremented");
+      expect(afterValue > beforeValue).toBeTruthy();
     });
 
     it("should handle operation without labels", async () => {
@@ -653,10 +652,7 @@ describe("metricsMiddleware Tests", () => {
 
       const afterMetric = await apiMetrics.metrics.postsCreated.get();
       const afterValue = afterMetric.values.reduce((sum, v) => sum + v.value, 0);
-      assert.ok(
-        afterValue > beforeValue,
-        "postsCreated counter should increment even without labels"
-      );
+      expect(afterValue > beforeValue).toBeTruthy();
     });
 
     it("should ignore unknown operations", async () => {
@@ -669,11 +665,7 @@ describe("metricsMiddleware Tests", () => {
       // No counter should have changed
       const afterMetrics = await metricsRegistry.getMetricsAsJSON();
       const afterSnapshot = JSON.stringify(afterMetrics);
-      assert.strictEqual(
-        afterSnapshot,
-        beforeSnapshot,
-        "No metrics should change for unknown operation"
-      );
+      expect(afterSnapshot).toBe(beforeSnapshot);
     });
 
     it("should handle empty labels object", async () => {
@@ -684,10 +676,7 @@ describe("metricsMiddleware Tests", () => {
 
       const afterMetric = await apiMetrics.metrics.postsCreated.get();
       const afterValue = afterMetric.values.reduce((sum, v) => sum + v.value, 0);
-      assert.ok(
-        afterValue > beforeValue,
-        "postsCreated counter should increment with empty labels"
-      );
+      expect(afterValue > beforeValue).toBeTruthy();
     });
   });
 });

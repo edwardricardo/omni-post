@@ -3,8 +3,7 @@
  * Imports the real Zod schemas from routes.ts — if the schema changes, these tests catch the drift.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   MessageSchema,
   GenerateOptionsSchema,
@@ -16,41 +15,41 @@ import {
 describe("AI Schemas - MessageSchema", () => {
   it("should validate a user message", () => {
     const result = MessageSchema.safeParse({ role: "user", content: "Hello, AI!" });
-    assert.equal(result.success, true);
+    expect(result.success).toBe(true);
     if (result.success) {
-      assert.strictEqual(result.data.role, "user");
-      assert.strictEqual(result.data.content, "Hello, AI!");
+      expect(result.data.role).toBe("user");
+      expect(result.data.content).toBe("Hello, AI!");
     }
   });
 
   it("should accept system role", () => {
     const result = MessageSchema.safeParse({ role: "system", content: "System prompt" });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept assistant role", () => {
     const result = MessageSchema.safeParse({ role: "assistant", content: "Assistant response" });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject message without role", () => {
     const result = MessageSchema.safeParse({ content: "Hello" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject message without content", () => {
     const result = MessageSchema.safeParse({ role: "user" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should accept empty content string (MessageSchema has no min(1))", () => {
     const result = MessageSchema.safeParse({ role: "user", content: "" });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject null content", () => {
     const result = MessageSchema.safeParse({ role: "user", content: null });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -62,42 +61,42 @@ describe("AI Schemas - GenerateOptionsSchema", () => {
       temperature: 0.7,
       topP: 0.9,
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept undefined (field is optional)", () => {
     const result = GenerateOptionsSchema.safeParse(undefined);
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept empty object", () => {
     const result = GenerateOptionsSchema.safeParse({});
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept partial options", () => {
     const result = GenerateOptionsSchema.safeParse({ model: "gpt-4", temperature: 0.5 });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject model as number", () => {
     const result = GenerateOptionsSchema.safeParse({ model: 123 });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject maxTokens as string", () => {
     const result = GenerateOptionsSchema.safeParse({ maxTokens: "1000" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject temperature as string", () => {
     const result = GenerateOptionsSchema.safeParse({ temperature: "0.7" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject topP as string", () => {
     const result = GenerateOptionsSchema.safeParse({ topP: "0.9" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -108,14 +107,14 @@ describe("AI Schemas - GenerateContentBodySchema", () => {
       options: { model: "gpt-4" },
       provider: "openai",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept body without options", () => {
     const result = GenerateContentBodySchema.safeParse({
       messages: [{ role: "user", content: "Hello" }],
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept body without provider", () => {
@@ -123,17 +122,17 @@ describe("AI Schemas - GenerateContentBodySchema", () => {
       messages: [{ role: "user", content: "Hello" }],
       options: undefined,
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject empty messages array", () => {
     const result = GenerateContentBodySchema.safeParse({ messages: [] });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject missing messages", () => {
     const result = GenerateContentBodySchema.safeParse({ options: { model: "gpt-4" } });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should accept multiple messages in a conversation", () => {
@@ -144,41 +143,41 @@ describe("AI Schemas - GenerateContentBodySchema", () => {
         { role: "assistant", content: "Assistant response" },
       ],
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 });
 
 describe("AI Schemas - AnalysisTypeSchema", () => {
   it("should accept sentiment", () => {
-    assert.strictEqual(AnalysisTypeSchema.safeParse("sentiment").success, true);
+    expect(AnalysisTypeSchema.safeParse("sentiment").success).toBe(true);
   });
 
   it("should accept tone", () => {
-    assert.strictEqual(AnalysisTypeSchema.safeParse("tone").success, true);
+    expect(AnalysisTypeSchema.safeParse("tone").success).toBe(true);
   });
 
   it("should accept readability", () => {
-    assert.strictEqual(AnalysisTypeSchema.safeParse("readability").success, true);
+    expect(AnalysisTypeSchema.safeParse("readability").success).toBe(true);
   });
 
   it("should accept engagement", () => {
-    assert.strictEqual(AnalysisTypeSchema.safeParse("engagement").success, true);
+    expect(AnalysisTypeSchema.safeParse("engagement").success).toBe(true);
   });
 
   it("should reject an unknown analysis type", () => {
-    assert.strictEqual(AnalysisTypeSchema.safeParse("invalid").success, false);
+    expect(AnalysisTypeSchema.safeParse("invalid").success).toBe(false);
   });
 
   it("should reject empty string", () => {
-    assert.strictEqual(AnalysisTypeSchema.safeParse("").success, false);
+    expect(AnalysisTypeSchema.safeParse("").success).toBe(false);
   });
 
   it("should reject null", () => {
-    assert.strictEqual(AnalysisTypeSchema.safeParse(null).success, false);
+    expect(AnalysisTypeSchema.safeParse(null).success).toBe(false);
   });
 
   it("should reject undefined", () => {
-    assert.strictEqual(AnalysisTypeSchema.safeParse(undefined).success, false);
+    expect(AnalysisTypeSchema.safeParse(undefined).success).toBe(false);
   });
 });
 
@@ -189,7 +188,7 @@ describe("AI Schemas - AnalyzeContentBodySchema", () => {
       analysisType: "sentiment",
       provider: "openai",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept body without provider", () => {
@@ -197,7 +196,7 @@ describe("AI Schemas - AnalyzeContentBodySchema", () => {
       content: "Test content",
       analysisType: "tone",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject empty content", () => {
@@ -205,17 +204,17 @@ describe("AI Schemas - AnalyzeContentBodySchema", () => {
       content: "",
       analysisType: "sentiment",
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject missing content", () => {
     const result = AnalyzeContentBodySchema.safeParse({ analysisType: "sentiment" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject missing analysisType", () => {
     const result = AnalyzeContentBodySchema.safeParse({ content: "Test content" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject invalid analysisType", () => {
@@ -223,6 +222,6 @@ describe("AI Schemas - AnalyzeContentBodySchema", () => {
       content: "Test content",
       analysisType: "invalid",
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });

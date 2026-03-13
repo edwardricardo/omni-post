@@ -15,8 +15,7 @@
  * @module tests/unit/architecture
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -170,18 +169,18 @@ const APPLICATION_FORBIDDEN: RegExp[] = [
 // Test suite
 // ---------------------------------------------------------------------------
 
-describe("Architecture Enforcement", { concurrency: 1 }, () => {
+describe("Architecture Enforcement", () => {
   // Resolve relative to the test file location: tests/unit/ → ../../src
   const srcRoot = join(__dirname, "..", "..", "src");
   const domainDir = join(srcRoot, "domain");
   const applicationDir = join(srcRoot, "application");
 
   // -------------------------------------------------------------------------
-  describe("Domain layer — no infrastructure imports", { concurrency: 1 }, () => {
+  describe("Domain layer — no infrastructure imports", () => {
     const domainFiles = getAllTsFiles(domainDir);
 
     it(`should find domain source files to check (found ${domainFiles.length} files)`, () => {
-      assert.ok(domainFiles.length > 0, `Expected at least one .ts file in ${domainDir}`);
+      expect(domainFiles.length > 0).toBeTruthy();
     });
 
     it("should have no @prisma/client or @infra/prisma imports", () => {
@@ -197,11 +196,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Domain files must not import Prisma.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no ioredis or redis imports", () => {
@@ -217,11 +212,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Domain files must not import Redis.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no bullmq imports", () => {
@@ -237,11 +228,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Domain files must not import BullMQ.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no fastify imports", () => {
@@ -257,11 +244,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Domain files must not import Fastify.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no prom-client imports", () => {
@@ -277,11 +260,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Domain files must not import prom-client.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no node:http or node:net imports", () => {
@@ -297,11 +276,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Domain files must not import Node.js network modules.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no direct imports from src/infrastructure/", () => {
@@ -320,11 +295,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Domain files must not import from the infrastructure layer.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should pass ALL forbidden pattern checks in a single sweep", () => {
@@ -339,20 +310,16 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Domain layer boundary violations detected:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
   });
 
   // -------------------------------------------------------------------------
-  describe("Application layer — no infrastructure imports", { concurrency: 1 }, () => {
+  describe("Application layer — no infrastructure imports", () => {
     const applicationFiles = getAllTsFiles(applicationDir);
 
     it(`should find application source files to check (found ${applicationFiles.length} files)`, () => {
-      assert.ok(applicationFiles.length > 0, `Expected at least one .ts file in ${applicationDir}`);
+      expect(applicationFiles.length > 0).toBeTruthy();
     });
 
     it("should have no @prisma/client or @infra/prisma imports", () => {
@@ -368,11 +335,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Application files must not import Prisma.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no ioredis or redis imports", () => {
@@ -388,11 +351,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Application files must not import Redis.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no bullmq imports", () => {
@@ -408,11 +367,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Application files must not import BullMQ.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no fastify imports", () => {
@@ -428,11 +383,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Application files must not import Fastify.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no node:http or node:net imports", () => {
@@ -448,11 +399,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Application files must not import Node.js network modules.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should have no direct imports from src/infrastructure/", () => {
@@ -471,11 +418,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Application files must not import from the infrastructure layer.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should pass ALL forbidden pattern checks in a single sweep", () => {
@@ -490,21 +433,17 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Application layer boundary violations detected:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
   });
 
   // -------------------------------------------------------------------------
-  describe("Port interfaces — no concrete implementation references", { concurrency: 1 }, () => {
+  describe("Port interfaces — no concrete implementation references", () => {
     const repositoriesDir = join(domainDir, "repositories");
     const repositoryFiles = getAllTsFiles(repositoriesDir);
 
     it(`should find repository port files to check (found ${repositoryFiles.length} files)`, () => {
-      assert.ok(repositoryFiles.length > 0, `Expected at least one .ts file in ${repositoriesDir}`);
+      expect(repositoryFiles.length > 0).toBeTruthy();
     });
 
     it("should have no imports from infrastructure in port interfaces", () => {
@@ -519,11 +458,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Port interface files must be free of all infrastructure imports.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
 
     it("should not reference Prisma types in repository interfaces", () => {
@@ -548,11 +483,7 @@ describe("Architecture Enforcement", { concurrency: 1 }, () => {
         }
       }
 
-      assert.deepEqual(
-        violations,
-        [],
-        `Port interfaces must not reference Prisma types.\nViolations:\n${violations.join("\n")}`
-      );
+      expect(violations).toEqual([]);
     });
   });
 });

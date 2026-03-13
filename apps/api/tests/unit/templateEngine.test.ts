@@ -5,44 +5,42 @@
  * ServerTemplateEngine functionality.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, expect } from "vitest";
 describe("Template Engine Module - Re-exports", () => {
   it("should export ServerTemplateEngine class", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
-    assert.ok(module.ServerTemplateEngine);
-    assert.strictEqual(typeof module.ServerTemplateEngine, "function");
+    expect(module.ServerTemplateEngine).toBeTruthy();
+    expect(typeof module.ServerTemplateEngine).toBe("function");
   });
 
   it("should export templateEngine singleton", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
-    assert.ok(module.templateEngine);
-    assert.strictEqual(typeof module.templateEngine, "object");
+    expect(module.templateEngine).toBeTruthy();
+    expect(typeof module.templateEngine).toBe("object");
   });
 
   it("should export serverTemplateEngine", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
-    assert.ok(module.serverTemplateEngine);
+    expect(module.serverTemplateEngine).toBeTruthy();
   });
 
   it("should have templateEngine and serverTemplateEngine reference same instance", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
-    assert.strictEqual(module.templateEngine, module.serverTemplateEngine);
+    expect(module.templateEngine).toBe(module.serverTemplateEngine);
   });
 
   it("should have ServerTemplateEngine methods available on singleton", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
     const engine = module.templateEngine;
 
-    assert.ok(typeof engine.compile === "function");
-    assert.ok(typeof engine.render === "function");
-    assert.ok(typeof engine.validate === "function");
-    assert.ok(typeof engine.sanitize === "function");
-    assert.ok(typeof engine.validateTemplate === "function");
-    assert.ok(typeof engine.getPlatformLimits === "function");
-    assert.ok(typeof engine.getSupportedPlatforms === "function");
-    assert.ok(typeof engine.compileForPlatform === "function");
+    expect(typeof engine.compile === "function").toBeTruthy();
+    expect(typeof engine.render === "function").toBeTruthy();
+    expect(typeof engine.validate === "function").toBeTruthy();
+    expect(typeof engine.sanitize === "function").toBeTruthy();
+    expect(typeof engine.validateTemplate === "function").toBeTruthy();
+    expect(typeof engine.getPlatformLimits === "function").toBeTruthy();
+    expect(typeof engine.getSupportedPlatforms === "function").toBeTruthy();
+    expect(typeof engine.compileForPlatform === "function").toBeTruthy();
   });
 
   it("should create new ServerTemplateEngine instances", async () => {
@@ -50,45 +48,45 @@ describe("Template Engine Module - Re-exports", () => {
     const instance1 = new module.ServerTemplateEngine();
     const instance2 = new module.ServerTemplateEngine();
 
-    assert.ok(instance1);
-    assert.ok(instance2);
-    assert.notStrictEqual(instance1, instance2);
+    expect(instance1).toBeTruthy();
+    expect(instance2).toBeTruthy();
+    expect(instance1).not.toBe(instance2);
   });
 
   it("should have platform compilation methods", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
     const engine = module.templateEngine;
 
-    assert.ok(typeof engine.compileForPlatform === "function");
-    assert.ok(typeof engine.compileTemplate === "function");
-    assert.ok(typeof engine.compileWithABTest === "function");
-    assert.ok(typeof engine.compileTemplateWithComponents === "function");
+    expect(typeof engine.compileForPlatform === "function").toBeTruthy();
+    expect(typeof engine.compileTemplate === "function").toBeTruthy();
+    expect(typeof engine.compileWithABTest === "function").toBeTruthy();
+    expect(typeof engine.compileTemplateWithComponents === "function").toBeTruthy();
   });
 
   it("should have platform query methods", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
     const engine = module.templateEngine;
 
-    assert.ok(typeof engine.getPlatformLimits === "function");
-    assert.ok(typeof engine.getSupportedPlatforms === "function");
+    expect(typeof engine.getPlatformLimits === "function").toBeTruthy();
+    expect(typeof engine.getSupportedPlatforms === "function").toBeTruthy();
   });
 
   it("should have sanitization method", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
     const engine = module.templateEngine;
 
-    assert.ok(typeof engine.sanitize === "function");
+    expect(typeof engine.sanitize === "function").toBeTruthy();
 
     const sanitized = engine.sanitize("<p>Safe content</p>");
-    assert.ok(typeof sanitized === "string");
+    expect(typeof sanitized === "string").toBeTruthy();
   });
 
   it("should have validation methods", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
     const engine = module.templateEngine;
 
-    assert.ok(typeof engine.validate === "function");
-    assert.ok(typeof engine.validateTemplate === "function");
+    expect(typeof engine.validate === "function").toBeTruthy();
+    expect(typeof engine.validateTemplate === "function").toBeTruthy();
   });
 
   it("should have base template engine methods", async () => {
@@ -96,10 +94,10 @@ describe("Template Engine Module - Re-exports", () => {
     const engine = module.templateEngine;
 
     // Inherited from BaseTemplateEngine
-    assert.ok(typeof engine.compile === "function");
-    assert.ok(typeof engine.render === "function");
-    assert.ok(typeof engine.registerHelper === "function");
-    assert.ok(typeof engine.getRegisteredHelpers === "function");
+    expect(typeof engine.compile === "function").toBeTruthy();
+    expect(typeof engine.render === "function").toBeTruthy();
+    expect(typeof engine.registerHelper === "function").toBeTruthy();
+    expect(typeof engine.getRegisteredHelpers === "function").toBeTruthy();
   });
 
   it("should return registered helpers list", async () => {
@@ -107,13 +105,13 @@ describe("Template Engine Module - Re-exports", () => {
     const engine = module.templateEngine;
 
     const helpers = engine.getRegisteredHelpers();
-    assert.ok(Array.isArray(helpers));
-    assert.ok(helpers.length > 0);
+    expect(Array.isArray(helpers)).toBeTruthy();
+    expect(helpers.length > 0).toBeTruthy();
 
     // Check for common helpers
-    assert.ok(helpers.includes("formatDate"));
-    assert.ok(helpers.includes("uppercase"));
-    assert.ok(helpers.includes("lowercase"));
+    expect(helpers.includes("formatDate")).toBeTruthy();
+    expect(helpers.includes("uppercase")).toBeTruthy();
+    expect(helpers.includes("lowercase")).toBeTruthy();
   });
 
   it("should compile simple template", async () => {
@@ -121,10 +119,10 @@ describe("Template Engine Module - Re-exports", () => {
     const engine = module.templateEngine;
 
     const template = engine.compile("Hello {{name}}!");
-    assert.ok(typeof template === "function");
+    expect(typeof template === "function").toBeTruthy();
 
     const result = template({ name: "World" });
-    assert.strictEqual(result, "Hello World!");
+    expect(result).toBe("Hello World!");
   });
 
   it("should render template with context", async () => {
@@ -132,8 +130,8 @@ describe("Template Engine Module - Re-exports", () => {
     const engine = module.templateEngine;
 
     const result = engine.render("Hello {{name}}!", { name: "Test" });
-    assert.ok(result.success);
-    assert.strictEqual(result.content, "Hello Test!");
+    expect(result.success).toBeTruthy();
+    expect(result.content).toBe("Hello Test!");
   });
 
   it("should validate template syntax", async () => {
@@ -141,10 +139,10 @@ describe("Template Engine Module - Re-exports", () => {
     const engine = module.templateEngine;
 
     const validResult = engine.validate("Hello {{name}}!");
-    assert.strictEqual(validResult.valid, true);
+    expect(validResult.valid).toBe(true);
 
     const invalidResult = engine.validate("Hello {{unclosed");
-    assert.strictEqual(invalidResult.valid, false);
+    expect(invalidResult.valid).toBe(false);
   });
 
   it("should get supported platforms list", async () => {
@@ -152,9 +150,9 @@ describe("Template Engine Module - Re-exports", () => {
     const engine = module.templateEngine;
 
     const platforms = engine.getSupportedPlatforms();
-    assert.ok(Array.isArray(platforms));
-    assert.ok(platforms.length > 0);
-    assert.ok(platforms.includes("TWITTER"));
+    expect(Array.isArray(platforms)).toBeTruthy();
+    expect(platforms.length > 0).toBeTruthy();
+    expect(platforms.includes("TWITTER")).toBeTruthy();
   });
 
   it("should get platform limits", async () => {
@@ -162,8 +160,8 @@ describe("Template Engine Module - Re-exports", () => {
     const engine = module.templateEngine;
 
     const limits = engine.getPlatformLimits("TWITTER");
-    assert.ok(limits);
-    assert.strictEqual(limits.maxLength, 280);
+    expect(limits).toBeTruthy();
+    expect(limits.maxLength).toBe(280);
   });
 
   it("should sanitize HTML content", async () => {
@@ -173,8 +171,8 @@ describe("Template Engine Module - Re-exports", () => {
     const dirty = '<script>alert("xss")</script><p>Safe</p>';
     const clean = engine.sanitize(dirty);
 
-    assert.ok(!clean.includes("<script>"));
-    assert.ok(clean.includes("Safe"));
+    expect(clean.includes("<script>")).toBeFalsy();
+    expect(clean.includes("Safe")).toBeTruthy();
   });
 
   it("should be importable with different import styles", async () => {
@@ -182,20 +180,20 @@ describe("Template Engine Module - Re-exports", () => {
     const { ServerTemplateEngine, templateEngine } = await import(
       "../../src/lib/templates/templateEngine"
     );
-    assert.ok(ServerTemplateEngine);
-    assert.ok(templateEngine);
+    expect(ServerTemplateEngine).toBeTruthy();
+    expect(templateEngine).toBeTruthy();
 
     // Namespace import
     const module = await import("../../src/lib/templates/templateEngine");
-    assert.ok(module.ServerTemplateEngine);
-    assert.ok(module.templateEngine);
+    expect(module.ServerTemplateEngine).toBeTruthy();
+    expect(module.templateEngine).toBeTruthy();
   });
 
   it("should maintain singleton pattern across imports", async () => {
     const module1 = await import("../../src/lib/templates/templateEngine");
     const module2 = await import("../../src/lib/templates/templateEngine");
 
-    assert.strictEqual(module1.templateEngine, module2.templateEngine);
+    expect(module1.templateEngine).toBe(module2.templateEngine);
   });
 });
 
@@ -207,31 +205,31 @@ describe("Template Engine Module - Integration with BaseTemplateEngine", () => {
     const helpers = engine.getRegisteredHelpers();
 
     // String helpers
-    assert.ok(helpers.includes("uppercase"));
-    assert.ok(helpers.includes("lowercase"));
-    assert.ok(helpers.includes("capitalize"));
-    assert.ok(helpers.includes("truncate"));
+    expect(helpers.includes("uppercase")).toBeTruthy();
+    expect(helpers.includes("lowercase")).toBeTruthy();
+    expect(helpers.includes("capitalize")).toBeTruthy();
+    expect(helpers.includes("truncate")).toBeTruthy();
 
     // Array helpers
-    assert.ok(helpers.includes("join"));
-    assert.ok(helpers.includes("length"));
+    expect(helpers.includes("join")).toBeTruthy();
+    expect(helpers.includes("length")).toBeTruthy();
 
     // Conditional helpers
-    assert.ok(helpers.includes("eq"));
-    assert.ok(helpers.includes("ne"));
-    assert.ok(helpers.includes("gt"));
-    assert.ok(helpers.includes("lt"));
+    expect(helpers.includes("eq")).toBeTruthy();
+    expect(helpers.includes("ne")).toBeTruthy();
+    expect(helpers.includes("gt")).toBeTruthy();
+    expect(helpers.includes("lt")).toBeTruthy();
 
     // Math helpers
-    assert.ok(helpers.includes("add"));
-    assert.ok(helpers.includes("subtract"));
-    assert.ok(helpers.includes("multiply"));
-    assert.ok(helpers.includes("divide"));
+    expect(helpers.includes("add")).toBeTruthy();
+    expect(helpers.includes("subtract")).toBeTruthy();
+    expect(helpers.includes("multiply")).toBeTruthy();
+    expect(helpers.includes("divide")).toBeTruthy();
 
     // Platform helpers
-    assert.ok(helpers.includes("hashtag"));
-    assert.ok(helpers.includes("mention"));
-    assert.ok(helpers.includes("link"));
+    expect(helpers.includes("hashtag")).toBeTruthy();
+    expect(helpers.includes("mention")).toBeTruthy();
+    expect(helpers.includes("link")).toBeTruthy();
   });
 
   it("should use Handlebars helpers in templates", async () => {
@@ -239,7 +237,7 @@ describe("Template Engine Module - Integration with BaseTemplateEngine", () => {
     const engine = module.templateEngine;
 
     const result = engine.render("{{uppercase text}}", { text: "hello" });
-    assert.strictEqual(result.content, "HELLO");
+    expect(result.content).toBe("HELLO");
   });
 
   it("should use platform-specific helpers", async () => {
@@ -247,7 +245,7 @@ describe("Template Engine Module - Integration with BaseTemplateEngine", () => {
     const engine = module.templateEngine;
 
     const result = engine.render("{{hashtag tag}}", { tag: "test" });
-    assert.strictEqual(result.content, "#test");
+    expect(result.content).toBe("#test");
   });
 
   it("should handle complex helper combinations", async () => {
@@ -256,6 +254,6 @@ describe("Template Engine Module - Integration with BaseTemplateEngine", () => {
 
     const template = "{{uppercase (hashtag tag)}}";
     const result = engine.render(template, { tag: "test" });
-    assert.strictEqual(result.content, "#TEST");
+    expect(result.content).toBe("#TEST");
   });
 });

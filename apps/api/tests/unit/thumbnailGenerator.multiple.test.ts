@@ -3,8 +3,7 @@
  * Tests generateMultipleThumbnails() with specific positions,
  * count-based even distribution, and single-thumbnail fallback.
  */
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { ThumbnailGenerator, type ThumbnailOptions } from "../../src/video/thumbnailGenerator";
 import { promises as fs } from "fs";
 import {
@@ -14,12 +13,12 @@ import {
   setupFsMocks,
 } from "./thumbnailGenerator.test-helpers";
 
-describe("ThumbnailGenerator - Multiple Thumbnails", { concurrency: 1 }, () => {
+describe("ThumbnailGenerator - Multiple Thumbnails", () => {
   let generator: ThumbnailGenerator;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     generator = new ThumbnailGenerator(createMockSpawn());
-    setupFsMocks(t, fs);
+    setupFsMocks(fs);
   });
 
   it("should generate multiple thumbnails at specific positions", async () => {
@@ -45,10 +44,10 @@ describe("ThumbnailGenerator - Multiple Thumbnails", { concurrency: 1 }, () => {
 
     const results = await generator.generateMultipleThumbnails(videoPath, outputDir, options);
 
-    assert.equal(results.length, 4);
+    expect(results.length).toBe(4);
     results.forEach((result, index) => {
-      assert.equal(result.timestamp, options.positions![index]);
-      assert.ok(result.outputPath.includes(`thumbnail_${index + 1}.jpg`));
+      expect(result.timestamp).toBe(options.positions![index]);
+      expect(result.outputPath.includes(`thumbnail_${index + 1}.jpg`)).toBeTruthy();
     });
   });
 
@@ -76,10 +75,10 @@ describe("ThumbnailGenerator - Multiple Thumbnails", { concurrency: 1 }, () => {
 
     const results = await generator.generateMultipleThumbnails(videoPath, outputDir, options);
 
-    assert.equal(results.length, 5);
+    expect(results.length).toBe(5);
     results.forEach((result) => {
-      assert.ok(result.timestamp >= 0);
-      assert.ok(result.timestamp <= 60);
+      expect(result.timestamp >= 0).toBeTruthy();
+      expect(result.timestamp <= 60).toBeTruthy();
     });
   });
 
@@ -106,7 +105,7 @@ describe("ThumbnailGenerator - Multiple Thumbnails", { concurrency: 1 }, () => {
       options
     );
 
-    assert.equal(results.length, 1);
-    assert.equal(results[0]!.timestamp, 10);
+    expect(results.length).toBe(1);
+    expect(results[0]!.timestamp).toBe(10);
   });
 });

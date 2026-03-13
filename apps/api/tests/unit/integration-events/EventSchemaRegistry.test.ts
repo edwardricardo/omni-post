@@ -10,8 +10,7 @@
  * - Custom schemas are registered via registry.register() for multi-version tests.
  */
 
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { z } from "zod";
 import { EventSchemaRegistry } from "../../../src/infrastructure/integration-events/EventSchemaRegistry.js";
 
@@ -19,10 +18,10 @@ import { EventSchemaRegistry } from "../../../src/infrastructure/integration-eve
 // Default registry (pre-populated with all 12 production events at v1)
 // ---------------------------------------------------------------------------
 
-describe("EventSchemaRegistry — default constructor", { concurrency: 1 }, () => {
+describe("EventSchemaRegistry — default constructor", () => {
   let registry: EventSchemaRegistry;
 
-  before(() => {
+  beforeAll(() => {
     registry = new EventSchemaRegistry();
   });
 
@@ -43,42 +42,42 @@ describe("EventSchemaRegistry — default constructor", { concurrency: 1 }, () =
     ].sort();
 
     const registered = registry.registeredEventTypes.sort();
-    assert.deepEqual(registered, expected);
+    expect(registered).toEqual(expected);
   });
 
   it("getCurrentVersion returns 1 for all pre-registered events", () => {
     for (const eventType of registry.registeredEventTypes) {
       const version = registry.getCurrentVersion(eventType);
-      assert.equal(version, 1, `Expected version 1 for ${eventType}`);
+      expect(version).toBe(1);
     }
   });
 
   it("getSchema returns a schema for PostCreated v1", () => {
     const schema = registry.getSchema("PostCreated", 1);
-    assert.ok(schema !== undefined, "schema should be defined");
+    expect(schema !== undefined).toBeTruthy();
   });
 
   it("getSchema returns undefined for unknown event type", () => {
     const schema = registry.getSchema("UnknownEvent", 1);
-    assert.equal(schema, undefined);
+    expect(schema).toBe(undefined);
   });
 
   it("getSchema returns undefined for unknown version of known event type", () => {
     const schema = registry.getSchema("PostCreated", 99);
-    assert.equal(schema, undefined);
+    expect(schema).toBe(undefined);
   });
 
   it("getCurrentVersion returns undefined for unknown event type", () => {
     const version = registry.getCurrentVersion("SomeOtherEvent");
-    assert.equal(version, undefined);
+    expect(version).toBe(undefined);
   });
 
   it("hasEventType returns true for PostPublished", () => {
-    assert.equal(registry.hasEventType("PostPublished"), true);
+    expect(registry.hasEventType("PostPublished")).toBe(true);
   });
 
   it("hasEventType returns false for unknown event type", () => {
-    assert.equal(registry.hasEventType("UnknownEvent"), false);
+    expect(registry.hasEventType("UnknownEvent")).toBe(false);
   });
 });
 
@@ -86,10 +85,10 @@ describe("EventSchemaRegistry — default constructor", { concurrency: 1 }, () =
 // Validation — correct payloads
 // ---------------------------------------------------------------------------
 
-describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }, () => {
+describe("EventSchemaRegistry — validate correct payloads", () => {
   let registry: EventSchemaRegistry;
 
-  before(() => {
+  beforeAll(() => {
     registry = new EventSchemaRegistry();
   });
 
@@ -100,7 +99,7 @@ describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }
       body: "Hello world",
       locale: "en",
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("validates PostCreated v1 with optional title present", () => {
@@ -111,7 +110,7 @@ describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }
       locale: "es",
       title: "My Post",
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("validates PostPublished v1 with providerResults", () => {
@@ -123,7 +122,7 @@ describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }
         instagram: { success: false, error: "Token expired" },
       },
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("validates PostScheduled v1", () => {
@@ -132,7 +131,7 @@ describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }
       scheduledAt: "2026-03-01T10:00:00.000Z",
       timezone: "America/New_York",
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("validates PostPublishingFailed v1", () => {
@@ -142,7 +141,7 @@ describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }
       failedProviders: ["twitter", "instagram"],
       retryable: true,
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("validates PostCancelled v1 with optional reason present", () => {
@@ -151,7 +150,7 @@ describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }
       previousStatus: "SCHEDULED",
       reason: "User cancelled",
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("validates PostCancelled v1 without optional reason", () => {
@@ -159,7 +158,7 @@ describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }
       postId: "post-5",
       previousStatus: "SCHEDULED",
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("validates CrisisModeEntered v1", () => {
@@ -168,7 +167,7 @@ describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }
       reason: "Account compromised",
       startedAt: "2026-02-23T08:00:00.000Z",
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("validates CrisisModeExited v1", () => {
@@ -179,7 +178,7 @@ describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }
       endedAt: "2026-02-23T09:00:00.000Z",
       durationMs: 3600000,
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 });
 
@@ -187,10 +186,10 @@ describe("EventSchemaRegistry — validate correct payloads", { concurrency: 1 }
 // Validation — invalid payloads
 // ---------------------------------------------------------------------------
 
-describe("EventSchemaRegistry — validate invalid payloads", { concurrency: 1 }, () => {
+describe("EventSchemaRegistry — validate invalid payloads", () => {
   let registry: EventSchemaRegistry;
 
-  before(() => {
+  beforeAll(() => {
     registry = new EventSchemaRegistry();
   });
 
@@ -201,8 +200,8 @@ describe("EventSchemaRegistry — validate invalid payloads", { concurrency: 1 }
       body: "Hello",
       locale: "en",
     });
-    assert.equal(result.ok, false);
-    assert.ok(!result.ok && result.errors.length > 0, "should have errors");
+    expect(result.ok).toBe(false);
+    expect(result.ok && result.errors.length > 0).toBeFalsy();
   });
 
   it("returns error for wrong type in PostPublishingFailed.retryable", () => {
@@ -212,14 +211,14 @@ describe("EventSchemaRegistry — validate invalid payloads", { concurrency: 1 }
       failedProviders: ["twitter"],
       retryable: "yes", // should be boolean
     });
-    assert.equal(result.ok, false);
-    assert.ok(!result.ok && result.errors.length > 0);
+    expect(result.ok).toBe(false);
+    expect(result.ok && result.errors.length > 0).toBeFalsy();
   });
 
   it("returns error for unknown event type", () => {
     const result = registry.validate("UnknownEvent", 1, { anything: true });
-    assert.equal(result.ok, false);
-    assert.ok(!result.ok && result.errors[0]?.includes("No schema registered"));
+    expect(result.ok).toBe(false);
+    expect(result.ok && result.errors[0]?.includes("No schema registered")).toBeFalsy();
   });
 
   it("returns error for unknown version of known event type", () => {
@@ -229,8 +228,8 @@ describe("EventSchemaRegistry — validate invalid payloads", { concurrency: 1 }
       body: "Hello",
       locale: "en",
     });
-    assert.equal(result.ok, false);
-    assert.ok(!result.ok && result.errors[0]?.includes("No schema registered"));
+    expect(result.ok).toBe(false);
+    expect(result.ok && result.errors[0]?.includes("No schema registered")).toBeFalsy();
   });
 
   it("returns error for CrisisModeExited with non-number durationMs", () => {
@@ -241,7 +240,7 @@ describe("EventSchemaRegistry — validate invalid payloads", { concurrency: 1 }
       endedAt: "2026-02-23T09:00:00.000Z",
       durationMs: "3600000", // should be number
     });
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
   });
 });
 
@@ -249,10 +248,10 @@ describe("EventSchemaRegistry — validate invalid payloads", { concurrency: 1 }
 // Multiple versions for the same event type
 // ---------------------------------------------------------------------------
 
-describe("EventSchemaRegistry — multiple versions", { concurrency: 1 }, () => {
+describe("EventSchemaRegistry — multiple versions", () => {
   let registry: EventSchemaRegistry;
 
-  before(() => {
+  beforeAll(() => {
     registry = new EventSchemaRegistry();
     // Register a v2 schema for PostCreated that adds a new required field
     registry.register(
@@ -271,15 +270,15 @@ describe("EventSchemaRegistry — multiple versions", { concurrency: 1 }, () => 
 
   it("getCurrentVersion returns 2 after registering v2", () => {
     const version = registry.getCurrentVersion("PostCreated");
-    assert.equal(version, 2);
+    expect(version).toBe(2);
   });
 
   it("getSchema v1 and v2 return different schemas", () => {
     const v1 = registry.getSchema("PostCreated", 1);
     const v2 = registry.getSchema("PostCreated", 2);
-    assert.ok(v1 !== undefined);
-    assert.ok(v2 !== undefined);
-    assert.ok(v1 !== v2, "v1 and v2 schemas should be different objects");
+    expect(v1 !== undefined).toBeTruthy();
+    expect(v2 !== undefined).toBeTruthy();
+    expect(v1 !== v2).toBeTruthy();
   });
 
   it("v1 payload is valid against v1 schema", () => {
@@ -289,7 +288,7 @@ describe("EventSchemaRegistry — multiple versions", { concurrency: 1 }, () => 
       body: "Hello",
       locale: "en",
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("v2 payload with tags is valid against v2 schema", () => {
@@ -300,7 +299,7 @@ describe("EventSchemaRegistry — multiple versions", { concurrency: 1 }, () => 
       locale: "en",
       tags: ["news", "tech"],
     });
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("v1 payload (missing tags) fails v2 schema", () => {
@@ -311,7 +310,7 @@ describe("EventSchemaRegistry — multiple versions", { concurrency: 1 }, () => 
       locale: "en",
       // no tags — required in v2
     });
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
   });
 
   it("registering a third version updates getCurrentVersion to 3", () => {
@@ -328,14 +327,14 @@ describe("EventSchemaRegistry — multiple versions", { concurrency: 1 }, () => 
         contentType: z.enum(["text", "image", "video"]), // new in v3
       })
     );
-    assert.equal(registry.getCurrentVersion("PostCreated"), 3);
+    expect(registry.getCurrentVersion("PostCreated")).toBe(3);
   });
 
   it("custom event type registered in isolation has correct version", () => {
     const fresh = new EventSchemaRegistry();
     fresh.register("MyCustomEvent", 5, z.object({ id: z.string() }));
-    assert.equal(fresh.getCurrentVersion("MyCustomEvent"), 5);
-    assert.equal(fresh.getSchema("MyCustomEvent", 5) !== undefined, true);
-    assert.equal(fresh.getSchema("MyCustomEvent", 1), undefined);
+    expect(fresh.getCurrentVersion("MyCustomEvent")).toBe(5);
+    expect(fresh.getSchema("MyCustomEvent", 5) !== undefined).toBe(true);
+    expect(fresh.getSchema("MyCustomEvent", 1)).toBe(undefined);
   });
 });

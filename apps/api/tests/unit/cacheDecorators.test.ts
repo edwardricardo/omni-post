@@ -15,8 +15,7 @@
  * Converted to node:test standard
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   withCache,
   withInvalidation,
@@ -162,9 +161,9 @@ describe("Cache Decorators - withCache", () => {
     const handler = withCache(async () => ({ data: "fresh" }));
     const result = await handler(request, reply);
 
-    assert.deepStrictEqual(result, { data: "cached" });
-    assert.strictEqual(cache.getCalls.length, 1);
-    assert.strictEqual(cache.setCalls.length, 1); // From pre-populate
+    expect(result).toStrictEqual({ data: "cached" });
+    expect(cache.getCalls.length).toBe(1);
+    expect(cache.setCalls.length).toBe(1); // From pre-populate
   });
 
   it("should execute handler on cache miss", async () => {
@@ -175,9 +174,9 @@ describe("Cache Decorators - withCache", () => {
     const handler = withCache(async () => ({ data: "fresh" }));
     const result = await handler(request, reply);
 
-    assert.deepStrictEqual(result, { data: "fresh" });
-    assert.strictEqual(cache.getCalls.length, 1);
-    assert.strictEqual(cache.setCalls.length, 1);
+    expect(result).toStrictEqual({ data: "fresh" });
+    expect(cache.getCalls.length).toBe(1);
+    expect(cache.setCalls.length).toBe(1);
   });
 
   it("should use custom key generator when provided", async () => {
@@ -188,7 +187,7 @@ describe("Cache Decorators - withCache", () => {
     const handler = withCache(async () => ({ data: "test" }), { keyGenerator: () => "custom-key" });
     await handler(request, reply);
 
-    assert.ok(cache.getCalls.includes("custom-key"));
+    expect(cache.getCalls.includes("custom-key")).toBeTruthy();
   });
 
   it("should respect shouldCache condition", async () => {
@@ -202,7 +201,7 @@ describe("Cache Decorators - withCache", () => {
     await handler(request, reply);
 
     // Should execute but not cache
-    assert.strictEqual(cache.setCalls.length, 0);
+    expect(cache.setCalls.length).toBe(0);
   });
 
   it("should transform data before caching", async () => {
@@ -216,8 +215,8 @@ describe("Cache Decorators - withCache", () => {
     await handler(request, reply);
 
     const cached = cache.setCalls[0];
-    assert.ok(cached, "Should have cached a value");
-    assert.deepStrictEqual(cached.value, { data: "ORIGINAL" });
+    expect(cached).toBeTruthy();
+    expect(cached.value).toStrictEqual({ data: "ORIGINAL" });
   });
 
   it("should transform data after retrieving from cache", async () => {
@@ -232,7 +231,7 @@ describe("Cache Decorators - withCache", () => {
     });
     const result = await handler(request, reply);
 
-    assert.deepStrictEqual(result, { data: "CACHED" });
+    expect(result).toStrictEqual({ data: "CACHED" });
   });
 
   it("should handle cache errors gracefully", async () => {
@@ -246,7 +245,7 @@ describe("Cache Decorators - withCache", () => {
     const handler = withCache(async () => ({ data: "fallback" }));
     const result = await handler(request, reply);
 
-    assert.deepStrictEqual(result, { data: "fallback" });
+    expect(result).toStrictEqual({ data: "fallback" });
   });
 
   it("should work when cache manager is not available", async () => {
@@ -257,7 +256,7 @@ describe("Cache Decorators - withCache", () => {
     const handler = withCache(async () => ({ data: "no-cache" }));
     const result = await handler(request, reply);
 
-    assert.deepStrictEqual(result, { data: "no-cache" });
+    expect(result).toStrictEqual({ data: "no-cache" });
   });
 
   it("should set cache headers on hit", async () => {
@@ -271,7 +270,7 @@ describe("Cache Decorators - withCache", () => {
     await handler(request, reply);
 
     const headers = (reply as any).getHeaders();
-    assert.strictEqual(headers["X-Cache"], "HIT");
+    expect(headers["X-Cache"]).toBe("HIT");
   });
 
   it("should set cache headers on miss", async () => {
@@ -282,7 +281,7 @@ describe("Cache Decorators - withCache", () => {
     await handler(request, reply);
 
     const headers = (reply as any).getHeaders();
-    assert.strictEqual(headers["X-Cache"], "MISS");
+    expect(headers["X-Cache"]).toBe("MISS");
   });
 });
 
@@ -297,9 +296,11 @@ describe("Cache Decorators - withInvalidation", () => {
     });
     await handler(request, reply);
 
-    assert.strictEqual(cache.invalidateCalls.length, 2);
-    assert.ok(cache.invalidateCalls.some((c) => c.type === "tag" && c.value === "posts"));
-    assert.ok(cache.invalidateCalls.some((c) => c.type === "tag" && c.value === "dashboard"));
+    expect(cache.invalidateCalls.length).toBe(2);
+    expect(cache.invalidateCalls.some((c) => c.type === "tag" && c.value === "posts")).toBeTruthy();
+    expect(
+      cache.invalidateCalls.some((c) => c.type === "tag" && c.value === "dashboard")
+    ).toBeTruthy();
   });
 
   it("should invalidate by patterns", async () => {
@@ -312,9 +313,9 @@ describe("Cache Decorators - withInvalidation", () => {
     });
     await handler(request, reply);
 
-    assert.ok(
+    expect(
       cache.invalidateCalls.some((c) => c.type === "pattern" && c.value === "api:*:posts:*")
-    );
+    ).toBeTruthy();
   });
 
   it("should execute custom invalidation logic", async () => {
@@ -329,7 +330,7 @@ describe("Cache Decorators - withInvalidation", () => {
     });
     await handler(request, reply);
 
-    assert.strictEqual(customInvalidationCalled, true);
+    expect(customInvalidationCalled).toBe(true);
   });
 
   it("should auto-invalidate based on route configuration", async () => {
@@ -345,7 +346,7 @@ describe("Cache Decorators - withInvalidation", () => {
     await handler(request, reply);
 
     // Should auto-invalidate based on CACHE_INVALIDATION_RULES
-    assert.ok(cache.invalidateCalls.length > 0);
+    expect(cache.invalidateCalls.length > 0).toBeTruthy();
   });
 
   it("should handle invalidation errors gracefully", async () => {
@@ -361,7 +362,7 @@ describe("Cache Decorators - withInvalidation", () => {
 
     // Should not throw
     const result = await handler(request, reply);
-    assert.deepStrictEqual(result, { success: true });
+    expect(result).toStrictEqual({ success: true });
   });
 
   it("should work when cache manager is not available", async () => {
@@ -372,7 +373,7 @@ describe("Cache Decorators - withInvalidation", () => {
     const handler = withInvalidation(async () => ({ success: true }), { tags: ["test"] });
     const result = await handler(request, reply);
 
-    assert.deepStrictEqual(result, { success: true });
+    expect(result).toStrictEqual({ success: true });
   });
 });
 
@@ -389,8 +390,8 @@ describe("Cache Decorators - withCacheAndInvalidation", () => {
     );
     await handler(request, reply);
 
-    assert.ok(cache.setCalls.length > 0);
-    assert.ok(cache.invalidateCalls.length > 0);
+    expect(cache.setCalls.length > 0).toBeTruthy();
+    expect(cache.invalidateCalls.length > 0).toBeTruthy();
   });
 });
 
@@ -405,8 +406,8 @@ describe("Cache Decorators - generateDefaultCacheKey", () => {
     });
 
     const key = generateDefaultCacheKey(request);
-    assert.ok(key.includes("GET"));
-    assert.ok(key.includes("/posts"));
+    expect(key.includes("GET")).toBeTruthy();
+    expect(key.includes("/posts")).toBeTruthy();
   });
 
   it("should include user ID when available", () => {
@@ -418,7 +419,7 @@ describe("Cache Decorators - generateDefaultCacheKey", () => {
     (request as any).user = { id: "user-123" };
 
     const key = generateDefaultCacheKey(request);
-    assert.ok(key.includes("user=user-123"));
+    expect(key.includes("user=user-123")).toBeTruthy();
   });
 });
 
@@ -429,7 +430,7 @@ describe("Cache Decorators - cacheGetOrSet", () => {
 
     const result = await cacheGetOrSet(cache, "test-key", async () => ({ data: "fresh" }));
 
-    assert.deepStrictEqual(result, { data: "cached" });
+    expect(result).toStrictEqual({ data: "cached" });
   });
 
   it("should call factory and cache on miss", async () => {
@@ -437,7 +438,7 @@ describe("Cache Decorators - cacheGetOrSet", () => {
 
     const result = await cacheGetOrSet(cache, "new-key", async () => ({ data: "fresh" }));
 
-    assert.deepStrictEqual(result, { data: "fresh" });
+    expect(result).toStrictEqual({ data: "fresh" });
   });
 
   it("should throw on cache operation failure", async () => {
@@ -445,14 +446,11 @@ describe("Cache Decorators - cacheGetOrSet", () => {
       getOrSet: async () => ({ ok: false, error: "Failed" }) as any,
     };
 
-    await assert.rejects(
-      async () => {
-        await cacheGetOrSet(failingCache as RedisCacheManager, "test-key", async () => ({
-          data: "test",
-        }));
-      },
-      { message: /Cache operation failed/ }
-    );
+    await expect(
+      cacheGetOrSet(failingCache as RedisCacheManager, "test-key", async () => ({
+        data: "test",
+      }))
+    ).rejects.toThrow(/Cache operation failed/);
   });
 });
 
@@ -464,9 +462,9 @@ describe("Cache Decorators - batchInvalidate", () => {
       tags: ["posts", "dashboard", "analytics"],
     });
 
-    assert.ok(result.invalidatedCount >= 0);
+    expect(result.invalidatedCount >= 0).toBeTruthy();
     const mockCache = cache as any as MockCacheManager;
-    assert.strictEqual(mockCache.invalidateCalls.length, 3);
+    expect(mockCache.invalidateCalls.length).toBe(3);
   });
 
   it("should invalidate multiple patterns", async () => {
@@ -476,7 +474,7 @@ describe("Cache Decorators - batchInvalidate", () => {
       patterns: ["api:*:posts:*", "api:*:users:*"],
     });
 
-    assert.ok(result.invalidatedCount >= 0);
+    expect(result.invalidatedCount >= 0).toBeTruthy();
   });
 
   it("should invalidate specific keys", async () => {
@@ -486,7 +484,7 @@ describe("Cache Decorators - batchInvalidate", () => {
       keys: ["key1", "key2", "key3"],
     });
 
-    assert.strictEqual(result.invalidatedCount, 3);
+    expect(result.invalidatedCount).toBe(3);
   });
 
   it("should handle invalidation errors gracefully", async () => {
@@ -497,7 +495,7 @@ describe("Cache Decorators - batchInvalidate", () => {
     };
 
     const result = await batchInvalidate(failingCache as RedisCacheManager, { tags: ["test"] });
-    assert.strictEqual(result.invalidatedCount, 0);
+    expect(result.invalidatedCount).toBe(0);
   });
 });
 
@@ -518,8 +516,8 @@ describe("Cache Decorators - warmCache", () => {
       },
     ]);
 
-    assert.strictEqual(result.warmedCount, 2);
-    assert.strictEqual(result.failedCount, 0);
+    expect(result.warmedCount).toBe(2);
+    expect(result.failedCount).toBe(0);
   });
 
   it("should count failures when factory throws", async () => {
@@ -534,8 +532,8 @@ describe("Cache Decorators - warmCache", () => {
       },
     ]);
 
-    assert.strictEqual(result.warmedCount, 0);
-    assert.strictEqual(result.failedCount, 1);
+    expect(result.warmedCount).toBe(0);
+    expect(result.failedCount).toBe(1);
   });
 });
 
@@ -545,13 +543,13 @@ describe("Cache Decorators - getCacheStatistics", () => {
 
     const stats = await getCacheStatistics(cache);
 
-    assert.strictEqual(stats.hitRate, 0.85);
-    assert.strictEqual(stats.totalKeys, 100);
-    assert.strictEqual(stats.memoryUsage, 1024000);
-    assert.strictEqual(stats.l1Hits, 50);
-    assert.strictEqual(stats.l2Hits, 35);
-    assert.ok(Array.isArray(stats.hotKeys));
-    assert.strictEqual(stats.hotKeys.length, 2);
+    expect(stats.hitRate).toBe(0.85);
+    expect(stats.totalKeys).toBe(100);
+    expect(stats.memoryUsage).toBe(1024000);
+    expect(stats.l1Hits).toBe(50);
+    expect(stats.l2Hits).toBe(35);
+    expect(Array.isArray(stats.hotKeys)).toBeTruthy();
+    expect(stats.hotKeys.length).toBe(2);
   });
 
   it("should throw when stats retrieval fails", async () => {
@@ -559,11 +557,8 @@ describe("Cache Decorators - getCacheStatistics", () => {
       getStats: async () => ({ ok: false, error: "Stats failed" }) as any,
     };
 
-    await assert.rejects(
-      async () => {
-        await getCacheStatistics(failingCache as RedisCacheManager);
-      },
-      { message: /Failed to get cache statistics/ }
+    await expect(getCacheStatistics(failingCache as RedisCacheManager)).rejects.toThrow(
+      /Failed to get cache statistics/
     );
   });
 });
@@ -577,7 +572,7 @@ describe("Cache Decorators - createInvalidationMiddleware", () => {
     await middleware(request, reply);
 
     const cache = (request.server as any).cache as MockCacheManager;
-    assert.strictEqual(cache.invalidateCalls.length, 0);
+    expect(cache.invalidateCalls.length).toBe(0);
   });
 
   it("should invalidate on successful POST", async () => {
@@ -613,6 +608,6 @@ describe("Cache Decorators - createInvalidationMiddleware", () => {
 
     const cache = (request.server as any).cache as MockCacheManager;
     // Should not invalidate on 4xx/5xx - invalidation only happens on success
-    assert.strictEqual(cache.invalidateCalls.length, 0, "Should not invalidate on error responses");
+    expect(cache.invalidateCalls.length).toBe(0);
   });
 });

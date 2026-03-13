@@ -1,73 +1,73 @@
 /**
- * Unit Tests for AccountLifecycleService (node:test)
- * Testing account creation, suspension, reactivation, and deletion
+ * @file accountLifecycleService.test.ts
+ * @description Unit tests for AccountLifecycleService.
+ *              Uses in-memory mocked Prisma stores — no real database needed.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { AccountLifecycleService } from "../../src/admin/accountLifecycleService.js";
-import { prisma } from "@infra/prisma";
-import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { describe, it, beforeEach, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 
-// Instantiate service with injected Prisma repository (proper DI pattern)
-const accountLifecycleService = new AccountLifecycleService(new PrismaAdminUserRepository(prisma));
+// ---------------------------------------------------------------------------
+// Mock setup — must come BEFORE any SUT imports
+// ---------------------------------------------------------------------------
 
-const timestamp = Date.now();
-let testAccountId: string;
+const { mockPrisma, stores } = createMockPrismaModule();
 
-describe("AccountLifecycleService", { concurrency: 1 }, () => {
-  before(async () => {
-    // Clean up any existing test data from previous runs
-    await prisma.adminUser.deleteMany({
-      where: {
-        email: {
-          contains: `test-lifecycle-${timestamp}`,
-        },
-      },
-    });
-  });
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
 
-  after(async () => {
-    // Clean up test data
-    try {
-      if (testAccountId) {
-        // Delete sessions first due to foreign key constraint
-        await prisma.adminSession.deleteMany({
-          where: { userId: testAccountId },
-        });
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
 
-        // Update audit logs to remove user reference
-        await prisma.auditLog.updateMany({
-          where: { userId: testAccountId },
-          data: { userId: null },
-        });
+// ---------------------------------------------------------------------------
+// Import SUT after mocks
+// ---------------------------------------------------------------------------
 
-        // Delete the user
-        await prisma.adminUser
-          .delete({
-            where: { id: testAccountId },
-          })
-          .catch(() => {
-            // Ignore if already deleted
-          });
-      }
+const { AccountLifecycleService } = await import("../../src/admin/accountLifecycleService.js");
+const { PrismaAdminUserRepository } = await import(
+  "../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
+);
 
-      // Clean up any other test accounts
-      await prisma.adminUser.deleteMany({
-        where: {
-          email: {
-            contains: `test-lifecycle-${timestamp}`,
-          },
-        },
-      });
-    } catch (error) {
-      console.error("Cleanup error:", error);
-    }
+// ---------------------------------------------------------------------------
+// Test suite
+// ---------------------------------------------------------------------------
+
+describe("AccountLifecycleService", () => {
+  let accountLifecycleService: InstanceType<typeof AccountLifecycleService>;
+  let testAccountId: string;
+
+  beforeEach(() => {
+    stores.adminUser.clear();
+    stores.adminSession.clear();
+    stores.auditLog.clear();
+
+    // Recreate service each run with fresh mock prisma
+    accountLifecycleService = new AccountLifecycleService(
+      new PrismaAdminUserRepository(mockPrisma.prisma as never)
+    );
   });
 
   describe("createAccount", () => {
     it("should create account successfully", async () => {
-      const testEmail = `test-lifecycle-${timestamp}@example.com`;
+      const testEmail = `test-lifecycle-${Date.now()}@example.com`;
       const createResult = await accountLifecycleService.createAccount({
         email: testEmail,
         password: "SecurePassword123!",
@@ -75,65 +75,96 @@ describe("AccountLifecycleService", { concurrency: 1 }, () => {
         role: "ADMIN",
       });
 
-      assert.strictEqual(createResult.ok, true);
+      expect(createResult.ok).toBe(true);
       if (createResult.ok) {
-        assert.strictEqual(createResult.value.email, testEmail.toLowerCase());
-        assert.strictEqual(createResult.value.role, "ADMIN");
+        expect(createResult.value.email).toBe(testEmail.toLowerCase());
+        expect(createResult.value.role).toBe("ADMIN");
         testAccountId = createResult.value.id;
       }
     });
 
     it("should reject duplicate email", async () => {
-      const testEmail = `test-lifecycle-${timestamp}@example.com`;
+      const testEmail = `test-lifecycle-dup@example.com`;
+      // Create first
+      await accountLifecycleService.createAccount({
+        email: testEmail,
+        password: "SecurePassword123!",
+        name: "First User",
+        role: "ADMIN",
+      });
+
+      // Attempt duplicate
       const duplicateResult = await accountLifecycleService.createAccount({
         email: testEmail,
         password: "SecurePassword123!",
         name: "Duplicate User",
       });
 
-      assert.strictEqual(duplicateResult.ok, false);
+      expect(duplicateResult.ok).toBe(false);
       if (!duplicateResult.ok) {
-        assert.strictEqual(duplicateResult.error, "EMAIL_EXISTS");
+        expect(duplicateResult.error).toBe("EMAIL_EXISTS");
       }
     });
 
     it("should reject weak password", async () => {
       const weakPasswordResult = await accountLifecycleService.createAccount({
-        email: `weak-${timestamp}@example.com`,
+        email: `weak-${Date.now()}@example.com`,
         password: "weak",
         name: "Weak Password User",
       });
 
-      assert.strictEqual(weakPasswordResult.ok, false);
+      expect(weakPasswordResult.ok).toBe(false);
       if (!weakPasswordResult.ok) {
-        assert.strictEqual(weakPasswordResult.error, "VALIDATION_ERROR");
+        expect(weakPasswordResult.error).toBe("VALIDATION_ERROR");
       }
     });
   });
 
   describe("getAccount", () => {
     it("should retrieve account successfully", async () => {
+      const testEmail = `test-get-${Date.now()}@example.com`;
+      const createResult = await accountLifecycleService.createAccount({
+        email: testEmail,
+        password: "SecurePassword123!",
+        name: "Test Lifecycle User",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      testAccountId = createResult.value.id;
+
       const getResult = await accountLifecycleService.getAccount(testAccountId);
 
-      assert.strictEqual(getResult.ok, true);
+      expect(getResult.ok).toBe(true);
       if (getResult.ok) {
-        assert.strictEqual(getResult.value.id, testAccountId);
-        assert.strictEqual(getResult.value.email, `test-lifecycle-${timestamp}@example.com`);
+        expect(getResult.value.id).toBe(testAccountId);
+        expect(getResult.value.email).toBe(testEmail.toLowerCase());
       }
     });
 
     it("should return NOT_FOUND for non-existent account", async () => {
       const notFoundResult = await accountLifecycleService.getAccount("non-existent-id");
 
-      assert.strictEqual(notFoundResult.ok, false);
+      expect(notFoundResult.ok).toBe(false);
       if (!notFoundResult.ok) {
-        assert.strictEqual(notFoundResult.error, "NOT_FOUND");
+        expect(notFoundResult.error).toBe("NOT_FOUND");
       }
     });
   });
 
   describe("updateAccount", () => {
     it("should update account successfully", async () => {
+      // Create account first
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-update-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Original Name",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      testAccountId = createResult.value.id;
+
       const updateResult = await accountLifecycleService.updateAccount(
         testAccountId,
         {
@@ -143,78 +174,134 @@ describe("AccountLifecycleService", { concurrency: 1 }, () => {
         undefined
       );
 
-      assert.strictEqual(updateResult.ok, true);
+      expect(updateResult.ok).toBe(true);
       if (updateResult.ok) {
-        assert.strictEqual(updateResult.value.name, "Updated Lifecycle User");
-        assert.strictEqual(updateResult.value.role, "SUPPORT");
+        expect(updateResult.value.name).toBe("Updated Lifecycle User");
+        expect(updateResult.value.role).toBe("SUPPORT");
       }
     });
   });
 
   describe("suspendAccount", () => {
     it("should suspend account successfully", async () => {
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-suspend-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Suspend Test",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      testAccountId = createResult.value.id;
+
       const suspendResult = await accountLifecycleService.suspendAccount(
         testAccountId,
         "Test suspension",
         undefined
       );
 
-      assert.strictEqual(suspendResult.ok, true);
+      expect(suspendResult.ok).toBe(true);
 
       // Verify suspension by checking account
       const suspendedAccount = await accountLifecycleService.getAccount(testAccountId);
-      assert.strictEqual(suspendedAccount.ok, true);
+      expect(suspendedAccount.ok).toBe(true);
       if (suspendedAccount.ok) {
-        assert.strictEqual(suspendedAccount.value.isActive, false);
+        expect(suspendedAccount.value.isActive).toBe(false);
       }
     });
 
     it("should detect already suspended account", async () => {
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-already-suspended-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Already Suspended",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      testAccountId = createResult.value.id;
+
+      // Suspend first time
+      await accountLifecycleService.suspendAccount(testAccountId, "First suspend", undefined);
+
+      // Try again
       const alreadySuspendedResult = await accountLifecycleService.suspendAccount(
         testAccountId,
         "Already suspended",
         undefined
       );
 
-      assert.strictEqual(alreadySuspendedResult.ok, false);
+      expect(alreadySuspendedResult.ok).toBe(false);
       if (!alreadySuspendedResult.ok) {
-        assert.strictEqual(alreadySuspendedResult.error, "ALREADY_SUSPENDED");
+        expect(alreadySuspendedResult.error).toBe("ALREADY_SUSPENDED");
       }
     });
   });
 
   describe("reactivateAccount", () => {
     it("should reactivate account successfully", async () => {
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-reactivate-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Reactivate Test",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      testAccountId = createResult.value.id;
+
+      // Suspend first
+      await accountLifecycleService.suspendAccount(testAccountId, "To reactivate", undefined);
+
       const reactivateResult = await accountLifecycleService.reactivateAccount(
         testAccountId,
         undefined
       );
 
-      assert.strictEqual(reactivateResult.ok, true);
+      expect(reactivateResult.ok).toBe(true);
 
-      // Verify reactivation by checking account
       const reactivatedAccount = await accountLifecycleService.getAccount(testAccountId);
-      assert.strictEqual(reactivatedAccount.ok, true);
+      expect(reactivatedAccount.ok).toBe(true);
       if (reactivatedAccount.ok) {
-        assert.strictEqual(reactivatedAccount.value.isActive, true);
+        expect(reactivatedAccount.value.isActive).toBe(true);
       }
     });
 
     it("should detect already active account", async () => {
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-already-active-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Already Active",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      testAccountId = createResult.value.id;
+
       const alreadyActiveResult = await accountLifecycleService.reactivateAccount(
         testAccountId,
         undefined
       );
 
-      assert.strictEqual(alreadyActiveResult.ok, false);
+      expect(alreadyActiveResult.ok).toBe(false);
       if (!alreadyActiveResult.ok) {
-        assert.strictEqual(alreadyActiveResult.error, "ALREADY_ACTIVE");
+        expect(alreadyActiveResult.error).toBe("ALREADY_ACTIVE");
       }
     });
   });
 
   describe("resetPassword", () => {
     it("should reset password successfully", async () => {
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-reset-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Reset Test",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      testAccountId = createResult.value.id;
+
       const resetPasswordResult = await accountLifecycleService.resetPassword(
         testAccountId,
         {
@@ -224,39 +311,69 @@ describe("AccountLifecycleService", { concurrency: 1 }, () => {
         undefined
       );
 
-      assert.strictEqual(resetPasswordResult.ok, true);
+      expect(resetPasswordResult.ok).toBe(true);
     });
   });
 
   describe("getAccountStats", () => {
     it("should retrieve account stats successfully", async () => {
+      // Create at least one account so stats are meaningful
+      await accountLifecycleService.createAccount({
+        email: `test-stats-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Stats Test",
+        role: "ADMIN",
+      });
+
       const statsResult = await accountLifecycleService.getAccountStats();
 
-      assert.strictEqual(statsResult.ok, true);
+      expect(statsResult.ok).toBe(true);
       if (statsResult.ok) {
-        assert.ok(statsResult.value.totalAccounts >= 1);
-        assert.strictEqual(typeof statsResult.value.activeAccounts, "number");
-        assert.ok(statsResult.value.accountsByRole);
-        assert.strictEqual(typeof statsResult.value.accountsByRole.SUPER_ADMIN, "number");
-        assert.strictEqual(typeof statsResult.value.accountsByRole.ADMIN, "number");
-        assert.strictEqual(typeof statsResult.value.accountsByRole.SUPPORT, "number");
+        expect(statsResult.value.totalAccounts >= 1).toBeTruthy();
+        expect(typeof statsResult.value.activeAccounts).toBe("number");
+        expect(statsResult.value.accountsByRole).toBeTruthy();
+        expect(typeof statsResult.value.accountsByRole.SUPER_ADMIN).toBe("number");
+        expect(typeof statsResult.value.accountsByRole.ADMIN).toBe("number");
+        expect(typeof statsResult.value.accountsByRole.SUPPORT).toBe("number");
       }
     });
   });
 
   describe("deleteAccount", () => {
     it("should delete account successfully", async () => {
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-delete-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Delete Test",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      testAccountId = createResult.value.id;
+
       const deleteResult = await accountLifecycleService.deleteAccount(testAccountId, undefined);
 
-      assert.strictEqual(deleteResult.ok, true);
+      expect(deleteResult.ok).toBe(true);
     });
 
     it("should return NOT_FOUND after deletion", async () => {
+      const createResult = await accountLifecycleService.createAccount({
+        email: `test-delete-verify-${Date.now()}@example.com`,
+        password: "SecurePassword123!",
+        name: "Delete Verify Test",
+        role: "ADMIN",
+      });
+      expect(createResult.ok).toBe(true);
+      if (!createResult.ok) return;
+      testAccountId = createResult.value.id;
+
+      await accountLifecycleService.deleteAccount(testAccountId, undefined);
+
       const afterDeleteResult = await accountLifecycleService.getAccount(testAccountId);
 
-      assert.strictEqual(afterDeleteResult.ok, false);
+      expect(afterDeleteResult.ok).toBe(false);
       if (!afterDeleteResult.ok) {
-        assert.strictEqual(afterDeleteResult.error, "NOT_FOUND");
+        expect(afterDeleteResult.error).toBe("NOT_FOUND");
       }
     });
   });

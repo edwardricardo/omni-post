@@ -6,8 +6,7 @@
  * Coverage Target: 95%+
  */
 
-import { describe, it, before, after, mock } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import type Redis from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
@@ -22,24 +21,24 @@ type MockCacheManager = Pick<
 // Mock dependencies
 const createMockRedis = (): MockRedis => {
   return {
-    ping: mock.fn(async () => "PONG"),
-    get: mock.fn(async () => null),
-    set: mock.fn(async () => "OK"),
-    del: mock.fn(async () => 1),
-    keys: mock.fn(async () => []),
+    ping: vi.fn(async () => "PONG"),
+    get: vi.fn(async () => null),
+    set: vi.fn(async () => "OK"),
+    del: vi.fn(async () => 1),
+    keys: vi.fn(async () => []),
   };
 };
 
 const createMockCacheManager = (healthy = true): MockCacheManager => {
   return {
-    healthCheck: mock.fn(async () => ({
+    healthCheck: vi.fn(async () => ({
       ok: true,
       value: {
         status: healthy ? "healthy" : "unhealthy",
         latency: 10,
       },
     })),
-    getStats: mock.fn(async () => ({
+    getStats: vi.fn(async () => ({
       ok: true,
       value: {
         hits: 100,
@@ -57,17 +56,17 @@ const createMockCacheManager = (healthy = true): MockCacheManager => {
         ],
       },
     })),
-    flush: mock.fn(async () => ({ ok: true, value: undefined })),
-    invalidateByTag: mock.fn(async () => ({ ok: true, value: 5 })),
-    invalidateByPattern: mock.fn(async () => ({ ok: true, value: 3 })),
-    warmCache: mock.fn(async () => ({ ok: true, value: 10 })),
+    flush: vi.fn(async () => ({ ok: true, value: undefined })),
+    invalidateByTag: vi.fn(async () => ({ ok: true, value: 5 })),
+    invalidateByPattern: vi.fn(async () => ({ ok: true, value: 3 })),
+    warmCache: vi.fn(async () => ({ ok: true, value: 10 })),
   };
 };
 
 // Mock health check manager
 const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealthy" = "healthy") => {
   return {
-    getCurrentStatus: mock.fn(() => ({
+    getCurrentStatus: vi.fn(() => ({
       overall: status,
       timestamp: new Date(),
       uptime: 12345,
@@ -106,7 +105,7 @@ const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealth
       },
       alerts: [],
     })),
-    checkAll: mock.fn(async () => ({
+    checkAll: vi.fn(async () => ({
       overall: status,
       timestamp: new Date(),
       uptime: 12345,
@@ -137,7 +136,7 @@ const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealth
       },
       alerts: [],
     })),
-    checkDependency: mock.fn(async (name: string) => {
+    checkDependency: vi.fn(async (name: string) => {
       if (name === "database" || name === "redis" || name === "queue") {
         return {
           ok: true,
@@ -154,9 +153,9 @@ const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealth
       }
       return { ok: false, error: "Not found" };
     }),
-    register: mock.fn(),
-    start: mock.fn(),
-    stop: mock.fn(),
+    register: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
     checkers: new Map([
       ["database", {}],
       ["redis", {}],
@@ -168,53 +167,46 @@ const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealth
   };
 };
 
-describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
+vi.mock("@monitoring/health-checks", () => ({
+  createHealthCheckManager: vi.fn(),
+  DatabaseHealthChecker: class {},
+  RedisHealthChecker: class {},
+  CacheHealthChecker: class {},
+  QueueHealthChecker: class {},
+  StorageHealthChecker: class {},
+  ProviderHealthChecker: class {},
+}));
+
+vi.mock("@adapters/db-prisma", () => ({
+  createPrismaRepoAdapter: vi.fn(() => ({})),
+}));
+
+vi.mock("@adapters/queue-bullmq", () => ({
+  createBullMQQueueAdapter: vi.fn(() => ({})),
+}));
+
+vi.mock("@adapters/storage-s3", () => ({
+  createS3StorageAdapter: vi.fn(() => ({})),
+}));
+
+vi.mock("../../src/providers/providerRegistry.js", () => ({
+  providerRegistry: {},
+}));
+
+describe("healthRoutes - Unit Tests", () => {
   let app: FastifyInstance;
   let mockRedis: MockRedis;
   let mockCacheManager: MockCacheManager;
 
-  before(async () => {
+  beforeAll(async () => {
     mockRedis = createMockRedis();
     mockCacheManager = createMockCacheManager(true);
 
-    // Mock the health check module
-    mock.module("@monitoring/health-checks", {
-      namedExports: {
-        createHealthCheckManager: () => createMockHealthCheckManager("healthy"),
-        DatabaseHealthChecker: class {},
-        RedisHealthChecker: class {},
-        CacheHealthChecker: class {},
-        QueueHealthChecker: class {},
-        StorageHealthChecker: class {},
-        ProviderHealthChecker: class {},
-      },
-    });
-
-    // Mock adapters
-    mock.module("@adapters/db-prisma", {
-      namedExports: {
-        createPrismaRepoAdapter: () => ({}),
-      },
-    });
-
-    mock.module("@adapters/queue-bullmq", {
-      namedExports: {
-        createBullMQQueueAdapter: () => ({}),
-      },
-    });
-
-    mock.module("@adapters/storage-s3", {
-      namedExports: {
-        createS3StorageAdapter: () => ({}),
-      },
-    });
-
-    // Mock provider registry
-    mock.module("../../src/providers/providerRegistry.js", {
-      namedExports: {
-        providerRegistry: {},
-      },
-    });
+    // Configure the mocked createHealthCheckManager
+    const healthChecks = await import("@monitoring/health-checks");
+    vi.mocked(healthChecks.createHealthCheckManager).mockImplementation(() =>
+      createMockHealthCheckManager("healthy")
+    );
 
     app = Fastify({ logger: false });
 
@@ -225,7 +217,7 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
     });
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -236,12 +228,12 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/health",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.status, "healthy");
-      assert.ok(body.timestamp);
-      assert.ok(typeof body.uptime === "number");
+      expect(body.status).toBe("healthy");
+      expect(body.timestamp).toBeTruthy();
+      expect(typeof body.uptime === "number").toBeTruthy();
     });
 
     it("should include uptime in response", async () => {
@@ -251,8 +243,8 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.uptime);
-      assert.strictEqual(typeof body.uptime, "number");
+      expect(body.uptime).toBeTruthy();
+      expect(typeof body.uptime).toBe("number");
     });
 
     it("should return ISO timestamp format", async () => {
@@ -262,8 +254,8 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.timestamp);
-      assert.ok(Date.parse(body.timestamp));
+      expect(body.timestamp).toBeTruthy();
+      expect(Date.parse(body.timestamp)).toBeTruthy();
     });
   });
 
@@ -274,16 +266,16 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/health/detailed",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.status, "healthy");
-      assert.ok(body.score >= 0 && body.score <= 100);
-      assert.ok(body.timestamp);
-      assert.ok(body.uptime);
-      assert.ok(Array.isArray(body.dependencies));
-      assert.ok(body.metrics);
+      expect(body.ok).toBe(true);
+      expect(body.status).toBe("healthy");
+      expect(body.score >= 0 && body.score <= 100).toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
+      expect(body.uptime).toBeTruthy();
+      expect(Array.isArray(body.dependencies)).toBeTruthy();
+      expect(body.metrics).toBeTruthy();
     });
 
     it("should include all dependency information", async () => {
@@ -293,16 +285,16 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(Array.isArray(body.dependencies));
+      expect(Array.isArray(body.dependencies)).toBeTruthy();
 
       const dependency = body.dependencies[0];
-      assert.ok(dependency.name);
-      assert.ok(dependency.type);
-      assert.ok(dependency.status);
-      assert.ok(typeof dependency.latency === "number");
-      assert.ok(dependency.message);
-      assert.ok(typeof dependency.critical === "boolean");
-      assert.ok(dependency.lastChecked);
+      expect(dependency.name).toBeTruthy();
+      expect(dependency.type).toBeTruthy();
+      expect(dependency.status).toBeTruthy();
+      expect(typeof dependency.latency === "number").toBeTruthy();
+      expect(dependency.message).toBeTruthy();
+      expect(typeof dependency.critical === "boolean").toBeTruthy();
+      expect(dependency.lastChecked).toBeTruthy();
     });
 
     it("should include memory metrics", async () => {
@@ -312,11 +304,11 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.metrics.memory);
-      assert.ok(typeof body.metrics.memory.heapUsed === "number");
-      assert.ok(typeof body.metrics.memory.heapTotal === "number");
-      assert.ok(typeof body.metrics.memory.external === "number");
-      assert.ok(typeof body.metrics.memory.rss === "number");
+      expect(body.metrics.memory).toBeTruthy();
+      expect(typeof body.metrics.memory.heapUsed === "number").toBeTruthy();
+      expect(typeof body.metrics.memory.heapTotal === "number").toBeTruthy();
+      expect(typeof body.metrics.memory.external === "number").toBeTruthy();
+      expect(typeof body.metrics.memory.rss === "number").toBeTruthy();
     });
 
     it("should include CPU metrics", async () => {
@@ -326,9 +318,9 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.metrics.cpu);
-      assert.ok(typeof body.metrics.cpu.user === "number");
-      assert.ok(typeof body.metrics.cpu.system === "number");
+      expect(body.metrics.cpu).toBeTruthy();
+      expect(typeof body.metrics.cpu.user === "number").toBeTruthy();
+      expect(typeof body.metrics.cpu.system === "number").toBeTruthy();
     });
 
     it("should include alerts array", async () => {
@@ -338,7 +330,7 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(Array.isArray(body.alerts));
+      expect(Array.isArray(body.alerts)).toBeTruthy();
     });
   });
 
@@ -349,12 +341,12 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/health/live",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.status, "alive");
-      assert.ok(body.timestamp);
-      assert.ok(typeof body.uptime === "number");
+      expect(body.status).toBe("alive");
+      expect(body.timestamp).toBeTruthy();
+      expect(typeof body.uptime === "number").toBeTruthy();
     });
 
     it("should include process uptime", async () => {
@@ -364,8 +356,8 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.uptime === "number");
-      assert.ok(body.uptime >= 0);
+      expect(typeof body.uptime === "number").toBeTruthy();
+      expect(body.uptime >= 0).toBeTruthy();
     });
   });
 
@@ -376,11 +368,11 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/health/ready",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.status, "ready");
-      assert.ok(body.timestamp);
+      expect(body.status).toBe("ready");
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should include timestamp in response", async () => {
@@ -390,8 +382,8 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.timestamp);
-      assert.ok(Date.parse(body.timestamp));
+      expect(body.timestamp).toBeTruthy();
+      expect(Date.parse(body.timestamp)).toBeTruthy();
     });
   });
 
@@ -402,16 +394,16 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/health/dependency/database",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.dependency, "database");
-      assert.strictEqual(body.status, "healthy");
-      assert.ok(typeof body.latency === "number");
-      assert.ok(body.message);
-      assert.ok(typeof body.critical === "boolean");
-      assert.ok(body.lastChecked);
+      expect(body.ok).toBe(true);
+      expect(body.dependency).toBe("database");
+      expect(body.status).toBe("healthy");
+      expect(typeof body.latency === "number").toBeTruthy();
+      expect(body.message).toBeTruthy();
+      expect(typeof body.critical === "boolean").toBeTruthy();
+      expect(body.lastChecked).toBeTruthy();
     });
 
     it("should return 404 for unknown dependency", async () => {
@@ -420,11 +412,11 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
         url: "/health/dependency/unknown",
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
 
       const body = JSON.parse(response.body);
-      assert.ok(body.error);
-      assert.ok(Array.isArray(body.availableDependencies));
+      expect(body.error).toBeTruthy();
+      expect(Array.isArray(body.availableDependencies)).toBeTruthy();
     });
 
     it("should return available dependencies on 404", async () => {
@@ -434,8 +426,8 @@ describe("healthRoutes - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(Array.isArray(body.availableDependencies));
-      assert.ok(body.availableDependencies.length > 0);
+      expect(Array.isArray(body.availableDependencies)).toBeTruthy();
+      expect(body.availableDependencies.length > 0).toBeTruthy();
     });
   });
 });

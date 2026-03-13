@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { CQRSBusImpl } from "../../src/cqrs/CQRSBus";
 import type { CommandHandler, CommandResult } from "@shared/cqrs";
 import {
@@ -11,7 +10,7 @@ import {
   makeQuery,
 } from "./CQRSBus.test-helpers.js";
 
-describe("CQRSBus - Command Handler Registration", { concurrency: 1 }, () => {
+describe("CQRSBus - Command Handler Registration", () => {
   let bus: CQRSBusImpl;
   let mockRedis: MockRedis;
   let mockEventService: MockEventService;
@@ -32,7 +31,7 @@ describe("CQRSBus - Command Handler Registration", { concurrency: 1 }, () => {
     bus.registerCommandHandler(handler);
 
     const handlersInfo = bus.getHandlersInfo();
-    assert.ok(handlersInfo.commands.includes("test.command"));
+    expect(handlersInfo.commands.includes("test.command")).toBeTruthy();
   });
 
   it("should prevent duplicate command handler registration", () => {
@@ -41,7 +40,7 @@ describe("CQRSBus - Command Handler Registration", { concurrency: 1 }, () => {
 
     bus.registerCommandHandler(handler1);
 
-    assert.throws(() => bus.registerCommandHandler(handler2), /already registered/);
+    expect(() => bus.registerCommandHandler(handler2)).toThrow(/already registered/);
   });
 
   it("should register multiple different command handlers", () => {
@@ -63,13 +62,13 @@ describe("CQRSBus - Command Handler Registration", { concurrency: 1 }, () => {
     bus.registerCommandHandler(new Handler2());
 
     const handlersInfo = bus.getHandlersInfo();
-    assert.strictEqual(handlersInfo.commands.length, 2);
-    assert.ok(handlersInfo.commands.includes("command.1"));
-    assert.ok(handlersInfo.commands.includes("command.2"));
+    expect(handlersInfo.commands.length).toBe(2);
+    expect(handlersInfo.commands.includes("command.1")).toBeTruthy();
+    expect(handlersInfo.commands.includes("command.2")).toBeTruthy();
   });
 });
 
-describe("CQRSBus - Command Execution", { concurrency: 1 }, () => {
+describe("CQRSBus - Command Execution", () => {
   let bus: CQRSBusImpl;
   let mockRedis: MockRedis;
   let mockEventService: MockEventService;
@@ -93,8 +92,8 @@ describe("CQRSBus - Command Execution", { concurrency: 1 }, () => {
 
     const result = await bus.executeCommand(command);
 
-    assert.ok(result.success);
-    assert.strictEqual(handler.callCount, 1);
+    expect(result.success).toBeTruthy();
+    expect(handler.callCount).toBe(1);
   });
 
   it("should return error when handler not found", async () => {
@@ -102,8 +101,8 @@ describe("CQRSBus - Command Execution", { concurrency: 1 }, () => {
 
     const result = await bus.executeCommand(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error?.includes("No handler registered"));
+    expect(result.success).toBe(false);
+    expect(result.error?.includes("No handler registered")).toBeTruthy();
   });
 
   it("should handle command execution errors gracefully", async () => {
@@ -113,9 +112,9 @@ describe("CQRSBus - Command Execution", { concurrency: 1 }, () => {
 
     const result = await bus.executeCommand(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.strictEqual(handler.callCount, 1);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(handler.callCount).toBe(1);
   });
 
   it("should publish events after successful command", async () => {
@@ -125,9 +124,9 @@ describe("CQRSBus - Command Execution", { concurrency: 1 }, () => {
 
     const result = await bus.executeCommand(command);
 
-    assert.ok(result.success);
-    assert.strictEqual(mockEventService.events.length, 1);
-    assert.strictEqual(mockEventService.events[0]!.type, "test.event");
+    expect(result.success).toBeTruthy();
+    expect(mockEventService.events.length).toBe(1);
+    expect(mockEventService.events[0]!.type).toBe("test.event");
   });
 
   it("should not publish events if command fails", async () => {
@@ -138,7 +137,7 @@ describe("CQRSBus - Command Execution", { concurrency: 1 }, () => {
 
     await bus.executeCommand(command);
 
-    assert.strictEqual(mockEventService.events.length, 0);
+    expect(mockEventService.events.length).toBe(0);
   });
 
   it("should update command metrics after execution", async () => {
@@ -147,8 +146,8 @@ describe("CQRSBus - Command Execution", { concurrency: 1 }, () => {
     await bus.executeCommand(command);
 
     const metrics = bus.getMetrics();
-    assert.strictEqual(metrics.commandsExecuted, 1);
-    assert.strictEqual(metrics.commandErrors, 0);
+    expect(metrics.commandsExecuted).toBe(1);
+    expect(metrics.commandErrors).toBe(0);
   });
 
   it("should track command errors in metrics", async () => {
@@ -159,12 +158,12 @@ describe("CQRSBus - Command Execution", { concurrency: 1 }, () => {
     await bus.executeCommand(command);
 
     const metrics = bus.getMetrics();
-    assert.strictEqual(metrics.commandsExecuted, 1);
-    assert.strictEqual(metrics.commandErrors, 1);
+    expect(metrics.commandsExecuted).toBe(1);
+    expect(metrics.commandErrors).toBe(1);
   });
 });
 
-describe("CQRSBus - Query Execution and Caching", { concurrency: 1 }, () => {
+describe("CQRSBus - Query Execution and Caching", () => {
   let bus: CQRSBusImpl;
   let mockRedis: MockRedis;
   let mockEventService: MockEventService;
@@ -188,8 +187,8 @@ describe("CQRSBus - Query Execution and Caching", { concurrency: 1 }, () => {
 
     const result = await bus.executeQuery(query);
 
-    assert.ok(result.success);
-    assert.strictEqual(handler.callCount, 1);
+    expect(result.success).toBeTruthy();
+    expect(handler.callCount).toBe(1);
   });
 
   it("should return error when query handler not found", async () => {
@@ -197,8 +196,8 @@ describe("CQRSBus - Query Execution and Caching", { concurrency: 1 }, () => {
 
     const result = await bus.executeQuery(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error?.includes("No handler registered"));
+    expect(result.success).toBe(false);
+    expect(result.error?.includes("No handler registered")).toBeTruthy();
   });
 
   it("should handle query execution errors gracefully", async () => {
@@ -208,8 +207,8 @@ describe("CQRSBus - Query Execution and Caching", { concurrency: 1 }, () => {
 
     const result = await bus.executeQuery(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 
   it("should cache successful query results with cache key", async () => {
@@ -228,23 +227,23 @@ describe("CQRSBus - Query Execution and Caching", { concurrency: 1 }, () => {
 
     const result = await bus.executeQuery(query);
 
-    assert.ok(result.success);
-    assert.strictEqual(result.metadata?.fromCache, false);
+    expect(result.success).toBeTruthy();
+    expect(result.metadata?.fromCache).toBe(false);
 
     const cachedData = await mockRedis.get("cqrs:query:test-cache-key");
-    assert.ok(cachedData);
+    expect(cachedData).toBeTruthy();
   });
 
   it("should return cached results on subsequent queries", async () => {
     const query = makeQuery({ cacheKey: "test-cache-key" });
 
     await bus.executeQuery(query);
-    assert.strictEqual(handler.callCount, 1);
+    expect(handler.callCount).toBe(1);
 
     const result = await bus.executeQuery(query);
-    assert.ok(result.success);
-    assert.strictEqual(result.metadata?.fromCache, true);
-    assert.strictEqual(handler.callCount, 1);
+    expect(result.success).toBeTruthy();
+    expect(result.metadata?.fromCache).toBe(true);
+    expect(handler.callCount).toBe(1);
   });
 
   it("should skip caching when cache is disabled", async () => {
@@ -260,7 +259,7 @@ describe("CQRSBus - Query Execution and Caching", { concurrency: 1 }, () => {
     await busNoCache.executeQuery(query);
     await busNoCache.executeQuery(query);
 
-    assert.strictEqual(handler.callCount, 2);
+    expect(handler.callCount).toBe(2);
   });
 
   it("should update query metrics after execution", async () => {
@@ -269,8 +268,8 @@ describe("CQRSBus - Query Execution and Caching", { concurrency: 1 }, () => {
     await bus.executeQuery(query);
 
     const metrics = bus.getMetrics();
-    assert.strictEqual(metrics.queriesExecuted, 1);
-    assert.strictEqual(metrics.queryErrors, 0);
+    expect(metrics.queriesExecuted).toBe(1);
+    expect(metrics.queryErrors).toBe(0);
   });
 
   it("should track cache hits and misses", async () => {
@@ -278,11 +277,11 @@ describe("CQRSBus - Query Execution and Caching", { concurrency: 1 }, () => {
 
     await bus.executeQuery(query);
     let metrics = bus.getMetrics();
-    assert.strictEqual(metrics.cacheMisses, 1);
-    assert.strictEqual(metrics.cacheHits, 0);
+    expect(metrics.cacheMisses).toBe(1);
+    expect(metrics.cacheHits).toBe(0);
 
     await bus.executeQuery(query);
     metrics = bus.getMetrics();
-    assert.strictEqual(metrics.cacheHits, 1);
+    expect(metrics.cacheHits).toBe(1);
   });
 });

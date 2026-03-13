@@ -4,8 +4,7 @@
  * Tests for the unified logger factory following TDD principles.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   createLogger,
   createChildLogger,
@@ -25,17 +24,17 @@ describe("Logger Factory", () => {
   describe("createLogger", () => {
     it("should create a named logger", () => {
       const testLogger = createLogger("test-module");
-      assert.ok(testLogger);
-      assert.equal(typeof testLogger.info, "function");
-      assert.equal(typeof testLogger.error, "function");
-      assert.equal(typeof testLogger.warn, "function");
-      assert.equal(typeof testLogger.debug, "function");
+      expect(testLogger).toBeTruthy();
+      expect(typeof testLogger.info).toBe("function");
+      expect(typeof testLogger.error).toBe("function");
+      expect(typeof testLogger.warn).toBe("function");
+      expect(typeof testLogger.debug).toBe("function");
     });
 
     it("should include the name in log bindings", () => {
       const testLogger = createLogger("my-service");
       // Logger should have the name set
-      assert.ok(testLogger);
+      expect(testLogger).toBeTruthy();
     });
 
     it("should default to info level when LOG_LEVEL not set", () => {
@@ -43,39 +42,39 @@ describe("Logger Factory", () => {
       const testLogger = createLogger("level-test");
       // Default level should be 'info' or what's set in env
       const expectedLevel = process.env.LOG_LEVEL || "info";
-      assert.equal(testLogger.level, expectedLevel);
+      expect(testLogger.level).toBe(expectedLevel);
     });
   });
 
   describe("Pre-configured loggers", () => {
     it("should export default logger", () => {
-      assert.ok(logger);
-      assert.equal(typeof logger.info, "function");
+      expect(logger).toBeTruthy();
+      expect(typeof logger.info).toBe("function");
     });
 
     it("should export httpLogger", () => {
-      assert.ok(httpLogger);
-      assert.equal(typeof httpLogger.info, "function");
+      expect(httpLogger).toBeTruthy();
+      expect(typeof httpLogger.info).toBe("function");
     });
 
     it("should export dbLogger", () => {
-      assert.ok(dbLogger);
-      assert.equal(typeof dbLogger.info, "function");
+      expect(dbLogger).toBeTruthy();
+      expect(typeof dbLogger.info).toBe("function");
     });
 
     it("should export queueLogger", () => {
-      assert.ok(queueLogger);
-      assert.equal(typeof queueLogger.info, "function");
+      expect(queueLogger).toBeTruthy();
+      expect(typeof queueLogger.info).toBe("function");
     });
 
     it("should export authLogger", () => {
-      assert.ok(authLogger);
-      assert.equal(typeof authLogger.info, "function");
+      expect(authLogger).toBeTruthy();
+      expect(typeof authLogger.info).toBe("function");
     });
 
     it("should export cacheLogger", () => {
-      assert.ok(cacheLogger);
-      assert.equal(typeof cacheLogger.info, "function");
+      expect(cacheLogger).toBeTruthy();
+      expect(typeof cacheLogger.info).toBe("function");
     });
   });
 
@@ -84,10 +83,10 @@ describe("Logger Factory", () => {
       const parent = createLogger("parent");
       const child = createChildLogger(parent, { userId: "123", requestId: "abc" });
 
-      assert.ok(child);
-      assert.equal(typeof child.info, "function");
+      expect(child).toBeTruthy();
+      expect(typeof child.info).toBe("function");
       // Child logger should be a valid pino logger
-      assert.ok(child !== parent);
+      expect(child !== parent).toBeTruthy();
     });
   });
 
@@ -100,8 +99,8 @@ describe("Logger Factory", () => {
         method: "GET",
       });
 
-      assert.ok(requestLogger);
-      assert.equal(typeof requestLogger.info, "function");
+      expect(requestLogger).toBeTruthy();
+      expect(typeof requestLogger.info).toBe("function");
     });
 
     it("should handle optional fields", () => {
@@ -109,7 +108,7 @@ describe("Logger Factory", () => {
         correlationId: "minimal-correlation-id",
       });
 
-      assert.ok(requestLogger);
+      expect(requestLogger).toBeTruthy();
     });
 
     it("should include userId when provided", () => {
@@ -118,7 +117,7 @@ describe("Logger Factory", () => {
         userId: "user-123",
       });
 
-      assert.ok(requestLogger);
+      expect(requestLogger).toBeTruthy();
     });
   });
 
@@ -127,9 +126,9 @@ describe("Logger Factory", () => {
       const error = new Error("Test error message");
       const info = extractErrorInfo(error);
 
-      assert.equal(info.message, "Test error message");
-      assert.equal(info.name, "Error");
-      assert.ok(info.stack);
+      expect(info.message).toBe("Test error message");
+      expect(info.name).toBe("Error");
+      expect(info.stack).toBeTruthy();
     });
 
     it("should handle error with code property", () => {
@@ -137,8 +136,8 @@ describe("Logger Factory", () => {
       error.code = "ECONNREFUSED";
       const info = extractErrorInfo(error);
 
-      assert.equal(info.message, "Connection failed");
-      assert.equal(info.code, "ECONNREFUSED");
+      expect(info.message).toBe("Connection failed");
+      expect(info.code).toBe("ECONNREFUSED");
     });
 
     it("should handle error with status property", () => {
@@ -146,28 +145,28 @@ describe("Logger Factory", () => {
       error.status = 404;
       const info = extractErrorInfo(error);
 
-      assert.equal(info.message, "Not found");
-      assert.equal(info.status, 404);
+      expect(info.message).toBe("Not found");
+      expect(info.status).toBe(404);
     });
 
     it("should handle string error", () => {
       const info = extractErrorInfo("String error message");
-      assert.equal(info.message, "String error message");
+      expect(info.message).toBe("String error message");
     });
 
     it("should handle unknown error types", () => {
       const info = extractErrorInfo(12345);
-      assert.equal(info.message, "12345");
+      expect(info.message).toBe("12345");
     });
 
     it("should handle null", () => {
       const info = extractErrorInfo(null);
-      assert.equal(info.message, "null");
+      expect(info.message).toBe("null");
     });
 
     it("should handle undefined", () => {
       const info = extractErrorInfo(undefined);
-      assert.equal(info.message, "undefined");
+      expect(info.message).toBe("undefined");
     });
   });
 
@@ -180,9 +179,9 @@ describe("Logger Factory", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Verify timing object has an end method and returns void (does not throw)
-      assert.strictEqual(typeof timing.end, "function", "timing should have an end method");
+      expect(typeof timing.end).toBe("function");
       const result = timing.end(true, { extra: "data" });
-      assert.strictEqual(result, undefined, "timing.end should return void");
+      expect(result).toBe(undefined);
     });
 
     it("should handle failed operations", () => {
@@ -190,20 +189,20 @@ describe("Logger Factory", () => {
       const timing = createTimingLogger(testLogger, "failing-operation");
 
       // Verify timing.end works for failed operations without throwing
-      assert.strictEqual(typeof timing.end, "function", "timing should have an end method");
+      expect(typeof timing.end).toBe("function");
       const result = timing.end(false, { reason: "timeout" });
-      assert.strictEqual(result, undefined, "timing.end should return void for failed operations");
+      expect(result).toBe(undefined);
     });
   });
 
   describe("LogLevel constants", () => {
     it("should have all standard log levels", () => {
-      assert.equal(LogLevel.TRACE, "trace");
-      assert.equal(LogLevel.DEBUG, "debug");
-      assert.equal(LogLevel.INFO, "info");
-      assert.equal(LogLevel.WARN, "warn");
-      assert.equal(LogLevel.ERROR, "error");
-      assert.equal(LogLevel.FATAL, "fatal");
+      expect(LogLevel.TRACE).toBe("trace");
+      expect(LogLevel.DEBUG).toBe("debug");
+      expect(LogLevel.INFO).toBe("info");
+      expect(LogLevel.WARN).toBe("warn");
+      expect(LogLevel.ERROR).toBe("error");
+      expect(LogLevel.FATAL).toBe("fatal");
     });
   });
 });

@@ -5,9 +5,7 @@
  * so we mock the PostRepository and PostQueryRepository interfaces.
  */
 
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { randomUUID } from "crypto";
 
 import { ok, err } from "@shared/types";
@@ -31,12 +29,12 @@ import type { EventDispatcher } from "../../../src/domain/events/DomainEvent.js"
 
 const TEST_PROJECT_ID = "a0000000-0000-4000-8000-000000000001";
 
-function createMockPostRepository(t: TestContext): PostRepository {
+function createMockPostRepository(): PostRepository {
   return {
-    findById: t.mock.fn(async () => err(new EntityNotFoundError("Post", "not-found"))),
-    save: t.mock.fn(async () => ok(undefined)),
-    delete: t.mock.fn(async () => ok(undefined)),
-    findByProjectId: t.mock.fn(async () => ({
+    findById: vi.fn(async () => err(new EntityNotFoundError("Post", "not-found"))),
+    save: vi.fn(async () => ok(undefined)),
+    delete: vi.fn(async () => ok(undefined)),
+    findByProjectId: vi.fn(async () => ({
       items: [],
       total: 0,
       page: 1,
@@ -45,7 +43,7 @@ function createMockPostRepository(t: TestContext): PostRepository {
       hasNext: false,
       hasPrevious: false,
     })),
-    findByStatus: t.mock.fn(async () => ({
+    findByStatus: vi.fn(async () => ({
       items: [],
       total: 0,
       page: 1,
@@ -54,8 +52,8 @@ function createMockPostRepository(t: TestContext): PostRepository {
       hasNext: false,
       hasPrevious: false,
     })),
-    findReadyForPublishing: t.mock.fn(async () => []),
-    findWithFilters: t.mock.fn(async () => ({
+    findReadyForPublishing: vi.fn(async () => []),
+    findWithFilters: vi.fn(async () => ({
       items: [],
       total: 0,
       page: 1,
@@ -64,24 +62,24 @@ function createMockPostRepository(t: TestContext): PostRepository {
       hasNext: false,
       hasPrevious: false,
     })),
-    countByProjectId: t.mock.fn(async () => 0),
-    countByStatus: t.mock.fn(async () => 0),
-    getProjectStats: t.mock.fn(async () => ({
+    countByProjectId: vi.fn(async () => 0),
+    countByStatus: vi.fn(async () => 0),
+    getProjectStats: vi.fn(async () => ({
       total: 0,
       drafts: 0,
       scheduled: 0,
       published: 0,
       failed: 0,
     })),
-    bulkUpdateStatus: t.mock.fn(async () => ok(undefined)),
-    hardDelete: t.mock.fn(async () => ok(undefined)),
+    bulkUpdateStatus: vi.fn(async () => ok(undefined)),
+    hardDelete: vi.fn(async () => ok(undefined)),
   };
 }
 
-function createMockQueryRepository(t: TestContext): PostQueryRepository {
+function createMockQueryRepository(): PostQueryRepository {
   return {
-    getById: t.mock.fn(async () => err(new EntityNotFoundError("Post", "not-found"))),
-    listByProject: t.mock.fn(async () => ({
+    getById: vi.fn(async () => err(new EntityNotFoundError("Post", "not-found"))),
+    listByProject: vi.fn(async () => ({
       items: [],
       total: 0,
       page: 1,
@@ -90,7 +88,7 @@ function createMockQueryRepository(t: TestContext): PostQueryRepository {
       hasNext: false,
       hasPrevious: false,
     })),
-    search: t.mock.fn(async () => ({
+    search: vi.fn(async () => ({
       items: [],
       total: 0,
       page: 1,
@@ -99,16 +97,16 @@ function createMockQueryRepository(t: TestContext): PostQueryRepository {
       hasNext: false,
       hasPrevious: false,
     })),
-    getUpcoming: t.mock.fn(async () => []),
-    getRecentlyPublished: t.mock.fn(async () => []),
+    getUpcoming: vi.fn(async () => []),
+    getRecentlyPublished: vi.fn(async () => []),
   };
 }
 
-function createMockEventDispatcher(t: TestContext): EventDispatcher {
+function createMockEventDispatcher(): EventDispatcher {
   return {
-    dispatch: t.mock.fn(async () => {}),
-    dispatchAll: t.mock.fn(async () => {}),
-    register: t.mock.fn(() => {}),
+    dispatch: vi.fn(async () => {}),
+    dispatchAll: vi.fn(async () => {}),
+    register: vi.fn(() => {}),
   };
 }
 
@@ -127,18 +125,18 @@ function makeReadModel(overrides: Partial<PostReadModel> = {}): PostReadModel {
   };
 }
 
-describe("Post Use Cases", { concurrency: 1 }, () => {
+describe("Post Use Cases", () => {
   let postRepo: PostRepository;
   let queryRepo: PostQueryRepository;
   let eventDispatcher: EventDispatcher;
 
-  beforeEach((t) => {
-    postRepo = createMockPostRepository(t);
-    queryRepo = createMockQueryRepository(t);
-    eventDispatcher = createMockEventDispatcher(t);
+  beforeEach(() => {
+    postRepo = createMockPostRepository();
+    queryRepo = createMockQueryRepository();
+    eventDispatcher = createMockEventDispatcher();
   });
 
-  describe("CreatePostUseCase", { concurrency: 1 }, () => {
+  describe("CreatePostUseCase", () => {
     it("should create a new draft post with body, title, and tags", async () => {
       const useCase = new CreatePostUseCase(postRepo, eventDispatcher);
 
@@ -149,24 +147,16 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         tags: ["test", "unit"],
       });
 
-      assert.ok(result.ok, "Should create post successfully");
-      assert.equal(result.value.body, "Test post body");
-      assert.equal(result.value.title, "Test Title");
-      assert.deepEqual(result.value.tags, ["test", "unit"]);
-      assert.equal(result.value.status, "DRAFT");
-      assert.equal(result.value.projectId, TEST_PROJECT_ID);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.body).toBe("Test post body");
+      expect(result.value.title).toBe("Test Title");
+      expect(result.value.tags).toEqual(["test", "unit"]);
+      expect(result.value.status).toBe("DRAFT");
+      expect(result.value.projectId).toBe(TEST_PROJECT_ID);
       // Verify repo.save was called
-      assert.equal(
-        (postRepo.save as any).mock.calls.length,
-        1,
-        "Should persist post via repository"
-      );
+      expect((postRepo.save as any).mock.calls.length).toBe(1);
       // Verify events dispatched
-      assert.equal(
-        (eventDispatcher.dispatchAll as any).mock.calls.length,
-        1,
-        "Should dispatch domain events"
-      );
+      expect((eventDispatcher.dispatchAll as any).mock.calls.length).toBe(1);
     });
 
     it("should create a scheduled post when scheduledAt is in the future", async () => {
@@ -179,9 +169,9 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         scheduledAt: futureDate,
       });
 
-      assert.ok(result.ok);
-      assert.equal(result.value.status, "SCHEDULED");
-      assert.ok(result.value.scheduledAt);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.status).toBe("SCHEDULED");
+      expect(result.value.scheduledAt).toBeTruthy();
     });
 
     it("should reject invalid project ID format", async () => {
@@ -192,9 +182,9 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         body: "Test",
       });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
-      assert.match(result.error.message, /invalid project id/i);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(result.error.message).toMatch(/invalid project id/i);
     });
 
     it("should reject empty body", async () => {
@@ -205,12 +195,12 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         body: "",
       });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
     });
 
     it("should return INTERNAL_ERROR when repository save fails", async () => {
-      (postRepo.save as any).mock.mockImplementation(async () =>
+      (postRepo.save as any).mockImplementation(async () =>
         err(new Error("Database connection lost"))
       );
 
@@ -221,25 +211,25 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         body: "Will fail to save",
       });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.INTERNAL_ERROR);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
     });
   });
 
-  describe("GetPostUseCase", { concurrency: 1 }, () => {
+  describe("GetPostUseCase", () => {
     it("should retrieve a post by ID from query repository", async () => {
       const postId = randomUUID();
       const readModel = makeReadModel({ id: postId, body: "Get test post", title: "Get Test" });
 
-      (queryRepo.getById as any).mock.mockImplementation(async () => ok(readModel));
+      (queryRepo.getById as any).mockImplementation(async () => ok(readModel));
 
       const useCase = new GetPostUseCase(queryRepo);
       const result = await useCase.execute({ postId });
 
-      assert.ok(result.ok);
-      assert.equal(result.value.id, postId);
-      assert.equal(result.value.body, "Get test post");
-      assert.equal(result.value.title, "Get Test");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.id).toBe(postId);
+      expect(result.value.body).toBe("Get test post");
+      expect(result.value.title).toBe("Get Test");
     });
 
     it("should return NOT_FOUND for non-existent post", async () => {
@@ -249,8 +239,8 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         postId: "a0000000-0000-4000-8000-000000000000",
       });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.NOT_FOUND);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.NOT_FOUND);
     });
 
     it("should reject invalid post ID format", async () => {
@@ -258,12 +248,12 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
 
       const result = await useCase.execute({ postId: "invalid-id" });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
     });
   });
 
-  describe("UpdatePostUseCase", { concurrency: 1 }, () => {
+  describe("UpdatePostUseCase", () => {
     it("should update an existing draft post", async () => {
       // Create a real PostAggregate to return from findById
       const projectId = ProjectId.fromStringUnsafe(TEST_PROJECT_ID);
@@ -272,11 +262,11 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         body: "Original body",
         title: "Original Title",
       });
-      assert.ok(createResult.ok);
+      expect(createResult.ok).toBeTruthy();
       const post = createResult.value;
       post.clearDomainEvents(); // clear creation events
 
-      (postRepo.findById as any).mock.mockImplementation(async () => ok(post));
+      (postRepo.findById as any).mockImplementation(async () => ok(post));
 
       const useCase = new UpdatePostUseCase(postRepo, eventDispatcher);
       const result = await useCase.execute({
@@ -285,11 +275,11 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         title: "Updated Title",
       });
 
-      assert.ok(result.ok, `Expected ok but got: ${!result.ok ? result.error.message : ""}`);
-      assert.equal(result.value.body, "Updated body");
-      assert.equal(result.value.title, "Updated Title");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.body).toBe("Updated body");
+      expect(result.value.title).toBe("Updated Title");
       // Verify save was called
-      assert.equal((postRepo.save as any).mock.calls.length, 1);
+      expect((postRepo.save as any).mock.calls.length).toBe(1);
     });
 
     it("should return NOT_FOUND for non-existent post", async () => {
@@ -300,8 +290,8 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         body: "New body",
       });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.NOT_FOUND);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.NOT_FOUND);
     });
 
     it("should reject invalid post ID format", async () => {
@@ -312,8 +302,8 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         body: "Some body",
       });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
     });
 
     it("should return FORBIDDEN when post is not editable", async () => {
@@ -322,16 +312,16 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         projectId,
         body: "Published post",
       });
-      assert.ok(createResult.ok);
+      expect(createResult.ok).toBeTruthy();
       const post = createResult.value;
       // Simulate a non-editable state by publishing through proper domain methods
       const publishingResult = post.startPublishing(["X"]);
-      assert.ok(publishingResult.ok, "Should transition to publishing");
+      expect(publishingResult.ok).toBeTruthy();
       const publishedResult = post.markAsPublished({ x: { success: true, externalId: "ext-1" } });
-      assert.ok(publishedResult.ok, "Should transition to published");
+      expect(publishedResult.ok).toBeTruthy();
       post.clearDomainEvents();
 
-      (postRepo.findById as any).mock.mockImplementation(async () => ok(post));
+      (postRepo.findById as any).mockImplementation(async () => ok(post));
 
       const useCase = new UpdatePostUseCase(postRepo, eventDispatcher);
       const result = await useCase.execute({
@@ -339,15 +329,15 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         body: "Should not update",
       });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.FORBIDDEN);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.FORBIDDEN);
     });
   });
 
-  describe("ListPostsUseCase", { concurrency: 1 }, () => {
+  describe("ListPostsUseCase", () => {
     it("should list posts for a project with pagination", async () => {
       const items = [makeReadModel({ body: "Post 1" }), makeReadModel({ body: "Post 2" })];
-      (queryRepo.listByProject as any).mock.mockImplementation(async () => ({
+      (queryRepo.listByProject as any).mockImplementation(async () => ({
         items,
         total: 2,
         page: 1,
@@ -364,21 +354,21 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         limit: 10,
       });
 
-      assert.ok(result.ok);
-      assert.equal(result.value.items.length, 2);
-      assert.equal(result.value.total, 2);
-      assert.equal(result.value.page, 1);
-      assert.equal(result.value.limit, 10);
-      assert.equal(result.value.hasNext, false);
-      assert.equal(result.value.hasPrevious, false);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.items.length).toBe(2);
+      expect(result.value.total).toBe(2);
+      expect(result.value.page).toBe(1);
+      expect(result.value.limit).toBe(10);
+      expect(result.value.hasNext).toBe(false);
+      expect(result.value.hasPrevious).toBe(false);
       // All items belong to the test project
       for (const item of result.value.items) {
-        assert.equal(item.projectId, TEST_PROJECT_ID);
+        expect(item.projectId).toBe(TEST_PROJECT_ID);
       }
     });
 
     it("should return paginated shape with totalPages and navigation flags", async () => {
-      (queryRepo.listByProject as any).mock.mockImplementation(async () => ({
+      (queryRepo.listByProject as any).mockImplementation(async () => ({
         items: [makeReadModel()],
         total: 50,
         page: 2,
@@ -391,10 +381,10 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
       const useCase = new ListPostsUseCase(queryRepo);
       const result = await useCase.execute({ projectId: TEST_PROJECT_ID, page: 2 });
 
-      assert.ok(result.ok);
-      assert.equal(result.value.totalPages, 3);
-      assert.equal(result.value.hasNext, true);
-      assert.equal(result.value.hasPrevious, true);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.totalPages).toBe(3);
+      expect(result.value.hasNext).toBe(true);
+      expect(result.value.hasPrevious).toBe(true);
     });
 
     it("should reject invalid project ID format", async () => {
@@ -402,12 +392,12 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
 
       const result = await useCase.execute({ projectId: "invalid-id" });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
     });
 
     it("should cap limit to 100 even if caller requests more", async () => {
-      (queryRepo.listByProject as any).mock.mockImplementation(async () => ({
+      (queryRepo.listByProject as any).mockImplementation(async () => ({
         items: [],
         total: 0,
         page: 1,
@@ -420,33 +410,33 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
       const useCase = new ListPostsUseCase(queryRepo);
       const result = await useCase.execute({ projectId: TEST_PROJECT_ID, limit: 500 });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       // The use case should have capped the limit to 100
-      const callArgs = (queryRepo.listByProject as any).mock.calls[0]?.arguments;
+      const callArgs = (queryRepo.listByProject as any).mock.calls[0];
       const pagination = callArgs?.[1] as { page: number; limit: number } | undefined;
-      assert.ok(pagination);
-      assert.equal(pagination.limit, 100);
+      expect(pagination).toBeTruthy();
+      expect(pagination.limit).toBe(100);
     });
   });
 
-  describe("DeletePostUseCase", { concurrency: 1 }, () => {
+  describe("DeletePostUseCase", () => {
     it("should delete an existing draft post", async () => {
       const projectId = ProjectId.fromStringUnsafe(TEST_PROJECT_ID);
       const createResult = PostAggregate.create({
         projectId,
         body: "Post to delete",
       });
-      assert.ok(createResult.ok);
+      expect(createResult.ok).toBeTruthy();
       const post = createResult.value;
 
-      (postRepo.findById as any).mock.mockImplementation(async () => ok(post));
+      (postRepo.findById as any).mockImplementation(async () => ok(post));
 
       const useCase = new DeletePostUseCase(postRepo);
       const result = await useCase.execute({ postId: post.id.value });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       // Verify delete was called on the repository
-      assert.equal((postRepo.delete as any).mock.calls.length, 1);
+      expect((postRepo.delete as any).mock.calls.length).toBe(1);
     });
 
     it("should return NOT_FOUND for non-existent post", async () => {
@@ -456,8 +446,8 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         postId: "a0000000-0000-4000-8000-000000000000",
       });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.NOT_FOUND);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.NOT_FOUND);
     });
 
     it("should reject invalid post ID format", async () => {
@@ -465,8 +455,8 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
 
       const result = await useCase.execute({ postId: "not-a-valid-uuid" });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
     });
 
     it("should return FORBIDDEN when post is published and not cancelled", async () => {
@@ -475,20 +465,20 @@ describe("Post Use Cases", { concurrency: 1 }, () => {
         projectId,
         body: "Published post",
       });
-      assert.ok(createResult.ok);
+      expect(createResult.ok).toBeTruthy();
       const post = createResult.value;
       const publishingResult = post.startPublishing(["X"]);
-      assert.ok(publishingResult.ok, "Should transition to publishing");
+      expect(publishingResult.ok).toBeTruthy();
       const publishedResult = post.markAsPublished({ x: { success: true, externalId: "ext-1" } });
-      assert.ok(publishedResult.ok, "Should transition to published");
+      expect(publishedResult.ok).toBeTruthy();
 
-      (postRepo.findById as any).mock.mockImplementation(async () => ok(post));
+      (postRepo.findById as any).mockImplementation(async () => ok(post));
 
       const useCase = new DeletePostUseCase(postRepo);
       const result = await useCase.execute({ postId: post.id.value });
 
-      assert.ok(!result.ok);
-      assert.equal(result.error.code, USE_CASE_ERRORS.FORBIDDEN);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.code).toBe(USE_CASE_ERRORS.FORBIDDEN);
     });
   });
 });

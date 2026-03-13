@@ -1,98 +1,310 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { prisma } from "@infra/prisma";
-import { AuditService } from "../../src/audit/auditService";
-import {
-  setupAuditTestUsers,
-  teardownAuditTestData,
-  testUserId,
-  testUser2Id,
-} from "./auditService.test-helpers.js";
+/**
+ * @file auditService.query.test.ts
+ * @description Unit tests for AuditService.getLogs() — query and filtering.
+ *              Uses mocked Prisma to avoid database dependency.
+ * @layer test-infrastructure
+ */
 
-describe("AuditService - getLogs() - Query and Filtering", { concurrency: 1 }, () => {
+import { describe, it, beforeEach, expect, vi } from "vitest";
+
+// ---------------------------------------------------------------------------
+// Mock setup — vi.hoisted runs before vi.mock factories
+// ---------------------------------------------------------------------------
+
+const mocks = vi.hoisted(() => {
+  const noop = () => {};
+  const noopAsync = async () => undefined;
+
+  const auditLogCreate = vi.fn();
+  const auditLogFindMany = vi.fn();
+  const auditLogFindUnique = vi.fn();
+  const auditLogCount = vi.fn();
+  const auditLogDeleteMany = vi.fn();
+  const auditLogGroupBy = vi.fn(async () => []);
+  const adminUserFindMany = vi.fn();
+
+  const prismaClient: any = {
+    auditLog: {
+      create: auditLogCreate,
+      findMany: auditLogFindMany,
+      findUnique: auditLogFindUnique,
+      count: auditLogCount,
+      deleteMany: auditLogDeleteMany,
+      groupBy: auditLogGroupBy,
+    },
+    adminUser: {
+      findMany: adminUserFindMany,
+    },
+    $connect: vi.fn(noopAsync),
+    $disconnect: vi.fn(noopAsync),
+    $transaction: vi.fn(async (fn: any) => fn(prismaClient)),
+  };
+
+  const logger = {
+    info: vi.fn(noop),
+    warn: vi.fn(noop),
+    error: vi.fn(noop),
+    debug: vi.fn(noop),
+    child: vi.fn(() => logger),
+  };
+
+  return {
+    prismaClient,
+    logger,
+    auditLogFindMany,
+  };
+});
+
+vi.mock("@infra/prisma", () => ({
+  prisma: mocks.prismaClient,
+  AdminRole: { ADMIN: "ADMIN", SUPPORT: "SUPPORT", SUPER_ADMIN: "SUPER_ADMIN" },
+  Prisma: {},
+}));
+
+vi.mock("../../src/lib/logger.js", () => ({
+  logger: mocks.logger,
+}));
+
+import { AuditService } from "../../src/audit/auditService.js";
+
+// ---------------------------------------------------------------------------
+// Test data
+// ---------------------------------------------------------------------------
+
+const TEST_USER_1_ID = "audit-test-user-001";
+const TEST_USER_2_ID = "audit-test-user-002";
+
+const TEST_USER_1 = {
+  id: TEST_USER_1_ID,
+  email: "audit-test-user@example.com",
+  name: "Audit Test User",
+  role: "ADMIN",
+};
+
+const TEST_USER_2 = {
+  id: TEST_USER_2_ID,
+  email: "audit-test-user2@example.com",
+  name: "Audit Test User 2",
+  role: "SUPPORT",
+};
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Filter in-memory records using the same where clause logic AuditService builds */
+function filterRecords(
+  records: Array<Record<string, unknown>>,
+  where: Record<string, unknown>
+): Array<Record<string, unknown>> {
+  return records.filter((entry) => {
+    for (const [key, value] of Object.entries(where)) {
+      if (value === undefined || value === null) continue;
+
+      if (key === "createdAt" && typeof value === "object") {
+        const dateFilter = value as Record<string, Date>;
+        const entryDate = entry.createdAt as Date;
+        if (dateFilter.gte && entryDate < dateFilter.gte) return false;
+        if (dateFilter.lte && entryDate > dateFilter.lte) return false;
+        continue;
+      }
+
+      if (typeof value === "object" && value !== null && "contains" in (value as any)) {
+        const filter = value as { contains: string; mode?: string };
+        const entryVal = String(entry[key] ?? "");
+        if (filter.mode === "insensitive") {
+          if (!entryVal.toLowerCase().includes(filter.contains.toLowerCase())) return false;
+        } else {
+          if (!entryVal.includes(filter.contains)) return false;
+        }
+        continue;
+      }
+
+      if (entry[key] !== value) return false;
+    }
+    return true;
+  });
+}
+
+/** Resolve user relation for each record */
+function resolveUsers(
+  records: Array<Record<string, unknown>>,
+  users: Map<string, Record<string, unknown>>
+): Array<Record<string, unknown>> {
+  return records.map((entry) => {
+    if (entry.userId) {
+      const user = users.get(entry.userId as string);
+      if (user) {
+        return {
+          ...entry,
+          user: { id: user.id, email: user.email, name: user.name, role: user.role },
+        };
+      }
+    }
+    return { ...entry, user: null };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe("AuditService - getLogs() - Query and Filtering", () => {
   const auditService = new AuditService();
 
-  before(async () => {
-    await setupAuditTestUsers();
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
-    const now = new Date();
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const adminUsers = new Map<string, Record<string, unknown>>();
+  let seedRecords: Array<Record<string, unknown>>;
 
-    await prisma.auditLog.createMany({
-      data: [
-        {
-          userId: testUserId,
-          action: "TEST_FILTER_LOGIN",
-          resource: "Session",
-          success: true,
-          createdAt: now,
-        },
-        {
-          userId: testUserId,
-          action: "TEST_FILTER_LOGOUT",
-          resource: "Session",
-          success: true,
-          createdAt: yesterday,
-        },
-        {
-          userId: testUser2Id,
-          action: "TEST_FILTER_LOGIN",
-          resource: "Session",
-          success: false,
-          error: "Invalid credentials",
-          createdAt: now,
-        },
-        {
-          userId: testUser2Id,
-          action: "TEST_FILTER_POST_CREATE",
-          resource: "Post",
-          resourceId: "post-test-1",
-          success: true,
-          createdAt: twoDaysAgo,
-        },
-        {
-          action: "TEST_FILTER_SYSTEM",
-          resource: "System",
-          success: true,
-          createdAt: now,
-        },
-      ],
-    });
-  });
+  beforeEach(() => {
+    vi.clearAllMocks();
 
-  after(async () => {
-    // Only clean up audit logs with "TEST_FILTER" prefix created by this file
-    await teardownAuditTestData("TEST_FILTER");
+    adminUsers.clear();
+    adminUsers.set(TEST_USER_1_ID, TEST_USER_1);
+    adminUsers.set(TEST_USER_2_ID, TEST_USER_2);
+
+    seedRecords = [
+      {
+        id: "log-q-1",
+        userId: TEST_USER_1_ID,
+        action: "TEST_FILTER_LOGIN",
+        resource: "Session",
+        success: true,
+        error: null,
+        resourceId: null,
+        details: null,
+        ipAddress: null,
+        userAgent: null,
+        createdAt: now,
+        updatedAt: now,
+        user: null,
+      },
+      {
+        id: "log-q-2",
+        userId: TEST_USER_1_ID,
+        action: "TEST_FILTER_LOGOUT",
+        resource: "Session",
+        success: true,
+        error: null,
+        resourceId: null,
+        details: null,
+        ipAddress: null,
+        userAgent: null,
+        createdAt: yesterday,
+        updatedAt: yesterday,
+        user: null,
+      },
+      {
+        id: "log-q-3",
+        userId: TEST_USER_2_ID,
+        action: "TEST_FILTER_LOGIN",
+        resource: "Session",
+        success: false,
+        error: "Invalid credentials",
+        resourceId: null,
+        details: null,
+        ipAddress: null,
+        userAgent: null,
+        createdAt: now,
+        updatedAt: now,
+        user: null,
+      },
+      {
+        id: "log-q-4",
+        userId: TEST_USER_2_ID,
+        action: "TEST_FILTER_POST_CREATE",
+        resource: "Post",
+        resourceId: "post-test-1",
+        success: true,
+        error: null,
+        details: null,
+        ipAddress: null,
+        userAgent: null,
+        createdAt: twoDaysAgo,
+        updatedAt: twoDaysAgo,
+        user: null,
+      },
+      {
+        id: "log-q-5",
+        userId: null,
+        action: "TEST_FILTER_SYSTEM",
+        resource: "System",
+        success: true,
+        error: null,
+        resourceId: null,
+        details: null,
+        ipAddress: null,
+        userAgent: null,
+        createdAt: now,
+        updatedAt: now,
+        user: null,
+      },
+    ];
+
+    // Override findMany to handle complex where + ordering + pagination + include
+    mocks.auditLogFindMany.mockImplementation(
+      async ({ where, orderBy, take, skip, include }: any = {}) => {
+        let results = [...seedRecords];
+
+        if (where) {
+          results = filterRecords(results, where);
+        }
+
+        // Ordering
+        if (orderBy?.createdAt) {
+          const dir = orderBy.createdAt;
+          results.sort((a, b) => {
+            const da = (a.createdAt as Date).getTime();
+            const db = (b.createdAt as Date).getTime();
+            return dir === "desc" ? db - da : da - db;
+          });
+        }
+
+        // Pagination
+        const offset = skip ?? 0;
+        const limit = take ?? results.length;
+        results = results.slice(offset, offset + limit);
+
+        // Resolve user relation
+        if (include?.user) {
+          results = resolveUsers(results, adminUsers);
+        }
+
+        return results;
+      }
+    );
   });
 
   describe("Where Clause Building", () => {
     it("should filter by userId exactly", async () => {
-      const result = await auditService.getLogs({ userId: testUserId });
+      const result = await auditService.getLogs({ userId: TEST_USER_1_ID });
 
-      assert.ok(result.ok);
-      assert.ok(result.value.length >= 2);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.length >= 2).toBeTruthy();
       result.value.forEach((log) => {
-        assert.strictEqual(log.userId, testUserId);
+        expect(log.userId).toBe(TEST_USER_1_ID);
       });
     });
 
     it("should filter by action with case-insensitive contains", async () => {
       const result = await auditService.getLogs({ action: "login" });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       const loginLogs = result.value.filter((log) => log.action.includes("TEST_FILTER_LOGIN"));
-      assert.ok(loginLogs.length >= 2, "Should find LOGIN actions case-insensitively");
+      expect(loginLogs.length >= 2).toBeTruthy();
     });
 
     it("should filter by resource exactly", async () => {
       const result = await auditService.getLogs({ resource: "Session" });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       result.value
         .filter((log) => log.action.startsWith("TEST_FILTER"))
         .forEach((log) => {
-          assert.strictEqual(log.resource, "Session");
+          expect(log.resource).toBe("Session");
         });
     });
 
@@ -102,9 +314,9 @@ describe("AuditService - getLogs() - Query and Filtering", { concurrency: 1 }, (
         resourceId: "post-test-1",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       const matching = result.value.find((log) => log.resourceId === "post-test-1");
-      assert.ok(matching, "Should find log with specific resourceId");
+      expect(matching).toBeTruthy();
     });
 
     it("should filter by success=true", async () => {
@@ -113,11 +325,11 @@ describe("AuditService - getLogs() - Query and Filtering", { concurrency: 1 }, (
         success: true,
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       result.value
         .filter((log) => log.action === "TEST_FILTER_LOGIN")
         .forEach((log) => {
-          assert.strictEqual(log.success, true);
+          expect(log.success).toBe(true);
         });
     });
 
@@ -127,50 +339,50 @@ describe("AuditService - getLogs() - Query and Filtering", { concurrency: 1 }, (
         success: false,
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       const failedLogin = result.value.find(
-        (log) => log.action === "TEST_FILTER_LOGIN" && log.userId === testUser2Id
+        (log) => log.action === "TEST_FILTER_LOGIN" && log.userId === TEST_USER_2_ID
       );
-      assert.ok(failedLogin);
-      assert.strictEqual(failedLogin.success, false);
-      assert.strictEqual(failedLogin.error, "Invalid credentials");
+      expect(failedLogin).toBeTruthy();
+      expect(failedLogin.success).toBe(false);
+      expect(failedLogin.error).toBe("Invalid credentials");
     });
   });
 
   describe("Date Range Filtering", () => {
     it("should filter by startDate (gte)", async () => {
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const result = await auditService.getLogs({
         action: "TEST_FILTER",
-        startDate: yesterday,
+        startDate: yesterdayDate,
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       result.value
         .filter((log) => log.action.startsWith("TEST_FILTER"))
         .forEach((log) => {
-          assert.ok(log.createdAt >= yesterday, "All logs should be after startDate");
+          expect(log.createdAt >= yesterdayDate).toBeTruthy();
         });
     });
 
     it("should filter by endDate (lte)", async () => {
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const result = await auditService.getLogs({
         action: "TEST_FILTER",
-        endDate: yesterday,
+        endDate: yesterdayDate,
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       const oldLogs = result.value.filter((log) => log.action.startsWith("TEST_FILTER"));
       oldLogs.forEach((log) => {
-        assert.ok(log.createdAt <= yesterday, "All logs should be before endDate");
+        expect(log.createdAt <= yesterdayDate).toBeTruthy();
       });
     });
 
     it("should filter by date range (both startDate and endDate)", async () => {
-      const now = new Date();
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const threeDaysAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
+      const currentTime = new Date();
+      const oneDayAgo = new Date(currentTime.getTime() - 24 * 60 * 60 * 1000);
+      const threeDaysAgo = new Date(currentTime.getTime() - 72 * 60 * 60 * 1000);
 
       const result = await auditService.getLogs({
         action: "TEST_FILTER",
@@ -178,14 +390,11 @@ describe("AuditService - getLogs() - Query and Filtering", { concurrency: 1 }, (
         endDate: oneDayAgo,
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       result.value
         .filter((log) => log.action.startsWith("TEST_FILTER"))
         .forEach((log) => {
-          assert.ok(
-            log.createdAt >= threeDaysAgo && log.createdAt <= oneDayAgo,
-            "Logs should be within date range"
-          );
+          expect(log.createdAt >= threeDaysAgo && log.createdAt <= oneDayAgo).toBeTruthy();
         });
     });
   });
@@ -197,11 +406,8 @@ describe("AuditService - getLogs() - Query and Filtering", { concurrency: 1 }, (
         limit: 2,
       });
 
-      assert.ok(result.ok);
-      assert.ok(
-        result.value.length <= 2,
-        `Should return at most 2 results, got ${result.value.length}`
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value.length <= 2).toBeTruthy();
     });
 
     it("should respect offset parameter", async () => {
@@ -217,11 +423,11 @@ describe("AuditService - getLogs() - Query and Filtering", { concurrency: 1 }, (
         offset: 2,
       });
 
-      assert.ok(firstPage.ok && secondPage.ok);
+      expect(firstPage.ok && secondPage.ok).toBeTruthy();
       if (firstPage.value.length === 2 && secondPage.value.length > 0) {
         const firstIds = firstPage.value.map((log) => log.id);
         const secondIds = secondPage.value.map((log) => log.id);
-        assert.ok(!firstIds.some((id) => secondIds.includes(id)), "Pages should not overlap");
+        expect(firstIds.some((id) => secondIds.includes(id))).toBeFalsy();
       }
     });
 
@@ -230,18 +436,15 @@ describe("AuditService - getLogs() - Query and Filtering", { concurrency: 1 }, (
         limit: 5000,
       });
 
-      assert.ok(result.ok);
-      assert.ok(
-        result.value.length <= 1000,
-        "Should never return more than 1000 results regardless of request"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value.length <= 1000).toBeTruthy();
     });
 
     it("should use default limit of 50 when not specified", async () => {
       const result = await auditService.getLogs({});
 
-      assert.ok(result.ok);
-      assert.ok(result.value.length <= 50 || result.value.length <= 1000);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.length <= 50 || result.value.length <= 1000).toBeTruthy();
     });
   });
 
@@ -252,15 +455,12 @@ describe("AuditService - getLogs() - Query and Filtering", { concurrency: 1 }, (
         limit: 10,
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       const filtered = result.value.filter((log) => log.action.startsWith("TEST_FILTER"));
 
       if (filtered.length >= 2) {
         for (let i = 0; i < filtered.length - 1; i++) {
-          assert.ok(
-            filtered[i].createdAt >= filtered[i + 1].createdAt,
-            "Results should be ordered newest first"
-          );
+          expect(filtered[i].createdAt >= filtered[i + 1].createdAt).toBeTruthy();
         }
       }
     });

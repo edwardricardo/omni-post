@@ -3,8 +3,7 @@
  * Configuration & Graceful Shutdown
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import * as assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { DatabaseIntegration } from "../../src/database/DatabaseIntegration";
 import {
   createConfig,
@@ -21,22 +20,22 @@ import {
 
 describe("DatabaseIntegration - Auto-Scaling", () => {
   it("should initialize auto-scaling mechanism", async (t) => {
-    const config = createConfig(t);
+    const config = createConfig();
     const integration = new DatabaseIntegration(config);
     await integration.initialize();
 
-    assert.ok(true, "Should initialize auto-scaling");
+    expect(true).toBeTruthy();
 
     await integration.shutdown();
   });
 
   it("should provide connection manager access", (t) => {
-    const config = createConfig(t);
+    const config = createConfig();
     const integration = new DatabaseIntegration(config);
     const manager = integration.getConnectionManager();
 
-    assert.ok(manager, "Should provide connection manager instance");
-    assert.strictEqual(typeof manager.healthCheck, "function", "Should have healthCheck method");
+    expect(manager).toBeTruthy();
+    expect(typeof manager.healthCheck).toBe("function");
   });
 });
 
@@ -48,14 +47,14 @@ describe("DatabaseIntegration - Query Analytics", () => {
   let integration: DatabaseIntegration;
   let mockCache: any;
 
-  beforeEach((t) => {
-    mockCache = createMockCache(t);
+  beforeEach(() => {
+    mockCache = createMockCache();
     const config = {
-      fastify: createMockFastify(t) as any,
-      eventService: createMockEventService(t) as any,
+      fastify: createMockFastify() as any,
+      eventService: createMockEventService() as any,
       cache: mockCache as any,
-      redis: createMockRedis(t) as any,
-      connectionManager: createMockConnectionManager(t) as any,
+      redis: createMockRedis() as any,
+      connectionManager: createMockConnectionManager() as any,
     };
     integration = new DatabaseIntegration(config);
   });
@@ -77,7 +76,7 @@ describe("DatabaseIntegration - Query Analytics", () => {
       { readOnly: true }
     );
 
-    assert.ok(true, "Should track cache hit");
+    expect(true).toBeTruthy();
   });
 
   it("should track database query analytics", async () => {
@@ -91,7 +90,7 @@ describe("DatabaseIntegration - Query Analytics", () => {
       { readOnly: true }
     );
 
-    assert.ok(true, "Should track database query");
+    expect(true).toBeTruthy();
   });
 
   it("should calculate moving averages for query times", async () => {
@@ -110,7 +109,7 @@ describe("DatabaseIntegration - Query Analytics", () => {
       );
     }
 
-    assert.ok(true, "Should calculate query time averages");
+    expect(true).toBeTruthy();
   });
 });
 
@@ -123,10 +122,10 @@ describe("DatabaseIntegration - Configuration", () => {
     process.env.DATABASE_REPLICA_URLS =
       "postgresql://replica1:5432/db,postgresql://replica2:5432/db";
 
-    const config = createConfig(t);
+    const config = createConfig();
     const integration = new DatabaseIntegration(config);
 
-    assert.ok(integration, "Should parse replica configuration");
+    expect(integration).toBeTruthy();
 
     delete process.env.DATABASE_REPLICA_URLS;
   });
@@ -135,20 +134,20 @@ describe("DatabaseIntegration - Configuration", () => {
     delete process.env.DB_POOL_SIZE;
     delete process.env.DB_CONNECTION_TIMEOUT;
 
-    const config = createConfig(t);
+    const config = createConfig();
     const integration = new DatabaseIntegration(config);
 
-    assert.ok(integration, "Should use default configuration");
+    expect(integration).toBeTruthy();
   });
 
   it("should enable monitoring in production environment", (t) => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
 
-    const config = createConfig(t);
+    const config = createConfig();
     const integration = new DatabaseIntegration(config);
 
-    assert.ok(integration, "Should enable monitoring in production");
+    expect(integration).toBeTruthy();
 
     process.env.NODE_ENV = originalEnv;
   });
@@ -160,20 +159,20 @@ describe("DatabaseIntegration - Configuration", () => {
 
 describe("DatabaseIntegration - Graceful Shutdown", () => {
   it("should shutdown connection manager", async (t) => {
-    const config = createConfig(t);
+    const config = createConfig();
     const integration = new DatabaseIntegration(config);
     await integration.shutdown();
 
-    assert.ok(true, "Should shutdown gracefully");
+    expect(true).toBeTruthy();
   });
 
   it("should clean up resources on shutdown", async (t) => {
-    const config = createConfig(t);
+    const config = createConfig();
     const integration = new DatabaseIntegration(config);
     await integration.initialize();
     await integration.shutdown();
 
-    assert.ok(true, "Should clean up all resources");
+    expect(true).toBeTruthy();
   });
 });
 
@@ -184,8 +183,8 @@ describe("DatabaseIntegration - Graceful Shutdown", () => {
 describe("DatabaseIntegration - Load Metrics", () => {
   let integration: DatabaseIntegration;
 
-  beforeEach((t) => {
-    const config = createConfig(t);
+  beforeEach(() => {
+    const config = createConfig();
     integration = new DatabaseIntegration(config);
   });
 
@@ -210,7 +209,7 @@ describe("DatabaseIntegration - Load Metrics", () => {
       { readOnly: true }
     );
 
-    assert.ok(true, "Should track read queries");
+    expect(true).toBeTruthy();
   });
 
   it("should track write query count", async () => {
@@ -222,7 +221,7 @@ describe("DatabaseIntegration - Load Metrics", () => {
       { readOnly: false }
     );
 
-    assert.ok(true, "Should track write queries");
+    expect(true).toBeTruthy();
   });
 
   it("should calculate separate averages for read and write queries", async () => {
@@ -236,6 +235,6 @@ describe("DatabaseIntegration - Load Metrics", () => {
       readOnly: false,
     });
 
-    assert.ok(true, "Should maintain separate read/write averages");
+    expect(true).toBeTruthy();
   });
 });

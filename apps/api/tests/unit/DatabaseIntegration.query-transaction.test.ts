@@ -2,8 +2,7 @@
  * DatabaseIntegration Tests - Optimized Query Execution & Transactions
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import * as assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { DatabaseIntegration } from "../../src/database/DatabaseIntegration";
 import {
   createMockFastify,
@@ -21,14 +20,14 @@ describe("DatabaseIntegration - Optimized Query Execution", () => {
   let integration: DatabaseIntegration;
   let mockCache: any;
 
-  beforeEach((t) => {
-    mockCache = createMockCache(t);
+  beforeEach(() => {
+    mockCache = createMockCache();
     const config = {
-      fastify: createMockFastify(t) as any,
-      eventService: createMockEventService(t) as any,
+      fastify: createMockFastify() as any,
+      eventService: createMockEventService() as any,
       cache: mockCache as any,
-      redis: createMockRedis(t) as any,
-      connectionManager: createMockConnectionManager(t) as any,
+      redis: createMockRedis() as any,
+      connectionManager: createMockConnectionManager() as any,
     };
     integration = new DatabaseIntegration(config);
   });
@@ -52,8 +51,8 @@ describe("DatabaseIntegration - Optimized Query Execution", () => {
       { readOnly: true, cacheTtl: 300 }
     );
 
-    assert.deepStrictEqual(result, cachedData, "Should return cached data");
-    assert.strictEqual(mockCache.get.mock.calls.length, 1, "Should check cache");
+    expect(result).toStrictEqual(cachedData);
+    expect(mockCache.get.mock.calls.length).toBe(1);
   });
 
   it("should execute query and cache result when cache miss", async () => {
@@ -68,8 +67,8 @@ describe("DatabaseIntegration - Optimized Query Execution", () => {
       { readOnly: true, cacheTtl: 300 }
     );
 
-    assert.deepStrictEqual(result, freshData, "Should return fresh data");
-    assert.strictEqual(mockCache.set.mock.calls.length, 1, "Should cache the result");
+    expect(result).toStrictEqual(freshData);
+    expect(mockCache.set.mock.calls.length).toBe(1);
   });
 
   it("should force refresh and bypass cache when requested", async () => {
@@ -87,7 +86,7 @@ describe("DatabaseIntegration - Optimized Query Execution", () => {
       { readOnly: true, forceRefresh: true }
     );
 
-    assert.deepStrictEqual(result, freshData, "Should return fresh data despite cache");
+    expect(result).toStrictEqual(freshData);
   });
 
   it("should track read query metrics", async () => {
@@ -101,7 +100,7 @@ describe("DatabaseIntegration - Optimized Query Execution", () => {
       { readOnly: true }
     );
 
-    assert.ok(true, "Should execute and track metrics");
+    expect(true).toBeTruthy();
   });
 
   it("should track write query metrics", async () => {
@@ -115,42 +114,38 @@ describe("DatabaseIntegration - Optimized Query Execution", () => {
       { readOnly: false }
     );
 
-    assert.ok(true, "Should execute write query and track metrics");
+    expect(true).toBeTruthy();
   });
 
   it("should publish error event on query failure", async (t) => {
-    const mockEventService = createMockEventService(t);
+    const mockEventService = createMockEventService();
     const failingConnectionManager = {
-      ...createMockConnectionManager(t),
-      executeQuery: t.mock.fn(async <T>(query: (client: any) => Promise<T>, _options?: any) => {
+      ...createMockConnectionManager(),
+      executeQuery: vi.fn(async <T>(query: (client: any) => Promise<T>, _options?: any) => {
         return query(null);
       }),
     };
     const errorConfig = {
-      fastify: createMockFastify(t) as any,
+      fastify: createMockFastify() as any,
       eventService: mockEventService as any,
-      cache: createMockCache(t) as any,
-      redis: createMockRedis(t) as any,
+      cache: createMockCache() as any,
+      redis: createMockRedis() as any,
       connectionManager: failingConnectionManager as any,
     };
 
     const errorIntegration = new DatabaseIntegration(errorConfig);
 
-    await assert.rejects(async () => {
-      await errorIntegration.executeOptimizedQuery(
+    await expect(
+      errorIntegration.executeOptimizedQuery(
         "failing-query",
         async (_client) => {
           throw new Error("Query execution failed");
         },
         { readOnly: true }
-      );
-    });
+      )
+    ).rejects.toThrow();
 
-    assert.strictEqual(
-      mockEventService.publishEvent.mock.calls.length,
-      1,
-      "Should publish error event"
-    );
+    expect(mockEventService.publishEvent.mock.calls.length).toBe(1);
 
     await errorIntegration.shutdown();
   });
@@ -168,8 +163,8 @@ describe("DatabaseIntegration - Optimized Query Execution", () => {
     );
 
     const setCall = mockCache.set.mock.calls[0];
-    assert.ok(setCall, "Should call cache.set");
-    assert.strictEqual(setCall.arguments[2]?.ttl, customTtl, "Should use custom TTL");
+    expect(setCall).toBeTruthy();
+    expect(setCall[2]?.ttl).toBe(customTtl);
   });
 
   it("should tag cached results when tags provided", async () => {
@@ -185,8 +180,8 @@ describe("DatabaseIntegration - Optimized Query Execution", () => {
     );
 
     const setCall = mockCache.set.mock.calls[0];
-    assert.ok(setCall, "Should call cache.set");
-    assert.deepStrictEqual(setCall.arguments[2]?.tags, tags, "Should include tags");
+    expect(setCall).toBeTruthy();
+    expect(setCall[2]?.tags).toStrictEqual(tags);
   });
 });
 
@@ -198,14 +193,14 @@ describe("DatabaseIntegration - Optimized Transaction", () => {
   let integration: DatabaseIntegration;
   let mockCache: any;
 
-  beforeEach((t) => {
-    mockCache = createMockCache(t);
+  beforeEach(() => {
+    mockCache = createMockCache();
     const config = {
-      fastify: createMockFastify(t) as any,
-      eventService: createMockEventService(t) as any,
+      fastify: createMockFastify() as any,
+      eventService: createMockEventService() as any,
       cache: mockCache as any,
-      redis: createMockRedis(t) as any,
-      connectionManager: createMockConnectionManager(t) as any,
+      redis: createMockRedis() as any,
+      connectionManager: createMockConnectionManager() as any,
     };
     integration = new DatabaseIntegration(config);
   });
@@ -223,11 +218,7 @@ describe("DatabaseIntegration - Optimized Transaction", () => {
       }
     );
 
-    assert.deepStrictEqual(
-      result,
-      { success: true, committed: true },
-      "Should return transaction result"
-    );
+    expect(result).toStrictEqual({ success: true, committed: true });
   });
 
   it("should invalidate cache tags after transaction", async () => {
@@ -241,44 +232,36 @@ describe("DatabaseIntegration - Optimized Transaction", () => {
       { cacheTags }
     );
 
-    assert.strictEqual(
-      mockCache.invalidateByTag.mock.calls.length,
-      2,
-      "Should invalidate all tags"
-    );
+    expect(mockCache.invalidateByTag.mock.calls.length).toBe(2);
   });
 
   it("should publish error event on transaction failure", async (t) => {
-    const mockEventService = createMockEventService(t);
+    const mockEventService = createMockEventService();
     const failingConnectionManager = {
-      ...createMockConnectionManager(t),
-      executeTransaction: t.mock.fn(
+      ...createMockConnectionManager(),
+      executeTransaction: vi.fn(
         async <T>(transaction: (client: any) => Promise<T>, _options?: any) => {
           return transaction(null);
         }
       ),
     };
     const errorConfig = {
-      fastify: createMockFastify(t) as any,
+      fastify: createMockFastify() as any,
       eventService: mockEventService as any,
-      cache: createMockCache(t) as any,
-      redis: createMockRedis(t) as any,
+      cache: createMockCache() as any,
+      redis: createMockRedis() as any,
       connectionManager: failingConnectionManager as any,
     };
 
     const errorIntegration = new DatabaseIntegration(errorConfig);
 
-    await assert.rejects(async () => {
-      await errorIntegration.executeOptimizedTransaction("failing-transaction", async (_client) => {
+    await expect(
+      errorIntegration.executeOptimizedTransaction("failing-transaction", async (_client) => {
         throw new Error("Transaction failed");
-      });
-    });
+      })
+    ).rejects.toThrow();
 
-    assert.strictEqual(
-      mockEventService.publishEvent.mock.calls.length,
-      1,
-      "Should publish error event"
-    );
+    expect(mockEventService.publishEvent.mock.calls.length).toBe(1);
 
     await errorIntegration.shutdown();
   });
@@ -294,6 +277,6 @@ describe("DatabaseIntegration - Optimized Transaction", () => {
       { timeout: customTimeout }
     );
 
-    assert.ok(result.success, "Should complete within timeout");
+    expect(result.success).toBeTruthy();
   });
 });

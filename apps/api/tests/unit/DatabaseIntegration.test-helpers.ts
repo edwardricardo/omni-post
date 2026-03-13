@@ -2,45 +2,43 @@
  * Shared test helpers for DatabaseIntegration tests
  */
 
-import type { TestContext } from "node:test";
-
-export function createMockFastify(t: TestContext) {
+export function createMockFastify() {
   const routes: any[] = [];
 
   return {
-    get: t.mock.fn((path: string, handler: any) => {
+    get: vi.fn((path: string, handler: any) => {
       routes.push({ method: "GET", path, handler });
     }),
-    post: t.mock.fn((path: string, handler: any) => {
+    post: vi.fn((path: string, handler: any) => {
       routes.push({ method: "POST", path, handler });
     }),
-    delete: t.mock.fn((path: string, handler: any) => {
+    delete: vi.fn((path: string, handler: any) => {
       routes.push({ method: "DELETE", path, handler });
     }),
-    addHook: t.mock.fn(),
+    addHook: vi.fn(),
     routes,
   };
 }
 
-export function createMockEventService(t: TestContext) {
+export function createMockEventService() {
   return {
-    publishEvent: t.mock.fn(async () => undefined),
+    publishEvent: vi.fn(async () => undefined),
   };
 }
 
-export function createMockCache(t: TestContext) {
+export function createMockCache() {
   const cache = new Map<string, any>();
 
   return {
-    get: t.mock.fn(async <_T>(key: string) => {
+    get: vi.fn(async <_T>(key: string) => {
       const value = cache.get(key);
       return { ok: true, value: value ?? null };
     }),
-    set: t.mock.fn(async <_T>(key: string, value: _T, _options?: any) => {
+    set: vi.fn(async <_T>(key: string, value: _T, _options?: any) => {
       cache.set(key, value);
       return { ok: true };
     }),
-    invalidateByTag: t.mock.fn(async (_tag: string) => {
+    invalidateByTag: vi.fn(async (_tag: string) => {
       return { ok: true };
     }),
     clear: () => cache.clear(),
@@ -48,25 +46,25 @@ export function createMockCache(t: TestContext) {
   };
 }
 
-export function createMockRedis(t: TestContext) {
+export function createMockRedis() {
   return {
-    get: t.mock.fn(async () => null),
-    set: t.mock.fn(async () => "OK"),
-    del: t.mock.fn(async () => 1),
+    get: vi.fn(async () => null),
+    set: vi.fn(async () => "OK"),
+    del: vi.fn(async () => 1),
   };
 }
 
-export function createMockConnectionManager(t: TestContext) {
+export function createMockConnectionManager() {
   return {
-    executeQuery: t.mock.fn(async <T>(query: (client: any) => Promise<T>, _options?: any) => {
+    executeQuery: vi.fn(async <T>(query: (client: any) => Promise<T>, _options?: any) => {
       return query(null);
     }),
-    executeTransaction: t.mock.fn(
+    executeTransaction: vi.fn(
       async <T>(transaction: (client: any) => Promise<T>, _options?: any) => {
         return transaction(null);
       }
     ),
-    healthCheck: t.mock.fn(async () => ({
+    healthCheck: vi.fn(async () => ({
       status: "healthy" as const,
       primary: true,
       replicas: [],
@@ -83,7 +81,7 @@ export function createMockConnectionManager(t: TestContext) {
       },
       lastCheck: new Date(),
     })),
-    getConnectionStats: t.mock.fn(() => ({
+    getConnectionStats: vi.fn(() => ({
       totalConnections: 1,
       activeConnections: 0,
       idleConnections: 1,
@@ -105,19 +103,19 @@ export function createMockConnectionManager(t: TestContext) {
         errorRate: 0,
       },
     })),
-    scaleConnectionPool: t.mock.fn(async (_size: number) => undefined),
-    addReplica: t.mock.fn(async (_url: string, _weight?: number, _priority?: number) => undefined),
-    removeReplica: t.mock.fn(async (_url: string) => undefined),
-    shutdown: t.mock.fn(async () => undefined),
+    scaleConnectionPool: vi.fn(async (_size: number) => undefined),
+    addReplica: vi.fn(async (_url: string, _weight?: number, _priority?: number) => undefined),
+    removeReplica: vi.fn(async (_url: string) => undefined),
+    shutdown: vi.fn(async () => undefined),
   };
 }
 
-export function createConfig(t: TestContext) {
+export function createConfig() {
   return {
-    fastify: createMockFastify(t) as any,
-    eventService: createMockEventService(t) as any,
-    cache: createMockCache(t) as any,
-    redis: createMockRedis(t) as any,
-    connectionManager: createMockConnectionManager(t) as any,
+    fastify: createMockFastify() as any,
+    eventService: createMockEventService() as any,
+    cache: createMockCache() as any,
+    redis: createMockRedis() as any,
+    connectionManager: createMockConnectionManager() as any,
   };
 }

@@ -30,12 +30,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Test Commands (API)
 
-- `pnpm --filter @apps/api test` - Run all tests with Node.js native test runner
-- `pnpm --filter @apps/api test:watch` - Run tests in watch mode
-- `pnpm --filter @apps/api test:coverage` - Run tests with coverage report
-- `pnpm --filter @apps/api test:coverage:check` - Validate coverage thresholds (80%)
-
-Category-based: `test:category:core`, `test:category:security`, `test:category:threading`, `test:category:account`, `test:category:workflow`, `test:category:integration`
+- `pnpm --filter @apps/api test` - Run unit tests with Vitest
+- `pnpm --filter @apps/api test:unit:watch` - Run unit tests in watch mode
+- `pnpm --filter @apps/api test:unit:coverage` - Run unit tests with coverage report
+- `pnpm --filter @apps/api test:all` - Run all tests (Vitest unit + node:test integration)
+- `pnpm --filter @apps/api test:integration` - Run integration tests only (requires DB + Redis)
+- `cd apps/api && pnpm exec stryker run` - Mutation testing (Stryker + vitest-runner, perTest)
 
 ---
 
@@ -403,27 +403,22 @@ The target is **0 cancelled** on every run. If you find cancelled tests, diagnos
 
 **Three frameworks, strict domain boundaries. Jest is NOT allowed.**
 
-| Domain                                             | Framework    | Imports                                                                                                           |
-| -------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------- |
-| Backend (API, providers, adapters, core, security) | `node:test`  | `import { describe, it, before, after, beforeEach } from "node:test"` + `import assert from "node:assert/strict"` |
-| Frontend (admin components, client hooks)          | `vitest`     | `import { describe, it, expect, vi } from "vitest"` + `@testing-library/react`                                    |
-| E2E (admin auth, client publishing)                | `Playwright` | `import { test, expect } from "@playwright/test"`                                                                 |
+| Domain                                                    | Framework    | Imports                                                                        |
+| --------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------ |
+| Backend unit tests (`apps/api/tests/unit/`)               | `vitest`     | `import { describe, it, expect, vi } from "vitest"` + `assert`                 |
+| Backend integration tests (`apps/api/tests/integration/`) | `node:test`  | `import { describe, it, before, after } from "node:test"` + `assert`           |
+| Frontend (admin components, client hooks)                 | `vitest`     | `import { describe, it, expect, vi } from "vitest"` + `@testing-library/react` |
+| E2E (admin auth, client publishing)                       | `Playwright` | `import { test, expect } from "@playwright/test"`                              |
 
-### Backend Test Pattern (node:test)
+### Backend Unit Test Pattern (Vitest)
 
 ```typescript
-import { describe, it, before, after, beforeEach } from "node:test";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 
 describe("Feature Name", () => {
-  before(async () => {
-    /* one-time setup */
-  });
-  beforeEach(async () => {
-    /* per-test setup */
-  });
-  after(async () => {
-    /* cleanup */
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
   describe("Specific Functionality", () => {
@@ -436,12 +431,34 @@ describe("Feature Name", () => {
 });
 ```
 
+### Backend Integration Test Pattern (node:test)
+
+```typescript
+import { describe, it, before, after, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+
+describe("Integration Feature", () => {
+  before(async () => {
+    /* one-time setup — DB, Redis, etc. */
+  });
+  after(async () => {
+    /* cleanup */
+  });
+
+  it("works with real services", async () => {
+    const result = await serviceUnderTest.method(testData);
+    assert.ok(result.ok, "Operation should succeed");
+  });
+});
+```
+
 ### Running Tests
 
-- Individual file: `pnpm --filter @apps/api test:filename`
-- Category: `pnpm --filter @apps/api test:category:name`
-- All tests: `pnpm --filter @apps/api test`
-- With coverage: `pnpm --filter @apps/api test:coverage`
+- Unit tests: `pnpm --filter @apps/api test` (runs Vitest)
+- Unit tests with coverage: `pnpm --filter @apps/api test:unit:coverage`
+- All tests (unit + integration): `pnpm --filter @apps/api test:all` (runs `scripts/run-tests.sh`)
+- Integration tests only: `pnpm --filter @apps/api test:integration`
+- Mutation testing: `cd apps/api && pnpm exec stryker run` (Stryker with vitest-runner, `coverageAnalysis: 'perTest'`)
 - **Integration tests need real services**: Start PostgreSQL and Redis with `pnpm db:up` before running tests that use Prisma or Redis. Never skip tests because services are down — start them.
 
 ---

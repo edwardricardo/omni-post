@@ -6,9 +6,7 @@
  * Coverage Target: 95%+
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import Redis from "ioredis";
 import { ApiMetrics } from "../../src/metrics/apiMetrics.js";
@@ -23,25 +21,25 @@ type MockRedis = Pick<Redis, "get" | "set" | "setex" | "hgetall" | "keys">;
 type MockApiMetrics = Pick<ApiMetrics, "recordRequest" | "recordError" | "recordLatency">;
 
 // Mock Redis client
-function createMockRedis(t: TestContext): MockRedis {
+function createMockRedis(): MockRedis {
   const mockData = new Map<string, string>();
 
   return {
-    get: t.mock.fn(async (key: string) => mockData.get(key) || null),
-    set: t.mock.fn(async (key: string, value: string) => {
+    get: vi.fn(async (key: string) => mockData.get(key) || null),
+    set: vi.fn(async (key: string, value: string) => {
       mockData.set(key, value);
       return "OK";
     }),
-    setex: t.mock.fn(async (key: string, _ttl: number, value: string) => {
+    setex: vi.fn(async (key: string, _ttl: number, value: string) => {
       mockData.set(key, value);
       return "OK";
     }),
-    hgetall: t.mock.fn(async (_key: string) => ({
+    hgetall: vi.fn(async (_key: string) => ({
       active: "true",
       last_heartbeat: new Date().toISOString(),
       requests_handled: "1000",
     })),
-    keys: t.mock.fn(async (pattern: string) => {
+    keys: vi.fn(async (pattern: string) => {
       if (pattern.includes("tenant")) {
         return [
           "rate_limit:metrics:tenant:tenant-1:blocks",
@@ -60,23 +58,23 @@ function createMockRedis(t: TestContext): MockRedis {
 }
 
 // Mock ApiMetrics
-function createMockApiMetrics(t: TestContext): MockApiMetrics {
+function createMockApiMetrics(): MockApiMetrics {
   return {
-    recordRequest: t.mock.fn(),
-    recordError: t.mock.fn(),
-    recordLatency: t.mock.fn(),
+    recordRequest: vi.fn(),
+    recordError: vi.fn(),
+    recordLatency: vi.fn(),
   };
 }
 
-describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
+describe("rateLimitingDashboard - Unit Tests", () => {
   let app: FastifyInstance;
   let mockRedis: MockRedis;
   let mockMetrics: MockApiMetrics;
   let dashboard: RateLimitingDashboard;
 
   beforeEach(async (t) => {
-    mockRedis = createMockRedis(t);
-    mockMetrics = createMockApiMetrics(t);
+    mockRedis = createMockRedis();
+    mockMetrics = createMockApiMetrics();
 
     dashboard = new RateLimitingDashboard(
       mockRedis as Redis,
@@ -99,12 +97,12 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rate-limiting/dashboard",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data);
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should return metrics structure", async () => {
@@ -114,14 +112,14 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.total_requests === "number");
-      assert.ok(typeof body.data.rate_limited_requests === "number");
-      assert.ok(typeof body.data.burst_protected_requests === "number");
-      assert.ok(typeof body.data.emergency_mode_activations === "number");
-      assert.ok(typeof body.data.tenant_specific_blocks === "object");
-      assert.ok(typeof body.data.average_response_time === "number");
-      assert.ok(Array.isArray(body.data.peak_usage_periods));
-      assert.ok(typeof body.data.distributed_instance_stats === "object");
+      expect(typeof body.data.total_requests === "number").toBeTruthy();
+      expect(typeof body.data.rate_limited_requests === "number").toBeTruthy();
+      expect(typeof body.data.burst_protected_requests === "number").toBeTruthy();
+      expect(typeof body.data.emergency_mode_activations === "number").toBeTruthy();
+      expect(typeof body.data.tenant_specific_blocks === "object").toBeTruthy();
+      expect(typeof body.data.average_response_time === "number").toBeTruthy();
+      expect(Array.isArray(body.data.peak_usage_periods)).toBeTruthy();
+      expect(typeof body.data.distributed_instance_stats === "object").toBeTruthy();
     });
 
     it("should accept 1h time range", async () => {
@@ -130,10 +128,10 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rate-limiting/dashboard?timeRange=1h",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
+      expect(body.ok).toBe(true);
     });
 
     it("should accept 24h time range", async () => {
@@ -142,10 +140,10 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rate-limiting/dashboard?timeRange=24h",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
+      expect(body.ok).toBe(true);
     });
 
     it("should accept 7d time range", async () => {
@@ -154,10 +152,10 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rate-limiting/dashboard?timeRange=7d",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject invalid time range", async () => {
@@ -166,7 +164,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rate-limiting/dashboard?timeRange=invalid",
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should include tenant specific blocks", async () => {
@@ -176,7 +174,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.tenant_specific_blocks === "object");
+      expect(typeof body.data.tenant_specific_blocks === "object").toBeTruthy();
     });
 
     it("should include distributed instance stats", async () => {
@@ -186,7 +184,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.distributed_instance_stats === "object");
+      expect(typeof body.data.distributed_instance_stats === "object").toBeTruthy();
     });
   });
 
@@ -197,12 +195,12 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rate-limiting/realtime",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data);
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should include current requests per minute", async () => {
@@ -212,7 +210,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.current_requests_per_minute === "number");
+      expect(typeof body.data.current_requests_per_minute === "number").toBeTruthy();
     });
 
     it("should include active rate limits count", async () => {
@@ -222,7 +220,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.active_rate_limits === "number");
+      expect(typeof body.data.active_rate_limits === "number").toBeTruthy();
     });
 
     it("should include emergency mode status", async () => {
@@ -232,7 +230,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.emergency_mode_active === "boolean");
+      expect(typeof body.data.emergency_mode_active === "boolean").toBeTruthy();
     });
 
     it("should include distributed instances count", async () => {
@@ -242,7 +240,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.distributed_instances === "number");
+      expect(typeof body.data.distributed_instances === "number").toBeTruthy();
     });
   });
 
@@ -253,13 +251,13 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rate-limiting/tenant/tenant-123",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.tenant, "tenant-123");
-      assert.ok(body.data);
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(body.tenant).toBe("tenant-123");
+      expect(body.data).toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should include tenant requests count", async () => {
@@ -269,7 +267,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.requests === "number");
+      expect(typeof body.data.requests === "number").toBeTruthy();
     });
 
     it("should include tenant blocks count", async () => {
@@ -279,7 +277,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.blocks === "number");
+      expect(typeof body.data.blocks === "number").toBeTruthy();
     });
 
     it("should include tenant burst usage", async () => {
@@ -289,7 +287,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.burst_usage === "number");
+      expect(typeof body.data.burst_usage === "number").toBeTruthy();
     });
 
     it("should include tenant tier", async () => {
@@ -299,7 +297,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(body.data.tier);
+      expect(body.data.tier).toBeTruthy();
     });
 
     it("should include current usage metrics", async () => {
@@ -309,7 +307,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.data.current_usage === "object");
+      expect(typeof body.data.current_usage === "object").toBeTruthy();
     });
 
     it("should accept custom time range", async () => {
@@ -318,7 +316,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rate-limiting/tenant/tenant-789?timeRange=7d",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject invalid tenant ID format", async () => {
@@ -328,10 +326,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       // Empty tenantId triggers validation error (400) or no-match (404)
-      assert.ok(
-        response.statusCode === 400 || response.statusCode === 404,
-        `Expected 400 or 404, got ${response.statusCode}`
-      );
+      expect(response.statusCode === 400 || response.statusCode === 404).toBeTruthy();
     });
   });
 
@@ -342,12 +337,12 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rate-limiting/alerts",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.config);
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(body.config).toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should include alert configuration", async () => {
@@ -357,9 +352,9 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.config.enabled === "boolean");
-      assert.ok(typeof body.config.thresholds === "object");
-      assert.ok(typeof body.config.notification_channels === "object");
+      expect(typeof body.config.enabled === "boolean").toBeTruthy();
+      expect(typeof body.config.thresholds === "object").toBeTruthy();
+      expect(typeof body.config.notification_channels === "object").toBeTruthy();
     });
 
     it("should include active alerts", async () => {
@@ -369,7 +364,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(Array.isArray(body.active_alerts));
+      expect(Array.isArray(body.active_alerts)).toBeTruthy();
     });
 
     it("should include threshold configuration", async () => {
@@ -379,10 +374,10 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.config.thresholds.rate_limit_ratio === "number");
-      assert.ok(typeof body.config.thresholds.emergency_activations === "number");
-      assert.ok(typeof body.config.thresholds.tenant_abuse_threshold === "number");
-      assert.ok(typeof body.config.thresholds.response_time_threshold === "number");
+      expect(typeof body.config.thresholds.rate_limit_ratio === "number").toBeTruthy();
+      expect(typeof body.config.thresholds.emergency_activations === "number").toBeTruthy();
+      expect(typeof body.config.thresholds.tenant_abuse_threshold === "number").toBeTruthy();
+      expect(typeof body.config.thresholds.response_time_threshold === "number").toBeTruthy();
     });
   });
 
@@ -393,12 +388,12 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/rate-limiting/emergency-status",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.emergency_mode);
-      assert.ok(body.timestamp);
+      expect(body.ok).toBe(true);
+      expect(body.emergency_mode).toBeTruthy();
+      expect(body.timestamp).toBeTruthy();
     });
 
     it("should include emergency active status", async () => {
@@ -408,7 +403,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.emergency_mode.active === "boolean");
+      expect(typeof body.emergency_mode.active === "boolean").toBeTruthy();
     });
 
     it("should include activations count", async () => {
@@ -418,7 +413,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.emergency_mode.activations_today === "number");
+      expect(typeof body.emergency_mode.activations_today === "number").toBeTruthy();
     });
 
     it("should include current error rate", async () => {
@@ -428,7 +423,7 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.ok(typeof body.emergency_mode.current_error_rate === "number");
+      expect(typeof body.emergency_mode.current_error_rate === "number").toBeTruthy();
     });
   });
 
@@ -436,10 +431,10 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
     it("should aggregate metrics from multiple sources", async () => {
       const metrics = await dashboard.getMetrics("1h");
 
-      assert.ok(typeof metrics.total_requests === "number");
-      assert.ok(typeof metrics.rate_limited_requests === "number");
-      assert.ok(typeof metrics.burst_protected_requests === "number");
-      assert.ok(typeof metrics.emergency_mode_activations === "number");
+      expect(typeof metrics.total_requests === "number").toBeTruthy();
+      expect(typeof metrics.rate_limited_requests === "number").toBeTruthy();
+      expect(typeof metrics.burst_protected_requests === "number").toBeTruthy();
+      expect(typeof metrics.emergency_mode_activations === "number").toBeTruthy();
     });
 
     it("should support different time ranges", async () => {
@@ -447,9 +442,9 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
       const metrics24h = await dashboard.getMetrics("24h");
       const metrics7d = await dashboard.getMetrics("7d");
 
-      assert.ok(metrics1h);
-      assert.ok(metrics24h);
-      assert.ok(metrics7d);
+      expect(metrics1h).toBeTruthy();
+      expect(metrics24h).toBeTruthy();
+      expect(metrics7d).toBeTruthy();
     });
   });
 
@@ -460,8 +455,8 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
         enabled: false,
       };
 
-      const disabledRedis = createMockRedis(t);
-      const disabledMetrics = createMockApiMetrics(t);
+      const disabledRedis = createMockRedis();
+      const disabledMetrics = createMockApiMetrics();
       const dashboardWithDisabledAlerts = new RateLimitingDashboard(
         disabledRedis as Redis,
         disabledMetrics as ApiMetrics,
@@ -472,8 +467,8 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
 
       // When alerts are disabled, getMetrics should NOT be called (early return)
       // The mock redis.get is used by getMetrics internally — it should not have been called
-      const getCalls = (disabledRedis.get as any).mock.callCount();
-      assert.strictEqual(getCalls, 0, "getMetrics should not be called when alerts are disabled");
+      const getCalls = (disabledRedis.get as any).mock.calls.length;
+      expect(getCalls).toBe(0);
     });
 
     it("should check rate limiting thresholds", async () => {
@@ -481,23 +476,23 @@ describe("rateLimitingDashboard - Unit Tests", { concurrency: 1 }, () => {
 
       // checkAlerts calls getMetrics("1h") which queries Redis keys for tenant
       // and distributed stats via getTenantSpecificStats and getDistributedInstanceStats
-      const keysCalls = (mockRedis.keys as any).mock.callCount();
-      assert.ok(keysCalls > 0, "checkAlerts should query Redis keys for metrics aggregation");
+      const keysCalls = (mockRedis.keys as any).mock.calls.length;
+      expect(keysCalls > 0).toBeTruthy();
     });
   });
 
   describe("DEFAULT_ALERT_CONFIG", () => {
     it("should have proper default configuration", () => {
-      assert.strictEqual(DEFAULT_ALERT_CONFIG.enabled, true);
-      assert.ok(DEFAULT_ALERT_CONFIG.thresholds);
-      assert.ok(DEFAULT_ALERT_CONFIG.notification_channels);
+      expect(DEFAULT_ALERT_CONFIG.enabled).toBe(true);
+      expect(DEFAULT_ALERT_CONFIG.thresholds).toBeTruthy();
+      expect(DEFAULT_ALERT_CONFIG.notification_channels).toBeTruthy();
     });
 
     it("should have reasonable threshold values", () => {
-      assert.ok(DEFAULT_ALERT_CONFIG.thresholds.rate_limit_ratio > 0);
-      assert.ok(DEFAULT_ALERT_CONFIG.thresholds.emergency_activations > 0);
-      assert.ok(DEFAULT_ALERT_CONFIG.thresholds.tenant_abuse_threshold > 0);
-      assert.ok(DEFAULT_ALERT_CONFIG.thresholds.response_time_threshold > 0);
+      expect(DEFAULT_ALERT_CONFIG.thresholds.rate_limit_ratio > 0).toBeTruthy();
+      expect(DEFAULT_ALERT_CONFIG.thresholds.emergency_activations > 0).toBeTruthy();
+      expect(DEFAULT_ALERT_CONFIG.thresholds.tenant_abuse_threshold > 0).toBeTruthy();
+      expect(DEFAULT_ALERT_CONFIG.thresholds.response_time_threshold > 0).toBeTruthy();
     });
   });
 });

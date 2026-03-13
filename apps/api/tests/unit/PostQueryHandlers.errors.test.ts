@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import {
   GetPostQueryHandler,
   ListPostsQueryHandler,
@@ -15,7 +14,7 @@ import {
   type MockPostQueryRepository,
 } from "./PostQueryHandlers.test-helpers";
 
-describe("Query Handlers - Error Handling", { concurrency: 1 }, () => {
+describe("Query Handlers - Error Handling", () => {
   let getHandler: GetPostQueryHandler;
   let listHandler: ListPostsQueryHandler;
   let searchHandler: SearchPostsQueryHandler;
@@ -54,8 +53,8 @@ describe("Query Handlers - Error Handling", { concurrency: 1 }, () => {
 
     const result = await getHandler.handle(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 
   it("should handle repository errors gracefully - ListPosts", async () => {
@@ -82,8 +81,8 @@ describe("Query Handlers - Error Handling", { concurrency: 1 }, () => {
 
     const result = await listHandler.handle(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 
   it("should handle repository errors gracefully - SearchPosts", async () => {
@@ -109,8 +108,8 @@ describe("Query Handlers - Error Handling", { concurrency: 1 }, () => {
 
     const result = await searchHandler.handle(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 
   it("should handle repository errors gracefully - GetAnalytics", async () => {
@@ -133,8 +132,8 @@ describe("Query Handlers - Error Handling", { concurrency: 1 }, () => {
 
     const result = await analyticsHandler.handle(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 
   it("should return error for missing postId in analytics query", async () => {
@@ -151,8 +150,8 @@ describe("Query Handlers - Error Handling", { concurrency: 1 }, () => {
 
     const result = await analyticsHandler.handle(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error?.includes("required"));
+    expect(result.success).toBe(false);
+    expect(result.error?.includes("required")).toBeTruthy();
   });
 
   it("should handle validation errors - invalid query schema", async () => {
@@ -171,7 +170,7 @@ describe("Query Handlers - Error Handling", { concurrency: 1 }, () => {
 
     const result = await getHandler.handle(query);
 
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should handle validation errors - invalid list query", async () => {
@@ -194,7 +193,7 @@ describe("Query Handlers - Error Handling", { concurrency: 1 }, () => {
 
     const result = await listHandler.handle(query);
 
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should handle validation errors - invalid search query", async () => {
@@ -215,6 +214,6 @@ describe("Query Handlers - Error Handling", { concurrency: 1 }, () => {
 
     const result = await searchHandler.handle(query);
 
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });

@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import * as client from "prom-client";
 import { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import { createTestRegistry, getCounterValue, getGaugeValue } from "./apiMetrics.test-helpers.js";
@@ -32,7 +31,7 @@ describe("ApiMetrics - Queue Operation Metrics", () => {
       result: "success",
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment queue operation counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should track queue depth", async () => {
@@ -45,7 +44,7 @@ describe("ApiMetrics - Queue Operation Metrics", () => {
       queue_name: queueName,
     });
 
-    assert.strictEqual(gaugeValue, depth, "Should set queue depth");
+    expect(gaugeValue).toBe(depth);
   });
 
   it("should update queue depth dynamically", async () => {
@@ -53,15 +52,15 @@ describe("ApiMetrics - Queue Operation Metrics", () => {
 
     apiMetrics.updateQueueDepth(queueName, 10);
     let depth = await getGaugeValue(apiMetrics.metrics.queueDepth, { queue_name: queueName });
-    assert.strictEqual(depth, 10, "Should set initial depth");
+    expect(depth).toBe(10);
 
     apiMetrics.updateQueueDepth(queueName, 25);
     depth = await getGaugeValue(apiMetrics.metrics.queueDepth, { queue_name: queueName });
-    assert.strictEqual(depth, 25, "Should update depth");
+    expect(depth).toBe(25);
 
     apiMetrics.updateQueueDepth(queueName, 0);
     depth = await getGaugeValue(apiMetrics.metrics.queueDepth, { queue_name: queueName });
-    assert.strictEqual(depth, 0, "Should clear depth");
+    expect(depth).toBe(0);
   });
 });
 
@@ -93,7 +92,7 @@ describe("ApiMetrics - Storage Operation Metrics", () => {
       result: "success",
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment storage operation counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should track different storage providers", async () => {
@@ -110,7 +109,7 @@ describe("ApiMetrics - Storage Operation Metrics", () => {
         result: "success",
       });
 
-      assert.ok(count > 0, `Should record operation for ${provider}`);
+      expect(count > 0).toBeTruthy();
     }
   });
 });
@@ -140,7 +139,7 @@ describe("ApiMetrics - Rate Limiting Metrics", () => {
       allowed: "true",
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment allowed rate limit counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should record blocked rate limit check", async () => {
@@ -168,8 +167,8 @@ describe("ApiMetrics - Rate Limiting Metrics", () => {
       endpoint,
     });
 
-    assert.ok(afterHits > beforeHits, "Should increment blocked rate limit hits");
-    assert.ok(afterBlocks > beforeBlocks, "Should increment rate limit blocks");
+    expect(afterHits > beforeHits).toBeTruthy();
+    expect(afterBlocks > beforeBlocks).toBeTruthy();
   });
 
   it("should not record block without endpoint", async () => {
@@ -183,7 +182,7 @@ describe("ApiMetrics - Rate Limiting Metrics", () => {
       allowed: "false",
     });
 
-    assert.ok(hitsCount > 0, "Should record rate limit hit even without endpoint");
+    expect(hitsCount > 0).toBeTruthy();
   });
 });
 
@@ -215,7 +214,7 @@ describe("ApiMetrics - Error Recording", () => {
       recoverable: "true",
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment recoverable error counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should record non-recoverable error", async () => {
@@ -237,7 +236,7 @@ describe("ApiMetrics - Error Recording", () => {
       recoverable: "false",
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment non-recoverable error counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should record validation error", async () => {
@@ -259,6 +258,6 @@ describe("ApiMetrics - Error Recording", () => {
       validation_type: validationType,
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment validation error counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 });

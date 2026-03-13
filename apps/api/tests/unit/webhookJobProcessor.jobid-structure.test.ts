@@ -5,8 +5,7 @@
  * plus required and optional field validation in WebhookJobData.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import type { Provider } from "@infra/prisma";
 import { createTestJobData, generateJobId } from "./webhookJobProcessor.test-helpers.js";
 
@@ -24,11 +23,7 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
 
       const jobId = generateJobId(jobData);
 
-      assert.strictEqual(
-        jobId,
-        "webhook-X-event-123",
-        "Job ID should follow webhook-{provider}-{eventId} format"
-      );
+      expect(jobId).toBe("webhook-X-event-123");
     });
 
     it("should include provider in job ID", () => {
@@ -39,8 +34,8 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
 
       const jobId = generateJobId(jobData);
 
-      assert.ok(jobId.includes("INSTAGRAM"), "Job ID should include provider");
-      assert.strictEqual(jobId, "webhook-INSTAGRAM-ig-456");
+      expect(jobId.includes("INSTAGRAM")).toBeTruthy();
+      expect(jobId).toBe("webhook-INSTAGRAM-ig-456");
     });
 
     it("should include event ID in job ID", () => {
@@ -51,15 +46,15 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
 
       const jobId = generateJobId(jobData);
 
-      assert.ok(jobId.includes("fb-event-789"), "Job ID should include event ID");
-      assert.strictEqual(jobId, "webhook-FACEBOOK-fb-event-789");
+      expect(jobId.includes("fb-event-789")).toBeTruthy();
+      expect(jobId).toBe("webhook-FACEBOOK-fb-event-789");
     });
 
     it("should start with 'webhook-' prefix", () => {
       const jobData = createTestJobData();
       const jobId = generateJobId(jobData);
 
-      assert.ok(jobId.startsWith("webhook-"), "Job ID should start with webhook- prefix");
+      expect(jobId.startsWith("webhook-")).toBeTruthy();
     });
   });
 
@@ -71,7 +66,7 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
       const jobId1 = generateJobId(jobData1);
       const jobId2 = generateJobId(jobData2);
 
-      assert.notStrictEqual(jobId1, jobId2, "Different event IDs should produce different job IDs");
+      expect(jobId1).not.toBe(jobId2);
     });
 
     it("should generate different IDs for different providers", () => {
@@ -87,11 +82,7 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
       const jobId1 = generateJobId(jobData1);
       const jobId2 = generateJobId(jobData2);
 
-      assert.notStrictEqual(
-        jobId1,
-        jobId2,
-        "Different providers with same event ID should produce different job IDs"
-      );
+      expect(jobId1).not.toBe(jobId2);
     });
 
     it("should generate same ID for same provider and event ID", () => {
@@ -107,11 +98,7 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
       const jobId1 = generateJobId(jobData1);
       const jobId2 = generateJobId(jobData2);
 
-      assert.strictEqual(
-        jobId1,
-        jobId2,
-        "Same provider and event ID should produce same job ID (idempotency)"
-      );
+      expect(jobId1).toBe(jobId2);
     });
   });
 
@@ -124,7 +111,7 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
 
       const jobId = generateJobId(jobData);
 
-      assert.strictEqual(jobId, "webhook-X-event-123-abc_def");
+      expect(jobId).toBe("webhook-X-event-123-abc_def");
     });
 
     it("should handle UUID-style event IDs", () => {
@@ -135,7 +122,7 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
 
       const jobId = generateJobId(jobData);
 
-      assert.strictEqual(jobId, "webhook-YOUTUBE-550e8400-e29b-41d4-a716-446655440000");
+      expect(jobId).toBe("webhook-YOUTUBE-550e8400-e29b-41d4-a716-446655440000");
     });
 
     it("should handle numeric event IDs", () => {
@@ -146,7 +133,7 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
 
       const jobId = generateJobId(jobData);
 
-      assert.strictEqual(jobId, "webhook-TIKTOK-123456789");
+      expect(jobId).toBe("webhook-TIKTOK-123456789");
     });
 
     it("should handle all supported providers", () => {
@@ -156,8 +143,8 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
         const jobData = createTestJobData({ provider, eventId: "test-event" });
         const jobId = generateJobId(jobData);
 
-        assert.ok(jobId.includes(provider), `Job ID should include provider ${provider}`);
-        assert.strictEqual(jobId, `webhook-${provider}-test-event`);
+        expect(jobId.includes(provider)).toBeTruthy();
+        expect(jobId).toBe(`webhook-${provider}-test-event`);
       });
     });
   });
@@ -172,27 +159,27 @@ describe("WebhookJobProcessor - Job Data Required and Optional Fields", () => {
     it("should contain all required fields", () => {
       const jobData = createTestJobData();
 
-      assert.ok(jobData.eventId, "Should have eventId");
-      assert.ok(jobData.provider, "Should have provider");
-      assert.ok(jobData.eventType, "Should have eventType");
-      assert.ok(jobData.payload, "Should have payload");
-      assert.ok(jobData.headers, "Should have headers");
-      assert.ok(jobData.signature, "Should have signature");
-      assert.ok(jobData.retryCount !== undefined, "Should have retryCount");
-      assert.ok(jobData.originalReceivedAt, "Should have originalReceivedAt");
+      expect(jobData.eventId).toBeTruthy();
+      expect(jobData.provider).toBeTruthy();
+      expect(jobData.eventType).toBeTruthy();
+      expect(jobData.payload).toBeTruthy();
+      expect(jobData.headers).toBeTruthy();
+      expect(jobData.signature).toBeTruthy();
+      expect(jobData.retryCount !== undefined).toBeTruthy();
+      expect(jobData.originalReceivedAt).toBeTruthy();
     });
 
     it("should have correct types for required fields", () => {
       const jobData = createTestJobData();
 
-      assert.strictEqual(typeof jobData.eventId, "string");
-      assert.strictEqual(typeof jobData.provider, "string");
-      assert.strictEqual(typeof jobData.eventType, "string");
-      assert.strictEqual(typeof jobData.payload, "object");
-      assert.strictEqual(typeof jobData.headers, "object");
-      assert.strictEqual(typeof jobData.signature, "string");
-      assert.strictEqual(typeof jobData.retryCount, "number");
-      assert.strictEqual(typeof jobData.originalReceivedAt, "string");
+      expect(typeof jobData.eventId).toBe("string");
+      expect(typeof jobData.provider).toBe("string");
+      expect(typeof jobData.eventType).toBe("string");
+      expect(typeof jobData.payload).toBe("object");
+      expect(typeof jobData.headers).toBe("object");
+      expect(typeof jobData.signature).toBe("string");
+      expect(typeof jobData.retryCount).toBe("number");
+      expect(typeof jobData.originalReceivedAt).toBe("string");
     });
   });
 
@@ -200,13 +187,13 @@ describe("WebhookJobProcessor - Job Data Required and Optional Fields", () => {
     it("should allow optional accountId", () => {
       const jobData = createTestJobData({ accountId: "account-123" });
 
-      assert.strictEqual(jobData.accountId, "account-123");
+      expect(jobData.accountId).toBe("account-123");
     });
 
     it("should allow optional projectId", () => {
       const jobData = createTestJobData({ projectId: "project-456" });
 
-      assert.strictEqual(jobData.projectId, "project-456");
+      expect(jobData.projectId).toBe("project-456");
     });
 
     it("should allow both optional fields together", () => {
@@ -215,15 +202,15 @@ describe("WebhookJobProcessor - Job Data Required and Optional Fields", () => {
         projectId: "project-456",
       });
 
-      assert.strictEqual(jobData.accountId, "account-123");
-      assert.strictEqual(jobData.projectId, "project-456");
+      expect(jobData.accountId).toBe("account-123");
+      expect(jobData.projectId).toBe("project-456");
     });
 
     it("should work without optional fields", () => {
       const jobData = createTestJobData();
 
-      assert.strictEqual(jobData.accountId, undefined);
-      assert.strictEqual(jobData.projectId, undefined);
+      expect(jobData.accountId).toBe(undefined);
+      expect(jobData.projectId).toBe(undefined);
     });
   });
 
@@ -232,10 +219,10 @@ describe("WebhookJobProcessor - Job Data Required and Optional Fields", () => {
       const now = new Date();
       const jobData = createTestJobData({ originalReceivedAt: now.toISOString() });
 
-      assert.strictEqual(typeof jobData.originalReceivedAt, "string");
+      expect(typeof jobData.originalReceivedAt).toBe("string");
 
       const parsedDate = new Date(jobData.originalReceivedAt);
-      assert.ok(!isNaN(parsedDate.getTime()), "Should be valid date string");
+      expect(isNaN(parsedDate.getTime())).toBeFalsy();
     });
 
     it("should preserve original received timestamp across retries", () => {
@@ -254,9 +241,9 @@ describe("WebhookJobProcessor - Job Data Required and Optional Fields", () => {
         retryCount: 2,
       });
 
-      assert.strictEqual(jobData1.originalReceivedAt, originalTime);
-      assert.strictEqual(jobData2.originalReceivedAt, originalTime);
-      assert.strictEqual(jobData3.originalReceivedAt, originalTime);
+      expect(jobData1.originalReceivedAt).toBe(originalTime);
+      expect(jobData2.originalReceivedAt).toBe(originalTime);
+      expect(jobData3.originalReceivedAt).toBe(originalTime);
     });
   });
 });

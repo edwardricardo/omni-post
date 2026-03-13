@@ -2,7 +2,6 @@
  * Shared test helpers for EnhancedOAuthProvider tests
  */
 
-import type { TestContext } from "node:test";
 import type {
   EnhancedOAuthProvider,
   EnhancedOAuthConfig,
@@ -14,26 +13,26 @@ import type { ProviderId } from "../../src/providers/providerAdapter.interface";
 // ============================================================================
 
 export interface MockRedis {
-  get: ReturnType<TestContext["mock"]["fn"]>;
-  setex: ReturnType<TestContext["mock"]["fn"]>;
-  del: ReturnType<TestContext["mock"]["fn"]>;
+  get: ReturnType<typeof vi.fn>;
+  setex: ReturnType<typeof vi.fn>;
+  del: ReturnType<typeof vi.fn>;
 }
 
 export interface MockMetrics {
   metrics: {
     securityThreats: {
-      inc: ReturnType<TestContext["mock"]["fn"]>;
+      inc: ReturnType<typeof vi.fn>;
     };
   };
 }
 
 export interface MockPrisma {
   providerConnection: {
-    findUnique: ReturnType<TestContext["mock"]["fn"]>;
-    findFirst: ReturnType<TestContext["mock"]["fn"]>;
-    update: ReturnType<TestContext["mock"]["fn"]>;
-    create: ReturnType<TestContext["mock"]["fn"]>;
-    delete: ReturnType<TestContext["mock"]["fn"]>;
+    findUnique: ReturnType<typeof vi.fn>;
+    findFirst: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -48,28 +47,28 @@ export interface OAuthMocks {
   globalFetch: typeof global.fetch;
 }
 
-export function setupMocks(t: TestContext): OAuthMocks {
+export function setupMocks(): OAuthMocks {
   const mockRedis: MockRedis = {
-    get: t.mock.fn(async () => null),
-    setex: t.mock.fn(async () => "OK"),
-    del: t.mock.fn(async () => 1),
+    get: vi.fn(async () => null),
+    setex: vi.fn(async () => "OK"),
+    del: vi.fn(async () => 1),
   };
 
   const mockMetrics: MockMetrics = {
     metrics: {
       securityThreats: {
-        inc: t.mock.fn(() => {}),
+        inc: vi.fn(() => {}),
       },
     },
   };
 
   const mockPrisma: MockPrisma = {
     providerConnection: {
-      findUnique: t.mock.fn(async () => null),
-      findFirst: t.mock.fn(async () => null),
-      update: t.mock.fn(async () => ({})),
-      create: t.mock.fn(async () => ({})),
-      delete: t.mock.fn(async () => ({})),
+      findUnique: vi.fn(async () => null),
+      findFirst: vi.fn(async () => null),
+      update: vi.fn(async () => ({})),
+      create: vi.fn(async () => ({})),
+      delete: vi.fn(async () => ({})),
     },
   };
 

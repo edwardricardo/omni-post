@@ -8,8 +8,7 @@
  * - Metrics Collection (usage, success rate, cost, latency)
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import type { AIMessage } from "../../src/ai/types.js";
 import {
   createOrchestrator,
@@ -23,18 +22,18 @@ import {
 // Suite
 // ---------------------------------------------------------------------------
 
-describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
+describe("AIOrchestrator — Cache & Metrics", () => {
   let envSnapshot: Record<string, string | undefined>;
 
   // Suppress console.log from AIOrchestrator source (would corrupt TAP output)
   let _originalConsoleLog: typeof console.log;
-  before(() => {
+  beforeAll(() => {
     _originalConsoleLog = console.log;
     console.log = () => {};
     envSnapshot = captureAndClearAIEnv();
   });
 
-  after(() => {
+  afterAll(() => {
     console.log = _originalConsoleLog;
     restoreAIEnv(envSnapshot);
     unrefActiveHandles();
@@ -54,23 +53,23 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
   // Cache Management
   // -------------------------------------------------------------------------
 
-  describe("Cache Management", { concurrency: 1 }, () => {
+  describe("Cache Management", () => {
     it("should cache successful results", async () => {
       const messages: AIMessage[] = [{ role: "user", content: "Cacheable message" }];
 
       // First request
       const result1 = await orchestrator.generateContent(messages);
-      assert.strictEqual(result1.ok, true);
-      assert.strictEqual(result1.metadata.cached, false, "First request should not be cached");
+      expect(result1.ok).toBe(true);
+      expect(result1.metadata.cached).toBe(false);
 
       // Second identical request
       const result2 = await orchestrator.generateContent(messages);
-      assert.strictEqual(result2.ok, true);
-      assert.strictEqual(result2.metadata.cached, true, "Second request should be cached");
-      assert.strictEqual(result2.metadata.provider, "cache");
+      expect(result2.ok).toBe(true);
+      expect(result2.metadata.cached).toBe(true);
+      expect(result2.metadata.provider).toBe("cache");
 
       // Provider should only be called once
-      assert.strictEqual(mockOpenAI.callCount, 1, "Provider should only be called once");
+      expect(mockOpenAI.callCount).toBe(1);
     });
 
     it("should respect cache TTL", async () => {
@@ -81,18 +80,18 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
         cacheResults: true,
         cacheTTL: 100, // 100ms TTL
       });
-      assert.strictEqual(result1.ok, true);
+      expect(result1.ok).toBe(true);
 
       // Wait for cache to expire
       await new Promise((resolve) => setTimeout(resolve, 150));
 
       // Second request after expiration
       const result2 = await orchestrator.generateContent(messages);
-      assert.strictEqual(result2.ok, true);
-      assert.strictEqual(result2.metadata.cached, false, "Cache should have expired");
+      expect(result2.ok).toBe(true);
+      expect(result2.metadata.cached).toBe(false);
 
       // Provider should be called twice
-      assert.strictEqual(mockOpenAI.callCount, 2, "Provider should be called twice");
+      expect(mockOpenAI.callCount).toBe(2);
     });
 
     it("should skip cache when disabled", async () => {
@@ -101,29 +100,21 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
 
       // First request with cache enabled to populate cache
       const result1 = await orchestrator.generateContent(messages);
-      assert.strictEqual(result1.ok, true);
-      assert.strictEqual(result1.metadata.cached, false, "First call should not be from cache");
-      assert.strictEqual(mockOpenAI.callCount, 1, "Provider should be called once");
+      expect(result1.ok).toBe(true);
+      expect(result1.metadata.cached).toBe(false);
+      expect(mockOpenAI.callCount).toBe(1);
 
       // Second request with cache enabled — should use cache
       const result2 = await orchestrator.generateContent(messages);
-      assert.strictEqual(result2.ok, true);
-      assert.strictEqual(result2.metadata.cached, true, "Second call should be from cache");
-      assert.strictEqual(mockOpenAI.callCount, 1, "Provider should still only be called once");
+      expect(result2.ok).toBe(true);
+      expect(result2.metadata.cached).toBe(true);
+      expect(mockOpenAI.callCount).toBe(1);
 
       // Third request with cache disabled — should bypass cache and call provider
       const result3 = await orchestrator.generateContent(messages, { cacheResults: false });
-      assert.strictEqual(result3.ok, true);
-      assert.strictEqual(
-        result3.metadata.cached,
-        false,
-        "Third call with cacheResults:false should not use cache"
-      );
-      assert.strictEqual(
-        mockOpenAI.callCount,
-        2,
-        "Provider should be called again when cache is disabled"
-      );
+      expect(result3.ok).toBe(true);
+      expect(result3.metadata.cached).toBe(false);
+      expect(mockOpenAI.callCount).toBe(2);
     });
 
     it("should clear cache on demand", async () => {
@@ -137,16 +128,16 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
 
       // Second request should not be cached
       const result = await orchestrator.generateContent(messages);
-      assert.strictEqual(result.ok, true);
-      assert.strictEqual(result.metadata.cached, false, "Cache should be cleared");
+      expect(result.ok).toBe(true);
+      expect(result.metadata.cached).toBe(false);
     });
 
     it("should provide cache statistics", async () => {
       const stats = orchestrator.getCacheStats();
 
-      assert.ok(typeof stats.size === "number", "Should return cache size");
-      assert.ok(typeof stats.hitRate === "number", "Should return hit rate");
-      assert.ok(stats.hitRate >= 0 && stats.hitRate <= 1, "Hit rate should be between 0 and 1");
+      expect(typeof stats.size === "number").toBeTruthy();
+      expect(typeof stats.hitRate === "number").toBeTruthy();
+      expect(stats.hitRate >= 0 && stats.hitRate <= 1).toBeTruthy();
     });
   });
 
@@ -154,7 +145,7 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
   // Rate Limiting
   // -------------------------------------------------------------------------
 
-  describe("Rate Limiting", { concurrency: 1 }, () => {
+  describe("Rate Limiting", () => {
     it("should enforce request rate limits", async () => {
       const messages: AIMessage[] = [{ role: "user", content: "Rate limit test" }];
 
@@ -167,7 +158,7 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
 
       // Should have successful results but potentially hit rate limit
       const successCount = results.filter((r) => r.ok).length;
-      assert.ok(successCount > 0, "Should have some successful requests");
+      expect(successCount > 0).toBeTruthy();
     });
 
     it("should skip rate-limited providers", async () => {
@@ -181,12 +172,9 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
       const messages: AIMessage[] = [{ role: "user", content: "Test message" }];
       const result = await orchestrator.generateContent(messages);
 
-      assert.strictEqual(result.ok, true, "Should succeed with different provider");
-      assert.strictEqual(mockOpenAI.callCount, 0, "Should skip rate-limited OpenAI");
-      assert.ok(
-        mockGemini.callCount > 0 || mockPerplexity.callCount > 0,
-        "Should use alternative provider"
-      );
+      expect(result.ok).toBe(true);
+      expect(mockOpenAI.callCount).toBe(0);
+      expect(mockGemini.callCount > 0 || mockPerplexity.callCount > 0).toBeTruthy();
     });
 
     it("should track token usage in rate limits", async () => {
@@ -195,9 +183,9 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
       await orchestrator.generateContent(messages, { cacheResults: false });
 
       const rateLimits = (orchestrator as any).rateLimits.get("openai");
-      assert.ok(rateLimits, "Should have rate limit entry");
-      assert.ok(rateLimits.requests > 0, "Should track request count");
-      assert.ok(rateLimits.tokens > 0, "Should track token usage");
+      expect(rateLimits).toBeTruthy();
+      expect(rateLimits.requests > 0).toBeTruthy();
+      expect(rateLimits.tokens > 0).toBeTruthy();
     });
   });
 
@@ -205,7 +193,7 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
   // Metrics Collection
   // -------------------------------------------------------------------------
 
-  describe("Metrics Collection", { concurrency: 1 }, () => {
+  describe("Metrics Collection", () => {
     it("should collect usage metrics", async () => {
       const messages: AIMessage[] = [{ role: "user", content: "Metrics test" }];
 
@@ -214,11 +202,11 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
       const metrics = orchestrator.getUsageMetrics();
       const openaiMetrics = metrics.get("openai");
 
-      assert.ok(openaiMetrics, "Should have metrics for OpenAI");
-      assert.strictEqual(openaiMetrics.provider, "openai");
-      assert.ok(openaiMetrics.requestCount > 0, "Should track request count");
-      assert.ok(openaiMetrics.tokensUsed > 0, "Should track tokens used");
-      assert.ok(openaiMetrics.averageLatency >= 0, "Should track latency");
+      expect(openaiMetrics).toBeTruthy();
+      expect(openaiMetrics.provider).toBe("openai");
+      expect(openaiMetrics.requestCount > 0).toBeTruthy();
+      expect(openaiMetrics.tokensUsed > 0).toBeTruthy();
+      expect(openaiMetrics.averageLatency >= 0).toBeTruthy();
     });
 
     it("should update success rate on failures", async () => {
@@ -234,8 +222,8 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
       const metrics = orchestrator.getUsageMetrics();
       const openaiMetrics = metrics.get("openai");
 
-      assert.ok(openaiMetrics, "Should have metrics");
-      assert.ok(openaiMetrics.successRate < 100, "Success rate should decrease");
+      expect(openaiMetrics).toBeTruthy();
+      expect(openaiMetrics.successRate < 100).toBeTruthy();
     });
 
     it("should calculate cost based on token usage", async () => {
@@ -246,8 +234,8 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
       const metrics = orchestrator.getUsageMetrics();
       const openaiMetrics = metrics.get("openai");
 
-      assert.ok(openaiMetrics, "Should have metrics");
-      assert.ok(openaiMetrics.cost > 0, "Should calculate cost");
+      expect(openaiMetrics).toBeTruthy();
+      expect(openaiMetrics.cost > 0).toBeTruthy();
     });
 
     it("should track latency per provider", async () => {
@@ -260,12 +248,9 @@ describe("AIOrchestrator — Cache & Metrics", { concurrency: 1 }, () => {
       const metrics = orchestrator.getUsageMetrics();
       const openaiMetrics = metrics.get("openai");
 
-      assert.ok(openaiMetrics, "Should have metrics");
-      assert.ok(openaiMetrics.averageLatency > 0, "Should track latency");
-      assert.ok(
-        openaiMetrics.averageLatency <= endTime - startTime,
-        "Latency should be reasonable"
-      );
+      expect(openaiMetrics).toBeTruthy();
+      expect(openaiMetrics.averageLatency > 0).toBeTruthy();
+      expect(openaiMetrics.averageLatency <= endTime - startTime).toBeTruthy();
     });
   });
 });

@@ -1,82 +1,137 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for RbacService
- * Testing role-based access control, permissions, and role management
+ * @file rbacService.test.ts
+ * @description Unit tests for RbacService — role-based access control,
+ *              permissions, and role management. Uses in-memory mocks for
+ *              both the AdminUserRepositoryPort and the Prisma client.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { RbacService, Permission } from "../../src/auth/rbacService.js";
-import { prisma } from "@infra/prisma";
-import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { makeAdminUser, resetFactoryCounter } from "./helpers/factories.js";
+import { InMemoryAdminUserRepository } from "./helpers/InMemoryAdminUserRepository.js";
 
-// Instantiate service with injected Prisma repository (proper DI pattern)
-const rbacService = new RbacService(new PrismaAdminUserRepository(prisma));
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
 
-const timestamp = Date.now();
+const { mockPrisma, stores } = createMockPrismaModule();
 
-const superAdminEmail = `super-admin-${timestamp}@example.com`;
-const adminEmail = `admin-${timestamp}@example.com`;
-const supportEmail = `support-${timestamp}@example.com`;
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
 
-let superAdminUserId: string;
-let adminUserId: string;
-let supportUserId: string;
+// Mock loggers to prevent real log output and avoid DB/file side effects
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
 
-describe("RbacService Tests", { concurrency: 1 }, () => {
-  before(async () => {
-    // Setup: Create test users with different roles
-    const superAdminUser = await prisma.adminUser.create({
-      data: {
-        email: superAdminEmail,
-        passwordHash: "test-hash",
-        name: "Test Super Admin",
-        role: "SUPER_ADMIN",
-        emailVerified: true,
-        mfaEnabled: false,
-      },
+// ---------------------------------------------------------------------------
+// Import SUT after mocks are in place
+// ---------------------------------------------------------------------------
+
+const { RbacService, Permission } = await import("../../src/auth/rbacService.js");
+
+// ---------------------------------------------------------------------------
+// Test data
+// ---------------------------------------------------------------------------
+
+const inMemoryRepo = new InMemoryAdminUserRepository();
+
+const superAdminUser = makeAdminUser({
+  id: "sa-001",
+  email: "super-admin@example.com",
+  name: "Test Super Admin",
+  role: "SUPER_ADMIN",
+  isActive: true,
+  emailVerified: true,
+  mfaEnabled: false,
+});
+
+const adminUser = makeAdminUser({
+  id: "admin-001",
+  email: "admin@example.com",
+  name: "Test Admin",
+  role: "ADMIN",
+  isActive: true,
+  emailVerified: true,
+  mfaEnabled: false,
+});
+
+const supportUser = makeAdminUser({
+  id: "support-001",
+  email: "support@example.com",
+  name: "Test Support",
+  role: "SUPPORT",
+  isActive: true,
+  emailVerified: true,
+  mfaEnabled: false,
+});
+
+// ---------------------------------------------------------------------------
+// Service under test
+// ---------------------------------------------------------------------------
+
+const rbacService = new RbacService(inMemoryRepo);
+
+// ---------------------------------------------------------------------------
+// Helpers to keep both stores in sync
+// ---------------------------------------------------------------------------
+
+function seedStores(): void {
+  // Seed InMemoryAdminUserRepository (for repo.findById calls)
+  inMemoryRepo.seed([superAdminUser, adminUser, supportUser]);
+
+  // Seed mockPrisma adminUser store (for direct prisma.adminUser.* calls)
+  stores.adminUser.clear();
+  stores.auditLog.clear();
+
+  for (const user of [superAdminUser, adminUser, supportUser]) {
+    stores.adminUser.add({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      passwordHash: user.passwordHash,
+      isActive: user.isActive,
+      emailVerified: user.emailVerified,
+      mfaEnabled: user.mfaEnabled,
+      lastLoginAt: user.lastLoginAt,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     });
+  }
+}
 
-    const adminUser = await prisma.adminUser.create({
-      data: {
-        email: adminEmail,
-        passwordHash: "test-hash",
-        name: "Test Admin",
-        role: "ADMIN",
-        emailVerified: true,
-        mfaEnabled: false,
-      },
-    });
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
-    const supportUser = await prisma.adminUser.create({
-      data: {
-        email: supportEmail,
-        passwordHash: "test-hash",
-        name: "Test Support",
-        role: "SUPPORT",
-        emailVerified: true,
-        mfaEnabled: false,
-      },
-    });
-
-    superAdminUserId = superAdminUser.id;
-    adminUserId = adminUser.id;
-    supportUserId = supportUser.id;
+describe("RbacService Tests", () => {
+  beforeAll(() => {
+    resetFactoryCounter();
+    seedStores();
   });
 
-  after(async () => {
-    // Cleanup: Delete test users and audit logs
-    await prisma.auditLog.deleteMany({
-      where: {
-        userId: { in: [superAdminUserId, adminUserId, supportUserId] },
-      },
-    });
-
-    await prisma.adminUser.deleteMany({
-      where: {
-        id: { in: [superAdminUserId, adminUserId, supportUserId] },
-      },
-    });
+  afterAll(() => {
+    inMemoryRepo.clear();
+    stores.adminUser.clear();
+    stores.auditLog.clear();
   });
 
   describe("hasPermission", () => {
@@ -84,8 +139,8 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
       const hasUserCreate = rbacService.hasPermission("SUPER_ADMIN", Permission.USER_CREATE);
       const hasSystemBackup = rbacService.hasPermission("SUPER_ADMIN", Permission.SYSTEM_BACKUP);
 
-      assert.strictEqual(hasUserCreate, true);
-      assert.strictEqual(hasSystemBackup, true);
+      expect(hasUserCreate).toBe(true);
+      expect(hasSystemBackup).toBe(true);
     });
 
     it("should grant ADMIN limited permissions", () => {
@@ -93,9 +148,9 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
       const hasSystemBackup = rbacService.hasPermission("ADMIN", Permission.SYSTEM_BACKUP);
       const hasSystemConfigure = rbacService.hasPermission("ADMIN", Permission.SYSTEM_CONFIGURE);
 
-      assert.strictEqual(hasUserCreate, true);
-      assert.strictEqual(hasSystemBackup, false);
-      assert.strictEqual(hasSystemConfigure, false);
+      expect(hasUserCreate).toBe(true);
+      expect(hasSystemBackup).toBe(false);
+      expect(hasSystemConfigure).toBe(false);
     });
 
     it("should grant SUPPORT read-only permissions", () => {
@@ -103,9 +158,9 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
       const hasUserCreate = rbacService.hasPermission("SUPPORT", Permission.USER_CREATE);
       const hasUserDelete = rbacService.hasPermission("SUPPORT", Permission.USER_DELETE);
 
-      assert.strictEqual(hasUserRead, true);
-      assert.strictEqual(hasUserCreate, false);
-      assert.strictEqual(hasUserDelete, false);
+      expect(hasUserRead).toBe(true);
+      expect(hasUserCreate).toBe(false);
+      expect(hasUserDelete).toBe(false);
     });
   });
 
@@ -121,8 +176,8 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
         Permission.USER_DELETE,
       ]);
 
-      assert.strictEqual(adminHasAnyUserPermission, true);
-      assert.strictEqual(supportHasAnyUserPermission, false);
+      expect(adminHasAnyUserPermission).toBe(true);
+      expect(supportHasAnyUserPermission).toBe(false);
     });
   });
 
@@ -140,20 +195,20 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
         Permission.CONTENT_UPDATE,
       ]);
 
-      assert.strictEqual(adminHasAllContentPermissions, true);
-      assert.strictEqual(supportHasAllContentPermissions, false);
+      expect(adminHasAllContentPermissions).toBe(true);
+      expect(supportHasAllContentPermissions).toBe(false);
     });
   });
 
   describe("getUserPermissions", () => {
     it("should return correct permissions object for ADMIN", () => {
-      const adminPermissions = rbacService.getUserPermissions(adminUserId, "ADMIN");
+      const adminPermissions = rbacService.getUserPermissions(adminUser.id, "ADMIN");
 
-      assert.strictEqual(adminPermissions.userId, adminUserId);
-      assert.strictEqual(adminPermissions.role, "ADMIN");
-      assert.ok(adminPermissions.permissions.length > 0);
-      assert.strictEqual(adminPermissions.canAccess(Permission.USER_CREATE), true);
-      assert.strictEqual(adminPermissions.canAccess(Permission.SYSTEM_BACKUP), false);
+      expect(adminPermissions.userId).toBe(adminUser.id);
+      expect(adminPermissions.role).toBe("ADMIN");
+      expect(adminPermissions.permissions.length > 0).toBeTruthy();
+      expect(adminPermissions.canAccess(Permission.USER_CREATE)).toBe(true);
+      expect(adminPermissions.canAccess(Permission.SYSTEM_BACKUP)).toBe(false);
     });
   });
 
@@ -161,20 +216,20 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
     it("should return correct information for SUPER_ADMIN", async () => {
       const superAdminRoleInfo = await rbacService.getRoleInfo("SUPER_ADMIN");
 
-      assert.strictEqual(superAdminRoleInfo.ok, true);
-      assert.ok(superAdminRoleInfo.ok && superAdminRoleInfo.value.role === "SUPER_ADMIN");
-      assert.ok(superAdminRoleInfo.ok && superAdminRoleInfo.value.permissions.length > 0);
-      assert.ok(superAdminRoleInfo.ok && superAdminRoleInfo.value.userCount >= 1);
-      assert.ok(
+      expect(superAdminRoleInfo.ok).toBe(true);
+      expect(superAdminRoleInfo.ok && superAdminRoleInfo.value.role === "SUPER_ADMIN").toBeTruthy();
+      expect(superAdminRoleInfo.ok && superAdminRoleInfo.value.permissions.length > 0).toBeTruthy();
+      expect(superAdminRoleInfo.ok && superAdminRoleInfo.value.userCount >= 1).toBeTruthy();
+      expect(
         superAdminRoleInfo.ok && superAdminRoleInfo.value.description.includes("Full system access")
-      );
+      ).toBeTruthy();
     });
 
     it("should reject invalid role", async () => {
       const invalidRoleInfo = await rbacService.getRoleInfo("INVALID_ROLE");
 
-      assert.strictEqual(invalidRoleInfo.ok, false);
-      assert.strictEqual(invalidRoleInfo.ok || invalidRoleInfo.error, "ROLE_NOT_FOUND");
+      expect(invalidRoleInfo.ok).toBe(false);
+      expect(invalidRoleInfo.ok || invalidRoleInfo.error).toBe("ROLE_NOT_FOUND");
     });
   });
 
@@ -182,14 +237,14 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
     it("should return all roles", async () => {
       const allRoles = await rbacService.getAllRoles();
 
-      assert.strictEqual(allRoles.ok, true);
-      assert.strictEqual(allRoles.ok && allRoles.value.length, 3);
+      expect(allRoles.ok).toBe(true);
+      expect(allRoles.ok && allRoles.value.length).toBe(3);
 
       if (allRoles.ok) {
         const roleNames = allRoles.value.map((role) => role.role);
-        assert.ok(roleNames.includes("SUPER_ADMIN"));
-        assert.ok(roleNames.includes("ADMIN"));
-        assert.ok(roleNames.includes("SUPPORT"));
+        expect(roleNames.includes("SUPER_ADMIN")).toBeTruthy();
+        expect(roleNames.includes("ADMIN")).toBeTruthy();
+        expect(roleNames.includes("SUPPORT")).toBeTruthy();
       }
     });
   });
@@ -197,59 +252,59 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
   describe("updateUserRole", () => {
     it("should allow SUPER_ADMIN to modify SUPPORT role", async () => {
       const updateRoleResult = await rbacService.updateUserRole(
-        superAdminUserId,
-        supportUserId,
+        superAdminUser.id,
+        supportUser.id,
         "ADMIN",
         "Promotion to ADMIN role"
       );
 
-      assert.strictEqual(updateRoleResult.ok, true);
+      expect(updateRoleResult.ok).toBe(true);
 
-      const updatedUser = await prisma.adminUser.findUnique({
-        where: { id: supportUserId },
-      });
+      // Verify the mock prisma store was updated
+      const updatedInStore = stores.adminUser.get(supportUser.id);
+      expect(updatedInStore).toBeTruthy();
+      expect(updatedInStore?.role).toBe("ADMIN");
 
-      assert.ok(updatedUser);
-      assert.strictEqual(updatedUser?.role, "ADMIN");
+      // Also update the in-memory repo to stay in sync for subsequent tests
+      inMemoryRepo.update(supportUser.id, { role: "ADMIN" as const });
     });
 
     it("should reject ADMIN attempting to modify roles", async () => {
       const insufficientPermsResult = await rbacService.updateUserRole(
-        adminUserId,
-        supportUserId,
+        adminUser.id,
+        supportUser.id,
         "SUPPORT",
         "Demotion attempt"
       );
 
-      assert.strictEqual(insufficientPermsResult.ok, false);
-      assert.strictEqual(
-        insufficientPermsResult.ok || insufficientPermsResult.error,
+      expect(insufficientPermsResult.ok).toBe(false);
+      expect(insufficientPermsResult.ok || insufficientPermsResult.error).toBe(
         "INSUFFICIENT_PERMISSIONS"
       );
     });
 
     it("should reject self modification", async () => {
       const selfModifyResult = await rbacService.updateUserRole(
-        superAdminUserId,
-        superAdminUserId,
+        superAdminUser.id,
+        superAdminUser.id,
         "ADMIN",
         "Self demotion attempt"
       );
 
-      assert.strictEqual(selfModifyResult.ok, false);
-      assert.strictEqual(selfModifyResult.ok || selfModifyResult.error, "CANNOT_MODIFY_SELF");
+      expect(selfModifyResult.ok).toBe(false);
+      expect(selfModifyResult.ok || selfModifyResult.error).toBe("CANNOT_MODIFY_SELF");
     });
 
     it("should reject invalid role", async () => {
       const invalidRoleUpdate = await rbacService.updateUserRole(
-        superAdminUserId,
-        supportUserId,
+        superAdminUser.id,
+        supportUser.id,
         "INVALID_ROLE",
         "Invalid role test"
       );
 
-      assert.strictEqual(invalidRoleUpdate.ok, false);
-      assert.strictEqual(invalidRoleUpdate.ok || invalidRoleUpdate.error, "INVALID_ROLE");
+      expect(invalidRoleUpdate.ok).toBe(false);
+      expect(invalidRoleUpdate.ok || invalidRoleUpdate.error).toBe("INVALID_ROLE");
     });
   });
 
@@ -257,21 +312,21 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
     it("should return users by role", async () => {
       const adminUsers = await rbacService.getUsersByRole("ADMIN");
 
-      assert.strictEqual(adminUsers.ok, true);
-      assert.ok(adminUsers.ok && adminUsers.value.length >= 2);
+      expect(adminUsers.ok).toBe(true);
+      expect(adminUsers.ok && adminUsers.value.length >= 2).toBeTruthy();
 
       if (adminUsers.ok) {
         const emails = adminUsers.value.map((u) => u.email);
-        assert.ok(emails.includes(adminEmail));
-        assert.ok(emails.includes(supportEmail)); // Now ADMIN after promotion
+        expect(emails.includes(adminUser.email)).toBeTruthy();
+        expect(emails.includes(supportUser.email)).toBeTruthy(); // Now ADMIN after promotion
       }
     });
 
     it("should reject invalid role", async () => {
       const invalidRoleUsers = await rbacService.getUsersByRole("INVALID_ROLE");
 
-      assert.strictEqual(invalidRoleUsers.ok, false);
-      assert.strictEqual(invalidRoleUsers.ok || invalidRoleUsers.error, "INVALID_ROLE");
+      expect(invalidRoleUsers.ok).toBe(false);
+      expect(invalidRoleUsers.ok || invalidRoleUsers.error).toBe("INVALID_ROLE");
     });
   });
 
@@ -279,11 +334,13 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
     it("should return organized permissions", () => {
       const permissionCategories = rbacService.getPermissionCategories();
 
-      assert.ok(Object.keys(permissionCategories).length > 0);
-      assert.ok(permissionCategories["User Management"]);
-      assert.ok(permissionCategories["User Management"].includes(Permission.USER_CREATE));
-      assert.ok(permissionCategories["Content Management"]);
-      assert.ok(permissionCategories["Content Management"].includes(Permission.CONTENT_PUBLISH));
+      expect(Object.keys(permissionCategories).length > 0).toBeTruthy();
+      expect(permissionCategories["User Management"]).toBeTruthy();
+      expect(permissionCategories["User Management"].includes(Permission.USER_CREATE)).toBeTruthy();
+      expect(permissionCategories["Content Management"]).toBeTruthy();
+      expect(
+        permissionCategories["Content Management"].includes(Permission.CONTENT_PUBLISH)
+      ).toBeTruthy();
     });
   });
 
@@ -295,11 +352,11 @@ describe("RbacService Tests", { concurrency: 1 }, () => {
       const adminCanModifyAdmin = rbacService.canModifyRole("ADMIN", "ADMIN");
       const supportCanModifyAdmin = rbacService.canModifyRole("SUPPORT", "ADMIN");
 
-      assert.strictEqual(superAdminCanModifyAdmin, true);
-      assert.strictEqual(superAdminCanModifySupport, true);
-      assert.strictEqual(adminCanModifySupport, true);
-      assert.strictEqual(adminCanModifyAdmin, true);
-      assert.strictEqual(supportCanModifyAdmin, false);
+      expect(superAdminCanModifyAdmin).toBe(true);
+      expect(superAdminCanModifySupport).toBe(true);
+      expect(adminCanModifySupport).toBe(true);
+      expect(adminCanModifyAdmin).toBe(true);
+      expect(supportCanModifyAdmin).toBe(false);
     });
   });
 });

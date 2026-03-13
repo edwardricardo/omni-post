@@ -8,8 +8,7 @@
  * - GET /api/sagas/metrics  — performance KPIs and success-rate calculation
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SagaIntegration } from "../../src/saga/SagaIntegration";
 import { buildIntegration, passthroughReply } from "./sagaIntegration.helpers";
 
@@ -23,7 +22,7 @@ console.warn = () => {};
 // Monitoring Route Tests
 // ============================================================================
 
-describe("SagaIntegration - Monitoring Routes", { concurrency: 1 }, () => {
+describe("SagaIntegration - Monitoring Routes", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
 
@@ -39,50 +38,50 @@ describe("SagaIntegration - Monitoring Routes", { concurrency: 1 }, () => {
     const handler = routes.get("GET:/api/sagas");
     const result = await handler({}, passthroughReply);
 
-    assert.ok(result.success, "Should return success");
-    assert.ok("activeInstances" in result.data);
-    assert.ok("totalStarted" in result.data);
-    assert.ok("totalCompleted" in result.data);
-    assert.ok("totalFailed" in result.data);
-    assert.ok(Array.isArray(result.data.definitions));
+    expect(result.success).toBeTruthy();
+    expect("activeInstances" in result.data).toBeTruthy();
+    expect("totalStarted" in result.data).toBeTruthy();
+    expect("totalCompleted" in result.data).toBeTruthy();
+    expect("totalFailed" in result.data).toBeTruthy();
+    expect(Array.isArray(result.data.definitions)).toBeTruthy();
   });
 
   it("should return saga health check status", async () => {
     const handler = routes.get("GET:/api/sagas/health");
     const result = await handler({}, passthroughReply);
 
-    assert.ok(result.status, "Should have status field");
-    assert.ok(result.details, "Should have details field");
-    assert.ok(result.metrics, "Should include metrics");
-    assert.ok(result.timestamp, "Should have timestamp");
+    expect(result.status).toBeTruthy();
+    expect(result.details).toBeTruthy();
+    expect(result.metrics).toBeTruthy();
+    expect(result.timestamp).toBeTruthy();
   });
 
   it("should return saga metrics with performance data", async () => {
     const handler = routes.get("GET:/api/sagas/metrics");
     const result = await handler({}, passthroughReply);
 
-    assert.ok(result.success, "Should return success");
-    assert.ok(result.data.performance, "Should have performance metrics");
-    assert.ok(result.data.active, "Should have active metrics");
-    assert.ok(result.timestamp, "Should have timestamp");
+    expect(result.success).toBeTruthy();
+    expect(result.data.performance).toBeTruthy();
+    expect(result.data.active).toBeTruthy();
+    expect(result.timestamp).toBeTruthy();
   });
 
   it("should calculate success rate in metrics", async () => {
     const handler = routes.get("GET:/api/sagas/metrics");
     const result = await handler({}, passthroughReply);
 
-    assert.ok(typeof result.data.performance.successRate === "number");
-    assert.ok(
+    expect(typeof result.data.performance.successRate === "number").toBeTruthy();
+    expect(
       result.data.performance.successRate >= 0 && result.data.performance.successRate <= 100
-    );
+    ).toBeTruthy();
   });
 
   it("should include definition count in metrics", async () => {
     const handler = routes.get("GET:/api/sagas/metrics");
     const result = await handler({}, passthroughReply);
 
-    assert.ok(typeof result.data.active.definitions === "number");
+    expect(typeof result.data.active.definitions === "number").toBeTruthy();
     // At least post-publishing-saga must be registered
-    assert.ok(result.data.active.definitions >= 1);
+    expect(result.data.active.definitions >= 1).toBeTruthy();
   });
 });

@@ -1,5 +1,4 @@
-import { describe, it, beforeEach, afterEach, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
 import { ProviderCoordinator } from "../../src/orchestration/ProviderCoordinator.js";
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
@@ -23,8 +22,8 @@ const originalGetAdapter = providerRegistry.getAdapter.bind(providerRegistry);
 providerRegistry.getAllProviders = () => Array.from(mockProviders.values());
 providerRegistry.getAdapter = ((id: string) => mockAdapters.get(id as ProviderId)) as any;
 
-describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => {
-  after(() => {
+describe("ProviderCoordinator - failover and health", () => {
+  afterAll(() => {
     providerRegistry.getAllProviders = originalGetAllProviders;
     providerRegistry.getAdapter = originalGetAdapter;
   });
@@ -33,7 +32,7 @@ describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => 
   // Failover Tests
   // ============================================================================
 
-  describe("ProviderCoordinator - Failover Handling", { concurrency: 1 }, () => {
+  describe("ProviderCoordinator - Failover Handling", () => {
     let coordinator: ProviderCoordinator;
     let mockPrisma: PrismaClient;
     let mockRedis: Redis;
@@ -99,9 +98,9 @@ describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => 
 
       const result = await coordinator.handleFailover(failedProvider, content, jobId);
 
-      assert.ok(result.ok, `Failover should succeed. Error: ${JSON.stringify(result.error)}`);
-      assert.ok(result.value, "Should select fallback provider");
-      assert.notStrictEqual(result.value, failedProvider, "Should select different provider");
+      expect(result.ok).toBeTruthy();
+      expect(result.value).toBeTruthy();
+      expect(result.value).not.toBe(failedProvider);
     });
 
     it("should evaluate error_rate failover condition", async () => {
@@ -112,10 +111,7 @@ describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => 
       const content = createMockCanonicalPost();
       const result = await coordinator.handleFailover("x" as ProviderId, content, "job-123");
 
-      assert.ok(
-        result.ok,
-        `Failover should succeed due to high error rate. Error: ${JSON.stringify(result.error)}`
-      );
+      expect(result.ok).toBeTruthy();
     });
 
     it("should evaluate response_time failover condition", async () => {
@@ -126,7 +122,7 @@ describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => 
       const content = createMockCanonicalPost();
       const result = await coordinator.handleFailover("x" as ProviderId, content, "job-123");
 
-      assert.ok(result.ok, "Failover should succeed due to high response time");
+      expect(result.ok).toBeTruthy();
     });
 
     it("should update provider status to failed on failover", async () => {
@@ -137,8 +133,8 @@ describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => 
       const content = createMockCanonicalPost();
       await coordinator.handleFailover("x" as ProviderId, content, "job-123");
 
-      assert.strictEqual(xNode.status, "failed", "Provider status should be failed");
-      assert.ok(xNode.failureCount > 0, "Failure count should be incremented");
+      expect(xNode.status).toBe("failed");
+      expect(xNode.failureCount > 0).toBeTruthy();
     });
 
     it("should handle graceful failover strategy", async () => {
@@ -153,7 +149,7 @@ describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => 
       const content = createMockCanonicalPost();
       const result = await coordinator.handleFailover("x" as ProviderId, content, "job-123");
 
-      assert.ok(result.ok, "Graceful failover should succeed");
+      expect(result.ok).toBeTruthy();
     });
 
     it("should emit failover event", async () => {
@@ -171,7 +167,7 @@ describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => 
       const content = createMockCanonicalPost();
       await coordinator.handleFailover("x" as ProviderId, content, "job-123");
 
-      assert.ok(eventEmitted, "Should emit failover event");
+      expect(eventEmitted).toBeTruthy();
     });
   });
 
@@ -179,7 +175,7 @@ describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => 
   // Health Monitoring Tests
   // ============================================================================
 
-  describe("ProviderCoordinator - Health Monitoring", { concurrency: 1 }, () => {
+  describe("ProviderCoordinator - Health Monitoring", () => {
     let coordinator: ProviderCoordinator;
     let mockPrisma: PrismaClient;
     let mockRedis: Redis;
@@ -220,33 +216,27 @@ describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => 
     it("should return overall health status", async () => {
       const health = await coordinator.getHealthStatus();
 
-      assert.ok(health, "Should return health status");
-      assert.ok(
-        ["healthy", "degraded", "unhealthy"].includes(health.status),
-        "Should have valid status"
-      );
+      expect(health).toBeTruthy();
+      expect(["healthy", "degraded", "unhealthy"].includes(health.status)).toBeTruthy();
     });
 
     it("should calculate health based on provider statuses", async () => {
       const health = await coordinator.getHealthStatus();
 
-      assert.ok(health.metrics, "Should include metrics");
-      assert.ok(typeof health.metrics.failureRate === "number", "Should include failure rate");
+      expect(health.metrics).toBeTruthy();
+      expect(typeof health.metrics.failureRate === "number").toBeTruthy();
     });
 
     it("should track active orchestrations in health metrics", async () => {
       const health = await coordinator.getHealthStatus();
 
-      assert.ok(
-        typeof health.metrics.activeOrchestrations === "number",
-        "Should track active orchestrations"
-      );
+      expect(typeof health.metrics.activeOrchestrations === "number").toBeTruthy();
     });
 
     it("should calculate provider availability", async () => {
       const health = await coordinator.getHealthStatus();
 
-      assert.ok(health.metrics.providerAvailability, "Should include provider availability");
+      expect(health.metrics.providerAvailability).toBeTruthy();
     });
 
     it("should report degraded status when some providers are unhealthy", async () => {
@@ -257,10 +247,7 @@ describe("ProviderCoordinator - failover and health", { concurrency: 1 }, () => 
       const health = await coordinator.getHealthStatus();
 
       // With 1 out of 2 providers unhealthy (50%), status should be degraded
-      assert.ok(
-        ["degraded", "unhealthy"].includes(health.status),
-        "Should report degraded or unhealthy status"
-      );
+      expect(["degraded", "unhealthy"].includes(health.status)).toBeTruthy();
     });
   });
 }); // end outer describe

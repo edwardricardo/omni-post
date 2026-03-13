@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import * as client from "prom-client";
 import { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import { createTestRegistry, getCounterValue, getGaugeValue } from "./apiMetrics.test-helpers.js";
@@ -9,13 +8,13 @@ describe("ApiMetrics - Initialization", () => {
     const registry = createTestRegistry();
     const apiMetrics = new ApiMetrics(registry);
 
-    assert.ok(apiMetrics.metrics, "Should have metrics object");
-    assert.ok(apiMetrics.metrics.httpRequests, "Should have HTTP request counter");
-    assert.ok(apiMetrics.metrics.httpDuration, "Should have HTTP duration histogram");
-    assert.ok(apiMetrics.metrics.dbOperations, "Should have DB operations counter");
-    assert.ok(apiMetrics.metrics.queueOperations, "Should have queue operations counter");
-    assert.ok(apiMetrics.metrics.postsCreated, "Should have posts created counter");
-    assert.ok(apiMetrics.metrics.rateLimitHits, "Should have rate limit hits counter");
+    expect(apiMetrics.metrics).toBeTruthy();
+    expect(apiMetrics.metrics.httpRequests).toBeTruthy();
+    expect(apiMetrics.metrics.httpDuration).toBeTruthy();
+    expect(apiMetrics.metrics.dbOperations).toBeTruthy();
+    expect(apiMetrics.metrics.queueOperations).toBeTruthy();
+    expect(apiMetrics.metrics.postsCreated).toBeTruthy();
+    expect(apiMetrics.metrics.rateLimitHits).toBeTruthy();
   });
 
   it("should set initial healthy state", async () => {
@@ -24,7 +23,7 @@ describe("ApiMetrics - Initialization", () => {
 
     const healthValue = await getGaugeValue(apiMetrics.metrics.apiHealth);
 
-    assert.strictEqual(healthValue, 1, "Initial health status should be 1 (healthy)");
+    expect(healthValue).toBe(1);
   });
 
   it("should clear existing metrics on initialization", () => {
@@ -32,9 +31,9 @@ describe("ApiMetrics - Initialization", () => {
 
     new ApiMetrics(registry);
 
-    assert.doesNotThrow(() => {
+    expect(() => {
       new ApiMetrics(registry);
-    }, "Should clear existing metrics without error");
+    }).not.toThrow();
   });
 
   it("should return registry for metrics endpoint", () => {
@@ -43,7 +42,7 @@ describe("ApiMetrics - Initialization", () => {
 
     const returnedRegistry = apiMetrics.getRegistry();
 
-    assert.strictEqual(returnedRegistry, registry, "Should return the same registry instance");
+    expect(returnedRegistry).toBe(registry);
   });
 });
 
@@ -76,7 +75,7 @@ describe("ApiMetrics - HTTP Request Metrics", () => {
       status_code: statusCode.toString(),
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment HTTP request counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should track in-flight requests", async () => {
@@ -93,12 +92,8 @@ describe("ApiMetrics - HTTP Request Metrics", () => {
 
     const afterInFlight = await getGaugeValue(apiMetrics.metrics.httpRequestsInFlight);
 
-    assert.ok(duringInFlight > beforeInFlight, "Should increment in-flight during request");
-    assert.strictEqual(
-      afterInFlight,
-      beforeInFlight,
-      "Should decrement in-flight after request completes"
-    );
+    expect(duringInFlight > beforeInFlight).toBeTruthy();
+    expect(afterInFlight).toBe(beforeInFlight);
   });
 
   it("should group status codes by class", async () => {
@@ -130,9 +125,9 @@ describe("ApiMetrics - HTTP Request Metrics", () => {
       status_code: "500",
     });
 
-    assert.ok(count200 > 0, "Should count 2xx responses");
-    assert.ok(count404 > 0, "Should count 4xx responses");
-    assert.ok(count500 > 0, "Should count 5xx responses");
+    expect(count200 > 0).toBeTruthy();
+    expect(count404 > 0).toBeTruthy();
+    expect(count500 > 0).toBeTruthy();
   });
 
   it("should handle different HTTP methods", async () => {
@@ -149,7 +144,7 @@ describe("ApiMetrics - HTTP Request Metrics", () => {
         status_code: "200",
       });
 
-      assert.ok(count > 0, `Should record ${method} request`);
+      expect(count > 0).toBeTruthy();
     }
   });
 });
@@ -183,7 +178,7 @@ describe("ApiMetrics - Endpoint Metrics", () => {
       status,
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment endpoint request counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should track different endpoint statuses", async () => {
@@ -207,8 +202,8 @@ describe("ApiMetrics - Endpoint Metrics", () => {
       status: "error",
     });
 
-    assert.ok(successCount > 0, "Should count successful requests");
-    assert.ok(errorCount > 0, "Should count error requests");
+    expect(successCount > 0).toBeTruthy();
+    expect(errorCount > 0).toBeTruthy();
   });
 });
 
@@ -240,7 +235,7 @@ describe("ApiMetrics - Database Operation Metrics", () => {
       result: "success",
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment DB operation counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should record failed database operation", async () => {
@@ -262,7 +257,7 @@ describe("ApiMetrics - Database Operation Metrics", () => {
       result: "error",
     });
 
-    assert.ok(afterCount > beforeCount, "Should increment DB error counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should track database operations by type", async () => {
@@ -279,7 +274,7 @@ describe("ApiMetrics - Database Operation Metrics", () => {
         result: "success",
       });
 
-      assert.ok(count > 0, `Should record ${operation} operation`);
+      expect(count > 0).toBeTruthy();
     }
   });
 
@@ -291,6 +286,6 @@ describe("ApiMetrics - Database Operation Metrics", () => {
 
     const gaugeValue = await getGaugeValue(apiMetrics.metrics.dbConnections, { pool });
 
-    assert.strictEqual(gaugeValue, count, "Should set DB connection count");
+    expect(gaugeValue).toBe(count);
   });
 });

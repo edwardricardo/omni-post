@@ -2,8 +2,7 @@
  * EnhancedOAuthService Tests - PKCE Challenge Generation & State Management
  */
 
-import { describe, it, beforeEach } from "node:test";
-import * as assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { EnhancedOAuthService } from "../../src/auth/enhancedOAuthProvider";
 import type { OAuthMocks } from "./enhancedOAuthProvider.test-helpers.js";
 import { setupMocks, createMockProvider } from "./enhancedOAuthProvider.test-helpers.js";
@@ -16,8 +15,8 @@ describe("EnhancedOAuthService - PKCE Challenge Generation", () => {
   let service: EnhancedOAuthService;
   let mocks: OAuthMocks;
 
-  beforeEach((t) => {
-    mocks = setupMocks(t);
+  beforeEach(() => {
+    mocks = setupMocks();
     service = new EnhancedOAuthService(
       mocks.mockRedis as any,
       mocks.mockMetrics as any,
@@ -30,9 +29,9 @@ describe("EnhancedOAuthService - PKCE Challenge Generation", () => {
 
     const result = await service.generateAuthorizationUrl(provider, "acc-123");
 
-    assert.ok(result.codeVerifier, "Should generate code verifier");
-    assert.strictEqual(typeof result.codeVerifier, "string", "Code verifier should be string");
-    assert.ok(result.codeVerifier.length > 32, "Code verifier should be sufficiently long");
+    expect(result.codeVerifier).toBeTruthy();
+    expect(typeof result.codeVerifier).toBe("string");
+    expect(result.codeVerifier.length > 32).toBeTruthy();
   });
 
   it("should generate authorization URL with PKCE parameters", async () => {
@@ -40,12 +39,9 @@ describe("EnhancedOAuthService - PKCE Challenge Generation", () => {
 
     const result = await service.generateAuthorizationUrl(provider, "acc-123");
 
-    assert.ok(result.authUrl, "Should generate authorization URL");
-    assert.ok(result.authUrl.includes("code_challenge="), "Should include code challenge");
-    assert.ok(
-      result.authUrl.includes("code_challenge_method=S256"),
-      "Should use S256 challenge method"
-    );
+    expect(result.authUrl).toBeTruthy();
+    expect(result.authUrl.includes("code_challenge=")).toBeTruthy();
+    expect(result.authUrl.includes("code_challenge_method=S256")).toBeTruthy();
   });
 
   it("should include PKCE parameters only when required", async () => {
@@ -58,11 +54,7 @@ describe("EnhancedOAuthService - PKCE Challenge Generation", () => {
 
     const result = await service.generateAuthorizationUrl(provider, "acc-123");
 
-    assert.strictEqual(
-      result.authUrl.includes("code_challenge="),
-      false,
-      "Should not include PKCE"
-    );
+    expect(result.authUrl.includes("code_challenge=")).toBe(false);
   });
 });
 
@@ -74,8 +66,8 @@ describe("EnhancedOAuthService - State Management", () => {
   let service: EnhancedOAuthService;
   let mocks: OAuthMocks;
 
-  beforeEach((t) => {
-    mocks = setupMocks(t);
+  beforeEach(() => {
+    mocks = setupMocks();
     service = new EnhancedOAuthService(
       mocks.mockRedis as any,
       mocks.mockMetrics as any,
@@ -88,9 +80,9 @@ describe("EnhancedOAuthService - State Management", () => {
 
     const result = await service.generateAuthorizationUrl(provider, "acc-123");
 
-    assert.ok(result.state, "Should generate state parameter");
-    assert.strictEqual(typeof result.state, "string", "State should be string");
-    assert.ok(result.state.length >= 32, "State should be sufficiently random");
+    expect(result.state).toBeTruthy();
+    expect(typeof result.state).toBe("string");
+    expect(result.state.length >= 32).toBeTruthy();
   });
 
   it("should store state in Redis with expiration", async () => {
@@ -98,56 +90,49 @@ describe("EnhancedOAuthService - State Management", () => {
 
     await service.generateAuthorizationUrl(provider, "acc-123");
 
-    assert.strictEqual(
-      (mocks.mockRedis.setex as any).mock.calls.length,
-      1,
-      "Should store state in Redis"
-    );
-    const [key, ttl, _value] = (mocks.mockRedis.setex as any).mock.calls[0].arguments;
-    assert.ok(key.startsWith("oauth:state:"), "Should use correct Redis key prefix");
-    assert.ok(ttl > 0, "Should set expiration time");
+    expect((mocks.mockRedis.setex as any).mock.calls.length).toBe(1);
+    const [key, ttl, _value] = (mocks.mockRedis.setex as any).mock.calls[0];
+    expect(key.startsWith("oauth:state:")).toBeTruthy();
+    expect(ttl > 0).toBeTruthy();
   });
 
   it("should include account ID and provider in stored state", async (t) => {
     const provider = createMockProvider();
     let storedState: any;
 
-    mocks.mockRedis.setex = t.mock.fn(async (_key: string, _ttl: number, value: string) => {
+    mocks.mockRedis.setex = vi.fn(async (_key: string, _ttl: number, value: string) => {
       storedState = JSON.parse(value);
       return "OK";
     });
 
     await service.generateAuthorizationUrl(provider, "acc-123");
 
-    assert.strictEqual(storedState.accountId, "acc-123", "Should store account ID");
-    assert.strictEqual(storedState.provider, "x", "Should store provider ID");
+    expect(storedState.accountId).toBe("acc-123");
+    expect(storedState.provider).toBe("x");
   });
 
   it("should include PKCE challenge in stored state", async (t) => {
     const provider = createMockProvider();
     let storedState: any;
 
-    mocks.mockRedis.setex = t.mock.fn(async (_key: string, _ttl: number, value: string) => {
+    mocks.mockRedis.setex = vi.fn(async (_key: string, _ttl: number, value: string) => {
       storedState = JSON.parse(value);
       return "OK";
     });
 
     await service.generateAuthorizationUrl(provider, "acc-123");
 
-    assert.ok(storedState.pkce, "Should store PKCE challenge");
-    assert.ok(storedState.pkce.codeVerifier, "Should store code verifier");
-    assert.ok(storedState.pkce.codeChallenge, "Should store code challenge");
+    expect(storedState.pkce).toBeTruthy();
+    expect(storedState.pkce.codeVerifier).toBeTruthy();
+    expect(storedState.pkce.codeChallenge).toBeTruthy();
   });
 
   it("should validate state exists in Redis during callback", async (t) => {
     const provider = createMockProvider();
-    mocks.mockRedis.get = t.mock.fn(async () => null);
+    mocks.mockRedis.get = vi.fn(async () => null);
 
-    await assert.rejects(
-      async () => {
-        await service.handleCallback(provider, "auth-code", "invalid-state");
-      },
-      { message: /Invalid or expired OAuth state/ }
+    await expect(service.handleCallback(provider, "auth-code", "invalid-state")).rejects.toThrow(
+      /Invalid or expired OAuth state/
     );
   });
 
@@ -169,16 +154,16 @@ describe("EnhancedOAuthService - State Management", () => {
       expiresAt: Date.now() + 600000,
     };
 
-    mocks.mockRedis.get = t.mock.fn(async () => JSON.stringify(stateData));
-    mocks.mockPrisma.providerConnection.findFirst = t.mock.fn(async () => null);
-    mocks.mockPrisma.providerConnection.create = t.mock.fn(async () => ({
+    mocks.mockRedis.get = vi.fn(async () => JSON.stringify(stateData));
+    mocks.mockPrisma.providerConnection.findFirst = vi.fn(async () => null);
+    mocks.mockPrisma.providerConnection.create = vi.fn(async () => ({
       id: "conn-123",
       createdAt: new Date(),
       updatedAt: new Date(),
     }));
 
     // Mock fetch for token exchange
-    global.fetch = t.mock.fn(async () => ({
+    global.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({
         access_token: "token",
@@ -188,11 +173,7 @@ describe("EnhancedOAuthService - State Management", () => {
 
     await service.handleCallback(provider, "auth-code", "valid-state");
 
-    assert.strictEqual(
-      (mocks.mockRedis.del as any).mock.calls.length,
-      1,
-      "Should delete state from Redis"
-    );
+    expect((mocks.mockRedis.del as any).mock.calls.length).toBe(1);
 
     // Restore original fetch
     global.fetch = mocks.globalFetch;

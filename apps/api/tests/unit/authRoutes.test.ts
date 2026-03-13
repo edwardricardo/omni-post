@@ -1,84 +1,112 @@
-#!/usr/bin/env tsx
 /**
- * Integration Tests for authRoutes
- * Testing all authentication HTTP endpoints
- *
- * Coverage Target: 95%+
+ * @file authRoutes.test.ts
+ * @description Unit tests for authRoutes. Uses in-memory mocked Prisma stores
+ *              and a real Fastify instance to test HTTP endpoint behavior.
+ *              Real argon2 and JWT are used for correct crypto behavior.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
-import fastifyCookie from "@fastify/cookie";
-import { authRoutes } from "../../src/auth/authRoutes.js";
-import { AuthService } from "../../src/auth/authService.js";
-import { MfaService } from "../../src/auth/mfaService.js";
-import { prisma } from "@infra/prisma";
-import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
-import { Container } from "../../src/infrastructure/container/Container.js";
-import { TOKENS } from "../../src/infrastructure/container/types.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 
-// Shared service instances — the same AuthService is used both to register/login users
-// (in before()) and to verify tokens in the route handler, so JWT secrets match.
-const adminUserRepo = new PrismaAdminUserRepository(prisma);
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// Import SUT after mocks are in place
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
+const fastifyCookie = (await import("@fastify/cookie")).default;
+const { authRoutes } = await import("../../src/auth/authRoutes.js");
+const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
+const { MfaService } = await import("../../src/auth/mfaService.js");
+const { PrismaAdminUserRepository } = await import(
+  "../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
+);
+const { Container } = await import("../../src/infrastructure/container/Container.js");
+const { TOKENS } = await import("../../src/infrastructure/container/types.js");
+
+// ---------------------------------------------------------------------------
+// Shared service instances
+// ---------------------------------------------------------------------------
+
+// Ensure no Redis for pure unit tests
+setRedisInstance(null as unknown as import("ioredis").default);
+
+const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const mfaService = new MfaService(adminUserRepo);
 const authService = new AuthService(adminUserRepo, mfaService);
 
 // Create test Fastify instance
-async function createTestApp(): Promise<FastifyInstance> {
+async function createTestApp() {
   const app = Fastify({ logger: false });
 
-  const typedApp = app.withTypeProvider<ZodTypeProvider>();
-  typedApp.setValidatorCompiler(validatorCompiler);
-  typedApp.setSerializerCompiler(serializerCompiler);
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
-  // Register the same authService instance used in tests so JWT secrets match.
   const container = new Container();
   container.registerInstance(TOKENS.AuthService, authService);
-  typedApp.decorate("container", container);
+  app.decorate("container", container);
 
-  await typedApp.register(fastifyCookie);
-  await typedApp.register(authRoutes);
+  await app.register(fastifyCookie);
+  await app.register(authRoutes);
 
-  return typedApp;
+  return app;
 }
+
+// ---------------------------------------------------------------------------
+// Test data
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const testEmail = `test-routes-${timestamp}@example.com`;
 const testPassword = "TestPassword123!";
 const testName = "Test Routes User";
 
-let app: FastifyInstance;
+let app: ReturnType<typeof Fastify>;
 let _testUserId: string;
 let accessToken: string;
 let refreshToken: string;
 
-describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("authRoutes Integration Tests", () => {
+  beforeAll(async () => {
+    // Clear stores
+    stores.adminUser.clear();
+    stores.adminSession.clear();
+    stores.auditLog.clear();
+
     app = await createTestApp();
   });
 
-  after(async () => {
-    // Cleanup
-    const testUsers = await prisma.adminUser.findMany({
-      where: { email: { startsWith: `test-routes-${timestamp}` } },
-    });
-
-    const inactiveUser = await prisma.adminUser.findUnique({
-      where: { email: `inactive-${timestamp}@example.com` },
-    });
-
-    if (inactiveUser) {
-      testUsers.push(inactiveUser);
-    }
-
-    for (const user of testUsers) {
-      await prisma.auditLog.deleteMany({ where: { userId: user.id } });
-      await prisma.adminSession.deleteMany({ where: { userId: user.id } });
-      await prisma.adminUser.delete({ where: { id: user.id } });
-    }
-
+  afterAll(async () => {
     await app.close();
   });
 
@@ -97,11 +125,11 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.id);
-      assert.strictEqual(body.data?.email, testEmail.toLowerCase());
-      assert.strictEqual(body.data?.role, "ADMIN");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.id).toBeTruthy();
+      expect(body.data?.email).toBe(testEmail.toLowerCase());
+      expect(body.data?.role).toBe("ADMIN");
 
       _testUserId = body.data?.id || "";
     });
@@ -117,11 +145,11 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 409);
+      expect(response.statusCode).toBe(409);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
-      assert.strictEqual(body.error, "Email already exists");
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe("Email already exists");
     });
 
     it("should reject invalid email format", async () => {
@@ -135,7 +163,7 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject weak password", async () => {
@@ -149,7 +177,7 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject missing required fields", async () => {
@@ -159,7 +187,7 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         payload: { email: testEmail },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -176,19 +204,19 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.accessToken);
-      assert.strictEqual(body.data?.user?.email, testEmail.toLowerCase());
-      assert.ok(body.data?.expiresAt);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.accessToken).toBeTruthy();
+      expect(body.data?.user?.email).toBe(testEmail.toLowerCase());
+      expect(body.data?.expiresAt).toBeTruthy();
 
       const cookies = response.cookies;
-      const refreshTokenCookie = cookies.find((c) => c.name === "refreshToken");
+      const refreshTokenCookie = cookies.find((c: { name: string }) => c.name === "refreshToken");
 
-      assert.ok(refreshTokenCookie);
-      assert.strictEqual(refreshTokenCookie?.httpOnly, true);
-      assert.strictEqual(refreshTokenCookie?.sameSite, "Strict");
-      assert.strictEqual(refreshTokenCookie?.path, "/auth");
+      expect(refreshTokenCookie).toBeTruthy();
+      expect(refreshTokenCookie?.httpOnly).toBe(true);
+      expect(refreshTokenCookie?.sameSite).toBe("Strict");
+      expect(refreshTokenCookie?.path).toBe("/auth");
 
       accessToken = body.data?.accessToken || "";
       refreshToken = refreshTokenCookie?.value || "";
@@ -204,10 +232,10 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.error, "Invalid email or password");
+      expect(body.error).toBe("Invalid email or password");
     });
 
     it("should reject non-existent user", async () => {
@@ -220,17 +248,18 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("should reject inactive user", async () => {
       const inactiveEmail = `inactive-${timestamp}@example.com`;
       await authService.registerAdmin(inactiveEmail, testPassword, "Inactive User", "ADMIN");
 
-      await prisma.adminUser.update({
-        where: { email: inactiveEmail },
-        data: { isActive: false },
-      });
+      // Deactivate user via store
+      const user = stores.adminUser.all().find((u) => u.email === inactiveEmail);
+      if (user) {
+        stores.adminUser.update(user.id as string, { isActive: false });
+      }
 
       const response = await app.inject({
         method: "POST",
@@ -241,10 +270,10 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 403);
+      expect(response.statusCode).toBe(403);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.error, "Account is inactive");
+      expect(body.error).toBe("Account is inactive");
     });
   });
 
@@ -258,14 +287,16 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.accessToken);
-      assert.ok(body.data?.expiresAt);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.accessToken).toBeTruthy();
+      expect(body.data?.expiresAt).toBeTruthy();
 
       const cookies = response.cookies;
-      const newRefreshTokenCookie = cookies.find((c) => c.name === "refreshToken");
-      assert.ok(newRefreshTokenCookie);
+      const newRefreshTokenCookie = cookies.find(
+        (c: { name: string }) => c.name === "refreshToken"
+      );
+      expect(newRefreshTokenCookie).toBeTruthy();
 
       accessToken = body.data?.accessToken || accessToken;
       refreshToken = newRefreshTokenCookie?.value || refreshToken;
@@ -278,7 +309,7 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         payload: { refreshToken: refreshToken },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject invalid refresh token", async () => {
@@ -288,14 +319,14 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         cookies: { refreshToken: "invalid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.error, "Invalid or expired refresh token");
+      expect(body.error).toBe("Invalid or expired refresh token");
 
       const cookies = response.cookies;
-      const clearedCookie = cookies.find((c) => c.name === "refreshToken");
-      assert.strictEqual(clearedCookie?.value, "");
+      const clearedCookie = cookies.find((c: { name: string }) => c.name === "refreshToken");
+      expect(clearedCookie?.value).toBe("");
     });
 
     it("should reject missing refresh token", async () => {
@@ -305,10 +336,10 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         payload: {},
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.error, "Refresh token required");
+      expect(body.error).toBe("Refresh token required");
     });
   });
 
@@ -322,9 +353,9 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.user?.email, testEmail.toLowerCase());
-      assert.strictEqual(body.data?.user?.role, "ADMIN");
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.user?.email).toBe(testEmail.toLowerCase());
+      expect(body.data?.user?.role).toBe("ADMIN");
     });
 
     it("should reject without token", async () => {
@@ -333,7 +364,7 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         url: "/auth/me",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("should reject invalid token", async () => {
@@ -343,7 +374,7 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         headers: { authorization: "Bearer invalid-token" },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -357,15 +388,15 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(Array.isArray(body.data?.sessions));
-      assert.ok(body.data?.sessions.length >= 1);
+      expect(response.statusCode).toBe(200);
+      expect(Array.isArray(body.data?.sessions)).toBeTruthy();
+      expect(body.data?.sessions.length >= 1).toBeTruthy();
 
       const session = body.data?.sessions[0];
-      assert.ok(session?.id);
-      assert.ok(session?.ipAddress);
-      assert.ok(session?.createdAt);
-      assert.strictEqual(session?.refreshToken, undefined);
+      expect(session?.id).toBeTruthy();
+      expect(session?.ipAddress).toBeTruthy();
+      expect(session?.createdAt).toBeTruthy();
+      expect(session?.refreshToken).toBe(undefined);
     });
 
     it("should reject without token", async () => {
@@ -374,7 +405,7 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         url: "/auth/sessions",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -388,12 +419,12 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.message, "Logged out successfully");
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.message).toBe("Logged out successfully");
 
       const cookies = response.cookies;
-      const clearedCookie = cookies.find((c) => c.name === "refreshToken");
-      assert.strictEqual(clearedCookie?.value, "");
+      const clearedCookie = cookies.find((c: { name: string }) => c.name === "refreshToken");
+      expect(clearedCookie?.value).toBe("");
     });
 
     it("should logout with body token after re-login", async () => {
@@ -407,9 +438,9 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         },
       });
 
-      const _loginBody = JSON.parse(loginResponse.body);
       const cookies = loginResponse.cookies;
-      const newRefreshToken = cookies.find((c) => c.name === "refreshToken")?.value || "";
+      const newRefreshToken =
+        cookies.find((c: { name: string }) => c.name === "refreshToken")?.value || "";
 
       const response = await app.inject({
         method: "POST",
@@ -417,7 +448,7 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         payload: { refreshToken: newRefreshToken },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject missing refresh token", async () => {
@@ -427,15 +458,15 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         payload: {},
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.error, "Refresh token required");
+      expect(body.error).toBe("Refresh token required");
     });
   });
 
   describe("POST /auth/revoke-all", () => {
-    before(async () => {
+    beforeAll(async () => {
       // Re-login for revoke-all test
       const response = await app.inject({
         method: "POST",
@@ -459,13 +490,13 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.message, "All sessions revoked successfully");
-      assert.strictEqual(typeof body.data?.revokedCount, "number");
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.message).toBe("All sessions revoked successfully");
+      expect(typeof body.data?.revokedCount).toBe("number");
 
       const cookies = response.cookies;
-      const clearedCookie = cookies.find((c) => c.name === "refreshToken");
-      assert.strictEqual(clearedCookie?.value, "");
+      const clearedCookie = cookies.find((c: { name: string }) => c.name === "refreshToken");
+      expect(clearedCookie?.value).toBe("");
     });
 
     it("should reject without token", async () => {
@@ -474,7 +505,7 @@ describe("authRoutes Integration Tests", { concurrency: 1 }, () => {
         url: "/auth/revoke-all",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 });

@@ -6,49 +6,63 @@
  * and simultaneous multi-provider adaptation.
  */
 
-import { describe, it, before, beforeEach, after } from "node:test";
-import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
+import { describe, it, beforeAll, beforeEach, afterAll, expect, vi } from "vitest";
+import { prisma } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
 import promClient from "prom-client";
 import { PlatformContentAdapter } from "../../src/content/PlatformContentAdapter.js";
-import { EventService } from "../../src/events/EventService.js";
+import type { EventService } from "../../src/events/EventService.js";
 
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface.js";
 
-describe("PlatformContentAdapter - Facebook, YouTube, TikTok, Multi", { concurrency: 1 }, () => {
+vi.mock("../../src/lib/logger.js", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
+  },
+}));
+
+const mockRedis = {
+  get: vi.fn(async () => null),
+  set: vi.fn(async () => "OK"),
+  setex: vi.fn(async () => "OK"),
+  del: vi.fn(async () => 1),
+  hget: vi.fn(async () => null),
+  hset: vi.fn(async () => 1),
+  hexists: vi.fn(async () => 0),
+  keys: vi.fn(async () => []),
+  lpush: vi.fn(async () => 1),
+  lrange: vi.fn(async () => []),
+  xack: vi.fn(async () => 0),
+  xgroup: vi.fn(async () => "OK"),
+  xreadgroup: vi.fn(async () => null),
+  disconnect: vi.fn(),
+  quit: vi.fn(),
+  status: "ready",
+} as unknown as import("ioredis").default;
+
+describe("PlatformContentAdapter - Facebook, YouTube, TikTok, Multi", () => {
   let adapter: PlatformContentAdapter;
-  let prisma: PrismaClient;
-  let redis: Redis;
 
-  before(async () => {
-    prisma = createTestPrismaClient();
-    redis = new Redis({
-      host: process.env.REDIS_HOST || "localhost",
-      port: parseInt(process.env.REDIS_PORT || "6379"),
-      lazyConnect: true,
-      maxRetriesPerRequest: 1,
-      enableReadyCheck: false,
-    });
-
+  beforeAll(async () => {
     const eventService: Pick<EventService, "publishEvent"> = {
       publishEvent: async () => ({ ok: true as const, value: undefined }),
     };
 
     adapter = new PlatformContentAdapter({
-      prisma,
-      redis,
+      prisma: prisma as unknown as PrismaClient,
+      redis: mockRedis,
       eventService: eventService as EventService,
     });
     await adapter.initialize();
   });
 
-  after(async () => {
+  afterAll(async () => {
     promClient.register.clear();
-    redis.disconnect(false);
-    await prisma.$disconnect();
   });
 
   describe("Facebook Adaptation", () => {
@@ -82,10 +96,10 @@ describe("PlatformContentAdapter - Facebook, YouTube, TikTok, Multi", { concurre
 
       const result = await adapter.adaptForSingleProvider(longPost, "facebook" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(adapted.body.length > 0, "Content should be present");
+        expect(adapted.body.length > 0).toBeTruthy();
       }
     });
 
@@ -97,10 +111,10 @@ describe("PlatformContentAdapter - Facebook, YouTube, TikTok, Multi", { concurre
 
       const result = await adapter.adaptForSingleProvider(postWithLink, "facebook" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(adapted.body.includes("https://"), "Link should be preserved");
+        expect(adapted.body.includes("https://")).toBeTruthy();
       }
     });
   });
@@ -131,11 +145,11 @@ describe("PlatformContentAdapter - Facebook, YouTube, TikTok, Multi", { concurre
     it("should handle video content for YouTube", async () => {
       const result = await adapter.adaptForSingleProvider(samplePost, "youtube" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(adapted.media, "Media should be present");
-        assert.strictEqual(adapted.media![0].type, "video", "Should have video media");
+        expect(adapted.media).toBeTruthy();
+        expect(adapted.media![0].type).toBe("video");
       }
     });
 
@@ -147,10 +161,10 @@ describe("PlatformContentAdapter - Facebook, YouTube, TikTok, Multi", { concurre
 
       const result = await adapter.adaptForSingleProvider(longDescription, "youtube" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(adapted.body.length > 0, "Description should be present");
+        expect(adapted.body.length > 0).toBeTruthy();
       }
     });
   });
@@ -181,11 +195,11 @@ describe("PlatformContentAdapter - Facebook, YouTube, TikTok, Multi", { concurre
     it("should handle vertical video for TikTok", async () => {
       const result = await adapter.adaptForSingleProvider(samplePost, "tiktok" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(adapted.media, "Media should be present");
-        assert.strictEqual(adapted.media![0].type, "video", "Should have video media");
+        expect(adapted.media).toBeTruthy();
+        expect(adapted.media![0].type).toBe("video");
       }
     });
 
@@ -197,10 +211,10 @@ describe("PlatformContentAdapter - Facebook, YouTube, TikTok, Multi", { concurre
 
       const result = await adapter.adaptForSingleProvider(longCaption, "tiktok" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(adapted.body.length < longCaption.body.length, "Should truncate long captions");
+        expect(adapted.body.length < longCaption.body.length).toBeTruthy();
       }
     });
   });
@@ -233,18 +247,14 @@ describe("PlatformContentAdapter - Facebook, YouTube, TikTok, Multi", { concurre
 
       const result = await adapter.adaptForProviders(samplePost, providers);
 
-      assert.strictEqual(result.ok, true, "Multi-provider adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.strictEqual(
-          result.value.size,
-          providers.length,
-          "Should have adaptations for all providers"
-        );
+        expect(result.value.size).toBe(providers.length);
 
         for (const providerId of providers) {
           const adaptation = result.value.get(providerId);
-          assert.ok(adaptation, `Should have adaptation for ${providerId}`);
-          assert.ok(adaptation!.adaptedContent, `Should have adapted content for ${providerId}`);
+          expect(adaptation).toBeTruthy();
+          expect(adaptation!.adaptedContent).toBeTruthy();
         }
       }
     });
@@ -254,19 +264,16 @@ describe("PlatformContentAdapter - Facebook, YouTube, TikTok, Multi", { concurre
 
       const result = await adapter.adaptForProviders(samplePost, providers);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const xAdaptation = result.value.get("x");
         const instagramAdaptation = result.value.get("instagram");
 
-        assert.ok(xAdaptation, "Should have X adaptation");
-        assert.ok(instagramAdaptation, "Should have Instagram adaptation");
+        expect(xAdaptation).toBeTruthy();
+        expect(instagramAdaptation).toBeTruthy();
 
-        assert.ok(xAdaptation!.adaptationRules.length >= 0, "X should have adaptation rules");
-        assert.ok(
-          instagramAdaptation!.adaptationRules.length >= 0,
-          "Instagram should have adaptation rules"
-        );
+        expect(xAdaptation!.adaptationRules.length >= 0).toBeTruthy();
+        expect(instagramAdaptation!.adaptationRules.length >= 0).toBeTruthy();
       }
     });
   });

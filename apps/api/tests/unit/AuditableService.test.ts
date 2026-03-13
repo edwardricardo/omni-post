@@ -1,28 +1,157 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for AuditableService
- * Testing audit logging functionality with database integration
- *
- * Uses node:test and node:assert for standard Node.js testing
+ * @file AuditableService.test.ts
+ * @description Unit tests for AuditableService — audit logging functionality
+ *              with mocked Prisma (no database dependency).
+ * @layer test-infrastructure
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect, vi } from "vitest";
+import { randomUUID } from "crypto";
+
+// ---------------------------------------------------------------------------
+// Mock setup — vi.hoisted runs before vi.mock factories
+// ---------------------------------------------------------------------------
+
+const mocks = vi.hoisted(() => {
+  const noop = () => {};
+
+  const auditLogStore: Array<Record<string, unknown>> = [];
+
+  const auditLogCreate = vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+    // Simulate FK constraint failure for non-existent user IDs
+    // In real DB, userId references adminUser — if user doesn't exist, create fails
+    if (data.userId && !knownUserIds.has(data.userId as string)) {
+      throw new Error(`Foreign key constraint failed on the field: \`AuditLog_userId_fkey\``);
+    }
+
+    const now = new Date();
+    const record = {
+      id: randomUUID(),
+      createdAt: now,
+      updatedAt: now,
+      action: null,
+      resource: null,
+      resourceId: null,
+      userId: null,
+      ipAddress: null,
+      userAgent: null,
+      details: null,
+      success: true,
+      error: null,
+      ...data,
+    };
+    auditLogStore.push(record);
+    return record;
+  });
+
+  const auditLogFindFirst = vi.fn(
+    async (args: { where?: Record<string, unknown>; orderBy?: any }) => {
+      let results = [...auditLogStore];
+
+      if (args.where) {
+        results = results.filter((entry) => {
+          for (const [key, value] of Object.entries(args.where!)) {
+            if (entry[key] !== value) return false;
+          }
+          return true;
+        });
+      }
+
+      // Sort by createdAt desc
+      results.sort(
+        (a, b) =>
+          new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime()
+      );
+
+      return results[0] ?? null;
+    }
+  );
+
+  const auditLogFindMany = vi.fn(async () => []);
+  const auditLogDeleteMany = vi.fn(async () => ({ count: 0 }));
+
+  const prismaClient: any = {
+    auditLog: {
+      create: auditLogCreate,
+      findFirst: auditLogFindFirst,
+      findMany: auditLogFindMany,
+      findUnique: vi.fn(async () => null),
+      deleteMany: auditLogDeleteMany,
+      count: vi.fn(async () => 0),
+    },
+    adminUser: {
+      create: vi.fn(async ({ data }: any) => {
+        const id = randomUUID();
+        knownUserIds.add(id);
+        return { id, ...data };
+      }),
+      delete: vi.fn(async () => null),
+    },
+    account: {
+      create: vi.fn(async ({ data }: any) => ({ id: randomUUID(), ...data })),
+      delete: vi.fn(async () => null),
+    },
+    $connect: vi.fn(async () => undefined),
+    $disconnect: vi.fn(async () => undefined),
+    $transaction: vi.fn(async (fn: any) => fn(prismaClient)),
+  };
+
+  const loggerObj = {
+    info: vi.fn(noop),
+    warn: vi.fn(noop),
+    error: vi.fn(noop),
+    debug: vi.fn(noop),
+    trace: vi.fn(noop),
+    fatal: vi.fn(noop),
+    child: vi.fn((): any => loggerObj),
+  };
+
+  // Track known user IDs that pass FK validation
+  const knownUserIds = new Set<string>();
+
+  return {
+    prismaClient,
+    loggerObj,
+    auditLogStore,
+    auditLogCreate,
+    auditLogFindFirst,
+    auditLogFindMany,
+    auditLogDeleteMany,
+    knownUserIds,
+  };
+});
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mocks.prismaClient };
+});
+
+vi.mock("../../src/lib/logger.js", () => ({
+  logger: mocks.loggerObj,
+  authLogger: mocks.loggerObj,
+  createLogger: () => mocks.loggerObj,
+}));
+
+// ---------------------------------------------------------------------------
+// Import SUT after mocks are in place
+// ---------------------------------------------------------------------------
+
 import {
   AuditableService,
   type UserActionOptions,
   type AccountActionOptions,
   type ResourceActionOptions,
 } from "../../src/services/AuditableService.js";
-import { prisma } from "@infra/prisma";
 
-// Test implementation of AuditableService
+// ---------------------------------------------------------------------------
+// Concrete test subclass
+// ---------------------------------------------------------------------------
+
 class TestAuditableService extends AuditableService {
   constructor() {
     super("TestAuditableService");
   }
 
-  // Expose protected methods for testing
   public async testLogUserAction(userId: string, options: UserActionOptions) {
     return this.logUserAction(userId, options);
   }
@@ -57,62 +186,31 @@ class TestAuditableService extends AuditableService {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 describe("AuditableService", () => {
-  let testUserId: string;
-  let testAccountId: string;
+  const testUserId = "auditable-user-001";
+  const testAccountId = "auditable-account-001";
   const timestamp = Date.now();
 
-  // Setup test data before all tests
-  before(async () => {
-    // Create test user with unique email
-    const testUser = await prisma.adminUser.create({
-      data: {
-        email: `auditable-test-${timestamp}@example.com`,
-        passwordHash: "test-hash",
-        name: "AuditableService Test User",
-        emailVerified: true,
-      },
-    });
-    testUserId = testUser.id;
+  beforeEach(() => {
+    mocks.auditLogStore.length = 0;
+    mocks.auditLogCreate.mockClear();
+    mocks.auditLogFindFirst.mockClear();
+    mocks.auditLogFindMany.mockClear();
+    mocks.auditLogDeleteMany.mockClear();
+    mocks.loggerObj.error.mockClear();
 
-    // Create test account with unique email
-    const testAccount = await prisma.account.create({
-      data: {
-        name: `Test Account ${timestamp}`,
-        email: `auditable-account-${timestamp}@example.com`,
-        subscription: "BASIC",
-      },
-    });
-    testAccountId = testAccount.id;
-  });
-
-  // Cleanup test data after all tests
-  after(async () => {
-    // Delete all audit logs created during tests
-    await prisma.auditLog.deleteMany({
-      where: {
-        OR: [
-          { userId: testUserId },
-          { resourceId: { in: [`post-${timestamp}-123`, `post-${timestamp}-456`] } },
-        ],
-      },
-    });
-
-    // Delete test account
-    await prisma.account.delete({
-      where: { id: testAccountId },
-    });
-
-    // Delete test user
-    await prisma.adminUser.delete({
-      where: { id: testUserId },
-    });
+    // Register known user IDs so FK constraint simulation passes
+    mocks.knownUserIds.clear();
+    mocks.knownUserIds.add(testUserId);
   });
 
   it("logUserAction - creates audit log with correct data", async () => {
     const service = new TestAuditableService();
 
-    // Execute user action logging
     await service.testLogUserAction(testUserId, {
       action: "USER_LOGIN",
       category: "AUTHENTICATION",
@@ -123,35 +221,32 @@ describe("AuditableService", () => {
     });
 
     // Verify audit log was created with correct data
-    const userActionLog = await prisma.auditLog.findFirst({
-      where: {
-        userId: testUserId,
-        action: "USER_LOGIN",
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    expect(mocks.auditLogCreate).toHaveBeenCalledTimes(1);
 
-    assert.ok(userActionLog, "Audit log should be created");
-    assert.strictEqual(userActionLog.action, "USER_LOGIN", "Action should match");
-    assert.strictEqual(userActionLog.userId, testUserId, "User ID should match");
-    assert.strictEqual(userActionLog.ipAddress, "192.168.1.1", "IP address should match");
-    assert.strictEqual(userActionLog.userAgent, "Mozilla/5.0", "User agent should match");
-    assert.strictEqual(userActionLog.success, true, "Success should be true");
+    const userActionLog = mocks.auditLogStore.find(
+      (l) => l.userId === testUserId && l.action === "USER_LOGIN"
+    );
+
+    expect(userActionLog).toBeTruthy();
+    expect(userActionLog!.action).toBe("USER_LOGIN");
+    expect(userActionLog!.userId).toBe(testUserId);
+    expect(userActionLog!.ipAddress).toBe("192.168.1.1");
+    expect(userActionLog!.userAgent).toBe("Mozilla/5.0");
+    expect(userActionLog!.success).toBe(true);
 
     // Verify details structure (category, severity, and custom fields stored in details)
-    assert.ok(userActionLog.details, "Details should exist");
-    assert.strictEqual(typeof userActionLog.details, "object", "Details should be object");
+    expect(userActionLog!.details).toBeTruthy();
+    expect(typeof userActionLog!.details).toBe("object");
 
-    const details = userActionLog.details as Record<string, unknown>;
-    assert.strictEqual(details.category, "AUTHENTICATION", "Category should be in details");
-    assert.strictEqual(details.severity, "INFO", "Severity should be in details");
-    assert.strictEqual(details.method, "password", "Custom method field should be in details");
+    const details = userActionLog!.details as Record<string, unknown>;
+    expect(details.category).toBe("AUTHENTICATION");
+    expect(details.severity).toBe("INFO");
+    expect(details.method).toBe("password");
   });
 
   it("logAccountAction - creates account-level audit log", async () => {
     const service = new TestAuditableService();
 
-    // Execute account action logging
     await service.testLogAccountAction(testUserId, {
       accountId: testAccountId,
       action: "SUBSCRIPTION_UPGRADE",
@@ -160,34 +255,30 @@ describe("AuditableService", () => {
       details: { from: "BASIC", to: "PRO" },
     });
 
-    // Verify audit log was created
-    const accountActionLog = await prisma.auditLog.findFirst({
-      where: {
-        userId: testUserId,
-        action: "SUBSCRIPTION_UPGRADE",
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    expect(mocks.auditLogCreate).toHaveBeenCalledTimes(1);
 
-    assert.ok(accountActionLog, "Account audit log should be created");
-    assert.strictEqual(accountActionLog.action, "SUBSCRIPTION_UPGRADE", "Action should match");
-    assert.strictEqual(accountActionLog.userId, testUserId, "User ID should match");
-    assert.strictEqual(accountActionLog.success, true, "Success should be true");
+    const accountActionLog = mocks.auditLogStore.find(
+      (l) => l.userId === testUserId && l.action === "SUBSCRIPTION_UPGRADE"
+    );
+
+    expect(accountActionLog).toBeTruthy();
+    expect(accountActionLog!.action).toBe("SUBSCRIPTION_UPGRADE");
+    expect(accountActionLog!.userId).toBe(testUserId);
+    expect(accountActionLog!.success).toBe(true);
 
     // Verify details structure (accountId is stored in details, not as direct field)
-    assert.ok(accountActionLog.details, "Details should exist");
-    const details = accountActionLog.details as Record<string, unknown>;
-    assert.strictEqual(details.category, "ACCOUNT", "Category should be in details");
-    assert.strictEqual(details.severity, "HIGH", "Severity should be in details");
-    assert.strictEqual(details.from, "BASIC", "From subscription should be in details");
-    assert.strictEqual(details.to, "PRO", "To subscription should be in details");
+    expect(accountActionLog!.details).toBeTruthy();
+    const details = accountActionLog!.details as Record<string, unknown>;
+    expect(details.category).toBe("ACCOUNT");
+    expect(details.severity).toBe("HIGH");
+    expect(details.from).toBe("BASIC");
+    expect(details.to).toBe("PRO");
   });
 
   it("logResourceAction - creates resource-level audit log", async () => {
     const service = new TestAuditableService();
     const resourceId = `resource-${timestamp}-create`;
 
-    // Execute resource action logging
     await service.testLogResourceAction(testUserId, {
       accountId: testAccountId,
       action: "RESOURCE_CREATE",
@@ -198,42 +289,35 @@ describe("AuditableService", () => {
       details: { title: "Test Post", status: "DRAFT" },
     });
 
-    // Verify audit log was created
-    const resourceLog = await prisma.auditLog.findFirst({
-      where: {
-        userId: testUserId,
-        action: "RESOURCE_CREATE",
-        resource: "Post",
-        resourceId,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    expect(mocks.auditLogCreate).toHaveBeenCalledTimes(1);
 
-    assert.ok(resourceLog, "Resource audit log should be created");
-    assert.strictEqual(resourceLog.action, "RESOURCE_CREATE", "Action should match");
-    assert.strictEqual(resourceLog.userId, testUserId, "User ID should match");
-    assert.strictEqual(resourceLog.resource, "Post", "Resource type should match");
-    assert.strictEqual(resourceLog.resourceId, resourceId, "Resource ID should match");
-    assert.strictEqual(resourceLog.success, true, "Success should be true");
+    const resourceLog = mocks.auditLogStore.find(
+      (l) =>
+        l.userId === testUserId &&
+        l.action === "RESOURCE_CREATE" &&
+        l.resource === "Post" &&
+        l.resourceId === resourceId
+    );
+
+    expect(resourceLog).toBeTruthy();
+    expect(resourceLog!.action).toBe("RESOURCE_CREATE");
+    expect(resourceLog!.userId).toBe(testUserId);
+    expect(resourceLog!.resource).toBe("Post");
+    expect(resourceLog!.resourceId).toBe(resourceId);
+    expect(resourceLog!.success).toBe(true);
 
     // Verify details
-    assert.ok(resourceLog.details, "Details should exist");
-    const details = resourceLog.details as Record<string, unknown>;
-    assert.strictEqual(details.category, "DATA", "Category should be in details");
-    assert.strictEqual(details.severity, "LOW", "Severity should be in details");
-    assert.strictEqual(details.title, "Test Post", "Title should be in details");
-    assert.strictEqual(details.status, "DRAFT", "Status should be in details");
-
-    // Cleanup this specific resource log
-    await prisma.auditLog.deleteMany({
-      where: { resourceId },
-    });
+    expect(resourceLog!.details).toBeTruthy();
+    const details = resourceLog!.details as Record<string, unknown>;
+    expect(details.category).toBe("DATA");
+    expect(details.severity).toBe("LOW");
+    expect(details.title).toBe("Test Post");
+    expect(details.status).toBe("DRAFT");
   });
 
   it("executeWithAudit - logs successful operation", async () => {
     const service = new TestAuditableService();
 
-    // Execute operation with audit logging
     const result = await service.testExecuteWithAudit(
       {
         operation: "testOperation",
@@ -253,95 +337,79 @@ describe("AuditableService", () => {
     );
 
     // Verify operation result
-    assert.deepStrictEqual(
-      result,
-      { success: true, data: "test data" },
-      "Operation should return correct result"
-    );
+    expect(result).toStrictEqual({ success: true, data: "test data" });
 
     // Verify success audit log was created
-    const successLog = await prisma.auditLog.findFirst({
-      where: {
-        userId: testUserId,
-        action: "DATA_CREATE",
-        resource: "Post",
-        resourceId: `post-${timestamp}-123`,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const successLog = mocks.auditLogStore.find(
+      (l) =>
+        l.userId === testUserId &&
+        l.action === "DATA_CREATE" &&
+        l.resource === "Post" &&
+        l.resourceId === `post-${timestamp}-123`
+    );
 
-    assert.ok(successLog, "Success audit log should be created");
-    assert.strictEqual(successLog.action, "DATA_CREATE", "Action should match");
-    assert.strictEqual(successLog.userId, testUserId, "User ID should match");
-    assert.strictEqual(successLog.resource, "Post", "Resource type should match");
-    assert.strictEqual(successLog.resourceId, `post-${timestamp}-123`, "Resource ID should match");
-    assert.strictEqual(successLog.success, true, "Success should be true");
+    expect(successLog).toBeTruthy();
+    expect(successLog!.action).toBe("DATA_CREATE");
+    expect(successLog!.userId).toBe(testUserId);
+    expect(successLog!.resource).toBe("Post");
+    expect(successLog!.resourceId).toBe(`post-${timestamp}-123`);
+    expect(successLog!.success).toBe(true);
 
     // Verify details contain operation metadata
-    assert.ok(successLog.details, "Details should exist");
-    const details = successLog.details as Record<string, unknown>;
-    assert.strictEqual(details.operation, "testOperation", "Operation name should be in details");
-    assert.strictEqual(details.success, true, "Success flag should be in details");
-    assert.ok(typeof details.durationMs === "number", "Duration should be a number");
-    assert.ok(details.durationMs >= 0, "Duration should be non-negative");
+    expect(successLog!.details).toBeTruthy();
+    const details = successLog!.details as Record<string, unknown>;
+    expect(details.operation).toBe("testOperation");
+    expect(details.success).toBe(true);
+    expect(typeof details.durationMs === "number").toBeTruthy();
+    expect((details.durationMs as number) >= 0).toBeTruthy();
   });
 
   it("executeWithAudit - logs failed operation with HIGH severity", async () => {
     const service = new TestAuditableService();
 
-    // Execute failing operation with audit logging
-    await assert.rejects(
-      async () => {
-        await service.testExecuteWithAudit(
-          {
-            operation: "failOperation",
-            userId: testUserId,
-            accountId: testAccountId,
-          },
-          {
-            action: "DATA_UPDATE",
-            category: "DATA",
-            resourceType: "Post",
-            resourceId: `post-${timestamp}-456`,
-          },
-          async () => {
-            throw new Error("Test error");
-          }
-        );
-      },
-      {
-        name: "Error",
-        message: "Test error",
-      },
-      "Operation should throw error"
-    );
+    await expect(
+      service.testExecuteWithAudit(
+        {
+          operation: "failOperation",
+          userId: testUserId,
+          accountId: testAccountId,
+        },
+        {
+          action: "DATA_UPDATE",
+          category: "DATA",
+          resourceType: "Post",
+          resourceId: `post-${timestamp}-456`,
+        },
+        async () => {
+          throw new Error("Test error");
+        }
+      )
+    ).rejects.toThrow("Test error");
 
     // Verify failure audit log was created
-    const failureLog = await prisma.auditLog.findFirst({
-      where: {
-        userId: testUserId,
-        action: "DATA_UPDATE",
-        resource: "Post",
-        resourceId: `post-${timestamp}-456`,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const failureLog = mocks.auditLogStore.find(
+      (l) =>
+        l.userId === testUserId &&
+        l.action === "DATA_UPDATE" &&
+        l.resource === "Post" &&
+        l.resourceId === `post-${timestamp}-456`
+    );
 
-    assert.ok(failureLog, "Failure audit log should be created");
-    assert.strictEqual(failureLog.action, "DATA_UPDATE", "Action should match");
-    assert.strictEqual(failureLog.userId, testUserId, "User ID should match");
-    assert.strictEqual(failureLog.resource, "Post", "Resource type should match");
-    assert.strictEqual(failureLog.resourceId, `post-${timestamp}-456`, "Resource ID should match");
+    expect(failureLog).toBeTruthy();
+    expect(failureLog!.action).toBe("DATA_UPDATE");
+    expect(failureLog!.userId).toBe(testUserId);
+    expect(failureLog!.resource).toBe("Post");
+    expect(failureLog!.resourceId).toBe(`post-${timestamp}-456`);
 
     // Note: success field in database might be true by default, but details.success should be false
-    assert.ok(failureLog.details, "Details should exist");
-    const details = failureLog.details as Record<string, unknown>;
-    assert.strictEqual(details.operation, "failOperation", "Operation name should be in details");
-    assert.strictEqual(details.success, false, "Success flag should be false in details");
-    assert.strictEqual(details.error, "Test error", "Error message should be in details");
-    assert.strictEqual(details.severity, "HIGH", "Failed operations should have HIGH severity");
-    assert.ok(typeof details.durationMs === "number", "Duration should be a number");
-    assert.ok(details.durationMs >= 0, "Duration should be non-negative");
+    expect(failureLog!.details).toBeTruthy();
+    const details = failureLog!.details as Record<string, unknown>;
+    expect(details.operation).toBe("failOperation");
+    expect(details.success).toBe(false);
+    expect(details.error).toBe("Test error");
+    expect(details.severity).toBe("HIGH");
+    expect(typeof details.durationMs === "number").toBeTruthy();
+    expect((details.durationMs as number) >= 0).toBeTruthy();
   });
 
   it("handles NULL vs undefined correctly in optional fields", async () => {
@@ -354,18 +422,14 @@ describe("AuditableService", () => {
       // ipAddress and userAgent intentionally omitted
     });
 
-    const logWithoutOptional = await prisma.auditLog.findFirst({
-      where: {
-        userId: testUserId,
-        action: "USER_ACTION_NO_OPTIONAL",
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const logWithoutOptional = mocks.auditLogStore.find(
+      (l) => l.userId === testUserId && l.action === "USER_ACTION_NO_OPTIONAL"
+    );
 
-    assert.ok(logWithoutOptional, "Log should be created");
-    // Prisma returns null for missing optional fields
-    assert.strictEqual(logWithoutOptional.ipAddress, null, "IP address should be null");
-    assert.strictEqual(logWithoutOptional.userAgent, null, "User agent should be null");
+    expect(logWithoutOptional).toBeTruthy();
+    // Mock returns null for missing optional fields (matching Prisma behavior)
+    expect(logWithoutOptional!.ipAddress).toBe(null);
+    expect(logWithoutOptional!.userAgent).toBe(null);
 
     // Test with provided optional fields
     await service.testLogUserAction(testUserId, {
@@ -375,24 +439,13 @@ describe("AuditableService", () => {
       userAgent: "TestAgent/1.0",
     });
 
-    const logWithOptional = await prisma.auditLog.findFirst({
-      where: {
-        userId: testUserId,
-        action: "USER_ACTION_WITH_OPTIONAL",
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const logWithOptional = mocks.auditLogStore.find(
+      (l) => l.userId === testUserId && l.action === "USER_ACTION_WITH_OPTIONAL"
+    );
 
-    assert.ok(logWithOptional, "Log should be created");
-    assert.strictEqual(logWithOptional.ipAddress, "10.0.0.1", "IP address should be set");
-    assert.strictEqual(logWithOptional.userAgent, "TestAgent/1.0", "User agent should be set");
-
-    // Cleanup
-    await prisma.auditLog.deleteMany({
-      where: {
-        action: { in: ["USER_ACTION_NO_OPTIONAL", "USER_ACTION_WITH_OPTIONAL"] },
-      },
-    });
+    expect(logWithOptional).toBeTruthy();
+    expect(logWithOptional!.ipAddress).toBe("10.0.0.1");
+    expect(logWithOptional!.userAgent).toBe("TestAgent/1.0");
   });
 
   it("stores complex details in JSON field", async () => {
@@ -414,42 +467,30 @@ describe("AuditableService", () => {
       details: complexDetails,
     });
 
-    const logWithComplexDetails = await prisma.auditLog.findFirst({
-      where: {
-        userId: testUserId,
-        action: "USER_ACTION_COMPLEX_DETAILS",
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const logWithComplexDetails = mocks.auditLogStore.find(
+      (l) => l.userId === testUserId && l.action === "USER_ACTION_COMPLEX_DETAILS"
+    );
 
-    assert.ok(logWithComplexDetails, "Log should be created");
-    assert.ok(logWithComplexDetails.details, "Details should exist");
+    expect(logWithComplexDetails).toBeTruthy();
+    expect(logWithComplexDetails!.details).toBeTruthy();
 
-    const retrievedDetails = logWithComplexDetails.details as Record<string, unknown>;
+    const retrievedDetails = logWithComplexDetails!.details as Record<string, unknown>;
 
     // Verify nested structure is preserved (note: category and severity are added)
-    assert.ok(retrievedDetails.nested, "Nested field should exist");
+    expect(retrievedDetails.nested).toBeTruthy();
     const nested = retrievedDetails.nested as Record<string, unknown>;
-    assert.strictEqual(nested.field, "value", "Nested field value should match");
-    assert.deepStrictEqual(nested.array, [1, 2, 3], "Nested array should match");
-    assert.strictEqual(retrievedDetails.boolean, true, "Boolean should match");
-    assert.strictEqual(retrievedDetails.number, 42, "Number should match");
-    assert.strictEqual(retrievedDetails.nullValue, null, "Null value should be preserved");
-
-    // Cleanup
-    await prisma.auditLog.deleteMany({
-      where: { action: "USER_ACTION_COMPLEX_DETAILS" },
-    });
+    expect(nested.field).toBe("value");
+    expect(nested.array).toStrictEqual([1, 2, 3]);
+    expect(retrievedDetails.boolean).toBe(true);
+    expect(retrievedDetails.number).toBe(42);
+    expect(retrievedDetails.nullValue).toBe(null);
   });
 
   it("handles audit logging failure gracefully without throwing", async () => {
     const service = new TestAuditableService();
 
-    // Test that audit logging failures don't throw and are logged to console
-    // This tests the try-catch in writeAuditLog that prevents failures from breaking operations
-    // Since there's a foreign key constraint, this will fail but should be caught gracefully
-
     // The service should not throw even if the audit log creation fails
+    // "non-existent-user-id" is not in knownUserIds, so FK constraint simulation triggers
     await service.testLogUserAction("non-existent-user-id", {
       action: "TEST_GRACEFUL_FAILURE",
       category: "SYSTEM",
@@ -458,18 +499,14 @@ describe("AuditableService", () => {
     // The operation completes successfully even though the audit log failed
     // This demonstrates that audit failures don't break the main operation flow
 
-    // Since the audit log failed due to FK constraint, it won't be in the database
-    const log = await prisma.auditLog.findFirst({
-      where: {
-        action: "TEST_GRACEFUL_FAILURE",
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    // Since the audit log failed due to FK constraint, it won't be in the store
+    const log = mocks.auditLogStore.find((l) => l.action === "TEST_GRACEFUL_FAILURE");
 
     // The audit log should NOT exist because the FK constraint failed
     // But the important part is that the operation didn't throw
-    assert.strictEqual(log, null, "Audit log should not be created due to FK constraint failure");
+    expect(log).toBe(undefined);
 
-    // No cleanup needed since no log was created
+    // Verify the error was logged
+    expect(mocks.loggerObj.error).toHaveBeenCalled();
   });
 });

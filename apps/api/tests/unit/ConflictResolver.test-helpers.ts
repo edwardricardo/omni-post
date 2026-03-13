@@ -2,7 +2,6 @@
  * Shared test helpers for ConflictResolver tests
  */
 
-import type { TestContext } from "node:test";
 import type { OrchestrationConflict, PublishResult } from "@shared/orchestration";
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface.js";
@@ -10,38 +9,38 @@ import type { ProviderId } from "../../src/providers/providerAdapter.interface.j
 // Mock dependencies — accept TestContext for auto-restore
 export class MockPrismaClient {
   post: {
-    findUnique: ReturnType<TestContext["mock"]["fn"]>;
-    update: ReturnType<TestContext["mock"]["fn"]>;
+    findUnique: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
   };
-  constructor(t: TestContext) {
+  constructor() {
     this.post = {
-      findUnique: t.mock.fn(),
-      update: t.mock.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
     };
   }
 }
 
 export class MockRedis {
-  setex: ReturnType<TestContext["mock"]["fn"]>;
-  get: ReturnType<TestContext["mock"]["fn"]>;
-  del: ReturnType<TestContext["mock"]["fn"]>;
-  constructor(t: TestContext) {
-    this.setex = t.mock.fn(async () => "OK");
-    this.get = t.mock.fn(async () => null);
-    this.del = t.mock.fn(async () => 1);
+  setex: ReturnType<typeof vi.fn>;
+  get: ReturnType<typeof vi.fn>;
+  del: ReturnType<typeof vi.fn>;
+  constructor() {
+    this.setex = vi.fn(async () => "OK");
+    this.get = vi.fn(async () => null);
+    this.del = vi.fn(async () => 1);
   }
 }
 
 export class MockEventService {
-  publishEvent: ReturnType<TestContext["mock"]["fn"]>;
-  constructor(t: TestContext) {
-    this.publishEvent = t.mock.fn(async () => undefined);
+  publishEvent: ReturnType<typeof vi.fn>;
+  constructor() {
+    this.publishEvent = vi.fn(async () => undefined);
   }
 }
 
 // Mock provider registry factory
-export const createMockProviderRegistry = (t: TestContext) => ({
-  getAdapter: t.mock.fn(),
+export const createMockProviderRegistry = () => ({
+  getAdapter: vi.fn(),
 });
 
 // Test fixtures

@@ -7,8 +7,7 @@
  * 6. Retry logic with exponential backoff
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { PublishingOrchestrator } from "../../src/orchestration/PublishingOrchestrator.js";
 import type {
   ExecuteOrchestrationRequest,
@@ -27,7 +26,7 @@ import {
   mockProviderRegistry,
 } from "./PublishingOrchestrator.test-helpers.js";
 
-describe("PublishingOrchestrator", { concurrency: 1 }, () => {
+describe("PublishingOrchestrator", () => {
   let orchestrator: PublishingOrchestrator;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -68,11 +67,11 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
 
       const result = await orchestrator.executePlan(request);
 
-      assert.ok(result.ok);
-      assert.ok(result.value);
-      assert.strictEqual(result.value.planId, "plan-123");
+      expect(result.ok).toBeTruthy();
+      expect(result.value).toBeTruthy();
+      expect(result.value.planId).toBe("plan-123");
       // executeAsync fires without await, setting status to "executing" synchronously
-      assert.strictEqual(result.value.status, "executing");
+      expect(result.value.status).toBe("executing");
     });
 
     it("should enforce concurrent execution limit", async () => {
@@ -103,9 +102,9 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       // Third should fail
       const result = await limitedOrchestrator.executePlan({ planId: "plan-3" });
 
-      assert.ok(!result.ok);
-      assert.ok(result.error?.message.includes("Maximum concurrent executions"));
-      assert.strictEqual(result.error?.retryable, true);
+      expect(result.ok).toBeFalsy();
+      expect(result.error?.message.includes("Maximum concurrent executions")).toBeTruthy();
+      expect(result.error?.retryable).toBe(true);
     });
 
     it("should return error if plan not found", async () => {
@@ -113,8 +112,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
 
       const result = await orchestrator.executePlan({ planId: "nonexistent" });
 
-      assert.ok(!result.ok);
-      assert.ok(result.error?.message.includes("not found"));
+      expect(result.ok).toBeFalsy();
+      expect(result.error?.message.includes("not found")).toBeTruthy();
     });
 
     it("should perform dry run without actual execution", async () => {
@@ -128,10 +127,10 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
         dryRun: true,
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       // Should not trigger actual execution
       const providerEvents = mockEvents.getEventsByType("PROVIDER_PUBLISH_STARTED");
-      assert.strictEqual(providerEvents.length, 0);
+      expect(providerEvents.length).toBe(0);
     });
 
     it("should emit ORCHESTRATION_STARTED event", async () => {
@@ -141,7 +140,7 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       const events = mockEvents.getEventsByType("ORCHESTRATION_STARTED");
-      assert.ok(events.length >= 1);
+      expect(events.length >= 1).toBeTruthy();
     });
 
     it("should apply execution overrides", async () => {
@@ -158,11 +157,11 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       });
 
       // executePlan should return a successful result
-      assert.ok(result.ok, "executePlan should succeed when applying overrides");
+      expect(result.ok).toBeTruthy();
       // applyExecutionOverrides is currently a pass-through, so the plan
       // should still be passed to executeAsync unchanged
-      assert.ok(capturedPlan, "executeAsync should have been called with the plan");
-      assert.strictEqual(capturedPlan.id, "plan-123", "Plan ID should match");
+      expect(capturedPlan).toBeTruthy();
+      expect(capturedPlan.id).toBe("plan-123");
     });
   });
 
@@ -209,9 +208,9 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       const duration = Date.now() - startTime;
 
       // All providers should be executed
-      assert.strictEqual(Object.keys(execution.results).length, 3);
+      expect(Object.keys(execution.results).length).toBe(3);
       // Should be faster than sequential (rough check)
-      assert.ok(duration < 1000);
+      expect(duration < 1000).toBeTruthy();
     });
 
     it("should execute SEQUENTIAL strategy with delays", async () => {
@@ -251,9 +250,9 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       const duration = Date.now() - startTime;
 
       // All providers executed
-      assert.strictEqual(Object.keys(execution.results).length, 2);
+      expect(Object.keys(execution.results).length).toBe(2);
       // Should respect delay
-      assert.ok(duration >= 100);
+      expect(duration >= 100).toBeTruthy();
     });
 
     it("should execute DEPENDENCY_BASED strategy with proper ordering", async () => {
@@ -303,9 +302,9 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       await (orchestrator as any).executeDependencyBased(execution, plan);
 
       // Both providers executed
-      assert.strictEqual(Object.keys(execution.results).length, 2);
-      assert.ok((execution.results as Record<string, unknown>)["twitter"]);
-      assert.ok((execution.results as Record<string, unknown>)["facebook"]);
+      expect(Object.keys(execution.results).length).toBe(2);
+      expect((execution.results as Record<string, unknown>)["twitter"]).toBeTruthy();
+      expect((execution.results as Record<string, unknown>)["facebook"]).toBeTruthy();
     });
 
     it("should detect dependency deadlock", async () => {
@@ -345,9 +344,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
         errors: [],
       };
 
-      await assert.rejects(
-        async () => await (orchestrator as any).executeDependencyBased(execution, plan),
-        { message: /deadlock detected/i }
+      await expect((orchestrator as any).executeDependencyBased(execution, plan)).rejects.toThrow(
+        /deadlock detected/
       );
     });
 
@@ -386,8 +384,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       await (orchestrator as any).executeOptimizedTiming(execution, plan);
       const duration = Date.now() - startTime;
 
-      assert.strictEqual(Object.keys(execution.results).length, 2);
-      assert.ok(duration >= 50);
+      expect(Object.keys(execution.results).length).toBe(2);
+      expect(duration >= 50).toBeTruthy();
     });
   });
 
@@ -429,8 +427,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
         retryPolicy
       );
 
-      assert.ok(result.ok);
-      assert.strictEqual(attempts, 3);
+      expect(result.ok).toBeTruthy();
+      expect(attempts).toBe(3);
     });
 
     it("should calculate exponential backoff delay correctly", () => {
@@ -446,9 +444,9 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       const delay1 = (orchestrator as any).calculateRetryDelay(1, retryPolicy);
       const delay2 = (orchestrator as any).calculateRetryDelay(2, retryPolicy);
 
-      assert.strictEqual(delay0, 100);
-      assert.strictEqual(delay1, 200);
-      assert.strictEqual(delay2, 400);
+      expect(delay0).toBe(100);
+      expect(delay1).toBe(200);
+      expect(delay2).toBe(400);
     });
 
     it("should calculate linear backoff delay correctly", () => {
@@ -464,9 +462,9 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       const delay1 = (orchestrator as any).calculateRetryDelay(1, retryPolicy);
       const delay2 = (orchestrator as any).calculateRetryDelay(2, retryPolicy);
 
-      assert.strictEqual(delay0, 100);
-      assert.strictEqual(delay1, 200);
-      assert.strictEqual(delay2, 300);
+      expect(delay0).toBe(100);
+      expect(delay1).toBe(200);
+      expect(delay2).toBe(300);
     });
 
     it("should respect max delay cap", () => {
@@ -481,7 +479,7 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
       const delay5 = (orchestrator as any).calculateRetryDelay(5, retryPolicy);
 
       // 1000 * 2^5 = 32000, but should be capped at 5000
-      assert.strictEqual(delay5, 5000);
+      expect(delay5).toBe(5000);
     });
 
     it("should not retry non-retryable errors", async () => {
@@ -507,8 +505,8 @@ describe("PublishingOrchestrator", { concurrency: 1 }, () => {
         retryPolicy
       );
 
-      assert.ok(!result.ok);
-      assert.strictEqual(attempts, 1);
+      expect(result.ok).toBeFalsy();
+      expect(attempts).toBe(1);
     });
   });
 });

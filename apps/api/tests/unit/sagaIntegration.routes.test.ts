@@ -8,8 +8,7 @@
  * - Continuing and compensating sagas via API
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SagaIntegration } from "../../src/saga/SagaIntegration";
 import {
   buildIntegration,
@@ -28,7 +27,7 @@ console.warn = () => {};
 // Post Publishing Route Tests
 // ============================================================================
 
-describe("SagaIntegration - Post Publishing Routes", { concurrency: 1 }, () => {
+describe("SagaIntegration - Post Publishing Routes", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
 
@@ -42,7 +41,7 @@ describe("SagaIntegration - Post Publishing Routes", { concurrency: 1 }, () => {
 
   it("should start post publishing saga with valid request", async () => {
     const handler = routes.get("POST:/api/sagas/post-publishing/start");
-    assert.ok(handler, "Route handler should be registered");
+    expect(handler).toBeTruthy();
 
     const request = {
       body: {
@@ -65,9 +64,9 @@ describe("SagaIntegration - Post Publishing Routes", { concurrency: 1 }, () => {
 
     const result = await handler(request, reply);
 
-    assert.ok(result.success, "Should return success response");
-    assert.ok(result.data.sagaId, "Should return saga ID");
-    assert.strictEqual(result.data.status, "PENDING");
+    expect(result.success).toBeTruthy();
+    expect(result.data.sagaId).toBeTruthy();
+    expect(result.data.status).toBe("PENDING");
   });
 
   it("should validate required fields in post publishing request", async () => {
@@ -92,9 +91,9 @@ describe("SagaIntegration - Post Publishing Routes", { concurrency: 1 }, () => {
 
     try {
       await handler(request, reply);
-      assert.fail("Should throw validation error");
+      expect.unreachable("Should throw validation error");
     } catch (error: any) {
-      assert.ok(error.message.includes("required"), "Should have validation error message");
+      expect(error.message.includes("required")).toBeTruthy();
     }
   });
 
@@ -118,9 +117,9 @@ describe("SagaIntegration - Post Publishing Routes", { concurrency: 1 }, () => {
     const manager = integration.getSagaManager();
     const saga = await manager.getSaga(result.data.sagaId);
 
-    assert.ok(saga, "Saga should exist");
-    assert.strictEqual(saga.context.userId, "user-123");
-    assert.strictEqual(saga.context.metadata.source, "API");
+    expect(saga).toBeTruthy();
+    expect(saga.context.userId).toBe("user-123");
+    expect(saga.context.metadata.source).toBe("API");
   });
 
   it("should support scheduled post publishing", async () => {
@@ -143,8 +142,8 @@ describe("SagaIntegration - Post Publishing Routes", { concurrency: 1 }, () => {
 
     const result = await handler(request, passthroughReply);
 
-    assert.ok(result.success, "Should create scheduled saga");
-    assert.ok(result.data.sagaId);
+    expect(result.success).toBeTruthy();
+    expect(result.data.sagaId).toBeTruthy();
   });
 
   it("should support priority levels for post publishing", async () => {
@@ -154,7 +153,7 @@ describe("SagaIntegration - Post Publishing Routes", { concurrency: 1 }, () => {
 
     for (const priority of priorities) {
       const result = await handler(makeStartRequest({ priority }), passthroughReply);
-      assert.ok(result.success, `Should handle ${priority} priority`);
+      expect(result.success).toBeTruthy();
     }
   });
 });
@@ -163,7 +162,7 @@ describe("SagaIntegration - Post Publishing Routes", { concurrency: 1 }, () => {
 // Saga Status Route Tests
 // ============================================================================
 
-describe("SagaIntegration - Saga Status Routes", { concurrency: 1 }, () => {
+describe("SagaIntegration - Saga Status Routes", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
 
@@ -185,10 +184,10 @@ describe("SagaIntegration - Saga Status Routes", { concurrency: 1 }, () => {
       passthroughReply
     );
 
-    assert.ok(statusResult.success, "Should return success");
-    assert.strictEqual(statusResult.data.id, startResult.data.sagaId);
-    assert.ok("status" in statusResult.data);
-    assert.ok("progress" in statusResult.data);
+    expect(statusResult.success).toBeTruthy();
+    expect(statusResult.data.id).toBe(startResult.data.sagaId);
+    expect("status" in statusResult.data).toBeTruthy();
+    expect("progress" in statusResult.data).toBeTruthy();
   });
 
   it("should calculate saga progress percentage", async () => {
@@ -201,8 +200,8 @@ describe("SagaIntegration - Saga Status Routes", { concurrency: 1 }, () => {
       passthroughReply
     );
 
-    assert.ok(typeof statusResult.data.progress === "number");
-    assert.ok(statusResult.data.progress >= 0 && statusResult.data.progress <= 100);
+    expect(typeof statusResult.data.progress === "number").toBeTruthy();
+    expect(statusResult.data.progress >= 0 && statusResult.data.progress <= 100).toBeTruthy();
   });
 
   it("should return step results with saga status", async () => {
@@ -218,7 +217,7 @@ describe("SagaIntegration - Saga Status Routes", { concurrency: 1 }, () => {
       passthroughReply
     );
 
-    assert.ok(Array.isArray(statusResult.data.stepResults));
+    expect(Array.isArray(statusResult.data.stepResults)).toBeTruthy();
   });
 
   it("should throw error for non-existent saga", async () => {
@@ -226,12 +225,9 @@ describe("SagaIntegration - Saga Status Routes", { concurrency: 1 }, () => {
 
     try {
       await handler({ params: { sagaId: "non-existent-saga-id" } }, passthroughReply);
-      assert.fail("Should throw not found error");
+      expect.unreachable("Should throw not found error");
     } catch (error: any) {
-      assert.ok(
-        error.message.includes("not found") || error.message.includes("Saga"),
-        `Expected not-found message, got: ${error.message}`
-      );
+      expect(error.message.includes("not found") || error.message.includes("Saga")).toBeTruthy();
     }
   });
 });
@@ -240,7 +236,7 @@ describe("SagaIntegration - Saga Status Routes", { concurrency: 1 }, () => {
 // Saga Control Route Tests
 // ============================================================================
 
-describe("SagaIntegration - Saga Control Routes", { concurrency: 1 }, () => {
+describe("SagaIntegration - Saga Control Routes", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
   let mockRedis: MockRedis;
@@ -263,8 +259,8 @@ describe("SagaIntegration - Saga Control Routes", { concurrency: 1 }, () => {
       passthroughReply
     );
 
-    assert.ok(continueResult.success, "Should return success");
-    assert.strictEqual(continueResult.data.sagaId, startResult.data.sagaId);
+    expect(continueResult.success).toBeTruthy();
+    expect(continueResult.data.sagaId).toBe(startResult.data.sagaId);
   });
 
   it("should handle saga compensation via API", async () => {
@@ -297,8 +293,8 @@ describe("SagaIntegration - Saga Control Routes", { concurrency: 1 }, () => {
       passthroughReply
     );
 
-    assert.ok(compensateResult.success, "Should return success");
-    assert.strictEqual(compensateResult.data.sagaId, failedSagaId);
-    assert.ok(compensateResult.data.compensationStarted);
+    expect(compensateResult.success).toBeTruthy();
+    expect(compensateResult.data.sagaId).toBe(failedSagaId);
+    expect(compensateResult.data.compensationStarted).toBeTruthy();
   });
 });

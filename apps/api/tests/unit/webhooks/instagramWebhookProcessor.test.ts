@@ -36,8 +36,7 @@
  * @category UnitTests
  */
 
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { createHmac } from "crypto";
 import { InstagramWebhookProcessor } from "../../../src/webhooks/processors/instagramWebhookProcessor.js";
 
@@ -53,11 +52,11 @@ function generateHmacSignature(payload: string, secret: string): string {
 // Signature Verification Tests (8 tests)
 // ===========================
 
-describe("InstagramWebhookProcessor - Signature Verification", { concurrency: 1 }, () => {
+describe("InstagramWebhookProcessor - Signature Verification", () => {
   let processor: InstagramWebhookProcessor;
   const testSecret = "test-instagram-secret-key";
 
-  before(() => {
+  beforeAll(() => {
     processor = new InstagramWebhookProcessor();
   });
 
@@ -66,7 +65,7 @@ describe("InstagramWebhookProcessor - Signature Verification", { concurrency: 1 
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha256=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should verify valid webhook signature without sha256= prefix", () => {
@@ -74,7 +73,7 @@ describe("InstagramWebhookProcessor - Signature Verification", { concurrency: 1 
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should reject invalid signature", () => {
@@ -82,7 +81,7 @@ describe("InstagramWebhookProcessor - Signature Verification", { concurrency: 1 
     const invalidSignature = "sha256=invalid-signature-value";
 
     const isValid = processor.verify(payload, invalidSignature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should reject signature with tampered payload", () => {
@@ -91,7 +90,7 @@ describe("InstagramWebhookProcessor - Signature Verification", { concurrency: 1 
 
     const tamperedPayload = JSON.stringify({ test: "tampered" });
     const isValid = processor.verify(tamperedPayload, signature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should reject signature with wrong secret", () => {
@@ -99,7 +98,7 @@ describe("InstagramWebhookProcessor - Signature Verification", { concurrency: 1 
     const signature = generateHmacSignature(payload, "wrong-secret");
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should handle empty payload", () => {
@@ -107,7 +106,7 @@ describe("InstagramWebhookProcessor - Signature Verification", { concurrency: 1 
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should handle special characters in payload", () => {
@@ -115,7 +114,7 @@ describe("InstagramWebhookProcessor - Signature Verification", { concurrency: 1 
     const signature = generateHmacSignature(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha256=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should use constant-time comparison", () => {
@@ -125,7 +124,7 @@ describe("InstagramWebhookProcessor - Signature Verification", { concurrency: 1 
     // Test multiple attempts to verify timing consistency
     for (let i = 0; i < 10; i++) {
       const isValid = processor.verify(payload, correctSignature, testSecret);
-      assert.strictEqual(isValid, true);
+      expect(isValid).toBe(true);
     }
   });
 });
@@ -134,10 +133,10 @@ describe("InstagramWebhookProcessor - Signature Verification", { concurrency: 1 
 // Media Event Parsing Tests (5 tests)
 // ===========================
 
-describe("InstagramWebhookProcessor - Media Event Parsing", { concurrency: 1 }, () => {
+describe("InstagramWebhookProcessor - Media Event Parsing", () => {
   let processor: InstagramWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new InstagramWebhookProcessor();
   });
 
@@ -166,12 +165,12 @@ describe("InstagramWebhookProcessor - Media Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_PUBLISHED");
-    assert.strictEqual(result.normalizedData.eventType, "media_published");
-    assert.strictEqual(result.normalizedData.mediaId, "media-456");
-    assert.strictEqual(result.normalizedData.mediaType, "IMAGE");
-    assert.strictEqual(result.normalizedData.caption, "Test caption");
-    assert.strictEqual(result.normalizedData.isStory, false);
+    expect(result.eventType).toBe("POST_PUBLISHED");
+    expect(result.normalizedData.eventType).toBe("media_published");
+    expect(result.normalizedData.mediaId).toBe("media-456");
+    expect(result.normalizedData.mediaType).toBe("IMAGE");
+    expect(result.normalizedData.caption).toBe("Test caption");
+    expect(result.normalizedData.isStory).toBe(false);
   });
 
   it("should parse story published event", async () => {
@@ -197,9 +196,9 @@ describe("InstagramWebhookProcessor - Media Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_PUBLISHED");
-    assert.strictEqual(result.normalizedData.isStory, true);
-    assert.strictEqual(result.normalizedData.mediaType, "STORY");
+    expect(result.eventType).toBe("POST_PUBLISHED");
+    expect(result.normalizedData.isStory).toBe(true);
+    expect(result.normalizedData.mediaType).toBe("STORY");
   });
 
   it("should parse carousel album event", async () => {
@@ -225,7 +224,7 @@ describe("InstagramWebhookProcessor - Media Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.mediaType, "CAROUSEL_ALBUM");
+    expect(result.normalizedData.mediaType).toBe("CAROUSEL_ALBUM");
   });
 
   it("should parse video media event", async () => {
@@ -252,7 +251,7 @@ describe("InstagramWebhookProcessor - Media Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.mediaType, "VIDEO");
+    expect(result.normalizedData.mediaType).toBe("VIDEO");
   });
 
   it("should extract permalink from media event", async () => {
@@ -278,7 +277,7 @@ describe("InstagramWebhookProcessor - Media Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.permalink, expectedPermalink);
+    expect(result.normalizedData.permalink).toBe(expectedPermalink);
   });
 });
 
@@ -286,10 +285,10 @@ describe("InstagramWebhookProcessor - Media Event Parsing", { concurrency: 1 }, 
 // Comment Event Parsing Tests (3 tests)
 // ===========================
 
-describe("InstagramWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, () => {
+describe("InstagramWebhookProcessor - Comment Event Parsing", () => {
   let processor: InstagramWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new InstagramWebhookProcessor();
   });
 
@@ -319,12 +318,12 @@ describe("InstagramWebhookProcessor - Comment Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "comment_received");
-    assert.strictEqual(result.normalizedData.commentId, "comment-123");
-    assert.strictEqual(result.normalizedData.text, "Great post!");
-    assert.strictEqual(result.normalizedData.username, "commenter");
-    assert.strictEqual(result.normalizedData.isReply, false);
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("comment_received");
+    expect(result.normalizedData.commentId).toBe("comment-123");
+    expect(result.normalizedData.text).toBe("Great post!");
+    expect(result.normalizedData.username).toBe("commenter");
+    expect(result.normalizedData.isReply).toBe(false);
   });
 
   it("should parse comment reply event", async () => {
@@ -354,8 +353,8 @@ describe("InstagramWebhookProcessor - Comment Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.isReply, true);
-    assert.strictEqual(result.normalizedData.parentId, "comment-123");
+    expect(result.normalizedData.isReply).toBe(true);
+    expect(result.normalizedData.parentId).toBe("comment-123");
   });
 
   it("should handle comment without media reference", async () => {
@@ -380,7 +379,7 @@ describe("InstagramWebhookProcessor - Comment Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.mediaId, undefined);
+    expect(result.normalizedData.mediaId).toBe(undefined);
   });
 });
 
@@ -388,10 +387,10 @@ describe("InstagramWebhookProcessor - Comment Event Parsing", { concurrency: 1 }
 // Mention Event Parsing Tests (2 tests)
 // ===========================
 
-describe("InstagramWebhookProcessor - Mention Event Parsing", { concurrency: 1 }, () => {
+describe("InstagramWebhookProcessor - Mention Event Parsing", () => {
   let processor: InstagramWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new InstagramWebhookProcessor();
   });
 
@@ -421,11 +420,11 @@ describe("InstagramWebhookProcessor - Mention Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "MENTION_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "mention_received");
-    assert.strictEqual(result.normalizedData.mediaId, "media-456");
-    assert.strictEqual(result.normalizedData.commentId, "comment-789");
-    assert.strictEqual(result.normalizedData.text, "Check out @testuser");
+    expect(result.eventType).toBe("MENTION_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("mention_received");
+    expect(result.normalizedData.mediaId).toBe("media-456");
+    expect(result.normalizedData.commentId).toBe("comment-789");
+    expect(result.normalizedData.text).toBe("Check out @testuser");
   });
 
   it("should extract mention user information", async () => {
@@ -453,8 +452,8 @@ describe("InstagramWebhookProcessor - Mention Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.username, "john_doe");
-    assert.strictEqual(result.normalizedData.userId, "user-456");
+    expect(result.normalizedData.username).toBe("john_doe");
+    expect(result.normalizedData.userId).toBe("user-456");
   });
 });
 
@@ -462,10 +461,10 @@ describe("InstagramWebhookProcessor - Mention Event Parsing", { concurrency: 1 }
 // Story Event Parsing Tests (3 tests)
 // ===========================
 
-describe("InstagramWebhookProcessor - Story Event Parsing", { concurrency: 1 }, () => {
+describe("InstagramWebhookProcessor - Story Event Parsing", () => {
   let processor: InstagramWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new InstagramWebhookProcessor();
   });
 
@@ -496,10 +495,10 @@ describe("InstagramWebhookProcessor - Story Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "STORY_EXPIRED");
-    assert.strictEqual(result.normalizedData.eventType, "story_expired");
-    assert.strictEqual(result.normalizedData.storyId, "story-123");
-    assert.deepStrictEqual(result.normalizedData.insights, {
+    expect(result.eventType).toBe("STORY_EXPIRED");
+    expect(result.normalizedData.eventType).toBe("story_expired");
+    expect(result.normalizedData.storyId).toBe("story-123");
+    expect(result.normalizedData.insights).toStrictEqual({
       reach: 1500,
       impressions: 2000,
       replies: 25,
@@ -527,7 +526,7 @@ describe("InstagramWebhookProcessor - Story Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.deepStrictEqual(result.normalizedData.insights, {});
+    expect(result.normalizedData.insights).toStrictEqual({});
   });
 
   it("should extract story expiration time", async () => {
@@ -553,7 +552,7 @@ describe("InstagramWebhookProcessor - Story Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.expirationTime, expirationTime);
+    expect(result.normalizedData.expirationTime).toBe(expirationTime);
   });
 });
 
@@ -561,10 +560,10 @@ describe("InstagramWebhookProcessor - Story Event Parsing", { concurrency: 1 }, 
 // Messaging Event Parsing Tests (2 tests)
 // ===========================
 
-describe("InstagramWebhookProcessor - Messaging Event Parsing", { concurrency: 1 }, () => {
+describe("InstagramWebhookProcessor - Messaging Event Parsing", () => {
   let processor: InstagramWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new InstagramWebhookProcessor();
   });
 
@@ -590,9 +589,9 @@ describe("InstagramWebhookProcessor - Messaging Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
-    assert.strictEqual(result.normalizedData.senderId, "sender-123");
-    assert.strictEqual(result.normalizedData.isDirectMessage, true);
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
+    expect(result.normalizedData.senderId).toBe("sender-123");
+    expect(result.normalizedData.isDirectMessage).toBe(true);
   });
 
   it("should extract message content from DM", async () => {
@@ -618,7 +617,7 @@ describe("InstagramWebhookProcessor - Messaging Event Parsing", { concurrency: 1
 
     const result = await processor.parse(payload);
 
-    assert.deepStrictEqual(result.normalizedData.message, {
+    expect(result.normalizedData.message).toStrictEqual({
       mid: "msg-999",
       text: messageText,
     });
@@ -629,10 +628,10 @@ describe("InstagramWebhookProcessor - Messaging Event Parsing", { concurrency: 1
 // Unknown Event Handling Tests (2 tests)
 // ===========================
 
-describe("InstagramWebhookProcessor - Unknown Event Handling", { concurrency: 1 }, () => {
+describe("InstagramWebhookProcessor - Unknown Event Handling", () => {
   let processor: InstagramWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new InstagramWebhookProcessor();
   });
 
@@ -653,20 +652,15 @@ describe("InstagramWebhookProcessor - Unknown Event Handling", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_UPDATED");
-    assert.strictEqual(result.normalizedData.field, "unknown_field");
+    expect(result.eventType).toBe("POST_UPDATED");
+    expect(result.normalizedData.field).toBe("unknown_field");
   });
 
   it("should throw error for missing entry in payload", async () => {
     const payload = { object: "instagram" };
 
-    await assert.rejects(
-      async () => {
-        await processor.parse(payload);
-      },
-      {
-        message: "Invalid Instagram webhook payload: missing entry",
-      }
+    await expect(processor.parse(payload)).rejects.toThrow(
+      "Invalid Instagram webhook payload: missing entry"
     );
   });
 });
@@ -675,10 +669,10 @@ describe("InstagramWebhookProcessor - Unknown Event Handling", { concurrency: 1 
 // Error Handling Tests (2 tests)
 // ===========================
 
-describe("InstagramWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
+describe("InstagramWebhookProcessor - Error Handling", () => {
   let processor: InstagramWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new InstagramWebhookProcessor();
   });
 
@@ -692,13 +686,8 @@ describe("InstagramWebhookProcessor - Error Handling", { concurrency: 1 }, () =>
       ],
     };
 
-    await assert.rejects(
-      async () => {
-        await processor.parse(payload);
-      },
-      {
-        message: /Unsupported Instagram webhook event type/,
-      }
+    await expect(processor.parse(payload)).rejects.toThrow(
+      /Unsupported Instagram webhook event type/
     );
   });
 
@@ -707,7 +696,7 @@ describe("InstagramWebhookProcessor - Error Handling", { concurrency: 1 }, () =>
 
     // This should return false instead of throwing
     const isValid = processor.verify("invalid\x00data", "signature", "secret");
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 });
 
@@ -715,10 +704,10 @@ describe("InstagramWebhookProcessor - Error Handling", { concurrency: 1 }, () =>
 // Timestamp Parsing Tests (2 tests)
 // ===========================
 
-describe("InstagramWebhookProcessor - Timestamp Handling", { concurrency: 1 }, () => {
+describe("InstagramWebhookProcessor - Timestamp Handling", () => {
   let processor: InstagramWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new InstagramWebhookProcessor();
   });
 
@@ -744,7 +733,7 @@ describe("InstagramWebhookProcessor - Timestamp Handling", { concurrency: 1 }, (
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.timestamp, timestamp);
+    expect(result.normalizedData.timestamp).toBe(timestamp);
   });
 
   it("should handle created_time in comments", async () => {
@@ -770,7 +759,7 @@ describe("InstagramWebhookProcessor - Timestamp Handling", { concurrency: 1 }, (
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.timestamp, createdTime);
+    expect(result.normalizedData.timestamp).toBe(createdTime);
   });
 });
 

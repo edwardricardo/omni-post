@@ -8,7 +8,6 @@
  */
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "events";
-import type { TestContext } from "node:test";
 import { promises as fs } from "fs";
 
 /** Mutable state that each test mutates to control spawn behaviour. */
@@ -54,25 +53,25 @@ export const mockFsData = {
 
 /**
  * Apply t.mock.method patches to `fs` (the `fs.promises` object).
- * Call this inside a `beforeEach((t) => { ... })` callback, passing the
+ * Call this inside a `beforeEach(() => { ... })` callback, passing the
  * test context's mock object and the `promises as fs` import from `"fs"`.
  *
  * Because `t.mock.method` auto-restores after each test, there is no
  * cross-test contamination.
  *
  * @example
- * import { beforeEach } from "node:test";
+ * import { beforeEach, vi, expect } from 'vitest'
  * import { promises as fs } from "fs";
  * import { setupFsMocks } from "./thumbnailGenerator.test-helpers.js";
  *
  * describe("Feature", () => {
- *   beforeEach((t) => {
- *     setupFsMocks(t, fs);
+ *   beforeEach(() => {
+ *     setupFsMocks(fs);
  *   });
  * });
  */
-export function setupFsMocks(t: TestContext, fsPromises: typeof fs): void {
-  t.mock.method(fsPromises, "stat", async (path: string) => {
+export function setupFsMocks(fsPromises: typeof fs): void {
+  vi.spyOn(fsPromises, "stat").mockImplementation(async (path: string) => {
     const stats = mockFsData.stats.get(path);
     if (!stats) {
       throw new Error(`ENOENT: no such file or directory, stat '${path}'`);
@@ -80,7 +79,7 @@ export function setupFsMocks(t: TestContext, fsPromises: typeof fs): void {
     return stats as any;
   });
 
-  t.mock.method(fsPromises, "readFile", async (path: string) => {
+  vi.spyOn(fsPromises, "readFile").mockImplementation(async (path: string) => {
     const content = mockFsData.files.get(path);
     if (!content) {
       throw new Error(`ENOENT: no such file or directory, readFile '${path}'`);
@@ -88,20 +87,22 @@ export function setupFsMocks(t: TestContext, fsPromises: typeof fs): void {
     return content;
   });
 
-  t.mock.method(fsPromises, "writeFile", async (path: string, data: Buffer | string) => {
-    mockFsData.files.set(path, Buffer.isBuffer(data) ? data : Buffer.from(data));
-    mockFsData.stats.set(path, { size: Buffer.byteLength(data), mtime: new Date() });
-  });
+  vi.spyOn(fsPromises, "writeFile").mockImplementation(
+    async (path: string, data: Buffer | string) => {
+      mockFsData.files.set(path, Buffer.isBuffer(data) ? data : Buffer.from(data));
+      mockFsData.stats.set(path, { size: Buffer.byteLength(data), mtime: new Date() });
+    }
+  );
 
-  t.mock.method(fsPromises, "mkdir", async () => {
+  vi.spyOn(fsPromises, "mkdir").mockImplementation(async () => {
     return undefined;
   });
 
-  t.mock.method(fsPromises, "rm", async () => {
+  vi.spyOn(fsPromises, "rm").mockImplementation(async () => {
     return undefined;
   });
 
-  t.mock.method(fsPromises, "access", async (path: string) => {
+  vi.spyOn(fsPromises, "access").mockImplementation(async (path: string) => {
     if (!mockFsData.files.has(path) && !mockFsData.stats.has(path)) {
       throw new Error(`ENOENT: no such file or directory, access '${path}'`);
     }

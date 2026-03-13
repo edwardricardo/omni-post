@@ -2,7 +2,6 @@
  * Shared test helpers for ConnectionManager tests
  */
 
-import type { TestContext } from "node:test";
 import type { ProviderConnection } from "@infra/prisma";
 import type { ConnectionManagerPrisma } from "../../src/auth/connectionManager.js";
 
@@ -42,13 +41,13 @@ export function createMockConnection(
   };
 }
 
-export function createMockDb(t: TestContext): ConnectionManagerPrisma {
+export function createMockDb(): ConnectionManagerPrisma {
   return {
     providerConnection: {
-      findUnique: t.mock.fn(async () => null),
-      findMany: t.mock.fn(async () => []),
-      update: t.mock.fn(async (_args: any) => createMockConnection()),
-      updateMany: t.mock.fn(async () => ({ count: 0 })),
+      findUnique: vi.fn(async () => null),
+      findMany: vi.fn(async () => []),
+      update: vi.fn(async (_args: any) => createMockConnection()),
+      updateMany: vi.fn(async () => ({ count: 0 })),
     },
   };
 }

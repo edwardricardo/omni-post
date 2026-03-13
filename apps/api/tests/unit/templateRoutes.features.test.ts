@@ -1,7 +1,6 @@
 #!/usr/bin/env tsx
 import "./templateRoutes.env-setup.js";
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { FastifyInstance } from "fastify";
 import {
   createTestApp,
@@ -12,14 +11,14 @@ import {
   testId,
 } from "./templateRoutes.test-helpers.js";
 
-describe("Template Routes - Template Versions", { concurrency: 1 }, () => {
+describe("Template Routes - Template Versions", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -31,8 +30,8 @@ describe("Template Routes - Template Versions", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.ok(Array.isArray(body.data));
+    expect(response.statusCode).toBe(200);
+    expect(Array.isArray(body.data)).toBeTruthy();
   });
 
   it("should create new template version", async () => {
@@ -47,8 +46,8 @@ describe("Template Routes - Template Versions", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 201);
-    assert.strictEqual(body.ok, true);
+    expect(response.statusCode).toBe(201);
+    expect(body.ok).toBe(true);
   });
 
   it("should restore template version", async () => {
@@ -59,12 +58,12 @@ describe("Template Routes - Template Versions", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
   });
 
   it("should return 404 when restoring non-existent version", async () => {
-    mockTemplateService.restoreTemplateVersion.mock.mockImplementationOnce(async () => ({
+    mockTemplateService.restoreTemplateVersion.mockImplementationOnce(async () => ({
       ok: true,
       value: null,
     }));
@@ -74,18 +73,18 @@ describe("Template Routes - Template Versions", { concurrency: 1 }, () => {
       url: `/projects/${projectId}/templates/${templateId}/versions/${versionId}/restore`,
     });
 
-    assert.strictEqual(response.statusCode, 404);
+    expect(response.statusCode).toBe(404);
   });
 });
 
-describe("Template Routes - Analytics", { concurrency: 1 }, () => {
+describe("Template Routes - Analytics", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -97,8 +96,8 @@ describe("Template Routes - Analytics", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
   });
 
   it("should get analytics with date filters", async () => {
@@ -107,7 +106,7 @@ describe("Template Routes - Analytics", { concurrency: 1 }, () => {
       url: `/projects/${projectId}/templates/analytics?startDate=2024-01-01&endDate=2024-12-31`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should get analytics for specific templates", async () => {
@@ -116,7 +115,7 @@ describe("Template Routes - Analytics", { concurrency: 1 }, () => {
       url: `/projects/${projectId}/templates/analytics?templateIds=template-1,template-2`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should track template usage", async () => {
@@ -131,8 +130,8 @@ describe("Template Routes - Analytics", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.data.message, "Usage tracked successfully");
+    expect(response.statusCode).toBe(200);
+    expect(body.data.message).toBe("Usage tracked successfully");
   });
 
   it("should track different usage actions", async () => {
@@ -145,7 +144,7 @@ describe("Template Routes - Analytics", { concurrency: 1 }, () => {
         payload: { action },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     }
   });
 
@@ -158,18 +157,18 @@ describe("Template Routes - Analytics", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 });
 
-describe("Template Routes - A/B Testing", { concurrency: 1 }, () => {
+describe("Template Routes - A/B Testing", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -181,8 +180,8 @@ describe("Template Routes - A/B Testing", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.ok(Array.isArray(body.data));
+    expect(response.statusCode).toBe(200);
+    expect(Array.isArray(body.data)).toBeTruthy();
   });
 
   it("should filter A/B tests by status", async () => {
@@ -191,7 +190,7 @@ describe("Template Routes - A/B Testing", { concurrency: 1 }, () => {
       url: `/projects/${projectId}/templates/ab-tests?status=RUNNING`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should create A/B test", async () => {
@@ -213,8 +212,8 @@ describe("Template Routes - A/B Testing", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 201);
-    assert.strictEqual(body.ok, true);
+    expect(response.statusCode).toBe(201);
+    expect(body.ok).toBe(true);
   });
 
   it("should start A/B test", async () => {
@@ -225,8 +224,8 @@ describe("Template Routes - A/B Testing", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
   });
 
   it("should stop A/B test", async () => {
@@ -237,8 +236,8 @@ describe("Template Routes - A/B Testing", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
   });
 
   it("should get A/B test results", async () => {
@@ -249,12 +248,12 @@ describe("Template Routes - A/B Testing", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
   });
 
   it("should return 404 for non-existent A/B test", async () => {
-    mockTemplateService.startABTest.mock.mockImplementationOnce(async () => ({
+    mockTemplateService.startABTest.mockImplementationOnce(async () => ({
       ok: true,
       value: null,
     }));
@@ -264,18 +263,18 @@ describe("Template Routes - A/B Testing", { concurrency: 1 }, () => {
       url: `/projects/${projectId}/templates/ab-tests/${testId}/start`,
     });
 
-    assert.strictEqual(response.statusCode, 404);
+    expect(response.statusCode).toBe(404);
   });
 });
 
-describe("Template Routes - Platform Information", { concurrency: 1 }, () => {
+describe("Template Routes - Platform Information", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -287,10 +286,10 @@ describe("Template Routes - Platform Information", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
-    assert.strictEqual(body.data.platform, "x");
-    assert.strictEqual(body.data.maxChars, 280);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.platform).toBe("x");
+    expect(body.data.maxChars).toBe(280);
   });
 
   it("should get platform limits for Instagram", async () => {
@@ -301,12 +300,12 @@ describe("Template Routes - Platform Information", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.data.platform, "instagram");
+    expect(response.statusCode).toBe(200);
+    expect(body.data.platform).toBe("instagram");
   });
 
   it("should return 404 for unsupported platform", async () => {
-    mockTemplateService.getPlatformLimits.mock.mockImplementationOnce(async () => ({
+    mockTemplateService.getPlatformLimits.mockImplementationOnce(async () => ({
       ok: true,
       value: null,
     }));
@@ -316,7 +315,7 @@ describe("Template Routes - Platform Information", { concurrency: 1 }, () => {
       url: "/platforms/unknown/limits",
     });
 
-    assert.strictEqual(response.statusCode, 404);
+    expect(response.statusCode).toBe(404);
   });
 
   it("should get list of supported platforms", async () => {
@@ -327,9 +326,9 @@ describe("Template Routes - Platform Information", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.ok(Array.isArray(body.data));
-    assert.ok(body.data.length > 0);
+    expect(response.statusCode).toBe(200);
+    expect(Array.isArray(body.data)).toBeTruthy();
+    expect(body.data.length > 0).toBeTruthy();
   });
 
   it("should reject invalid platform name", async () => {
@@ -338,23 +337,23 @@ describe("Template Routes - Platform Information", { concurrency: 1 }, () => {
       url: "/platforms//limits",
     });
 
-    assert.ok(response.statusCode >= 400);
+    expect(response.statusCode >= 400).toBeTruthy();
   });
 });
 
-describe("Template Routes - Error Handling", { concurrency: 1 }, () => {
+describe("Template Routes - Error Handling", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
   it("should handle service errors gracefully", async () => {
-    mockTemplateService.getTemplates.mock.mockImplementationOnce(async () => ({
+    mockTemplateService.getTemplates.mockImplementationOnce(async () => ({
       ok: false,
       error: "Service error",
     }));
@@ -364,7 +363,7 @@ describe("Template Routes - Error Handling", { concurrency: 1 }, () => {
       url: `/projects/${projectId}/templates`,
     });
 
-    assert.ok(response.statusCode >= 400);
+    expect(response.statusCode >= 400).toBeTruthy();
   });
 
   it("should validate UUID format for IDs", async () => {
@@ -373,7 +372,7 @@ describe("Template Routes - Error Handling", { concurrency: 1 }, () => {
       url: "/projects/not-a-uuid/templates",
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject malformed JSON payload", async () => {
@@ -386,7 +385,7 @@ describe("Template Routes - Error Handling", { concurrency: 1 }, () => {
       },
     });
 
-    assert.ok(response.statusCode >= 400);
+    expect(response.statusCode >= 400).toBeTruthy();
   });
 
   it("should handle missing required fields", async () => {
@@ -398,6 +397,6 @@ describe("Template Routes - Error Handling", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 });

@@ -6,18 +6,15 @@
  * Tier 0: Sin base de datos real requerida.
  */
 
-import { describe, it, before, after } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";
 // ── Supresión de console.log para evitar corrupción del protocolo TAP ─────────
 
 let _originalConsoleLog: typeof console.log;
-before(() => {
+beforeAll(() => {
   _originalConsoleLog = console.log;
   console.log = () => {};
 });
-after(() => {
+afterAll(() => {
   console.log = _originalConsoleLog;
 });
 
@@ -28,14 +25,14 @@ after(() => {
  * La implementación del mock ejecuta el callback de $transaction
  * con el txClient interno, simulando el comportamiento real de Prisma.
  */
-function createMockPrismaClient(t: TestContext) {
+function createMockPrismaClient() {
   const mockTx = {
-    post: { create: t.mock.fn(async () => ({})) },
-    postContent: { create: t.mock.fn(async () => ({})) },
+    post: { create: vi.fn(async () => ({})) },
+    postContent: { create: vi.fn(async () => ({})) },
   };
 
   const client = {
-    $transaction: t.mock.fn(async (fn: (tx: typeof mockTx) => Promise<unknown>, _opts?: unknown) =>
+    $transaction: vi.fn(async (fn: (tx: typeof mockTx) => Promise<unknown>, _opts?: unknown) =>
       fn(mockTx)
     ),
   };
@@ -45,12 +42,12 @@ function createMockPrismaClient(t: TestContext) {
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
-describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
+describe("PrismaUnitOfWork", () => {
   // ── executeInTransaction ──────────────────────────────────────────────────
 
-  describe("executeInTransaction", { concurrency: 1 }, () => {
+  describe("executeInTransaction", () => {
     it("ejecuta el callback dentro de una transacción Prisma", async (t) => {
-      const { client } = createMockPrismaClient(t);
+      const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
       );
@@ -61,12 +58,12 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
         executed = true;
       });
 
-      assert.ok(executed, "El callback debe haberse ejecutado");
-      assert.equal(client.$transaction.mock.calls.length, 1);
+      expect(executed).toBeTruthy();
+      expect(client.$transaction.mock.calls.length).toBe(1);
     });
 
     it("devuelve el valor retornado por el callback", async (t) => {
-      const { client } = createMockPrismaClient(t);
+      const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
       );
@@ -74,27 +71,25 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
 
       const result = await uow.executeInTransaction(async () => 42);
 
-      assert.equal(result, 42);
+      expect(result).toBe(42);
     });
 
     it("propaga errores lanzados dentro del callback", async (t) => {
-      const { client } = createMockPrismaClient(t);
+      const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
       );
       const uow = new PrismaUnitOfWork(client as never);
 
-      await assert.rejects(
-        () =>
-          uow.executeInTransaction(async () => {
-            throw new Error("error de prueba");
-          }),
-        { message: "error de prueba" }
-      );
+      await expect(() =>
+        uow.executeInTransaction(async () => {
+          throw new Error("error de prueba");
+        })
+      ).rejects.toThrow("error de prueba");
     });
 
     it("pasa las opciones de transacción a Prisma", async (t) => {
-      const { client } = createMockPrismaClient(t);
+      const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
       );
@@ -102,14 +97,14 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
 
       await uow.executeInTransaction(async () => {}, { timeout: 10_000, maxWait: 2_000 });
 
-      const callArgs = client.$transaction.mock.calls[0]?.arguments;
-      assert.ok(callArgs, "Debe haber argumentos en la llamada");
-      assert.equal((callArgs[1] as Record<string, unknown> | undefined)?.timeout, 10_000);
-      assert.equal((callArgs[1] as Record<string, unknown> | undefined)?.maxWait, 2_000);
+      const callArgs = client.$transaction.mock.calls[0];
+      expect(callArgs).toBeTruthy();
+      expect((callArgs[1] as Record<string, unknown> | undefined)?.timeout).toBe(10_000);
+      expect((callArgs[1] as Record<string, unknown> | undefined)?.maxWait).toBe(2_000);
     });
 
     it("combina opciones por defecto con opciones por llamada", async (t) => {
-      const { client } = createMockPrismaClient(t);
+      const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
       );
@@ -119,15 +114,15 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
       // Opciones por llamada: sólo sobreescribe timeout
       await uow.executeInTransaction(async () => {}, { timeout: 15_000 });
 
-      const callArgs = client.$transaction.mock.calls[0]?.arguments;
-      assert.ok(callArgs);
+      const callArgs = client.$transaction.mock.calls[0];
+      expect(callArgs).toBeTruthy();
       const opts = callArgs[1] as Record<string, unknown> | undefined;
-      assert.equal(opts?.timeout, 15_000, "timeout debe ser sobreescrito por la llamada");
-      assert.equal(opts?.maxWait, 1_000, "maxWait debe venir de los valores por defecto");
+      expect(opts?.timeout).toBe(15_000);
+      expect(opts?.maxWait).toBe(1_000);
     });
 
     it("no incluye opciones undefined en el objeto pasado a Prisma", async (t) => {
-      const { client } = createMockPrismaClient(t);
+      const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
       );
@@ -135,32 +130,29 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
 
       await uow.executeInTransaction(async () => {});
 
-      const callArgs = client.$transaction.mock.calls[0]?.arguments;
-      assert.ok(callArgs);
+      const callArgs = client.$transaction.mock.calls[0];
+      expect(callArgs).toBeTruthy();
       const opts = callArgs[1] as Record<string, unknown>;
       // Con exactOptionalPropertyTypes, las claves undefined no deben aparecer
-      assert.ok(!("timeout" in opts), "timeout no debe estar presente si no fue especificado");
-      assert.ok(!("maxWait" in opts), "maxWait no debe estar presente si no fue especificado");
-      assert.ok(
-        !("isolationLevel" in opts),
-        "isolationLevel no debe estar presente si no fue especificado"
-      );
+      expect("timeout" in opts).toBeFalsy();
+      expect("maxWait" in opts).toBeFalsy();
+      expect("isolationLevel" in opts).toBeFalsy();
     });
   });
 
   // ── getTransactionClient ──────────────────────────────────────────────────
 
-  describe("getTransactionClient", { concurrency: 1 }, () => {
+  describe("getTransactionClient", () => {
     it("devuelve undefined cuando no hay transacción activa", async () => {
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
       );
       const result = PrismaUnitOfWork.getTransactionClient();
-      assert.equal(result, undefined);
+      expect(result).toBe(undefined);
     });
 
     it("devuelve el cliente tx cuando se está dentro de una transacción", async (t) => {
-      const { client, tx } = createMockPrismaClient(t);
+      const { client, tx } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
       );
@@ -171,12 +163,12 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
         capturedClient = PrismaUnitOfWork.getTransactionClient();
       });
 
-      assert.ok(capturedClient !== undefined, "Debe haber capturado un cliente tx");
-      assert.equal(capturedClient, tx);
+      expect(capturedClient !== undefined).toBeTruthy();
+      expect(capturedClient).toBe(tx);
     });
 
     it("devuelve undefined después de que la transacción termina", async (t) => {
-      const { client } = createMockPrismaClient(t);
+      const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
       );
@@ -185,13 +177,13 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
       await uow.executeInTransaction(async () => {});
 
       const result = PrismaUnitOfWork.getTransactionClient();
-      assert.equal(result, undefined);
+      expect(result).toBe(undefined);
     });
 
     it("aísla clientes tx entre contextos async concurrentes", async (t) => {
       // Dos transacciones UoW concurrentes no deben ver el cliente tx del otro
-      const mock1 = createMockPrismaClient(t);
-      const mock2 = createMockPrismaClient(t);
+      const mock1 = createMockPrismaClient();
+      const mock2 = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
       );
@@ -208,20 +200,16 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
           await new Promise<void>((r) => setTimeout(r, 10));
           // Debe seguir siendo el mismo cliente después de ceder control
           const afterYield = PrismaUnitOfWork.getTransactionClient();
-          assert.equal(
-            afterYield,
-            client1,
-            "Debe seguir siendo el mismo cliente tx después de ceder control"
-          );
+          expect(afterYield).toBe(client1);
         }),
         uow2.executeInTransaction(async () => {
           client2 = PrismaUnitOfWork.getTransactionClient();
         }),
       ]);
 
-      assert.ok(client1 !== undefined, "UoW1 debe tener un cliente tx");
-      assert.ok(client2 !== undefined, "UoW2 debe tener un cliente tx");
-      assert.notEqual(client1, client2, "Cada UoW debe tener su propio cliente tx");
+      expect(client1 !== undefined).toBeTruthy();
+      expect(client2 !== undefined).toBeTruthy();
+      expect(client1).not.toBe(client2);
     });
   });
 
@@ -234,7 +222,7 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
     },
     () => {
       it("el código interno accede al cliente tx del UoW activo", async (t) => {
-        const { client, tx } = createMockPrismaClient(t);
+        const { client, tx } = createMockPrismaClient();
         const { PrismaUnitOfWork } = await import(
           "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
         );
@@ -246,11 +234,11 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
           innerClient = PrismaUnitOfWork.getTransactionClient();
         });
 
-        assert.equal(innerClient, tx, "El código interno debe ver el cliente tx del UoW");
+        expect(innerClient).toBe(tx);
       });
 
       it("múltiples operaciones dentro de executeInTransaction comparten el mismo tx", async (t) => {
-        const { client, tx } = createMockPrismaClient(t);
+        const { client, tx } = createMockPrismaClient();
         const { PrismaUnitOfWork } = await import(
           "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
         );
@@ -264,11 +252,11 @@ describe("PrismaUnitOfWork", { concurrency: 1 }, () => {
           capturedClients.push(PrismaUnitOfWork.getTransactionClient());
         });
 
-        assert.equal(capturedClients.length, 2);
-        assert.equal(capturedClients[0], tx, "Primera operación debe usar el mismo tx");
-        assert.equal(capturedClients[1], tx, "Segunda operación debe usar el mismo tx");
+        expect(capturedClients.length).toBe(2);
+        expect(capturedClients[0]).toBe(tx);
+        expect(capturedClients[1]).toBe(tx);
         // Ambas capturas son del mismo cliente
-        assert.equal(capturedClients[0], capturedClients[1]);
+        expect(capturedClients[0]).toBe(capturedClients[1]);
       });
     }
   );

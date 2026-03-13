@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { OpenAIProvider } from "../../../src/ai/providers/openai.js";
 import { mockConfig } from "./openai.test-helpers.js";
 
@@ -7,7 +6,7 @@ function makeOpenAIMockClient(createFn: (...args: any[]) => any) {
   return { chat: { completions: { create: createFn } } };
 }
 
-describe("OpenAIProvider - Content Optimization", { concurrency: 1 }, () => {
+describe("OpenAIProvider - Content Optimization", () => {
   let provider: OpenAIProvider;
 
   beforeEach(() => {
@@ -30,7 +29,7 @@ describe("OpenAIProvider - Content Optimization", { concurrency: 1 }, () => {
       },
     });
 
-    const createFn = t.mock.fn(async () => ({
+    const createFn = vi.fn(async () => ({
       choices: [{ message: { content: mockResponse } }],
     }));
     const mockClient = makeOpenAIMockClient(createFn);
@@ -38,9 +37,9 @@ describe("OpenAIProvider - Content Optimization", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     const result = await provider.optimizeContent("Original tweet", "twitter");
-    assert.strictEqual(result.optimizedText, "Optimized tweet! 🚀");
-    assert.ok(Array.isArray(result.changes));
-    assert.strictEqual(result.hashtags.length, 2);
+    expect(result.optimizedText).toBe("Optimized tweet! 🚀");
+    expect(Array.isArray(result.changes)).toBeTruthy();
+    expect(result.hashtags.length).toBe(2);
   });
 
   it("should include brand voice in optimization", async (t) => {
@@ -53,8 +52,8 @@ describe("OpenAIProvider - Content Optimization", { concurrency: 1 }, () => {
       platformSpecific: {},
     });
 
-    const createFn = t.mock.fn(async (params: any) => {
-      assert.ok(params.messages[1].content.includes("professional"));
+    const createFn = vi.fn(async (params: any) => {
+      expect(params.messages[1].content.includes("professional")).toBeTruthy();
       return { choices: [{ message: { content: mockResponse } }] };
     });
     const mockClient = makeOpenAIMockClient(createFn);
@@ -62,14 +61,14 @@ describe("OpenAIProvider - Content Optimization", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     await provider.optimizeContent("Test content", "linkedin", "professional");
-    assert.strictEqual(createFn.mock.calls.length, 1);
+    expect(createFn.mock.calls.length).toBe(1);
   });
 
   it("should include system message for JSON response", async (t) => {
-    const createFn = t.mock.fn(async (params: any) => {
-      assert.strictEqual(params.messages.length, 2);
-      assert.strictEqual(params.messages[0].role, "system");
-      assert.ok(params.messages[0].content.includes("JSON"));
+    const createFn = vi.fn(async (params: any) => {
+      expect(params.messages.length).toBe(2);
+      expect(params.messages[0].role).toBe("system");
+      expect(params.messages[0].content.includes("JSON")).toBeTruthy();
       return {
         choices: [
           {
@@ -92,24 +91,24 @@ describe("OpenAIProvider - Content Optimization", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     await provider.optimizeContent("Test", "twitter");
-    assert.strictEqual(createFn.mock.calls.length, 1);
+    expect(createFn.mock.calls.length).toBe(1);
   });
 
   it("should throw error on optimization failure", async (t) => {
-    const createFn = t.mock.fn(async () => {
+    const createFn = vi.fn(async () => {
       throw new Error("API Error");
     });
     const mockClient = makeOpenAIMockClient(createFn);
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.optimizeContent("Test", "twitter");
-    }, /OpenAI optimization failed/);
+    await expect(provider.optimizeContent("Test", "twitter")).rejects.toThrow(
+      /OpenAI optimization failed/
+    );
   });
 });
 
-describe("OpenAIProvider - Performance Prediction", { concurrency: 1 }, () => {
+describe("OpenAIProvider - Performance Prediction", () => {
   let provider: OpenAIProvider;
 
   beforeEach(() => {
@@ -133,7 +132,7 @@ describe("OpenAIProvider - Performance Prediction", { concurrency: 1 }, () => {
       },
     });
 
-    const createFn = t.mock.fn(async () => ({
+    const createFn = vi.fn(async () => ({
       choices: [{ message: { content: mockResponse } }],
     }));
     const mockClient = makeOpenAIMockClient(createFn);
@@ -141,9 +140,9 @@ describe("OpenAIProvider - Performance Prediction", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     const result = await provider.predictPerformance("Great content!", "twitter");
-    assert.strictEqual(result.platform, "twitter");
-    assert.strictEqual(result.metrics.expectedEngagement.value, 150);
-    assert.strictEqual(result.optimalTiming.hour, 14);
+    expect(result.platform).toBe("twitter");
+    expect(result.metrics.expectedEngagement.value).toBe(150);
+    expect(result.optimalTiming.hour).toBe(14);
   });
 
   it("should include historical data in prediction", async (t) => {
@@ -164,8 +163,8 @@ describe("OpenAIProvider - Performance Prediction", { concurrency: 1 }, () => {
       competitiveAnalysis: { benchmarkScore: 80, opportunities: [], threats: [] },
     });
 
-    const createFn = t.mock.fn(async (params: any) => {
-      assert.ok(params.messages[1].content.includes("Historical data"));
+    const createFn = vi.fn(async (params: any) => {
+      expect(params.messages[1].content.includes("Historical data")).toBeTruthy();
       return { choices: [{ message: { content: mockResponse } }] };
     });
     const mockClient = makeOpenAIMockClient(createFn);
@@ -173,24 +172,24 @@ describe("OpenAIProvider - Performance Prediction", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     await provider.predictPerformance("Test", "twitter", historicalData);
-    assert.strictEqual(createFn.mock.calls.length, 1);
+    expect(createFn.mock.calls.length).toBe(1);
   });
 
   it("should throw error on prediction failure", async (t) => {
-    const createFn = t.mock.fn(async () => {
+    const createFn = vi.fn(async () => {
       throw new Error("API Error");
     });
     const mockClient = makeOpenAIMockClient(createFn);
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.predictPerformance("Test", "twitter");
-    }, /OpenAI prediction failed/);
+    await expect(provider.predictPerformance("Test", "twitter")).rejects.toThrow(
+      /OpenAI prediction failed/
+    );
   });
 });
 
-describe("OpenAIProvider - Content Variations", { concurrency: 1 }, () => {
+describe("OpenAIProvider - Content Variations", () => {
   let provider: OpenAIProvider;
 
   beforeEach(() => {
@@ -204,7 +203,7 @@ describe("OpenAIProvider - Content Variations", { concurrency: 1 }, () => {
       "Humorous tone variation",
     ]);
 
-    const createFn = t.mock.fn(async () => ({
+    const createFn = vi.fn(async () => ({
       choices: [{ message: { content: mockResponse } }],
     }));
     const mockClient = makeOpenAIMockClient(createFn);
@@ -212,14 +211,14 @@ describe("OpenAIProvider - Content Variations", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     const result = await provider.generateVariations("Original content", "tone", 3);
-    assert.ok(Array.isArray(result));
-    assert.strictEqual(result.length, 3);
+    expect(Array.isArray(result)).toBeTruthy();
+    expect(result.length).toBe(3);
   });
 
   it("should generate length variations", async (t) => {
     const mockResponse = JSON.stringify(["Short", "Medium length", "Long detailed version"]);
 
-    const createFn = t.mock.fn(async () => ({
+    const createFn = vi.fn(async () => ({
       choices: [{ message: { content: mockResponse } }],
     }));
     const mockClient = makeOpenAIMockClient(createFn);
@@ -227,14 +226,14 @@ describe("OpenAIProvider - Content Variations", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     const result = await provider.generateVariations("Original", "length", 3);
-    assert.ok(Array.isArray(result));
-    assert.strictEqual(result.length, 3);
+    expect(Array.isArray(result)).toBeTruthy();
+    expect(result.length).toBe(3);
   });
 
   it("should generate audience variations", async (t) => {
     const mockResponse = JSON.stringify(["For executives", "For marketers", "For consumers"]);
 
-    const createFn = t.mock.fn(async () => ({
+    const createFn = vi.fn(async () => ({
       choices: [{ message: { content: mockResponse } }],
     }));
     const mockClient = makeOpenAIMockClient(createFn);
@@ -242,15 +241,15 @@ describe("OpenAIProvider - Content Variations", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     const result = await provider.generateVariations("Original", "audience", 3);
-    assert.ok(Array.isArray(result));
-    assert.strictEqual(result.length, 3);
+    expect(Array.isArray(result)).toBeTruthy();
+    expect(result.length).toBe(3);
   });
 
   it("should include system message for JSON array response", async (t) => {
-    const createFn = t.mock.fn(async (params: any) => {
-      assert.strictEqual(params.messages.length, 2);
-      assert.strictEqual(params.messages[0].role, "system");
-      assert.ok(params.messages[0].content.includes("JSON array"));
+    const createFn = vi.fn(async (params: any) => {
+      expect(params.messages.length).toBe(2);
+      expect(params.messages[0].role).toBe("system");
+      expect(params.messages[0].content.includes("JSON array")).toBeTruthy();
       return { choices: [{ message: { content: '["Variation 1", "Variation 2"]' } }] };
     });
     const mockClient = makeOpenAIMockClient(createFn);
@@ -258,24 +257,24 @@ describe("OpenAIProvider - Content Variations", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     await provider.generateVariations("Test", "tone", 2);
-    assert.strictEqual(createFn.mock.calls.length, 1);
+    expect(createFn.mock.calls.length).toBe(1);
   });
 
   it("should throw error on variation generation failure", async (t) => {
-    const createFn = t.mock.fn(async () => {
+    const createFn = vi.fn(async () => {
       throw new Error("API Error");
     });
     const mockClient = makeOpenAIMockClient(createFn);
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.generateVariations("Test", "tone", 3);
-    }, /OpenAI variation generation failed/);
+    await expect(provider.generateVariations("Test", "tone", 3)).rejects.toThrow(
+      /OpenAI variation generation failed/
+    );
   });
 });
 
-describe("OpenAIProvider - Error Handling", { concurrency: 1 }, () => {
+describe("OpenAIProvider - Error Handling", () => {
   let provider: OpenAIProvider;
 
   beforeEach(() => {
@@ -283,7 +282,7 @@ describe("OpenAIProvider - Error Handling", { concurrency: 1 }, () => {
   });
 
   it("should handle rate limit errors", async (t) => {
-    const createFn = t.mock.fn(async () => {
+    const createFn = vi.fn(async () => {
       const error: any = new Error("Rate limit exceeded");
       error.status = 429;
       throw error;
@@ -292,13 +291,13 @@ describe("OpenAIProvider - Error Handling", { concurrency: 1 }, () => {
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /OpenAI generation failed/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /OpenAI generation failed/
+    );
   });
 
   it("should handle authentication errors", async (t) => {
-    const createFn = t.mock.fn(async () => {
+    const createFn = vi.fn(async () => {
       const error: any = new Error("Invalid API key");
       error.status = 401;
       throw error;
@@ -307,13 +306,13 @@ describe("OpenAIProvider - Error Handling", { concurrency: 1 }, () => {
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /OpenAI generation failed/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /OpenAI generation failed/
+    );
   });
 
   it("should handle server errors", async (t) => {
-    const createFn = t.mock.fn(async () => {
+    const createFn = vi.fn(async () => {
       const error: any = new Error("Internal server error");
       error.status = 500;
       throw error;
@@ -322,13 +321,13 @@ describe("OpenAIProvider - Error Handling", { concurrency: 1 }, () => {
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /OpenAI generation failed/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /OpenAI generation failed/
+    );
   });
 
   it("should handle content filter errors", async (t) => {
-    const createFn = t.mock.fn(async () => {
+    const createFn = vi.fn(async () => {
       const error: any = new Error("Content filtered");
       error.status = 400;
       throw error;
@@ -337,18 +336,18 @@ describe("OpenAIProvider - Error Handling", { concurrency: 1 }, () => {
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /OpenAI generation failed/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /OpenAI generation failed/
+    );
   });
 
   it("should handle malformed API responses", async (t) => {
-    const createFn = t.mock.fn(async () => ({ choices: [] }));
+    const createFn = vi.fn(async () => ({ choices: [] }));
     const mockClient = makeOpenAIMockClient(createFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.generateText([{ role: "user", content: "Test" }]);
-    assert.strictEqual(result, "");
+    expect(result).toBe("");
   });
 });

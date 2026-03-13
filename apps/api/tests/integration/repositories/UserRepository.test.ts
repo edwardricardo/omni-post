@@ -16,10 +16,9 @@
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/UserRepository.test.ts
  */
 
-import { describe, it, before, after } from "node:test";
-import * as assert from "node:assert/strict";
-import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
-import type { AdminUserDto } from "../../src/domain/repositories/ReadModelDtos.js";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { PrismaAdminUserRepository } from "../../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import type { AdminUserDto } from "../../../src/domain/repositories/ReadModelDtos.js";
 import { prisma } from "@infra/prisma";
 
 // ========================================
@@ -108,7 +107,7 @@ async function teardownTestData() {
 describe("UserRepository - Basic Operations", () => {
   it("UserRepository instantiates successfully", () => {
     const repo = new PrismaAdminUserRepository(prisma);
-    assert.ok(repo !== null, "Should create repository instance");
+    expect(repo !== null).toBeTruthy();
   });
 });
 
@@ -117,11 +116,11 @@ describe("UserRepository - Basic Operations", () => {
 // ========================================
 
 describe("UserRepository - findActiveUser", () => {
-  before(async () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -129,10 +128,10 @@ describe("UserRepository - findActiveUser", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findActiveUser(testUserIds[0]!, "id");
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.id, testUserIds[0], "Should return correct user");
-      assert.strictEqual(result.value.isActive, true, "User should be active");
+      expect(result.value.id).toBe(testUserIds[0]);
+      expect(result.value.isActive).toBe(true);
     }
   });
 
@@ -144,10 +143,10 @@ describe("UserRepository - findActiveUser", () => {
 
     const result = await repo.findActiveUser(user!.email, "email");
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.email, user!.email, "Should return correct user");
-      assert.strictEqual(result.value.isActive, true, "User should be active");
+      expect(result.value.email).toBe(user!.email);
+      expect(result.value.isActive).toBe(true);
     }
   });
 
@@ -160,9 +159,9 @@ describe("UserRepository - findActiveUser", () => {
     const uppercaseEmail = user!.email.toUpperCase();
     const result = await repo.findActiveUser(uppercaseEmail, "email");
 
-    assert.ok(result.ok, "Should find user with case-insensitive email");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.id, testUserIds[0], "Should return correct user");
+      expect(result.value.id).toBe(testUserIds[0]);
     }
   });
 
@@ -170,9 +169,9 @@ describe("UserRepository - findActiveUser", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findActiveUser(testUserIds[2]!, "id");
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "USER_INACTIVE", "Should return USER_INACTIVE error");
+      expect(result.error).toBe("USER_INACTIVE");
     }
   });
 
@@ -184,9 +183,9 @@ describe("UserRepository - findActiveUser", () => {
 
     const result = await repo.findActiveUser(user!.email, "email");
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "USER_INACTIVE", "Should return USER_INACTIVE error");
+      expect(result.error).toBe("USER_INACTIVE");
     }
   });
 
@@ -194,9 +193,9 @@ describe("UserRepository - findActiveUser", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findActiveUser("non-existent-user-id", "id");
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND", "Should return NOT_FOUND error");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 
@@ -204,9 +203,9 @@ describe("UserRepository - findActiveUser", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findActiveUser("nonexistent@example.com", "email");
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND", "Should return NOT_FOUND error");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 
@@ -214,9 +213,9 @@ describe("UserRepository - findActiveUser", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findActiveUser(testUserIds[0]!);
 
-    assert.ok(result.ok, "Should default to ID lookup");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.id, testUserIds[0], "Should find user by ID");
+      expect(result.value.id).toBe(testUserIds[0]);
     }
   });
 });
@@ -226,11 +225,11 @@ describe("UserRepository - findActiveUser", () => {
 // ========================================
 
 describe("UserRepository - findById", () => {
-  before(async () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -238,11 +237,11 @@ describe("UserRepository - findById", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findById(testUserIds[0]!);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.id, testUserIds[0], "Should return correct user");
-      assert.ok(result.value.email, "Should include email");
-      assert.ok(result.value.role, "Should include role");
+      expect(result.value.id).toBe(testUserIds[0]);
+      expect(result.value.email).toBeTruthy();
+      expect(result.value.role).toBeTruthy();
     }
   });
 
@@ -250,10 +249,10 @@ describe("UserRepository - findById", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findById(testUserIds[2]!);
 
-    assert.ok(result.ok, "Should return successful result for inactive user");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.id, testUserIds[2], "Should return correct user");
-      assert.strictEqual(result.value.isActive, false, "User should be inactive");
+      expect(result.value.id).toBe(testUserIds[2]);
+      expect(result.value.isActive).toBe(false);
     }
   });
 
@@ -261,9 +260,9 @@ describe("UserRepository - findById", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findById("non-existent-user-id");
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND", "Should return NOT_FOUND error");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 
@@ -271,12 +270,12 @@ describe("UserRepository - findById", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findById(testUserIds[0]!);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.ok(result.value.email, "Should include email");
-      assert.ok(result.value.passwordHash, "Should include passwordHash");
-      assert.ok(result.value.role, "Should include role");
-      assert.ok(typeof result.value.isActive === "boolean", "Should include isActive");
+      expect(result.value.email).toBeTruthy();
+      expect(result.value.passwordHash).toBeTruthy();
+      expect(result.value.role).toBeTruthy();
+      expect(typeof result.value.isActive === "boolean").toBeTruthy();
     }
   });
 });
@@ -286,11 +285,11 @@ describe("UserRepository - findById", () => {
 // ========================================
 
 describe("UserRepository - findByEmail", () => {
-  before(async () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -302,9 +301,9 @@ describe("UserRepository - findByEmail", () => {
 
     const result = await repo.findByEmail(user!.email);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.email, user!.email, "Should return correct user");
+      expect(result.value.email).toBe(user!.email);
     }
   });
 
@@ -321,9 +320,9 @@ describe("UserRepository - findByEmail", () => {
 
     const result = await repo.findByEmail(mixedCaseEmail);
 
-    assert.ok(result.ok, "Should find user with case-insensitive search");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.id, testUserIds[0], "Should return correct user");
+      expect(result.value.id).toBe(testUserIds[0]);
     }
   });
 
@@ -335,9 +334,9 @@ describe("UserRepository - findByEmail", () => {
 
     const result = await repo.findByEmail(user!.email);
 
-    assert.ok(result.ok, "Should return successful result for inactive user");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.isActive, false, "User should be inactive");
+      expect(result.value.isActive).toBe(false);
     }
   });
 
@@ -345,9 +344,9 @@ describe("UserRepository - findByEmail", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findByEmail("nonexistent@example.com");
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND", "Should return NOT_FOUND error");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 
@@ -368,7 +367,7 @@ describe("UserRepository - findByEmail", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findByEmail(specialEmail);
 
-    assert.ok(result.ok, "Should find user with special characters in email");
+    expect(result.ok).toBeTruthy();
 
     await prisma.adminUser.delete({ where: { id: specialUser.id } });
   });
@@ -379,11 +378,11 @@ describe("UserRepository - findByEmail", () => {
 // ========================================
 
 describe("UserRepository - validateActive", () => {
-  before(async () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -395,9 +394,9 @@ describe("UserRepository - validateActive", () => {
 
     const result = repo.validateActive(user! as unknown as AdminUserDto);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value, undefined, "Should return undefined on success");
+      expect(result.value).toBe(undefined);
     }
   });
 
@@ -409,9 +408,9 @@ describe("UserRepository - validateActive", () => {
 
     const result = repo.validateActive(user! as unknown as AdminUserDto);
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "USER_INACTIVE", "Should return USER_INACTIVE error");
+      expect(result.error).toBe("USER_INACTIVE");
     }
   });
 
@@ -419,11 +418,11 @@ describe("UserRepository - validateActive", () => {
     const repo = new PrismaAdminUserRepository(prisma);
 
     const userResult = await repo.findById(testUserIds[0]!);
-    assert.ok(userResult.ok, "Should find user");
+    expect(userResult.ok).toBeTruthy();
 
     if (userResult.ok) {
       const validationResult = repo.validateActive(userResult.value);
-      assert.ok(validationResult.ok, "Should validate as active");
+      expect(validationResult.ok).toBeTruthy();
     }
   });
 
@@ -431,13 +430,13 @@ describe("UserRepository - validateActive", () => {
     const repo = new PrismaAdminUserRepository(prisma);
 
     const userResult = await repo.findById(testUserIds[2]!);
-    assert.ok(userResult.ok, "Should find user");
+    expect(userResult.ok).toBeTruthy();
 
     if (userResult.ok) {
       const validationResult = repo.validateActive(userResult.value);
-      assert.strictEqual(validationResult.ok, false, "Should detect inactive status");
+      expect(validationResult.ok).toBe(false);
       if (!validationResult.ok) {
-        assert.strictEqual(validationResult.error, "USER_INACTIVE", "Should return correct error");
+        expect(validationResult.error).toBe("USER_INACTIVE");
       }
     }
   });
@@ -448,11 +447,11 @@ describe("UserRepository - validateActive", () => {
 // ========================================
 
 describe("UserRepository - findManyByIds", () => {
-  before(async () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -461,11 +460,11 @@ describe("UserRepository - findManyByIds", () => {
     const userIds = [testUserIds[0]!, testUserIds[1]!, testUserIds[3]!];
     const users = await repo.findManyByIds(userIds);
 
-    assert.ok(Array.isArray(users), "Should return an array");
-    assert.strictEqual(users.length, 3, "Should return 3 users");
+    expect(Array.isArray(users)).toBeTruthy();
+    expect(users.length).toBe(3);
 
     users.forEach((user) => {
-      assert.ok(userIds.includes(user.id), "Each user should be in requested IDs");
+      expect(userIds.includes(user.id)).toBeTruthy();
     });
   });
 
@@ -473,8 +472,8 @@ describe("UserRepository - findManyByIds", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const users = await repo.findManyByIds([]);
 
-    assert.ok(Array.isArray(users), "Should return an array");
-    assert.strictEqual(users.length, 0, "Should return empty array");
+    expect(Array.isArray(users)).toBeTruthy();
+    expect(users.length).toBe(0);
   });
 
   it("only returns users that exist", async () => {
@@ -482,7 +481,7 @@ describe("UserRepository - findManyByIds", () => {
     const userIds = [testUserIds[0]!, "non-existent-id", testUserIds[1]!];
     const users = await repo.findManyByIds(userIds);
 
-    assert.strictEqual(users.length, 2, "Should return only existing users");
+    expect(users.length).toBe(2);
   });
 
   it("includes inactive users", async () => {
@@ -490,20 +489,20 @@ describe("UserRepository - findManyByIds", () => {
     const userIds = [testUserIds[0]!, testUserIds[2]!]; // active and inactive
     const users = await repo.findManyByIds(userIds);
 
-    assert.strictEqual(users.length, 2, "Should return both active and inactive users");
+    expect(users.length).toBe(2);
 
     const hasInactive = users.some((u) => !u.isActive);
-    assert.ok(hasInactive, "Should include inactive users");
+    expect(hasInactive).toBeTruthy();
   });
 
   it("returns users with all fields", async () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const users = await repo.findManyByIds([testUserIds[0]!]);
 
-    assert.strictEqual(users.length, 1, "Should return one user");
-    assert.ok(users[0]!.email, "Should include email");
-    assert.ok(users[0]!.role, "Should include role");
-    assert.ok(typeof users[0]!.isActive === "boolean", "Should include isActive");
+    expect(users.length).toBe(1);
+    expect(users[0]!.email).toBeTruthy();
+    expect(users[0]!.role).toBeTruthy();
+    expect(typeof users[0]!.isActive === "boolean").toBeTruthy();
   });
 
   it("handles duplicate IDs gracefully", async () => {
@@ -513,7 +512,7 @@ describe("UserRepository - findManyByIds", () => {
 
     // Should return unique users only
     const uniqueIds = new Set(users.map((u) => u.id));
-    assert.strictEqual(uniqueIds.size, users.length, "Should return unique users");
+    expect(uniqueIds.size).toBe(users.length);
   });
 
   it("returns users of different roles", async () => {
@@ -521,10 +520,10 @@ describe("UserRepository - findManyByIds", () => {
     const users = await repo.findManyByIds(testUserIds.slice(0, 4));
 
     const roles = new Set(users.map((u) => u.role));
-    assert.ok(roles.size > 1, "Should return users with different roles");
-    assert.ok(roles.has("ADMIN"), "Should include admin user");
-    assert.ok(roles.has("SUPPORT"), "Should include support user");
-    assert.ok(roles.has("SUPER_ADMIN"), "Should include super admin");
+    expect(roles.size > 1).toBeTruthy();
+    expect(roles.has("ADMIN")).toBeTruthy();
+    expect(roles.has("SUPPORT")).toBeTruthy();
+    expect(roles.has("SUPER_ADMIN")).toBeTruthy();
   });
 });
 
@@ -533,11 +532,11 @@ describe("UserRepository - findManyByIds", () => {
 // ========================================
 
 describe("UserRepository - Edge Cases", () => {
-  before(async () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -550,10 +549,7 @@ describe("UserRepository - Edge Cases", () => {
       repo.findById(testUserIds[2]!),
     ]);
 
-    assert.ok(
-      results.every((r) => r.ok),
-      "All concurrent reads should succeed"
-    );
+    expect(results.every((r) => r.ok)).toBeTruthy();
   });
 
   it("handles concurrent active user lookups", async () => {
@@ -567,24 +563,21 @@ describe("UserRepository - Edge Cases", () => {
       repo.findActiveUser(testUserIds[3]!, "id"),
     ]);
 
-    assert.ok(
-      results.every((r) => r.ok),
-      "All concurrent active lookups should succeed"
-    );
+    expect(results.every((r) => r.ok)).toBeTruthy();
   });
 
   it("handles empty string user ID gracefully", async () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findById("");
 
-    assert.strictEqual(result.ok, false, "Should return error for empty ID");
+    expect(result.ok).toBe(false);
   });
 
   it("handles empty string email gracefully", async () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findByEmail("");
 
-    assert.strictEqual(result.ok, false, "Should return error for empty email");
+    expect(result.ok).toBe(false);
   });
 
   it("handles very long email addresses", async () => {
@@ -604,7 +597,7 @@ describe("UserRepository - Edge Cases", () => {
     const repo = new PrismaAdminUserRepository(prisma);
     const result = await repo.findByEmail(longEmail);
 
-    assert.ok(result.ok, "Should handle long email addresses");
+    expect(result.ok).toBeTruthy();
 
     await prisma.adminUser.delete({ where: { id: longEmailUser.id } });
   });
@@ -614,12 +607,12 @@ describe("UserRepository - Edge Cases", () => {
 
     for (const userId of testUserIds.slice(0, 3)) {
       const userResult = await repo.findById(userId);
-      assert.ok(userResult.ok, `Should find user ${userId}`);
+      expect(userResult.ok).toBeTruthy();
 
       if (userResult.ok) {
         const validationResult = repo.validateActive(userResult.value);
         // Validation will succeed or fail based on user's active status
-        assert.ok(validationResult.ok !== undefined, "Should return a validation result");
+        expect(validationResult.ok !== undefined).toBeTruthy();
       }
     }
   });
@@ -633,9 +626,9 @@ describe("UserRepository - Edge Cases", () => {
     const activeCount = validationResults.filter((r) => r.ok).length;
     const inactiveCount = validationResults.filter((r) => !r.ok).length;
 
-    assert.ok(activeCount > 0, "Should have active users");
-    assert.ok(inactiveCount > 0, "Should have inactive users");
-    assert.strictEqual(activeCount + inactiveCount, users.length, "All users should be validated");
+    expect(activeCount > 0).toBeTruthy();
+    expect(inactiveCount > 0).toBeTruthy();
+    expect(activeCount + inactiveCount).toBe(users.length);
   });
 });
 
@@ -644,11 +637,11 @@ describe("UserRepository - Edge Cases", () => {
 // ========================================
 
 describe("UserRepository - Integration Patterns", () => {
-  before(async () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -660,12 +653,12 @@ describe("UserRepository - Integration Patterns", () => {
 
     // Step 1: Find user by email
     const findResult = await repo.findByEmail(user!.email);
-    assert.ok(findResult.ok, "Should find user by email");
+    expect(findResult.ok).toBeTruthy();
 
     // Step 2: Validate user is active
     if (findResult.ok) {
       const validationResult = repo.validateActive(findResult.value);
-      assert.ok(validationResult.ok, "Should validate as active");
+      expect(validationResult.ok).toBeTruthy();
     }
   });
 
@@ -674,18 +667,15 @@ describe("UserRepository - Integration Patterns", () => {
 
     // Step 1: Find user by ID (from token)
     const userResult = await repo.findById(testUserIds[0]!);
-    assert.ok(userResult.ok, "Should find user");
+    expect(userResult.ok).toBeTruthy();
 
     // Step 2: Check active status
     if (userResult.ok) {
       const validationResult = repo.validateActive(userResult.value);
-      assert.ok(validationResult.ok, "Should be active");
+      expect(validationResult.ok).toBeTruthy();
 
       // Step 3: Check role
-      assert.ok(
-        ["ADMIN", "SUPER_ADMIN", "SUPPORT"].includes(userResult.value.role),
-        "Should have valid role"
-      );
+      expect(["ADMIN", "SUPER_ADMIN", "SUPPORT"].includes(userResult.value.role)).toBeTruthy();
     }
   });
 
@@ -694,12 +684,12 @@ describe("UserRepository - Integration Patterns", () => {
 
     // Get multiple users
     const users = await repo.findManyByIds(testUserIds);
-    assert.ok(users.length > 0, "Should retrieve multiple users");
+    expect(users.length > 0).toBeTruthy();
 
     // Validate each user's status
     users.forEach((user) => {
       const validationResult = repo.validateActive(user);
-      assert.ok(validationResult.ok !== undefined, "Should validate each user");
+      expect(validationResult.ok !== undefined).toBeTruthy();
     });
   });
 });

@@ -1,10 +1,9 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PerplexityProvider } from "../../../src/ai/providers/perplexity.js";
 import type { AIMessage, GenerationOptions, AIProviderConfig } from "../../../src/ai/types.js";
 import { mockConfig } from "./perplexity.test-helpers.js";
 
-describe("PerplexityProvider - Initialization and Configuration", { concurrency: 1 }, () => {
+describe("PerplexityProvider - Initialization and Configuration", () => {
   let provider: PerplexityProvider;
 
   beforeEach(() => {
@@ -12,23 +11,23 @@ describe("PerplexityProvider - Initialization and Configuration", { concurrency:
   });
 
   it("should initialize with correct provider name", () => {
-    assert.strictEqual(provider.name, "perplexity");
+    expect(provider.name).toBe("perplexity");
   });
 
   it("should initialize with API key from config", () => {
-    assert.ok(provider);
-    assert.strictEqual(typeof provider.isAvailable, "function");
+    expect(provider).toBeTruthy();
+    expect(typeof provider.isAvailable).toBe("function");
   });
 
   it("should use custom base URL from config", () => {
     const customConfig = { ...mockConfig, baseUrl: "https://custom.perplexity.ai" };
     const customProvider = new PerplexityProvider(customConfig);
-    assert.ok(customProvider);
+    expect(customProvider).toBeTruthy();
   });
 
   it("should use default base URL when not provided", () => {
     const defaultProvider = new PerplexityProvider(mockConfig);
-    assert.ok(defaultProvider);
+    expect(defaultProvider).toBeTruthy();
   });
 
   it("should handle minimal configuration", () => {
@@ -45,11 +44,11 @@ describe("PerplexityProvider - Initialization and Configuration", { concurrency:
       },
     };
     const minimalProvider = new PerplexityProvider(minimalConfig);
-    assert.ok(minimalProvider);
+    expect(minimalProvider).toBeTruthy();
   });
 });
 
-describe("PerplexityProvider - Availability Checks", { concurrency: 1 }, () => {
+describe("PerplexityProvider - Availability Checks", () => {
   let provider: PerplexityProvider;
 
   beforeEach(() => {
@@ -57,41 +56,41 @@ describe("PerplexityProvider - Availability Checks", { concurrency: 1 }, () => {
   });
 
   it("should return true when Perplexity API is available", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: true,
       status: 200,
       json: async () => ({ choices: [{ message: { content: "Hi" } }] }),
     }));
 
     const result = await provider.isAvailable();
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
   });
 
   it("should return false when Perplexity API fails", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: false,
       status: 500,
     }));
 
     const result = await provider.isAvailable();
-    assert.strictEqual(result, false);
+    expect(result).toBe(false);
   });
 
   it("should handle network errors gracefully", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw new Error("Network error");
     });
 
     const result = await provider.isAvailable();
-    assert.strictEqual(result, false);
+    expect(result).toBe(false);
   });
 
   it("should send correct request format for availability check", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.strictEqual(body.model, "llama-3.1-sonar-small-128k-online");
-      assert.strictEqual(body.messages[0].content, "Hi");
-      assert.strictEqual(body.max_tokens, 10);
+      expect(body.model).toBe("llama-3.1-sonar-small-128k-online");
+      expect(body.messages[0].content).toBe("Hi");
+      expect(body.max_tokens).toBe(10);
       return { ok: true, json: async () => ({}) };
     });
 
@@ -99,7 +98,7 @@ describe("PerplexityProvider - Availability Checks", { concurrency: 1 }, () => {
   });
 });
 
-describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
+describe("PerplexityProvider - Text Generation", () => {
   let provider: PerplexityProvider;
 
   beforeEach(() => {
@@ -107,7 +106,7 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
   });
 
   it("should generate text with default options", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: true,
       status: 200,
       json: async () => ({
@@ -118,13 +117,13 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
     const messages: AIMessage[] = [{ role: "user", content: "Generate a greeting" }];
     const result = await provider.generateText(messages);
 
-    assert.strictEqual(result, "Hello! How can I help you?");
+    expect(result).toBe("Hello! How can I help you?");
   });
 
   it("should use custom model from options", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.strictEqual(body.model, "llama-3.1-sonar-large-128k-online");
+      expect(body.model).toBe("llama-3.1-sonar-large-128k-online");
       return { ok: true, json: async () => ({ choices: [{ message: { content: "Response" } }] }) };
     });
 
@@ -135,9 +134,9 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
   });
 
   it("should use custom maxTokens from options", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.strictEqual(body.max_tokens, 500);
+      expect(body.max_tokens).toBe(500);
       return { ok: true, json: async () => ({ choices: [{ message: { content: "Response" } }] }) };
     });
 
@@ -148,9 +147,9 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
   });
 
   it("should use custom temperature from options", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.strictEqual(body.temperature, 0.9);
+      expect(body.temperature).toBe(0.9);
       return { ok: true, json: async () => ({ choices: [{ message: { content: "Response" } }] }) };
     });
 
@@ -161,9 +160,9 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
   });
 
   it("should use custom topP from options", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.strictEqual(body.top_p, 0.95);
+      expect(body.top_p).toBe(0.95);
       return { ok: true, json: async () => ({ choices: [{ message: { content: "Response" } }] }) };
     });
 
@@ -174,9 +173,9 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
   });
 
   it("should use frequency penalty from options", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.strictEqual(body.frequency_penalty, 0.5);
+      expect(body.frequency_penalty).toBe(0.5);
       return { ok: true, json: async () => ({ choices: [{ message: { content: "Response" } }] }) };
     });
 
@@ -187,9 +186,9 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
   });
 
   it("should use presence penalty from options", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.strictEqual(body.presence_penalty, 0.3);
+      expect(body.presence_penalty).toBe(0.3);
       return { ok: true, json: async () => ({ choices: [{ message: { content: "Response" } }] }) };
     });
 
@@ -200,12 +199,12 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
   });
 
   it("should properly map message roles", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.strictEqual(body.messages.length, 3);
-      assert.strictEqual(body.messages[0].role, "system");
-      assert.strictEqual(body.messages[1].role, "user");
-      assert.strictEqual(body.messages[2].role, "assistant");
+      expect(body.messages.length).toBe(3);
+      expect(body.messages[0].role).toBe("system");
+      expect(body.messages[1].role).toBe("user");
+      expect(body.messages[2].role).toBe("assistant");
       return { ok: true, json: async () => ({ choices: [{ message: { content: "Response" } }] }) };
     });
 
@@ -219,8 +218,8 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
   });
 
   it("should include authorization header", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
-      assert.strictEqual(options.headers.Authorization, "Bearer test-perplexity-api-key");
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
+      expect(options.headers.Authorization).toBe("Bearer test-perplexity-api-key");
       return { ok: true, json: async () => ({ choices: [{ message: { content: "Response" } }] }) };
     });
 
@@ -229,9 +228,9 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
   });
 
   it("should disable streaming by default", async (t) => {
-    t.mock.method(globalThis, "fetch", async (_url: string, options: any) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
-      assert.strictEqual(body.stream, false);
+      expect(body.stream).toBe(false);
       return { ok: true, json: async () => ({ choices: [{ message: { content: "Response" } }] }) };
     });
 
@@ -240,7 +239,7 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
   });
 
   it("should return empty string when response has no content", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: true,
       json: async () => ({ choices: [{ message: {} }] }),
     }));
@@ -248,11 +247,11 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
     const messages: AIMessage[] = [{ role: "user", content: "Test" }];
     const result = await provider.generateText(messages);
 
-    assert.strictEqual(result, "");
+    expect(result).toBe("");
   });
 
   it("should throw error on API failure with status code", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => ({
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: false,
       status: 500,
       statusText: "Internal Server Error",
@@ -260,20 +259,16 @@ describe("PerplexityProvider - Text Generation", { concurrency: 1 }, () => {
 
     const messages: AIMessage[] = [{ role: "user", content: "Test" }];
 
-    await assert.rejects(async () => {
-      await provider.generateText(messages);
-    }, /Perplexity API error: 500/);
+    await expect(provider.generateText(messages)).rejects.toThrow(/Perplexity API error: 500/);
   });
 
   it("should throw error on network failure", async (t) => {
-    t.mock.method(globalThis, "fetch", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw new Error("Network error");
     });
 
     const messages: AIMessage[] = [{ role: "user", content: "Test" }];
 
-    await assert.rejects(async () => {
-      await provider.generateText(messages);
-    }, /Perplexity generation failed/);
+    await expect(provider.generateText(messages)).rejects.toThrow(/Perplexity generation failed/);
   });
 });

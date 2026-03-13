@@ -3,8 +3,7 @@
  *   V4: dedupeKey must be deterministic (no randomUUID)
  *   V5: executeSaga must reject sagas in terminal state
  */
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import {
   createMockRedis,
   createMockEventService,
@@ -48,7 +47,7 @@ function createMockPrismaWithSagaInstance() {
   };
 }
 
-describe("V5: Terminal State Guard", { concurrency: 1 }, () => {
+describe("V5: Terminal State Guard", () => {
   let manager: SagaManagerImpl;
 
   beforeEach(async () => {
@@ -77,8 +76,8 @@ describe("V5: Terminal State Guard", { concurrency: 1 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const saga = await manager.getSaga(instance.id);
-    assert.ok(saga, "Saga should exist");
-    assert.strictEqual(saga.status, "COMPLETED");
+    expect(saga).toBeTruthy();
+    expect(saga.status).toBe("COMPLETED");
   });
 
   it("should not re-execute a COMPLETED saga when continueSaga is called", async () => {
@@ -89,28 +88,18 @@ describe("V5: Terminal State Guard", { concurrency: 1 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const sagaBefore = await manager.getSaga(instance.id);
-    assert.ok(sagaBefore, "Saga should exist");
-    assert.strictEqual(sagaBefore.status, "COMPLETED");
+    expect(sagaBefore).toBeTruthy();
+    expect(sagaBefore.status).toBe("COMPLETED");
 
     // continueSaga should reject terminal state
-    await assert.rejects(
-      () => manager.continueSaga(instance.id),
-      (err: Error) => {
-        assert.ok(
-          err.message.includes("COMPLETED") ||
-            err.message.includes("terminal") ||
-            err.message.includes("cannot") ||
-            err.message.includes("not in"),
-          `Error should mention terminal state, got: ${err.message}`
-        );
-        return true;
-      }
+    await expect(manager.continueSaga(instance.id)).rejects.toThrow(
+      /COMPLETED|terminal|cannot|not in/
     );
 
     // Status should still be COMPLETED (unchanged)
     const sagaAfter = await manager.getSaga(instance.id);
-    assert.ok(sagaAfter, "Saga should still exist");
-    assert.strictEqual(sagaAfter.status, "COMPLETED");
+    expect(sagaAfter).toBeTruthy();
+    expect(sagaAfter.status).toBe("COMPLETED");
   });
 
   it("should not re-execute a FAILED saga via continueSaga", async () => {
@@ -126,22 +115,16 @@ describe("V5: Terminal State Guard", { concurrency: 1 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     const sagaAfterFail = await manager.getSaga(instance.id);
-    assert.ok(sagaAfterFail, "Saga should exist");
-    assert.strictEqual(sagaAfterFail.status, "FAILED");
+    expect(sagaAfterFail).toBeTruthy();
+    expect(sagaAfterFail.status).toBe("FAILED");
 
     // Try to continue it — should be rejected by lifecycle guard
-    await assert.rejects(
-      () => manager.continueSaga(instance.id),
-      (_err: Error) => {
-        // The lifecycle layer rejects non-RUNNING/PENDING states
-        return true;
-      }
-    );
+    await expect(manager.continueSaga(instance.id)).rejects.toThrow();
 
     // Status should remain FAILED
     const sagaStill = await manager.getSaga(instance.id);
-    assert.ok(sagaStill, "Saga should still exist");
-    assert.strictEqual(sagaStill.status, "FAILED");
+    expect(sagaStill).toBeTruthy();
+    expect(sagaStill.status).toBe("FAILED");
   });
 
   it("should allow PENDING saga to start execution normally", async () => {
@@ -150,25 +133,25 @@ describe("V5: Terminal State Guard", { concurrency: 1 }, () => {
 
     // startSaga creates a PENDING saga and then executes it
     const instance = await manager.startSaga(definition.id, {});
-    assert.ok(instance, "Saga instance should be created");
+    expect(instance).toBeTruthy();
 
     // Wait for async execution
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const saga = await manager.getSaga(instance.id);
-    assert.ok(saga, "Saga should exist");
+    expect(saga).toBeTruthy();
     // Should have progressed past PENDING to COMPLETED
-    assert.strictEqual(saga.status, "COMPLETED");
+    expect(saga.status).toBe("COMPLETED");
   });
 });
 
-describe("V4: Deterministic dedupeKey", { concurrency: 1 }, () => {
+describe("V4: Deterministic dedupeKey", () => {
   it("should generate deterministic dedupeKey without randomUUID", async () => {
     // Read the SagaIntegration source to verify no randomUUID in dedupeKey
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
 
-    const sagaIntegrationPath = path.join(process.cwd(), "apps/api/src/saga/SagaIntegration.ts");
+    const sagaIntegrationPath = path.join(process.cwd(), "src/saga/SagaIntegration.ts");
 
     const source = await fs.readFile(sagaIntegrationPath, "utf-8");
 
@@ -177,17 +160,11 @@ describe("V4: Deterministic dedupeKey", { concurrency: 1 }, () => {
       .split("\n")
       .filter((line) => line.includes("dedupeKey") && line.includes("publish-"));
 
-    assert.ok(dedupeKeyLines.length > 0, "Should find dedupeKey assignment");
+    expect(dedupeKeyLines.length > 0).toBeTruthy();
 
     for (const line of dedupeKeyLines) {
-      assert.ok(
-        !line.includes("randomUUID"),
-        `dedupeKey should not contain randomUUID: ${line.trim()}`
-      );
-      assert.ok(
-        !line.includes("Math.random"),
-        `dedupeKey should not contain Math.random: ${line.trim()}`
-      );
+      expect(line.includes("randomUUID")).toBeFalsy();
+      expect(line.includes("Math.random")).toBeFalsy();
     }
   });
 
@@ -197,8 +174,8 @@ describe("V4: Deterministic dedupeKey", { concurrency: 1 }, () => {
     const key1 = `publish-${postId}-${channelId}`;
     const key2 = `publish-${postId}-${channelId}`;
 
-    assert.strictEqual(key1, key2, "Same inputs should produce same dedupeKey");
-    assert.strictEqual(key1, "publish-post-123-ch-456");
+    expect(key1).toBe(key2);
+    expect(key1).toBe("publish-post-123-ch-456");
   });
 
   it("should produce different dedupeKeys for different channelIds", () => {
@@ -206,6 +183,6 @@ describe("V4: Deterministic dedupeKey", { concurrency: 1 }, () => {
     const key1 = `publish-${postId}-ch-1`;
     const key2 = `publish-${postId}-ch-2`;
 
-    assert.notStrictEqual(key1, key2, "Different channels should produce different keys");
+    expect(key1).not.toBe(key2);
   });
 });

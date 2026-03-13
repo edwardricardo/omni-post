@@ -13,38 +13,37 @@
  * Converted to node:test standard
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import errorHandlerPlugin from "../../src/lib/errors/errorPlugin.js";
 import { AppError, ErrorCode } from "../../src/lib/errors/AppError.js";
 
-describe("Error Handler Plugin - Registration", { concurrency: 1 }, () => {
+describe("Error Handler Plugin - Registration", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = Fastify({ logger: false });
     await app.register(errorHandlerPlugin);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
   it("should register plugin successfully", async () => {
-    assert.ok(app);
+    expect(app).toBeTruthy();
   });
 
   it("should have error handler set", async () => {
     // @ts-ignore - accessing internal property for testing
-    assert.ok(app.errorHandler);
+    expect(app.errorHandler).toBeTruthy();
   });
 });
 
-describe("Error Handler Plugin - Error Handling", { concurrency: 1 }, () => {
+describe("Error Handler Plugin - Error Handling", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = Fastify({ logger: false });
     await app.register(errorHandlerPlugin);
 
@@ -66,7 +65,7 @@ describe("Error Handler Plugin - Error Handling", { concurrency: 1 }, () => {
     await app.ready();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -76,14 +75,14 @@ describe("Error Handler Plugin - Error Handling", { concurrency: 1 }, () => {
       url: "/test-apperror",
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
 
     const body = JSON.parse(response.body);
-    assert.strictEqual(body.ok, false);
-    assert.strictEqual(body.error.code, ErrorCode.VALIDATION_ERROR);
-    assert.strictEqual(body.error.message, "Validation failed");
-    assert.ok(body.error.requestId);
-    assert.ok(body.error.timestamp);
+    expect(body.ok).toBe(false);
+    expect(body.error.code).toBe(ErrorCode.VALIDATION_ERROR);
+    expect(body.error.message).toBe("Validation failed");
+    expect(body.error.requestId).toBeTruthy();
+    expect(body.error.timestamp).toBeTruthy();
   });
 
   it("should sanitize standard errors", async () => {
@@ -92,14 +91,14 @@ describe("Error Handler Plugin - Error Handling", { concurrency: 1 }, () => {
       url: "/test-standard-error",
     });
 
-    assert.strictEqual(response.statusCode, 500);
+    expect(response.statusCode).toBe(500);
 
     const body = JSON.parse(response.body);
-    assert.strictEqual(body.ok, false);
-    assert.strictEqual(body.error.code, ErrorCode.INTERNAL_SERVER_ERROR);
-    assert.strictEqual(body.error.message, "An unexpected error occurred");
+    expect(body.ok).toBe(false);
+    expect(body.error.code).toBe(ErrorCode.INTERNAL_SERVER_ERROR);
+    expect(body.error.message).toBe("An unexpected error occurred");
     // Should not expose internal error details
-    assert.ok(!body.error.message.includes("Standard error"));
+    expect(body.error.message.includes("Standard error")).toBeFalsy();
   });
 
   it("should not interfere with successful responses", async () => {
@@ -108,10 +107,10 @@ describe("Error Handler Plugin - Error Handling", { concurrency: 1 }, () => {
       url: "/test-success",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
 
     const body = JSON.parse(response.body);
-    assert.deepStrictEqual(body, { success: true });
+    expect(body).toStrictEqual({ success: true });
   });
 
   it("should include request ID in error response", async () => {
@@ -121,8 +120,8 @@ describe("Error Handler Plugin - Error Handling", { concurrency: 1 }, () => {
     });
 
     const body = JSON.parse(response.body);
-    assert.ok(body.error.requestId);
-    assert.strictEqual(typeof body.error.requestId, "string");
+    expect(body.error.requestId).toBeTruthy();
+    expect(typeof body.error.requestId).toBe("string");
   });
 
   it("should include timestamp in error response", async () => {
@@ -132,16 +131,16 @@ describe("Error Handler Plugin - Error Handling", { concurrency: 1 }, () => {
     });
 
     const body = JSON.parse(response.body);
-    assert.ok(body.error.timestamp);
+    expect(body.error.timestamp).toBeTruthy();
     // Verify ISO format
-    assert.ok(body.error.timestamp.match(/^\d{4}-\d{2}-\d{2}T/));
+    expect(body.error.timestamp.match(/^\d{4}-\d{2}-\d{2}T/)).toBeTruthy();
   });
 });
 
-describe("Error Handler Plugin - Security", { concurrency: 1 }, () => {
+describe("Error Handler Plugin - Security", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = Fastify({ logger: false });
     await app.register(errorHandlerPlugin);
 
@@ -166,7 +165,7 @@ describe("Error Handler Plugin - Security", { concurrency: 1 }, () => {
     await app.ready();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -180,9 +179,9 @@ describe("Error Handler Plugin - Security", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
     // Should not include P2002 or Prisma-specific details
-    assert.ok(!response.body.includes("P2002"));
-    assert.ok(!response.body.includes("PrismaClient"));
-    assert.strictEqual(body.error.details, undefined);
+    expect(response.body.includes("P2002")).toBeFalsy();
+    expect(response.body.includes("PrismaClient")).toBeFalsy();
+    expect(body.error.details).toBe(undefined);
 
     process.env.NODE_ENV = "test";
   });
@@ -195,8 +194,8 @@ describe("Error Handler Plugin - Security", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
     // Should not include file paths
-    assert.ok(!response.body.includes("/var/lib/postgresql"));
-    assert.strictEqual(body.error.message, "An unexpected error occurred");
+    expect(response.body.includes("/var/lib/postgresql")).toBeFalsy();
+    expect(body.error.message).toBe("An unexpected error occurred");
   });
 
   it("should not expose stack traces", async () => {
@@ -207,15 +206,15 @@ describe("Error Handler Plugin - Security", { concurrency: 1 }, () => {
 
     const _body = JSON.parse(response.body);
     // Should not include stack trace
-    assert.ok(!response.body.includes("file.ts"));
-    assert.ok(!response.body.includes("at /app/src"));
+    expect(response.body.includes("file.ts")).toBeFalsy();
+    expect(response.body.includes("at /app/src")).toBeFalsy();
   });
 });
 
-describe("Error Handler Plugin - Development Mode", { concurrency: 1 }, () => {
+describe("Error Handler Plugin - Development Mode", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     process.env.NODE_ENV = "development";
 
     app = Fastify({ logger: false });
@@ -231,7 +230,7 @@ describe("Error Handler Plugin - Development Mode", { concurrency: 1 }, () => {
     await app.ready();
   });
 
-  after(async () => {
+  afterAll(async () => {
     process.env.NODE_ENV = "test";
     await app.close();
   });
@@ -243,18 +242,18 @@ describe("Error Handler Plugin - Development Mode", { concurrency: 1 }, () => {
     });
 
     const body = JSON.parse(response.body);
-    assert.ok(body.error.details);
-    assert.deepStrictEqual(body.error.details, {
+    expect(body.error.details).toBeTruthy();
+    expect(body.error.details).toStrictEqual({
       fields: ["email", "password"],
       reason: "invalid_format",
     });
   });
 });
 
-describe("Error Handler Plugin - HTTP Status Codes", { concurrency: 1 }, () => {
+describe("Error Handler Plugin - HTTP Status Codes", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = Fastify({ logger: false });
     await app.register(errorHandlerPlugin);
 
@@ -293,55 +292,55 @@ describe("Error Handler Plugin - HTTP Status Codes", { concurrency: 1 }, () => {
     await app.ready();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
   it("should return 400 for bad request", async () => {
     const response = await app.inject({ method: "GET", url: "/test-400" });
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should return 401 for unauthorized", async () => {
     const response = await app.inject({ method: "GET", url: "/test-401" });
-    assert.strictEqual(response.statusCode, 401);
+    expect(response.statusCode).toBe(401);
   });
 
   it("should return 403 for forbidden", async () => {
     const response = await app.inject({ method: "GET", url: "/test-403" });
-    assert.strictEqual(response.statusCode, 403);
+    expect(response.statusCode).toBe(403);
   });
 
   it("should return 404 for not found", async () => {
     const response = await app.inject({ method: "GET", url: "/test-404" });
-    assert.strictEqual(response.statusCode, 404);
+    expect(response.statusCode).toBe(404);
   });
 
   it("should return 409 for conflict", async () => {
     const response = await app.inject({ method: "GET", url: "/test-409" });
-    assert.strictEqual(response.statusCode, 409);
+    expect(response.statusCode).toBe(409);
   });
 
   it("should return 429 for rate limit", async () => {
     const response = await app.inject({ method: "GET", url: "/test-429" });
-    assert.strictEqual(response.statusCode, 429);
+    expect(response.statusCode).toBe(429);
   });
 
   it("should return 500 for internal error", async () => {
     const response = await app.inject({ method: "GET", url: "/test-500" });
-    assert.strictEqual(response.statusCode, 500);
+    expect(response.statusCode).toBe(500);
   });
 
   it("should return 502 for external service error", async () => {
     const response = await app.inject({ method: "GET", url: "/test-502" });
-    assert.strictEqual(response.statusCode, 502);
+    expect(response.statusCode).toBe(502);
   });
 });
 
-describe("Error Handler Plugin - Error Response Format", { concurrency: 1 }, () => {
+describe("Error Handler Plugin - Error Response Format", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = Fastify({ logger: false });
     await app.register(errorHandlerPlugin);
 
@@ -352,7 +351,7 @@ describe("Error Handler Plugin - Error Response Format", { concurrency: 1 }, () 
     await app.ready();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -365,12 +364,12 @@ describe("Error Handler Plugin - Error Response Format", { concurrency: 1 }, () 
     const body = JSON.parse(response.body);
 
     // Verify structure
-    assert.strictEqual(body.ok, false);
-    assert.ok(body.error);
-    assert.ok(body.error.code);
-    assert.ok(body.error.message);
-    assert.ok(body.error.requestId);
-    assert.ok(body.error.timestamp);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBeTruthy();
+    expect(body.error.code).toBeTruthy();
+    expect(body.error.message).toBeTruthy();
+    expect(body.error.requestId).toBeTruthy();
+    expect(body.error.timestamp).toBeTruthy();
   });
 
   it("should return JSON content type", async () => {
@@ -379,17 +378,17 @@ describe("Error Handler Plugin - Error Response Format", { concurrency: 1 }, () 
       url: "/test-format",
     });
 
-    assert.ok(response.headers["content-type"]?.includes("application/json"));
+    expect(response.headers["content-type"]?.includes("application/json")).toBeTruthy();
   });
 });
 
-describe("Error Handler Plugin - Plugin Metadata", { concurrency: 1 }, () => {
+describe("Error Handler Plugin - Plugin Metadata", () => {
   it("should have correct plugin name", () => {
     // Plugin metadata is set via fastify-plugin
-    assert.strictEqual(errorHandlerPlugin[Symbol.for("plugin-meta")]?.name, "error-handler");
+    expect(errorHandlerPlugin[Symbol.for("plugin-meta")]?.name).toBe("error-handler");
   });
 
   it("should specify Fastify version requirement", () => {
-    assert.strictEqual(errorHandlerPlugin[Symbol.for("plugin-meta")]?.fastify, ">=5.0.0");
+    expect(errorHandlerPlugin[Symbol.for("plugin-meta")]?.fastify).toBe(">=5.0.0");
   });
 });

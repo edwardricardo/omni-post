@@ -25,8 +25,7 @@ console.info = () => {};
 console.warn = () => {};
 console.error = () => {};
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import fastifyCookie from "@fastify/cookie";
 import { trendRoutes } from "../../src/trends/trendRoutes.js";
@@ -60,8 +59,8 @@ const testPassword = "TestPassword123";
 let app: FastifyInstance;
 let authToken: string;
 
-describe("trendRoutes", { concurrency: 1 }, () => {
-  before(async () => {
+describe("trendRoutes", () => {
+  beforeAll(async () => {
     app = await createTestApp();
 
     // Register and log in a test user
@@ -80,7 +79,7 @@ describe("trendRoutes", { concurrency: 1 }, () => {
     authToken = loginBody.data?.accessToken ?? "";
   });
 
-  after(async () => {
+  afterAll(async () => {
     try {
       await prisma.adminUser.deleteMany({
         where: { email: { startsWith: `trend-test-${timestamp}` } },
@@ -102,10 +101,10 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.ok(Array.isArray(body.data), "value should be an array of trending content");
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data)).toBeTruthy();
     });
 
     it("should accept valid type filter", async () => {
@@ -115,9 +114,9 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
+      expect(body.ok).toBe(true);
     });
 
     it("should accept valid timeframe filter", async () => {
@@ -127,9 +126,9 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject invalid type enum value", async () => {
@@ -139,7 +138,7 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
 
     it("should reject limit exceeding maximum", async () => {
@@ -149,7 +148,7 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
   });
 
@@ -163,10 +162,10 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.ok(body.data, "value should be present");
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
     });
 
     it("should return 400 when contentId is missing", async () => {
@@ -176,7 +175,7 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
 
     it("should return 400 when contentId is empty string", async () => {
@@ -186,7 +185,7 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
   });
 
@@ -200,10 +199,10 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.ok(body.data, "value should be present");
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
     });
 
     it("should accept category and region filters", async () => {
@@ -213,9 +212,9 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
+      expect(body.ok).toBe(true);
     });
 
     it("should accept competitorAnalysis flag", async () => {
@@ -225,9 +224,9 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
+      expect(body.ok).toBe(true);
     });
   });
 
@@ -241,10 +240,10 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.ok(body.data, "value should be present");
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
     });
 
     it("should accept timeHorizon parameter", async () => {
@@ -254,9 +253,9 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject invalid timeHorizon value", async () => {
@@ -266,7 +265,7 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
   });
 
@@ -280,14 +279,14 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
-      assert.ok(body.data, "value should be present");
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
       // Report should have augmented metadata from TrendReportBuilder
-      assert.ok(body.data.builderMeta, "builderMeta should be present");
-      assert.ok(body.data.extendedInsights, "extendedInsights should be present");
-      assert.ok(body.data.extendedRecommendations, "extendedRecommendations should be present");
+      expect(body.data.builderMeta).toBeTruthy();
+      expect(body.data.extendedInsights).toBeTruthy();
+      expect(body.data.extendedRecommendations).toBeTruthy();
     });
 
     it("should accept valid startDate and endDate", async () => {
@@ -297,9 +296,9 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject invalid date format", async () => {
@@ -309,7 +308,7 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 400);
+      expect(res.statusCode).toBe(400);
     });
 
     it("should accept includeCompetitors flag", async () => {
@@ -319,9 +318,9 @@ describe("trendRoutes", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${authToken}` },
       });
 
-      assert.equal(res.statusCode, 200);
+      expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      assert.equal(body.ok, true);
+      expect(body.ok).toBe(true);
     });
   });
 });

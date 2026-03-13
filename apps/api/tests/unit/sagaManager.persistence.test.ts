@@ -9,8 +9,7 @@
  * - Round-trip serialization preserves dates and structure
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SagaManagerImpl } from "../../src/saga/SagaManager";
 import {
   createMockPrisma,
@@ -33,7 +32,7 @@ console.warn = () => {};
 // Persistence Round-Trip Tests
 // ============================================================================
 
-describe("SagaManager - Persistence Round-Trip", { concurrency: 1 }, () => {
+describe("SagaManager - Persistence Round-Trip", () => {
   let manager: SagaManagerImpl;
   let mockRedis: MockRedis;
   let mockPrisma: MockPrismaClient;
@@ -60,11 +59,11 @@ describe("SagaManager - Persistence Round-Trip", { concurrency: 1 }, () => {
     // The startSaga method persists the instance internally.
     // Verify it can be retrieved from Redis.
     const redisData = await mockRedis.get(`saga:${instance.id}`);
-    assert.ok(redisData, "Saga instance should be stored in Redis");
+    expect(redisData).toBeTruthy();
 
     const parsed = JSON.parse(redisData);
-    assert.strictEqual(parsed.id, instance.id, "Stored ID should match");
-    assert.strictEqual(parsed.definitionId, definition.id, "Stored definitionId should match");
+    expect(parsed.id).toBe(instance.id);
+    expect(parsed.definitionId).toBe(definition.id);
   });
 
   it("should serialize and deserialize dates correctly", async () => {
@@ -77,14 +76,14 @@ describe("SagaManager - Persistence Round-Trip", { concurrency: 1 }, () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
-    assert.ok(redisData, "Saga instance should be in Redis");
+    expect(redisData).toBeTruthy();
 
     const parsed = JSON.parse(redisData);
 
     // startedAt should be a valid ISO date string
-    assert.ok(parsed.startedAt, "startedAt should be serialized");
+    expect(parsed.startedAt).toBeTruthy();
     const startedAt = new Date(parsed.startedAt);
-    assert.ok(!isNaN(startedAt.getTime()), "startedAt should be a valid date");
+    expect(isNaN(startedAt.getTime())).toBeFalsy();
   });
 
   it("should preserve step results in persisted data", async () => {
@@ -97,19 +96,15 @@ describe("SagaManager - Persistence Round-Trip", { concurrency: 1 }, () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
-    assert.ok(redisData, "Saga instance should be in Redis");
+    expect(redisData).toBeTruthy();
 
     const parsed = JSON.parse(redisData);
 
-    assert.ok(Array.isArray(parsed.stepResults), "stepResults should be an array");
+    expect(Array.isArray(parsed.stepResults)).toBeTruthy();
     // After completion, the single step should have a result
     if (parsed.status === "COMPLETED") {
-      assert.strictEqual(
-        parsed.stepResults.length,
-        1,
-        "Should have one step result for a single-step saga"
-      );
-      assert.strictEqual(parsed.stepResults[0].success, true, "Step should have succeeded");
+      expect(parsed.stepResults.length).toBe(1);
+      expect(parsed.stepResults[0].success).toBe(true);
     }
   });
 });
@@ -118,7 +113,7 @@ describe("SagaManager - Persistence Round-Trip", { concurrency: 1 }, () => {
 // Redis Cache Hit / Miss Tests
 // ============================================================================
 
-describe("SagaManager - Cache Lookup Behavior", { concurrency: 1 }, () => {
+describe("SagaManager - Cache Lookup Behavior", () => {
   let manager: SagaManagerImpl;
   let mockRedis: MockRedis;
   let mockPrisma: MockPrismaClient;
@@ -144,8 +139,8 @@ describe("SagaManager - Cache Lookup Behavior", { concurrency: 1 }, () => {
 
     // getSaga should find it in the activeInstances map (in-memory)
     const retrieved = await manager.getSaga(instance.id);
-    assert.ok(retrieved, "Should retrieve saga from in-memory map");
-    assert.strictEqual(retrieved.id, instance.id);
+    expect(retrieved).toBeTruthy();
+    expect(retrieved.id).toBe(instance.id);
   });
 
   it("should fall back to Redis when saga is not in memory", async () => {
@@ -160,13 +155,13 @@ describe("SagaManager - Cache Lookup Behavior", { concurrency: 1 }, () => {
     // After completion and cleanup, the saga might not be in memory.
     // But it should still be retrievable from Redis.
     const retrieved = await manager.getSaga(instance.id);
-    assert.ok(retrieved, "Should retrieve saga from Redis when not in memory");
-    assert.strictEqual(retrieved.id, instance.id);
+    expect(retrieved).toBeTruthy();
+    expect(retrieved.id).toBe(instance.id);
   });
 
   it("should return null when saga does not exist anywhere", async () => {
     const retrieved = await manager.getSaga("saga-nonexistent-999");
-    assert.strictEqual(retrieved, null, "Should return null for nonexistent saga");
+    expect(retrieved).toBe(null);
   });
 });
 
@@ -174,7 +169,7 @@ describe("SagaManager - Cache Lookup Behavior", { concurrency: 1 }, () => {
 // Persistence on Status Transitions
 // ============================================================================
 
-describe("SagaManager - Persistence on Status Transitions", { concurrency: 1 }, () => {
+describe("SagaManager - Persistence on Status Transitions", () => {
   let manager: SagaManagerImpl;
   let mockRedis: MockRedis;
   let mockPrisma: MockPrismaClient;
@@ -202,14 +197,11 @@ describe("SagaManager - Persistence on Status Transitions", { concurrency: 1 }, 
     await new Promise<void>((resolve) => setTimeout(resolve, 50));
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
-    assert.ok(redisData, "Saga should be persisted");
+    expect(redisData).toBeTruthy();
 
     const parsed = JSON.parse(redisData);
     // Status should be RUNNING or COMPLETED depending on timing
-    assert.ok(
-      ["PENDING", "RUNNING", "COMPLETED"].includes(parsed.status),
-      `Status should be valid, got: ${parsed.status}`
-    );
+    expect(["PENDING", "RUNNING", "COMPLETED"].includes(parsed.status)).toBeTruthy();
   });
 
   it("should persist COMPLETED status after all steps succeed", async () => {
@@ -222,11 +214,11 @@ describe("SagaManager - Persistence on Status Transitions", { concurrency: 1 }, 
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
-    assert.ok(redisData, "Saga should be persisted");
+    expect(redisData).toBeTruthy();
 
     const parsed = JSON.parse(redisData);
-    assert.strictEqual(parsed.status, "COMPLETED", "Status should be COMPLETED");
-    assert.ok(parsed.completedAt, "completedAt should be set after completion");
+    expect(parsed.status).toBe("COMPLETED");
+    expect(parsed.completedAt).toBeTruthy();
   });
 
   it("should persist FAILED status when a step fails without retry", async () => {
@@ -240,11 +232,11 @@ describe("SagaManager - Persistence on Status Transitions", { concurrency: 1 }, 
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
-    assert.ok(redisData, "Saga should be persisted");
+    expect(redisData).toBeTruthy();
 
     const parsed = JSON.parse(redisData);
-    assert.strictEqual(parsed.status, "FAILED", "Status should be FAILED");
-    assert.ok(parsed.error, "Error message should be set");
+    expect(parsed.status).toBe("FAILED");
+    expect(parsed.error).toBeTruthy();
   });
 
   it("should persist COMPENSATED status after compensation completes", async () => {
@@ -259,8 +251,8 @@ describe("SagaManager - Persistence on Status Transitions", { concurrency: 1 }, 
 
     // Verify it failed
     const failedSaga = await manager.getSaga(instance.id);
-    assert.ok(failedSaga, "Saga should exist after failure");
-    assert.strictEqual(failedSaga.status, "FAILED");
+    expect(failedSaga).toBeTruthy();
+    expect(failedSaga.status).toBe("FAILED");
 
     // Trigger compensation
     await manager.compensateSaga(instance.id);
@@ -269,10 +261,10 @@ describe("SagaManager - Persistence on Status Transitions", { concurrency: 1 }, 
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
-    assert.ok(redisData, "Saga should be persisted after compensation");
+    expect(redisData).toBeTruthy();
 
     const parsed = JSON.parse(redisData);
-    assert.strictEqual(parsed.status, "COMPENSATED", "Status should be COMPENSATED");
+    expect(parsed.status).toBe("COMPENSATED");
   });
 });
 
@@ -280,7 +272,7 @@ describe("SagaManager - Persistence on Status Transitions", { concurrency: 1 }, 
 // Multiple Saga Instances Persistence
 // ============================================================================
 
-describe("SagaManager - Multiple Saga Instances", { concurrency: 1 }, () => {
+describe("SagaManager - Multiple Saga Instances", () => {
   let manager: SagaManagerImpl;
   let mockRedis: MockRedis;
   let mockPrisma: MockPrismaClient;
@@ -317,13 +309,13 @@ describe("SagaManager - Multiple Saga Instances", { concurrency: 1 }, () => {
     const data1 = await mockRedis.get(`saga:${instance1.id}`);
     const data2 = await mockRedis.get(`saga:${instance2.id}`);
 
-    assert.ok(data1, "First saga should be persisted");
-    assert.ok(data2, "Second saga should be persisted");
+    expect(data1).toBeTruthy();
+    expect(data2).toBeTruthy();
 
     const parsed1 = JSON.parse(data1);
     const parsed2 = JSON.parse(data2);
 
-    assert.notStrictEqual(parsed1.id, parsed2.id, "Saga IDs should be different");
+    expect(parsed1.id).not.toBe(parsed2.id);
   });
 
   it("should track correct metrics across multiple saga instances", async () => {
@@ -338,11 +330,7 @@ describe("SagaManager - Multiple Saga Instances", { concurrency: 1 }, () => {
     await manager.startSaga(definition.id, {});
 
     const metricsAfter = manager.getMetrics();
-    assert.strictEqual(
-      metricsAfter.sagasStarted,
-      startedBefore + 3,
-      "Should track 3 started sagas"
-    );
+    expect(metricsAfter.sagasStarted).toBe(startedBefore + 3);
   });
 });
 
@@ -350,7 +338,7 @@ describe("SagaManager - Multiple Saga Instances", { concurrency: 1 }, () => {
 // Shutdown Persistence Tests
 // ============================================================================
 
-describe("SagaManager - Shutdown Persistence", { concurrency: 1 }, () => {
+describe("SagaManager - Shutdown Persistence", () => {
   let manager: SagaManagerImpl;
   let mockRedis: MockRedis;
   let mockPrisma: MockPrismaClient;
@@ -374,14 +362,11 @@ describe("SagaManager - Shutdown Persistence", { concurrency: 1 }, () => {
     await manager.shutdown();
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
-    assert.ok(redisData, "In-flight saga should be persisted during shutdown");
+    expect(redisData).toBeTruthy();
 
     const parsed = JSON.parse(redisData);
     // On shutdown, RUNNING sagas are set to PENDING for restart
-    assert.ok(
-      ["PENDING", "COMPLETED"].includes(parsed.status),
-      `Status should be PENDING or COMPLETED (if fast enough), got: ${parsed.status}`
-    );
+    expect(["PENDING", "COMPLETED"].includes(parsed.status)).toBeTruthy();
   });
 
   it("should clear activeInstances map during shutdown", async () => {
@@ -396,10 +381,6 @@ describe("SagaManager - Shutdown Persistence", { concurrency: 1 }, () => {
 
     const metrics = manager.getMetrics();
     // After shutdown, definitions are cleared
-    assert.strictEqual(
-      metrics.definitions.length,
-      0,
-      "Definitions should be cleared after shutdown"
-    );
+    expect(metrics.definitions.length).toBe(0);
   });
 });

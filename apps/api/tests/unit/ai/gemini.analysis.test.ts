@@ -1,9 +1,8 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { GeminiProvider } from "../../../src/ai/providers/gemini.js";
 import { mockConfig, makeMockClient } from "./gemini.test-helpers.js";
 
-describe("GeminiProvider - Content Analysis", { concurrency: 1 }, () => {
+describe("GeminiProvider - Content Analysis", () => {
   let provider: GeminiProvider;
 
   beforeEach(() => {
@@ -17,15 +16,15 @@ describe("GeminiProvider - Content Analysis", { concurrency: 1 }, () => {
       confidence: 0.95,
     });
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.analyzeContent("I love this product!", "sentiment");
-    assert.strictEqual(result.score, 0.8);
-    assert.strictEqual(result.label, "positive");
-    assert.strictEqual(result.confidence, 0.95);
+    expect(result.score).toBe(0.8);
+    expect(result.label).toBe("positive");
+    expect(result.confidence).toBe(0.95);
   });
 
   it("should analyze tone correctly", async (t) => {
@@ -35,16 +34,16 @@ describe("GeminiProvider - Content Analysis", { concurrency: 1 }, () => {
       suggestions: ["Consider adding more personal touches", "Use contractions for friendliness"],
     });
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.analyzeContent("Dear Sir/Madam, I am writing to...", "tone");
-    assert.strictEqual(result.detected, "professional");
-    assert.strictEqual(result.confidence, 0.9);
-    assert.ok(Array.isArray(result.suggestions));
-    assert.strictEqual(result.suggestions?.length, 2);
+    expect(result.detected).toBe("professional");
+    expect(result.confidence).toBe(0.9);
+    expect(Array.isArray(result.suggestions)).toBeTruthy();
+    expect(result.suggestions?.length).toBe(2);
   });
 
   it("should analyze readability correctly", async (t) => {
@@ -54,15 +53,15 @@ describe("GeminiProvider - Content Analysis", { concurrency: 1 }, () => {
       suggestions: ["Simplify complex sentences", "Use more common vocabulary"],
     });
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.analyzeContent("Complex technical content here", "readability");
-    assert.strictEqual(result.score, 75);
-    assert.strictEqual(result.level, "High School");
-    assert.ok(Array.isArray(result.suggestions));
+    expect(result.score).toBe(75);
+    expect(result.level).toBe("High School");
+    expect(Array.isArray(result.suggestions)).toBeTruthy();
   });
 
   it("should analyze engagement correctly", async (t) => {
@@ -74,43 +73,43 @@ describe("GeminiProvider - Content Analysis", { concurrency: 1 }, () => {
       ],
     });
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.analyzeContent("Join us today!", "engagement");
-    assert.strictEqual(result.score, 85);
-    assert.ok(Array.isArray(result.factors));
-    assert.strictEqual(result.factors?.length, 2);
+    expect(result.score).toBe(85);
+    expect(Array.isArray(result.factors)).toBeTruthy();
+    expect(result.factors?.length).toBe(2);
   });
 
   it("should extract JSON from markdown-wrapped response", async (t) => {
     const mockResponse = '```json\n{"score": 0.7, "label": "positive", "confidence": 0.85}\n```';
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.analyzeContent("Good content", "sentiment");
-    assert.strictEqual(result.score, 0.7);
-    assert.strictEqual(result.label, "positive");
+    expect(result.score).toBe(0.7);
+    expect(result.label).toBe("positive");
   });
 
   it("should throw error on malformed JSON response", async (t) => {
-    const generateContentFn = t.mock.fn(async () => ({ text: "Not JSON at all" }));
+    const generateContentFn = vi.fn(async () => ({ text: "Not JSON at all" }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.analyzeContent("Test content", "sentiment");
-    }, /Gemini analysis failed/);
+    await expect(provider.analyzeContent("Test content", "sentiment")).rejects.toThrow(
+      /Gemini analysis failed/
+    );
   });
 });
 
-describe("GeminiProvider - Content Optimization", { concurrency: 1 }, () => {
+describe("GeminiProvider - Content Optimization", () => {
   let provider: GeminiProvider;
 
   beforeEach(() => {
@@ -140,16 +139,16 @@ describe("GeminiProvider - Content Optimization", { concurrency: 1 }, () => {
       },
     });
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.optimizeContent("Original tweet", "twitter");
-    assert.strictEqual(result.optimizedText, "Optimized tweet with emojis! 🚀");
-    assert.ok(Array.isArray(result.changes));
-    assert.ok(Array.isArray(result.hashtags));
-    assert.strictEqual(result.hashtags.length, 2);
+    expect(result.optimizedText).toBe("Optimized tweet with emojis! 🚀");
+    expect(Array.isArray(result.changes)).toBeTruthy();
+    expect(Array.isArray(result.hashtags)).toBeTruthy();
+    expect(result.hashtags.length).toBe(2);
   });
 
   it("should include brand voice in optimization", async (t) => {
@@ -162,8 +161,8 @@ describe("GeminiProvider - Content Optimization", { concurrency: 1 }, () => {
       platformSpecific: {},
     });
 
-    const generateContentFn = t.mock.fn(async (params: any) => {
-      assert.ok(params.contents.includes("professional"));
+    const generateContentFn = vi.fn(async (params: any) => {
+      expect(params.contents.includes("professional")).toBeTruthy();
       return { text: mockResponse };
     });
     const mockClient = makeMockClient(generateContentFn);
@@ -171,19 +170,19 @@ describe("GeminiProvider - Content Optimization", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     await provider.optimizeContent("Test content", "linkedin", "professional");
-    assert.strictEqual(generateContentFn.mock.calls.length, 1);
+    expect(generateContentFn.mock.calls.length).toBe(1);
   });
 
   it("should throw error on optimization failure", async (t) => {
-    const generateContentFn = t.mock.fn(async () => {
+    const generateContentFn = vi.fn(async () => {
       throw new Error("API Error");
     });
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.optimizeContent("Test content", "twitter");
-    }, /Gemini optimization failed/);
+    await expect(provider.optimizeContent("Test content", "twitter")).rejects.toThrow(
+      /Gemini optimization failed/
+    );
   });
 });

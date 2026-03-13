@@ -6,21 +6,18 @@
  * Tier 0: No database required.
  */
 
-import { describe, it, beforeEach, before, after } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, beforeEach, beforeAll, afterAll, vi, expect } from "vitest";
 import { PrismaPostRepository } from "../../../src/infrastructure/repositories/PrismaPostRepository.js";
 import { PostId, ProjectId, PUBLISH_STATUS } from "../../../src/domain/index.js";
 
 // ── console suppression ───────────────────────────────────────────────────────
 
 let _originalConsoleLog: typeof console.log;
-before(() => {
+beforeAll(() => {
   _originalConsoleLog = console.log;
   console.log = () => {};
 });
-after(() => {
+afterAll(() => {
   console.log = _originalConsoleLog;
 });
 
@@ -69,89 +66,89 @@ function basePostRow() {
   };
 }
 
-function makeTransactionMockClient(t: TestContext) {
+function makeTransactionMockClient() {
   return {
     post: {
-      create: t.mock.fn(async () => ({})),
-      update: t.mock.fn(async () => ({})),
-      delete: t.mock.fn(async () => ({})),
+      create: vi.fn(async () => ({})),
+      update: vi.fn(async () => ({})),
+      delete: vi.fn(async () => ({})),
     },
     postContent: {
-      create: t.mock.fn(async () => ({})),
-      upsert: t.mock.fn(async () => ({})),
-      deleteMany: t.mock.fn(async () => ({ count: 0 })),
+      create: vi.fn(async () => ({})),
+      upsert: vi.fn(async () => ({})),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
     },
     postMedia: {
-      findMany: t.mock.fn(async () => [] as { id: string }[]),
-      createMany: t.mock.fn(async () => ({ count: 0 })),
-      deleteMany: t.mock.fn(async () => ({ count: 0 })),
-      upsert: t.mock.fn(async () => ({})),
+      findMany: vi.fn(async () => [] as { id: string }[]),
+      createMany: vi.fn(async () => ({ count: 0 })),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      upsert: vi.fn(async () => ({})),
     },
-    publishLog: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    analytics: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    contentVersion: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    tweet: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    thread: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
+    publishLog: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    analytics: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    contentVersion: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    tweet: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    thread: { deleteMany: vi.fn(async () => ({ count: 0 })) },
   };
 }
 
-function makeMockPrisma(t: TestContext) {
-  const txClient = makeTransactionMockClient(t);
+function makeMockPrisma() {
+  const txClient = makeTransactionMockClient();
 
   return {
     _txClient: txClient,
     post: {
-      findFirst: t.mock.fn(async () => basePostRow()),
-      findMany: t.mock.fn(async () => [basePostRow()]),
-      create: t.mock.fn(async () => basePostRow()),
-      update: t.mock.fn(async () => basePostRow()),
-      delete: t.mock.fn(async () => basePostRow()),
-      count: t.mock.fn(async () => 1),
-      updateMany: t.mock.fn(async () => ({ count: 1 })),
+      findFirst: vi.fn(async () => basePostRow()),
+      findMany: vi.fn(async () => [basePostRow()]),
+      create: vi.fn(async () => basePostRow()),
+      update: vi.fn(async () => basePostRow()),
+      delete: vi.fn(async () => basePostRow()),
+      count: vi.fn(async () => 1),
+      updateMany: vi.fn(async () => ({ count: 1 })),
     },
     postContent: {
-      create: t.mock.fn(async () => ({})),
-      upsert: t.mock.fn(async () => ({})),
+      create: vi.fn(async () => ({})),
+      upsert: vi.fn(async () => ({})),
     },
     postMedia: {
-      findMany: t.mock.fn(async () => [] as { id: string }[]),
-      createMany: t.mock.fn(async () => ({ count: 0 })),
-      deleteMany: t.mock.fn(async () => ({ count: 0 })),
+      findMany: vi.fn(async () => [] as { id: string }[]),
+      createMany: vi.fn(async () => ({ count: 0 })),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
     },
-    publishLog: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    analytics: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    contentVersion: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    tweet: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    thread: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
+    publishLog: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    analytics: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    contentVersion: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    tweet: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    thread: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     // $transaction executes the callback immediately with the txClient
-    $transaction: t.mock.fn(async (cb: (tx: typeof txClient) => Promise<unknown>) => cb(txClient)),
+    $transaction: vi.fn(async (cb: (tx: typeof txClient) => Promise<unknown>) => cb(txClient)),
   };
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
-describe("PrismaPostRepository", { concurrency: 1 }, () => {
+describe("PrismaPostRepository", () => {
   let prisma: ReturnType<typeof makeMockPrisma>;
   let repo: PrismaPostRepository;
 
-  beforeEach((t) => {
-    prisma = makeMockPrisma(t);
+  beforeEach(() => {
+    prisma = makeMockPrisma();
     repo = new PrismaPostRepository(prisma as never);
   });
 
   // ── findById ────────────────────────────────────────────────────────────────
 
-  describe("findById", { concurrency: 1 }, () => {
+  describe("findById", () => {
     it("returns ok(PostAggregate) when row exists", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.findById(id);
 
-      assert.ok(result.ok);
-      assert.equal(result.value.id.value, POST_ID);
-      assert.equal(result.value.projectId.value, PROJECT_ID);
-      assert.equal(result.value.content.body, "Hello world content");
-      assert.equal(result.value.status.value, "DRAFT");
-      assert.equal(prisma.post.findFirst.mock.calls.length, 1);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.id.value).toBe(POST_ID);
+      expect(result.value.projectId.value).toBe(PROJECT_ID);
+      expect(result.value.content.body).toBe("Hello world content");
+      expect(result.value.status.value).toBe("DRAFT");
+      expect(prisma.post.findFirst.mock.calls.length).toBe(1);
     });
 
     it("queries with deletedAt: null to exclude soft-deleted posts", async () => {
@@ -159,17 +156,17 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
       await repo.findById(id);
 
       const callRecord = prisma.post.findFirst.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { deletedAt: unknown } } | undefined;
-      assert.deepEqual(args?.where.deletedAt, null);
+      const args = callRecord?.[0] as { where: { deletedAt: unknown } } | undefined;
+      expect(args?.where.deletedAt).toEqual(null);
     });
 
     it("returns err(EntityNotFoundError) when row is null", async () => {
-      prisma.post.findFirst.mock.mockImplementation(async () => null);
+      prisma.post.findFirst.mockImplementation(async () => null);
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.findById(id);
 
-      assert.ok(!result.ok);
-      assert.match(result.error.message, /Post/);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Post/);
     });
 
     it("maps media attachments when present", async () => {
@@ -189,15 +186,15 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
           },
         ],
       };
-      prisma.post.findFirst.mock.mockImplementation(async () => rowWithMedia);
+      prisma.post.findFirst.mockImplementation(async () => rowWithMedia);
 
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.findById(id);
 
-      assert.ok(result.ok);
-      assert.equal(result.value.media.length, 1);
-      assert.equal(result.value.media[0]?.type, "image");
-      assert.equal(result.value.media[0]?.url, "https://example.com/image.jpg");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.media.length).toBe(1);
+      expect(result.value.media[0]?.type).toBe("image");
+      expect(result.value.media[0]?.url).toBe("https://example.com/image.jpg");
     });
 
     it("maps scheduled post with scheduledAt", async () => {
@@ -207,31 +204,31 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
         status: "SCHEDULED",
         scheduledAt: futureDate,
       };
-      prisma.post.findFirst.mock.mockImplementation(async () => scheduledRow);
+      prisma.post.findFirst.mockImplementation(async () => scheduledRow);
 
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.findById(id);
 
-      assert.ok(result.ok);
-      assert.equal(result.value.status.value, "SCHEDULED");
-      assert.ok(result.value.scheduledAt !== undefined);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.status.value).toBe("SCHEDULED");
+      expect(result.value.scheduledAt !== undefined).toBeTruthy();
     });
   });
 
   // ── exists ──────────────────────────────────────────────────────────────────
 
-  describe("exists", { concurrency: 1 }, () => {
+  describe("exists", () => {
     it("returns true when count > 0", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.exists(id);
-      assert.equal(result, true);
+      expect(result).toBe(true);
     });
 
     it("returns false when count is 0", async () => {
-      prisma.post.count.mock.mockImplementation(async () => 0);
+      prisma.post.count.mockImplementation(async () => 0);
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.exists(id);
-      assert.equal(result, false);
+      expect(result).toBe(false);
     });
 
     it("counts only non-deleted posts (deletedAt: null)", async () => {
@@ -239,91 +236,91 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
       await repo.exists(id);
 
       const callRecord = prisma.post.count.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { deletedAt: unknown } } | undefined;
-      assert.deepEqual(args?.where.deletedAt, null);
+      const args = callRecord?.[0] as { where: { deletedAt: unknown } } | undefined;
+      expect(args?.where.deletedAt).toEqual(null);
     });
   });
 
   // ── delete (soft) ───────────────────────────────────────────────────────────
 
-  describe("delete (soft delete)", { concurrency: 1 }, () => {
+  describe("delete (soft delete)", () => {
     it("calls post.update with deletedAt and returns ok when post exists", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.delete(id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       // Soft delete: update, NOT hard delete
-      assert.equal(prisma.post.update.mock.calls.length, 1);
-      assert.equal(prisma.post.delete.mock.calls.length, 0);
+      expect(prisma.post.update.mock.calls.length).toBe(1);
+      expect(prisma.post.delete.mock.calls.length).toBe(0);
 
       const callRecord = prisma.post.update.mock.calls[0];
-      const args = callRecord?.arguments[0] as { data: { deletedAt: unknown } } | undefined;
-      assert.ok(args?.data.deletedAt instanceof Date);
+      const args = callRecord?.[0] as { data: { deletedAt: unknown } } | undefined;
+      expect(args?.data.deletedAt instanceof Date).toBeTruthy();
     });
 
     it("returns err(EntityNotFoundError) when post does not exist", async () => {
-      prisma.post.count.mock.mockImplementation(async () => 0);
+      prisma.post.count.mockImplementation(async () => 0);
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.delete(id);
 
-      assert.ok(!result.ok);
-      assert.match(result.error.message, /Post/);
-      assert.equal(prisma.post.update.mock.calls.length, 0);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Post/);
+      expect(prisma.post.update.mock.calls.length).toBe(0);
     });
   });
 
   // ── hardDelete ──────────────────────────────────────────────────────────────
 
-  describe("hardDelete", { concurrency: 1 }, () => {
+  describe("hardDelete", () => {
     it("returns ok and executes cascade deletions in correct FK order", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.hardDelete(id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       // Transaction was called
-      assert.equal(prisma.$transaction.mock.calls.length, 1);
+      expect(prisma.$transaction.mock.calls.length).toBe(1);
 
       const tx = prisma._txClient;
       // Verify all cascade deletes were called
-      assert.equal(tx.publishLog.deleteMany.mock.calls.length, 1);
-      assert.equal(tx.analytics.deleteMany.mock.calls.length, 1);
-      assert.equal(tx.contentVersion.deleteMany.mock.calls.length, 1);
-      assert.equal(tx.postMedia.deleteMany.mock.calls.length, 1);
-      assert.equal(tx.tweet.deleteMany.mock.calls.length, 1);
-      assert.equal(tx.thread.deleteMany.mock.calls.length, 1);
-      assert.equal(tx.postContent.deleteMany.mock.calls.length, 1);
-      assert.equal(tx.post.delete.mock.calls.length, 1);
+      expect(tx.publishLog.deleteMany.mock.calls.length).toBe(1);
+      expect(tx.analytics.deleteMany.mock.calls.length).toBe(1);
+      expect(tx.contentVersion.deleteMany.mock.calls.length).toBe(1);
+      expect(tx.postMedia.deleteMany.mock.calls.length).toBe(1);
+      expect(tx.tweet.deleteMany.mock.calls.length).toBe(1);
+      expect(tx.thread.deleteMany.mock.calls.length).toBe(1);
+      expect(tx.postContent.deleteMany.mock.calls.length).toBe(1);
+      expect(tx.post.delete.mock.calls.length).toBe(1);
     });
 
     it("can delete even soft-deleted posts (findFirst has no deletedAt filter)", async () => {
       // findFirst returns a soft-deleted post (has deletedAt set)
       const softDeletedRow = { ...basePostRow(), deletedAt: new Date("2026-01-15") };
-      prisma.post.findFirst.mock.mockImplementation(async () => softDeletedRow);
+      prisma.post.findFirst.mockImplementation(async () => softDeletedRow);
 
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.hardDelete(id);
 
-      assert.ok(result.ok);
-      assert.equal(prisma.$transaction.mock.calls.length, 1);
+      expect(result.ok).toBeTruthy();
+      expect(prisma.$transaction.mock.calls.length).toBe(1);
     });
 
     it("returns err(EntityNotFoundError) when post does not exist at all", async () => {
-      prisma.post.findFirst.mock.mockImplementation(async () => null);
+      prisma.post.findFirst.mockImplementation(async () => null);
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.hardDelete(id);
 
-      assert.ok(!result.ok);
-      assert.match(result.error.message, /Post/);
-      assert.equal(prisma.$transaction.mock.calls.length, 0);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Post/);
+      expect(prisma.$transaction.mock.calls.length).toBe(0);
     });
   });
 
   // ── save (create path) ──────────────────────────────────────────────────────
 
-  describe("save — new aggregate (create path)", { concurrency: 1 }, () => {
+  describe("save — new aggregate (create path)", () => {
     it("calls $transaction and creates post + content when post does not exist", async () => {
       // exists() returns false → create path
-      prisma.post.count.mock.mockImplementation(async () => 0);
+      prisma.post.count.mockImplementation(async () => 0);
 
       const postResult = await import("../../../src/domain/index.js").then((m) =>
         m.PostAggregate.create({
@@ -331,21 +328,21 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
           body: "New post content",
         })
       );
-      assert.ok(postResult.ok);
+      expect(postResult.ok).toBeTruthy();
 
       const saveResult = await repo.save(postResult.value);
 
-      assert.ok(saveResult.ok);
-      assert.equal(prisma.$transaction.mock.calls.length, 1);
+      expect(saveResult.ok).toBeTruthy();
+      expect(prisma.$transaction.mock.calls.length).toBe(1);
 
       const tx = prisma._txClient;
-      assert.equal(tx.post.create.mock.calls.length, 1);
-      assert.equal(tx.postContent.create.mock.calls.length, 1);
+      expect(tx.post.create.mock.calls.length).toBe(1);
+      expect(tx.postContent.create.mock.calls.length).toBe(1);
     });
 
     it("returns err when $transaction throws during create", async () => {
-      prisma.post.count.mock.mockImplementation(async () => 0);
-      prisma.$transaction.mock.mockImplementation(async () => {
+      prisma.post.count.mockImplementation(async () => 0);
+      prisma.$transaction.mockImplementation(async () => {
         throw new Error("DB write failed");
       });
 
@@ -355,90 +352,90 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
           body: "Content",
         })
       );
-      assert.ok(postResult.ok);
+      expect(postResult.ok).toBeTruthy();
 
       const saveResult = await repo.save(postResult.value);
 
-      assert.ok(!saveResult.ok);
-      assert.match(saveResult.error.message, /DB write failed/);
+      expect(saveResult.ok).toBeFalsy();
+      expect(saveResult.error.message).toMatch(/DB write failed/);
     });
   });
 
   // ── save (update path) ──────────────────────────────────────────────────────
 
-  describe("save — existing aggregate (update path)", { concurrency: 1 }, () => {
+  describe("save — existing aggregate (update path)", () => {
     it("calls $transaction and upserts content when post exists", async () => {
       // exists() returns true → update path
-      prisma.post.count.mock.mockImplementation(async () => 1);
+      prisma.post.count.mockImplementation(async () => 1);
 
       const findResult = await repo.findById(PostId.fromStringUnsafe(POST_ID));
-      assert.ok(findResult.ok);
+      expect(findResult.ok).toBeTruthy();
 
       const saveResult = await repo.save(findResult.value);
 
-      assert.ok(saveResult.ok);
-      assert.equal(prisma.$transaction.mock.calls.length, 1);
+      expect(saveResult.ok).toBeTruthy();
+      expect(prisma.$transaction.mock.calls.length).toBe(1);
 
       const tx = prisma._txClient;
-      assert.equal(tx.post.update.mock.calls.length, 1);
-      assert.equal(tx.postContent.upsert.mock.calls.length, 1);
+      expect(tx.post.update.mock.calls.length).toBe(1);
+      expect(tx.postContent.upsert.mock.calls.length).toBe(1);
     });
 
     it("returns err when $transaction throws during update", async () => {
-      prisma.post.count.mock.mockImplementation(async () => 1);
-      prisma.$transaction.mock.mockImplementation(async () => {
+      prisma.post.count.mockImplementation(async () => 1);
+      prisma.$transaction.mockImplementation(async () => {
         throw new Error("Constraint violation");
       });
 
       const findResult = await repo.findById(PostId.fromStringUnsafe(POST_ID));
-      assert.ok(findResult.ok);
+      expect(findResult.ok).toBeTruthy();
 
       const saveResult = await repo.save(findResult.value);
 
-      assert.ok(!saveResult.ok);
-      assert.match(saveResult.error.message, /Constraint violation/);
+      expect(saveResult.ok).toBeFalsy();
+      expect(saveResult.error.message).toMatch(/Constraint violation/);
     });
   });
 
   // ── findByProjectId ─────────────────────────────────────────────────────────
 
-  describe("findByProjectId", { concurrency: 1 }, () => {
+  describe("findByProjectId", () => {
     it("returns paginated result with correct structure", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       const result = await repo.findByProjectId(projectId);
 
-      assert.equal(result.items.length, 1);
-      assert.equal(result.total, 1);
-      assert.equal(result.page, 1);
-      assert.equal(result.limit, 20);
-      assert.equal(result.totalPages, 1);
-      assert.equal(result.hasNext, false);
-      assert.equal(result.hasPrevious, false);
+      expect(result.items.length).toBe(1);
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(20);
+      expect(result.totalPages).toBe(1);
+      expect(result.hasNext).toBe(false);
+      expect(result.hasPrevious).toBe(false);
     });
 
     it("applies custom pagination correctly", async () => {
       // Return multiple rows so pagination kicks in
-      prisma.post.findMany.mock.mockImplementation(async () => [
+      prisma.post.findMany.mockImplementation(async () => [
         basePostRow(),
         { ...basePostRow(), id: POST_ID_2 },
       ]);
-      prisma.post.count.mock.mockImplementation(async () => 10);
+      prisma.post.count.mockImplementation(async () => 10);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       const result = await repo.findByProjectId(projectId, { page: 2, limit: 2 });
 
-      assert.equal(result.page, 2);
-      assert.equal(result.limit, 2);
-      assert.equal(result.total, 10);
-      assert.equal(result.totalPages, 5);
-      assert.equal(result.hasNext, true);
-      assert.equal(result.hasPrevious, true);
+      expect(result.page).toBe(2);
+      expect(result.limit).toBe(2);
+      expect(result.total).toBe(10);
+      expect(result.totalPages).toBe(5);
+      expect(result.hasNext).toBe(true);
+      expect(result.hasPrevious).toBe(true);
 
       // Verify skip was calculated correctly (page 2, limit 2 → skip 2)
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { skip: number; take: number } | undefined;
-      assert.equal(args?.skip, 2);
-      assert.equal(args?.take, 2);
+      const args = callRecord?.[0] as { skip: number; take: number } | undefined;
+      expect(args?.skip).toBe(2);
+      expect(args?.take).toBe(2);
     });
 
     it("filters by projectId and deletedAt: null", async () => {
@@ -446,9 +443,9 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
       await repo.findByProjectId(projectId);
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: Record<string, unknown> } | undefined;
-      assert.equal(args?.where.projectId, PROJECT_ID);
-      assert.deepEqual(args?.where.deletedAt, null);
+      const args = callRecord?.[0] as { where: Record<string, unknown> } | undefined;
+      expect(args?.where.projectId).toBe(PROJECT_ID);
+      expect(args?.where.deletedAt).toEqual(null);
     });
 
     it("applies sort parameter correctly", async () => {
@@ -456,45 +453,45 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
       await repo.findByProjectId(projectId, undefined, { field: "scheduledAt", direction: "asc" });
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { orderBy: Record<string, unknown> } | undefined;
-      assert.deepEqual(args?.orderBy, { scheduledAt: "asc" });
+      const args = callRecord?.[0] as { orderBy: Record<string, unknown> } | undefined;
+      expect(args?.orderBy).toEqual({ scheduledAt: "asc" });
     });
   });
 
   // ── findByStatus ────────────────────────────────────────────────────────────
 
-  describe("findByStatus", { concurrency: 1 }, () => {
+  describe("findByStatus", () => {
     it("returns paginated posts for a single status", async () => {
       const scheduledRow = { ...basePostRow(), status: "SCHEDULED" };
-      prisma.post.findMany.mock.mockImplementation(async () => [scheduledRow]);
-      prisma.post.count.mock.mockImplementation(async () => 1);
+      prisma.post.findMany.mockImplementation(async () => [scheduledRow]);
+      prisma.post.count.mockImplementation(async () => 1);
 
       const result = await repo.findByStatus(PUBLISH_STATUS.SCHEDULED);
 
-      assert.equal(result.items.length, 1);
-      assert.equal(result.items[0]?.status.value, "SCHEDULED");
+      expect(result.items.length).toBe(1);
+      expect(result.items[0]?.status.value).toBe("SCHEDULED");
     });
 
     it("accepts an array of statuses", async () => {
       await repo.findByStatus([PUBLISH_STATUS.DRAFT, PUBLISH_STATUS.SCHEDULED]);
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { status: { in: string[] } } } | undefined;
-      assert.deepEqual(args?.where.status.in, ["DRAFT", "SCHEDULED"]);
+      const args = callRecord?.[0] as { where: { status: { in: string[] } } } | undefined;
+      expect(args?.where.status.in).toEqual(["DRAFT", "SCHEDULED"]);
     });
 
     it("always includes deletedAt: null filter", async () => {
       await repo.findByStatus(PUBLISH_STATUS.DRAFT);
 
       const callRecord = prisma.post.count.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { deletedAt: unknown } } | undefined;
-      assert.deepEqual(args?.where.deletedAt, null);
+      const args = callRecord?.[0] as { where: { deletedAt: unknown } } | undefined;
+      expect(args?.where.deletedAt).toEqual(null);
     });
   });
 
   // ── findReadyForPublishing ──────────────────────────────────────────────────
 
-  describe("findReadyForPublishing", { concurrency: 1 }, () => {
+  describe("findReadyForPublishing", () => {
     it("returns posts with SCHEDULED status and past scheduledAt", async () => {
       const pastDate = new Date(Date.now() - 3600_000);
       const scheduledRow = {
@@ -502,59 +499,59 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
         status: "SCHEDULED",
         scheduledAt: pastDate,
       };
-      prisma.post.findMany.mock.mockImplementation(async () => [scheduledRow]);
+      prisma.post.findMany.mockImplementation(async () => [scheduledRow]);
 
       const posts = await repo.findReadyForPublishing();
 
-      assert.equal(posts.length, 1);
-      assert.equal(posts[0]?.status.value, "SCHEDULED");
+      expect(posts.length).toBe(1);
+      expect(posts[0]?.status.value).toBe("SCHEDULED");
     });
 
     it("passes limit to Prisma take", async () => {
-      prisma.post.findMany.mock.mockImplementation(async () => []);
+      prisma.post.findMany.mockImplementation(async () => []);
 
       await repo.findReadyForPublishing(50);
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { take: number } | undefined;
-      assert.equal(args?.take, 50);
+      const args = callRecord?.[0] as { take: number } | undefined;
+      expect(args?.take).toBe(50);
     });
 
     it("uses default limit of 100 when not specified", async () => {
-      prisma.post.findMany.mock.mockImplementation(async () => []);
+      prisma.post.findMany.mockImplementation(async () => []);
 
       await repo.findReadyForPublishing();
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { take: number } | undefined;
-      assert.equal(args?.take, 100);
+      const args = callRecord?.[0] as { take: number } | undefined;
+      expect(args?.take).toBe(100);
     });
 
     it("filters by SCHEDULED status and lte scheduledAt", async () => {
-      prisma.post.findMany.mock.mockImplementation(async () => []);
+      prisma.post.findMany.mockImplementation(async () => []);
 
       await repo.findReadyForPublishing();
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as
+      const args = callRecord?.[0] as
         | {
             where: { status: string; scheduledAt: { lte: Date }; deletedAt: unknown };
           }
         | undefined;
-      assert.equal(args?.where.status, "SCHEDULED");
-      assert.ok(args?.where.scheduledAt.lte instanceof Date);
-      assert.deepEqual(args?.where.deletedAt, null);
+      expect(args?.where.status).toBe("SCHEDULED");
+      expect(args?.where.scheduledAt.lte instanceof Date).toBeTruthy();
+      expect(args?.where.deletedAt).toEqual(null);
     });
   });
 
   // ── findWithFilters ─────────────────────────────────────────────────────────
 
-  describe("findWithFilters", { concurrency: 1 }, () => {
+  describe("findWithFilters", () => {
     it("returns paginated result with no filters (base deletedAt: null)", async () => {
       const result = await repo.findWithFilters({});
 
-      assert.equal(result.items.length, 1);
-      assert.equal(result.total, 1);
+      expect(result.items.length).toBe(1);
+      expect(result.total).toBe(1);
     });
 
     it("applies projectId filter", async () => {
@@ -562,16 +559,16 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
       await repo.findWithFilters({ projectId });
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { projectId: string } } | undefined;
-      assert.equal(args?.where.projectId, PROJECT_ID);
+      const args = callRecord?.[0] as { where: { projectId: string } } | undefined;
+      expect(args?.where.projectId).toBe(PROJECT_ID);
     });
 
     it("applies status filter (array)", async () => {
       await repo.findWithFilters({ status: [PUBLISH_STATUS.DRAFT, PUBLISH_STATUS.PUBLISHED] });
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { status: { in: string[] } } } | undefined;
-      assert.deepEqual(args?.where.status.in, ["DRAFT", "PUBLISHED"]);
+      const args = callRecord?.[0] as { where: { status: { in: string[] } } } | undefined;
+      expect(args?.where.status.in).toEqual(["DRAFT", "PUBLISHED"]);
     });
 
     it("applies date range filters for scheduledBefore and scheduledAfter", async () => {
@@ -580,13 +577,13 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
       await repo.findWithFilters({ scheduledBefore: before, scheduledAfter: after });
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as
+      const args = callRecord?.[0] as
         | {
             where: { scheduledAt: { lte: Date; gte: Date } };
           }
         | undefined;
-      assert.deepEqual(args?.where.scheduledAt.lte, before);
-      assert.deepEqual(args?.where.scheduledAt.gte, after);
+      expect(args?.where.scheduledAt.lte).toEqual(before);
+      expect(args?.where.scheduledAt.gte).toEqual(after);
     });
 
     it("applies date range filters for createdBefore and createdAfter", async () => {
@@ -595,176 +592,174 @@ describe("PrismaPostRepository", { concurrency: 1 }, () => {
       await repo.findWithFilters({ createdBefore: before, createdAfter: after });
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as
+      const args = callRecord?.[0] as
         | {
             where: { createdAt: { lte: Date; gte: Date } };
           }
         | undefined;
-      assert.deepEqual(args?.where.createdAt.lte, before);
-      assert.deepEqual(args?.where.createdAt.gte, after);
+      expect(args?.where.createdAt.lte).toEqual(before);
+      expect(args?.where.createdAt.gte).toEqual(after);
     });
 
     it("applies hasMedia: true filter using some: {}", async () => {
       await repo.findWithFilters({ hasMedia: true });
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { media: unknown } } | undefined;
-      assert.deepEqual(args?.where.media, { some: {} });
+      const args = callRecord?.[0] as { where: { media: unknown } } | undefined;
+      expect(args?.where.media).toEqual({ some: {} });
     });
 
     it("applies hasMedia: false filter using none: {}", async () => {
       await repo.findWithFilters({ hasMedia: false });
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { media: unknown } } | undefined;
-      assert.deepEqual(args?.where.media, { none: {} });
+      const args = callRecord?.[0] as { where: { media: unknown } } | undefined;
+      expect(args?.where.media).toEqual({ none: {} });
     });
 
     it("applies searchText filter on contents body and title", async () => {
       await repo.findWithFilters({ searchText: "hello" });
 
       const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: { OR: unknown[] } } | undefined;
-      assert.ok(Array.isArray(args?.where.OR));
-      assert.equal(args?.where.OR.length, 2);
+      const args = callRecord?.[0] as { where: { OR: unknown[] } } | undefined;
+      expect(Array.isArray(args?.where.OR)).toBeTruthy();
+      expect(args?.where.OR.length).toBe(2);
     });
   });
 
   // ── countByProjectId ────────────────────────────────────────────────────────
 
-  describe("countByProjectId", { concurrency: 1 }, () => {
+  describe("countByProjectId", () => {
     it("returns count of non-deleted posts for a project", async () => {
-      prisma.post.count.mock.mockImplementation(async () => 7);
+      prisma.post.count.mockImplementation(async () => 7);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       const count = await repo.countByProjectId(projectId);
 
-      assert.equal(count, 7);
+      expect(count).toBe(7);
       const callRecord = prisma.post.count.mock.calls[0];
-      const args = callRecord?.arguments[0] as
+      const args = callRecord?.[0] as
         | {
             where: { projectId: string; deletedAt: unknown };
           }
         | undefined;
-      assert.equal(args?.where.projectId, PROJECT_ID);
-      assert.deepEqual(args?.where.deletedAt, null);
+      expect(args?.where.projectId).toBe(PROJECT_ID);
+      expect(args?.where.deletedAt).toEqual(null);
     });
 
     it("returns 0 when project has no posts", async () => {
-      prisma.post.count.mock.mockImplementation(async () => 0);
+      prisma.post.count.mockImplementation(async () => 0);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       const count = await repo.countByProjectId(projectId);
-      assert.equal(count, 0);
+      expect(count).toBe(0);
     });
   });
 
   // ── countByStatus ───────────────────────────────────────────────────────────
 
-  describe("countByStatus", { concurrency: 1 }, () => {
+  describe("countByStatus", () => {
     it("counts posts for a specific project and status", async () => {
-      prisma.post.count.mock.mockImplementation(async () => 3);
+      prisma.post.count.mockImplementation(async () => 3);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       const count = await repo.countByStatus(projectId, PUBLISH_STATUS.DRAFT);
 
-      assert.equal(count, 3);
+      expect(count).toBe(3);
       const callRecord = prisma.post.count.mock.calls[0];
-      const args = callRecord?.arguments[0] as
+      const args = callRecord?.[0] as
         | {
             where: { projectId: string; status: string; deletedAt: unknown };
           }
         | undefined;
-      assert.equal(args?.where.projectId, PROJECT_ID);
-      assert.equal(args?.where.status, "DRAFT");
-      assert.deepEqual(args?.where.deletedAt, null);
+      expect(args?.where.projectId).toBe(PROJECT_ID);
+      expect(args?.where.status).toBe("DRAFT");
+      expect(args?.where.deletedAt).toEqual(null);
     });
 
     it("returns 0 when no posts match status", async () => {
-      prisma.post.count.mock.mockImplementation(async () => 0);
+      prisma.post.count.mockImplementation(async () => 0);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       const count = await repo.countByStatus(projectId, PUBLISH_STATUS.PUBLISHED);
-      assert.equal(count, 0);
+      expect(count).toBe(0);
     });
   });
 
   // ── getProjectStats ─────────────────────────────────────────────────────────
 
-  describe("getProjectStats", { concurrency: 1 }, () => {
+  describe("getProjectStats", () => {
     it("returns correct stats object with all fields", async () => {
       // Simulate 5 sequential count calls: total, drafts, scheduled, published, failed
       let callCount = 0;
       const counts = [10, 5, 2, 2, 1];
-      prisma.post.count.mock.mockImplementation(async () => counts[callCount++] ?? 0);
+      prisma.post.count.mockImplementation(async () => counts[callCount++] ?? 0);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       const stats = await repo.getProjectStats(projectId);
 
-      assert.equal(stats.total, 10);
-      assert.equal(stats.drafts, 5);
-      assert.equal(stats.scheduled, 2);
-      assert.equal(stats.published, 2);
-      assert.equal(stats.failed, 1);
+      expect(stats.total).toBe(10);
+      expect(stats.drafts).toBe(5);
+      expect(stats.scheduled).toBe(2);
+      expect(stats.published).toBe(2);
+      expect(stats.failed).toBe(1);
     });
 
     it("makes 5 count queries (total + 4 statuses)", async () => {
-      prisma.post.count.mock.mockImplementation(async () => 0);
+      prisma.post.count.mockImplementation(async () => 0);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       await repo.getProjectStats(projectId);
 
-      assert.equal(prisma.post.count.mock.calls.length, 5);
+      expect(prisma.post.count.mock.calls.length).toBe(5);
     });
 
     it("all queries include deletedAt: null and projectId filters", async () => {
-      prisma.post.count.mock.mockImplementation(async () => 0);
+      prisma.post.count.mockImplementation(async () => 0);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       await repo.getProjectStats(projectId);
 
       for (const call of prisma.post.count.mock.calls) {
-        const args = call?.arguments[0] as
-          | { where: { projectId: string; deletedAt: unknown } }
-          | undefined;
-        assert.equal(args?.where.projectId, PROJECT_ID);
-        assert.deepEqual(args?.where.deletedAt, null);
+        const args = call?.[0] as { where: { projectId: string; deletedAt: unknown } } | undefined;
+        expect(args?.where.projectId).toBe(PROJECT_ID);
+        expect(args?.where.deletedAt).toEqual(null);
       }
     });
   });
 
   // ── bulkUpdateStatus ────────────────────────────────────────────────────────
 
-  describe("bulkUpdateStatus", { concurrency: 1 }, () => {
+  describe("bulkUpdateStatus", () => {
     it("calls updateMany with correct ids and status, returns ok", async () => {
       const postIds = [PostId.fromStringUnsafe(POST_ID), PostId.fromStringUnsafe(POST_ID_2)];
 
       const result = await repo.bulkUpdateStatus(postIds, PUBLISH_STATUS.PUBLISHED);
 
-      assert.ok(result.ok);
-      assert.equal(prisma.post.updateMany.mock.calls.length, 1);
+      expect(result.ok).toBeTruthy();
+      expect(prisma.post.updateMany.mock.calls.length).toBe(1);
 
       const callRecord = prisma.post.updateMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as
+      const args = callRecord?.[0] as
         | {
             where: { id: { in: string[] }; deletedAt: unknown };
             data: { status: string };
           }
         | undefined;
-      assert.deepEqual(args?.where.id.in, [POST_ID, POST_ID_2]);
-      assert.deepEqual(args?.where.deletedAt, null);
-      assert.equal(args?.data.status, "PUBLISHED");
+      expect(args?.where.id.in).toEqual([POST_ID, POST_ID_2]);
+      expect(args?.where.deletedAt).toEqual(null);
+      expect(args?.data.status).toBe("PUBLISHED");
     });
 
     it("returns ok with empty array (no-op)", async () => {
       const result = await repo.bulkUpdateStatus([], PUBLISH_STATUS.DRAFT);
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
     });
 
     it("returns err when updateMany throws", async () => {
-      prisma.post.updateMany.mock.mockImplementation(async () => {
+      prisma.post.updateMany.mockImplementation(async () => {
         throw new Error("Bulk update failed");
       });
 
       const postIds = [PostId.fromStringUnsafe(POST_ID)];
       const result = await repo.bulkUpdateStatus(postIds, PUBLISH_STATUS.FAILED);
 
-      assert.ok(!result.ok);
-      assert.match(result.error.message, /Bulk update failed/);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Bulk update failed/);
     });
   });
 });

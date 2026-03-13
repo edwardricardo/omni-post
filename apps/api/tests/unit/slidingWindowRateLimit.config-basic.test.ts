@@ -4,8 +4,7 @@
  * Window Info, IP Extraction, User Agent Tracking
  */
 
-import { describe, it, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, afterAll, expect } from "vitest";
 import {
   SlidingWindowRateLimit,
   SlidingWindowConfigs,
@@ -18,7 +17,7 @@ import {
 } from "./slidingWindowRateLimit.test-helpers.js";
 
 // Cleanup all rate limiter intervals after all tests
-after(() => {
+afterAll(() => {
   limiterInstances.forEach((limiter) => {
     try {
       limiter.destroy();
@@ -40,10 +39,7 @@ describe("SlidingWindowRateLimit - Constructor & Configuration", () => {
     const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, config);
     limiterInstances.push(limiter);
 
-    assert.ok(
-      limiter !== null && limiter !== undefined,
-      "SlidingWindowRateLimit instance created successfully"
-    );
+    expect(limiter !== null && limiter !== undefined).toBeTruthy();
   });
 
   it("Constructor with custom configuration", () => {
@@ -59,17 +55,13 @@ describe("SlidingWindowRateLimit - Constructor & Configuration", () => {
     const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, config);
     limiterInstances.push(limiter);
 
-    assert.ok(limiter !== null, "Constructor accepts custom configuration");
+    expect(limiter !== null).toBeTruthy();
   });
 
   it("Predefined configurations exist", () => {
-    assert.strictEqual(SlidingWindowConfigs.AUTH.maxRequests, 5, "AUTH config has 5 req limit");
-    assert.strictEqual(SlidingWindowConfigs.API.windowMs, 60000, "API config has 60s window");
-    assert.strictEqual(
-      SlidingWindowConfigs.HEALTH.maxRequests,
-      1000,
-      "HEALTH config has 1000 req limit"
-    );
+    expect(SlidingWindowConfigs.AUTH.maxRequests).toBe(5);
+    expect(SlidingWindowConfigs.API.windowMs).toBe(60000);
+    expect(SlidingWindowConfigs.HEALTH.maxRequests).toBe(1000);
   });
 });
 
@@ -90,8 +82,8 @@ describe("SlidingWindowRateLimit - Basic Rate Limiting", () => {
     const req = createMockRequest("/api/test");
     const result = await limiter.checkRateLimit(req);
 
-    assert.strictEqual(result.allowed, true, "First request is allowed");
-    assert.ok(result.remaining >= 0, "Remaining count is non-negative");
+    expect(result.allowed).toBe(true);
+    expect(result.remaining >= 0).toBeTruthy();
   });
 
   it("Requests within limit are allowed", async () => {
@@ -111,7 +103,7 @@ describe("SlidingWindowRateLimit - Basic Rate Limiting", () => {
       lastResult = await limiter.checkRateLimit(req);
     }
 
-    assert.strictEqual(lastResult!.allowed, true, "5th request within limit of 5 is allowed");
+    expect(lastResult!.allowed).toBe(true);
   });
 
   it("Request exceeding limit is rejected", async () => {
@@ -133,8 +125,8 @@ describe("SlidingWindowRateLimit - Basic Rate Limiting", () => {
 
     const lastResult = results[results.length - 1];
 
-    assert.strictEqual(lastResult.allowed, false, "Request exceeding limit is rejected");
-    assert.strictEqual(lastResult.remaining, 0, "Remaining is 0 when rate limited");
+    expect(lastResult.allowed).toBe(false);
+    expect(lastResult.remaining).toBe(0);
   });
 });
 
@@ -155,8 +147,8 @@ describe("SlidingWindowRateLimit - Window Info", () => {
     const req = createMockRequest("/api/test");
     const result = await limiter.checkRateLimit(req);
 
-    assert.ok(result.windowInfo !== undefined, "Result includes windowInfo");
-    assert.ok(result.windowInfo.requestsInWindow >= 0, "Window info includes request count");
+    expect(result.windowInfo !== undefined).toBeTruthy();
+    expect(result.windowInfo.requestsInWindow >= 0).toBeTruthy();
   });
 
   it("Window info includes timestamps", async () => {
@@ -171,14 +163,8 @@ describe("SlidingWindowRateLimit - Window Info", () => {
     const req = createMockRequest("/api/test");
     const result = await limiter.checkRateLimit(req);
 
-    assert.ok(
-      result.windowInfo.oldestRequest !== undefined,
-      "Window info includes oldest request timestamp"
-    );
-    assert.ok(
-      result.windowInfo.newestRequest !== undefined,
-      "Window info includes newest request timestamp"
-    );
+    expect(result.windowInfo.oldestRequest !== undefined).toBeTruthy();
+    expect(result.windowInfo.newestRequest !== undefined).toBeTruthy();
   });
 });
 
@@ -202,7 +188,7 @@ describe("SlidingWindowRateLimit - IP Extraction", () => {
 
     const result = await limiter.checkRateLimit(req);
 
-    assert.ok(result !== undefined, "Processes request with X-Forwarded-For header");
+    expect(result !== undefined).toBeTruthy();
   });
 
   it("Extract IP from X-Real-IP", async () => {
@@ -220,7 +206,7 @@ describe("SlidingWindowRateLimit - IP Extraction", () => {
 
     const result = await limiter.checkRateLimit(req);
 
-    assert.ok(result !== undefined, "Processes request with X-Real-IP header");
+    expect(result !== undefined).toBeTruthy();
   });
 
   it("Extract IP from CF-Connecting-IP (Cloudflare)", async () => {
@@ -238,7 +224,7 @@ describe("SlidingWindowRateLimit - IP Extraction", () => {
 
     const result = await limiter.checkRateLimit(req);
 
-    assert.ok(result !== undefined, "Processes request with CF-Connecting-IP header (Cloudflare)");
+    expect(result !== undefined).toBeTruthy();
   });
 });
 
@@ -263,11 +249,7 @@ describe("SlidingWindowRateLimit - User Agent Tracking", () => {
 
     const result = await limiter.checkRateLimit(req);
 
-    assert.strictEqual(
-      result.allowed,
-      true,
-      "Request with user agent tracking enabled is processed"
-    );
+    expect(result.allowed).toBe(true);
   });
 
   it("User agent fingerprinting disabled", async () => {
@@ -286,6 +268,6 @@ describe("SlidingWindowRateLimit - User Agent Tracking", () => {
 
     const result = await limiter.checkRateLimit(req);
 
-    assert.strictEqual(result.allowed, true, "Request without user agent tracking is processed");
+    expect(result.allowed).toBe(true);
   });
 });

@@ -6,10 +6,7 @@
  * Tier 0: No database required.
  */
 
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaProjectRepository } from "../../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { ProjectId, AccountId } from "../../../src/domain/index.js";
 
@@ -32,52 +29,52 @@ function baseRow() {
   };
 }
 
-function makeMockPrisma(t: TestContext) {
+function makeMockPrisma() {
   return {
     project: {
-      findFirst: t.mock.fn(async () => baseRow()),
-      findMany: t.mock.fn(async () => [baseRow()]),
-      upsert: t.mock.fn(async () => baseRow()),
-      update: t.mock.fn(async () => baseRow()),
-      count: t.mock.fn(async () => 1),
-      delete: t.mock.fn(async () => baseRow()),
+      findFirst: vi.fn(async () => baseRow()),
+      findMany: vi.fn(async () => [baseRow()]),
+      upsert: vi.fn(async () => baseRow()),
+      update: vi.fn(async () => baseRow()),
+      count: vi.fn(async () => 1),
+      delete: vi.fn(async () => baseRow()),
     },
     post: {
-      findMany: t.mock.fn(async () => [] as { id: string }[]),
-      deleteMany: t.mock.fn(async () => ({ count: 0 })),
+      findMany: vi.fn(async () => [] as { id: string }[]),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
     },
     publishLog: {
-      deleteMany: t.mock.fn(async () => ({ count: 0 })),
-      findMany: t.mock.fn(async () => []),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      findMany: vi.fn(async () => []),
     },
-    analytics: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    postMedia: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    postContent: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    contentVersion: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    publishingQueue: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    tweet: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    thread: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    channel: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    providerConnection: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    contentTemplate: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    instagramStoryProject: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    videoProcessingJob: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    instagramAnalytics: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    schedulingRule: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    webhookEvent: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    webhookSubscription: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
-    template: { deleteMany: t.mock.fn(async () => ({ count: 0 })) },
+    analytics: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    postMedia: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    postContent: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    contentVersion: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    publishingQueue: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    tweet: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    thread: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    channel: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    providerConnection: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    contentTemplate: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    instagramStoryProject: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    videoProcessingJob: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    instagramAnalytics: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    schedulingRule: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    webhookEvent: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    webhookSubscription: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    template: { deleteMany: vi.fn(async () => ({ count: 0 })) },
   };
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
-describe("PrismaProjectRepository", { concurrency: 1 }, () => {
+describe("PrismaProjectRepository", () => {
   let prisma: ReturnType<typeof makeMockPrisma>;
   let repo: PrismaProjectRepository;
 
-  beforeEach((t) => {
-    prisma = makeMockPrisma(t);
+  beforeEach(() => {
+    prisma = makeMockPrisma();
     repo = new PrismaProjectRepository(prisma as never);
   });
 
@@ -86,20 +83,20 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const result = await repo.findById(id);
 
-      assert.ok(result.ok);
-      assert.equal(result.value.name, "My Project");
-      assert.equal(result.value.locale, "es");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.name).toBe("My Project");
+      expect(result.value.locale).toBe("es");
       // Uses findFirst (not findUnique) to allow deletedAt: null filter
-      assert.equal(prisma.project.findFirst.mock.calls.length, 1);
+      expect(prisma.project.findFirst.mock.calls.length).toBe(1);
     });
 
     it("returns err(EntityNotFoundError) when row is null", async () => {
-      prisma.project.findFirst.mock.mockImplementation(async () => null);
+      prisma.project.findFirst.mockImplementation(async () => null);
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const result = await repo.findById(id);
 
-      assert.ok(!result.ok);
-      assert.match(result.error.message, /Project/);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Project/);
     });
   });
 
@@ -108,17 +105,17 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
       const accountId = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
       const projects = await repo.findByAccountId(accountId);
 
-      assert.equal(projects.length, 1);
-      assert.equal(projects[0]?.name, "My Project");
-      assert.equal(prisma.project.findMany.mock.calls.length, 1);
+      expect(projects.length).toBe(1);
+      expect(projects[0]?.name).toBe("My Project");
+      expect(prisma.project.findMany.mock.calls.length).toBe(1);
     });
 
     it("returns empty array when no projects exist", async () => {
-      prisma.project.findMany.mock.mockImplementation(async () => []);
+      prisma.project.findMany.mockImplementation(async () => []);
       const accountId = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
       const projects = await repo.findByAccountId(accountId);
 
-      assert.equal(projects.length, 0);
+      expect(projects.length).toBe(0);
     });
   });
 
@@ -126,25 +123,25 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
     it("calls upsert and returns ok", async () => {
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const findResult = await repo.findById(id);
-      assert.ok(findResult.ok);
+      expect(findResult.ok).toBeTruthy();
 
       const saveResult = await repo.save(findResult.value);
-      assert.ok(saveResult.ok);
-      assert.equal(prisma.project.upsert.mock.calls.length, 1);
+      expect(saveResult.ok).toBeTruthy();
+      expect(prisma.project.upsert.mock.calls.length).toBe(1);
     });
 
     it("returns err when prisma throws", async () => {
-      prisma.project.upsert.mock.mockImplementation(async () => {
+      prisma.project.upsert.mockImplementation(async () => {
         throw new Error("Unique constraint violation");
       });
 
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const findResult = await repo.findById(id);
-      assert.ok(findResult.ok);
+      expect(findResult.ok).toBeTruthy();
 
       const saveResult = await repo.save(findResult.value);
-      assert.ok(!saveResult.ok);
-      assert.match(saveResult.error.message, /Unique constraint/);
+      expect(saveResult.ok).toBeFalsy();
+      expect(saveResult.error.message).toMatch(/Unique constraint/);
     });
   });
 
@@ -152,14 +149,14 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
     it("returns true when count > 0", async () => {
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const result = await repo.exists(id);
-      assert.equal(result, true);
+      expect(result).toBe(true);
     });
 
     it("returns false when count is 0", async () => {
-      prisma.project.count.mock.mockImplementation(async () => 0);
+      prisma.project.count.mockImplementation(async () => 0);
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const result = await repo.exists(id);
-      assert.equal(result, false);
+      expect(result).toBe(false);
     });
   });
 
@@ -168,24 +165,24 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const result = await repo.delete(id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       // Soft delete: update, NOT delete
-      assert.equal(prisma.project.update.mock.calls.length, 1);
-      assert.equal(prisma.project.delete.mock.calls.length, 0);
+      expect(prisma.project.update.mock.calls.length).toBe(1);
+      expect(prisma.project.delete.mock.calls.length).toBe(0);
 
       const callRecord = prisma.project.update.mock.calls[0];
-      const args = callRecord?.arguments[0] as { data: { deletedAt: unknown } } | undefined;
-      assert.ok(args?.data.deletedAt instanceof Date);
+      const args = callRecord?.[0] as { data: { deletedAt: unknown } } | undefined;
+      expect(args?.data.deletedAt instanceof Date).toBeTruthy();
     });
 
     it("returns err when project does not exist", async () => {
-      prisma.project.count.mock.mockImplementation(async () => 0);
+      prisma.project.count.mockImplementation(async () => 0);
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const result = await repo.delete(id);
 
-      assert.ok(!result.ok);
-      assert.match(result.error.message, /Project/);
-      assert.equal(prisma.project.update.mock.calls.length, 0);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Project/);
+      expect(prisma.project.update.mock.calls.length).toBe(0);
     });
   });
 
@@ -194,19 +191,19 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const result = await repo.hardDelete(id);
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       // Hard delete: calls the actual DB delete
-      assert.equal(prisma.project.delete.mock.calls.length, 1);
+      expect(prisma.project.delete.mock.calls.length).toBe(1);
     });
 
     it("returns err(EntityNotFoundError) when project is not found at all", async () => {
-      prisma.project.findFirst.mock.mockImplementation(async () => null);
+      prisma.project.findFirst.mockImplementation(async () => null);
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const result = await repo.hardDelete(id);
 
-      assert.ok(!result.ok);
-      assert.match(result.error.message, /Project/);
-      assert.equal(prisma.project.delete.mock.calls.length, 0);
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Project/);
+      expect(prisma.project.delete.mock.calls.length).toBe(0);
     });
   });
 
@@ -215,17 +212,17 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
       const accountId = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
       const project = await repo.findByName(accountId, "My Project");
 
-      assert.ok(project !== null);
-      assert.equal(project?.name, "My Project");
-      assert.equal(prisma.project.findFirst.mock.calls.length, 1);
+      expect(project !== null).toBeTruthy();
+      expect(project?.name).toBe("My Project");
+      expect(prisma.project.findFirst.mock.calls.length).toBe(1);
     });
 
     it("returns null when not found", async () => {
-      prisma.project.findFirst.mock.mockImplementation(async () => null);
+      prisma.project.findFirst.mockImplementation(async () => null);
       const accountId = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
       const project = await repo.findByName(accountId, "Nonexistent");
 
-      assert.equal(project, null);
+      expect(project).toBe(null);
     });
 
     it("only searches non-deleted projects (deletedAt: null in where clause)", async () => {
@@ -233,8 +230,8 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
       await repo.findByName(accountId, "My Project");
 
       const callRecord = prisma.project.findFirst.mock.calls[0];
-      const args = callRecord?.arguments[0] as { where: Record<string, unknown> } | undefined;
-      assert.deepEqual(args?.where.deletedAt, null);
+      const args = callRecord?.[0] as { where: Record<string, unknown> } | undefined;
+      expect(args?.where.deletedAt).toEqual(null);
     });
   });
 
@@ -243,8 +240,8 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const logs = await repo.findPublishLogsByProjectId(id);
 
-      assert.equal(Array.isArray(logs), true);
-      assert.equal(prisma.publishLog.findMany.mock.calls.length, 1);
+      expect(Array.isArray(logs)).toBe(true);
+      expect(prisma.publishLog.findMany.mock.calls.length).toBe(1);
     });
 
     it("queries by post.projectId using nested filter", async () => {
@@ -252,10 +249,8 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
       await repo.findPublishLogsByProjectId(id);
 
       const callRecord = prisma.publishLog.findMany.mock.calls[0];
-      const args = callRecord?.arguments[0] as
-        | { where: { post: { projectId: string } } }
-        | undefined;
-      assert.equal(args?.where.post.projectId, "b0000000-0000-4000-8000-000000000001");
+      const args = callRecord?.[0] as { where: { post: { projectId: string } } } | undefined;
+      expect(args?.where.post.projectId).toBe("b0000000-0000-4000-8000-000000000001");
     });
   });
 
@@ -268,17 +263,17 @@ describe("PrismaProjectRepository", { concurrency: 1 }, () => {
         crisisReason: "PR disaster",
         crisisModeHistory: [{ reason: "PR disaster", startedAt: "2026-01-15T00:00:00.000Z" }],
       };
-      prisma.project.findFirst.mock.mockImplementation(async () => crisisRow);
-      prisma.project.upsert.mock.mockImplementation(async () => crisisRow);
+      prisma.project.findFirst.mockImplementation(async () => crisisRow);
+      prisma.project.upsert.mockImplementation(async () => crisisRow);
 
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const findResult = await repo.findById(id);
-      assert.ok(findResult.ok);
+      expect(findResult.ok).toBeTruthy();
 
       const project = findResult.value;
-      assert.equal(project.isInCrisisMode, true);
-      assert.equal(project.crisisReason, "PR disaster");
-      assert.equal(project.crisisModeHistory.length, 1);
+      expect(project.isInCrisisMode).toBe(true);
+      expect(project.crisisReason).toBe("PR disaster");
+      expect(project.crisisModeHistory.length).toBe(1);
     });
   });
 });

@@ -5,9 +5,7 @@
  * Tests for all domain entities.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, expect } from "vitest";
 import {
   Channel,
   Account,
@@ -32,11 +30,11 @@ describe("Domain Entities", () => {
         credentials: { accessToken: "token123" },
       });
 
-      assert.ok(result.ok, "Channel should be created");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.handle, "@testhandle");
-        assert.ok(result.value.provider.isX());
-        assert.ok(result.value.isConnected, "New channel should be connected");
+        expect(result.value.handle).toBe("@testhandle");
+        expect(result.value.provider.isX()).toBeTruthy();
+        expect(result.value.isConnected).toBeTruthy();
       }
     });
 
@@ -48,7 +46,7 @@ describe("Domain Entities", () => {
         credentials: { accessToken: "token123" },
       });
 
-      assert.ok(!result.ok, "Should reject empty handle");
+      expect(result.ok).toBeFalsy();
     });
 
     it("should reject missing access token", () => {
@@ -59,7 +57,7 @@ describe("Domain Entities", () => {
         credentials: { accessToken: "" },
       });
 
-      assert.ok(!result.ok, "Should reject empty access token");
+      expect(result.ok).toBeFalsy();
     });
 
     it("should accept Provider object", () => {
@@ -70,9 +68,9 @@ describe("Domain Entities", () => {
         credentials: { accessToken: "token" },
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(result.value.provider.isInstagram());
+        expect(result.value.provider.isInstagram()).toBeTruthy();
       }
     });
 
@@ -84,15 +82,15 @@ describe("Domain Entities", () => {
         credentials: { accessToken: "old_token" },
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const channel = result.value;
         const updateResult = channel.updateCredentials({
           accessToken: "new_token",
           refreshToken: "refresh",
         });
-        assert.ok(updateResult.ok);
-        assert.equal(channel.credentials.accessToken, "new_token");
+        expect(updateResult.ok).toBeTruthy();
+        expect(channel.credentials.accessToken).toBe("new_token");
       }
     });
 
@@ -104,16 +102,16 @@ describe("Domain Entities", () => {
         credentials: { accessToken: "token" },
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const channel = result.value;
         channel.recordError("API error");
-        assert.equal(channel.errorCount, 1);
+        expect(channel.errorCount).toBe(1);
         channel.recordError("Another error");
-        assert.equal(channel.errorCount, 2);
+        expect(channel.errorCount).toBe(2);
         channel.recordError("Third error");
-        assert.equal(channel.errorCount, 3);
-        assert.ok(channel.hasError, "Should be in error status after 3 errors");
+        expect(channel.errorCount).toBe(3);
+        expect(channel.hasError).toBeTruthy();
       }
     });
 
@@ -125,15 +123,15 @@ describe("Domain Entities", () => {
         credentials: { accessToken: "token" },
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const channel = result.value;
         channel.recordError("Error 1");
         channel.recordError("Error 2");
         channel.recordError("Error 3");
         channel.resetErrors();
-        assert.equal(channel.errorCount, 0);
-        assert.ok(channel.isConnected, "Should be connected after reset");
+        expect(channel.errorCount).toBe(0);
+        expect(channel.isConnected).toBeTruthy();
       }
     });
   });
@@ -145,12 +143,12 @@ describe("Domain Entities", () => {
         name: "Test User",
       });
 
-      assert.ok(result.ok, "Account should be created");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.email, "test@example.com");
-        assert.equal(result.value.name, "Test User");
-        assert.equal(result.value.subscription, SUBSCRIPTION_TIER.BASIC);
-        assert.ok(result.value.isOnTrial);
+        expect(result.value.email).toBe("test@example.com");
+        expect(result.value.name).toBe("Test User");
+        expect(result.value.subscription).toBe(SUBSCRIPTION_TIER.BASIC);
+        expect(result.value.isOnTrial).toBeTruthy();
       }
     });
 
@@ -160,7 +158,7 @@ describe("Domain Entities", () => {
         name: "Test User",
       });
 
-      assert.ok(!result.ok, "Should reject invalid email");
+      expect(result.ok).toBeFalsy();
     });
 
     it("should reject empty name", () => {
@@ -169,7 +167,7 @@ describe("Domain Entities", () => {
         name: "",
       });
 
-      assert.ok(!result.ok, "Should reject empty name");
+      expect(result.ok).toBeFalsy();
     });
 
     it("should normalize email to lowercase", () => {
@@ -178,9 +176,9 @@ describe("Domain Entities", () => {
         name: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.email, "test@example.com");
+        expect(result.value.email).toBe("test@example.com");
       }
     });
 
@@ -190,13 +188,13 @@ describe("Domain Entities", () => {
         name: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const account = result.value;
         const upgradeResult = account.upgradeTo(SUBSCRIPTION_TIER.PRO);
-        assert.ok(upgradeResult.ok, "Should upgrade");
-        assert.equal(account.subscription, SUBSCRIPTION_TIER.PRO);
-        assert.ok(!account.isOnTrial, "Should no longer be on trial");
+        expect(upgradeResult.ok).toBeTruthy();
+        expect(account.subscription).toBe(SUBSCRIPTION_TIER.PRO);
+        expect(account.isOnTrial).toBeFalsy();
       }
     });
 
@@ -207,11 +205,11 @@ describe("Domain Entities", () => {
         subscription: SUBSCRIPTION_TIER.PRO,
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const account = result.value;
         const upgradeResult = account.upgradeTo(SUBSCRIPTION_TIER.BASIC);
-        assert.ok(!upgradeResult.ok, "Should not allow downgrade via upgrade");
+        expect(upgradeResult.ok).toBeFalsy();
       }
     });
 
@@ -222,10 +220,10 @@ describe("Domain Entities", () => {
         trialDays: 14,
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(result.value.trialDaysRemaining <= 14);
-        assert.ok(result.value.trialDaysRemaining >= 13);
+        expect(result.value.trialDaysRemaining <= 14).toBeTruthy();
+        expect(result.value.trialDaysRemaining >= 13).toBeTruthy();
       }
     });
 
@@ -236,13 +234,13 @@ describe("Domain Entities", () => {
         trialDays: 7,
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const account = result.value;
         const initialDays = account.trialDaysRemaining;
         const extendResult = account.extendTrial(7);
-        assert.ok(extendResult.ok, "Should extend trial");
-        assert.ok(account.trialDaysRemaining > initialDays);
+        expect(extendResult.ok).toBeTruthy();
+        expect(account.trialDaysRemaining > initialDays).toBeTruthy();
       }
     });
 
@@ -252,14 +250,14 @@ describe("Domain Entities", () => {
         name: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const account = result.value;
-        assert.ok(account.canCreateProject);
+        expect(account.canCreateProject).toBeTruthy();
         const incrementResult = account.incrementProjectCount();
-        assert.ok(incrementResult.ok, "Should increment project count successfully");
-        assert.equal(account.projectCount, 1);
-        assert.ok(!account.canCreateProject, "BASIC allows only 1 project");
+        expect(incrementResult.ok).toBeTruthy();
+        expect(account.projectCount).toBe(1);
+        expect(account.canCreateProject).toBeFalsy();
       }
     });
 
@@ -269,14 +267,14 @@ describe("Domain Entities", () => {
         name: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const account = result.value;
         // BASIC allows 1 project, fill to limit
         account.incrementProjectCount();
         // Now at limit, next increment should fail
         const overLimitResult = account.incrementProjectCount();
-        assert.ok(!overLimitResult.ok, "Should reject when at project limit");
+        expect(overLimitResult.ok).toBeFalsy();
       }
     });
 
@@ -286,14 +284,14 @@ describe("Domain Entities", () => {
         name: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const account = result.value;
         account.incrementProjectCount();
-        assert.equal(account.projectCount, 1);
+        expect(account.projectCount).toBe(1);
         account.decrementProjectCount();
-        assert.equal(account.projectCount, 0);
-        assert.ok(account.canCreateProject, "Should be able to create after decrement");
+        expect(account.projectCount).toBe(0);
+        expect(account.canCreateProject).toBeTruthy();
       }
     });
 
@@ -303,12 +301,12 @@ describe("Domain Entities", () => {
         name: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const account = result.value;
-        assert.equal(account.projectCount, 0);
+        expect(account.projectCount).toBe(0);
         account.decrementProjectCount();
-        assert.equal(account.projectCount, 0, "Count should not go below 0");
+        expect(account.projectCount).toBe(0);
       }
     });
   });
@@ -322,12 +320,12 @@ describe("Domain Entities", () => {
         name: "My Project",
       });
 
-      assert.ok(result.ok, "Project should be created");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.name, "My Project");
-        assert.equal(result.value.locale, "en");
-        assert.equal(result.value.channelCount, 0);
-        assert.equal(result.value.postCount, 0);
+        expect(result.value.name).toBe("My Project");
+        expect(result.value.locale).toBe("en");
+        expect(result.value.channelCount).toBe(0);
+        expect(result.value.postCount).toBe(0);
       }
     });
 
@@ -337,7 +335,7 @@ describe("Domain Entities", () => {
         name: "",
       });
 
-      assert.ok(!result.ok, "Should reject empty name");
+      expect(result.ok).toBeFalsy();
     });
 
     it("should reject name over 100 characters", () => {
@@ -346,7 +344,7 @@ describe("Domain Entities", () => {
         name: "A".repeat(101),
       });
 
-      assert.ok(!result.ok, "Should reject long name");
+      expect(result.ok).toBeFalsy();
     });
 
     it("should create with custom locale", () => {
@@ -356,9 +354,9 @@ describe("Domain Entities", () => {
         locale: "en",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.locale, "en");
+        expect(result.value.locale).toBe("en");
       }
     });
 
@@ -368,23 +366,23 @@ describe("Domain Entities", () => {
         name: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         const channelId = ChannelId.generate();
 
         const addResult = project.addChannel(channelId);
-        assert.ok(addResult.ok);
-        assert.equal(project.channelCount, 1);
-        assert.ok(project.hasChannel(channelId));
+        expect(addResult.ok).toBeTruthy();
+        expect(project.channelCount).toBe(1);
+        expect(project.hasChannel(channelId)).toBeTruthy();
 
         // Should not add duplicate
         const duplicateResult = project.addChannel(channelId);
-        assert.ok(!duplicateResult.ok, "Should not add duplicate");
+        expect(duplicateResult.ok).toBeFalsy();
 
         const removed = project.removeChannel(channelId);
-        assert.ok(removed);
-        assert.equal(project.channelCount, 0);
+        expect(removed).toBeTruthy();
+        expect(project.channelCount).toBe(0);
       }
     });
 
@@ -394,19 +392,19 @@ describe("Domain Entities", () => {
         name: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         const postId = PostId.generate();
 
         const addResult = project.addPost(postId);
-        assert.ok(addResult.ok);
-        assert.equal(project.postCount, 1);
-        assert.ok(project.hasPost(postId));
+        expect(addResult.ok).toBeTruthy();
+        expect(project.postCount).toBe(1);
+        expect(project.hasPost(postId)).toBeTruthy();
 
         const removed = project.removePost(postId);
-        assert.ok(removed);
-        assert.equal(project.postCount, 0);
+        expect(removed).toBeTruthy();
+        expect(project.postCount).toBe(0);
       }
     });
 
@@ -416,16 +414,16 @@ describe("Domain Entities", () => {
         name: "Original",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
 
         const nameResult = project.updateName("Updated Name");
-        assert.ok(nameResult.ok);
-        assert.equal(project.name, "Updated Name");
+        expect(nameResult.ok).toBeTruthy();
+        expect(project.name).toBe("Updated Name");
 
         project.updateDescription("A description");
-        assert.equal(project.description, "A description");
+        expect(project.description).toBe("A description");
       }
     });
 
@@ -435,7 +433,7 @@ describe("Domain Entities", () => {
         name: "Test",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         project.addChannel(ChannelId.generate());
@@ -443,9 +441,9 @@ describe("Domain Entities", () => {
         project.addPost(PostId.generate());
 
         const stats = project.stats;
-        assert.equal(stats.channelCount, 1);
-        assert.equal(stats.postCount, 2);
-        assert.equal(stats.draftCount, 2); // New posts are drafts
+        expect(stats.channelCount).toBe(1);
+        expect(stats.postCount).toBe(2);
+        expect(stats.draftCount).toBe(2); // New posts are drafts
       }
     });
   });

@@ -1,5 +1,4 @@
-import { describe, it, beforeEach, afterEach, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, beforeAll, afterAll, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { CQRSIntegration } from "../../src/cqrs/CQRSIntegration";
 import {
@@ -16,15 +15,15 @@ import {
 } from "./cqrsIntegration.test-helpers.js";
 
 let _originalConsoleLog: typeof console.log;
-before(() => {
+beforeAll(() => {
   _originalConsoleLog = console.log;
   console.log = () => {};
 });
-after(() => {
+afterAll(() => {
   console.log = _originalConsoleLog;
 });
 
-describe("CQRSIntegration - System Routes", { concurrency: 1 }, () => {
+describe("CQRSIntegration - System Routes", () => {
   let fastify: FastifyInstance;
   let integration: CQRSIntegration;
   let mockRedis: MockRedis;
@@ -62,11 +61,11 @@ describe("CQRSIntegration - System Routes", { concurrency: 1 }, () => {
       url: "/api/cqrs/health",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.status);
-    assert.ok(body.metrics);
-    assert.ok(body.handlers);
+    expect(body.status).toBeTruthy();
+    expect(body.metrics).toBeTruthy();
+    expect(body.handlers).toBeTruthy();
   });
 
   it("should include handler information in health check", async () => {
@@ -76,10 +75,10 @@ describe("CQRSIntegration - System Routes", { concurrency: 1 }, () => {
     });
 
     const body = JSON.parse(response.body);
-    assert.ok(body.handlers.commands);
-    assert.ok(body.handlers.queries);
-    assert.ok(Array.isArray(body.handlers.commands));
-    assert.ok(Array.isArray(body.handlers.queries));
+    expect(body.handlers.commands).toBeTruthy();
+    expect(body.handlers.queries).toBeTruthy();
+    expect(Array.isArray(body.handlers.commands)).toBeTruthy();
+    expect(Array.isArray(body.handlers.queries)).toBeTruthy();
   });
 
   it("should handle GET /api/cqrs/metrics successfully", async () => {
@@ -88,11 +87,11 @@ describe("CQRSIntegration - System Routes", { concurrency: 1 }, () => {
       url: "/api/cqrs/metrics",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
-    assert.ok(body.data.performance);
-    assert.ok(body.data.handlers);
+    expect(body.success).toBeTruthy();
+    expect(body.data.performance).toBeTruthy();
+    expect(body.data.handlers).toBeTruthy();
   });
 
   it("should include performance metrics", async () => {
@@ -104,10 +103,10 @@ describe("CQRSIntegration - System Routes", { concurrency: 1 }, () => {
     const body = JSON.parse(response.body);
     const metrics = body.data.performance;
 
-    assert.ok(typeof metrics.commandsExecuted === "number");
-    assert.ok(typeof metrics.queriesExecuted === "number");
-    assert.ok(typeof metrics.commandErrors === "number");
-    assert.ok(typeof metrics.queryErrors === "number");
+    expect(typeof metrics.commandsExecuted === "number").toBeTruthy();
+    expect(typeof metrics.queriesExecuted === "number").toBeTruthy();
+    expect(typeof metrics.commandErrors === "number").toBeTruthy();
+    expect(typeof metrics.queryErrors === "number").toBeTruthy();
   });
 
   it("should handle DELETE /api/cqrs/cache successfully", async () => {
@@ -116,10 +115,10 @@ describe("CQRSIntegration - System Routes", { concurrency: 1 }, () => {
       url: "/api/cqrs/cache",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
-    assert.ok(typeof body.data.clearedCount === "number");
+    expect(body.success).toBeTruthy();
+    expect(typeof body.data.clearedCount === "number").toBeTruthy();
   });
 
   it("should handle DELETE /api/cqrs/cache with pattern", async () => {
@@ -128,14 +127,14 @@ describe("CQRSIntegration - System Routes", { concurrency: 1 }, () => {
       url: "/api/cqrs/cache?pattern=posts:*",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
-    assert.strictEqual(body.data.pattern, "posts:*");
+    expect(body.success).toBeTruthy();
+    expect(body.data.pattern).toBe("posts:*");
   });
 });
 
-describe("CQRSIntegration - Error Handling", { concurrency: 1 }, () => {
+describe("CQRSIntegration - Error Handling", () => {
   let fastify: FastifyInstance;
   let integration: CQRSIntegration;
   let mockRedis: MockRedis;
@@ -180,9 +179,9 @@ describe("CQRSIntegration - Error Handling", { concurrency: 1 }, () => {
     });
 
     const data = response.json();
-    assert.ok(typeof data === "object");
+    expect(typeof data === "object").toBeTruthy();
     if (response.statusCode >= 400) {
-      assert.ok(data.error || data.validationErrors);
+      expect(data.error || data.validationErrors).toBeTruthy();
     }
   });
 
@@ -202,7 +201,7 @@ describe("CQRSIntegration - Error Handling", { concurrency: 1 }, () => {
       },
     });
 
-    assert.ok(response.statusCode >= 400);
+    expect(response.statusCode >= 400).toBeTruthy();
   });
 
   it("should handle non-existent post queries", async () => {
@@ -217,11 +216,11 @@ describe("CQRSIntegration - Error Handling", { concurrency: 1 }, () => {
       url: "/api/cqrs/posts/00000000-0000-4000-a000-000000000000",
     });
 
-    assert.strictEqual(response.statusCode, 404);
+    expect(response.statusCode).toBe(404);
   });
 });
 
-describe("CQRSIntegration - Query Caching", { concurrency: 1 }, () => {
+describe("CQRSIntegration - Query Caching", () => {
   let fastify: FastifyInstance;
   let integration: CQRSIntegration;
   let mockRedis: MockRedis;
@@ -263,11 +262,11 @@ describe("CQRSIntegration - Query Caching", { concurrency: 1 }, () => {
       url: `/api/cqrs/posts/${TEST_POST_ID}`,
     });
 
-    assert.strictEqual(response1.statusCode, 200);
-    assert.strictEqual(response2.statusCode, 200);
+    expect(response1.statusCode).toBe(200);
+    expect(response2.statusCode).toBe(200);
 
     const body2 = JSON.parse(response2.body);
-    assert.ok(body2.metadata.fromCache);
+    expect(body2.metadata.fromCache).toBeTruthy();
   });
 
   it("should generate unique cache keys for different queries", async () => {
@@ -282,11 +281,11 @@ describe("CQRSIntegration - Query Caching", { concurrency: 1 }, () => {
     });
 
     const keys = await mockRedis.keys("cqrs:query:*");
-    assert.ok(keys.length >= 2);
+    expect(keys.length >= 2).toBeTruthy();
   });
 });
 
-describe("CQRSIntegration - Shutdown", { concurrency: 1 }, () => {
+describe("CQRSIntegration - Shutdown", () => {
   let fastify: FastifyInstance;
   let mockRedis: MockRedis;
   let mockEventService: MockEventService;
@@ -335,17 +334,17 @@ describe("CQRSIntegration - Shutdown", { concurrency: 1 }, () => {
 
     const busBeforeShutdown = integration.getBus();
     const handlersBefore = busBeforeShutdown.getHandlersInfo();
-    assert.ok(handlersBefore.commands.length > 0);
+    expect(handlersBefore.commands.length > 0).toBeTruthy();
 
     await integration.shutdown();
 
     const handlersAfter = busBeforeShutdown.getHandlersInfo();
-    assert.strictEqual(handlersAfter.commands.length, 0);
-    assert.strictEqual(handlersAfter.queries.length, 0);
+    expect(handlersAfter.commands.length).toBe(0);
+    expect(handlersAfter.queries.length).toBe(0);
   });
 });
 
-describe("CQRSIntegration - Event Publishing", { concurrency: 1 }, () => {
+describe("CQRSIntegration - Event Publishing", () => {
   let fastify: FastifyInstance;
   let integration: CQRSIntegration;
   let mockRedis: MockRedis;
@@ -385,7 +384,7 @@ describe("CQRSIntegration - Event Publishing", { concurrency: 1 }, () => {
       },
     });
 
-    assert.ok(mockEventService.events.length > 0);
+    expect(mockEventService.events.length > 0).toBeTruthy();
   });
 
   it("should not publish events if command fails", async () => {
@@ -423,7 +422,7 @@ describe("CQRSIntegration - Event Publishing", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(mockEventService2.events.length, 0);
+    expect(mockEventService2.events.length).toBe(0);
     await fastify2.close();
   });
 });

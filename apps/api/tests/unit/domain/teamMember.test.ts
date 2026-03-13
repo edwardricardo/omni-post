@@ -4,9 +4,7 @@
  * @layer domain
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, expect } from "vitest";
 import { TeamMemberId } from "../../../src/domain/value-objects/TeamMemberId.js";
 import { TeamRole, TEAM_ROLE } from "../../../src/domain/value-objects/TeamRole.js";
 import { TeamMemberEntity } from "../../../src/domain/entities/TeamMember.js";
@@ -14,44 +12,44 @@ import { TeamMemberEntity } from "../../../src/domain/entities/TeamMember.js";
 describe("TeamMemberId", () => {
   it("generates a valid UUID", () => {
     const id = TeamMemberId.generate();
-    assert.ok(id.value.length > 0, "Generated ID should have a value");
+    expect(id.value.length > 0).toBeTruthy();
   });
 
   it("creates from valid UUID string", () => {
     const uuid = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
     const result = TeamMemberId.fromString(uuid);
-    assert.ok(result.ok, "Should accept valid UUID");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.value, uuid);
+      expect(result.value.value).toBe(uuid);
     }
   });
 
   it("rejects empty string", () => {
     const result = TeamMemberId.fromString("");
-    assert.ok(!result.ok, "Should reject empty string");
+    expect(result.ok).toBeFalsy();
   });
 
   it("rejects invalid UUID format", () => {
     const result = TeamMemberId.fromString("not-a-uuid");
-    assert.ok(!result.ok, "Should reject invalid UUID");
+    expect(result.ok).toBeFalsy();
   });
 
   it("creates from string unsafe without validation", () => {
     const id = TeamMemberId.fromStringUnsafe("any-string-value");
-    assert.equal(id.value, "any-string-value");
+    expect(id.value).toBe("any-string-value");
   });
 
   it("supports equality check", () => {
     const uuid = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
     const id1 = TeamMemberId.fromStringUnsafe(uuid);
     const id2 = TeamMemberId.fromStringUnsafe(uuid);
-    assert.ok(id1.equals(id2), "Same UUID should be equal");
+    expect(id1.equals(id2)).toBeTruthy();
   });
 
   it("detects inequality", () => {
     const id1 = TeamMemberId.generate();
     const id2 = TeamMemberId.generate();
-    assert.ok(!id1.equals(id2), "Different UUIDs should not be equal");
+    expect(id1.equals(id2)).toBeFalsy();
   });
 });
 
@@ -59,116 +57,116 @@ describe("TeamRole", () => {
   describe("fromString", () => {
     it("creates OWNER from string", () => {
       const result = TeamRole.fromString("OWNER");
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.value, "OWNER");
-        assert.ok(result.value.isOwner());
+        expect(result.value.value).toBe("OWNER");
+        expect(result.value.isOwner()).toBeTruthy();
       }
     });
 
     it("creates role from lowercase string", () => {
       const result = TeamRole.fromString("manager");
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.value, "MANAGER");
+        expect(result.value.value).toBe("MANAGER");
       }
     });
 
     it("rejects invalid role string", () => {
       const result = TeamRole.fromString("SUPERUSER");
-      assert.ok(!result.ok, "Should reject invalid role");
+      expect(result.ok).toBeFalsy();
     });
   });
 
   describe("factory methods", () => {
     it("creates OWNER via factory", () => {
       const role = TeamRole.owner();
-      assert.ok(role.isOwner());
-      assert.ok(!role.isManager());
+      expect(role.isOwner()).toBeTruthy();
+      expect(role.isManager()).toBeFalsy();
     });
 
     it("creates MANAGER via factory", () => {
       const role = TeamRole.manager();
-      assert.ok(role.isManager());
+      expect(role.isManager()).toBeTruthy();
     });
 
     it("creates MEMBER via factory", () => {
       const role = TeamRole.member();
-      assert.ok(role.isMember());
+      expect(role.isMember()).toBeTruthy();
     });
 
     it("creates VIEWER via factory", () => {
       const role = TeamRole.viewer();
-      assert.ok(role.isViewer());
+      expect(role.isViewer()).toBeTruthy();
     });
   });
 
   describe("permissions", () => {
     it("OWNER has all permissions", () => {
       const role = TeamRole.owner();
-      assert.ok(role.hasPermission("READ"));
-      assert.ok(role.hasPermission("WRITE"));
-      assert.ok(role.hasPermission("PUBLISH"));
-      assert.ok(role.hasPermission("APPROVE"));
-      assert.ok(role.hasPermission("MANAGE_MEMBERS"));
+      expect(role.hasPermission("READ")).toBeTruthy();
+      expect(role.hasPermission("WRITE")).toBeTruthy();
+      expect(role.hasPermission("PUBLISH")).toBeTruthy();
+      expect(role.hasPermission("APPROVE")).toBeTruthy();
+      expect(role.hasPermission("MANAGE_MEMBERS")).toBeTruthy();
     });
 
     it("VIEWER has only READ permission", () => {
       const role = TeamRole.viewer();
-      assert.ok(role.hasPermission("READ"));
-      assert.ok(!role.hasPermission("WRITE"));
-      assert.ok(!role.hasPermission("PUBLISH"));
-      assert.ok(!role.hasPermission("MANAGE_MEMBERS"));
+      expect(role.hasPermission("READ")).toBeTruthy();
+      expect(role.hasPermission("WRITE")).toBeFalsy();
+      expect(role.hasPermission("PUBLISH")).toBeFalsy();
+      expect(role.hasPermission("MANAGE_MEMBERS")).toBeFalsy();
     });
 
     it("MEMBER has READ, WRITE, PUBLISH but not MANAGE_MEMBERS", () => {
       const role = TeamRole.member();
-      assert.ok(role.hasPermission("READ"));
-      assert.ok(role.hasPermission("WRITE"));
-      assert.ok(role.hasPermission("PUBLISH"));
-      assert.ok(!role.hasPermission("MANAGE_MEMBERS"));
+      expect(role.hasPermission("READ")).toBeTruthy();
+      expect(role.hasPermission("WRITE")).toBeTruthy();
+      expect(role.hasPermission("PUBLISH")).toBeTruthy();
+      expect(role.hasPermission("MANAGE_MEMBERS")).toBeFalsy();
     });
 
     it("returns full permissions list", () => {
       const role = TeamRole.member();
       const perms = role.permissions();
-      assert.ok(perms.includes("READ"));
-      assert.ok(perms.includes("WRITE"));
-      assert.ok(perms.includes("PUBLISH"));
-      assert.equal(perms.length, 3);
+      expect(perms.includes("READ")).toBeTruthy();
+      expect(perms.includes("WRITE")).toBeTruthy();
+      expect(perms.includes("PUBLISH")).toBeTruthy();
+      expect(perms.length).toBe(3);
     });
   });
 
   describe("canManageRole", () => {
     it("OWNER can manage MANAGER", () => {
-      assert.ok(TeamRole.owner().canManageRole(TeamRole.manager()));
+      expect(TeamRole.owner().canManageRole(TeamRole.manager())).toBeTruthy();
     });
 
     it("MANAGER can manage MEMBER", () => {
-      assert.ok(TeamRole.manager().canManageRole(TeamRole.member()));
+      expect(TeamRole.manager().canManageRole(TeamRole.member())).toBeTruthy();
     });
 
     it("MEMBER cannot manage MANAGER", () => {
-      assert.ok(!TeamRole.member().canManageRole(TeamRole.manager()));
+      expect(TeamRole.member().canManageRole(TeamRole.manager())).toBeFalsy();
     });
 
     it("same role cannot manage itself", () => {
-      assert.ok(!TeamRole.manager().canManageRole(TeamRole.manager()));
+      expect(TeamRole.manager().canManageRole(TeamRole.manager())).toBeFalsy();
     });
 
     it("VIEWER cannot manage anyone", () => {
-      assert.ok(!TeamRole.viewer().canManageRole(TeamRole.viewer()));
-      assert.ok(!TeamRole.viewer().canManageRole(TeamRole.member()));
+      expect(TeamRole.viewer().canManageRole(TeamRole.viewer())).toBeFalsy();
+      expect(TeamRole.viewer().canManageRole(TeamRole.member())).toBeFalsy();
     });
   });
 
   describe("equality", () => {
     it("same roles are equal", () => {
-      assert.ok(TeamRole.owner().equals(TeamRole.owner()));
+      expect(TeamRole.owner().equals(TeamRole.owner())).toBeTruthy();
     });
 
     it("different roles are not equal", () => {
-      assert.ok(!TeamRole.owner().equals(TeamRole.member()));
+      expect(TeamRole.owner().equals(TeamRole.member())).toBeFalsy();
     });
   });
 });
@@ -183,14 +181,14 @@ describe("TeamMemberEntity", () => {
   describe("create", () => {
     it("creates a valid member with default role MEMBER", () => {
       const result = TeamMemberEntity.create(validParams);
-      assert.ok(result.ok, "Should create successfully");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const member = result.value;
-        assert.equal(member.email, "test@example.com");
-        assert.equal(member.name, "Test User");
-        assert.equal(member.role.value, TEAM_ROLE.MEMBER);
-        assert.ok(member.isActive);
-        assert.ok(member.id.value.length > 0);
+        expect(member.email).toBe("test@example.com");
+        expect(member.name).toBe("Test User");
+        expect(member.role.value).toBe(TEAM_ROLE.MEMBER);
+        expect(member.isActive).toBeTruthy();
+        expect(member.id.value.length > 0).toBeTruthy();
       }
     });
 
@@ -199,9 +197,9 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         role: "MANAGER",
       });
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.role.value, TEAM_ROLE.MANAGER);
+        expect(result.value.role.value).toBe(TEAM_ROLE.MANAGER);
       }
     });
 
@@ -210,9 +208,9 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         email: "TEST@EXAMPLE.COM",
       });
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.email, "test@example.com");
+        expect(result.value.email).toBe("test@example.com");
       }
     });
 
@@ -221,9 +219,9 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         name: "  Test User  ",
       });
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.name, "Test User");
+        expect(result.value.name).toBe("Test User");
       }
     });
 
@@ -233,9 +231,9 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         invitedBy: inviterId,
       });
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.invitedBy, inviterId);
+        expect(result.value.invitedBy).toBe(inviterId);
       }
     });
 
@@ -244,7 +242,7 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         email: "not-an-email",
       });
-      assert.ok(!result.ok, "Should reject invalid email");
+      expect(result.ok).toBeFalsy();
     });
 
     it("rejects empty email", () => {
@@ -252,7 +250,7 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         email: "",
       });
-      assert.ok(!result.ok, "Should reject empty email");
+      expect(result.ok).toBeFalsy();
     });
 
     it("rejects empty name", () => {
@@ -260,7 +258,7 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         name: "",
       });
-      assert.ok(!result.ok, "Should reject empty name");
+      expect(result.ok).toBeFalsy();
     });
 
     it("rejects empty accountId", () => {
@@ -268,7 +266,7 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         accountId: "",
       });
-      assert.ok(!result.ok, "Should reject empty accountId");
+      expect(result.ok).toBeFalsy();
     });
 
     it("rejects invalid role string", () => {
@@ -276,28 +274,28 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         role: "SUPERADMIN" as "OWNER",
       });
-      assert.ok(!result.ok, "Should reject invalid role");
+      expect(result.ok).toBeFalsy();
     });
   });
 
   describe("updateRole", () => {
     it("allows OWNER to change MEMBER to MANAGER", () => {
       const result = TeamMemberEntity.create(validParams);
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const member = result.value;
         const updateResult = member.updateRole(TeamRole.manager(), TeamRole.owner());
-        assert.ok(updateResult.ok, "OWNER should be able to promote MEMBER");
-        assert.equal(member.role.value, TEAM_ROLE.MANAGER);
+        expect(updateResult.ok).toBeTruthy();
+        expect(member.role.value).toBe(TEAM_ROLE.MANAGER);
       }
     });
 
     it("rejects when changer has equal role", () => {
       const result = TeamMemberEntity.create(validParams);
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const updateResult = result.value.updateRole(TeamRole.viewer(), TeamRole.member());
-        assert.ok(!updateResult.ok, "MEMBER should not manage another MEMBER");
+        expect(updateResult.ok).toBeFalsy();
       }
     });
 
@@ -306,10 +304,10 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         role: "VIEWER",
       });
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const updateResult = result.value.updateRole(TeamRole.manager(), TeamRole.manager());
-        assert.ok(!updateResult.ok, "Cannot assign role equal to own");
+        expect(updateResult.ok).toBeFalsy();
       }
     });
   });
@@ -317,11 +315,11 @@ describe("TeamMemberEntity", () => {
   describe("deactivate", () => {
     it("deactivates a non-owner member", () => {
       const result = TeamMemberEntity.create(validParams);
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const deactivateResult = result.value.deactivate();
-        assert.ok(deactivateResult.ok);
-        assert.ok(!result.value.isActive);
+        expect(deactivateResult.ok).toBeTruthy();
+        expect(result.value.isActive).toBeFalsy();
       }
     });
 
@@ -330,10 +328,10 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         role: "OWNER",
       });
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const deactivateResult = result.value.deactivate();
-        assert.ok(!deactivateResult.ok, "Cannot deactivate owner");
+        expect(deactivateResult.ok).toBeFalsy();
       }
     });
   });
@@ -341,9 +339,9 @@ describe("TeamMemberEntity", () => {
   describe("hasPermission", () => {
     it("MEMBER has READ permission", () => {
       const result = TeamMemberEntity.create(validParams);
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(result.value.hasPermission("READ"));
+        expect(result.value.hasPermission("READ")).toBeTruthy();
       }
     });
 
@@ -352,9 +350,9 @@ describe("TeamMemberEntity", () => {
         ...validParams,
         role: "VIEWER",
       });
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.ok(!result.value.hasPermission("WRITE"));
+        expect(result.value.hasPermission("WRITE")).toBeFalsy();
       }
     });
   });
@@ -362,20 +360,20 @@ describe("TeamMemberEntity", () => {
   describe("updateName", () => {
     it("updates name successfully", () => {
       const result = TeamMemberEntity.create(validParams);
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const updateResult = result.value.updateName("New Name");
-        assert.ok(updateResult.ok);
-        assert.equal(result.value.name, "New Name");
+        expect(updateResult.ok).toBeTruthy();
+        expect(result.value.name).toBe("New Name");
       }
     });
 
     it("rejects empty name", () => {
       const result = TeamMemberEntity.create(validParams);
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const updateResult = result.value.updateName("");
-        assert.ok(!updateResult.ok, "Should reject empty name");
+        expect(updateResult.ok).toBeFalsy();
       }
     });
   });
@@ -383,12 +381,12 @@ describe("TeamMemberEntity", () => {
   describe("reactivate", () => {
     it("reactivates a deactivated member", () => {
       const result = TeamMemberEntity.create(validParams);
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         result.value.deactivate();
-        assert.ok(!result.value.isActive);
+        expect(result.value.isActive).toBeFalsy();
         result.value.reactivate();
-        assert.ok(result.value.isActive);
+        expect(result.value.isActive).toBeTruthy();
       }
     });
   });
@@ -408,9 +406,9 @@ describe("TeamMemberEntity", () => {
         updatedAt: now,
       });
 
-      assert.equal(member.email, "restored@example.com");
-      assert.equal(member.role.value, TEAM_ROLE.MANAGER);
-      assert.ok(member.isActive);
+      expect(member.email).toBe("restored@example.com");
+      expect(member.role.value).toBe(TEAM_ROLE.MANAGER);
+      expect(member.isActive).toBeTruthy();
     });
   });
 });

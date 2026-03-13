@@ -3,8 +3,7 @@
  * Imports all Zod schemas directly from routes.ts.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   SmartAnalysisBodySchema,
   GenerateOptionsSchema,
@@ -24,46 +23,46 @@ describe("AI Schemas - SmartAnalysisBodySchema", () => {
       includeVariations: true,
       variationCount: 5,
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should apply default platform (twitter)", () => {
     const result = SmartAnalysisBodySchema.safeParse({ content: "Test content" });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
     if (result.success) {
-      assert.strictEqual(result.data.platform, "twitter");
+      expect(result.data.platform).toBe("twitter");
     }
   });
 
   it("should apply default includeOptimization (true)", () => {
     const result = SmartAnalysisBodySchema.safeParse({ content: "Test content" });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
     if (result.success) {
-      assert.strictEqual(result.data.includeOptimization, true);
+      expect(result.data.includeOptimization).toBe(true);
     }
   });
 
   it("should apply default includePrediction (true)", () => {
     const result = SmartAnalysisBodySchema.safeParse({ content: "Test content" });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
     if (result.success) {
-      assert.strictEqual(result.data.includePrediction, true);
+      expect(result.data.includePrediction).toBe(true);
     }
   });
 
   it("should apply default includeVariations (false)", () => {
     const result = SmartAnalysisBodySchema.safeParse({ content: "Test content" });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
     if (result.success) {
-      assert.strictEqual(result.data.includeVariations, false);
+      expect(result.data.includeVariations).toBe(false);
     }
   });
 
   it("should apply default variationCount (3)", () => {
     const result = SmartAnalysisBodySchema.safeParse({ content: "Test content" });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
     if (result.success) {
-      assert.strictEqual(result.data.variationCount, 3);
+      expect(result.data.variationCount).toBe(3);
     }
   });
 
@@ -72,7 +71,7 @@ describe("AI Schemas - SmartAnalysisBodySchema", () => {
       content: "Test content",
       variationCount: 1,
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept maximum variationCount (10)", () => {
@@ -80,7 +79,7 @@ describe("AI Schemas - SmartAnalysisBodySchema", () => {
       content: "Test content",
       variationCount: 10,
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject variationCount below minimum (0)", () => {
@@ -88,7 +87,7 @@ describe("AI Schemas - SmartAnalysisBodySchema", () => {
       content: "Test content",
       variationCount: 0,
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject variationCount above maximum (11)", () => {
@@ -96,17 +95,17 @@ describe("AI Schemas - SmartAnalysisBodySchema", () => {
       content: "Test content",
       variationCount: 11,
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject empty content", () => {
     const result = SmartAnalysisBodySchema.safeParse({ content: "" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject missing content", () => {
     const result = SmartAnalysisBodySchema.safeParse({ platform: "twitter" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should accept all feature flags as false", () => {
@@ -116,7 +115,7 @@ describe("AI Schemas - SmartAnalysisBodySchema", () => {
       includePrediction: false,
       includeVariations: false,
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 });
 
@@ -126,7 +125,7 @@ describe("AI Schemas - Edge Cases", () => {
       content: "x".repeat(10000),
       platform: "twitter",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept special characters in content", () => {
@@ -134,7 +133,7 @@ describe("AI Schemas - Edge Cases", () => {
       content: "Test!@#$%^&*()_+-=[]{}|;':\",./<>?",
       platform: "twitter",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept unicode characters in content", () => {
@@ -142,7 +141,7 @@ describe("AI Schemas - Edge Cases", () => {
       content: "Test content with unicode: 你好 мир",
       platform: "twitter",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept whitespace-only content (Zod min(1) checks length, not trimmed length)", () => {
@@ -150,12 +149,12 @@ describe("AI Schemas - Edge Cases", () => {
       content: "   ",
       platform: "twitter",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject uppercase enum values (enum is case-sensitive)", () => {
     const result = AnalysisTypeSchema.safeParse("SENTIMENT");
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject null in optional string fields", () => {
@@ -164,7 +163,7 @@ describe("AI Schemas - Edge Cases", () => {
       platform: "twitter",
       brandVoice: null,
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should strip extra fields from request body", () => {
@@ -173,9 +172,9 @@ describe("AI Schemas - Edge Cases", () => {
       platform: "twitter",
       extraField: "should be stripped",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
     if (result.success) {
-      assert.strictEqual("extraField" in result.data, false);
+      expect("extraField" in result.data).toBe(false);
     }
   });
 
@@ -185,18 +184,18 @@ describe("AI Schemas - Edge Cases", () => {
       variationType: "tone",
       count: 10,
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should not enforce min/max on temperature in GenerateOptionsSchema", () => {
-    assert.strictEqual(GenerateOptionsSchema.safeParse({ temperature: -1 }).success, true);
-    assert.strictEqual(GenerateOptionsSchema.safeParse({ temperature: 0 }).success, true);
-    assert.strictEqual(GenerateOptionsSchema.safeParse({ temperature: 2 }).success, true);
+    expect(GenerateOptionsSchema.safeParse({ temperature: -1 }).success).toBe(true);
+    expect(GenerateOptionsSchema.safeParse({ temperature: 0 }).success).toBe(true);
+    expect(GenerateOptionsSchema.safeParse({ temperature: 2 }).success).toBe(true);
   });
 
   it("should not enforce min/max on maxTokens in GenerateOptionsSchema", () => {
-    assert.strictEqual(GenerateOptionsSchema.safeParse({ maxTokens: 0 }).success, true);
-    assert.strictEqual(GenerateOptionsSchema.safeParse({ maxTokens: -100 }).success, true);
-    assert.strictEqual(GenerateOptionsSchema.safeParse({ maxTokens: 100000 }).success, true);
+    expect(GenerateOptionsSchema.safeParse({ maxTokens: 0 }).success).toBe(true);
+    expect(GenerateOptionsSchema.safeParse({ maxTokens: -100 }).success).toBe(true);
+    expect(GenerateOptionsSchema.safeParse({ maxTokens: 100000 }).success).toBe(true);
   });
 });

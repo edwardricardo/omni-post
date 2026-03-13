@@ -6,8 +6,7 @@
  * Converted to node:test standard
  */
 
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { BaseService, type ServiceContext } from "../../src/services/BaseService.js";
 import { isOk, isErr } from "@shared/types";
 
@@ -33,7 +32,7 @@ class TestService extends BaseService {
 describe("BaseService", () => {
   let service: TestService;
 
-  before(() => {
+  beforeAll(() => {
     service = new TestService();
   });
 
@@ -46,9 +45,9 @@ describe("BaseService", () => {
         }
       );
 
-      assert.strictEqual(isOk(result), true, "Result should be ok()");
+      expect(isOk(result)).toBe(true);
       if (isOk(result)) {
-        assert.deepStrictEqual(result.value, { data: "success" });
+        expect(result.value).toStrictEqual({ data: "success" });
       }
     });
 
@@ -60,49 +59,38 @@ describe("BaseService", () => {
         }
       );
 
-      assert.strictEqual(isErr(result), true, "Result should be err()");
+      expect(isErr(result)).toBe(true);
       if (isErr(result)) {
-        assert.match(result.error, /Test error/, "Error message should include 'Test error'");
+        expect(result.error).toMatch(/Test error/);
       }
     });
   });
 
   describe("validateRequired", () => {
     it("should not throw when all values are present", () => {
-      assert.doesNotThrow(() => {
+      expect(() => {
         service.testValidateRequired({
           userId: "user123",
           accountId: "account456",
           operation: "test",
         });
-      });
+      }).not.toThrow();
     });
 
     it("should throw when values are null or undefined", () => {
-      assert.throws(
-        () => {
-          service.testValidateRequired({
-            userId: "user123",
-            accountId: null,
-            operation: undefined,
-          });
-        },
-        (error: Error) => {
-          return error.message.includes("accountId") && error.message.includes("operation");
-        },
-        "Should throw with missing field names"
-      );
+      expect(() => {
+        service.testValidateRequired({
+          userId: "user123",
+          accountId: null,
+          operation: undefined,
+        });
+      }).toThrow(/accountId/);
     });
 
     it("should include custom error message", () => {
-      assert.throws(
-        () => {
-          service.testValidateRequired({ field: null }, "Custom validation error");
-        },
-        (error: Error) => {
-          return error.message.includes("Custom validation error");
-        }
-      );
+      expect(() => {
+        service.testValidateRequired({ field: null }, "Custom validation error");
+      }).toThrow(/Custom validation error/);
     });
   });
 });

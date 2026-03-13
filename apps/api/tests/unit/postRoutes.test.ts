@@ -1,53 +1,228 @@
 /**
- * Unit Tests for PostRoutes (node:test)
+ * @file postRoutes.test.ts
+ * @description Unit tests for postRoutes. Uses mocked Prisma stores and
+ *              a real Fastify instance to test HTTP endpoint behavior.
  *
  * Tests CRUD operations via application-layer use cases resolved from the
  * DI container. Delete operations use soft-delete (sets deletedAt).
+ * @layer test
  */
 
-import "./templateRoutes.env-setup.js";
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import { postRoutes } from "../../src/posts/postRoutes.js";
-import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
 
-// Test data
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+// Stores for cross-model include resolution
+const postStore = createStore();
+const postContentStore = createStore();
+const postMediaStore = createStore();
+const threadStore = createStore();
+const tweetStore = createStore();
+const contentVersionStore = createStore();
+
+// Project defaults for domain mapper compatibility
+const projectDefaults = {
+  locale: "en",
+  isInCrisisMode: false,
+  crisisStartedAt: null,
+  crisisReason: null,
+  crisisModeHistory: [],
+  deletedAt: null,
+  channels: [],
+  posts: [],
+};
+
+// Post defaults
+const postDefaults = {
+  status: "DRAFT",
+  scheduledAt: null,
+  publishedAt: null,
+  deletedAt: null,
+};
+
+// PostContent defaults
+const postContentDefaults = {
+  title: null,
+  summary: null,
+  tags: [],
+  revision: 1,
+};
+
+// Thread defaults
+const threadDefaults = {
+  strategy: "MANUAL",
+};
+
+// Tweet defaults
+const tweetDefaults = {
+  media: null,
+  tweetId: null,
+  parentTweetId: null,
+  status: "DRAFT",
+  publishedAt: null,
+};
+
+// Include resolver for posts — joins contents, media, thread, _count
+const postIncludeResolver = (
+  record: Record<string, unknown>,
+  include: Record<string, boolean | Record<string, unknown>>
+): Record<string, unknown> => {
+  const result = { ...record };
+  const postId = record.id as string;
+
+  if (include.contents) {
+    let contents = postContentStore
+      .all()
+      .filter((c) => (c as Record<string, unknown>).postId === postId);
+    // Support { take: N } on contents include
+    if (typeof include.contents === "object" && "take" in include.contents) {
+      contents = contents.slice(0, include.contents.take as number);
+    }
+    result.contents = contents.map((c) => ({ ...c }));
+  }
+
+  if (include.media) {
+    result.media = postMediaStore
+      .all()
+      .filter((m) => (m as Record<string, unknown>).postId === postId)
+      .map((m) => ({ ...m }));
+  }
+
+  if (include.contentVersions) {
+    result.contentVersions = contentVersionStore
+      .all()
+      .filter((v) => (v as Record<string, unknown>).postId === postId)
+      .map((v) => ({ ...v }));
+  }
+
+  if (include._count) {
+    const mediaCount = postMediaStore
+      .all()
+      .filter((m) => (m as Record<string, unknown>).postId === postId).length;
+    result._count = { media: mediaCount };
+  }
+
+  if (include.thread) {
+    const thread = threadStore.all().find((t) => (t as Record<string, unknown>).postId === postId);
+    if (thread) {
+      const threadId = (thread as Record<string, unknown>).id as string;
+      const tweets = tweetStore
+        .all()
+        .filter((tw) => (tw as Record<string, unknown>).threadId === threadId)
+        .map((tw) => ({ ...tw }))
+        .sort(
+          (a, b) =>
+            ((a as Record<string, unknown>).sequenceNumber as number) -
+            ((b as Record<string, unknown>).sequenceNumber as number)
+        );
+      result.thread = { ...thread, tweets };
+    } else {
+      result.thread = null;
+    }
+  }
+
+  return result;
+};
+
+// Build post model with include resolver
+const postModel = buildModelMock(postStore, postDefaults, "id", postIncludeResolver);
+
+// Replace project mock with one that has correct defaults
+(mockPrisma.prisma as Record<string, unknown>).project = buildModelMock(
+  stores.project,
+  projectDefaults
+);
+
+// Add extra models used by post routes and repositories
+const extraModels = {
+  post: postModel,
+  postContent: buildModelMock(postContentStore, postContentDefaults),
+  postMedia: buildModelMock(postMediaStore),
+  thread: buildModelMock(threadStore, threadDefaults),
+  tweet: buildModelMock(tweetStore, tweetDefaults),
+  contentVersion: buildModelMock(contentVersionStore),
+  channel: buildModelMock(createStore()),
+  analytics: buildModelMock(createStore()),
+  publishLog: buildModelMock(createStore()),
+  adminUserPermission: buildModelMock(createStore()),
+  outboxEvent: buildModelMock(createStore()),
+};
+Object.assign(mockPrisma.prisma, extraModels);
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
+// ---------------------------------------------------------------------------
+// Dynamic imports after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const { postRoutes } = await import("../../src/posts/postRoutes.js");
+const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+
+// ---------------------------------------------------------------------------
+// Test setup
+// ---------------------------------------------------------------------------
+
 const timestamp = Date.now();
-/** Valid UUID v4 that does not exist in the database */
 const NONEXISTENT_UUID = "a0000000-0000-4000-8000-000000000000";
-let fastify: FastifyInstance;
-let testAccountId: string;
+
+let fastify: import("fastify").FastifyInstance;
 let testProjectId: string;
+let testAccountId: string;
 let testPostId: string;
 
-// Helper function to safely hard-delete a post with all related data
+// Helper function to safely hard-delete a post with all related data (in-memory)
 async function safeDeletePost(postId: string): Promise<void> {
+  const prisma = mockPrisma.prisma as Record<string, Record<string, Function>>;
   await prisma.publishLog.deleteMany({ where: { postId } }).catch(() => {});
   await prisma.analytics.deleteMany({ where: { postId } }).catch(() => {});
   await prisma.contentVersion.deleteMany({ where: { postId } }).catch(() => {});
   await prisma.postMedia.deleteMany({ where: { postId } }).catch(() => {});
   await prisma.postContent.deleteMany({ where: { postId } }).catch(() => {});
-  await prisma.tweet.deleteMany({ where: { thread: { postId } } }).catch(() => {});
+  // For tweets, we need to find threads first
+  const threads = threadStore.all().filter((t) => (t as Record<string, unknown>).postId === postId);
+  for (const thread of threads) {
+    const threadId = (thread as Record<string, unknown>).id as string;
+    await prisma.tweet.deleteMany({ where: { threadId } }).catch(() => {});
+  }
   await prisma.thread.deleteMany({ where: { postId } }).catch(() => {});
   await prisma.post.delete({ where: { id: postId } }).catch(() => {});
 }
 
-describe("PostRoutes", { concurrency: 1 }, () => {
-  before(async () => {
-    // Initialize Fastify instance with DI container
+describe("PostRoutes", () => {
+  beforeAll(async () => {
     fastify = Fastify({ logger: false });
 
-    const container = setupContainer({ prisma });
+    const container = setupContainer({ prisma: mockPrisma.prisma as never });
     fastify.decorate("container", container);
 
-    // Register the post routes
     await fastify.register(postRoutes);
     await fastify.ready();
 
-    // Create test account
-    const account = await prisma.account.upsert({
+    // Create test account via mock prisma
+    const account = await (mockPrisma.prisma.account as { upsert: Function }).upsert({
       where: { email: `postroutes-${timestamp}@example.com` },
       update: {},
       create: {
@@ -59,7 +234,7 @@ describe("PostRoutes", { concurrency: 1 }, () => {
     testAccountId = account.id;
 
     // Create test project
-    const project = await prisma.project.create({
+    const project = await (mockPrisma.prisma.project as { create: Function }).create({
       data: {
         accountId: testAccountId,
         name: `postroutes-test-${timestamp}`,
@@ -69,33 +244,7 @@ describe("PostRoutes", { concurrency: 1 }, () => {
     testProjectId = project.id;
   });
 
-  after(async () => {
-    // Cleanup test data
-    try {
-      // Delete all test posts and their content (hard-delete for cleanup)
-      const testPosts = await prisma.post.findMany({
-        where: {
-          project: { accountId: testAccountId },
-        },
-      });
-
-      for (const post of testPosts) {
-        await safeDeletePost(post.id);
-      }
-
-      if (testProjectId) {
-        await prisma.project.delete({ where: { id: testProjectId } }).catch(() => {});
-      }
-
-      await prisma.account
-        .delete({
-          where: { email: `postroutes-${timestamp}@example.com` },
-        })
-        .catch(() => {});
-    } catch (error) {
-      console.error("Cleanup error:", error);
-    }
-
+  afterAll(async () => {
     await fastify.close();
   });
 
@@ -114,17 +263,17 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 201);
+      expect(response.statusCode).toBe(201);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, true);
-      assert.ok(result.data.id);
-      assert.strictEqual(result.data.projectId, testProjectId);
-      assert.strictEqual(result.data.locale, "en");
-      assert.strictEqual(result.data.body, "Test post body content");
-      assert.strictEqual(result.data.title, "Test Post Title");
-      assert.deepStrictEqual(result.data.tags, ["test", "automated"]);
-      assert.strictEqual(result.data.status, "DRAFT");
+      expect(result.ok).toBe(true);
+      expect(result.data.id).toBeTruthy();
+      expect(result.data.projectId).toBe(testProjectId);
+      expect(result.data.locale).toBe("en");
+      expect(result.data.body).toBe("Test post body content");
+      expect(result.data.title).toBe("Test Post Title");
+      expect(result.data.tags).toStrictEqual(["test", "automated"]);
+      expect(result.data.status).toBe("DRAFT");
 
       // Store for later tests
       testPostId = result.data.id;
@@ -143,12 +292,12 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 201);
+      expect(response.statusCode).toBe(201);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, true);
-      assert.strictEqual(result.data.locale, "es");
-      assert.strictEqual(result.data.body, "Contenido de prueba");
+      expect(result.ok).toBe(true);
+      expect(result.data.locale).toBe("es");
+      expect(result.data.body).toBe("Contenido de prueba");
 
       // Clean up
       await safeDeletePost(result.data.id);
@@ -166,10 +315,10 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 201);
+      expect(response.statusCode).toBe(201);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.data.status, "DRAFT");
+      expect(result.data.status).toBe("DRAFT");
 
       // Clean up
       await safeDeletePost(result.data.id);
@@ -186,11 +335,11 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
-      assert.strictEqual(result.error, "Invalid request body");
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe("Invalid request body");
     });
 
     it("should reject missing required fields", async () => {
@@ -204,11 +353,11 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
-      assert.strictEqual(result.error, "Invalid request body");
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe("Invalid request body");
     });
 
     it("should reject invalid locale format", async () => {
@@ -222,10 +371,10 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
+      expect(result.ok).toBe(false);
     });
 
     it("should reject invalid status value", async () => {
@@ -240,10 +389,10 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
+      expect(result.ok).toBe(false);
     });
 
     it("should return 404 for non-existent project", async () => {
@@ -257,11 +406,11 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
-      assert.strictEqual(result.error, "Project not found");
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe("Project not found");
     });
 
     it("should create post with content persisted to database", async () => {
@@ -276,21 +425,21 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 201);
+      expect(response.statusCode).toBe(201);
 
       const result = JSON.parse(response.payload);
       const postId = result.data.id;
 
-      // Verify post and content were both created
-      const post = await prisma.post.findUnique({
+      // Verify post and content were both created via mock prisma
+      const post = await (mockPrisma.prisma.post as { findUnique: Function }).findUnique({
         where: { id: postId },
         include: { contents: true },
       });
 
-      assert.ok(post);
-      assert.strictEqual(post.contents.length, 1);
-      assert.strictEqual(post.contents[0].body, "Transaction test");
-      assert.strictEqual(post.contents[0].revision, 1);
+      expect(post).toBeTruthy();
+      expect(post.contents.length).toBe(1);
+      expect(post.contents[0].body).toBe("Transaction test");
+      expect(post.contents[0].revision).toBe(1);
 
       // Clean up
       await safeDeletePost(postId);
@@ -309,7 +458,7 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       });
 
       // Security layer should block dangerous content
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -320,14 +469,14 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         url: `/posts/${testPostId}`,
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, true);
-      assert.strictEqual(result.data.id, testPostId);
-      assert.strictEqual(result.data.projectId, testProjectId);
-      assert.ok(result.data.body);
-      assert.ok(result.data.createdAt);
+      expect(result.ok).toBe(true);
+      expect(result.data.id).toBe(testPostId);
+      expect(result.data.projectId).toBe(testProjectId);
+      expect(result.data.body).toBeTruthy();
+      expect(result.data.createdAt).toBeTruthy();
     });
 
     it("should return 404 for non-existent post", async () => {
@@ -336,11 +485,11 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         url: `/posts/${NONEXISTENT_UUID}`,
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
-      assert.strictEqual(result.error, "Post not found");
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe("Post not found");
     });
 
     it("should return 400 for invalid uuid format", async () => {
@@ -349,11 +498,11 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         url: "/posts/invalid-id",
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
-      assert.strictEqual(result.error, "Invalid post ID");
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe("Invalid post ID");
     });
 
     it("should include post content", async () => {
@@ -363,10 +512,10 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       });
 
       const result = JSON.parse(response.payload);
-      assert.ok(result.data.locale);
-      assert.ok(result.data.body);
-      assert.ok(result.data.title);
-      assert.ok(Array.isArray(result.data.tags));
+      expect(result.data.locale).toBeTruthy();
+      expect(result.data.body).toBeTruthy();
+      expect(result.data.title).toBeTruthy();
+      expect(Array.isArray(result.data.tags)).toBeTruthy();
     });
 
     it("should include thread data if exists", async () => {
@@ -383,17 +532,27 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       const createResult = JSON.parse(createResponse.payload);
       const postId = createResult.data.id;
 
-      // Add thread data directly (threads are not part of the use case)
-      await prisma.thread.create({
+      // Add thread data directly via mock prisma
+      const thread = await (mockPrisma.prisma.thread as { create: Function }).create({
         data: {
           postId,
           strategy: "MANUAL",
-          tweets: {
-            create: [
-              { sequenceNumber: 1, content: "First tweet" },
-              { sequenceNumber: 2, content: "Second tweet" },
-            ],
-          },
+        },
+      });
+
+      // Add tweets to the thread
+      await (mockPrisma.prisma.tweet as { create: Function }).create({
+        data: {
+          threadId: thread.id,
+          sequenceNumber: 1,
+          content: "First tweet",
+        },
+      });
+      await (mockPrisma.prisma.tweet as { create: Function }).create({
+        data: {
+          threadId: thread.id,
+          sequenceNumber: 2,
+          content: "Second tweet",
         },
       });
 
@@ -403,10 +562,10 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       });
 
       const result = JSON.parse(response.payload);
-      assert.ok(result.data.thread);
-      assert.strictEqual(result.data.thread.strategy, "MANUAL");
-      assert.ok(Array.isArray(result.data.thread.tweets));
-      assert.strictEqual(result.data.thread.tweets.length, 2);
+      expect(result.data.thread).toBeTruthy();
+      expect(result.data.thread.strategy).toBe("MANUAL");
+      expect(Array.isArray(result.data.thread.tweets)).toBeTruthy();
+      expect(result.data.thread.tweets.length).toBe(2);
 
       // Clean up
       await safeDeletePost(postId);
@@ -419,13 +578,15 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       });
 
       const result = JSON.parse(response.payload);
-      assert.ok(["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"].includes(result.data.status));
+      expect(
+        ["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"].includes(result.data.status)
+      ).toBeTruthy();
     });
   });
 
   describe("DELETE /posts/:id", () => {
     it("should soft-delete a post successfully", async () => {
-      // Create a post to delete (via use case — has content)
+      // Create a post to delete (via use case - has content)
       const createResponse = await fastify.inject({
         method: "POST",
         url: "/posts",
@@ -443,24 +604,24 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         url: `/posts/${postId}`,
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, true);
-      assert.strictEqual(result.data.deleted, true);
+      expect(result.ok).toBe(true);
+      expect(result.data.deleted).toBe(true);
 
       // Verify post is soft-deleted (not visible with deletedAt filter)
-      const softDeletedPost = await prisma.post.findFirst({
+      const softDeletedPost = await (mockPrisma.prisma.post as { findFirst: Function }).findFirst({
         where: { id: postId, deletedAt: null },
       });
-      assert.strictEqual(softDeletedPost, null);
+      expect(softDeletedPost).toBe(null);
 
       // But the row still exists in the database
-      const rawPost = await prisma.post.findUnique({
+      const rawPost = await (mockPrisma.prisma.post as { findUnique: Function }).findUnique({
         where: { id: postId },
       });
-      assert.ok(rawPost, "Post row should still exist (soft-deleted)");
-      assert.ok(rawPost.deletedAt, "deletedAt should be set");
+      expect(rawPost).toBeTruthy();
+      expect(rawPost.deletedAt).toBeTruthy();
 
       // Hard-delete for cleanup
       await safeDeletePost(postId);
@@ -472,11 +633,11 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         url: `/posts/${NONEXISTENT_UUID}`,
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
-      assert.strictEqual(result.error, "Post not found");
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe("Post not found");
     });
 
     it("should return 400 for invalid uuid", async () => {
@@ -485,11 +646,11 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         url: "/posts/not-a-uuid",
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
-      assert.strictEqual(result.error, "Invalid post ID");
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe("Invalid post ID");
     });
 
     it("should soft-delete post while retaining content", async () => {
@@ -511,13 +672,15 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         url: `/posts/${postId}`,
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       // Content is retained (soft-delete preserves child data for auditing)
-      const retainedContent = await prisma.postContent.findFirst({
+      const retainedContent = await (
+        mockPrisma.prisma.postContent as { findFirst: Function }
+      ).findFirst({
         where: { postId },
       });
-      assert.ok(retainedContent, "Post content should be retained after soft-delete");
+      expect(retainedContent).toBeTruthy();
 
       // Hard-delete for cleanup
       await safeDeletePost(postId);
@@ -549,11 +712,11 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         url: `/posts/${postId}`,
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
-      assert.strictEqual(result.error, "Post not found");
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe("Post not found");
 
       // Hard-delete for cleanup
       await safeDeletePost(postId);
@@ -576,7 +739,7 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       });
 
       // Should either accept or reject based on validation rules
-      assert.ok([201, 400].includes(response.statusCode));
+      expect([201, 400].includes(response.statusCode)).toBeTruthy();
 
       // Clean up if created
       if (response.statusCode === 201) {
@@ -599,10 +762,10 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 201);
+      expect(response.statusCode).toBe(201);
 
       const result = JSON.parse(response.payload);
-      assert.deepStrictEqual(result.data.tags, ["valid", "tags", "array"]);
+      expect(result.data.tags).toStrictEqual(["valid", "tags", "array"]);
 
       // Clean up
       await safeDeletePost(result.data.id);
@@ -620,7 +783,7 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -632,9 +795,9 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       });
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, true);
-      assert.ok(result.data);
-      assert.strictEqual(typeof result.data, "object");
+      expect(result.ok).toBe(true);
+      expect(result.data).toBeTruthy();
+      expect(typeof result.data).toBe("object");
     });
 
     it("should return consistent error response format", async () => {
@@ -644,9 +807,9 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       });
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
-      assert.ok(result.error);
-      assert.strictEqual(typeof result.error, "string");
+      expect(result.ok).toBe(false);
+      expect(result.error).toBeTruthy();
+      expect(typeof result.error).toBe("string");
     });
 
     it("should include proper timestamps", async () => {
@@ -656,11 +819,11 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       });
 
       const result = JSON.parse(response.payload);
-      assert.ok(result.data.createdAt);
+      expect(result.data.createdAt).toBeTruthy();
 
       // Verify valid ISO date
       const date = new Date(result.data.createdAt);
-      assert.ok(!isNaN(date.getTime()));
+      expect(isNaN(date.getTime())).toBeFalsy();
     });
   });
 
@@ -679,10 +842,10 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       });
 
       // Should return either success or proper error
-      assert.ok([201, 400, 500].includes(response.statusCode));
+      expect([201, 400, 500].includes(response.statusCode)).toBeTruthy();
 
       const result = JSON.parse(response.payload);
-      assert.ok("ok" in result);
+      expect("ok" in result).toBeTruthy();
 
       // Clean up if created
       if (result.ok && result.data?.id) {
@@ -696,10 +859,7 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         method: "GET",
         url: "/posts/not-a-uuid",
       });
-      assert.ok(
-        response.statusCode === 400 || response.statusCode === 404,
-        `Expected 400 or 404 for invalid ID, got ${response.statusCode}`
-      );
+      expect(response.statusCode === 400 || response.statusCode === 404).toBeTruthy();
     });
   });
 
@@ -711,7 +871,7 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         url: `/posts/${testPostId}`,
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     });
 
     it("should use standardized error responses", async () => {
@@ -721,8 +881,8 @@ describe("PostRoutes", { concurrency: 1 }, () => {
       });
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.ok, false);
-      assert.ok(result.error);
+      expect(result.ok).toBe(false);
+      expect(result.error).toBeTruthy();
     });
   });
 
@@ -740,10 +900,10 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 201);
+      expect(response.statusCode).toBe(201);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.data.body, testBody);
+      expect(result.data.body).toBe(testBody);
 
       // Clean up
       await safeDeletePost(result.data.id);
@@ -762,10 +922,10 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 201);
+      expect(response.statusCode).toBe(201);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.data.body, unicodeBody);
+      expect(result.data.body).toBe(unicodeBody);
 
       // Clean up
       await safeDeletePost(result.data.id);
@@ -784,10 +944,10 @@ describe("PostRoutes", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 201);
+      expect(response.statusCode).toBe(201);
 
       const result = JSON.parse(response.payload);
-      assert.strictEqual(result.data.body, formattedBody);
+      expect(result.data.body).toBe(formattedBody);
 
       // Clean up
       await safeDeletePost(result.data.id);

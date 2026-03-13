@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import "./PostCommandHandlers.test-helpers.js";
 import {
   type TestContext,
@@ -14,7 +13,7 @@ import { PublishPostCommandHandler } from "../../src/cqrs/handlers/PostCommandHa
 import { POST_COMMANDS } from "@shared/cqrs";
 import { randomUUID } from "crypto";
 
-describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
+describe("PublishPostCommandHandler", () => {
   let handler: PublishPostCommandHandler;
   let ctx: TestContext;
 
@@ -24,7 +23,7 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
   });
 
   it("should have correct command type", () => {
-    assert.strictEqual(handler.commandType, POST_COMMANDS.PUBLISH_POST);
+    expect(handler.commandType).toBe(POST_COMMANDS.PUBLISH_POST);
   });
 
   it("should prepare publishing jobs successfully", async () => {
@@ -35,20 +34,17 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.ok(result.success, "Result should be successful");
-    assert.ok(result.data, "Result should contain data");
-    assert.ok(Array.isArray(result.data.jobIds), "jobIds should be an array");
-    assert.strictEqual(result.data.jobIds.length, 2, "Should have one job per channel");
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
+    expect(Array.isArray(result.data.jobIds)).toBeTruthy();
+    expect(result.data.jobIds.length).toBe(2);
   });
 
   it("should load post via postRepository.findById", async () => {
     const command = buildPublishPostCommand();
     await handler.handle(command);
 
-    assert.ok(
-      ctx.postRepository.findByIdCalls.length >= 1,
-      "Should have called postRepository.findById"
-    );
+    expect(ctx.postRepository.findByIdCalls.length >= 1).toBeTruthy();
   });
 
   it("should validate all channel IDs via channelRepository", async () => {
@@ -59,7 +55,7 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
     await handler.handle(command);
 
     // Channel validation calls findById for each channel
-    assert.ok(ctx.channelRepository.findByIdCalls.length >= 2, "Should validate each channel ID");
+    expect(ctx.channelRepository.findByIdCalls.length >= 2).toBeTruthy();
   });
 
   it("should return error when post is not found", async () => {
@@ -68,12 +64,9 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
     const command = buildPublishPostCommand();
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("not found") || result.error.includes("Post"),
-      `Expected not found error, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error.includes("not found") || result.error.includes("Post")).toBeTruthy();
   });
 
   it("should return error when post is already published", async () => {
@@ -84,12 +77,9 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
     const command = buildPublishPostCommand();
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("already published"),
-      `Expected already published error, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error.includes("already published")).toBeTruthy();
   });
 
   it("should return error for invalid channel IDs", async () => {
@@ -100,12 +90,9 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("not found") || result.error.includes("Channel"),
-      `Expected channel not found error, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error.includes("not found") || result.error.includes("Channel")).toBeTruthy();
   });
 
   it("should return error for invalid channel ID format", async () => {
@@ -115,12 +102,11 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("Invalid channel ID") || result.error.includes("channel"),
-      `Expected channel ID format error, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(
+      result.error.includes("Invalid channel ID") || result.error.includes("channel")
+    ).toBeTruthy();
   });
 
   it("should return error for invalid post ID format", async () => {
@@ -130,12 +116,9 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("Invalid post ID"),
-      `Expected invalid post ID error, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error.includes("Invalid post ID")).toBeTruthy();
   });
 
   it("should handle command schema validation failure", async () => {
@@ -158,9 +141,9 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(invalidCommand);
 
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
     // Schema validation should fail before reaching the repository
-    assert.strictEqual(ctx.postRepository.findByIdCalls.length, 0);
+    expect(ctx.postRepository.findByIdCalls.length).toBe(0);
   });
 
   it("should generate scheduled events for each channel", async () => {
@@ -171,22 +154,19 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.ok(result.events, "Should have events");
+    expect(result.events).toBeTruthy();
     const scheduledEvents = result.events.filter(
       (e: { type: string }) => e.type === "post.scheduled"
     );
-    assert.strictEqual(scheduledEvents.length, 2, "Should have one scheduled event per channel");
+    expect(scheduledEvents.length).toBe(2);
   });
 
   it("should generate user.action event", async () => {
     const command = buildPublishPostCommand({ userId: "user-1" });
     const result = await handler.handle(command);
 
-    assert.ok(result.events, "Should have events");
-    assert.ok(
-      result.events.some((e: { type: string }) => e.type === "user.action"),
-      "Should include user.action event"
-    );
+    expect(result.events).toBeTruthy();
+    expect(result.events.some((e: { type: string }) => e.type === "user.action")).toBeTruthy();
   });
 
   it("should handle different priority levels", async () => {
@@ -200,7 +180,7 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
       const command = buildPublishPostCommand({ priority });
       const result = await handler.handle(command);
 
-      assert.ok(result.success, `Should succeed with priority ${priority}`);
+      expect(result.success).toBeTruthy();
     }
   });
 
@@ -209,6 +189,6 @@ describe("PublishPostCommandHandler", { concurrency: 1 }, () => {
     await handler.handle(command);
 
     const deletedKeys = ctx.redis.getDeletedKeys();
-    assert.ok(deletedKeys.length > 0, "Should have invalidated cache keys");
+    expect(deletedKeys.length > 0).toBeTruthy();
   });
 });

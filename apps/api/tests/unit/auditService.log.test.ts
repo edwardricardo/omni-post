@@ -1,24 +1,132 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { AuditService, AuditActions, AuditResources } from "../../src/audit/auditService";
-import {
-  setupAuditTestUsers,
-  teardownAuditTestData,
-  testUserId,
-} from "./auditService.test-helpers.js";
+/**
+ * @file auditService.log.test.ts
+ * @description Unit tests for AuditService.log() — creating audit log entries.
+ *              Uses mocked Prisma to avoid database dependency.
+ * @layer test-infrastructure
+ */
 
-describe("AuditService - log() - Create Audit Logs", { concurrency: 1 }, () => {
+import { describe, it, beforeEach, expect, vi } from "vitest";
+import { randomUUID } from "crypto";
+
+// ---------------------------------------------------------------------------
+// Mock setup — vi.hoisted runs before vi.mock factories
+// ---------------------------------------------------------------------------
+
+const mocks = vi.hoisted(() => {
+  const noop = () => {};
+  const noopAsync = async () => undefined;
+
+  const auditLogCreate = vi.fn();
+  const auditLogFindMany = vi.fn();
+  const auditLogFindUnique = vi.fn();
+  const auditLogCount = vi.fn();
+  const auditLogDeleteMany = vi.fn();
+  const auditLogGroupBy = vi.fn(async () => []);
+  const adminUserFindMany = vi.fn();
+
+  const prismaClient: any = {
+    auditLog: {
+      create: auditLogCreate,
+      findMany: auditLogFindMany,
+      findUnique: auditLogFindUnique,
+      count: auditLogCount,
+      deleteMany: auditLogDeleteMany,
+      groupBy: auditLogGroupBy,
+    },
+    adminUser: {
+      findMany: adminUserFindMany,
+    },
+    $connect: vi.fn(noopAsync),
+    $disconnect: vi.fn(noopAsync),
+    $transaction: vi.fn(async (fn: any) => fn(prismaClient)),
+  };
+
+  const logger = {
+    info: vi.fn(noop),
+    warn: vi.fn(noop),
+    error: vi.fn(noop),
+    debug: vi.fn(noop),
+    child: vi.fn(() => logger),
+  };
+
+  return {
+    prismaClient,
+    logger,
+    auditLogCreate,
+    adminUserFindMany,
+  };
+});
+
+vi.mock("@infra/prisma", () => ({
+  prisma: mocks.prismaClient,
+  AdminRole: { ADMIN: "ADMIN", SUPPORT: "SUPPORT", SUPER_ADMIN: "SUPER_ADMIN" },
+  Prisma: {},
+}));
+
+vi.mock("../../src/lib/logger.js", () => ({
+  logger: mocks.logger,
+}));
+
+import { AuditService, AuditActions, AuditResources } from "../../src/audit/auditService.js";
+
+// ---------------------------------------------------------------------------
+// Test user data
+// ---------------------------------------------------------------------------
+
+const TEST_USER_1 = {
+  id: "audit-test-user-001",
+  email: "audit-test-user@example.com",
+  name: "Audit Test User",
+  role: "ADMIN",
+};
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe("AuditService - log() - Create Audit Logs", () => {
   const auditService = new AuditService();
+  const adminUserStore = new Map<string, Record<string, unknown>>();
 
-  before(async () => {
-    await setupAuditTestUsers();
-  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    adminUserStore.clear();
+    adminUserStore.set(TEST_USER_1.id, TEST_USER_1);
 
-  after(async () => {
-    // Only clean up audit logs with the "TEST_" prefix created by this file.
-    // The prefix also matches TEST_FILTER_ from the query test, but the query
-    // test cleans its own data independently.
-    await teardownAuditTestData("TEST_");
+    // Mock auditLog.create — returns record with resolved user relation
+    mocks.auditLogCreate.mockImplementation(async ({ data, include }: any) => {
+      const id = randomUUID();
+      const now = new Date();
+      const record: Record<string, unknown> = {
+        id,
+        createdAt: now,
+        updatedAt: now,
+        userId: null,
+        resource: null,
+        resourceId: null,
+        details: null,
+        ipAddress: null,
+        userAgent: null,
+        success: true,
+        error: null,
+        user: null,
+        ...data,
+      };
+
+      if (include?.user && record.userId) {
+        const adminUser = adminUserStore.get(record.userId as string);
+        if (adminUser) {
+          record.user = {
+            id: adminUser.id,
+            email: adminUser.email,
+            name: adminUser.name,
+            role: adminUser.role,
+          };
+        }
+      }
+
+      return record;
+    });
   });
 
   describe("Conditional Property Spreading - exactOptionalPropertyTypes", () => {
@@ -27,56 +135,56 @@ describe("AuditService - log() - Create Audit Logs", { concurrency: 1 }, () => {
         action: "TEST_MINIMAL_ACTION",
       });
 
-      assert.ok(result.ok, "Should successfully create minimal log");
-      assert.strictEqual(result.value.action, "TEST_MINIMAL_ACTION");
-      assert.strictEqual(result.value.userId, null);
-      assert.strictEqual(result.value.resource, null);
-      assert.strictEqual(result.value.resourceId, null);
-      assert.strictEqual(result.value.details, null);
-      assert.strictEqual(result.value.ipAddress, null);
-      assert.strictEqual(result.value.userAgent, null);
-      assert.strictEqual(result.value.success, true);
-      assert.strictEqual(result.value.error, null);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.action).toBe("TEST_MINIMAL_ACTION");
+      expect(result.value.userId).toBe(null);
+      expect(result.value.resource).toBe(null);
+      expect(result.value.resourceId).toBe(null);
+      expect(result.value.details).toBe(null);
+      expect(result.value.ipAddress).toBe(null);
+      expect(result.value.userAgent).toBe(null);
+      expect(result.value.success).toBe(true);
+      expect(result.value.error).toBe(null);
     });
 
     it("should handle all optional fields when provided", async () => {
       const result = await auditService.log({
-        userId: testUserId,
+        userId: TEST_USER_1.id,
         action: AuditActions.USER_UPDATED,
         resource: AuditResources.USER,
-        resourceId: testUserId,
+        resourceId: TEST_USER_1.id,
         details: { field: "email", oldValue: "old@example.com", newValue: "new@example.com" },
         ipAddress: "192.168.1.1",
         userAgent: "Mozilla/5.0",
         success: true,
       });
 
-      assert.ok(result.ok);
-      assert.strictEqual(result.value.userId, testUserId);
-      assert.strictEqual(result.value.action, AuditActions.USER_UPDATED);
-      assert.strictEqual(result.value.resource, AuditResources.USER);
-      assert.strictEqual(result.value.resourceId, testUserId);
-      assert.deepStrictEqual(result.value.details, {
+      expect(result.ok).toBeTruthy();
+      expect(result.value.userId).toBe(TEST_USER_1.id);
+      expect(result.value.action).toBe(AuditActions.USER_UPDATED);
+      expect(result.value.resource).toBe(AuditResources.USER);
+      expect(result.value.resourceId).toBe(TEST_USER_1.id);
+      expect(result.value.details).toStrictEqual({
         field: "email",
         oldValue: "old@example.com",
         newValue: "new@example.com",
       });
-      assert.strictEqual(result.value.ipAddress, "192.168.1.1");
-      assert.strictEqual(result.value.userAgent, "Mozilla/5.0");
-      assert.strictEqual(result.value.success, true);
+      expect(result.value.ipAddress).toBe("192.168.1.1");
+      expect(result.value.userAgent).toBe("Mozilla/5.0");
+      expect(result.value.success).toBe(true);
     });
 
     it("should handle error field when success=false", async () => {
       const result = await auditService.log({
-        userId: testUserId,
+        userId: TEST_USER_1.id,
         action: AuditActions.LOGIN_FAILED,
         success: false,
         error: "Invalid password",
       });
 
-      assert.ok(result.ok);
-      assert.strictEqual(result.value.success, false);
-      assert.strictEqual(result.value.error, "Invalid password");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.success).toBe(false);
+      expect(result.value.error).toBe("Invalid password");
     });
 
     it("should default success to true when not specified", async () => {
@@ -84,8 +192,8 @@ describe("AuditService - log() - Create Audit Logs", { concurrency: 1 }, () => {
         action: "TEST_DEFAULT_SUCCESS",
       });
 
-      assert.ok(result.ok);
-      assert.strictEqual(result.value.success, true);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.success).toBe(true);
     });
 
     it("should explicitly set success to false when provided", async () => {
@@ -94,26 +202,26 @@ describe("AuditService - log() - Create Audit Logs", { concurrency: 1 }, () => {
         success: false,
       });
 
-      assert.ok(result.ok);
-      assert.strictEqual(result.value.success, false);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.success).toBe(false);
     });
   });
 
   describe("User Association", () => {
     it("should include user details when userId is provided", async () => {
       const result = await auditService.log({
-        userId: testUserId,
+        userId: TEST_USER_1.id,
         action: AuditActions.POST_CREATED,
         resource: AuditResources.POST,
         resourceId: "post-123",
       });
 
-      assert.ok(result.ok);
-      assert.ok(result.value.user);
-      assert.strictEqual(result.value.user.id, testUserId);
-      assert.strictEqual(result.value.user.email, "audit-test-user@example.com");
-      assert.strictEqual(result.value.user.name, "Audit Test User");
-      assert.strictEqual(result.value.user.role, "ADMIN");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.user).toBeTruthy();
+      expect(result.value.user.id).toBe(TEST_USER_1.id);
+      expect(result.value.user.email).toBe("audit-test-user@example.com");
+      expect(result.value.user.name).toBe("Audit Test User");
+      expect(result.value.user.role).toBe("ADMIN");
     });
 
     it("should handle logs without user association", async () => {
@@ -122,9 +230,9 @@ describe("AuditService - log() - Create Audit Logs", { concurrency: 1 }, () => {
         resource: AuditResources.SYSTEM,
       });
 
-      assert.ok(result.ok);
-      assert.strictEqual(result.value.userId, null);
-      assert.strictEqual(result.value.user, null);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.userId).toBe(null);
+      expect(result.value.user).toBe(null);
     });
   });
 
@@ -144,13 +252,13 @@ describe("AuditService - log() - Create Audit Logs", { concurrency: 1 }, () => {
       };
 
       const result = await auditService.log({
-        userId: testUserId,
+        userId: TEST_USER_1.id,
         action: "TEST_NESTED_DETAILS",
         details,
       });
 
-      assert.ok(result.ok);
-      assert.deepStrictEqual(result.value.details, details);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.details).toStrictEqual(details);
     });
 
     it("should handle arrays in details", async () => {
@@ -164,27 +272,27 @@ describe("AuditService - log() - Create Audit Logs", { concurrency: 1 }, () => {
         details,
       });
 
-      assert.ok(result.ok);
-      assert.deepStrictEqual(result.value.details, details);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.details).toStrictEqual(details);
     });
   });
 
   describe("AuditActions Constants", () => {
     it("should have all expected action constants", () => {
-      assert.strictEqual(AuditActions.LOGIN, "LOGIN");
-      assert.strictEqual(AuditActions.LOGOUT, "LOGOUT");
-      assert.strictEqual(AuditActions.USER_CREATED, "USER_CREATED");
-      assert.strictEqual(AuditActions.PERMISSION_DENIED, "PERMISSION_DENIED");
-      assert.strictEqual(AuditActions.POST_PUBLISHED, "POST_PUBLISHED");
+      expect(AuditActions.LOGIN).toBe("LOGIN");
+      expect(AuditActions.LOGOUT).toBe("LOGOUT");
+      expect(AuditActions.USER_CREATED).toBe("USER_CREATED");
+      expect(AuditActions.PERMISSION_DENIED).toBe("PERMISSION_DENIED");
+      expect(AuditActions.POST_PUBLISHED).toBe("POST_PUBLISHED");
     });
   });
 
   describe("AuditResources Constants", () => {
     it("should have all expected resource constants", () => {
-      assert.strictEqual(AuditResources.USER, "AdminUser");
-      assert.strictEqual(AuditResources.ACCOUNT, "Account");
-      assert.strictEqual(AuditResources.POST, "Post");
-      assert.strictEqual(AuditResources.SYSTEM, "System");
+      expect(AuditResources.USER).toBe("AdminUser");
+      expect(AuditResources.ACCOUNT).toBe("Account");
+      expect(AuditResources.POST).toBe("Post");
+      expect(AuditResources.SYSTEM).toBe("System");
     });
   });
 });

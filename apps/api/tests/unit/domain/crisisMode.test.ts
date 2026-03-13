@@ -8,9 +8,7 @@
  * with a single action (e.g., during PR crisis, breaking news, etc.)
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, expect } from "vitest";
 import { AccountId } from "../../../src/domain/index.js";
 import { Project } from "../../../src/domain/entities/Project.js";
 
@@ -24,10 +22,10 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.equal(result.value.isInCrisisMode, false);
-        assert.equal(result.value.crisisStartedAt, undefined);
+        expect(result.value.isInCrisisMode).toBe(false);
+        expect(result.value.crisisStartedAt).toBe(undefined);
       }
     });
 
@@ -37,14 +35,14 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         project.enterCrisisMode("PR incident - pausing all posts");
 
-        assert.equal(project.isInCrisisMode, true);
-        assert.ok(project.crisisStartedAt, "Should have crisis start time");
-        assert.equal(project.crisisReason, "PR incident - pausing all posts");
+        expect(project.isInCrisisMode).toBe(true);
+        expect(project.crisisStartedAt).toBeTruthy();
+        expect(project.crisisReason).toBe("PR incident - pausing all posts");
       }
     });
 
@@ -54,15 +52,15 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         project.enterCrisisMode("Emergency");
         project.exitCrisisMode();
 
-        assert.equal(project.isInCrisisMode, false);
-        assert.equal(project.crisisStartedAt, undefined);
-        assert.equal(project.crisisReason, undefined);
+        expect(project.isInCrisisMode).toBe(false);
+        expect(project.crisisStartedAt).toBe(undefined);
+        expect(project.crisisReason).toBe(undefined);
       }
     });
 
@@ -72,7 +70,7 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
 
@@ -84,11 +82,11 @@ describe("Crisis Mode Domain", () => {
         project.enterCrisisMode("Second crisis");
 
         const history = project.crisisModeHistory;
-        assert.equal(history.length, 2, "Should have 2 crisis entries");
-        assert.equal(history[0]?.reason, "First crisis");
-        assert.ok(history[0]?.endedAt, "First crisis should be ended");
-        assert.equal(history[1]?.reason, "Second crisis");
-        assert.equal(history[1]?.endedAt, undefined, "Current crisis should not be ended");
+        expect(history.length).toBe(2);
+        expect(history[0]?.reason).toBe("First crisis");
+        expect(history[0]?.endedAt).toBeTruthy();
+        expect(history[1]?.reason).toBe("Second crisis");
+        expect(history[1]?.endedAt).toBe(undefined);
       }
     });
 
@@ -98,15 +96,15 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         project.enterCrisisMode("First crisis");
 
         // Try to enter again - should be no-op or throw
         const secondResult = project.enterCrisisMode("Second crisis");
-        assert.equal(secondResult, false, "Should not enter crisis mode twice");
-        assert.equal(project.crisisReason, "First crisis", "Original reason preserved");
+        expect(secondResult).toBe(false);
+        expect(project.crisisReason).toBe("First crisis");
       }
     });
 
@@ -116,12 +114,12 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         // Should not throw
         const exitResult = project.exitCrisisMode();
-        assert.equal(exitResult, false, "Should return false when not in crisis");
+        expect(exitResult).toBe(false);
       }
     });
 
@@ -131,15 +129,15 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         project.enterCrisisMode("Test crisis");
 
         const json = project.toJSON();
-        assert.equal(json.isInCrisisMode, true);
-        assert.ok(json.crisisStartedAt);
-        assert.equal(json.crisisReason, "Test crisis");
+        expect(json.isInCrisisMode).toBe(true);
+        expect(json.crisisStartedAt).toBeTruthy();
+        expect(json.crisisReason).toBe("Test crisis");
       }
     });
 
@@ -149,15 +147,15 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         project.enterCrisisMode("Duration test");
 
         // Check duration is positive (just entered)
         const duration = project.crisisDurationMs;
-        assert.ok(duration !== undefined, "Should have duration");
-        assert.ok((duration as number) >= 0, "Duration should be non-negative");
+        expect(duration !== undefined).toBeTruthy();
+        expect((duration as number) >= 0).toBeTruthy();
       }
     });
 
@@ -167,14 +165,10 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
-        assert.equal(
-          project.crisisDurationMs,
-          undefined,
-          "Duration should be undefined when not in crisis"
-        );
+        expect(project.crisisDurationMs).toBe(undefined);
       }
     });
 
@@ -184,18 +178,18 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         project.enterCrisisMode("Outage incident");
 
         const json = project.toJSON();
-        assert.equal(json.isInCrisisMode, true);
-        assert.equal(json.crisisReason, "Outage incident");
-        assert.ok(Array.isArray(json.crisisModeHistory));
+        expect(json.isInCrisisMode).toBe(true);
+        expect(json.crisisReason).toBe("Outage incident");
+        expect(Array.isArray(json.crisisModeHistory)).toBeTruthy();
         const history = json.crisisModeHistory as Array<Record<string, unknown>>;
-        assert.equal(history.length, 1);
-        assert.equal(history[0]?.reason, "Outage incident");
+        expect(history.length).toBe(1);
+        expect(history[0]?.reason).toBe("Outage incident");
       }
     });
   });
@@ -207,14 +201,14 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         project.enterCrisisMode("Event test");
 
         const events = project.domainEvents;
         const crisisEvent = events.find((e) => e.eventType === "CrisisModeEntered");
-        assert.ok(crisisEvent, "Should emit CrisisModeEntered event");
+        expect(crisisEvent).toBeTruthy();
       }
     });
 
@@ -224,7 +218,7 @@ describe("Crisis Mode Domain", () => {
         name: "Test Project",
       });
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
         const project = result.value;
         project.enterCrisisMode("Event test");
@@ -233,7 +227,7 @@ describe("Crisis Mode Domain", () => {
 
         const events = project.domainEvents;
         const exitEvent = events.find((e) => e.eventType === "CrisisModeExited");
-        assert.ok(exitEvent, "Should emit CrisisModeExited event");
+        expect(exitEvent).toBeTruthy();
       }
     });
   });

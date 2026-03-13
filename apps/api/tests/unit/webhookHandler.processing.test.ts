@@ -1,24 +1,113 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { UniversalWebhookHandler } from "../../src/webhooks/webhookHandler.js";
-import { prisma } from "@infra/prisma";
-import {
-  createSignature,
-  cleanupTestData,
-  createTestSubscription,
-} from "./webhookHandler.test-helpers.js";
+/**
+ * @file webhookHandler.processing.test.ts
+ * @description Tests for WebhookHandler duplicate detection, signature verification,
+ *              provider routing, and edge cases.
+ * @layer test
+ */
 
-describe("WebhookHandler - Duplicate Event Detection", { concurrency: 1 }, () => {
-  before(async () => {
-    await cleanupTestData();
-  });
+import { describe, it, beforeEach, expect, vi } from "vitest";
+import { randomUUID } from "crypto";
+import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
+import { createSignature, createTestSubscriptionData } from "./webhookHandler.test-helpers.js";
 
-  after(async () => {
-    await cleanupTestData().catch(() => {});
+// ---------------------------------------------------------------------------
+// Mock @infra/prisma with all models needed by webhook processors
+// ---------------------------------------------------------------------------
+const { mockPrisma, stores } = createMockPrismaModule();
+
+// Additional stores for models used by webhook processors
+const channelStore = createStore<Record<string, unknown>>();
+const postStore = createStore<Record<string, unknown>>();
+const publishLogStore = createStore<Record<string, unknown>>();
+const analyticsStore = createStore<Record<string, unknown>>();
+const instagramAnalyticsStore = createStore<Record<string, unknown>>();
+
+// Override webhookEvent.findUnique to handle compound key provider_eventId
+const webhookEventMock = mockPrisma.prisma.webhookEvent;
+const originalFindUnique = webhookEventMock.findUnique;
+webhookEventMock.findUnique = vi.fn(async (args: Record<string, unknown>) => {
+  const where = args.where as Record<string, unknown>;
+  // Expand compound key provider_eventId into separate fields
+  if (where && typeof where.provider_eventId === "object" && where.provider_eventId !== null) {
+    const compound = where.provider_eventId as Record<string, unknown>;
+    const expandedWhere = { ...where, ...compound };
+    delete expandedWhere.provider_eventId;
+    return originalFindUnique({ ...args, where: expandedWhere });
+  }
+  return originalFindUnique(args);
+});
+
+const extendedPrisma = {
+  ...mockPrisma.prisma,
+  channel: buildModelMock(channelStore),
+  post: buildModelMock(postStore),
+  publishLog: buildModelMock(publishLogStore),
+  analytics: buildModelMock(analyticsStore),
+  instagramAnalytics: buildModelMock(instagramAnalyticsStore),
+};
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const orig = await importOriginal<Record<string, unknown>>();
+  return { ...orig, prisma: extendedPrisma };
+});
+
+// Mock the logger to avoid console noise
+vi.mock("../../src/lib/logger.js", () => ({
+  webhookLogger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn().mockReturnValue({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    }),
+  },
+}));
+
+// Import after mocks are set up
+const { UniversalWebhookHandler } = await import("../../src/webhooks/webhookHandler.js");
+
+/**
+ * Seeds a webhook subscription into the mock stores and returns the data.
+ */
+function seedSubscription(provider: "X" | "INSTAGRAM" | "FACEBOOK" | "YOUTUBE" | "TIKTOK") {
+  const { account, project, subscription } = createTestSubscriptionData(provider);
+  stores.account.add(account as Record<string, unknown>);
+  stores.project.add(project as Record<string, unknown>);
+  stores.webhookSubscription.add(subscription as Record<string, unknown>);
+  return { account, project, subscription };
+}
+
+function clearAllStores() {
+  for (const store of Object.values(stores) as { clear: () => void }[]) {
+    store.clear();
+  }
+  channelStore.clear();
+  postStore.clear();
+  publishLogStore.clear();
+  analyticsStore.clear();
+  instagramAnalyticsStore.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Duplicate Event Detection
+// ---------------------------------------------------------------------------
+describe("WebhookHandler - Duplicate Event Detection", () => {
+  beforeEach(() => {
+    clearAllStores();
   });
 
   it("should process event on first occurrence", async () => {
-    const { subscription } = await createTestSubscription("INSTAGRAM");
+    const { subscription } = seedSubscription("INSTAGRAM");
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -45,26 +134,29 @@ describe("WebhookHandler - Duplicate Event Detection", { concurrency: 1 }, () =>
 
     const result = await handler.handleWebhook("INSTAGRAM", signature, payload, headers);
 
-    assert.strictEqual(result.success, true, "First occurrence should succeed");
+    expect(result.success).toBe(true);
   });
 
   it("should return existing data on duplicate event", async () => {
-    const { subscription } = await createTestSubscription("INSTAGRAM");
+    const { subscription } = seedSubscription("INSTAGRAM");
 
-    await prisma.webhookEvent.create({
-      data: {
-        provider: "INSTAGRAM",
-        eventType: "POST_ENGAGEMENT_UPDATE",
-        eventId: "duplicate-event-123",
-        signature: "test-signature",
-        payload: { test: "data" },
-        headers: {},
-        status: "COMPLETED",
-        verified: true,
-        processed: true,
-        normalizedData: { message: "already processed" },
-      },
-    });
+    // Pre-seed a completed webhook event with eventId matching the payload
+    stores.webhookEvent.add({
+      id: randomUUID(),
+      provider: "INSTAGRAM",
+      eventType: "POST_ENGAGEMENT_UPDATE",
+      eventId: "duplicate-event-123",
+      signature: "test-signature",
+      payload: { test: "data" },
+      headers: {},
+      status: "COMPLETED",
+      verified: true,
+      processed: true,
+      normalizedData: { message: "already processed" },
+      retryCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Record<string, unknown>);
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -76,22 +168,21 @@ describe("WebhookHandler - Duplicate Event Detection", { concurrency: 1 }, () =>
 
     const result = await handler.handleWebhook("INSTAGRAM", signature, payload, headers);
 
-    assert.strictEqual(result.success, true, "Duplicate should return success");
-    assert.ok(result.normalizedData, "Should return existing normalized data");
+    expect(result.success).toBe(true);
+    expect(result.normalizedData).toBeTruthy();
   });
 });
 
-describe("WebhookHandler - Signature Verification", { concurrency: 1 }, () => {
-  before(async () => {
-    await cleanupTestData();
-  });
-
-  after(async () => {
-    await cleanupTestData().catch(() => {});
+// ---------------------------------------------------------------------------
+// Signature Verification
+// ---------------------------------------------------------------------------
+describe("WebhookHandler - Signature Verification", () => {
+  beforeEach(() => {
+    clearAllStores();
   });
 
   it("should accept valid Instagram signature", async () => {
-    const { subscription } = await createTestSubscription("INSTAGRAM");
+    const { subscription } = seedSubscription("INSTAGRAM");
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -118,11 +209,11 @@ describe("WebhookHandler - Signature Verification", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("INSTAGRAM", signature, payload, headers);
 
-    assert.strictEqual(result.success, true, "Valid signature should be accepted");
+    expect(result.success).toBe(true);
   });
 
   it("should reject invalid signature", async () => {
-    const { subscription: _subscription } = await createTestSubscription("INSTAGRAM");
+    seedSubscription("INSTAGRAM");
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -134,15 +225,12 @@ describe("WebhookHandler - Signature Verification", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("INSTAGRAM", invalidSignature, payload, headers);
 
-    assert.strictEqual(result.success, false, "Invalid signature should be rejected");
-    assert.ok(
-      result.error?.includes("signature verification failed"),
-      "Should mention signature failure"
-    );
+    expect(result.success).toBe(false);
+    expect(result.error?.includes("signature verification failed")).toBeTruthy();
   });
 
   it("should reject request with missing signature", async () => {
-    await createTestSubscription("INSTAGRAM");
+    seedSubscription("INSTAGRAM");
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -151,21 +239,20 @@ describe("WebhookHandler - Signature Verification", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("INSTAGRAM", "", payload, {});
 
-    assert.strictEqual(result.success, false, "Missing signature should be rejected");
+    expect(result.success).toBe(false);
   });
 });
 
-describe("WebhookHandler - Provider Routing", { concurrency: 1 }, () => {
-  before(async () => {
-    await cleanupTestData();
-  });
-
-  after(async () => {
-    await cleanupTestData().catch(() => {});
+// ---------------------------------------------------------------------------
+// Provider Routing
+// ---------------------------------------------------------------------------
+describe("WebhookHandler - Provider Routing", () => {
+  beforeEach(() => {
+    clearAllStores();
   });
 
   it("should route Instagram webhook to Instagram processor", async () => {
-    const { subscription } = await createTestSubscription("INSTAGRAM");
+    const { subscription } = seedSubscription("INSTAGRAM");
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -192,11 +279,11 @@ describe("WebhookHandler - Provider Routing", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("INSTAGRAM", signature, payload, headers);
 
-    assert.strictEqual(result.success, true, "Instagram webhook should be routed");
+    expect(result.success).toBe(true);
   });
 
   it("should route Facebook webhook to Instagram processor (shared)", async () => {
-    const { subscription } = await createTestSubscription("FACEBOOK");
+    const { subscription } = seedSubscription("FACEBOOK");
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -222,11 +309,11 @@ describe("WebhookHandler - Provider Routing", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("FACEBOOK", signature, payload, headers);
 
-    assert.strictEqual(result.success, true, "Facebook webhook should be routed");
+    expect(result.success).toBe(true);
   });
 
   it("should route X webhook to X processor", async () => {
-    const { subscription } = await createTestSubscription("X");
+    const { subscription } = seedSubscription("X");
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -248,6 +335,6 @@ describe("WebhookHandler - Provider Routing", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("X", signature, payload, headers);
 
-    assert.strictEqual(result.success, true, "X webhook should be routed");
+    expect(result.success).toBe(true);
   });
 });

@@ -2,18 +2,17 @@
  * Unit Tests for VideoUploadPipeline — Session Lifecycle
  * Tests session cancellation, cleanup of old sessions, and chunk retry logic.
  */
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { VideoUploadPipeline, type UploadDestination } from "../../src/video/uploadPipeline";
 import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers";
 
 // Apply fs mocks before any describe/it blocks run
 setupFsMocks();
 
-describe("VideoUploadPipeline - Session Cancellation", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - Session Cancellation", () => {
   let pipeline: VideoUploadPipeline;
 
-  before(() => {
+  beforeAll(() => {
     pipeline = new VideoUploadPipeline(0);
   });
 
@@ -26,22 +25,22 @@ describe("VideoUploadPipeline - Session Cancellation", { concurrency: 1 }, () =>
 
     const cancelled = await pipeline.cancelUpload(session.sessionId);
 
-    assert.equal(cancelled, true);
+    expect(cancelled).toBe(true);
 
     const retrieved = pipeline.getUploadSession(session.sessionId);
-    assert.equal(retrieved?.status, "cancelled");
+    expect(retrieved?.status).toBe("cancelled");
   });
 
   it("should return false when cancelling non-existent session", async () => {
     const cancelled = await pipeline.cancelUpload("non-existent-session");
-    assert.equal(cancelled, false);
+    expect(cancelled).toBe(false);
   });
 });
 
-describe("VideoUploadPipeline - Session Cleanup", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - Session Cleanup", () => {
   let pipeline: VideoUploadPipeline;
 
-  before(() => {
+  beforeAll(() => {
     pipeline = new VideoUploadPipeline(0);
   });
 
@@ -63,11 +62,11 @@ describe("VideoUploadPipeline - Session Cleanup", { concurrency: 1 }, () => {
     // Clean up sessions older than 24 hours
     const cleaned = await pipeline.cleanupSessions(24 * 60 * 60 * 1000);
 
-    assert.equal(cleaned, 2);
+    expect(cleaned).toBe(2);
 
     // Recent session should still exist
     const remaining = pipeline.getUploadSession(session3.sessionId);
-    assert.ok(remaining);
+    expect(remaining).toBeTruthy();
   });
 
   it("should not cleanup active sessions", async () => {
@@ -86,14 +85,14 @@ describe("VideoUploadPipeline - Session Cleanup", { concurrency: 1 }, () => {
 
     const cleaned = await pipeline2.cleanupSessions(24 * 60 * 60 * 1000);
 
-    assert.equal(cleaned, 0);
+    expect(cleaned).toBe(0);
   });
 });
 
-describe("VideoUploadPipeline - Chunk Retry Logic", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - Chunk Retry Logic", () => {
   let pipeline: VideoUploadPipeline;
 
-  before(() => {
+  beforeAll(() => {
     pipeline = new VideoUploadPipeline(0);
   });
 
@@ -105,8 +104,8 @@ describe("VideoUploadPipeline - Chunk Retry Logic", { concurrency: 1 }, () => {
     );
 
     session.chunks.forEach((chunk) => {
-      assert.equal(chunk.retries, 0);
-      assert.equal(chunk.uploaded, false);
+      expect(chunk.retries).toBe(0);
+      expect(chunk.uploaded).toBe(false);
     });
   });
 
@@ -127,6 +126,6 @@ describe("VideoUploadPipeline - Chunk Retry Logic", { concurrency: 1 }, () => {
     const session = await pipeline.uploadFile(filePath, destination);
 
     // All chunks should be marked as uploaded
-    assert.ok(session.chunks.every((chunk) => chunk.uploaded === true));
+    expect(session.chunks.every((chunk) => chunk.uploaded === true)).toBeTruthy();
   });
 });

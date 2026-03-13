@@ -36,8 +36,7 @@
  * @category UnitTests
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import type { HealthStatus } from "@monitoring/health-checks";
 import {
   healthStatusToNumber,
@@ -111,19 +110,19 @@ describe("HealthMetrics - Health Status Conversion", () => {
   it("should convert healthy status to 1", () => {
     const value = healthStatusToNumber("healthy");
 
-    assert.strictEqual(value, 1, "Healthy status should convert to 1");
+    expect(value).toBe(1);
   });
 
   it("should convert degraded status to 0.5", () => {
     const value = healthStatusToNumber("degraded");
 
-    assert.strictEqual(value, 0.5, "Degraded status should convert to 0.5");
+    expect(value).toBe(0.5);
   });
 
   it("should convert unhealthy status to 0", () => {
     const value = healthStatusToNumber("unhealthy");
 
-    assert.strictEqual(value, 0, "Unhealthy status should convert to 0");
+    expect(value).toBe(0);
   });
 
   it("should handle all valid health statuses", () => {
@@ -131,8 +130,8 @@ describe("HealthMetrics - Health Status Conversion", () => {
 
     statuses.forEach((status) => {
       const value = healthStatusToNumber(status);
-      assert.ok(typeof value === "number", `${status} should convert to number`);
-      assert.ok(value >= 0 && value <= 1, `${status} should convert to 0-1 range`);
+      expect(typeof value === "number").toBeTruthy();
+      expect(value >= 0 && value <= 1).toBeTruthy();
     });
   });
 });
@@ -157,7 +156,7 @@ describe("HealthMetrics - Dependency Health Recording", () => {
 
     const gaugeValue = await getGaugeValue(dependencyHealthGauge, { dependency, type });
 
-    assert.strictEqual(gaugeValue, 1, "Healthy dependency should set gauge to 1");
+    expect(gaugeValue).toBe(1);
   });
 
   it("should record degraded dependency metrics", async () => {
@@ -171,7 +170,7 @@ describe("HealthMetrics - Dependency Health Recording", () => {
 
     const gaugeValue = await getGaugeValue(dependencyHealthGauge, { dependency, type });
 
-    assert.strictEqual(gaugeValue, 0.5, "Degraded dependency should set gauge to 0.5");
+    expect(gaugeValue).toBe(0.5);
   });
 
   it("should record unhealthy dependency metrics", async () => {
@@ -185,7 +184,7 @@ describe("HealthMetrics - Dependency Health Recording", () => {
 
     const gaugeValue = await getGaugeValue(dependencyHealthGauge, { dependency, type });
 
-    assert.strictEqual(gaugeValue, 0, "Unhealthy dependency should set gauge to 0");
+    expect(gaugeValue).toBe(0);
   });
 
   it("should record health check duration in seconds", () => {
@@ -200,7 +199,7 @@ describe("HealthMetrics - Dependency Health Recording", () => {
 
     // Histogram recorded, no assertion needed as histogram.observe doesn't return value
     // This validates the function executes without error
-    assert.ok(true, "Health check duration should be recorded");
+    expect(true).toBeTruthy();
   });
 
   it("should increment failure counter for unhealthy status", async () => {
@@ -216,7 +215,7 @@ describe("HealthMetrics - Dependency Health Recording", () => {
 
     const afterCount = await getCounterValue(healthCheckFailureCounter, { dependency, type });
 
-    assert.ok(afterCount > beforeCount, "Unhealthy status should increment failure counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should not increment failure counter for healthy status", async () => {
@@ -232,11 +231,7 @@ describe("HealthMetrics - Dependency Health Recording", () => {
 
     const afterCount = await getCounterValue(healthCheckFailureCounter, { dependency, type });
 
-    assert.strictEqual(
-      afterCount,
-      beforeCount,
-      "Healthy status should not increment failure counter"
-    );
+    expect(afterCount).toBe(beforeCount);
   });
 
   it("should increment critical failures for unhealthy critical dependency", async () => {
@@ -252,10 +247,7 @@ describe("HealthMetrics - Dependency Health Recording", () => {
 
     const afterCount = await getGaugeValue(criticalDependencyFailuresGauge);
 
-    assert.ok(
-      afterCount > beforeCount,
-      "Unhealthy critical dependency should increment critical failures"
-    );
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should not increment critical failures for non-critical dependency", async () => {
@@ -271,11 +263,7 @@ describe("HealthMetrics - Dependency Health Recording", () => {
 
     const afterCount = await getGaugeValue(criticalDependencyFailuresGauge);
 
-    assert.strictEqual(
-      afterCount,
-      beforeCount,
-      "Non-critical dependency failure should not increment critical failures"
-    );
+    expect(afterCount).toBe(beforeCount);
   });
 
   it("should handle multiple dependencies independently", async () => {
@@ -296,9 +284,9 @@ describe("HealthMetrics - Dependency Health Recording", () => {
       type: "storage",
     });
 
-    assert.strictEqual(postgresValue, 1, "Postgres should be healthy");
-    assert.strictEqual(redisValue, 0.5, "Redis should be degraded");
-    assert.strictEqual(s3Value, 0, "S3 should be unhealthy");
+    expect(postgresValue).toBe(1);
+    expect(redisValue).toBe(0.5);
+    expect(s3Value).toBe(0);
   });
 });
 
@@ -321,8 +309,8 @@ describe("HealthMetrics - System Health Recording", () => {
     const systemStatus = await getGaugeValue(systemHealthGauge);
     const criticalCount = await getGaugeValue(criticalDependencyFailuresGauge);
 
-    assert.strictEqual(systemStatus, 1, "System health should be 1 for healthy");
-    assert.strictEqual(criticalCount, 0, "Critical failures should be 0");
+    expect(systemStatus).toBe(1);
+    expect(criticalCount).toBe(0);
   });
 
   it("should record degraded system status", async () => {
@@ -335,8 +323,8 @@ describe("HealthMetrics - System Health Recording", () => {
     const systemStatus = await getGaugeValue(systemHealthGauge);
     const criticalCount = await getGaugeValue(criticalDependencyFailuresGauge);
 
-    assert.strictEqual(systemStatus, 0.5, "System health should be 0.5 for degraded");
-    assert.strictEqual(criticalCount, 1, "Critical failures should be 1");
+    expect(systemStatus).toBe(0.5);
+    expect(criticalCount).toBe(1);
   });
 
   it("should record unhealthy system status", async () => {
@@ -349,22 +337,22 @@ describe("HealthMetrics - System Health Recording", () => {
     const systemStatus = await getGaugeValue(systemHealthGauge);
     const criticalCount = await getGaugeValue(criticalDependencyFailuresGauge);
 
-    assert.strictEqual(systemStatus, 0, "System health should be 0 for unhealthy");
-    assert.strictEqual(criticalCount, 3, "Critical failures should be 3");
+    expect(systemStatus).toBe(0);
+    expect(criticalCount).toBe(3);
   });
 
   it("should update system health on multiple calls", async () => {
     recordSystemHealthMetrics("healthy", 100, 0);
     let systemStatus = await getGaugeValue(systemHealthGauge);
-    assert.strictEqual(systemStatus, 1, "Initial status should be healthy");
+    expect(systemStatus).toBe(1);
 
     recordSystemHealthMetrics("degraded", 70, 1);
     systemStatus = await getGaugeValue(systemHealthGauge);
-    assert.strictEqual(systemStatus, 0.5, "Status should update to degraded");
+    expect(systemStatus).toBe(0.5);
 
     recordSystemHealthMetrics("unhealthy", 40, 2);
     systemStatus = await getGaugeValue(systemHealthGauge);
-    assert.strictEqual(systemStatus, 0, "Status should update to unhealthy");
+    expect(systemStatus).toBe(0);
   });
 });
 
@@ -389,8 +377,8 @@ describe("HealthMetrics - Health Alert Recording", () => {
     const afterCount = await getCounterValue(healthAlertCounter, { level, dependency });
     const afterActive = await getGaugeValue(activeHealthAlertsGauge, { level });
 
-    assert.ok(afterCount > beforeCount, "Alert counter should increment");
-    assert.ok(afterActive > beforeActive, "Active alerts gauge should increment");
+    expect(afterCount > beforeCount).toBeTruthy();
+    expect(afterActive > beforeActive).toBeTruthy();
   });
 
   it("should record error alert", async () => {
@@ -403,7 +391,7 @@ describe("HealthMetrics - Health Alert Recording", () => {
 
     const afterCount = await getCounterValue(healthAlertCounter, { level, dependency });
 
-    assert.ok(afterCount > beforeCount, "Error alert counter should increment");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should record critical alert", async () => {
@@ -416,7 +404,7 @@ describe("HealthMetrics - Health Alert Recording", () => {
 
     const afterCount = await getCounterValue(healthAlertCounter, { level, dependency });
 
-    assert.ok(afterCount > beforeCount, "Critical alert counter should increment");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should record system-level alerts without dependency", async () => {
@@ -428,7 +416,7 @@ describe("HealthMetrics - Health Alert Recording", () => {
 
     const afterCount = await getCounterValue(healthAlertCounter, { level, dependency: "system" });
 
-    assert.ok(afterCount > beforeCount, "System alert should increment counter");
+    expect(afterCount > beforeCount).toBeTruthy();
   });
 
   it("should track active alerts by severity level", async () => {
@@ -440,9 +428,9 @@ describe("HealthMetrics - Health Alert Recording", () => {
     const errorActive = await getGaugeValue(activeHealthAlertsGauge, { level: "error" });
     const criticalActive = await getGaugeValue(activeHealthAlertsGauge, { level: "critical" });
 
-    assert.ok(warningActive >= 1, "Should have warning alerts");
-    assert.ok(errorActive >= 1, "Should have error alerts");
-    assert.ok(criticalActive >= 1, "Should have critical alerts");
+    expect(warningActive >= 1).toBeTruthy();
+    expect(errorActive >= 1).toBeTruthy();
+    expect(criticalActive >= 1).toBeTruthy();
   });
 
   it("should accumulate multiple alerts of same type", async () => {
@@ -457,7 +445,7 @@ describe("HealthMetrics - Health Alert Recording", () => {
 
     const afterCount = await getCounterValue(healthAlertCounter, { level, dependency });
 
-    assert.ok(afterCount >= beforeCount + 3, "Should accumulate multiple alerts");
+    expect(afterCount >= beforeCount + 3).toBeTruthy();
   });
 });
 
@@ -483,7 +471,7 @@ describe("HealthMetrics - Alert Acknowledgement", () => {
 
     const afterAck = await getGaugeValue(activeHealthAlertsGauge, { level });
 
-    assert.ok(afterAck < beforeAck, "Active alerts should decrease after acknowledgement");
+    expect(afterAck < beforeAck).toBeTruthy();
   });
 
   it("should handle acknowledgement of error alerts", async () => {
@@ -495,7 +483,7 @@ describe("HealthMetrics - Alert Acknowledgement", () => {
     acknowledgeHealthAlert(level);
     const afterAck = await getGaugeValue(activeHealthAlertsGauge, { level });
 
-    assert.ok(afterAck < beforeAck, "Error alerts should decrease after acknowledgement");
+    expect(afterAck < beforeAck).toBeTruthy();
   });
 
   it("should handle acknowledgement of critical alerts", async () => {
@@ -507,7 +495,7 @@ describe("HealthMetrics - Alert Acknowledgement", () => {
     acknowledgeHealthAlert(level);
     const afterAck = await getGaugeValue(activeHealthAlertsGauge, { level });
 
-    assert.ok(afterAck < beforeAck, "Critical alerts should decrease after acknowledgement");
+    expect(afterAck < beforeAck).toBeTruthy();
   });
 
   it("should handle multiple acknowledgements", async () => {
@@ -525,7 +513,7 @@ describe("HealthMetrics - Alert Acknowledgement", () => {
 
     const afterAcks = await getGaugeValue(activeHealthAlertsGauge, { level });
 
-    assert.ok(afterAcks < afterAlerts, "Multiple acknowledgements should decrease gauge");
+    expect(afterAcks < afterAlerts).toBeTruthy();
   });
 });
 
@@ -553,8 +541,8 @@ describe("HealthMetrics - Metric Integration", () => {
       type: "database",
     });
 
-    assert.strictEqual(systemStatus, 1, "System should be healthy");
-    assert.strictEqual(postgresStatus, 1, "Postgres should be healthy");
+    expect(systemStatus).toBe(1);
+    expect(postgresStatus).toBe(1);
   });
 
   it("should handle degraded system with failing dependencies", async () => {
@@ -572,8 +560,8 @@ describe("HealthMetrics - Metric Integration", () => {
     const systemStatus = await getGaugeValue(systemHealthGauge);
     const criticalFailures = await getGaugeValue(criticalDependencyFailuresGauge);
 
-    assert.strictEqual(systemStatus, 0.5, "System should be degraded");
-    assert.strictEqual(criticalFailures, 1, "Should have 1 critical failure");
+    expect(systemStatus).toBe(0.5);
+    expect(criticalFailures).toBe(1);
   });
 
   it("should handle alert lifecycle from creation to acknowledgement", async () => {
@@ -593,8 +581,8 @@ describe("HealthMetrics - Metric Integration", () => {
 
     const activeAfterAck = await getGaugeValue(activeHealthAlertsGauge, { level });
 
-    assert.ok(alertCount > 0, "Alert should be counted");
-    assert.ok(activeAfterAck < activeBeforeAck, "Active alerts should decrease");
+    expect(alertCount > 0).toBeTruthy();
+    expect(activeAfterAck < activeBeforeAck).toBeTruthy();
   });
 
   it("should track health trends across multiple checks", () => {
@@ -610,7 +598,7 @@ describe("HealthMetrics - Metric Integration", () => {
     recordHealthAlertMetrics("critical", "postgres");
 
     // All metrics recorded successfully
-    assert.ok(true, "Should track health trends over time");
+    expect(true).toBeTruthy();
   });
 });
 
@@ -626,13 +614,13 @@ describe("HealthMetrics - Edge Cases", () => {
   it("should handle zero latency health checks", () => {
     recordHealthCheckMetrics("redis", "cache", "healthy", 0, false);
 
-    assert.ok(true, "Should handle zero latency");
+    expect(true).toBeTruthy();
   });
 
   it("should handle very high latency health checks", () => {
     recordHealthCheckMetrics("s3", "storage", "unhealthy", 30000, false);
 
-    assert.ok(true, "Should handle high latency");
+    expect(true).toBeTruthy();
   });
 
   it("should handle rapid consecutive health checks", () => {
@@ -640,19 +628,19 @@ describe("HealthMetrics - Edge Cases", () => {
       recordHealthCheckMetrics("postgres", "database", "healthy", 10, true);
     }
 
-    assert.ok(true, "Should handle rapid consecutive checks");
+    expect(true).toBeTruthy();
   });
 
   it("should handle system health with zero score", () => {
     recordSystemHealthMetrics("unhealthy", 0, 5);
 
-    assert.ok(true, "Should handle zero health score");
+    expect(true).toBeTruthy();
   });
 
   it("should handle system health with perfect score", () => {
     recordSystemHealthMetrics("healthy", 100, 0);
 
-    assert.ok(true, "Should handle perfect health score");
+    expect(true).toBeTruthy();
   });
 
   it("should handle multiple alerts at different severity levels", () => {
@@ -662,13 +650,13 @@ describe("HealthMetrics - Edge Cases", () => {
     recordHealthAlertMetrics("warning", "cache");
     recordHealthAlertMetrics("critical", "database");
 
-    assert.ok(true, "Should handle multiple severity levels");
+    expect(true).toBeTruthy();
   });
 
   it("should handle acknowledgement when no active alerts exist", () => {
     // Acknowledge without creating alerts first
     acknowledgeHealthAlert("warning");
 
-    assert.ok(true, "Should gracefully handle acknowledgement of non-existent alerts");
+    expect(true).toBeTruthy();
   });
 });

@@ -1,5 +1,6 @@
 /**
- * SyncEngine - Initialization & Sync Channel Management Tests
+ * @file syncEngine.init.test.ts
+ * @description SyncEngine - Initialization & Sync Channel Management Tests
  *
  * Covers:
  * - Engine initialization, Redis stream setup, idempotent re-init
@@ -7,24 +8,24 @@
  * - Unidirectional / bidirectional channel creation
  * - Duplicate channel rejection, same-source/target validation
  * - Redis storage of channel config, initial health status
+ * @layer integration
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 // Suppress console.log to prevent TAP protocol corruption in concurrent test mode
-let _originalConsoleLog: typeof console.log;
+const _originalConsoleLog = console.log;
 before(() => {
-  _originalConsoleLog = console.log;
   console.log = () => {};
 });
 after(() => {
   console.log = _originalConsoleLog;
 });
 
-import { SyncEngine } from "../../src/content/SyncEngine";
+import { SyncEngine } from "../../../src/content/SyncEngine";
 import type { SyncConfiguration } from "@shared/orchestration";
-import type { ProviderId } from "../../src/providers/providerAdapter.interface";
+import type { ProviderId } from "../../../src/providers/providerAdapter.interface";
 import {
   mockPrisma,
   mockRedis,
@@ -64,7 +65,7 @@ beforeEach(async () => {
 // Initialization Tests
 // ============================================================================
 
-describe("SyncEngine - Initialization", { concurrency: 1 }, () => {
+describe("SyncEngine - Initialization", () => {
   it("should initialize with empty channel map", async (t) => {
     if (skipIfUnavailable(t)) return;
     const engine = new SyncEngine({
@@ -78,7 +79,7 @@ describe("SyncEngine - Initialization", { concurrency: 1 }, () => {
     await engine.initialize();
 
     const metrics = await engine.getSyncMetrics();
-    assert.strictEqual(metrics.totalTransactions, 0, "Should start with zero transactions");
+    assert.strictEqual(metrics.totalTransactions, 0);
     await engine.shutdown();
   });
 
@@ -90,7 +91,7 @@ describe("SyncEngine - Initialization", { concurrency: 1 }, () => {
 
     for (const stream of streams) {
       const info = await mockRedis.xinfo("STREAM", stream).catch(() => null);
-      assert.ok(info, `Stream ${stream} should be created`);
+      assert.ok(info, `Stream ${stream} should exist`);
     }
   });
 
@@ -101,7 +102,7 @@ describe("SyncEngine - Initialization", { concurrency: 1 }, () => {
     await syncEngine.initialize();
 
     const metrics = await syncEngine.getSyncMetrics();
-    assert.ok(metrics, "Metrics should be available after multiple inits");
+    assert.ok(metrics);
   });
 
   it("should load existing sync channels from Redis", async (t) => {
@@ -146,13 +147,9 @@ describe("SyncEngine - Initialization", { concurrency: 1 }, () => {
       }
     );
 
-    assert.strictEqual(result.ok, false, "Should reject duplicate channel creation");
+    assert.strictEqual(result.ok, false);
     if (!result.ok) {
-      assert.match(
-        result.error.message,
-        /already exists/i,
-        "Error should mention channel already exists"
-      );
+      assert.match(result.error.message, /already exists/i);
     }
   });
 });
@@ -161,7 +158,7 @@ describe("SyncEngine - Initialization", { concurrency: 1 }, () => {
 // Sync Channel Management Tests
 // ============================================================================
 
-describe("SyncEngine - Sync Channel Management", { concurrency: 1 }, () => {
+describe("SyncEngine - Sync Channel Management", () => {
   beforeEach(async () => {
     if (!servicesAvailable) return;
     await syncEngine.initialize();
@@ -185,21 +182,21 @@ describe("SyncEngine - Sync Channel Management", { concurrency: 1 }, () => {
       false
     );
 
-    assert.strictEqual(result.ok, true, "Channel creation should succeed");
+    assert.strictEqual(result.ok, true);
     if (result.ok) {
       assert.strictEqual(result.value.sourceProvider, "twitter");
       assert.strictEqual(result.value.targetProvider, "instagram");
       assert.strictEqual(result.value.bidirectional, false);
       assert.strictEqual(result.value.enabled, true);
       assert.strictEqual(result.value.healthStatus, "healthy");
-      assert.ok(result.value.id, "Channel should have an ID");
+      assert.ok(result.value.id);
     }
   });
 
   it("should create bidirectional sync channel", async (t) => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.createSyncChannel(
-      "Twitter ↔ Instagram",
+      "Twitter - Instagram",
       "twitter" as ProviderId,
       "instagram" as ProviderId,
       {
@@ -214,7 +211,7 @@ describe("SyncEngine - Sync Channel Management", { concurrency: 1 }, () => {
       true
     );
 
-    assert.strictEqual(result.ok, true, "Bidirectional channel should be created");
+    assert.strictEqual(result.ok, true);
     if (result.ok) {
       assert.strictEqual(result.value.bidirectional, true);
     }
@@ -237,7 +234,7 @@ describe("SyncEngine - Sync Channel Management", { concurrency: 1 }, () => {
       }
     );
 
-    assert.strictEqual(result.ok, false, "Should reject same source/target");
+    assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.strictEqual(result.error.type, "validation");
       assert.match(result.error.message, /cannot be the same/i);
@@ -262,7 +259,7 @@ describe("SyncEngine - Sync Channel Management", { concurrency: 1 }, () => {
       "facebook" as ProviderId,
       config
     );
-    assert.strictEqual(result1.ok, true, "First channel should succeed");
+    assert.strictEqual(result1.ok, true);
 
     const result2 = await syncEngine.createSyncChannel(
       "Twitter to Facebook Duplicate",
@@ -271,7 +268,7 @@ describe("SyncEngine - Sync Channel Management", { concurrency: 1 }, () => {
       config
     );
 
-    assert.strictEqual(result2.ok, false, "Duplicate should be rejected");
+    assert.strictEqual(result2.ok, false);
     if (!result2.ok) {
       assert.match(result2.error.message, /already exists/i);
     }
@@ -294,11 +291,11 @@ describe("SyncEngine - Sync Channel Management", { concurrency: 1 }, () => {
       }
     );
 
-    assert.strictEqual(result.ok, true, "Channel creation should succeed");
+    assert.strictEqual(result.ok, true);
     if (result.ok) {
       const channelId = result.value.id;
       const stored = await mockRedis.get(`sync:channel:${channelId}`);
-      assert.ok(stored, "Channel should be stored in Redis");
+      assert.ok(stored);
 
       const parsed = JSON.parse(stored!);
       assert.strictEqual(parsed.id, channelId);

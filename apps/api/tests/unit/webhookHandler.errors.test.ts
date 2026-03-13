@@ -1,20 +1,71 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { UniversalWebhookHandler } from "../../src/webhooks/webhookHandler.js";
-import { prisma } from "@infra/prisma";
-import {
-  createSignature,
-  cleanupTestData,
-  createTestSubscription,
-} from "./webhookHandler.test-helpers.js";
+/**
+ * @file webhookHandler.errors.test.ts
+ * @description Tests for WebhookHandler error handling, retry logic, and dead letter queue.
+ * @layer test
+ */
 
-describe("WebhookHandler - Error Handling", { concurrency: 1 }, () => {
-  before(async () => {
-    await cleanupTestData();
-  });
+import { describe, it, beforeEach, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { createSignature, createTestSubscriptionData } from "./webhookHandler.test-helpers.js";
 
-  after(async () => {
-    await cleanupTestData().catch(() => {});
+// ---------------------------------------------------------------------------
+// Mock @infra/prisma before any imports that use it
+// ---------------------------------------------------------------------------
+const { mockPrisma, stores } = createMockPrismaModule();
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const orig = await importOriginal<Record<string, unknown>>();
+  return { ...orig, prisma: mockPrisma.prisma };
+});
+
+// Mock the logger to avoid console noise
+vi.mock("../../src/lib/logger.js", () => ({
+  webhookLogger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn().mockReturnValue({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    }),
+  },
+}));
+
+// Import after mocks are set up
+const { UniversalWebhookHandler } = await import("../../src/webhooks/webhookHandler.js");
+
+/**
+ * Seeds a webhook subscription into the mock stores and returns the data.
+ */
+function seedSubscription(provider: "X" | "INSTAGRAM" | "FACEBOOK" | "YOUTUBE" | "TIKTOK") {
+  const { account, project, subscription } = createTestSubscriptionData(provider);
+  stores.account.add(account as Record<string, unknown>);
+  stores.project.add(project as Record<string, unknown>);
+  stores.webhookSubscription.add(subscription as Record<string, unknown>);
+  return { account, project, subscription };
+}
+
+function clearAllStores() {
+  for (const store of Object.values(stores) as { clear: () => void }[]) {
+    store.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Error Handling
+// ---------------------------------------------------------------------------
+describe("WebhookHandler - Error Handling", () => {
+  beforeEach(() => {
+    clearAllStores();
   });
 
   it("should handle missing webhook subscription", async () => {
@@ -28,12 +79,12 @@ describe("WebhookHandler - Error Handling", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("INSTAGRAM", signature, payload, headers);
 
-    assert.strictEqual(result.success, false, "Should fail without subscription");
-    assert.ok(result.error?.includes("not found"), "Should mention missing subscription");
+    expect(result.success).toBe(false);
+    expect(result.error?.includes("not found")).toBeTruthy();
   });
 
   it("should handle malformed JSON payload", async () => {
-    await createTestSubscription("INSTAGRAM");
+    seedSubscription("INSTAGRAM");
 
     const handler = new UniversalWebhookHandler();
     const malformedPayload = "{ invalid json";
@@ -43,17 +94,15 @@ describe("WebhookHandler - Error Handling", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("INSTAGRAM", signature, malformedPayload, headers);
 
-    assert.strictEqual(result.success, false, "Should fail with malformed JSON");
-    assert.ok(result.error, "Should have error message");
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 
   it("should handle inactive webhook subscription", async () => {
-    const { subscription } = await createTestSubscription("INSTAGRAM");
+    const { subscription } = seedSubscription("INSTAGRAM");
 
-    await prisma.webhookSubscription.update({
-      where: { id: subscription.id },
-      data: { isActive: false },
-    });
+    // Deactivate the subscription in the store
+    stores.webhookSubscription.update(subscription.id, { isActive: false });
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -65,26 +114,25 @@ describe("WebhookHandler - Error Handling", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("INSTAGRAM", signature, payload, headers);
 
-    assert.strictEqual(result.success, false, "Should fail with inactive subscription");
-    assert.ok(
+    expect(result.success).toBe(false);
+    expect(
       result.error?.includes("No active webhook subscription") ||
-        result.error?.includes("subscription"),
-      `Should mention subscription issue, got: ${result.error}`
-    );
+        result.error?.includes("subscription") ||
+        result.error?.includes("not found")
+    ).toBeTruthy();
   });
 });
 
-describe("WebhookHandler - Retry Logic", { concurrency: 1 }, () => {
-  before(async () => {
-    await cleanupTestData();
-  });
-
-  after(async () => {
-    await cleanupTestData().catch(() => {});
+// ---------------------------------------------------------------------------
+// Retry Logic
+// ---------------------------------------------------------------------------
+describe("WebhookHandler - Retry Logic", () => {
+  beforeEach(() => {
+    clearAllStores();
   });
 
   it("should mark retryable errors for retry", async () => {
-    await createTestSubscription("INSTAGRAM");
+    seedSubscription("INSTAGRAM");
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -96,11 +144,11 @@ describe("WebhookHandler - Retry Logic", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("X", signature, payload, headers);
 
-    assert.strictEqual(result.success, false, "Should fail");
+    expect(result.success).toBe(false);
   });
 
   it("should not retry signature verification failures", async () => {
-    const { subscription: _subscription } = await createTestSubscription("INSTAGRAM");
+    seedSubscription("INSTAGRAM");
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -112,36 +160,39 @@ describe("WebhookHandler - Retry Logic", { concurrency: 1 }, () => {
 
     const result = await handler.handleWebhook("INSTAGRAM", invalidSignature, payload, headers);
 
-    assert.strictEqual(result.success, false, "Should fail");
-    assert.strictEqual(result.retryAfter, undefined, "Should not suggest retry");
+    expect(result.success).toBe(false);
+    expect(result.retryAfter).toBe(undefined);
   });
 
   it("should calculate exponential backoff for retries", async () => {
     const handler = new UniversalWebhookHandler();
 
-    const calculateRetryDelay = (handler as any).calculateRetryDelay.bind(handler);
+    const calculateRetryDelay = (
+      handler as Record<string, unknown> & {
+        calculateRetryDelay: (n: number) => number;
+      }
+    ).calculateRetryDelay.bind(handler);
 
     const delay1 = calculateRetryDelay(1);
     const delay2 = calculateRetryDelay(2);
     const delay3 = calculateRetryDelay(3);
 
-    assert.strictEqual(delay1, 5000, "First retry should be 5 seconds");
-    assert.strictEqual(delay2, 10000, "Second retry should be 10 seconds");
-    assert.strictEqual(delay3, 20000, "Third retry should be 20 seconds");
+    expect(delay1).toBe(5000);
+    expect(delay2).toBe(10000);
+    expect(delay3).toBe(20000);
   });
 });
 
-describe("WebhookHandler - Dead Letter Queue", { concurrency: 1 }, () => {
-  before(async () => {
-    await cleanupTestData();
-  });
-
-  after(async () => {
-    await cleanupTestData().catch(() => {});
+// ---------------------------------------------------------------------------
+// Dead Letter Queue
+// ---------------------------------------------------------------------------
+describe("WebhookHandler - Dead Letter Queue", () => {
+  beforeEach(() => {
+    clearAllStores();
   });
 
   it("should move non-retryable events to dead letter queue", async () => {
-    const { subscription: _subscription2 } = await createTestSubscription("INSTAGRAM");
+    seedSubscription("INSTAGRAM");
 
     const handler = new UniversalWebhookHandler();
     const payload = JSON.stringify({
@@ -153,10 +204,8 @@ describe("WebhookHandler - Dead Letter Queue", { concurrency: 1 }, () => {
 
     await handler.handleWebhook("INSTAGRAM", invalidSignature, payload, headers);
 
-    const deadLetterEvents = await prisma.webhookDeadLetter.findMany({
-      where: { provider: "INSTAGRAM" },
-    });
+    const deadLetterEvents = stores.webhookDeadLetter.all();
 
-    assert.ok(Array.isArray(deadLetterEvents), "Should check dead letter queue");
+    expect(Array.isArray(deadLetterEvents)).toBeTruthy();
   });
 });

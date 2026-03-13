@@ -6,8 +6,7 @@
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/AnalyticsAggregator.test.ts
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { AnalyticsAggregator } from "../../src/analytics/analyticsUtils.js";
 import type { Analytics } from "@infra/prisma";
 
@@ -32,12 +31,12 @@ describe("AnalyticsAggregator - calculateEngagementMetrics", () => {
   it("returns zero metrics for empty array", () => {
     const emptyMetrics = AnalyticsAggregator.calculateEngagementMetrics([]);
 
-    assert.strictEqual(emptyMetrics.totalViews, 0);
-    assert.strictEqual(emptyMetrics.totalLikes, 0);
-    assert.strictEqual(emptyMetrics.totalComments, 0);
-    assert.strictEqual(emptyMetrics.totalShares, 0);
-    assert.strictEqual(emptyMetrics.totalEngagement, 0);
-    assert.strictEqual(emptyMetrics.avgEngagementRate, 0);
+    expect(emptyMetrics.totalViews).toBe(0);
+    expect(emptyMetrics.totalLikes).toBe(0);
+    expect(emptyMetrics.totalComments).toBe(0);
+    expect(emptyMetrics.totalShares).toBe(0);
+    expect(emptyMetrics.totalEngagement).toBe(0);
+    expect(emptyMetrics.avgEngagementRate).toBe(0);
   });
 
   it("calculates metrics for single entry", () => {
@@ -52,14 +51,14 @@ describe("AnalyticsAggregator - calculateEngagementMetrics", () => {
 
     const singleMetrics = AnalyticsAggregator.calculateEngagementMetrics(singleAnalytics);
 
-    assert.strictEqual(singleMetrics.totalViews, 1000);
-    assert.strictEqual(singleMetrics.totalLikes, 50);
-    assert.strictEqual(singleMetrics.totalComments, 10);
-    assert.strictEqual(singleMetrics.totalShares, 5);
-    assert.strictEqual(singleMetrics.totalEngagement, 65); // 50 + 10 + 5
-    assert.strictEqual(singleMetrics.avgEngagementRate, 6.5); // (65/1000) * 100
-    assert.strictEqual(singleMetrics.avgViewsPerPost, 1000);
-    assert.strictEqual(singleMetrics.avgLikesPerPost, 50);
+    expect(singleMetrics.totalViews).toBe(1000);
+    expect(singleMetrics.totalLikes).toBe(50);
+    expect(singleMetrics.totalComments).toBe(10);
+    expect(singleMetrics.totalShares).toBe(5);
+    expect(singleMetrics.totalEngagement).toBe(65); // 50 + 10 + 5
+    expect(singleMetrics.avgEngagementRate).toBe(6.5); // (65/1000) * 100
+    expect(singleMetrics.avgViewsPerPost).toBe(1000);
+    expect(singleMetrics.avgLikesPerPost).toBe(50);
   });
 
   it("aggregates multiple entries correctly", () => {
@@ -71,13 +70,13 @@ describe("AnalyticsAggregator - calculateEngagementMetrics", () => {
 
     const multipleMetrics = AnalyticsAggregator.calculateEngagementMetrics(multipleAnalytics);
 
-    assert.strictEqual(multipleMetrics.totalViews, 3500); // 1000 + 2000 + 500
-    assert.strictEqual(multipleMetrics.totalLikes, 175); // 50 + 100 + 25
-    assert.strictEqual(multipleMetrics.totalComments, 35); // 10 + 20 + 5
-    assert.strictEqual(multipleMetrics.totalShares, 17); // 5 + 10 + 2
-    assert.strictEqual(multipleMetrics.totalEngagement, 227); // 175 + 35 + 17
-    assert.ok(Math.abs(multipleMetrics.avgEngagementRate - 6.486) < 0.01); // (227/3500) * 100 ≈ 6.486
-    assert.ok(Math.abs(multipleMetrics.avgViewsPerPost - 1166.67) < 0.01); // 3500 / 3
+    expect(multipleMetrics.totalViews).toBe(3500); // 1000 + 2000 + 500
+    expect(multipleMetrics.totalLikes).toBe(175); // 50 + 100 + 25
+    expect(multipleMetrics.totalComments).toBe(35); // 10 + 20 + 5
+    expect(multipleMetrics.totalShares).toBe(17); // 5 + 10 + 2
+    expect(multipleMetrics.totalEngagement).toBe(227); // 175 + 35 + 17
+    expect(Math.abs(multipleMetrics.avgEngagementRate - 6.486) < 0.01).toBeTruthy(); // (227/3500) * 100 ≈ 6.486
+    expect(Math.abs(multipleMetrics.avgViewsPerPost - 1166.67) < 0.01).toBeTruthy(); // 3500 / 3
   });
 });
 
@@ -92,7 +91,7 @@ describe("AnalyticsAggregator - calculateEngagementRate", () => {
 
     const zeroViewsRate = AnalyticsAggregator.calculateEngagementRate(zeroViewsAnalytics);
 
-    assert.strictEqual(zeroViewsRate, 0);
+    expect(zeroViewsRate).toBe(0);
   });
 
   it("calculates engagement rate correctly", () => {
@@ -105,7 +104,7 @@ describe("AnalyticsAggregator - calculateEngagementRate", () => {
 
     const engagementRate = AnalyticsAggregator.calculateEngagementRate(engagedAnalytics);
 
-    assert.strictEqual(engagementRate, 6.5); // (50 + 10 + 5) / 1000 * 100 = 6.5
+    expect(engagementRate).toBe(6.5); // (50 + 10 + 5) / 1000 * 100 = 6.5
   });
 });
 
@@ -123,13 +122,13 @@ describe("AnalyticsAggregator - groupByPeriod", () => {
 
     const groupedByDay = AnalyticsAggregator.groupByPeriod(timeSeriesAnalytics, "day");
 
-    assert.strictEqual(groupedByDay.length, 2); // Two days
-    assert.strictEqual(groupedByDay[0]?.date, "2024-01-01");
-    assert.strictEqual(groupedByDay[0]?.views, 3000); // 1000 + 2000
-    assert.strictEqual(groupedByDay[0]?.posts, 2);
-    assert.strictEqual(groupedByDay[1]?.date, "2024-01-02");
-    assert.strictEqual(groupedByDay[1]?.views, 500);
-    assert.strictEqual(groupedByDay[1]?.posts, 1);
+    expect(groupedByDay.length).toBe(2); // Two days
+    expect(groupedByDay[0]?.date).toBe("2024-01-01");
+    expect(groupedByDay[0]?.views).toBe(3000); // 1000 + 2000
+    expect(groupedByDay[0]?.posts).toBe(2);
+    expect(groupedByDay[1]?.date).toBe("2024-01-02");
+    expect(groupedByDay[1]?.views).toBe(500);
+    expect(groupedByDay[1]?.posts).toBe(1);
   });
 });
 
@@ -143,9 +142,9 @@ describe("AnalyticsAggregator - findTopPerforming", () => {
 
     const topPerforming = AnalyticsAggregator.findTopPerforming(performanceAnalytics, 2);
 
-    assert.strictEqual(topPerforming.length, 2);
-    assert.strictEqual(topPerforming[0]?.id, "high");
-    assert.strictEqual(topPerforming[1]?.id, "medium");
+    expect(topPerforming.length).toBe(2);
+    expect(topPerforming[0]?.id).toBe("high");
+    expect(topPerforming[1]?.id).toBe("medium");
   });
 });
 
@@ -179,9 +178,9 @@ describe("AnalyticsAggregator - calculateGrowthRate", () => {
 
     const growthRate = AnalyticsAggregator.calculateGrowthRate(currentMetrics, previousMetrics);
 
-    assert.strictEqual(growthRate.viewsGrowth, 50);
-    assert.strictEqual(growthRate.likesGrowth, 50);
-    assert.strictEqual(growthRate.commentsGrowth, 100);
-    assert.strictEqual(growthRate.sharesGrowth, 100);
+    expect(growthRate.viewsGrowth).toBe(50);
+    expect(growthRate.likesGrowth).toBe(50);
+    expect(growthRate.commentsGrowth).toBe(100);
+    expect(growthRate.sharesGrowth).toBe(100);
   });
 });

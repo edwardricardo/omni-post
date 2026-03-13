@@ -1,29 +1,133 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for authMiddleware
- * Testing authentication and authorization middleware functions
- *
- * Coverage Target: 95%+
+ * @file authMiddleware.test.ts
+ * @description Unit tests for authMiddleware — authentication and authorization
+ *              middleware functions. Uses in-memory mocks for Prisma and Redis,
+ *              with real AuthService, JWT generation, and argon2 hashing.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import {
-  authenticateMiddleware,
-  requireRole,
-  requireAdmin,
-  requireSuperAdmin,
-  optionalAuth,
-} from "../../src/auth/authMiddleware.js";
-import { AuthService } from "../../src/auth/authService.js";
-import { MfaService } from "../../src/auth/mfaService.js";
+import { describe, it, beforeAll, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { InMemoryAdminUserRepository } from "./helpers/InMemoryAdminUserRepository.js";
+import { makeAdminUser } from "./helpers/factories.js";
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type { AuthenticatedUser } from "../../src/auth/authService.js";
-import { prisma } from "@infra/prisma";
-import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 
-const adminUserRepo = new PrismaAdminUserRepository(prisma);
+// ---------------------------------------------------------------------------
+// Mock setup — must happen before any SUT imports
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+// Patch adminUser.create to set DB-level defaults (isActive, mfaEnabled, etc.)
+const originalUserCreate = mockPrisma.prisma.adminUser.create;
+mockPrisma.prisma.adminUser.create = vi.fn(async (args: { data: Record<string, unknown> }) => {
+  const dataWithDefaults = {
+    isActive: true,
+    mfaEnabled: false,
+    mfaSecret: null,
+    lastLoginAt: null,
+    ...args.data,
+  };
+  return originalUserCreate({ data: dataWithDefaults });
+});
+
+// Patch adminSession.create to set DB-level defaults (isActive, revokedAt)
+const originalSessionCreate = mockPrisma.prisma.adminSession.create;
+mockPrisma.prisma.adminSession.create = vi.fn(async (args: { data: Record<string, unknown> }) => {
+  const dataWithDefaults = {
+    isActive: true,
+    revokedAt: null,
+    ...args.data,
+  };
+  return originalSessionCreate({ data: dataWithDefaults });
+});
+
+// Extend adminSession mock with updateMany (used by revokeAllSessions)
+(mockPrisma.prisma.adminSession as Record<string, unknown>).updateMany = vi.fn(
+  async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+    const sessions = stores.adminSession.all().filter((s) => {
+      return Object.entries(where).every(([k, v]) => s[k] === v);
+    });
+    let count = 0;
+    for (const session of sessions) {
+      const id = session.id as string;
+      stores.adminSession.update(id, data);
+      count++;
+    }
+    return { count };
+  }
+);
+
+// Patch adminSession.findUnique to support `include: { user: true }`
+// by joining the user from the adminUser store
+const originalSessionFindUnique = mockPrisma.prisma.adminSession.findUnique;
+mockPrisma.prisma.adminSession.findUnique = vi.fn(
+  async (args: { where: Record<string, unknown>; include?: Record<string, boolean> }) => {
+    const session = await originalSessionFindUnique(args);
+    if (session && args.include?.user) {
+      const userId = session.userId as string;
+      const user = stores.adminUser.get(userId) ?? null;
+      return { ...session, user };
+    }
+    return session;
+  }
+);
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+// Mock loggers to prevent real log output
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
+
+// Mock redisSessionHelpers — all Redis functions are no-ops
+vi.mock("../../src/auth/redisSessionHelpers.js", () => ({
+  getRedisInstance: vi.fn(() => undefined),
+  setRedisInstance: vi.fn(),
+  isTokenBlacklisted: vi.fn(async () => false),
+  blacklistToken: vi.fn(async () => undefined),
+  recordLoginAttempt: vi.fn(async () => undefined),
+  getActiveSessionCount: vi.fn(async () => 0),
+  storeSessionFingerprint: vi.fn(async () => undefined),
+  getStoredFingerprint: vi.fn(async () => null),
+  removeSessionFingerprint: vi.fn(async () => undefined),
+  trackActiveSession: vi.fn(async () => undefined),
+  deleteActiveSessionsKey: vi.fn(async () => undefined),
+}));
+
+// ---------------------------------------------------------------------------
+// Import SUT after mocks are in place
+// ---------------------------------------------------------------------------
+
+const { authenticateMiddleware, requireRole, requireAdmin, requireSuperAdmin, optionalAuth } =
+  await import("../../src/auth/authMiddleware.js");
+const { AuthService } = await import("../../src/auth/authService.js");
+const { MfaService } = await import("../../src/auth/mfaService.js");
+
+// ---------------------------------------------------------------------------
+// Service setup — uses InMemoryAdminUserRepository + real AuthService
+// ---------------------------------------------------------------------------
+
+const adminUserRepo = new InMemoryAdminUserRepository();
 const mfaService = new MfaService(adminUserRepo);
 const authService = new AuthService(adminUserRepo, mfaService);
 
@@ -35,9 +139,49 @@ const mockContainer = {
   },
 };
 
-// ============================================================================
-// Test Utilities
-// ============================================================================
+// ---------------------------------------------------------------------------
+// Sync helper — copies a prisma mock store record into the InMemoryAdminUserRepository
+// ---------------------------------------------------------------------------
+
+function syncPrismaUserToRepo(userId: string): void {
+  const record = stores.adminUser.get(userId);
+  if (!record) return;
+  adminUserRepo.add(
+    makeAdminUser({
+      id: record.id as string,
+      email: record.email as string,
+      passwordHash: record.passwordHash as string,
+      name: record.name as string,
+      role: record.role as "SUPER_ADMIN" | "ADMIN" | "SUPPORT",
+      isActive: (record.isActive as boolean) ?? true,
+      emailVerified: (record.emailVerified as boolean) ?? true,
+      lastLoginAt: (record.lastLoginAt as Date | null) ?? null,
+      mfaEnabled: (record.mfaEnabled as boolean) ?? false,
+      mfaSecret: (record.mfaSecret as string | null) ?? null,
+      createdAt: (record.createdAt as Date) ?? new Date(),
+      updatedAt: (record.updatedAt as Date) ?? new Date(),
+    })
+  );
+}
+
+/** Build an AuthenticatedUser for role/permission middleware tests */
+function makeAuthUser(
+  id: string,
+  email: string,
+  name: string,
+  role: "SUPER_ADMIN" | "ADMIN" | "SUPPORT"
+): AuthenticatedUser {
+  return {
+    id,
+    email,
+    name,
+    role,
+    isActive: true,
+    emailVerified: true,
+    mfaEnabled: false,
+    lastLoginAt: null,
+  };
+}
 
 // Mock Fastify Request — includes server.container so authMiddleware can resolve AuthService
 function createMockRequest(overrides?: Partial<FastifyRequest>): FastifyRequest {
@@ -50,23 +194,23 @@ function createMockRequest(overrides?: Partial<FastifyRequest>): FastifyRequest 
 }
 
 // Mock Fastify Reply - Pick<> documents what methods the SUT actually uses
-type MockReply = Pick<FastifyReply, "code" | "send"> & {
+interface MockReplyAccessors {
   getStatusCode: () => number;
-  getBody: () => any;
+  getBody: () => unknown;
   wasSent: () => boolean;
-};
+}
 
-function createMockReply(): MockReply & FastifyReply {
+function createMockReply(): MockReplyAccessors & FastifyReply {
   let statusCode = 200;
-  let responseBody: any = null;
+  let responseBody: unknown = null;
   let replySent = false;
 
-  const reply: MockReply = {
+  const reply = {
     code(code: number) {
       statusCode = code;
       return reply;
     },
-    send(body: any) {
+    send(body: unknown) {
       responseBody = body;
       replySent = true;
       return reply;
@@ -76,12 +220,8 @@ function createMockReply(): MockReply & FastifyReply {
     wasSent: () => replySent,
   };
 
-  return reply as MockReply & FastifyReply;
+  return reply as unknown as MockReplyAccessors & FastifyReply;
 }
-
-// ============================================================================
-// Test Setup
-// ============================================================================
 
 const timestamp = Date.now();
 const superAdminEmail = `test-superadmin-${timestamp}@example.com`;
@@ -96,13 +236,15 @@ let superAdminToken: string;
 let adminToken: string;
 let supportToken: string;
 
-// ============================================================================
-// Main Test Suite
-// ============================================================================
-
 describe("authMiddleware Tests", () => {
-  before(async () => {
-    // Register test users
+  beforeAll(async () => {
+    // Clear all in-memory stores
+    stores.adminUser.clear();
+    stores.adminSession.clear();
+    stores.auditLog.clear();
+    adminUserRepo.clear();
+
+    // Register test users — real AuthService with real argon2 + JWT, mocked prisma
     const superAdminResult = await authService.registerAdmin(
       superAdminEmail,
       testPassword,
@@ -124,13 +266,20 @@ describe("authMiddleware Tests", () => {
       "SUPPORT"
     );
 
-    assert.strictEqual(superAdminResult.ok, true, "Created test super admin user");
-    assert.strictEqual(adminResult.ok, true, "Created test admin user");
-    assert.strictEqual(supportResult.ok, true, "Created test support user");
+    expect(superAdminResult.ok).toBe(true);
+    expect(adminResult.ok).toBe(true);
+    expect(supportResult.ok).toBe(true);
 
     superAdminId = superAdminResult.ok ? superAdminResult.value.id : "";
     adminId = adminResult.ok ? adminResult.value.id : "";
     supportId = supportResult.ok ? supportResult.value.id : "";
+
+    // Sync the in-memory repo with the prisma mock store so that
+    // both AuthServiceCore (uses repo) and AuthServiceSession (uses prisma)
+    // see the same users
+    syncPrismaUserToRepo(superAdminId);
+    syncPrismaUserToRepo(adminId);
+    syncPrismaUserToRepo(supportId);
 
     // Login to get valid tokens
     const superAdminLogin = await authService.login(
@@ -151,51 +300,21 @@ describe("authMiddleware Tests", () => {
       "TestAgent-Support"
     );
 
-    assert.strictEqual(superAdminLogin.ok, true, "Super admin login successful");
-    assert.strictEqual(adminLogin.ok, true, "Admin login successful");
-    assert.strictEqual(supportLogin.ok, true, "Support login successful");
+    expect(superAdminLogin.ok).toBe(true);
+    expect(adminLogin.ok).toBe(true);
+    expect(supportLogin.ok).toBe(true);
 
-    superAdminToken = superAdminLogin.ok ? superAdminLogin.value.tokens.accessToken : "";
-    adminToken = adminLogin.ok ? adminLogin.value.tokens.accessToken : "";
-    supportToken = supportLogin.ok ? supportLogin.value.tokens.accessToken : "";
+    superAdminToken =
+      superAdminLogin.ok && "tokens" in superAdminLogin.value
+        ? superAdminLogin.value.tokens.accessToken
+        : "";
+    adminToken =
+      adminLogin.ok && "tokens" in adminLogin.value ? adminLogin.value.tokens.accessToken : "";
+    supportToken =
+      supportLogin.ok && "tokens" in supportLogin.value
+        ? supportLogin.value.tokens.accessToken
+        : "";
   });
-
-  after(async () => {
-    // Cleanup test data
-    const testUserIds = [superAdminId, adminId, supportId];
-
-    for (const userId of testUserIds) {
-      await prisma.auditLog.deleteMany({ where: { userId } });
-      await prisma.adminSession.deleteMany({ where: { userId } });
-      await prisma.adminUser.delete({ where: { id: userId } }).catch(() => {});
-    }
-
-    // Delete revoked user
-    const revokedUser = await prisma.adminUser.findUnique({
-      where: { email: `test-revoked-${timestamp}@example.com` },
-    });
-
-    if (revokedUser) {
-      await prisma.auditLog.deleteMany({ where: { userId: revokedUser.id } });
-      await prisma.adminSession.deleteMany({ where: { userId: revokedUser.id } });
-      await prisma.adminUser.delete({ where: { id: revokedUser.id } });
-    }
-
-    // Delete inactive user
-    const inactiveUser = await prisma.adminUser.findUnique({
-      where: { email: `test-inactive-${timestamp}@example.com` },
-    });
-
-    if (inactiveUser) {
-      await prisma.auditLog.deleteMany({ where: { userId: inactiveUser.id } });
-      await prisma.adminSession.deleteMany({ where: { userId: inactiveUser.id } });
-      await prisma.adminUser.delete({ where: { id: inactiveUser.id } });
-    }
-  });
-
-  // ============================================================================
-  // Test Group 1: authenticateMiddleware - Success Cases
-  // ============================================================================
 
   describe("authenticateMiddleware - Success Cases", () => {
     it("should accept valid token with Bearer prefix", async () => {
@@ -206,10 +325,10 @@ describe("authMiddleware Tests", () => {
 
       await authenticateMiddleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
-      assert.notStrictEqual(request.user, undefined);
-      assert.strictEqual(request.user?.email, superAdminEmail);
-      assert.strictEqual(request.user?.role, "SUPER_ADMIN");
+      expect(reply.wasSent()).toBe(false);
+      expect(request.user).not.toBe(undefined);
+      expect(request.user?.email).toBe(superAdminEmail);
+      expect(request.user?.role).toBe("SUPER_ADMIN");
     });
 
     it("should accept valid admin token", async () => {
@@ -220,8 +339,8 @@ describe("authMiddleware Tests", () => {
 
       await authenticateMiddleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
-      assert.strictEqual(request.user?.role, "ADMIN");
+      expect(reply.wasSent()).toBe(false);
+      expect(request.user?.role).toBe("ADMIN");
     });
 
     it("should accept valid support token", async () => {
@@ -232,14 +351,10 @@ describe("authMiddleware Tests", () => {
 
       await authenticateMiddleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
-      assert.strictEqual(request.user?.role, "SUPPORT");
+      expect(reply.wasSent()).toBe(false);
+      expect(request.user?.role).toBe("SUPPORT");
     });
   });
-
-  // ============================================================================
-  // Test Group 2: authenticateMiddleware - Failure Cases
-  // ============================================================================
 
   describe("authenticateMiddleware - Failure Cases", () => {
     it("should reject when no Authorization header", async () => {
@@ -248,9 +363,11 @@ describe("authMiddleware Tests", () => {
 
       await authenticateMiddleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 401);
-      assert.strictEqual(reply.getBody()?.error, "Authorization token required");
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(401);
+      expect((reply.getBody() as Record<string, unknown>)?.error).toBe(
+        "Authorization token required"
+      );
     });
 
     it("should reject token without Bearer prefix", async () => {
@@ -261,8 +378,8 @@ describe("authMiddleware Tests", () => {
 
       await authenticateMiddleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 401);
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(401);
     });
 
     it("should reject empty Bearer token", async () => {
@@ -273,8 +390,8 @@ describe("authMiddleware Tests", () => {
 
       await authenticateMiddleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 401);
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(401);
     });
 
     it("should reject invalid token format", async () => {
@@ -285,9 +402,9 @@ describe("authMiddleware Tests", () => {
 
       await authenticateMiddleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 401);
-      assert.strictEqual(reply.getBody()?.error, "Invalid token");
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(401);
+      expect((reply.getBody() as Record<string, unknown>)?.error).toBe("Invalid token");
     });
 
     it("should reject token from revoked session", async () => {
@@ -300,9 +417,12 @@ describe("authMiddleware Tests", () => {
         "ADMIN"
       );
 
-      assert.strictEqual(revokedUserResult.ok, true);
+      expect(revokedUserResult.ok).toBe(true);
 
       const revokedUserId = revokedUserResult.ok ? revokedUserResult.value.id : "";
+
+      // Sync to in-memory repo for login lookup
+      syncPrismaUserToRepo(revokedUserId);
 
       const revokedLogin = await authService.login(
         { email: revokedUserEmail, password: testPassword },
@@ -310,9 +430,12 @@ describe("authMiddleware Tests", () => {
         "TestAgent-Revoked"
       );
 
-      assert.strictEqual(revokedLogin.ok, true);
+      expect(revokedLogin.ok).toBe(true);
 
-      const revokedToken = revokedLogin.ok ? revokedLogin.value.tokens.accessToken : "";
+      const revokedToken =
+        revokedLogin.ok && "tokens" in revokedLogin.value
+          ? revokedLogin.value.tokens.accessToken
+          : "";
 
       // Revoke all sessions
       await authService.revokeAllSessions(revokedUserId);
@@ -324,8 +447,8 @@ describe("authMiddleware Tests", () => {
 
       await authenticateMiddleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 401);
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(401);
     });
 
     it("should reject token from inactive user", async () => {
@@ -338,9 +461,12 @@ describe("authMiddleware Tests", () => {
         "ADMIN"
       );
 
-      assert.strictEqual(inactiveUserResult.ok, true);
+      expect(inactiveUserResult.ok).toBe(true);
 
       const inactiveUserId = inactiveUserResult.ok ? inactiveUserResult.value.id : "";
+
+      // Sync to in-memory repo for login lookup
+      syncPrismaUserToRepo(inactiveUserId);
 
       const inactiveLogin = await authService.login(
         { email: inactiveUserEmail, password: testPassword },
@@ -348,15 +474,16 @@ describe("authMiddleware Tests", () => {
         "TestAgent-Inactive"
       );
 
-      assert.strictEqual(inactiveLogin.ok, true);
+      expect(inactiveLogin.ok).toBe(true);
 
-      const inactiveToken = inactiveLogin.ok ? inactiveLogin.value.tokens.accessToken : "";
+      const inactiveToken =
+        inactiveLogin.ok && "tokens" in inactiveLogin.value
+          ? inactiveLogin.value.tokens.accessToken
+          : "";
 
-      // Mark user as inactive
-      await prisma.adminUser.update({
-        where: { id: inactiveUserId },
-        data: { isActive: false },
-      });
+      // Mark user as inactive in both stores
+      stores.adminUser.update(inactiveUserId, { isActive: false });
+      adminUserRepo.update(inactiveUserId, { isActive: false });
 
       const request = createMockRequest({
         headers: { authorization: `Bearer ${inactiveToken}` },
@@ -365,126 +492,73 @@ describe("authMiddleware Tests", () => {
 
       await authenticateMiddleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 403);
-      assert.strictEqual(reply.getBody()?.error, "Account is inactive");
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(403);
+      expect((reply.getBody() as Record<string, unknown>)?.error).toBe("Account is inactive");
     });
   });
-
-  // ============================================================================
-  // Test Group 3: requireRole - Success Cases
-  // ============================================================================
 
   describe("requireRole - Success Cases", () => {
     it("should allow SUPER_ADMIN for SUPER_ADMIN role", async () => {
       const request = createMockRequest({
-        user: {
-          id: superAdminId,
-          email: superAdminEmail,
-          name: "Test Super Admin",
-          role: "SUPER_ADMIN",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(superAdminId, superAdminEmail, "Test Super Admin", "SUPER_ADMIN"),
       });
       const reply = createMockReply();
 
       const middleware = requireRole("SUPER_ADMIN");
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should allow ADMIN for ADMIN role", async () => {
       const request = createMockRequest({
-        user: {
-          id: adminId,
-          email: adminEmail,
-          name: "Test Admin",
-          role: "ADMIN",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(adminId, adminEmail, "Test Admin", "ADMIN"),
       });
       const reply = createMockReply();
 
       const middleware = requireRole("ADMIN");
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should allow SUPPORT for SUPPORT role", async () => {
       const request = createMockRequest({
-        user: {
-          id: supportId,
-          email: supportEmail,
-          name: "Test Support",
-          role: "SUPPORT",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(supportId, supportEmail, "Test Support", "SUPPORT"),
       });
       const reply = createMockReply();
 
       const middleware = requireRole("SUPPORT");
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should allow SUPER_ADMIN when multiple roles specified", async () => {
       const request = createMockRequest({
-        user: {
-          id: superAdminId,
-          email: superAdminEmail,
-          name: "Test Super Admin",
-          role: "SUPER_ADMIN",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(superAdminId, superAdminEmail, "Test Super Admin", "SUPER_ADMIN"),
       });
       const reply = createMockReply();
 
       const middleware = requireRole("SUPER_ADMIN", "ADMIN");
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should allow ADMIN when multiple roles specified", async () => {
       const request = createMockRequest({
-        user: {
-          id: adminId,
-          email: adminEmail,
-          name: "Test Admin",
-          role: "ADMIN",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(adminId, adminEmail, "Test Admin", "ADMIN"),
       });
       const reply = createMockReply();
 
       const middleware = requireRole("SUPER_ADMIN", "ADMIN", "SUPPORT");
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
   });
-
-  // ============================================================================
-  // Test Group 4: requireRole - Failure Cases
-  // ============================================================================
 
   describe("requireRole - Failure Cases", () => {
     it("should reject when no user attached to request", async () => {
@@ -494,108 +568,67 @@ describe("authMiddleware Tests", () => {
       const middleware = requireRole("ADMIN");
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 401);
-      assert.strictEqual(reply.getBody()?.error, "Authentication required");
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(401);
+      expect((reply.getBody() as Record<string, unknown>)?.error).toBe("Authentication required");
     });
 
     it("should reject user role not in allowed roles", async () => {
       const request = createMockRequest({
-        user: {
-          id: supportId,
-          email: supportEmail,
-          name: "Test Support",
-          role: "SUPPORT",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(supportId, supportEmail, "Test Support", "SUPPORT"),
       });
       const reply = createMockReply();
 
       const middleware = requireRole("SUPER_ADMIN", "ADMIN");
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 403);
-      assert.strictEqual(reply.getBody()?.error, "Insufficient permissions");
-      assert.deepStrictEqual(reply.getBody()?.required, ["SUPER_ADMIN", "ADMIN"]);
-      assert.strictEqual(reply.getBody()?.current, "SUPPORT");
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(403);
+      expect((reply.getBody() as Record<string, unknown>)?.error).toBe("Insufficient permissions");
+      expect((reply.getBody() as Record<string, unknown>)?.required).toStrictEqual([
+        "SUPER_ADMIN",
+        "ADMIN",
+      ]);
+      expect((reply.getBody() as Record<string, unknown>)?.current).toBe("SUPPORT");
     });
 
     it("should reject ADMIN for SUPER_ADMIN-only role", async () => {
       const request = createMockRequest({
-        user: {
-          id: adminId,
-          email: adminEmail,
-          name: "Test Admin",
-          role: "ADMIN",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(adminId, adminEmail, "Test Admin", "ADMIN"),
       });
       const reply = createMockReply();
 
       const middleware = requireRole("SUPER_ADMIN");
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 403);
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(403);
     });
   });
-
-  // ============================================================================
-  // Test Group 5: requireAdmin - Success Cases
-  // ============================================================================
 
   describe("requireAdmin - Success Cases", () => {
     it("should allow ADMIN role", async () => {
       const request = createMockRequest({
-        user: {
-          id: adminId,
-          email: adminEmail,
-          name: "Test Admin",
-          role: "ADMIN",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(adminId, adminEmail, "Test Admin", "ADMIN"),
       });
       const reply = createMockReply();
 
       await requireAdmin(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should allow SUPER_ADMIN role", async () => {
       const request = createMockRequest({
-        user: {
-          id: superAdminId,
-          email: superAdminEmail,
-          name: "Test Super Admin",
-          role: "SUPER_ADMIN",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(superAdminId, superAdminEmail, "Test Super Admin", "SUPER_ADMIN"),
       });
       const reply = createMockReply();
 
       await requireAdmin(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
   });
-
-  // ============================================================================
-  // Test Group 6: requireAdmin - Failure Cases
-  // ============================================================================
 
   describe("requireAdmin - Failure Cases", () => {
     it("should reject when no user attached", async () => {
@@ -604,64 +637,38 @@ describe("authMiddleware Tests", () => {
 
       await requireAdmin(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 401);
-      assert.strictEqual(reply.getBody()?.error, "Authentication required");
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(401);
+      expect((reply.getBody() as Record<string, unknown>)?.error).toBe("Authentication required");
     });
 
     it("should reject SUPPORT user", async () => {
       const request = createMockRequest({
-        user: {
-          id: supportId,
-          email: supportEmail,
-          name: "Test Support",
-          role: "SUPPORT",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(supportId, supportEmail, "Test Support", "SUPPORT"),
       });
       const reply = createMockReply();
 
       await requireAdmin(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 403);
-      assert.strictEqual(reply.getBody()?.error, "Admin access required");
-      assert.strictEqual(reply.getBody()?.current, "SUPPORT");
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(403);
+      expect((reply.getBody() as Record<string, unknown>)?.error).toBe("Admin access required");
+      expect((reply.getBody() as Record<string, unknown>)?.current).toBe("SUPPORT");
     });
   });
-
-  // ============================================================================
-  // Test Group 7: requireSuperAdmin - Success Cases
-  // ============================================================================
 
   describe("requireSuperAdmin - Success Cases", () => {
     it("should allow SUPER_ADMIN role", async () => {
       const request = createMockRequest({
-        user: {
-          id: superAdminId,
-          email: superAdminEmail,
-          name: "Test Super Admin",
-          role: "SUPER_ADMIN",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(superAdminId, superAdminEmail, "Test Super Admin", "SUPER_ADMIN"),
       });
       const reply = createMockReply();
 
       await requireSuperAdmin(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
   });
-
-  // ============================================================================
-  // Test Group 8: requireSuperAdmin - Failure Cases
-  // ============================================================================
 
   describe("requireSuperAdmin - Failure Cases", () => {
     it("should reject when no user attached", async () => {
@@ -670,59 +677,39 @@ describe("authMiddleware Tests", () => {
 
       await requireSuperAdmin(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 401);
-      assert.strictEqual(reply.getBody()?.error, "Authentication required");
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(401);
+      expect((reply.getBody() as Record<string, unknown>)?.error).toBe("Authentication required");
     });
 
     it("should reject ADMIN role", async () => {
       const request = createMockRequest({
-        user: {
-          id: adminId,
-          email: adminEmail,
-          name: "Test Admin",
-          role: "ADMIN",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(adminId, adminEmail, "Test Admin", "ADMIN"),
       });
       const reply = createMockReply();
 
       await requireSuperAdmin(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 403);
-      assert.strictEqual(reply.getBody()?.error, "Super admin access required");
-      assert.strictEqual(reply.getBody()?.current, "ADMIN");
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(403);
+      expect((reply.getBody() as Record<string, unknown>)?.error).toBe(
+        "Super admin access required"
+      );
+      expect((reply.getBody() as Record<string, unknown>)?.current).toBe("ADMIN");
     });
 
     it("should reject SUPPORT role", async () => {
       const request = createMockRequest({
-        user: {
-          id: supportId,
-          email: supportEmail,
-          name: "Test Support",
-          role: "SUPPORT",
-          isActive: true,
-          emailVerified: true,
-          mfaEnabled: false,
-          lastLoginAt: null,
-        } as AuthenticatedUser,
+        user: makeAuthUser(supportId, supportEmail, "Test Support", "SUPPORT"),
       });
       const reply = createMockReply();
 
       await requireSuperAdmin(request, reply);
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 403);
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(403);
     });
   });
-
-  // ============================================================================
-  // Test Group 9: optionalAuth - Success Cases
-  // ============================================================================
 
   describe("optionalAuth - Success Cases", () => {
     it("should attach user with valid token", async () => {
@@ -733,9 +720,9 @@ describe("authMiddleware Tests", () => {
 
       await optionalAuth(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
-      assert.notStrictEqual(request.user, undefined);
-      assert.strictEqual(request.user?.email, adminEmail);
+      expect(reply.wasSent()).toBe(false);
+      expect(request.user).not.toBe(undefined);
+      expect(request.user?.email).toBe(adminEmail);
     });
 
     it("should continue without error when no token", async () => {
@@ -744,8 +731,8 @@ describe("authMiddleware Tests", () => {
 
       await optionalAuth(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
-      assert.strictEqual(request.user, undefined);
+      expect(reply.wasSent()).toBe(false);
+      expect(request.user).toBe(undefined);
     });
 
     it("should continue without error with invalid token", async () => {
@@ -756,8 +743,8 @@ describe("authMiddleware Tests", () => {
 
       await optionalAuth(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
-      assert.strictEqual(request.user, undefined);
+      expect(reply.wasSent()).toBe(false);
+      expect(request.user).toBe(undefined);
     });
 
     it("should continue without error without Bearer prefix", async () => {
@@ -768,8 +755,8 @@ describe("authMiddleware Tests", () => {
 
       await optionalAuth(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
-      assert.strictEqual(request.user, undefined);
+      expect(reply.wasSent()).toBe(false);
+      expect(request.user).toBe(undefined);
     });
 
     it("should continue without error with empty Bearer token", async () => {
@@ -780,8 +767,8 @@ describe("authMiddleware Tests", () => {
 
       await optionalAuth(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
-      assert.strictEqual(request.user, undefined);
+      expect(reply.wasSent()).toBe(false);
+      expect(request.user).toBe(undefined);
     });
   });
 });

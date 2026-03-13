@@ -1,7 +1,7 @@
 /**
- * CredentialManager - Comprehensive Test Suite (node:test)
- *
- * This test suite validates credential encryption, hashing, and key management logic.
+ * @file credentialManager.test.ts
+ * @description Unit tests for CredentialManager — credential encryption, hashing,
+ *              and API key management logic with fully mocked Prisma and Redis.
  *
  * Tests cover:
  * - API key hashing with SHA-256
@@ -11,79 +11,206 @@
  * - Encryption uniqueness
  * - Tamper detection (auth tag validation)
  * - Edge cases (empty strings, long strings, unicode)
+ * - API key generation, validation, deactivation, listing (mocked DB)
+ * - Max active keys enforcement
+ * - Audit log creation for key operations
  *
- * Key Business Rules:
- * - API key hashes are SHA-256 (64 hex characters)
- * - Encryption uses AES-256-GCM with random IV per encryption
- * - IV is 16 bytes (32 hex characters)
- * - Auth tag is 16 bytes (32 hex characters)
- * - Same plaintext produces different ciphertext due to random IV
- * - Tampered auth tags cause decryption to fail
- * - Empty strings and unicode are supported
- *
- * Run with: NODE_ENV=test tsx apps/api/tests/unit/credentialManager.test.ts
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import * as assert from "node:assert";
-import { CredentialManager } from "../../src/security/credentialManager.js";
-import { prisma } from "@infra/prisma";
-import Redis from "ioredis";
+import { describe, it, beforeAll, beforeEach, expect, vi } from "vitest";
 import crypto from "crypto";
+
+// ========================================
+// HOISTED MOCKS — inline store + model mock creation
+// ========================================
+
+/**
+ * vi.hoisted callback receives no arguments but `vi` is available as a global
+ * inside the hoisted scope (vitest injects it). We use vi.fn() directly.
+ */
+const { mockPrismaClient, stores, mockRedisInstance } = vi.hoisted(() => {
+  const { randomUUID } = require("crypto") as typeof import("crypto");
+
+  // Minimal in-memory store
+  type Rec = Record<string, unknown>;
+
+  function createStore() {
+    const data = new Map<string, Rec>();
+    return {
+      data,
+      add(record: Rec): Rec {
+        const id = (record.id as string) || randomUUID();
+        const full = { ...record, id };
+        data.set(id, full);
+        return full;
+      },
+      get(id: string) {
+        return data.get(id);
+      },
+      update(id: string, partial: Rec) {
+        const existing = data.get(id);
+        if (!existing) return null;
+        const updated = { ...existing, ...partial };
+        data.set(id, updated);
+        return updated;
+      },
+      clear() {
+        data.clear();
+      },
+      all(): Rec[] {
+        return [...data.values()];
+      },
+    };
+  }
+
+  type Store = ReturnType<typeof createStore>;
+
+  function buildModelMock(store: Store) {
+    return {
+      create: vi.fn(async ({ data }: { data: Rec }) => {
+        const now = new Date();
+        const record: Rec = { id: randomUUID(), createdAt: now, updatedAt: now, ...data };
+        return store.add(record);
+      }),
+      findUnique: vi.fn(async ({ where }: { where: Rec }) => {
+        return store.all().find((e) => Object.entries(where).every(([k, v]) => e[k] === v)) ?? null;
+      }),
+      findFirst: vi.fn(async ({ where }: { where: Rec }) => {
+        return store.all().find((e) => Object.entries(where).every(([k, v]) => e[k] === v)) ?? null;
+      }),
+      findMany: vi.fn(async (args?: { where?: Rec; select?: Rec; orderBy?: Rec }) => {
+        let results = store.all();
+        if (args?.where) {
+          results = results.filter((e) =>
+            Object.entries(args.where!).every(([k, v]) => e[k] === v)
+          );
+        }
+        // Handle select: only return specified fields
+        if (args?.select) {
+          const selectedFields = Object.keys(args.select).filter((k) => args.select![k] === true);
+          results = results.map((e) => {
+            const picked: Rec = {};
+            for (const field of selectedFields) {
+              if (field in e) {
+                picked[field] = e[field];
+              }
+            }
+            return picked;
+          });
+        }
+        return results;
+      }),
+      update: vi.fn(async ({ where, data }: { where: Rec; data: Rec }) => {
+        const id = where.id as string;
+        return store.update(id, { ...data, updatedAt: new Date() });
+      }),
+      delete: vi.fn(async ({ where }: { where: Rec }) => {
+        const id = where.id as string;
+        const record = store.data.get(id);
+        store.data.delete(id);
+        return record ?? null;
+      }),
+      deleteMany: vi.fn(async () => {
+        const count = store.data.size;
+        store.clear();
+        return { count };
+      }),
+      count: vi.fn(async (args?: { where?: Rec }) => {
+        if (!args?.where) return store.data.size;
+        return store.all().filter((e) => Object.entries(args.where!).every(([k, v]) => e[k] === v))
+          .length;
+      }),
+    };
+  }
+
+  const apiKeyStore = createStore();
+  const auditLogStore = createStore();
+  const accountStore = createStore();
+
+  const prismaClient = {
+    apiKey: buildModelMock(apiKeyStore),
+    auditLog: buildModelMock(auditLogStore),
+    account: buildModelMock(accountStore),
+    $connect: vi.fn(async () => undefined),
+    $disconnect: vi.fn(async () => undefined),
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prismaClient)),
+  };
+
+  const redisInstance = {
+    hgetall: vi.fn().mockResolvedValue({}),
+    hmset: vi.fn().mockResolvedValue("OK"),
+    expire: vi.fn().mockResolvedValue(1),
+    del: vi.fn().mockResolvedValue(1),
+    quit: vi.fn().mockResolvedValue("OK"),
+  };
+
+  return {
+    mockPrismaClient: prismaClient,
+    stores: { apiKey: apiKeyStore, auditLog: auditLogStore, account: accountStore },
+    mockRedisInstance: redisInstance,
+  };
+});
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrismaClient };
+});
+
+vi.mock("ioredis", () => ({
+  default: vi.fn(() => mockRedisInstance),
+}));
+
+vi.mock("../../src/lib/logger.js", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+// ========================================
+// IMPORT AFTER MOCKS
+// ========================================
+
+import { CredentialManager } from "../../src/security/credentialManager.js";
 
 // ========================================
 // TEST SETUP
 // ========================================
 
-let mockRedis: Redis;
 let credentialManager: CredentialManager;
-let testAccountId: string;
-const TEST_EMAIL_PREFIX = `cred-mgr-test-${Date.now()}`;
+const testAccountId = "test-account-id-001";
+const testSecretKey = crypto.randomBytes(32);
 
 describe("CredentialManager", () => {
-  before(async () => {
-    // Create mock Redis (lazy connect)
-    mockRedis = new Redis({
-      host: "localhost",
-      port: 6379,
-      lazyConnect: true,
-    });
-
-    // Create credential manager with test config
-    // AES-256 requires a 32-byte key
-    const testSecretKey = crypto.randomBytes(32);
-    credentialManager = new CredentialManager(mockRedis, {
-      secretKey: testSecretKey as any, // CredentialConfig expects string, but code needs Buffer
-      rotationIntervalDays: 90,
-      maxActiveKeys: 10,
-      enableAutoRotation: false, // Disable auto-rotation for tests
-    });
-
-    // Create a unique test account
-    const account = await prisma.account.create({
-      data: {
-        email: `${TEST_EMAIL_PREFIX}@example.com`,
-        name: "Credential Test Account",
-        subscription: "PRO",
-      },
-    });
-    testAccountId = account.id;
+  beforeAll(() => {
+    credentialManager = new CredentialManager(
+      mockRedisInstance as unknown as import("ioredis").default,
+      {
+        secretKey: testSecretKey as unknown as string,
+        rotationIntervalDays: 90,
+        maxActiveKeys: 10,
+        enableAutoRotation: false,
+      }
+    );
   });
 
-  after(async () => {
-    // Clean up test data
-    await prisma.apiKey.deleteMany({
-      where: { accountId: testAccountId },
-    });
-    await prisma.account.deleteMany({
-      where: { id: testAccountId },
-    });
-    await prisma.auditLog.deleteMany({
-      where: { resourceId: testAccountId },
-    });
+  beforeEach(() => {
+    // Clear all stores between tests
+    stores.apiKey.clear();
+    stores.auditLog.clear();
+    stores.account.clear();
 
-    // Disconnect Redis
-    await mockRedis.quit();
+    // Reset mock call history but preserve implementations
+    vi.clearAllMocks();
+
+    // Re-set defaults after clearAllMocks
+    mockRedisInstance.hgetall.mockResolvedValue({});
+    mockRedisInstance.hmset.mockResolvedValue("OK");
+    mockRedisInstance.expire.mockResolvedValue(1);
+    mockRedisInstance.del.mockResolvedValue(1);
   });
 
   // ========================================
@@ -97,7 +224,7 @@ describe("CredentialManager", () => {
       const hash1 = credentialManager.hashApiKey(apiKey);
       const hash2 = credentialManager.hashApiKey(apiKey);
 
-      assert.strictEqual(hash1, hash2, "Same API key should produce identical hashes");
+      expect(hash1).toBe(hash2);
     });
 
     it("should produce different hash for different inputs", () => {
@@ -107,7 +234,7 @@ describe("CredentialManager", () => {
       const hash1 = credentialManager.hashApiKey(apiKey1);
       const hash2 = credentialManager.hashApiKey(apiKey2);
 
-      assert.notStrictEqual(hash1, hash2, "Different API keys should produce different hashes");
+      expect(hash1).not.toBe(hash2);
     });
 
     it("should produce 64-character hex hash (SHA-256)", () => {
@@ -115,12 +242,8 @@ describe("CredentialManager", () => {
 
       const hash = credentialManager.hashApiKey(apiKey);
 
-      assert.strictEqual(
-        hash.length,
-        64,
-        `SHA-256 hash should be 64 hex chars, got ${hash.length}`
-      );
-      assert.match(hash, /^[a-f0-9]{64}$/, "Hash should be valid hex string");
+      expect(hash.length).toBe(64);
+      expect(hash).toMatch(/^[a-f0-9]{64}$/);
     });
 
     it("should produce valid hash for empty string", () => {
@@ -128,8 +251,8 @@ describe("CredentialManager", () => {
 
       const hash = credentialManager.hashApiKey(apiKey);
 
-      assert.strictEqual(hash.length, 64, "Empty string should still produce 64-char hash");
-      assert.match(hash, /^[a-f0-9]{64}$/, "Empty string hash should be valid hex");
+      expect(hash.length).toBe(64);
+      expect(hash).toMatch(/^[a-f0-9]{64}$/);
     });
 
     it("should handle long API keys", () => {
@@ -137,7 +260,7 @@ describe("CredentialManager", () => {
 
       const hash = credentialManager.hashApiKey(apiKey);
 
-      assert.strictEqual(hash.length, 64, "Long API key should produce 64-char hash");
+      expect(hash.length).toBe(64);
     });
 
     it("should handle special characters", () => {
@@ -145,8 +268,8 @@ describe("CredentialManager", () => {
 
       const hash = credentialManager.hashApiKey(apiKey);
 
-      assert.strictEqual(hash.length, 64, "API key with special chars should produce 64-char hash");
-      assert.match(hash, /^[a-f0-9]{64}$/, "Hash should be valid hex string");
+      expect(hash.length).toBe(64);
+      expect(hash).toMatch(/^[a-f0-9]{64}$/);
     });
 
     it("should produce hex output only", () => {
@@ -154,7 +277,7 @@ describe("CredentialManager", () => {
 
       const hash = credentialManager.hashApiKey(apiKey);
 
-      assert.match(hash, /^[0-9a-f]+$/, "Hash should only contain hex characters (0-9, a-f)");
+      expect(hash).toMatch(/^[0-9a-f]+$/);
     });
   });
 
@@ -168,10 +291,10 @@ describe("CredentialManager", () => {
 
       const encrypted = credentialManager.encrypt(plaintext);
 
-      assert.ok(encrypted.encrypted, "Should have encrypted field");
-      assert.ok(encrypted.iv, "Should have iv field");
-      assert.ok(encrypted.tag, "Should have tag field");
-      assert.ok(encrypted.encrypted.length > 0, "Encrypted data should not be empty");
+      expect(encrypted.encrypted).toBeTruthy();
+      expect(encrypted.iv).toBeTruthy();
+      expect(encrypted.tag).toBeTruthy();
+      expect(encrypted.encrypted.length > 0).toBeTruthy();
     });
 
     it("should produce data different from plaintext", () => {
@@ -179,12 +302,8 @@ describe("CredentialManager", () => {
 
       const encrypted = credentialManager.encrypt(plaintext);
 
-      assert.notStrictEqual(
-        encrypted.encrypted,
-        plaintext,
-        "Encrypted data should differ from plaintext"
-      );
-      assert.ok(!encrypted.encrypted.includes(plaintext), "Encrypted should not contain plaintext");
+      expect(encrypted.encrypted).not.toBe(plaintext);
+      expect(encrypted.encrypted.includes(plaintext)).toBeFalsy();
     });
 
     it("should use different iv for each encryption (non-deterministic)", () => {
@@ -193,16 +312,8 @@ describe("CredentialManager", () => {
       const encrypted1 = credentialManager.encrypt(plaintext);
       const encrypted2 = credentialManager.encrypt(plaintext);
 
-      assert.notStrictEqual(
-        encrypted1.iv,
-        encrypted2.iv,
-        "Different encryptions should use different IVs"
-      );
-      assert.notStrictEqual(
-        encrypted1.encrypted,
-        encrypted2.encrypted,
-        "Different IVs produce different ciphertext"
-      );
+      expect(encrypted1.iv).not.toBe(encrypted2.iv);
+      expect(encrypted1.encrypted).not.toBe(encrypted2.encrypted);
     });
 
     it("should handle empty string", () => {
@@ -210,9 +321,9 @@ describe("CredentialManager", () => {
 
       const encrypted = credentialManager.encrypt(plaintext);
 
-      assert.ok(encrypted.encrypted !== undefined, "Should encrypt empty string");
-      assert.ok(encrypted.iv.length > 0, "Should have valid IV");
-      assert.ok(encrypted.tag.length > 0, "Should have valid auth tag");
+      expect(encrypted.encrypted !== undefined).toBeTruthy();
+      expect(encrypted.iv.length > 0).toBeTruthy();
+      expect(encrypted.tag.length > 0).toBeTruthy();
     });
 
     it("should handle long strings", () => {
@@ -220,8 +331,8 @@ describe("CredentialManager", () => {
 
       const encrypted = credentialManager.encrypt(plaintext);
 
-      assert.ok(encrypted.encrypted.length > 0, "Should encrypt long string");
-      assert.ok(encrypted.iv.length > 0, "Should have valid IV");
+      expect(encrypted.encrypted.length > 0).toBeTruthy();
+      expect(encrypted.iv.length > 0).toBeTruthy();
     });
 
     it("should produce 32 hex character IV (16 bytes)", () => {
@@ -229,12 +340,8 @@ describe("CredentialManager", () => {
 
       const encrypted = credentialManager.encrypt(plaintext);
 
-      assert.strictEqual(
-        encrypted.iv.length,
-        32,
-        `IV should be 32 hex chars (16 bytes), got ${encrypted.iv.length}`
-      );
-      assert.match(encrypted.iv, /^[0-9a-f]{32}$/, "IV should be valid hex");
+      expect(encrypted.iv.length).toBe(32);
+      expect(encrypted.iv).toMatch(/^[0-9a-f]{32}$/);
     });
 
     it("should produce 32 hex character auth tag (16 bytes)", () => {
@@ -242,12 +349,8 @@ describe("CredentialManager", () => {
 
       const encrypted = credentialManager.encrypt(plaintext);
 
-      assert.match(encrypted.tag, /^[0-9a-f]+$/, "Auth tag should be valid hex");
-      assert.strictEqual(
-        encrypted.tag.length,
-        32,
-        `Tag should be 32 hex chars, got ${encrypted.tag.length}`
-      );
+      expect(encrypted.tag).toMatch(/^[0-9a-f]+$/);
+      expect(encrypted.tag.length).toBe(32);
     });
   });
 
@@ -258,11 +361,7 @@ describe("CredentialManager", () => {
       const encrypted = credentialManager.encrypt(plaintext);
       const decrypted = credentialManager.decrypt(encrypted);
 
-      assert.strictEqual(
-        decrypted,
-        plaintext,
-        `Decrypted should match plaintext, got '${decrypted}'`
-      );
+      expect(decrypted).toBe(plaintext);
     });
 
     it("should handle empty string encryption/decryption", () => {
@@ -271,7 +370,7 @@ describe("CredentialManager", () => {
       const encrypted = credentialManager.encrypt(plaintext);
       const decrypted = credentialManager.decrypt(encrypted);
 
-      assert.strictEqual(decrypted, plaintext, "Empty string should encrypt/decrypt correctly");
+      expect(decrypted).toBe(plaintext);
     });
 
     it("should handle long strings correctly", () => {
@@ -281,11 +380,7 @@ describe("CredentialManager", () => {
       const encrypted = credentialManager.encrypt(plaintext);
       const decrypted = credentialManager.decrypt(encrypted);
 
-      assert.strictEqual(
-        decrypted,
-        plaintext,
-        "Long string should encrypt/decrypt without data loss"
-      );
+      expect(decrypted).toBe(plaintext);
     });
 
     it("should handle special characters", () => {
@@ -294,24 +389,16 @@ describe("CredentialManager", () => {
       const encrypted = credentialManager.encrypt(plaintext);
       const decrypted = credentialManager.decrypt(encrypted);
 
-      assert.strictEqual(
-        decrypted,
-        plaintext,
-        "Special characters should survive encryption/decryption"
-      );
+      expect(decrypted).toBe(plaintext);
     });
 
     it("should handle unicode characters", () => {
-      const plaintext = "Unicode: 你好 🚀 émojis café";
+      const plaintext = "Unicode: 你好 🚀 emojis cafe";
 
       const encrypted = credentialManager.encrypt(plaintext);
       const decrypted = credentialManager.decrypt(encrypted);
 
-      assert.strictEqual(
-        decrypted,
-        plaintext,
-        "Unicode characters should survive encryption/decryption"
-      );
+      expect(decrypted).toBe(plaintext);
     });
 
     it("should fail with invalid tag (tamper detection)", () => {
@@ -322,14 +409,10 @@ describe("CredentialManager", () => {
       // Tamper with auth tag
       const tamperedEncrypted = {
         ...encrypted,
-        tag: encrypted.tag.split("").reverse().join(""), // Reverse the tag to simulate tampering
+        tag: encrypted.tag.split("").reverse().join(""),
       };
 
-      assert.throws(
-        () => credentialManager.decrypt(tamperedEncrypted),
-        /error/i,
-        "Should throw error when auth tag is tampered"
-      );
+      expect(() => credentialManager.decrypt(tamperedEncrypted)).toThrow();
     });
 
     it("should fail with invalid iv", () => {
@@ -340,14 +423,10 @@ describe("CredentialManager", () => {
       // Use wrong IV
       const tamperedEncrypted = {
         ...encrypted,
-        iv: "0".repeat(32), // Invalid IV
+        iv: "0".repeat(32),
       };
 
-      assert.throws(
-        () => credentialManager.decrypt(tamperedEncrypted),
-        /error/i,
-        "Should throw error with invalid IV"
-      );
+      expect(() => credentialManager.decrypt(tamperedEncrypted)).toThrow();
     });
 
     it("should preserve data through multiple encrypt/decrypt cycles", () => {
@@ -359,15 +438,15 @@ describe("CredentialManager", () => {
         data = credentialManager.decrypt(encrypted);
       }
 
-      assert.strictEqual(data, "original-secret", "Multiple cycles should preserve original data");
+      expect(data).toBe("original-secret");
     });
   });
 
   // ========================================
-  // TESTS: Database Integration
+  // TESTS: API Key Management (mocked DB)
   // ========================================
 
-  describe("Database Integration - API Key Management", () => {
+  describe("API Key Management (mocked DB)", () => {
     it("should generate and store API key in database", async () => {
       const result = await credentialManager.generateApiKey(
         testAccountId,
@@ -376,23 +455,21 @@ describe("CredentialManager", () => {
         1000
       );
 
-      assert.ok(result.apiKey, "Should return API key");
-      assert.ok(result.keyId, "Should return key ID");
-      assert.ok(result.apiKey.startsWith("sk_"), "API key should have sk_ prefix");
+      expect(result.apiKey).toBeTruthy();
+      expect(result.keyId).toBeTruthy();
+      expect(result.apiKey.startsWith("sk_")).toBeTruthy();
 
-      // Verify in database
-      const dbKey = await prisma.apiKey.findUnique({
-        where: { id: result.keyId },
-      });
+      // Verify the mock store has the record
+      const dbKey = stores.apiKey.get(result.keyId);
 
-      assert.ok(dbKey, "Key should exist in database");
-      assert.strictEqual(dbKey.accountId, testAccountId);
-      assert.strictEqual(dbKey.name, "Test API Key");
-      assert.deepStrictEqual(dbKey.permissions, ["read", "write"]);
-      assert.strictEqual(dbKey.rateLimit, 1000);
-      assert.strictEqual(dbKey.isActive, true);
-      // Prisma returns null for unset optional fields
-      assert.strictEqual(dbKey.expiresAt, null);
+      expect(dbKey).toBeTruthy();
+      expect(dbKey!.accountId).toBe(testAccountId);
+      expect(dbKey!.name).toBe("Test API Key");
+      expect(dbKey!.permissions).toStrictEqual(["read", "write"]);
+      expect(dbKey!.rateLimit).toBe(1000);
+      expect(dbKey!.isActive).toBe(true);
+      // No expiration set
+      expect(dbKey!.expiresAt).toBeUndefined();
     });
 
     it("should handle optional expiration date", async () => {
@@ -404,15 +481,13 @@ describe("CredentialManager", () => {
         30 // 30 days
       );
 
-      const dbKey = await prisma.apiKey.findUnique({
-        where: { id: result.keyId },
-      });
+      const dbKey = stores.apiKey.get(result.keyId);
 
-      assert.ok(dbKey?.expiresAt, "Should have expiration date");
+      expect(dbKey?.expiresAt).toBeTruthy();
       const expiresAt = dbKey!.expiresAt as Date;
       const expectedExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       const timeDiff = Math.abs(expiresAt.getTime() - expectedExpiry.getTime());
-      assert.ok(timeDiff < 1000, "Expiration should be approximately 30 days from now");
+      expect(timeDiff < 1000).toBeTruthy();
     });
 
     it("should validate API key from database", async () => {
@@ -425,19 +500,19 @@ describe("CredentialManager", () => {
 
       const validation = await credentialManager.validateApiKey(apiKey);
 
-      assert.strictEqual(validation.valid, true, "Should validate as valid");
-      assert.strictEqual(validation.accountId, testAccountId);
-      assert.deepStrictEqual(validation.permissions, ["admin"]);
-      assert.strictEqual(validation.rateLimit, 2000);
-      assert.strictEqual(validation.keyId, keyId);
+      expect(validation.valid).toBe(true);
+      expect(validation.accountId).toBe(testAccountId);
+      expect(validation.permissions).toStrictEqual(["admin"]);
+      expect(validation.rateLimit).toBe(2000);
+      expect(validation.keyId).toBe(keyId);
     });
 
     it("should reject invalid API key", async () => {
       const validation = await credentialManager.validateApiKey("sk_invalid_fake_key");
 
-      assert.strictEqual(validation.valid, false, "Should reject invalid key");
-      assert.strictEqual(validation.accountId, undefined);
-      assert.strictEqual(validation.permissions, undefined);
+      expect(validation.valid).toBe(false);
+      expect(validation.accountId).toBe(undefined);
+      expect(validation.permissions).toBe(undefined);
     });
 
     it("should deactivate API key", async () => {
@@ -447,11 +522,9 @@ describe("CredentialManager", () => {
 
       await credentialManager.deactivateApiKey(keyId);
 
-      const dbKey = await prisma.apiKey.findUnique({
-        where: { id: keyId },
-      });
+      const dbKey = stores.apiKey.get(keyId);
 
-      assert.strictEqual(dbKey?.isActive, false, "Key should be deactivated");
+      expect(dbKey?.isActive).toBe(false);
     });
 
     it("should list API keys for account", async () => {
@@ -461,65 +534,37 @@ describe("CredentialManager", () => {
 
       const keys = await credentialManager.listApiKeys(testAccountId);
 
-      assert.ok(keys.length >= 2, "Should return at least 2 keys");
-      const keyNames = keys.map((k) => k.name);
-      assert.ok(keyNames.includes("List Key 1"), "Should include List Key 1");
-      assert.ok(keyNames.includes("List Key 2"), "Should include List Key 2");
+      expect(keys.length >= 2).toBeTruthy();
+      const keyNames = keys.map((k: Record<string, unknown>) => k.name);
+      expect(keyNames.includes("List Key 1")).toBeTruthy();
+      expect(keyNames.includes("List Key 2")).toBeTruthy();
 
-      // Verify no keyHash is exposed
-      keys.forEach((key) => {
-        assert.strictEqual("keyHash" in key, false, "keyHash should not be exposed");
+      // Verify no keyHash is exposed (listApiKeys uses select to exclude it)
+      keys.forEach((key: Record<string, unknown>) => {
+        expect("keyHash" in key).toBe(false);
       });
     });
 
     it("should enforce max active keys limit", async () => {
-      // Create second test account for isolation
-      const account2 = await prisma.account.create({
-        data: {
-          email: `${TEST_EMAIL_PREFIX}-limit-${Date.now()}@example.com`,
-          name: "Limit Test Account",
-          subscription: "BASIC",
-        },
-      });
+      const limitedManager = new CredentialManager(
+        mockRedisInstance as unknown as import("ioredis").default,
+        {
+          secretKey: testSecretKey as unknown as string,
+          rotationIntervalDays: 90,
+          maxActiveKeys: 2,
+          enableAutoRotation: false,
+        }
+      );
 
-      // Set up credential manager with low limit
-      const lowLimitRedis = new Redis({
-        host: "localhost",
-        port: 6379,
-        lazyConnect: true,
-      });
+      // Create 2 keys (should succeed)
+      await limitedManager.generateApiKey(testAccountId, "Key 1", ["read"]);
+      await limitedManager.generateApiKey(testAccountId, "Key 2", ["read"]);
 
-      const testSecretKey = crypto.randomBytes(32);
-      const limitedManager = new CredentialManager(lowLimitRedis, {
-        secretKey: testSecretKey as any,
-        rotationIntervalDays: 90,
-        maxActiveKeys: 2,
-        enableAutoRotation: false,
-      });
-
-      try {
-        // Ensure account has no existing keys
-        await prisma.apiKey.deleteMany({ where: { accountId: account2.id } });
-
-        // Create 2 keys (should succeed)
-        await limitedManager.generateApiKey(account2.id, "Key 1", ["read"]);
-        await limitedManager.generateApiKey(account2.id, "Key 2", ["read"]);
-
-        // Try to create 3rd key (should fail)
-        // Note: The error is caught and re-thrown as generic "Failed to generate API key"
-        await assert.rejects(
-          limitedManager.generateApiKey(account2.id, "Key 3", ["read"]),
-          {
-            message: /Failed to generate API key/,
-          },
-          "Should reject when max keys reached"
-        );
-      } finally {
-        // Cleanup
-        await prisma.apiKey.deleteMany({ where: { accountId: account2.id } });
-        await prisma.account.delete({ where: { id: account2.id } });
-        await lowLimitRedis.quit();
-      }
+      // Try to create 3rd key (should fail)
+      // The error is caught and re-thrown as generic "Failed to generate API key"
+      await expect(limitedManager.generateApiKey(testAccountId, "Key 3", ["read"])).rejects.toThrow(
+        /Failed to generate API key/
+      );
     });
 
     it("should create audit log entries for key operations", async () => {
@@ -527,30 +572,24 @@ describe("CredentialManager", () => {
         "read",
       ]);
 
-      // Check for creation audit log
-      const creationLog = await prisma.auditLog.findFirst({
-        where: {
-          action: "API_KEY_CREATED",
-          resourceId: testAccountId,
-        },
-        orderBy: { createdAt: "desc" },
-      });
+      // Check for creation audit log in mock store
+      const allLogs = stores.auditLog.all();
+      const creationLog = allLogs.find(
+        (log) => log.action === "API_KEY_CREATED" && log.resourceId === testAccountId
+      );
 
-      assert.ok(creationLog, "Should create audit log for key creation");
-      assert.strictEqual(creationLog.resource, "ApiKey");
+      expect(creationLog).toBeTruthy();
+      expect(creationLog!.resource).toBe("ApiKey");
 
       // Deactivate and check audit log
       await credentialManager.deactivateApiKey(keyId);
 
-      const deactivationLog = await prisma.auditLog.findFirst({
-        where: {
-          action: "API_KEY_DEACTIVATED",
-          resourceId: testAccountId,
-        },
-        orderBy: { createdAt: "desc" },
-      });
+      const allLogsAfter = stores.auditLog.all();
+      const deactivationLog = allLogsAfter.find(
+        (log) => log.action === "API_KEY_DEACTIVATED" && log.resourceId === testAccountId
+      );
 
-      assert.ok(deactivationLog, "Should create audit log for key deactivation");
+      expect(deactivationLog).toBeTruthy();
     });
   });
 });

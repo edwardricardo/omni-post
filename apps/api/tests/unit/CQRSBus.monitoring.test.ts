@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { CQRSBusImpl } from "../../src/cqrs/CQRSBus";
 import type { QueryHandler, QueryResult } from "@shared/cqrs";
 import {
@@ -10,7 +9,7 @@ import {
   makeCommand,
 } from "./CQRSBus.test-helpers.js";
 
-describe("CQRSBus - Metrics and Monitoring", { concurrency: 1 }, () => {
+describe("CQRSBus - Metrics and Monitoring", () => {
   let bus: CQRSBusImpl;
   let mockRedis: MockRedis;
   let mockEventService: MockEventService;
@@ -28,10 +27,10 @@ describe("CQRSBus - Metrics and Monitoring", { concurrency: 1 }, () => {
   it("should provide accurate metrics", () => {
     const metrics = bus.getMetrics();
 
-    assert.strictEqual(typeof metrics.commandsExecuted, "number");
-    assert.strictEqual(typeof metrics.queriesExecuted, "number");
-    assert.strictEqual(typeof metrics.commandErrors, "number");
-    assert.strictEqual(typeof metrics.queryErrors, "number");
+    expect(typeof metrics.commandsExecuted).toBe("number");
+    expect(typeof metrics.queriesExecuted).toBe("number");
+    expect(typeof metrics.commandErrors).toBe("number");
+    expect(typeof metrics.queryErrors).toBe("number");
   });
 
   it("should calculate average execution times", async () => {
@@ -44,7 +43,7 @@ describe("CQRSBus - Metrics and Monitoring", { concurrency: 1 }, () => {
     await bus.executeCommand(command);
 
     const metrics = bus.getMetrics();
-    assert.ok(metrics.avgCommandExecutionTime >= 0);
+    expect(metrics.avgCommandExecutionTime >= 0).toBeTruthy();
   });
 
   it("should provide handlers information", () => {
@@ -56,14 +55,14 @@ describe("CQRSBus - Metrics and Monitoring", { concurrency: 1 }, () => {
 
     const info = bus.getHandlersInfo();
 
-    assert.ok(Array.isArray(info.commands));
-    assert.ok(Array.isArray(info.queries));
-    assert.ok(info.commands.includes("test.command"));
-    assert.ok(info.queries.includes("test.query"));
+    expect(Array.isArray(info.commands)).toBeTruthy();
+    expect(Array.isArray(info.queries)).toBeTruthy();
+    expect(info.commands.includes("test.command")).toBeTruthy();
+    expect(info.queries.includes("test.query")).toBeTruthy();
   });
 });
 
-describe("CQRSBus - Health Checks", { concurrency: 1 }, () => {
+describe("CQRSBus - Health Checks", () => {
   let bus: CQRSBusImpl;
   let mockRedis: MockRedis;
   let mockEventService: MockEventService;
@@ -80,9 +79,9 @@ describe("CQRSBus - Health Checks", { concurrency: 1 }, () => {
   it("should report healthy status when all systems operational", async () => {
     const health = await bus.healthCheck();
 
-    assert.strictEqual(health.status, "healthy");
-    assert.strictEqual(health.details.redis, true);
-    assert.strictEqual(health.details.eventService, true);
+    expect(health.status).toBe("healthy");
+    expect(health.details.redis).toBe(true);
+    expect(health.details.eventService).toBe(true);
   });
 
   it("should report unhealthy when EventService is down", async () => {
@@ -90,8 +89,8 @@ describe("CQRSBus - Health Checks", { concurrency: 1 }, () => {
 
     const health = await bus.healthCheck();
 
-    assert.strictEqual(health.status, "unhealthy");
-    assert.strictEqual(health.details.eventService, false);
+    expect(health.status).toBe("unhealthy");
+    expect(health.details.eventService).toBe(false);
   });
 
   it("should include handler counts in health check", async () => {
@@ -100,12 +99,12 @@ describe("CQRSBus - Health Checks", { concurrency: 1 }, () => {
 
     const health = await bus.healthCheck();
 
-    assert.strictEqual(health.details.commandHandlers, 1);
-    assert.strictEqual(health.details.queryHandlers, 1);
+    expect(health.details.commandHandlers).toBe(1);
+    expect(health.details.queryHandlers).toBe(1);
   });
 });
 
-describe("CQRSBus - Cache Management", { concurrency: 1 }, () => {
+describe("CQRSBus - Cache Management", () => {
   let bus: CQRSBusImpl;
   let mockRedis: MockRedis;
   let mockEventService: MockEventService;
@@ -126,7 +125,7 @@ describe("CQRSBus - Cache Management", { concurrency: 1 }, () => {
 
     const clearedCount = await bus.clearCache();
 
-    assert.strictEqual(clearedCount, 2);
+    expect(clearedCount).toBe(2);
   });
 
   it("should clear cached queries matching pattern", async () => {
@@ -136,13 +135,13 @@ describe("CQRSBus - Cache Management", { concurrency: 1 }, () => {
 
     const clearedCount = await bus.clearCache("cqrs:query:posts:*");
 
-    assert.strictEqual(clearedCount, 2);
+    expect(clearedCount).toBe(2);
   });
 
   it("should return 0 when no cached queries to clear", async () => {
     const clearedCount = await bus.clearCache();
 
-    assert.strictEqual(clearedCount, 0);
+    expect(clearedCount).toBe(0);
   });
 
   it("should return 0 when cache is disabled", async () => {
@@ -154,11 +153,11 @@ describe("CQRSBus - Cache Management", { concurrency: 1 }, () => {
 
     const clearedCount = await busNoCache.clearCache();
 
-    assert.strictEqual(clearedCount, 0);
+    expect(clearedCount).toBe(0);
   });
 });
 
-describe("CQRSBus - Shutdown", { concurrency: 1 }, () => {
+describe("CQRSBus - Shutdown", () => {
   let bus: CQRSBusImpl;
   let mockRedis: MockRedis;
   let mockEventService: MockEventService;
@@ -179,8 +178,8 @@ describe("CQRSBus - Shutdown", { concurrency: 1 }, () => {
     await bus.shutdown();
 
     const info = bus.getHandlersInfo();
-    assert.strictEqual(info.commands.length, 0);
-    assert.strictEqual(info.queries.length, 0);
+    expect(info.commands.length).toBe(0);
+    expect(info.queries.length).toBe(0);
   });
 
   it("should be idempotent", async () => {
@@ -189,7 +188,7 @@ describe("CQRSBus - Shutdown", { concurrency: 1 }, () => {
   });
 });
 
-describe("CQRSBus - Query Handler Registration", { concurrency: 1 }, () => {
+describe("CQRSBus - Query Handler Registration", () => {
   let bus: CQRSBusImpl;
   let mockRedis: MockRedis;
   let mockEventService: MockEventService;
@@ -210,7 +209,7 @@ describe("CQRSBus - Query Handler Registration", { concurrency: 1 }, () => {
     bus.registerQueryHandler(handler);
 
     const handlersInfo = bus.getHandlersInfo();
-    assert.ok(handlersInfo.queries.includes("test.query"));
+    expect(handlersInfo.queries.includes("test.query")).toBeTruthy();
   });
 
   it("should prevent duplicate query handler registration", () => {
@@ -219,7 +218,7 @@ describe("CQRSBus - Query Handler Registration", { concurrency: 1 }, () => {
 
     bus.registerQueryHandler(handler1);
 
-    assert.throws(() => bus.registerQueryHandler(handler2), /already registered/);
+    expect(() => bus.registerQueryHandler(handler2)).toThrow(/already registered/);
   });
 
   it("should register multiple different query handlers", () => {
@@ -241,8 +240,8 @@ describe("CQRSBus - Query Handler Registration", { concurrency: 1 }, () => {
     bus.registerQueryHandler(new Handler2());
 
     const handlersInfo = bus.getHandlersInfo();
-    assert.strictEqual(handlersInfo.queries.length, 2);
-    assert.ok(handlersInfo.queries.includes("query.1"));
-    assert.ok(handlersInfo.queries.includes("query.2"));
+    expect(handlersInfo.queries.length).toBe(2);
+    expect(handlersInfo.queries.includes("query.1")).toBeTruthy();
+    expect(handlersInfo.queries.includes("query.2")).toBeTruthy();
   });
 });

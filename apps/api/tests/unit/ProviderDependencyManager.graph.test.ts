@@ -1,5 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { ProviderDependencyManager } from "../../src/orchestration/ProviderDependencyManager.js";
 import type { ProviderDependency } from "@shared/orchestration";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface";
@@ -9,7 +8,7 @@ import {
   MockEventService,
 } from "./ProviderDependencyManager.test-helpers.js";
 
-describe("ProviderDependencyManager - Graph Construction", { concurrency: 1 }, () => {
+describe("ProviderDependencyManager - Graph Construction", () => {
   let manager: ProviderDependencyManager;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -38,12 +37,12 @@ describe("ProviderDependencyManager - Graph Construction", { concurrency: 1 }, (
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.equal(result.value.nodes.size, 3);
-      assert.equal(result.value.hasCycles, false);
-      assert.equal(result.value.executionOrder.length, 3);
-      assert.equal(result.value.readyNodes.size, 3); // All ready since no dependencies
+      expect(result.value.nodes.size).toBe(3);
+      expect(result.value.hasCycles).toBe(false);
+      expect(result.value.executionOrder.length).toBe(3);
+      expect(result.value.readyNodes.size).toBe(3); // All ready since no dependencies
     }
   });
 
@@ -62,29 +61,29 @@ describe("ProviderDependencyManager - Graph Construction", { concurrency: 1 }, (
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
       const graph = result.value;
-      assert.equal(graph.nodes.size, 3);
-      assert.equal(graph.hasCycles, false);
+      expect(graph.nodes.size).toBe(3);
+      expect(graph.hasCycles).toBe(false);
 
       // Check dependencies
       const twitterNode = graph.nodes.get("twitter");
       const facebookNode = graph.nodes.get("facebook");
       const instagramNode = graph.nodes.get("instagram");
 
-      assert.equal(twitterNode?.dependencies.size, 0);
-      assert.equal(facebookNode?.dependencies.size, 1);
-      assert.equal(instagramNode?.dependencies.size, 1);
+      expect(twitterNode?.dependencies.size).toBe(0);
+      expect(facebookNode?.dependencies.size).toBe(1);
+      expect(instagramNode?.dependencies.size).toBe(1);
 
       // Check dependents
-      assert.equal(twitterNode?.dependents.size, 1);
-      assert.equal(facebookNode?.dependents.size, 1);
-      assert.equal(instagramNode?.dependents.size, 0);
+      expect(twitterNode?.dependents.size).toBe(1);
+      expect(facebookNode?.dependents.size).toBe(1);
+      expect(instagramNode?.dependents.size).toBe(0);
 
       // Only twitter should be initially ready
-      assert.equal(graph.readyNodes.size, 1);
-      assert.equal(graph.readyNodes.has("twitter"), true);
+      expect(graph.readyNodes.size).toBe(1);
+      expect(graph.readyNodes.has("twitter")).toBe(true);
     }
   });
 
@@ -103,15 +102,15 @@ describe("ProviderDependencyManager - Graph Construction", { concurrency: 1 }, (
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
       const graph = result.value;
-      assert.equal(graph.nodes.size, 4);
+      expect(graph.nodes.size).toBe(4);
 
       // Twitter and Instagram should both be ready (roots of chains)
-      assert.equal(graph.readyNodes.size, 2);
-      assert.equal(graph.readyNodes.has("twitter"), true);
-      assert.equal(graph.readyNodes.has("instagram"), true);
+      expect(graph.readyNodes.size).toBe(2);
+      expect(graph.readyNodes.has("twitter")).toBe(true);
+      expect(graph.readyNodes.has("instagram")).toBe(true);
     }
   });
 
@@ -126,10 +125,10 @@ describe("ProviderDependencyManager - Graph Construction", { concurrency: 1 }, (
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.equal(result.error.type, "validation");
-      assert.match(result.error.message, /Dependency provider not found/);
+      expect(result.error.type).toBe("validation");
+      expect(result.error.message).toMatch(/Dependency provider not found/);
     }
   });
 
@@ -144,15 +143,15 @@ describe("ProviderDependencyManager - Graph Construction", { concurrency: 1 }, (
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.equal(result.error.type, "validation");
-      assert.match(result.error.message, /Provider not found in dependency/);
+      expect(result.error.type).toBe("validation");
+      expect(result.error.message).toMatch(/Provider not found in dependency/);
     }
   });
 });
 
-describe("ProviderDependencyManager - Cycle Detection", { concurrency: 1 }, () => {
+describe("ProviderDependencyManager - Cycle Detection", () => {
   let manager: ProviderDependencyManager;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -185,11 +184,11 @@ describe("ProviderDependencyManager - Cycle Detection", { concurrency: 1 }, () =
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.equal(result.error.type, "validation");
-      assert.match(result.error.message, /Circular dependencies detected/);
-      assert.ok(result.error.context?.cycle);
+      expect(result.error.type).toBe("validation");
+      expect(result.error.message).toMatch(/Circular dependencies detected/);
+      expect(result.error.context?.cycle).toBeTruthy();
     }
   });
 
@@ -212,11 +211,11 @@ describe("ProviderDependencyManager - Cycle Detection", { concurrency: 1 }, () =
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.match(result.error.message, /Circular dependencies detected/);
+      expect(result.error.message).toMatch(/Circular dependencies detected/);
       const cycle = result.error.context?.cycle as string[];
-      assert.ok(cycle.length >= 3);
+      expect(cycle.length >= 3).toBeTruthy();
     }
   });
 
@@ -231,9 +230,9 @@ describe("ProviderDependencyManager - Cycle Detection", { concurrency: 1 }, () =
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.match(result.error.message, /Circular dependencies detected/);
+      expect(result.error.message).toMatch(/Circular dependencies detected/);
     }
   });
 
@@ -256,14 +255,14 @@ describe("ProviderDependencyManager - Cycle Detection", { concurrency: 1 }, () =
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.equal(result.value.hasCycles, false);
+      expect(result.value.hasCycles).toBe(false);
     }
   });
 });
 
-describe("ProviderDependencyManager - Topological Sort", { concurrency: 1 }, () => {
+describe("ProviderDependencyManager - Topological Sort", () => {
   let manager: ProviderDependencyManager;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -296,18 +295,18 @@ describe("ProviderDependencyManager - Topological Sort", { concurrency: 1 }, () 
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
       const order = result.value.executionOrder;
-      assert.equal(order.length, 3);
+      expect(order.length).toBe(3);
 
       // Twitter must come before Facebook
       const twitterIdx = order.indexOf("twitter");
       const facebookIdx = order.indexOf("facebook");
       const instagramIdx = order.indexOf("instagram");
 
-      assert.ok(twitterIdx < facebookIdx);
-      assert.ok(facebookIdx < instagramIdx);
+      expect(twitterIdx < facebookIdx).toBeTruthy();
+      expect(facebookIdx < instagramIdx).toBeTruthy();
     }
   });
 
@@ -330,10 +329,10 @@ describe("ProviderDependencyManager - Topological Sort", { concurrency: 1 }, () 
 
     const result = await manager.buildDependencyGraph(providers, dependencies);
 
-    assert.equal(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
       const order = result.value.executionOrder;
-      assert.equal(order.length, 4);
+      expect(order.length).toBe(4);
 
       const twitterIdx = order.indexOf("twitter");
       const facebookIdx = order.indexOf("facebook");
@@ -341,12 +340,12 @@ describe("ProviderDependencyManager - Topological Sort", { concurrency: 1 }, () 
       const linkedinIdx = order.indexOf("linkedin");
 
       // Twitter must come first
-      assert.ok(twitterIdx < facebookIdx);
-      assert.ok(twitterIdx < instagramIdx);
+      expect(twitterIdx < facebookIdx).toBeTruthy();
+      expect(twitterIdx < instagramIdx).toBeTruthy();
 
       // LinkedIn must come last
-      assert.ok(facebookIdx < linkedinIdx);
-      assert.ok(instagramIdx < linkedinIdx);
+      expect(facebookIdx < linkedinIdx).toBeTruthy();
+      expect(instagramIdx < linkedinIdx).toBeTruthy();
     }
   });
 });

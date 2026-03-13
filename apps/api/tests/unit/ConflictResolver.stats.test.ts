@@ -2,8 +2,7 @@
  * ConflictResolver Tests - Statistics, Built-in Patterns, and Edge Cases
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import { ConflictResolver } from "../../src/orchestration/ConflictResolver.js";
 import { providerRegistry } from "../../src/providers/providerRegistry.js";
 import type { OrchestrationConflict } from "@shared/orchestration";
@@ -20,13 +19,13 @@ import {
   createTestCanonicalPost,
 } from "./ConflictResolver.test-helpers.js";
 
-describe("ConflictResolver - Statistics", { concurrency: 1 }, () => {
+describe("ConflictResolver - Statistics", () => {
   let resolver: ConflictResolver;
 
   beforeEach(async (t) => {
-    const mockPrisma = new MockPrismaClient(t);
-    const mockRedis = new MockRedis(t);
-    const mockEventService = new MockEventService(t);
+    const mockPrisma = new MockPrismaClient();
+    const mockRedis = new MockRedis();
+    const mockEventService = new MockEventService();
 
     resolver = new ConflictResolver({
       prisma: mockPrisma as any,
@@ -43,10 +42,10 @@ describe("ConflictResolver - Statistics", { concurrency: 1 }, () => {
       end: new Date(),
     });
 
-    assert.strictEqual(typeof stats.totalConflicts, "number");
-    assert.strictEqual(typeof stats.resolvedConflicts, "number");
-    assert.strictEqual(typeof stats.averageResolutionTime, "number");
-    assert.ok(Array.isArray(stats.topConflictPatterns));
+    expect(typeof stats.totalConflicts).toBe("number");
+    expect(typeof stats.resolvedConflicts).toBe("number");
+    expect(typeof stats.averageResolutionTime).toBe("number");
+    expect(Array.isArray(stats.topConflictPatterns)).toBeTruthy();
   });
 
   it("should include conflicts by type", async () => {
@@ -55,7 +54,7 @@ describe("ConflictResolver - Statistics", { concurrency: 1 }, () => {
       end: new Date(),
     });
 
-    assert.ok(typeof stats.conflictsByType === "object");
+    expect(typeof stats.conflictsByType === "object").toBeTruthy();
   });
 
   it("should include resolutions by strategy", async () => {
@@ -64,17 +63,17 @@ describe("ConflictResolver - Statistics", { concurrency: 1 }, () => {
       end: new Date(),
     });
 
-    assert.ok(typeof stats.resolutionsByStrategy === "object");
+    expect(typeof stats.resolutionsByStrategy === "object").toBeTruthy();
   });
 });
 
-describe("ConflictResolver - Built-in Patterns", { concurrency: 1 }, () => {
+describe("ConflictResolver - Built-in Patterns", () => {
   let resolver: ConflictResolver;
 
   beforeEach(async (t) => {
-    const mockPrisma = new MockPrismaClient(t);
-    const mockRedis = new MockRedis(t);
-    const mockEventService = new MockEventService(t);
+    const mockPrisma = new MockPrismaClient();
+    const mockRedis = new MockRedis();
+    const mockEventService = new MockEventService();
 
     resolver = new ConflictResolver({
       prisma: mockPrisma as any,
@@ -91,8 +90,8 @@ describe("ConflictResolver - Built-in Patterns", { concurrency: 1 }, () => {
 
     const conflicts = await resolver.detectConflicts(context, result);
 
-    assert.ok(conflicts.length > 0);
-    assert.strictEqual(conflicts[0].type, "rate_limit");
+    expect(conflicts.length > 0).toBeTruthy();
+    expect(conflicts[0].type).toBe("rate_limit");
   });
 
   it("should load content_too_long pattern", async () => {
@@ -108,7 +107,7 @@ describe("ConflictResolver - Built-in Patterns", { concurrency: 1 }, () => {
     };
 
     const result = await resolver.resolveConflicts([conflict], context);
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("should load authentication_expired pattern", async () => {
@@ -117,7 +116,7 @@ describe("ConflictResolver - Built-in Patterns", { concurrency: 1 }, () => {
 
     const conflicts = await resolver.detectConflicts(context, result);
 
-    assert.ok(conflicts.length > 0);
+    expect(conflicts.length > 0).toBeTruthy();
   });
 
   it("should load network_timeout pattern", async () => {
@@ -126,7 +125,7 @@ describe("ConflictResolver - Built-in Patterns", { concurrency: 1 }, () => {
 
     const conflicts = await resolver.detectConflicts(context, result);
 
-    assert.ok(conflicts.length > 0);
+    expect(conflicts.length > 0).toBeTruthy();
   });
 
   it("should have correct priority for critical patterns", async () => {
@@ -136,23 +135,23 @@ describe("ConflictResolver - Built-in Patterns", { concurrency: 1 }, () => {
     const conflicts = await resolver.detectConflicts(context, result);
 
     // Rate limit should be critical severity (priority 1)
-    assert.strictEqual(conflicts[0].severity, "critical");
+    expect(conflicts[0].severity).toBe("critical");
   });
 });
 
-describe("ConflictResolver - Edge Cases", { concurrency: 1 }, () => {
+describe("ConflictResolver - Edge Cases", () => {
   let resolver: ConflictResolver;
   let originalGetAdapter: typeof providerRegistry.getAdapter;
 
-  before(() => {
+  beforeAll(() => {
     // Save original for restoration
     originalGetAdapter = providerRegistry.getAdapter.bind(providerRegistry);
   });
 
   beforeEach(async (t) => {
-    const mockPrisma = new MockPrismaClient(t);
-    const mockRedis = new MockRedis(t);
-    const mockEventService = new MockEventService(t);
+    const mockPrisma = new MockPrismaClient();
+    const mockRedis = new MockRedis();
+    const mockEventService = new MockEventService();
 
     resolver = new ConflictResolver({
       prisma: mockPrisma as any,
@@ -163,7 +162,7 @@ describe("ConflictResolver - Edge Cases", { concurrency: 1 }, () => {
     await resolver.initialize();
   });
 
-  after(() => {
+  afterAll(() => {
     // Restore original getAdapter
     providerRegistry.getAdapter = originalGetAdapter;
   });
@@ -173,9 +172,9 @@ describe("ConflictResolver - Edge Cases", { concurrency: 1 }, () => {
 
     const result = await resolver.resolveConflicts([], context);
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.length, 0);
+      expect(result.value.length).toBe(0);
     }
   });
 
@@ -185,14 +184,14 @@ describe("ConflictResolver - Edge Cases", { concurrency: 1 }, () => {
 
     const conflicts = await resolver.detectConflicts(context, result);
 
-    assert.strictEqual(conflicts.length, 0);
+    expect(conflicts.length).toBe(0);
   });
 
   it("should handle adaptation with empty validation errors", async (t) => {
-    providerRegistry.getAdapter = t.mock.fn((() => ({
+    providerRegistry.getAdapter = vi.fn((() => ({
       id: "twitter",
       limits: { maxChars: 280, maxMediaPerPost: 4, allowedMedia: ["image"] },
-      validateContent: t.mock.fn(
+      validateContent: vi.fn(
         async (): Promise<ContentValidationResult> => ({
           valid: true,
           errors: [],
@@ -206,7 +205,7 @@ describe("ConflictResolver - Edge Cases", { concurrency: 1 }, () => {
 
     const result = await resolver.adaptContentForProvider(content, "twitter" as ProviderId, []);
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
   });
 
   it("should handle concurrent conflict resolution", async () => {
@@ -232,9 +231,9 @@ describe("ConflictResolver - Edge Cases", { concurrency: 1 }, () => {
 
     const result = await resolver.resolveConflicts(conflicts, context);
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.length, 2);
+      expect(result.value.length).toBe(2);
     }
   });
 });

@@ -6,22 +6,16 @@
  * @layer domain
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, expect } from "vitest";
 import { PublishStatus, PUBLISH_STATUS } from "../../../src/domain/value-objects/PublishStatus.js";
 import {
   ApprovalStatus,
   APPROVAL_STATUSES,
 } from "../../../src/domain/value-objects/ApprovalStatus.js";
-import {
-  ReviewDecision,
-  REVIEW_DECISIONS,
-} from "../../../src/domain/value-objects/ReviewDecision.js";
+import { ReviewDecision } from "../../../src/domain/value-objects/ReviewDecision.js";
 import {
   ApprovalRequestAggregate,
   ApprovalRequestCreated,
-  ApprovalReviewAdded,
   ApprovalRequestResolved,
   ApprovalRequestCancelled,
 } from "../../../src/domain/aggregates/ApprovalRequestAggregate.js";
@@ -45,7 +39,7 @@ const SECOND_REVIEWER_UUID = "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f";
 function createDraftPost(): PostAggregate {
   const projectId = ProjectId.fromStringUnsafe(VALID_UUID);
   const result = PostAggregate.create({ projectId, body: "Approval workflow test content" });
-  assert.ok(result.ok, "Post creation should succeed");
+  expect(result.ok).toBeTruthy();
   return result.value;
 }
 
@@ -53,7 +47,7 @@ function createPendingReviewPost(): PostAggregate {
   const post = createDraftPost();
   post.clearDomainEvents();
   const submitResult = post.submitForReview();
-  assert.ok(submitResult.ok, "Submit for review should succeed");
+  expect(submitResult.ok).toBeTruthy();
   return post;
 }
 
@@ -63,7 +57,7 @@ function createPendingApprovalRequest(): ApprovalRequestAggregate {
     submitterId: VALID_UUID,
     comment: "Please review",
   });
-  assert.ok(result.ok, "Approval request creation should succeed");
+  expect(result.ok).toBeTruthy();
   return result.value;
 }
 
@@ -75,40 +69,40 @@ describe("PublishStatus PENDING_REVIEW", () => {
   it("transitions from DRAFT to PENDING_REVIEW", () => {
     const draft = PublishStatus.draft();
     const result = draft.transitionTo(PUBLISH_STATUS.PENDING_REVIEW);
-    assert.ok(result.ok, "DRAFT -> PENDING_REVIEW should be valid");
-    assert.equal(result.value.value, PUBLISH_STATUS.PENDING_REVIEW);
+    expect(result.ok).toBeTruthy();
+    expect(result.value.value).toBe(PUBLISH_STATUS.PENDING_REVIEW);
   });
 
   it("transitions from PENDING_REVIEW to SCHEDULED when approved", () => {
     const pending = PublishStatus.pendingReview();
     const result = pending.transitionTo(PUBLISH_STATUS.SCHEDULED);
-    assert.ok(result.ok, "PENDING_REVIEW -> SCHEDULED should be valid");
-    assert.equal(result.value.value, PUBLISH_STATUS.SCHEDULED);
+    expect(result.ok).toBeTruthy();
+    expect(result.value.value).toBe(PUBLISH_STATUS.SCHEDULED);
   });
 
   it("transitions from PENDING_REVIEW to DRAFT when rejected", () => {
     const pending = PublishStatus.pendingReview();
     const result = pending.transitionTo(PUBLISH_STATUS.DRAFT);
-    assert.ok(result.ok, "PENDING_REVIEW -> DRAFT should be valid");
-    assert.equal(result.value.value, PUBLISH_STATUS.DRAFT);
+    expect(result.ok).toBeTruthy();
+    expect(result.value.value).toBe(PUBLISH_STATUS.DRAFT);
   });
 
   it("rejects transition from PENDING_REVIEW to PUBLISHING directly", () => {
     const pending = PublishStatus.pendingReview();
     const result = pending.transitionTo(PUBLISH_STATUS.PUBLISHING);
-    assert.ok(!result.ok, "PENDING_REVIEW -> PUBLISHING should be invalid");
+    expect(result.ok).toBeFalsy();
   });
 
   it("returns true for isPendingReview when status is PENDING_REVIEW", () => {
     const pending = PublishStatus.pendingReview();
-    assert.ok(pending.isPendingReview());
-    assert.ok(!pending.isDraft());
-    assert.ok(!pending.isScheduled());
+    expect(pending.isPendingReview()).toBeTruthy();
+    expect(pending.isDraft()).toBeFalsy();
+    expect(pending.isScheduled()).toBeFalsy();
   });
 
   it("returns false for isEditable when status is PENDING_REVIEW", () => {
     const pending = PublishStatus.pendingReview();
-    assert.ok(!pending.isEditable(), "PENDING_REVIEW should not be editable");
+    expect(pending.isEditable()).toBeFalsy();
   });
 });
 
@@ -119,49 +113,49 @@ describe("PublishStatus PENDING_REVIEW", () => {
 describe("ApprovalStatus", () => {
   it("creates from valid string", () => {
     const result = ApprovalStatus.create("pending");
-    assert.ok(result.ok, "Should accept valid lowercase string");
-    assert.equal(result.value.value, APPROVAL_STATUSES.PENDING);
+    expect(result.ok).toBeTruthy();
+    expect(result.value.value).toBe(APPROVAL_STATUSES.PENDING);
   });
 
   it("rejects invalid string", () => {
     const result = ApprovalStatus.create("UNKNOWN_STATUS");
-    assert.ok(!result.ok, "Should reject invalid status string");
+    expect(result.ok).toBeFalsy();
   });
 
   it("transitions from PENDING to APPROVED", () => {
     const pending = ApprovalStatus.pending();
     const result = pending.transitionTo(APPROVAL_STATUSES.APPROVED);
-    assert.ok(result.ok, "PENDING -> APPROVED should be valid");
-    assert.equal(result.value.value, APPROVAL_STATUSES.APPROVED);
+    expect(result.ok).toBeTruthy();
+    expect(result.value.value).toBe(APPROVAL_STATUSES.APPROVED);
   });
 
   it("transitions from PENDING to REJECTED", () => {
     const pending = ApprovalStatus.pending();
     const result = pending.transitionTo(APPROVAL_STATUSES.REJECTED);
-    assert.ok(result.ok, "PENDING -> REJECTED should be valid");
-    assert.equal(result.value.value, APPROVAL_STATUSES.REJECTED);
+    expect(result.ok).toBeTruthy();
+    expect(result.value.value).toBe(APPROVAL_STATUSES.REJECTED);
   });
 
   it("rejects transition from APPROVED (terminal state)", () => {
     const approved = ApprovalStatus.approved();
-    assert.ok(approved.isTerminal(), "APPROVED should be terminal");
+    expect(approved.isTerminal()).toBeTruthy();
     const result = approved.transitionTo(APPROVAL_STATUSES.PENDING);
-    assert.ok(!result.ok, "APPROVED should not allow transitions");
+    expect(result.ok).toBeFalsy();
   });
 
   it("returns correct predicates for each status", () => {
     const pending = ApprovalStatus.pending();
-    assert.ok(pending.isPending());
-    assert.ok(!pending.isApproved());
-    assert.ok(!pending.isRejected());
+    expect(pending.isPending()).toBeTruthy();
+    expect(pending.isApproved()).toBeFalsy();
+    expect(pending.isRejected()).toBeFalsy();
 
     const approved = ApprovalStatus.approved();
-    assert.ok(approved.isApproved());
-    assert.ok(!approved.isPending());
+    expect(approved.isApproved()).toBeTruthy();
+    expect(approved.isPending()).toBeFalsy();
 
     const rejected = ApprovalStatus.rejected();
-    assert.ok(rejected.isRejected());
-    assert.ok(!rejected.isPending());
+    expect(rejected.isRejected()).toBeTruthy();
+    expect(rejected.isPending()).toBeFalsy();
   });
 });
 
@@ -173,30 +167,30 @@ describe("ReviewDecision", () => {
   it("creates from valid string values", () => {
     for (const val of ["APPROVED", "REJECTED", "CHANGES_REQUESTED"]) {
       const result = ReviewDecision.create(val);
-      assert.ok(result.ok, `Should accept '${val}'`);
-      assert.equal(result.value.value, val);
+      expect(result.ok).toBeTruthy();
+      expect(result.value.value).toBe(val);
     }
   });
 
   it("rejects invalid string", () => {
     const result = ReviewDecision.create("MAYBE");
-    assert.ok(!result.ok, "Should reject invalid decision string");
+    expect(result.ok).toBeFalsy();
   });
 
   it("returns true for isApproval when APPROVED", () => {
     const decision = ReviewDecision.approved();
-    assert.ok(decision.isApproval());
-    assert.ok(!decision.isRejection());
+    expect(decision.isApproval()).toBeTruthy();
+    expect(decision.isRejection()).toBeFalsy();
   });
 
   it("returns true for isRejection when REJECTED or CHANGES_REQUESTED", () => {
     const rejected = ReviewDecision.rejected();
-    assert.ok(rejected.isRejection());
-    assert.ok(!rejected.isApproval());
+    expect(rejected.isRejection()).toBeTruthy();
+    expect(rejected.isApproval()).toBeFalsy();
 
     const changes = ReviewDecision.changesRequested();
-    assert.ok(changes.isRejection());
-    assert.ok(!changes.isApproval());
+    expect(changes.isRejection()).toBeTruthy();
+    expect(changes.isApproval()).toBeFalsy();
   });
 });
 
@@ -212,17 +206,17 @@ describe("ApprovalRequestAggregate", () => {
       comment: "Please review this post",
     });
 
-    assert.ok(result.ok, "Creation should succeed");
+    expect(result.ok).toBeTruthy();
     const aggregate = result.value;
-    assert.equal(aggregate.postId, VALID_UUID);
-    assert.equal(aggregate.submitterId, VALID_UUID);
-    assert.equal(aggregate.comment, "Please review this post");
-    assert.ok(aggregate.isPending);
-    assert.equal(aggregate.reviews.length, 0);
+    expect(aggregate.postId).toBe(VALID_UUID);
+    expect(aggregate.submitterId).toBe(VALID_UUID);
+    expect(aggregate.comment).toBe("Please review this post");
+    expect(aggregate.isPending).toBeTruthy();
+    expect(aggregate.reviews.length).toBe(0);
 
     const events = aggregate.domainEvents;
-    assert.equal(events.length, 1);
-    assert.ok(events[0] instanceof ApprovalRequestCreated);
+    expect(events.length).toBe(1);
+    expect(events[0] instanceof ApprovalRequestCreated).toBeTruthy();
   });
 
   it("rejects empty postId", () => {
@@ -230,7 +224,7 @@ describe("ApprovalRequestAggregate", () => {
       postId: "",
       submitterId: VALID_UUID,
     });
-    assert.ok(!result.ok, "Should reject empty postId");
+    expect(result.ok).toBeFalsy();
   });
 
   it("rejects empty submitterId", () => {
@@ -238,7 +232,7 @@ describe("ApprovalRequestAggregate", () => {
       postId: VALID_UUID,
       submitterId: "",
     });
-    assert.ok(!result.ok, "Should reject empty submitterId");
+    expect(result.ok).toBeFalsy();
   });
 
   it("sets status to APPROVED when addReview receives APPROVED decision", () => {
@@ -247,13 +241,13 @@ describe("ApprovalRequestAggregate", () => {
 
     const result = aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved(), "Looks good");
 
-    assert.ok(result.ok, "addReview should succeed");
-    assert.ok(aggregate.isApproved, "Status should be APPROVED");
-    assert.equal(aggregate.reviews.length, 1);
+    expect(result.ok).toBeTruthy();
+    expect(aggregate.isApproved).toBeTruthy();
+    expect(aggregate.reviews.length).toBe(1);
 
     const events = aggregate.domainEvents;
     const resolvedEvent = events.find((e) => e instanceof ApprovalRequestResolved);
-    assert.ok(resolvedEvent, "Should emit ApprovalRequestResolved event");
+    expect(resolvedEvent).toBeTruthy();
   });
 
   it("sets status to REJECTED when addReview receives REJECTED decision", () => {
@@ -262,25 +256,25 @@ describe("ApprovalRequestAggregate", () => {
 
     const result = aggregate.addReview(REVIEWER_UUID, ReviewDecision.rejected(), "Needs rework");
 
-    assert.ok(result.ok, "addReview should succeed");
-    assert.ok(aggregate.isRejected, "Status should be REJECTED");
+    expect(result.ok).toBeTruthy();
+    expect(aggregate.isRejected).toBeTruthy();
   });
 
   it("rejects addReview when already resolved", () => {
     const aggregate = createPendingApprovalRequest();
     aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved());
 
-    assert.ok(aggregate.isTerminal, "Aggregate should be terminal after approval");
+    expect(aggregate.isTerminal).toBeTruthy();
 
     const result = aggregate.addReview(SECOND_REVIEWER_UUID, ReviewDecision.approved());
-    assert.ok(!result.ok, "Should reject review on resolved request");
+    expect(result.ok).toBeFalsy();
   });
 
   it("rejects review from submitter (self-review invariant)", () => {
     const aggregate = createPendingApprovalRequest();
 
     const result = aggregate.addReview(VALID_UUID, ReviewDecision.approved());
-    assert.ok(!result.ok, "Submitter should not review their own request");
+    expect(result.ok).toBeFalsy();
   });
 
   it("rejects duplicate review from same reviewer", () => {
@@ -299,10 +293,10 @@ describe("ApprovalRequestAggregate", () => {
     // which doesn't happen with current logic. Let's still verify the error path
     // by noting that the terminal-state guard fires first on a second review.
     const firstResult = aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved());
-    assert.ok(firstResult.ok);
+    expect(firstResult.ok).toBeTruthy();
 
     const secondResult = aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved());
-    assert.ok(!secondResult.ok, "Should reject second review attempt");
+    expect(secondResult.ok).toBeFalsy();
   });
 
   it("cancels approval request successfully when PENDING", () => {
@@ -311,12 +305,12 @@ describe("ApprovalRequestAggregate", () => {
 
     const result = aggregate.cancel();
 
-    assert.ok(result.ok, "Cancel should succeed");
-    assert.ok(aggregate.status.isCancelled());
+    expect(result.ok).toBeTruthy();
+    expect(aggregate.status.isCancelled()).toBeTruthy();
 
     const events = aggregate.domainEvents;
     const cancelEvent = events.find((e) => e instanceof ApprovalRequestCancelled);
-    assert.ok(cancelEvent, "Should emit ApprovalRequestCancelled event");
+    expect(cancelEvent).toBeTruthy();
   });
 
   it("rejects cancel when already resolved", () => {
@@ -324,7 +318,7 @@ describe("ApprovalRequestAggregate", () => {
     aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved());
 
     const result = aggregate.cancel();
-    assert.ok(!result.ok, "Should reject cancel on resolved request");
+    expect(result.ok).toBeFalsy();
   });
 
   it("reconstitutes aggregate preserving all state", () => {
@@ -350,14 +344,14 @@ describe("ApprovalRequestAggregate", () => {
       version: 3,
     });
 
-    assert.equal(aggregate.id.value, id.value);
-    assert.equal(aggregate.postId, VALID_UUID);
-    assert.equal(aggregate.submitterId, VALID_UUID);
-    assert.ok(aggregate.isApproved);
-    assert.equal(aggregate.comment, "Initial comment");
-    assert.equal(aggregate.reviews.length, 1);
-    assert.equal(aggregate.version, 3);
-    assert.equal(aggregate.domainEvents.length, 0, "Reconstituted aggregate has no events");
+    expect(aggregate.id.value).toBe(id.value);
+    expect(aggregate.postId).toBe(VALID_UUID);
+    expect(aggregate.submitterId).toBe(VALID_UUID);
+    expect(aggregate.isApproved).toBeTruthy();
+    expect(aggregate.comment).toBe("Initial comment");
+    expect(aggregate.reviews.length).toBe(1);
+    expect(aggregate.version).toBe(3);
+    expect(aggregate.domainEvents.length).toBe(0);
   });
 });
 
@@ -372,12 +366,12 @@ describe("PostAggregate approval methods", () => {
 
     const result = post.submitForReview();
 
-    assert.ok(result.ok, "submitForReview should succeed from DRAFT");
-    assert.ok(post.isPendingReview, "Status should be PENDING_REVIEW");
+    expect(result.ok).toBeTruthy();
+    expect(post.isPendingReview).toBeTruthy();
 
     const events = post.domainEvents;
     const submitEvent = events.find((e) => e instanceof PostSubmittedForReview);
-    assert.ok(submitEvent, "Should emit PostSubmittedForReview event");
+    expect(submitEvent).toBeTruthy();
   });
 
   it("rejects submitForReview from PUBLISHED status", () => {
@@ -387,7 +381,7 @@ describe("PostAggregate approval methods", () => {
     post.markAsPublished({ x: { success: true, externalId: "ext-1" } });
 
     const result = post.submitForReview();
-    assert.ok(!result.ok, "submitForReview should fail from PUBLISHED");
+    expect(result.ok).toBeFalsy();
   });
 
   it("transitions PENDING_REVIEW to DRAFT on returnToDraft", () => {
@@ -396,12 +390,12 @@ describe("PostAggregate approval methods", () => {
 
     const result = post.returnToDraft("Content needs changes");
 
-    assert.ok(result.ok, "returnToDraft should succeed from PENDING_REVIEW");
-    assert.ok(post.isDraft, "Status should be DRAFT");
+    expect(result.ok).toBeTruthy();
+    expect(post.isDraft).toBeTruthy();
 
     const events = post.domainEvents;
     const rejectedEvent = events.find((e) => e instanceof PostRejected);
-    assert.ok(rejectedEvent, "Should emit PostRejected event");
+    expect(rejectedEvent).toBeTruthy();
   });
 
   it("transitions PENDING_REVIEW to SCHEDULED on approveForScheduling", () => {
@@ -411,8 +405,8 @@ describe("PostAggregate approval methods", () => {
     const futureDate = new Date(Date.now() + 86400000);
     const result = post.approveForScheduling(futureDate, "UTC");
 
-    assert.ok(result.ok, "approveForScheduling should succeed from PENDING_REVIEW");
-    assert.ok(post.isScheduled, "Status should be SCHEDULED");
+    expect(result.ok).toBeTruthy();
+    expect(post.isScheduled).toBeTruthy();
   });
 
   it("emits PostApproved event on approveForScheduling", () => {
@@ -424,14 +418,14 @@ describe("PostAggregate approval methods", () => {
 
     const events = post.domainEvents;
     const approvedEvent = events.find((e) => e instanceof PostApproved);
-    assert.ok(approvedEvent, "Should emit PostApproved event");
+    expect(approvedEvent).toBeTruthy();
   });
 
   it("rejects approveForScheduling from DRAFT status", () => {
     const post = createDraftPost();
 
     const futureDate = new Date(Date.now() + 86400000);
-    const result = post.approveForScheduling(futureDate, "UTC");
+    const _result = post.approveForScheduling(futureDate, "UTC");
 
     // DRAFT can transition to SCHEDULED, so this actually succeeds via the
     // schedule path. The canTransitionTo check allows DRAFT -> SCHEDULED.
@@ -443,6 +437,6 @@ describe("PostAggregate approval methods", () => {
     publishedPost.markAsPublished({ x: { success: true } });
 
     const failResult = publishedPost.approveForScheduling(futureDate, "UTC");
-    assert.ok(!failResult.ok, "approveForScheduling should fail from PUBLISHED");
+    expect(failResult.ok).toBeFalsy();
   });
 });

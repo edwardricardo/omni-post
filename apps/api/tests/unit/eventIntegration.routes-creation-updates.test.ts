@@ -1,76 +1,50 @@
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { EVENT_TYPES } from "@shared/events";
 import { MockFastify, MockEventService } from "./eventIntegration.test-helpers.js";
 
 const { EventIntegration } = await import("../../src/events/EventIntegration");
 
-describe("EventIntegration - Route Registration", { concurrency: 1 }, () => {
+describe("EventIntegration - Route Registration", () => {
   let integration: any;
   let mockEventService: MockEventService;
   let mockFastify: MockFastify;
 
-  beforeEach((t: TestContext) => {
+  beforeEach(() => {
     mockEventService = new MockEventService();
-    mockFastify = new MockFastify(t);
+    mockFastify = new MockFastify();
     integration = new EventIntegration(mockEventService, mockFastify as any);
   });
 
   it("should register event-aware API routes", async () => {
     await integration.registerRoutes();
 
-    assert.equal(
-      mockFastify.hasRoute("POST", "/api/posts/events"),
-      true,
-      "Should register POST /api/posts/events"
-    );
-    assert.equal(
-      mockFastify.hasRoute("PUT", "/api/posts/:postId/events"),
-      true,
-      "Should register PUT /api/posts/:postId/events"
-    );
-    assert.equal(
-      mockFastify.hasRoute("POST", "/api/posts/:postId/publish"),
-      true,
-      "Should register POST /api/posts/:postId/publish"
-    );
-    assert.equal(
-      mockFastify.hasRoute("GET", "/api/posts/:postId/events"),
-      true,
-      "Should register GET /api/posts/:postId/events"
-    );
+    expect(mockFastify.hasRoute("POST", "/api/posts/events")).toBe(true);
+    expect(mockFastify.hasRoute("PUT", "/api/posts/:postId/events")).toBe(true);
+    expect(mockFastify.hasRoute("POST", "/api/posts/:postId/publish")).toBe(true);
+    expect(mockFastify.hasRoute("GET", "/api/posts/:postId/events")).toBe(true);
   });
 
   it("should register analytics event route", async () => {
     await integration.registerRoutes();
 
-    assert.equal(
-      mockFastify.hasRoute("GET", "/api/events/analytics"),
-      true,
-      "Should register GET /api/events/analytics"
-    );
+    expect(mockFastify.hasRoute("GET", "/api/events/analytics")).toBe(true);
   });
 
   it("should register health check route", async () => {
     await integration.registerRoutes();
 
-    assert.equal(
-      mockFastify.hasRoute("GET", "/api/events/health"),
-      true,
-      "Should register GET /api/events/health"
-    );
+    expect(mockFastify.hasRoute("GET", "/api/events/health")).toBe(true);
   });
 });
 
-describe("EventIntegration - Post Creation with Events", { concurrency: 1 }, () => {
+describe("EventIntegration - Post Creation with Events", () => {
   let integration: any;
   let mockEventService: MockEventService;
   let mockFastify: MockFastify;
 
-  beforeEach(async (t: TestContext) => {
+  beforeEach(async () => {
     mockEventService = new MockEventService();
-    mockFastify = new MockFastify(t);
+    mockFastify = new MockFastify();
     integration = new EventIntegration(mockEventService, mockFastify as any);
     await integration.registerRoutes();
   });
@@ -89,18 +63,18 @@ describe("EventIntegration - Post Creation with Events", { concurrency: 1 }, () 
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute("POST", "/api/posts/events", request, reply);
 
-    assert.equal(result.success, true, "Should create post successfully");
-    assert.equal(result.data.id, "post-123", "Should return created post");
+    expect(result.success).toBe(true);
+    expect(result.data.id).toBe("post-123");
 
     const publishedEvents = mockEventService.getPublishedEvents();
     const postCreatedEvents = publishedEvents.filter((e) => e.type === EVENT_TYPES.POST_CREATED);
-    assert.equal(postCreatedEvents.length >= 1, true, "Should emit POST_CREATED event");
+    expect(postCreatedEvents.length >= 1).toBe(true);
   });
 
   it("should emit USER_ACTION event for post creation", async (t) => {
@@ -117,15 +91,15 @@ describe("EventIntegration - Post Creation with Events", { concurrency: 1 }, () 
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     await mockFastify.callRoute("POST", "/api/posts/events", request, reply);
 
     const publishedEvents = mockEventService.getPublishedEvents();
     const userActionEvents = publishedEvents.filter((e) => e.type === EVENT_TYPES.USER_ACTION);
-    assert.equal(userActionEvents.length >= 1, true, "Should emit USER_ACTION event");
+    expect(userActionEvents.length >= 1).toBe(true);
   });
 
   it("should emit POST_SCHEDULED event for scheduled posts", async (t) => {
@@ -144,17 +118,17 @@ describe("EventIntegration - Post Creation with Events", { concurrency: 1 }, () 
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute("POST", "/api/posts/events", request, reply);
 
-    assert.equal(result.events.scheduled, true, "Should indicate post was scheduled");
+    expect(result.events.scheduled).toBe(true);
 
     const publishedEvents = mockEventService.getPublishedEvents();
     const scheduledEvents = publishedEvents.filter((e) => e.type === EVENT_TYPES.POST_SCHEDULED);
-    assert.equal(scheduledEvents.length >= 1, true, "Should emit POST_SCHEDULED event");
+    expect(scheduledEvents.length >= 1).toBe(true);
   });
 
   it("should handle post creation failures", async (t) => {
@@ -173,26 +147,24 @@ describe("EventIntegration - Post Creation with Events", { concurrency: 1 }, () 
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
-    await assert.rejects(
-      async () => await mockFastify.callRoute("POST", "/api/posts/events", request, reply),
-      { message: /Failed to publish event/ },
-      "Should throw error on event publish failure"
-    );
+    await expect(
+      mockFastify.callRoute("POST", "/api/posts/events", request, reply)
+    ).rejects.toThrow(/Failed to publish event/);
   });
 });
 
-describe("EventIntegration - Post Updates with Events", { concurrency: 1 }, () => {
+describe("EventIntegration - Post Updates with Events", () => {
   let integration: any;
   let mockEventService: MockEventService;
   let mockFastify: MockFastify;
 
-  beforeEach(async (t: TestContext) => {
+  beforeEach(async () => {
     mockEventService = new MockEventService();
-    mockFastify = new MockFastify(t);
+    mockFastify = new MockFastify();
     integration = new EventIntegration(mockEventService, mockFastify as any);
     await integration.registerRoutes();
   });
@@ -210,17 +182,17 @@ describe("EventIntegration - Post Updates with Events", { concurrency: 1 }, () =
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute("PUT", "/api/posts/:postId/events", request, reply);
 
-    assert.equal(result.success, true, "Should update post successfully");
+    expect(result.success).toBe(true);
 
     const publishedEvents = mockEventService.getPublishedEvents();
     const updatedEvents = publishedEvents.filter((e) => e.type === EVENT_TYPES.POST_UPDATED);
-    assert.equal(updatedEvents.length >= 1, true, "Should emit POST_UPDATED event");
+    expect(updatedEvents.length >= 1).toBe(true);
   });
 
   it("should track changes in POST_UPDATED event", async (t) => {
@@ -236,13 +208,13 @@ describe("EventIntegration - Post Updates with Events", { concurrency: 1 }, () =
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const result = await mockFastify.callRoute("PUT", "/api/posts/:postId/events", request, reply);
 
-    assert.ok(Array.isArray(result.changes), "Should include changes in response");
+    expect(Array.isArray(result.changes)).toBeTruthy();
   });
 
   it("should emit USER_ACTION event for post update", async (t) => {
@@ -258,19 +230,19 @@ describe("EventIntegration - Post Updates with Events", { concurrency: 1 }, () =
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     await mockFastify.callRoute("PUT", "/api/posts/:postId/events", request, reply);
 
     const publishedEvents = mockEventService.getPublishedEvents();
     const userActionEvents = publishedEvents.filter((e) => e.type === EVENT_TYPES.USER_ACTION);
-    assert.equal(userActionEvents.length >= 1, true, "Should emit USER_ACTION event");
+    expect(userActionEvents.length >= 1).toBe(true);
   });
 
   it("should handle post not found", async (t) => {
-    mockFastify.prisma.post.findUnique = t.mock.fn(async () => null);
+    mockFastify.prisma.post.findUnique = vi.fn(async () => null);
 
     const request: any = {
       params: { postId: "nonexistent-post" },
@@ -284,14 +256,14 @@ describe("EventIntegration - Post Updates with Events", { concurrency: 1 }, () =
     };
 
     const reply: any = {
-      status: t.mock.fn(() => reply),
-      send: t.mock.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn(),
     };
 
     const _result = await mockFastify.callRoute("PUT", "/api/posts/:postId/events", request, reply);
 
-    assert.equal(reply.status.mock.calls.length >= 1, true, "Should call reply.status");
+    expect(reply.status.mock.calls.length >= 1).toBe(true);
     const statusCall = reply.status.mock.calls[0];
-    assert.equal(statusCall.arguments[0], 404, "Should return 404 status");
+    expect(statusCall[0]).toBe(404);
   });
 });

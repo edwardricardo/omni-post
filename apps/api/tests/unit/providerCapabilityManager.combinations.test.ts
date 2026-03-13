@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import type { ProviderAdapter, ProviderId } from "../../src/providers/providerAdapter.interface.js";
 import type { CanonicalPost } from "@shared/types";
 import {
@@ -22,11 +21,8 @@ describe("ProviderCapabilityManager - Provider Combinations", () => {
     };
 
     const combinations = manager.suggestProviderCombinations(query);
-    assert.ok(combinations.length > 0, "Should suggest provider combinations");
-    assert.ok(
-      combinations.every((combo) => combo.length === 1),
-      "All combinations should have exactly 1 provider"
-    );
+    expect(combinations.length > 0).toBeTruthy();
+    expect(combinations.every((combo) => combo.length === 1)).toBeTruthy();
   });
 
   it("should return multi-provider combinations", () => {
@@ -39,10 +35,10 @@ describe("ProviderCapabilityManager - Provider Combinations", () => {
     };
 
     const combinations = manager.suggestProviderCombinations(query);
-    assert.ok(combinations.length > 0, "Should suggest provider combinations");
+    expect(combinations.length > 0).toBeTruthy();
 
     const multiProviderCombos = combinations.filter((combo) => combo.length > 1);
-    assert.ok(multiProviderCombos.length > 0, "Should include multi-provider combinations");
+    expect(multiProviderCombos.length > 0).toBeTruthy();
   });
 
   it("should respect maxProviders limit", () => {
@@ -55,10 +51,7 @@ describe("ProviderCapabilityManager - Provider Combinations", () => {
     };
 
     const combinations = manager.suggestProviderCombinations(query);
-    assert.ok(
-      combinations.every((combo) => combo.length <= 2),
-      "All combinations should respect maxProviders limit"
-    );
+    expect(combinations.every((combo) => combo.length <= 2)).toBeTruthy();
   });
 
   it("should return empty for no compatible providers", () => {
@@ -73,11 +66,7 @@ describe("ProviderCapabilityManager - Provider Combinations", () => {
     const compatibleProviders = manager.getCompatibleProviders(query);
     if (compatibleProviders.length === 0) {
       const combinations = manager.suggestProviderCombinations(query);
-      assert.strictEqual(
-        combinations.length,
-        0,
-        "Should return empty array when no compatible providers"
-      );
+      expect(combinations.length).toBe(0);
     }
   });
 });
@@ -93,11 +82,8 @@ describe("ProviderCapabilityManager - Edge Cases", () => {
     const query: CapabilityQuery = {};
     const compatibleProviders = manager.getCompatibleProviders(query);
 
-    assert.ok(compatibleProviders.length > 0, "Empty query should return providers");
-    assert.ok(
-      compatibleProviders.every((p) => p.score >= 0),
-      "All providers should have non-negative scores"
-    );
+    expect(compatibleProviders.length > 0).toBeTruthy();
+    expect(compatibleProviders.every((p) => p.score >= 0)).toBeTruthy();
   });
 
   it("should handle provider with all capabilities disabled", () => {
@@ -147,11 +133,7 @@ describe("ProviderCapabilityManager - Edge Cases", () => {
     };
 
     const compatibleProviders = manager.getCompatibleProviders(query);
-    assert.strictEqual(
-      compatibleProviders.length,
-      0,
-      "Disabled provider should not match any capability query"
-    );
+    expect(compatibleProviders.length).toBe(0);
   });
 
   it("should handle provider status in scoring", () => {
@@ -174,10 +156,7 @@ describe("ProviderCapabilityManager - Edge Cases", () => {
     });
 
     if (activeProvider && betaProvider) {
-      assert.ok(
-        activeProvider.score > betaProvider.score,
-        "Active provider should have higher score than beta provider"
-      );
+      expect(activeProvider.score > betaProvider.score).toBeTruthy();
     }
   });
 
@@ -226,15 +205,10 @@ describe("ProviderCapabilityManager - Edge Cases", () => {
     };
 
     const compatibility = await manager.checkContentCompatibility(content);
-    assert.strictEqual(
-      compatibility.length,
-      1,
-      "Should return compatibility result even with error"
-    );
-    assert.strictEqual(compatibility[0]!.compatible, false, "Should mark as incompatible on error");
-    assert.ok(
-      compatibility[0]!.limitations.some((l) => l.message.includes("Validation failed")),
-      "Should include error message in limitations"
-    );
+    expect(compatibility.length).toBe(1);
+    expect(compatibility[0]!.compatible).toBe(false);
+    expect(
+      compatibility[0]!.limitations.some((l) => l.message.includes("Validation failed"))
+    ).toBeTruthy();
   });
 });

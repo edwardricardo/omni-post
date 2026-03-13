@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import "./PostCommandHandlers.test-helpers.js";
 import {
   type TestContext,
@@ -11,7 +10,7 @@ import { UpdatePostCommandHandler } from "../../src/cqrs/handlers/PostCommandHan
 import { POST_COMMANDS } from "@shared/cqrs";
 import { USE_CASE_ERRORS } from "../../src/application/UseCase.js";
 
-describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
+describe("UpdatePostCommandHandler", () => {
   let handler: UpdatePostCommandHandler;
   let ctx: TestContext;
 
@@ -21,7 +20,7 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
   });
 
   it("should have correct command type", () => {
-    assert.strictEqual(handler.commandType, POST_COMMANDS.UPDATE_POST);
+    expect(handler.commandType).toBe(POST_COMMANDS.UPDATE_POST);
   });
 
   it("should update a post successfully when use case returns ok", async () => {
@@ -33,9 +32,9 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.ok(result.success, "Result should be successful");
-    assert.ok(result.data, "Result should contain data");
-    assert.strictEqual(result.data.version, 2);
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
+    expect(result.data.version).toBe(2);
   });
 
   it("should delegate to updatePostUseCase.execute with correct input", async () => {
@@ -48,12 +47,12 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
 
     await handler.handle(command);
 
-    assert.strictEqual(ctx.updatePostUseCase.executeCalls.length, 1);
+    expect(ctx.updatePostUseCase.executeCalls.length).toBe(1);
     const input = ctx.updatePostUseCase.executeCalls[0] as Record<string, unknown>;
-    assert.strictEqual(input.postId, TEST_POST_ID);
-    assert.strictEqual(input.title, "New Title");
-    assert.strictEqual(input.body, "New body");
-    assert.deepStrictEqual(input.tags, ["new-tag"]);
+    expect(input.postId).toBe(TEST_POST_ID);
+    expect(input.title).toBe("New Title");
+    expect(input.body).toBe("New body");
+    expect(input.tags).toStrictEqual(["new-tag"]);
   });
 
   it("should return error when use case fails with post not found", async () => {
@@ -67,9 +66,9 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(result.error.includes("not found"), `Expected not found error, got: ${result.error}`);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error.includes("not found")).toBeTruthy();
   });
 
   it("should return error when use case fails with validation error", async () => {
@@ -83,12 +82,11 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
-    assert.ok(
-      result.error.includes("cannot be edited") || result.error.includes("PUBLISHED"),
-      `Expected forbidden error, got: ${result.error}`
-    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(
+      result.error.includes("cannot be edited") || result.error.includes("PUBLISHED")
+    ).toBeTruthy();
   });
 
   it("should handle command schema validation failure", async () => {
@@ -110,9 +108,9 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(invalidCommand);
 
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
     // Schema validation should fail before reaching the use case
-    assert.strictEqual(ctx.updatePostUseCase.executeCalls.length, 0);
+    expect(ctx.updatePostUseCase.executeCalls.length).toBe(0);
   });
 
   it("should update only title without body or tags", async () => {
@@ -122,12 +120,12 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.ok(result.success, "Result should be successful");
-    assert.strictEqual(ctx.updatePostUseCase.executeCalls.length, 1);
+    expect(result.success).toBeTruthy();
+    expect(ctx.updatePostUseCase.executeCalls.length).toBe(1);
 
     const input = ctx.updatePostUseCase.executeCalls[0] as Record<string, unknown>;
-    assert.strictEqual(input.title, "Title Only Update");
-    assert.strictEqual(input.body, undefined);
+    expect(input.title).toBe("Title Only Update");
+    expect(input.body).toBe(undefined);
   });
 
   it("should generate post.updated event when changes are made", async () => {
@@ -139,12 +137,9 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.ok(result.events, "Should have events");
-    assert.ok(result.events.length > 0, "Should have at least 1 event");
-    assert.ok(
-      result.events.some((e: { type: string }) => e.type === "post.updated"),
-      "Should include post.updated event"
-    );
+    expect(result.events).toBeTruthy();
+    expect(result.events.length > 0).toBeTruthy();
+    expect(result.events.some((e: { type: string }) => e.type === "post.updated")).toBeTruthy();
   });
 
   it("should generate user.action event on successful update", async () => {
@@ -155,11 +150,8 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.ok(result.events, "Should have events");
-    assert.ok(
-      result.events.some((e: { type: string }) => e.type === "user.action"),
-      "Should include user.action event"
-    );
+    expect(result.events).toBeTruthy();
+    expect(result.events.some((e: { type: string }) => e.type === "user.action")).toBeTruthy();
   });
 
   it("should invalidate cache after successful update with changes", async () => {
@@ -170,7 +162,7 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
     await handler.handle(command);
 
     const deletedKeys = ctx.redis.getDeletedKeys();
-    assert.ok(deletedKeys.length > 0, "Should have invalidated cache keys");
+    expect(deletedKeys.length > 0).toBeTruthy();
   });
 
   it("should not generate events when no content fields are provided", async () => {
@@ -179,9 +171,9 @@ describe("UpdatePostCommandHandler", { concurrency: 1 }, () => {
 
     const result = await handler.handle(command);
 
-    assert.ok(result.success, "Result should be successful");
+    expect(result.success).toBeTruthy();
     // When no changes, events array should be empty
-    assert.ok(result.events, "Events array should exist");
-    assert.strictEqual(result.events.length, 0, "Should not generate events without changes");
+    expect(result.events).toBeTruthy();
+    expect(result.events.length).toBe(0);
   });
 });

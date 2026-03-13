@@ -5,60 +5,43 @@
  * filters and limits, required field validation, and circuit breaker/cache utilities.
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { TrendAnalysisService } from "../../src/trends/trendAnalysisService.js";
 import { createService } from "./trendAnalysisService.test-helpers.js";
 
-describe("TrendAnalysisService - Initialization", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Initialization", () => {
   it("should initialize with prisma and logger", () => {
     const service = createService();
 
-    assert.ok(service, "Service should be created");
+    expect(service).toBeTruthy();
   });
 
   it("should expose trending content method", () => {
     const service = createService();
 
-    assert.strictEqual(
-      typeof service.getTrendingContent,
-      "function",
-      "Should have getTrendingContent method"
-    );
+    expect(typeof service.getTrendingContent).toBe("function");
   });
 
   it("should expose trend prediction method", () => {
     const service = createService();
 
-    assert.strictEqual(
-      typeof service.generateTrendPredictions,
-      "function",
-      "Should have generateTrendPredictions method"
-    );
+    expect(typeof service.generateTrendPredictions).toBe("function");
   });
 
   it("should expose viral content analysis method", () => {
     const service = createService();
 
-    assert.strictEqual(
-      typeof service.analyzeViralContent,
-      "function",
-      "Should have analyzeViralContent method"
-    );
+    expect(typeof service.analyzeViralContent).toBe("function");
   });
 
   it("should expose content opportunity discovery method", () => {
     const service = createService();
 
-    assert.strictEqual(
-      typeof service.discoverContentOpportunities,
-      "function",
-      "Should have discoverContentOpportunities method"
-    );
+    expect(typeof service.discoverContentOpportunities).toBe("function");
   });
 });
 
-describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Trending Content", () => {
   let service: TrendAnalysisService;
 
   beforeEach(() => {
@@ -68,19 +51,19 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
   it("should retrieve trending content without filters", async () => {
     const result = await service.getTrendingContent();
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.ok(Array.isArray(result.value), "Should return array of trending content");
+      expect(Array.isArray(result.value)).toBeTruthy();
     }
   });
 
   it("should filter trending content by type", async () => {
     const result = await service.getTrendingContent({ type: "hashtag" });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
       result.value.forEach((trend) => {
-        assert.strictEqual(trend.type, "hashtag", "All trends should be hashtags");
+        expect(trend.type).toBe("hashtag");
       });
     }
   });
@@ -88,12 +71,12 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
   it("should filter trending content by category", async () => {
     const result = await service.getTrendingContent({ category: "education" });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok && result.value.length > 0) {
       const hasCategory = result.value.some(
         (trend) => trend.characteristics.category === "education"
       );
-      assert.ok(hasCategory || result.value.length === 0, "Should filter by category");
+      expect(hasCategory || result.value.length === 0).toBeTruthy();
     }
   });
 
@@ -101,28 +84,28 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
     const limit = 1;
     const result = await service.getTrendingContent({ limit });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.ok(result.value.length <= limit, `Should return at most ${limit} results`);
+      expect(result.value.length <= limit).toBeTruthy();
     }
   });
 
   it("should include all required trend fields", async () => {
     const result = await service.getTrendingContent({ limit: 1 });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok && result.value.length > 0) {
       const trend = result.value[0]!;
 
-      assert.ok(trend.id, "Trend should have ID");
-      assert.ok(trend.type, "Trend should have type");
-      assert.ok(trend.title, "Trend should have title");
-      assert.ok(trend.metrics, "Trend should have metrics");
-      assert.ok(trend.trend, "Trend should have trend data");
-      assert.ok(trend.demographics, "Trend should have demographics");
-      assert.ok(trend.characteristics, "Trend should have characteristics");
-      assert.ok(trend.viralFactors, "Trend should have viral factors");
-      assert.ok(trend.opportunity, "Trend should have opportunity data");
+      expect(trend.id).toBeTruthy();
+      expect(trend.type).toBeTruthy();
+      expect(trend.title).toBeTruthy();
+      expect(trend.metrics).toBeTruthy();
+      expect(trend.trend).toBeTruthy();
+      expect(trend.demographics).toBeTruthy();
+      expect(trend.characteristics).toBeTruthy();
+      expect(trend.viralFactors).toBeTruthy();
+      expect(trend.opportunity).toBeTruthy();
     }
   });
 
@@ -132,16 +115,13 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
     if (result.ok && result.value.length > 0) {
       const metrics = result.value[0]!.metrics;
 
-      assert.ok(typeof metrics.views === "number", "Should have views count");
-      assert.ok(typeof metrics.likes === "number", "Should have likes count");
-      assert.ok(typeof metrics.shares === "number", "Should have shares count");
-      assert.ok(typeof metrics.comments === "number", "Should have comments count");
-      assert.ok(typeof metrics.growthRate === "number", "Should have growth rate");
-      assert.ok(typeof metrics.viralScore === "number", "Should have viral score");
-      assert.ok(
-        metrics.viralScore >= 0 && metrics.viralScore <= 100,
-        "Viral score should be 0-100"
-      );
+      expect(typeof metrics.views === "number").toBeTruthy();
+      expect(typeof metrics.likes === "number").toBeTruthy();
+      expect(typeof metrics.shares === "number").toBeTruthy();
+      expect(typeof metrics.comments === "number").toBeTruthy();
+      expect(typeof metrics.growthRate === "number").toBeTruthy();
+      expect(typeof metrics.viralScore === "number").toBeTruthy();
+      expect(metrics.viralScore >= 0 && metrics.viralScore <= 100).toBeTruthy();
     }
   });
 
@@ -152,13 +132,10 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
       const trendInfo = result.value[0]!.trend;
       const validPhases = ["emerging", "growing", "peak", "declining", "stable"];
 
-      assert.ok(validPhases.includes(trendInfo.phase), "Should have valid trend phase");
-      assert.ok(trendInfo.momentum >= 0 && trendInfo.momentum <= 100, "Momentum should be 0-100");
-      assert.ok(
-        trendInfo.sustainability >= 0 && trendInfo.sustainability <= 100,
-        "Sustainability should be 0-100"
-      );
-      assert.ok(typeof trendInfo.estimatedLifespan === "number", "Should have estimated lifespan");
+      expect(validPhases.includes(trendInfo.phase)).toBeTruthy();
+      expect(trendInfo.momentum >= 0 && trendInfo.momentum <= 100).toBeTruthy();
+      expect(trendInfo.sustainability >= 0 && trendInfo.sustainability <= 100).toBeTruthy();
+      expect(typeof trendInfo.estimatedLifespan === "number").toBeTruthy();
     }
   });
 
@@ -169,24 +146,17 @@ describe("TrendAnalysisService - Trending Content", { concurrency: 1 }, () => {
       const opportunity = result.value[0]!.opportunity;
       const validDifficulties = ["low", "medium", "high"];
 
-      assert.ok(
-        validDifficulties.includes(opportunity.entryDifficulty),
-        "Should have valid entry difficulty"
-      );
-      assert.ok(
-        opportunity.saturationLevel >= 0 && opportunity.saturationLevel <= 100,
-        "Saturation should be 0-100"
-      );
-      assert.ok(
-        opportunity.remainingPotential >= 0 && opportunity.remainingPotential <= 100,
-        "Remaining potential should be 0-100"
-      );
-      assert.ok(Array.isArray(opportunity.recommendedApproach), "Should have recommended approach");
+      expect(validDifficulties.includes(opportunity.entryDifficulty)).toBeTruthy();
+      expect(opportunity.saturationLevel >= 0 && opportunity.saturationLevel <= 100).toBeTruthy();
+      expect(
+        opportunity.remainingPotential >= 0 && opportunity.remainingPotential <= 100
+      ).toBeTruthy();
+      expect(Array.isArray(opportunity.recommendedApproach)).toBeTruthy();
     }
   });
 });
 
-describe("TrendAnalysisService - Circuit Breaker", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Circuit Breaker", () => {
   let service: TrendAnalysisService;
 
   beforeEach(() => {
@@ -196,23 +166,23 @@ describe("TrendAnalysisService - Circuit Breaker", { concurrency: 1 }, () => {
   it("should provide circuit breaker status", () => {
     const status = service.getCircuitBreakerStatus();
 
-    assert.ok(typeof status === "object", "Should return circuit breaker status object");
+    expect(typeof status === "object").toBeTruthy();
   });
 
   it("should expose cache clearing method", () => {
-    assert.doesNotThrow(() => {
+    expect(() => {
       service.clearCache();
-    }, "Should clear cache without error");
+    }).not.toThrow();
   });
 
   it("should expose metrics registry", () => {
     const registry = TrendAnalysisService.getMetricsRegistry();
 
-    assert.ok(registry, "Should return metrics registry");
+    expect(registry).toBeTruthy();
   });
 });
 
-describe("TrendAnalysisService - Helper Methods (Pattern/Shift)", { concurrency: 1 }, () => {
+describe("TrendAnalysisService - Helper Methods (Pattern/Shift)", () => {
   let service: TrendAnalysisService;
 
   beforeEach(() => {
@@ -228,7 +198,7 @@ describe("TrendAnalysisService - Helper Methods (Pattern/Shift)", { concurrency:
       });
 
       if (reportResult.ok) {
-        assert.ok(reportResult.value.insights.patterns.length > 0, "Should generate patterns");
+        expect(reportResult.value.insights.patterns.length > 0).toBeTruthy();
       }
     }
   });
@@ -239,7 +209,7 @@ describe("TrendAnalysisService - Helper Methods (Pattern/Shift)", { concurrency:
     });
 
     if (reportResult.ok) {
-      assert.ok(reportResult.value.insights.shifts.length > 0, "Should generate shifts");
+      expect(reportResult.value.insights.shifts.length > 0).toBeTruthy();
     }
   });
 });

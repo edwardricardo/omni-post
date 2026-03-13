@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import type {
   AIMessage,
   GenerationOptions,
@@ -22,8 +21,8 @@ describe("AITypes - Message Structure", () => {
       content: "You are a helpful assistant",
     };
 
-    assert.strictEqual(message.role, "system");
-    assert.strictEqual(message.content, "You are a helpful assistant");
+    expect(message.role).toBe("system");
+    expect(message.content).toBe("You are a helpful assistant");
   });
 
   it("should validate AIMessage with user role", () => {
@@ -32,8 +31,8 @@ describe("AITypes - Message Structure", () => {
       content: "Hello, how are you?",
     };
 
-    assert.strictEqual(message.role, "user");
-    assert.strictEqual(message.content, "Hello, how are you?");
+    expect(message.role).toBe("user");
+    expect(message.content).toBe("Hello, how are you?");
   });
 
   it("should validate AIMessage with assistant role", () => {
@@ -42,8 +41,8 @@ describe("AITypes - Message Structure", () => {
       content: "I'm doing well, thank you!",
     };
 
-    assert.strictEqual(message.role, "assistant");
-    assert.strictEqual(message.content, "I'm doing well, thank you!");
+    expect(message.role).toBe("assistant");
+    expect(message.content).toBe("I'm doing well, thank you!");
   });
 });
 
@@ -60,14 +59,14 @@ describe("AITypes - Generation Options", () => {
       timeout: 30000,
     };
 
-    assert.strictEqual(options.model, "gpt-4");
-    assert.strictEqual(options.maxTokens, 1000);
-    assert.strictEqual(options.temperature, 0.7);
-    assert.strictEqual(options.topP, 0.9);
-    assert.strictEqual(options.frequencyPenalty, 0.5);
-    assert.strictEqual(options.presencePenalty, 0.3);
-    assert.strictEqual(options.stream, false);
-    assert.strictEqual(options.timeout, 30000);
+    expect(options.model).toBe("gpt-4");
+    expect(options.maxTokens).toBe(1000);
+    expect(options.temperature).toBe(0.7);
+    expect(options.topP).toBe(0.9);
+    expect(options.frequencyPenalty).toBe(0.5);
+    expect(options.presencePenalty).toBe(0.3);
+    expect(options.stream).toBe(false);
+    expect(options.timeout).toBe(30000);
   });
 
   it("should validate GenerationOptions with minimal fields", () => {
@@ -75,12 +74,12 @@ describe("AITypes - Generation Options", () => {
       temperature: 0.5,
     };
 
-    assert.strictEqual(options.temperature, 0.5);
+    expect(options.temperature).toBe(0.5);
   });
 
   it("should allow empty GenerationOptions", () => {
     const options: GenerationOptions = {};
-    assert.deepStrictEqual(options, {});
+    expect(options).toStrictEqual({});
   });
 });
 
@@ -116,12 +115,12 @@ describe("AITypes - Content Analysis Structure", () => {
       },
     };
 
-    assert.strictEqual(analysis.sentiment.score, 0.8);
-    assert.strictEqual(analysis.sentiment.label, "positive");
-    assert.strictEqual(analysis.tone.detected, "professional");
-    assert.strictEqual(analysis.readability.level, "High School");
-    assert.strictEqual(analysis.brandConsistency.voice, "friendly");
-    assert.strictEqual(analysis.engagement.factors.length, 2);
+    expect(analysis.sentiment.score).toBe(0.8);
+    expect(analysis.sentiment.label).toBe("positive");
+    expect(analysis.tone.detected).toBe("professional");
+    expect(analysis.readability.level).toBe("High School");
+    expect(analysis.brandConsistency.voice).toBe("friendly");
+    expect(analysis.engagement.factors.length).toBe(2);
   });
 
   it("should validate sentiment with negative score", () => {
@@ -131,8 +130,8 @@ describe("AITypes - Content Analysis Structure", () => {
       confidence: 0.85,
     };
 
-    assert.strictEqual(sentiment.score, -0.6);
-    assert.strictEqual(sentiment.label, "negative");
+    expect(sentiment.score).toBe(-0.6);
+    expect(sentiment.label).toBe("negative");
   });
 
   it("should validate sentiment with neutral label", () => {
@@ -142,7 +141,7 @@ describe("AITypes - Content Analysis Structure", () => {
       confidence: 0.9,
     };
 
-    assert.strictEqual(sentiment.label, "neutral");
+    expect(sentiment.label).toBe("neutral");
   });
 });
 
@@ -184,13 +183,13 @@ describe("AITypes - Content Optimization Structure", () => {
       },
     };
 
-    assert.strictEqual(optimization.optimizedText.includes("🚀"), true);
-    assert.strictEqual(optimization.changes.length, 2);
-    assert.strictEqual(optimization.hashtags.length, 3);
-    assert.strictEqual(optimization.mentions.length, 2);
-    assert.strictEqual(optimization.mediasuggestions.length, 2);
-    assert.ok(optimization.platformSpecific.twitter);
-    assert.ok(optimization.platformSpecific.linkedin);
+    expect(optimization.optimizedText.includes("🚀")).toBe(true);
+    expect(optimization.changes.length).toBe(2);
+    expect(optimization.hashtags.length).toBe(3);
+    expect(optimization.mentions.length).toBe(2);
+    expect(optimization.mediasuggestions.length).toBe(2);
+    expect(optimization.platformSpecific.twitter).toBeTruthy();
+    expect(optimization.platformSpecific.linkedin).toBeTruthy();
   });
 
   it("should validate change types", () => {
@@ -200,9 +199,9 @@ describe("AITypes - Content Optimization Structure", () => {
       { type: "modified" as const, original: "old", optimized: "new", reason: "Modification" },
     ];
 
-    assert.strictEqual(changes[0].type, "added");
-    assert.strictEqual(changes[1].type, "removed");
-    assert.strictEqual(changes[2].type, "modified");
+    expect(changes[0].type).toBe("added");
+    expect(changes[1].type).toBe("removed");
+    expect(changes[2].type).toBe("modified");
   });
 
   it("should validate media suggestion types", () => {
@@ -211,8 +210,8 @@ describe("AITypes - Content Optimization Structure", () => {
       { type: "video" as const, description: "Clip", dimensions: "1920x1080" },
     ];
 
-    assert.strictEqual(mediaSuggestions[0].type, "image");
-    assert.strictEqual(mediaSuggestions[1].type, "video");
+    expect(mediaSuggestions[0].type).toBe("image");
+    expect(mediaSuggestions[1].type).toBe("video");
   });
 });
 
@@ -247,13 +246,13 @@ describe("AITypes - Performance Prediction Structure", () => {
       },
     };
 
-    assert.strictEqual(prediction.platform, "twitter");
-    assert.strictEqual(prediction.metrics.expectedEngagement.value, 150);
-    assert.strictEqual(prediction.metrics.expectedEngagement.range.min, 100);
-    assert.strictEqual(prediction.optimalTiming.hour, 14);
-    assert.strictEqual(prediction.optimalTiming.day, "Tuesday");
-    assert.strictEqual(prediction.competitiveAnalysis.opportunities.length, 2);
-    assert.strictEqual(prediction.competitiveAnalysis.threats.length, 2);
+    expect(prediction.platform).toBe("twitter");
+    expect(prediction.metrics.expectedEngagement.value).toBe(150);
+    expect(prediction.metrics.expectedEngagement.range.min).toBe(100);
+    expect(prediction.optimalTiming.hour).toBe(14);
+    expect(prediction.optimalTiming.day).toBe("Tuesday");
+    expect(prediction.competitiveAnalysis.opportunities.length).toBe(2);
+    expect(prediction.competitiveAnalysis.threats.length).toBe(2);
   });
 
   it("should validate metric ranges", () => {
@@ -263,8 +262,8 @@ describe("AITypes - Performance Prediction Structure", () => {
       range: { min: 50, max: 150 },
     };
 
-    assert.ok(metric.value >= metric.range.min);
-    assert.ok(metric.value <= metric.range.max);
+    expect(metric.value >= metric.range.min).toBeTruthy();
+    expect(metric.value <= metric.range.max).toBeTruthy();
   });
 });
 
@@ -284,12 +283,12 @@ describe("AITypes - Provider Config Structure", () => {
       retries: 3,
     };
 
-    assert.strictEqual(config.apiKey, "test-api-key");
-    assert.strictEqual(config.baseUrl, "https://api.example.com");
-    assert.strictEqual(config.model, "gpt-4");
-    assert.strictEqual(config.rateLimit.requestsPerMinute, 60);
-    assert.strictEqual(config.timeout, 30000);
-    assert.strictEqual(config.retries, 3);
+    expect(config.apiKey).toBe("test-api-key");
+    expect(config.baseUrl).toBe("https://api.example.com");
+    expect(config.model).toBe("gpt-4");
+    expect(config.rateLimit.requestsPerMinute).toBe(60);
+    expect(config.timeout).toBe(30000);
+    expect(config.retries).toBe(3);
   });
 
   it("should validate RateLimitConfig structure", () => {
@@ -300,10 +299,10 @@ describe("AITypes - Provider Config Structure", () => {
       tokensPerDay: 1000000,
     };
 
-    assert.strictEqual(rateLimit.requestsPerMinute, 60);
-    assert.strictEqual(rateLimit.tokensPerMinute, 100000);
-    assert.strictEqual(rateLimit.requestsPerDay, 1000);
-    assert.strictEqual(rateLimit.tokensPerDay, 1000000);
+    expect(rateLimit.requestsPerMinute).toBe(60);
+    expect(rateLimit.tokensPerMinute).toBe(100000);
+    expect(rateLimit.requestsPerDay).toBe(1000);
+    expect(rateLimit.tokensPerDay).toBe(1000000);
   });
 });
 
@@ -318,20 +317,20 @@ describe("AITypes - Task Configuration", () => {
       cacheTTL: 3600,
     };
 
-    assert.strictEqual(config.primaryProvider, "openai");
-    assert.strictEqual(config.fallbackProviders.length, 3);
-    assert.strictEqual(config.retryAttempts, 3);
-    assert.strictEqual(config.cacheResults, true);
+    expect(config.primaryProvider).toBe("openai");
+    expect(config.fallbackProviders.length).toBe(3);
+    expect(config.retryAttempts).toBe(3);
+    expect(config.cacheResults).toBe(true);
   });
 
   it("should validate provider names", () => {
     const providers: Array<AIProvider["name"]> = ["openai", "anthropic", "perplexity", "gemini"];
 
-    assert.strictEqual(providers.length, 4);
-    assert.ok(providers.includes("openai"));
-    assert.ok(providers.includes("anthropic"));
-    assert.ok(providers.includes("perplexity"));
-    assert.ok(providers.includes("gemini"));
+    expect(providers.length).toBe(4);
+    expect(providers.includes("openai")).toBeTruthy();
+    expect(providers.includes("anthropic")).toBeTruthy();
+    expect(providers.includes("perplexity")).toBeTruthy();
+    expect(providers.includes("gemini")).toBeTruthy();
   });
 });
 
@@ -347,13 +346,13 @@ describe("AITypes - Usage Metrics", () => {
       timestamp: new Date("2024-10-05T12:00:00Z"),
     };
 
-    assert.strictEqual(metrics.provider, "openai");
-    assert.strictEqual(metrics.tokensUsed, 1500);
-    assert.strictEqual(metrics.requestCount, 10);
-    assert.strictEqual(metrics.successRate, 0.95);
-    assert.strictEqual(metrics.averageLatency, 250);
-    assert.strictEqual(metrics.cost, 0.05);
-    assert.ok(metrics.timestamp instanceof Date);
+    expect(metrics.provider).toBe("openai");
+    expect(metrics.tokensUsed).toBe(1500);
+    expect(metrics.requestCount).toBe(10);
+    expect(metrics.successRate).toBe(0.95);
+    expect(metrics.averageLatency).toBe(250);
+    expect(metrics.cost).toBe(0.05);
+    expect(metrics.timestamp instanceof Date).toBeTruthy();
   });
 
   it("should calculate success rate correctly", () => {
@@ -371,7 +370,7 @@ describe("AITypes - Usage Metrics", () => {
       timestamp: new Date(),
     };
 
-    assert.strictEqual(metrics.successRate, 0.95);
+    expect(metrics.successRate).toBe(0.95);
   });
 });
 
@@ -385,8 +384,8 @@ describe("AITypes - AI Tasks", () => {
       },
     };
 
-    assert.strictEqual(task.type, "generate");
-    assert.ok(task.data.messages);
+    expect(task.type).toBe("generate");
+    expect(task.data.messages).toBeTruthy();
   });
 
   it("should validate analyze task", () => {
@@ -398,8 +397,8 @@ describe("AITypes - AI Tasks", () => {
       },
     };
 
-    assert.strictEqual(task.type, "analyze");
-    assert.strictEqual(task.data.analysisType, "sentiment");
+    expect(task.type).toBe("analyze");
+    expect(task.data.analysisType).toBe("sentiment");
   });
 
   it("should validate optimize task", () => {
@@ -412,8 +411,8 @@ describe("AITypes - AI Tasks", () => {
       },
     };
 
-    assert.strictEqual(task.type, "optimize");
-    assert.strictEqual(task.data.platform, "twitter");
+    expect(task.type).toBe("optimize");
+    expect(task.data.platform).toBe("twitter");
   });
 
   it("should validate predict task", () => {
@@ -426,8 +425,8 @@ describe("AITypes - AI Tasks", () => {
       },
     };
 
-    assert.strictEqual(task.type, "predict");
-    assert.ok(task.data.historicalData);
+    expect(task.type).toBe("predict");
+    expect(task.data.historicalData).toBeTruthy();
   });
 
   it("should validate variations task", () => {
@@ -440,9 +439,9 @@ describe("AITypes - AI Tasks", () => {
       },
     };
 
-    assert.strictEqual(task.type, "variations");
-    assert.strictEqual(task.data.variationType, "tone");
-    assert.strictEqual(task.data.count, 5);
+    expect(task.type).toBe("variations");
+    expect(task.data.variationType).toBe("tone");
+    expect(task.data.count).toBe(5);
   });
 
   it("should validate all analysis types", () => {
@@ -453,13 +452,13 @@ describe("AITypes - AI Tasks", () => {
       "engagement",
     ];
 
-    assert.strictEqual(analysisTypes.length, 4);
+    expect(analysisTypes.length).toBe(4);
   });
 
   it("should validate all variation types", () => {
     const variationTypes: Array<"tone" | "length" | "audience"> = ["tone", "length", "audience"];
 
-    assert.strictEqual(variationTypes.length, 3);
+    expect(variationTypes.length).toBe(3);
   });
 });
 
@@ -477,10 +476,10 @@ describe("AITypes - AI Response", () => {
       },
     };
 
-    assert.strictEqual(response.ok, true);
-    assert.strictEqual(response.value, "Generated text response");
-    assert.strictEqual(response.metadata.provider, "openai");
-    assert.strictEqual(response.metadata.cached, false);
+    expect(response.ok).toBe(true);
+    expect(response.value).toBe("Generated text response");
+    expect(response.metadata.provider).toBe("openai");
+    expect(response.metadata.cached).toBe(false);
   });
 
   it("should validate failed AIResponse with error", () => {
@@ -501,9 +500,9 @@ describe("AITypes - AI Response", () => {
       },
     };
 
-    assert.strictEqual(response.ok, false);
-    assert.strictEqual(response.error?.code, "RATE_LIMIT_EXCEEDED");
-    assert.strictEqual(response.error?.retryable, true);
+    expect(response.ok).toBe(false);
+    expect(response.error?.code).toBe("RATE_LIMIT_EXCEEDED");
+    expect(response.error?.retryable).toBe(true);
   });
 
   it("should validate cached response", () => {
@@ -525,9 +524,9 @@ describe("AITypes - AI Response", () => {
       },
     };
 
-    assert.strictEqual(response.ok, true);
-    assert.strictEqual(response.metadata.cached, true);
-    assert.strictEqual(response.metadata.latency, 5);
+    expect(response.ok).toBe(true);
+    expect(response.metadata.cached).toBe(true);
+    expect(response.metadata.latency).toBe(5);
   });
 
   it("should validate non-retryable error", () => {
@@ -538,7 +537,7 @@ describe("AITypes - AI Response", () => {
       retryable: false,
     };
 
-    assert.strictEqual(error.retryable, false);
+    expect(error.retryable).toBe(false);
   });
 });
 
@@ -554,7 +553,7 @@ describe("AITypes - Type Guards and Utilities", () => {
       data: { content: "Test", analysisType: "sentiment" },
     };
 
-    assert.notStrictEqual(generateTask.type, analyzeTask.type);
+    expect(generateTask.type).not.toBe(analyzeTask.type);
   });
 
   it("should validate response with generic type", () => {
@@ -582,7 +581,7 @@ describe("AITypes - Type Guards and Utilities", () => {
       },
     };
 
-    assert.strictEqual(typeof textResponse.value, "string");
-    assert.strictEqual(typeof analysisResponse.value, "object");
+    expect(typeof textResponse.value).toBe("string");
+    expect(typeof analysisResponse.value).toBe("object");
   });
 });

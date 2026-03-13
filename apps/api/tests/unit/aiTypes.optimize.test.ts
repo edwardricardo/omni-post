@@ -3,8 +3,7 @@
  * Imports the real Zod schemas from routes.ts.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   OptimizeContentBodySchema,
   PredictPerformanceBodySchema,
@@ -20,7 +19,7 @@ describe("AI Schemas - OptimizeContentBodySchema", () => {
       brandVoice: "professional",
       provider: "openai",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept body without brandVoice", () => {
@@ -28,7 +27,7 @@ describe("AI Schemas - OptimizeContentBodySchema", () => {
       content: "Test content",
       platform: "twitter",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept body without provider", () => {
@@ -37,22 +36,22 @@ describe("AI Schemas - OptimizeContentBodySchema", () => {
       platform: "instagram",
       brandVoice: "casual",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject empty content", () => {
     const result = OptimizeContentBodySchema.safeParse({ content: "", platform: "twitter" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject empty platform", () => {
     const result = OptimizeContentBodySchema.safeParse({ content: "Test content", platform: "" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject missing platform", () => {
     const result = OptimizeContentBodySchema.safeParse({ content: "Test content" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -64,7 +63,7 @@ describe("AI Schemas - PredictPerformanceBodySchema", () => {
       historicalData: [{ date: "2024-01-01", engagement: 100 }],
       provider: "openai",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept body without historicalData", () => {
@@ -72,7 +71,7 @@ describe("AI Schemas - PredictPerformanceBodySchema", () => {
       content: "Test content",
       platform: "twitter",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept empty historicalData array", () => {
@@ -81,12 +80,12 @@ describe("AI Schemas - PredictPerformanceBodySchema", () => {
       platform: "twitter",
       historicalData: [],
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject empty content", () => {
     const result = PredictPerformanceBodySchema.safeParse({ content: "", platform: "twitter" });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject empty platform", () => {
@@ -94,29 +93,29 @@ describe("AI Schemas - PredictPerformanceBodySchema", () => {
       content: "Test content",
       platform: "",
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });
 
 describe("AI Schemas - VariationTypeSchema", () => {
   it("should accept tone", () => {
-    assert.strictEqual(VariationTypeSchema.safeParse("tone").success, true);
+    expect(VariationTypeSchema.safeParse("tone").success).toBe(true);
   });
 
   it("should accept length", () => {
-    assert.strictEqual(VariationTypeSchema.safeParse("length").success, true);
+    expect(VariationTypeSchema.safeParse("length").success).toBe(true);
   });
 
   it("should accept audience", () => {
-    assert.strictEqual(VariationTypeSchema.safeParse("audience").success, true);
+    expect(VariationTypeSchema.safeParse("audience").success).toBe(true);
   });
 
   it("should reject an unknown variation type", () => {
-    assert.strictEqual(VariationTypeSchema.safeParse("style").success, false);
+    expect(VariationTypeSchema.safeParse("style").success).toBe(false);
   });
 
   it("should reject empty string", () => {
-    assert.strictEqual(VariationTypeSchema.safeParse("").success, false);
+    expect(VariationTypeSchema.safeParse("").success).toBe(false);
   });
 });
 
@@ -128,7 +127,7 @@ describe("AI Schemas - GenerateVariationsBodySchema", () => {
       count: 5,
       provider: "openai",
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept minimum count (1)", () => {
@@ -137,7 +136,7 @@ describe("AI Schemas - GenerateVariationsBodySchema", () => {
       variationType: "length",
       count: 1,
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should accept maximum count (10)", () => {
@@ -146,7 +145,7 @@ describe("AI Schemas - GenerateVariationsBodySchema", () => {
       variationType: "audience",
       count: 10,
     });
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 
   it("should reject count below minimum (0)", () => {
@@ -155,7 +154,7 @@ describe("AI Schemas - GenerateVariationsBodySchema", () => {
       variationType: "tone",
       count: 0,
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject count above maximum (11)", () => {
@@ -164,7 +163,7 @@ describe("AI Schemas - GenerateVariationsBodySchema", () => {
       variationType: "tone",
       count: 11,
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject non-integer count", () => {
@@ -173,7 +172,7 @@ describe("AI Schemas - GenerateVariationsBodySchema", () => {
       variationType: "tone",
       count: 5.5,
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject negative count", () => {
@@ -182,7 +181,7 @@ describe("AI Schemas - GenerateVariationsBodySchema", () => {
       variationType: "tone",
       count: -1,
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 
   it("should reject invalid variationType", () => {
@@ -191,6 +190,6 @@ describe("AI Schemas - GenerateVariationsBodySchema", () => {
       variationType: "invalid",
       count: 3,
     });
-    assert.strictEqual(result.success, false);
+    expect(result.success).toBe(false);
   });
 });

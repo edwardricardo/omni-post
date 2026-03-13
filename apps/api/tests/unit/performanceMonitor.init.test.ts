@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { PerformanceMonitor } from "../../src/monitoring/performanceMonitor.js";
 import {
   createMockApiMetrics,
@@ -8,14 +7,14 @@ import {
   createMockReply,
 } from "./performanceMonitor.test-helpers.js";
 
-describe("PerformanceMonitor - Initialization", { concurrency: 1 }, () => {
+describe("PerformanceMonitor - Initialization", () => {
   it("should initialize with default alert rules", () => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
 
     const monitor = new PerformanceMonitor(metrics, redis);
 
-    assert.ok(monitor, "Monitor should be created");
+    expect(monitor).toBeTruthy();
   });
 
   it("should initialize with default thresholds", () => {
@@ -25,16 +24,12 @@ describe("PerformanceMonitor - Initialization", { concurrency: 1 }, () => {
     const monitor = new PerformanceMonitor(metrics, redis);
 
     const monitorAny = monitor as any;
-    assert.strictEqual(monitorAny.slowRequestThreshold, 200, "Slow threshold should be 200ms");
-    assert.strictEqual(
-      monitorAny.criticalRequestThreshold,
-      1000,
-      "Critical threshold should be 1000ms"
-    );
+    expect(monitorAny.slowRequestThreshold).toBe(200);
+    expect(monitorAny.criticalRequestThreshold).toBe(1000);
   });
 });
 
-describe("PerformanceMonitor - Request Recording", { concurrency: 1 }, () => {
+describe("PerformanceMonitor - Request Recording", () => {
   let monitor: PerformanceMonitor;
 
   beforeEach(() => {
@@ -52,9 +47,9 @@ describe("PerformanceMonitor - Request Recording", { concurrency: 1 }, () => {
 
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ responseTime: number }>;
-    assert.ok(recentMetrics.length > 0, "Should have recorded at least one metric");
+    expect(recentMetrics.length > 0).toBeTruthy();
     const entry = recentMetrics.find((m) => m.responseTime === responseTime);
-    assert.ok(entry, "Should find recorded metric with correct responseTime");
+    expect(entry).toBeTruthy();
   });
 
   it("should detect slow requests", async () => {
@@ -68,7 +63,7 @@ describe("PerformanceMonitor - Request Recording", { concurrency: 1 }, () => {
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ responseTime: number }>;
     const slowEntry = recentMetrics.find((m) => m.responseTime === responseTime);
-    assert.ok(slowEntry, "Slow request should be stored in recent metrics");
+    expect(slowEntry).toBeTruthy();
   });
 
   it("should not flag fast requests as slow", async () => {
@@ -80,7 +75,7 @@ describe("PerformanceMonitor - Request Recording", { concurrency: 1 }, () => {
 
     const monitorAny = monitor as any;
     const threshold = monitorAny.slowRequestThreshold;
-    assert.ok(responseTime < threshold, "Fast request should be below slow threshold");
+    expect(responseTime < threshold).toBeTruthy();
   });
 
   it("should track user agent in metrics", async () => {
@@ -95,7 +90,7 @@ describe("PerformanceMonitor - Request Recording", { concurrency: 1 }, () => {
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ userAgent?: string }>;
     const entry = recentMetrics.find((m: any) => m.userAgent === userAgent);
-    assert.ok(entry, "Should store user agent in recorded metric");
+    expect(entry).toBeTruthy();
   });
 
   it("should track client IP in metrics", async () => {
@@ -108,7 +103,7 @@ describe("PerformanceMonitor - Request Recording", { concurrency: 1 }, () => {
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ ip?: string }>;
     const entry = recentMetrics.find((m: any) => m.ip === clientIp);
-    assert.ok(entry, "Should store client IP in recorded metric");
+    expect(entry).toBeTruthy();
   });
 
   it("should handle different status codes", async () => {
@@ -122,11 +117,11 @@ describe("PerformanceMonitor - Request Recording", { concurrency: 1 }, () => {
 
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ statusCode: number }>;
-    assert.strictEqual(recentMetrics.length, statusCodes.length, "Should record all status codes");
+    expect(recentMetrics.length).toBe(statusCodes.length);
   });
 });
 
-describe("PerformanceMonitor - Route Extraction", { concurrency: 1 }, () => {
+describe("PerformanceMonitor - Route Extraction", () => {
   let monitor: PerformanceMonitor;
 
   beforeEach(() => {
@@ -144,8 +139,8 @@ describe("PerformanceMonitor - Route Extraction", { concurrency: 1 }, () => {
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ route: string }>;
     const entry = recentMetrics[recentMetrics.length - 1];
-    assert.ok(entry, "Should have recorded a metric");
-    assert.ok(!entry.route.includes("?"), "Route should not contain query parameters");
+    expect(entry).toBeTruthy();
+    expect(entry.route.includes("?")).toBeFalsy();
   });
 
   it("should normalize numeric IDs in routes", async () => {
@@ -157,8 +152,8 @@ describe("PerformanceMonitor - Route Extraction", { concurrency: 1 }, () => {
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ route: string }>;
     const entry = recentMetrics[recentMetrics.length - 1];
-    assert.ok(entry, "Should have recorded a metric");
-    assert.ok(!entry.route.includes("123"), "Route should normalize numeric IDs");
+    expect(entry).toBeTruthy();
+    expect(entry.route.includes("123")).toBeFalsy();
   });
 
   it("should normalize UUIDs in routes", async () => {
@@ -172,8 +167,8 @@ describe("PerformanceMonitor - Route Extraction", { concurrency: 1 }, () => {
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ route: string }>;
     const entry = recentMetrics[recentMetrics.length - 1];
-    assert.ok(entry, "Should have recorded a metric");
-    assert.ok(!entry.route.includes("550e8400"), "Route should normalize UUIDs");
+    expect(entry).toBeTruthy();
+    expect(entry.route.includes("550e8400")).toBeFalsy();
   });
 
   it("should normalize long tokens in routes", async () => {
@@ -185,15 +180,12 @@ describe("PerformanceMonitor - Route Extraction", { concurrency: 1 }, () => {
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ route: string }>;
     const entry = recentMetrics[recentMetrics.length - 1];
-    assert.ok(entry, "Should have recorded a metric");
-    assert.ok(
-      !entry.route.includes("abcdefghijklmnopqrstuvwxyz12345"),
-      "Route should normalize long tokens"
-    );
+    expect(entry).toBeTruthy();
+    expect(entry.route.includes("abcdefghijklmnopqrstuvwxyz12345")).toBeFalsy();
   });
 });
 
-describe("PerformanceMonitor - System Health Calculation", { concurrency: 1 }, () => {
+describe("PerformanceMonitor - System Health Calculation", () => {
   let monitor: PerformanceMonitor;
 
   beforeEach(() => {
@@ -211,9 +203,9 @@ describe("PerformanceMonitor - System Health Calculation", { concurrency: 1 }, (
 
     const health = await monitor.getSystemHealth();
 
-    assert.strictEqual(health.status, "healthy", "System should be healthy");
-    assert.ok(health.responseTimeP95 < 200, "P95 should be under 200ms");
-    assert.ok(health.errorRate < 5, "Error rate should be under 5%");
+    expect(health.status).toBe("healthy");
+    expect(health.responseTimeP95 < 200).toBeTruthy();
+    expect(health.errorRate < 5).toBeTruthy();
   });
 
   it("should calculate degraded system status for slow responses", async () => {
@@ -225,7 +217,7 @@ describe("PerformanceMonitor - System Health Calculation", { concurrency: 1 }, (
 
     const health = await monitor.getSystemHealth();
 
-    assert.strictEqual(health.status, "degraded", "System should be degraded");
+    expect(health.status).toBe("degraded");
   });
 
   it("should calculate degraded status for high error rate", async () => {
@@ -243,11 +235,8 @@ describe("PerformanceMonitor - System Health Calculation", { concurrency: 1 }, (
 
     const health = await monitor.getSystemHealth();
 
-    assert.ok(health.errorRate > 5, "Error rate should exceed 5%");
-    assert.ok(
-      health.status === "degraded" || health.status === "unhealthy",
-      `System should be degraded or unhealthy due to errors, got: ${health.status}`
-    );
+    expect(health.errorRate > 5).toBeTruthy();
+    expect(health.status === "degraded" || health.status === "unhealthy").toBeTruthy();
   });
 
   it("should calculate unhealthy status for critical response times", async () => {
@@ -259,29 +248,26 @@ describe("PerformanceMonitor - System Health Calculation", { concurrency: 1 }, (
 
     const health = await monitor.getSystemHealth();
 
-    assert.strictEqual(health.status, "unhealthy", "System should be unhealthy");
-    assert.ok(health.responseTimeP95 > 1000, "P95 should exceed critical threshold");
+    expect(health.status).toBe("unhealthy");
+    expect(health.responseTimeP95 > 1000).toBeTruthy();
   });
 
   it("should include system uptime in health status", async () => {
     const health = await monitor.getSystemHealth();
 
-    assert.ok(health.uptime > 0, "Uptime should be positive");
+    expect(health.uptime > 0).toBeTruthy();
   });
 
   it("should include memory usage percentage", async () => {
     const health = await monitor.getSystemHealth();
 
-    assert.ok(health.memoryUsage.used > 0, "Memory used should be positive");
-    assert.ok(health.memoryUsage.total > 0, "Memory total should be positive");
-    assert.ok(
-      health.memoryUsage.percentage >= 0 && health.memoryUsage.percentage <= 100,
-      "Memory percentage should be 0-100"
-    );
+    expect(health.memoryUsage.used > 0).toBeTruthy();
+    expect(health.memoryUsage.total > 0).toBeTruthy();
+    expect(health.memoryUsage.percentage >= 0 && health.memoryUsage.percentage <= 100).toBeTruthy();
   });
 });
 
-describe("PerformanceMonitor - Edge Cases", { concurrency: 1 }, () => {
+describe("PerformanceMonitor - Edge Cases", () => {
   let monitor: PerformanceMonitor;
 
   beforeEach(() => {
@@ -299,7 +285,7 @@ describe("PerformanceMonitor - Edge Cases", { concurrency: 1 }, () => {
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ responseTime: number }>;
     const entry = recentMetrics.find((m) => m.responseTime === 0);
-    assert.ok(entry, "Should record metric with zero response time");
+    expect(entry).toBeTruthy();
   });
 
   it("should handle very high response time", async () => {
@@ -311,7 +297,7 @@ describe("PerformanceMonitor - Edge Cases", { concurrency: 1 }, () => {
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ responseTime: number }>;
     const entry = recentMetrics.find((m) => m.responseTime === 30000);
-    assert.ok(entry, "Should record metric with very high response time");
+    expect(entry).toBeTruthy();
   });
 
   it("should handle requests without user agent", async () => {
@@ -322,7 +308,7 @@ describe("PerformanceMonitor - Edge Cases", { concurrency: 1 }, () => {
 
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ responseTime: number }>;
-    assert.ok(recentMetrics.length > 0, "Should record metric even without user agent");
+    expect(recentMetrics.length > 0).toBeTruthy();
   });
 
   it("should handle missing IP address", async () => {
@@ -333,7 +319,7 @@ describe("PerformanceMonitor - Edge Cases", { concurrency: 1 }, () => {
 
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ responseTime: number }>;
-    assert.ok(recentMetrics.length > 0, "Should record metric even without IP address");
+    expect(recentMetrics.length > 0).toBeTruthy();
   });
 
   it("should handle malformed URLs", async () => {
@@ -344,7 +330,7 @@ describe("PerformanceMonitor - Edge Cases", { concurrency: 1 }, () => {
 
     const monitorAny = monitor as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ responseTime: number }>;
-    assert.ok(recentMetrics.length > 0, "Should record metric even with empty URL");
+    expect(recentMetrics.length > 0).toBeTruthy();
   });
 
   it("should handle Redis errors gracefully", async () => {
@@ -364,6 +350,6 @@ describe("PerformanceMonitor - Edge Cases", { concurrency: 1 }, () => {
 
     const monitorAny = monitorWithBadRedis as any;
     const recentMetrics = monitorAny.recentMetrics as Array<{ responseTime: number }>;
-    assert.ok(recentMetrics.length > 0, "Should still record metric in memory despite Redis error");
+    expect(recentMetrics.length > 0).toBeTruthy();
   });
 });

@@ -6,9 +6,7 @@
  * Coverage Target: 95%+
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { registerOptimizedPostsRoutes } from "../../src/posts/optimizedPostsRoutes.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
@@ -20,9 +18,9 @@ const testAccountId = "123e4567-e89b-12d3-a456-426614174000";
 // ─── Mock Types ─────────────────────────────────────────────────────
 type MockPostsService = Pick<PostsService, "getOptimizedPosts" | "getDashboardStats" | "warmCache">;
 
-function createMockPostsService(t: TestContext): MockPostsService {
+function createMockPostsService(): MockPostsService {
   return {
-    getOptimizedPosts: t.mock.fn(
+    getOptimizedPosts: vi.fn(
       async (params: { accountId: string; page: number; limit: number; offset: number }) => {
         const total = 2;
         const totalPages = Math.ceil(total / params.limit);
@@ -60,7 +58,7 @@ function createMockPostsService(t: TestContext): MockPostsService {
         };
       }
     ),
-    getDashboardStats: t.mock.fn(async (_accountId: string) => ({
+    getDashboardStats: vi.fn(async (_accountId: string) => ({
       totalPosts: 10,
       publishedPosts: 5,
       scheduledPosts: 3,
@@ -71,7 +69,7 @@ function createMockPostsService(t: TestContext): MockPostsService {
       cached: false,
       cacheLevel: "materialized-view",
     })),
-    warmCache: t.mock.fn(async (_accountId: string) => ({
+    warmCache: vi.fn(async (_accountId: string) => ({
       success: true,
       message: "Cache warming completed",
       accountId: _accountId,
@@ -81,9 +79,9 @@ function createMockPostsService(t: TestContext): MockPostsService {
 
 let app: FastifyInstance;
 
-describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
+describe("optimizedPostsRoutes Unit Tests", () => {
   beforeEach(async (t) => {
-    const mockPostsService = createMockPostsService(t);
+    const mockPostsService = createMockPostsService();
 
     app = Fastify({ logger: false });
 
@@ -110,16 +108,16 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data);
-      assert.ok(Array.isArray(body.data.data));
-      assert.strictEqual(body.data.page, 1);
-      assert.strictEqual(body.data.limit, 20);
-      assert.ok(typeof body.data.total === "number");
-      assert.ok(typeof body.data.totalPages === "number");
-      assert.ok(typeof body.data.cached === "boolean");
-      assert.ok(body.data.cacheLevel);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
+      expect(Array.isArray(body.data.data)).toBeTruthy();
+      expect(body.data.page).toBe(1);
+      expect(body.data.limit).toBe(20);
+      expect(typeof body.data.total === "number").toBeTruthy();
+      expect(typeof body.data.totalPages === "number").toBeTruthy();
+      expect(typeof body.data.cached === "boolean").toBeTruthy();
+      expect(body.data.cacheLevel).toBeTruthy();
     });
 
     it("should return paginated posts with custom page and limit", async () => {
@@ -130,10 +128,10 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data.page, 2);
-      assert.strictEqual(body.data.limit, 10);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data.page).toBe(2);
+      expect(body.data.limit).toBe(10);
     });
 
     it("should validate page parameter as positive integer", async () => {
@@ -142,9 +140,9 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
         url: `/api/posts/optimized?accountId=${testAccountId}&page=0`,
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should validate limit parameter as positive integer", async () => {
@@ -153,9 +151,9 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
         url: `/api/posts/optimized?accountId=${testAccountId}&limit=-5`,
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should enforce maximum limit (100)", async () => {
@@ -164,9 +162,9 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
         url: `/api/posts/optimized?accountId=${testAccountId}&limit=150`,
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should require accountId parameter", async () => {
@@ -175,9 +173,9 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/api/posts/optimized",
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should validate accountId as valid UUID", async () => {
@@ -186,9 +184,9 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/api/posts/optimized?accountId=invalid-uuid",
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should return posts with correct structure", async () => {
@@ -200,14 +198,14 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
       const body = JSON.parse(response.body);
       const posts = body.data.data;
 
-      assert.ok(posts.length > 0);
+      expect(posts.length > 0).toBeTruthy();
       const post = posts[0];
-      assert.ok(post.id);
-      assert.ok(typeof post.status === "string");
-      assert.ok(post.createdAt);
-      assert.ok(Array.isArray(post.tags));
-      assert.ok(typeof post.channelCount === "number");
-      assert.ok(typeof post.totalViews === "number");
+      expect(post.id).toBeTruthy();
+      expect(typeof post.status === "string").toBeTruthy();
+      expect(post.createdAt).toBeTruthy();
+      expect(Array.isArray(post.tags)).toBeTruthy();
+      expect(typeof post.channelCount === "number").toBeTruthy();
+      expect(typeof post.totalViews === "number").toBeTruthy();
     });
 
     it("should calculate correct totalPages", async () => {
@@ -218,8 +216,8 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.ok(body.data.totalPages >= 1);
-      assert.strictEqual(body.data.totalPages, Math.ceil(body.data.total / body.data.limit));
+      expect(body.data.totalPages >= 1).toBeTruthy();
+      expect(body.data.totalPages).toBe(Math.ceil(body.data.total / body.data.limit));
     });
   });
 
@@ -232,15 +230,15 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data);
-      assert.ok(typeof body.data.totalPosts === "number");
-      assert.ok(typeof body.data.publishedPosts === "number");
-      assert.ok(typeof body.data.scheduledPosts === "number");
-      assert.ok(typeof body.data.failedPosts === "number");
-      assert.ok(typeof body.data.totalChannels === "number");
-      assert.ok(typeof body.data.avgPostViews === "number");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
+      expect(typeof body.data.totalPosts === "number").toBeTruthy();
+      expect(typeof body.data.publishedPosts === "number").toBeTruthy();
+      expect(typeof body.data.scheduledPosts === "number").toBeTruthy();
+      expect(typeof body.data.failedPosts === "number").toBeTruthy();
+      expect(typeof body.data.totalChannels === "number").toBeTruthy();
+      expect(typeof body.data.avgPostViews === "number").toBeTruthy();
     });
 
     it("should require accountId parameter", async () => {
@@ -249,9 +247,9 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/api/dashboard/stats",
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should validate accountId as valid UUID", async () => {
@@ -260,9 +258,9 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/api/dashboard/stats?accountId=not-a-uuid",
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
+      expect(body.ok).toBe(false);
     });
 
     it("should return stats with correct structure", async () => {
@@ -274,14 +272,14 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
       const body = JSON.parse(response.body);
       const stats = body.data;
 
-      assert.strictEqual(stats.totalPosts, 10);
-      assert.strictEqual(stats.publishedPosts, 5);
-      assert.strictEqual(stats.scheduledPosts, 3);
-      assert.strictEqual(stats.failedPosts, 2);
-      assert.strictEqual(stats.totalChannels, 4);
-      assert.strictEqual(stats.avgPostViews, 125.5);
-      assert.ok(typeof stats.cached === "boolean");
-      assert.ok(stats.cacheLevel);
+      expect(stats.totalPosts).toBe(10);
+      expect(stats.publishedPosts).toBe(5);
+      expect(stats.scheduledPosts).toBe(3);
+      expect(stats.failedPosts).toBe(2);
+      expect(stats.totalChannels).toBe(4);
+      expect(stats.avgPostViews).toBe(125.5);
+      expect(typeof stats.cached === "boolean").toBeTruthy();
+      expect(stats.cacheLevel).toBeTruthy();
     });
 
     it("should include lastActivity timestamp", async () => {
@@ -293,7 +291,7 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
       const body = JSON.parse(response.body);
 
       if (body.data.lastActivity !== null) {
-        assert.ok(new Date(body.data.lastActivity).toISOString());
+        expect(new Date(body.data.lastActivity).toISOString()).toBeTruthy();
       }
     });
   });
@@ -307,11 +305,11 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data.success, true);
-      assert.strictEqual(body.data.message, "Cache warming completed");
-      assert.strictEqual(body.data.accountId, testAccountId);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data.success).toBe(true);
+      expect(body.data.message).toBe("Cache warming completed");
+      expect(body.data.accountId).toBe(testAccountId);
     });
 
     it("should validate accountId parameter", async () => {
@@ -320,9 +318,9 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/api/cache/warm/invalid-uuid",
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.ok, false);
+      expect(body.ok).toBe(false);
     });
   });
 
@@ -335,9 +333,9 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.ok(body.ok);
-      assert.ok(body.data);
-      assert.strictEqual(typeof body.ok, "boolean");
+      expect(body.ok).toBeTruthy();
+      expect(body.data).toBeTruthy();
+      expect(typeof body.ok).toBe("boolean");
     });
 
     it("should return consistent error response format", async () => {
@@ -348,9 +346,9 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(body.ok, false);
-      assert.ok(body.error);
-      assert.strictEqual(typeof body.error, "string");
+      expect(body.ok).toBe(false);
+      expect(body.error).toBeTruthy();
+      expect(typeof body.error).toBe("string");
     });
 
     it("should include correct HTTP status codes", async () => {
@@ -359,14 +357,14 @@ describe("optimizedPostsRoutes Unit Tests", { concurrency: 1 }, () => {
         method: "GET",
         url: `/api/posts/optimized?accountId=${testAccountId}`,
       });
-      assert.strictEqual(successResponse.statusCode, 200);
+      expect(successResponse.statusCode).toBe(200);
 
       // Validation error
       const validationResponse = await app.inject({
         method: "GET",
         url: "/api/posts/optimized",
       });
-      assert.strictEqual(validationResponse.statusCode, 400);
+      expect(validationResponse.statusCode).toBe(400);
     });
   });
 });

@@ -2,8 +2,7 @@
  * Tests for RealtimeWebhookBroadcaster — Event Broadcasting
  * Covers: broadcasting to accounts/projects, event type/provider filtering, dead connections, Redis pub/sub
  */
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import { type WebhookEventBroadcast } from "../../src/webhooks/realtimeWebhookBroadcaster.js";
 import type { Provider, WebhookEventType } from "@infra/prisma";
 import {
@@ -13,12 +12,12 @@ import {
   teardownBroadcaster,
 } from "./realtimeWebhookBroadcaster.test-helpers.js";
 
-describe("RealtimeWebhookBroadcaster - Event Broadcasting", { concurrency: 1 }, () => {
-  before(async () => {
+describe("RealtimeWebhookBroadcaster - Event Broadcasting", () => {
+  beforeAll(async () => {
     setupBroadcaster();
   });
 
-  after(async () => {
+  afterAll(async () => {
     teardownBroadcaster();
   });
 
@@ -48,9 +47,9 @@ describe("RealtimeWebhookBroadcaster - Event Broadcasting", { concurrency: 1 }, 
 
     const messages = socket.getAllMessages();
     const webhookEvents = messages.filter((msg) => msg.type === "webhook_event");
-    assert.ok(webhookEvents.length >= 1, "Should have at least 1 webhook_event message");
-    assert.strictEqual(webhookEvents[0].event.id, "event-123");
-    assert.strictEqual(webhookEvents[0].event.type, "POST_PUBLISHED");
+    expect(webhookEvents.length >= 1).toBeTruthy();
+    expect(webhookEvents[0].event.id).toBe("event-123");
+    expect(webhookEvents[0].event.type).toBe("POST_PUBLISHED");
   });
 
   it("should broadcast event to project connections", async () => {
@@ -77,7 +76,7 @@ describe("RealtimeWebhookBroadcaster - Event Broadcasting", { concurrency: 1 }, 
 
     const messages = socket.getAllMessages();
     const webhookEvents = messages.filter((msg) => msg.type === "webhook_event");
-    assert.ok(webhookEvents.length >= 1, "Should have at least 1 webhook_event message");
+    expect(webhookEvents.length >= 1).toBeTruthy();
   });
 
   it("should not broadcast to unrelated connections", async () => {
@@ -101,7 +100,7 @@ describe("RealtimeWebhookBroadcaster - Event Broadcasting", { concurrency: 1 }, 
     await state.broadcaster!.broadcastWebhookEvent(event);
 
     const messages = socket.getAllMessages();
-    assert.strictEqual(messages.length, 0);
+    expect(messages.length).toBe(0);
   });
 
   it("should filter by event type", async () => {
@@ -127,7 +126,7 @@ describe("RealtimeWebhookBroadcaster - Event Broadcasting", { concurrency: 1 }, 
     await state.broadcaster!.broadcastWebhookEvent(event);
 
     const messages = socket.getAllMessages();
-    assert.strictEqual(messages.length, 0);
+    expect(messages.length).toBe(0);
   });
 
   it("should filter by provider", async () => {
@@ -153,7 +152,7 @@ describe("RealtimeWebhookBroadcaster - Event Broadcasting", { concurrency: 1 }, 
     await state.broadcaster!.broadcastWebhookEvent(event);
 
     const messages = socket.getAllMessages();
-    assert.strictEqual(messages.length, 0);
+    expect(messages.length).toBe(0);
   });
 
   it("should broadcast when filters match", async () => {
@@ -181,7 +180,7 @@ describe("RealtimeWebhookBroadcaster - Event Broadcasting", { concurrency: 1 }, 
 
     const messages = socket.getAllMessages();
     const webhookEvents = messages.filter((msg) => msg.type === "webhook_event");
-    assert.ok(webhookEvents.length >= 1, "Should have at least 1 webhook_event message");
+    expect(webhookEvents.length >= 1).toBeTruthy();
   });
 
   it("should broadcast to all when no filters set", async () => {
@@ -206,7 +205,7 @@ describe("RealtimeWebhookBroadcaster - Event Broadcasting", { concurrency: 1 }, 
 
     const messages = socket.getAllMessages();
     const webhookEvents = messages.filter((msg) => msg.type === "webhook_event");
-    assert.ok(webhookEvents.length >= 1, "Should have at least 1 webhook_event message");
+    expect(webhookEvents.length >= 1).toBeTruthy();
   });
 
   it("should remove dead connections during broadcast", async () => {
@@ -230,7 +229,7 @@ describe("RealtimeWebhookBroadcaster - Event Broadcasting", { concurrency: 1 }, 
     await state.broadcaster!.broadcastWebhookEvent(event);
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.totalConnections, 0);
+    expect(stats.totalConnections).toBe(0);
   });
 
   it("should publish to Redis for cross-server broadcasting", async () => {
@@ -253,7 +252,7 @@ describe("RealtimeWebhookBroadcaster - Event Broadcasting", { concurrency: 1 }, 
     await state.broadcaster!.broadcastWebhookEvent(event);
 
     const publishCount = state.mockRedis!.getPublishedCount("webhook_events");
-    assert.strictEqual(publishCount, 1);
-    assert.strictEqual(state.mockRedis!.publishedMessages[0].channel, "webhook_events");
+    expect(publishCount).toBe(1);
+    expect(state.mockRedis!.publishedMessages[0].channel).toBe("webhook_events");
   });
 });

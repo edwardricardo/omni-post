@@ -1,5 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { ProviderDependencyManager } from "../../src/orchestration/ProviderDependencyManager.js";
 import type { ProviderDependency, ConflictResolutionStrategy } from "@shared/orchestration";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface";
@@ -11,7 +10,7 @@ import {
   createMockPublishResult,
 } from "./ProviderDependencyManager.test-helpers.js";
 
-describe("ProviderDependencyManager - Ready Providers", { concurrency: 1 }, () => {
+describe("ProviderDependencyManager - Ready Providers", () => {
   let manager: ProviderDependencyManager;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -34,7 +33,7 @@ describe("ProviderDependencyManager - Ready Providers", { concurrency: 1 }, () =
     const dependencies: ProviderDependency[] = [];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-graph-ready-1";
@@ -50,11 +49,11 @@ describe("ProviderDependencyManager - Ready Providers", { concurrency: 1 }, () =
 
       const readyResult = await manager.getReadyProviders(graphId, context);
 
-      assert.equal(readyResult.ok, true);
+      expect(readyResult.ok).toBe(true);
       if (readyResult.ok) {
-        assert.equal(readyResult.value.length, 2);
-        assert.ok(readyResult.value.includes("twitter"));
-        assert.ok(readyResult.value.includes("facebook"));
+        expect(readyResult.value.length).toBe(2);
+        expect(readyResult.value.includes("twitter")).toBeTruthy();
+        expect(readyResult.value.includes("facebook")).toBeTruthy();
       }
     }
   });
@@ -64,7 +63,7 @@ describe("ProviderDependencyManager - Ready Providers", { concurrency: 1 }, () =
     const dependencies: ProviderDependency[] = [];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-graph-ready-2";
@@ -89,10 +88,10 @@ describe("ProviderDependencyManager - Ready Providers", { concurrency: 1 }, () =
 
       const readyResult = await manager.getReadyProviders(graphId, context);
 
-      assert.equal(readyResult.ok, true);
+      expect(readyResult.ok).toBe(true);
       if (readyResult.ok) {
-        assert.equal(readyResult.value.length, 1);
-        assert.equal(readyResult.value[0], "instagram");
+        expect(readyResult.value.length).toBe(1);
+        expect(readyResult.value[0]).toBe("instagram");
       }
     }
   });
@@ -108,11 +107,11 @@ describe("ProviderDependencyManager - Ready Providers", { concurrency: 1 }, () =
 
     const result = await manager.getReadyProviders("non-existent", context);
 
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
   });
 });
 
-describe("ProviderDependencyManager - Deadlock Detection", { concurrency: 1 }, () => {
+describe("ProviderDependencyManager - Deadlock Detection", () => {
   let manager: ProviderDependencyManager;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -140,7 +139,7 @@ describe("ProviderDependencyManager - Deadlock Detection", { concurrency: 1 }, (
     ];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-deadlock-1";
@@ -152,7 +151,7 @@ describe("ProviderDependencyManager - Deadlock Detection", { concurrency: 1 }, (
       graph.readyNodes.clear();
 
       const hasDeadlock = await manager.detectDeadlock(graphId);
-      assert.equal(hasDeadlock, true);
+      expect(hasDeadlock).toBe(true);
     }
   });
 
@@ -161,14 +160,14 @@ describe("ProviderDependencyManager - Deadlock Detection", { concurrency: 1 }, (
     const dependencies: ProviderDependency[] = [];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-deadlock-2";
       (manager as any).activeDependencyGraphs.set(graphId, graphResult.value);
 
       const hasDeadlock = await manager.detectDeadlock(graphId);
-      assert.equal(hasDeadlock, false);
+      expect(hasDeadlock).toBe(false);
     }
   });
 
@@ -177,7 +176,7 @@ describe("ProviderDependencyManager - Deadlock Detection", { concurrency: 1 }, (
     const dependencies: ProviderDependency[] = [];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-deadlock-3";
@@ -190,17 +189,17 @@ describe("ProviderDependencyManager - Deadlock Detection", { concurrency: 1 }, (
       graph.readyNodes.clear();
 
       const hasDeadlock = await manager.detectDeadlock(graphId);
-      assert.equal(hasDeadlock, false);
+      expect(hasDeadlock).toBe(false);
     }
   });
 
   it("should return false for non-existent graph", async () => {
     const hasDeadlock = await manager.detectDeadlock("non-existent");
-    assert.equal(hasDeadlock, false);
+    expect(hasDeadlock).toBe(false);
   });
 });
 
-describe("ProviderDependencyManager - Deadlock Resolution", { concurrency: 1 }, () => {
+describe("ProviderDependencyManager - Deadlock Resolution", () => {
   let manager: ProviderDependencyManager;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -230,7 +229,7 @@ describe("ProviderDependencyManager - Deadlock Resolution", { concurrency: 1 }, 
     ];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-resolve-1";
@@ -253,14 +252,14 @@ describe("ProviderDependencyManager - Deadlock Resolution", { concurrency: 1 }, 
 
       const resolutionResult = await manager.resolveDeadlock(graphId, context);
 
-      assert.equal(resolutionResult.ok, true);
+      expect(resolutionResult.ok).toBe(true);
       if (resolutionResult.ok) {
-        assert.ok(resolutionResult.value.length > 0);
-        assert.ok(resolutionResult.value.some((a) => a.includes("Bypassed")));
+        expect(resolutionResult.value.length > 0).toBeTruthy();
+        expect(resolutionResult.value.some((a) => a.includes("Bypassed"))).toBeTruthy();
 
         // Check that blocked providers are now ready
         const updatedGraph = (manager as any).activeDependencyGraphs.get(graphId);
-        assert.ok(updatedGraph.readyNodes.size > 0);
+        expect(updatedGraph.readyNodes.size > 0).toBeTruthy();
       }
     }
   });
@@ -273,7 +272,7 @@ describe("ProviderDependencyManager - Deadlock Resolution", { concurrency: 1 }, 
     ];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-resolve-2";
@@ -295,14 +294,16 @@ describe("ProviderDependencyManager - Deadlock Resolution", { concurrency: 1 }, 
 
       const resolutionResult = await manager.resolveDeadlock(graphId, context);
 
-      assert.equal(resolutionResult.ok, true);
+      expect(resolutionResult.ok).toBe(true);
       if (resolutionResult.ok) {
-        assert.ok(resolutionResult.value.some((a) => a.includes("Failed dependent providers")));
+        expect(
+          resolutionResult.value.some((a) => a.includes("Failed dependent providers"))
+        ).toBeTruthy();
 
         // Check that blocked providers are now failed
         const updatedGraph = (manager as any).activeDependencyGraphs.get(graphId);
-        assert.equal(updatedGraph.nodes.get("facebook")!.status, "failed");
-        assert.equal(updatedGraph.nodes.get("instagram")!.status, "failed");
+        expect(updatedGraph.nodes.get("facebook")!.status).toBe("failed");
+        expect(updatedGraph.nodes.get("instagram")!.status).toBe("failed");
       }
     }
   });
@@ -312,7 +313,7 @@ describe("ProviderDependencyManager - Deadlock Resolution", { concurrency: 1 }, 
     const dependencies: ProviderDependency[] = [{ providerId: "facebook", dependsOn: ["twitter"] }];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-resolve-3";
@@ -333,9 +334,9 @@ describe("ProviderDependencyManager - Deadlock Resolution", { concurrency: 1 }, 
 
       const resolutionResult = await manager.resolveDeadlock(graphId, context);
 
-      assert.equal(resolutionResult.ok, true);
+      expect(resolutionResult.ok).toBe(true);
       if (resolutionResult.ok) {
-        assert.ok(resolutionResult.value.some((a) => a.includes("Continued execution")));
+        expect(resolutionResult.value.some((a) => a.includes("Continued execution"))).toBeTruthy();
       }
     }
   });
@@ -351,14 +352,14 @@ describe("ProviderDependencyManager - Deadlock Resolution", { concurrency: 1 }, 
 
     const result = await manager.resolveDeadlock("non-existent", context);
 
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.match(result.error.message, /Dependency graph not found/);
+      expect(result.error.message).toMatch(/Dependency graph not found/);
     }
   });
 });
 
-describe("ProviderDependencyManager - Graph Statistics", { concurrency: 1 }, () => {
+describe("ProviderDependencyManager - Graph Statistics", () => {
   let manager: ProviderDependencyManager;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -381,7 +382,7 @@ describe("ProviderDependencyManager - Graph Statistics", { concurrency: 1 }, () 
     const dependencies: ProviderDependency[] = [{ providerId: "facebook", dependsOn: ["twitter"] }];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-stats-1";
@@ -389,12 +390,12 @@ describe("ProviderDependencyManager - Graph Statistics", { concurrency: 1 }, () 
 
       const stats = await manager.getGraphStatistics(graphId);
 
-      assert.equal(stats.totalProviders, 3);
-      assert.equal(stats.completedProviders, 0);
-      assert.equal(stats.failedProviders, 0);
-      assert.equal(stats.pendingProviders, 3);
-      assert.equal(stats.readyProviders, 2); // twitter and instagram
-      assert.equal(stats.blockedProviders, 0);
+      expect(stats.totalProviders).toBe(3);
+      expect(stats.completedProviders).toBe(0);
+      expect(stats.failedProviders).toBe(0);
+      expect(stats.pendingProviders).toBe(3);
+      expect(stats.readyProviders).toBe(2); // twitter and instagram
+      expect(stats.blockedProviders).toBe(0);
     }
   });
 
@@ -403,7 +404,7 @@ describe("ProviderDependencyManager - Graph Statistics", { concurrency: 1 }, () 
     const dependencies: ProviderDependency[] = [];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-stats-2";
@@ -418,22 +419,22 @@ describe("ProviderDependencyManager - Graph Statistics", { concurrency: 1 }, () 
 
       const stats = await manager.getGraphStatistics(graphId);
 
-      assert.equal(stats.completedProviders, 1);
-      assert.equal(stats.pendingProviders, 1);
+      expect(stats.completedProviders).toBe(1);
+      expect(stats.pendingProviders).toBe(1);
     }
   });
 
   it("should return zero statistics for non-existent graph", async () => {
     const stats = await manager.getGraphStatistics("non-existent");
 
-    assert.equal(stats.totalProviders, 0);
-    assert.equal(stats.completedProviders, 0);
-    assert.equal(stats.failedProviders, 0);
-    assert.equal(stats.estimatedCompletion, null);
+    expect(stats.totalProviders).toBe(0);
+    expect(stats.completedProviders).toBe(0);
+    expect(stats.failedProviders).toBe(0);
+    expect(stats.estimatedCompletion).toBe(null);
   });
 });
 
-describe("ProviderDependencyManager - Graph Caching", { concurrency: 1 }, () => {
+describe("ProviderDependencyManager - Graph Caching", () => {
   let manager: ProviderDependencyManager;
   let mockPrisma: MockPrismaClient;
   let mockRedis: MockRedis;
@@ -460,7 +461,7 @@ describe("ProviderDependencyManager - Graph Caching", { concurrency: 1 }, () => 
     const dependencies: ProviderDependency[] = [];
 
     const graphResult = await manager.buildDependencyGraph(providers, dependencies);
-    assert.equal(graphResult.ok, true);
+    expect(graphResult.ok).toBe(true);
 
     if (graphResult.ok) {
       const graphId = "test-cache-1";
@@ -469,11 +470,11 @@ describe("ProviderDependencyManager - Graph Caching", { concurrency: 1 }, () => 
       await manager.updateProviderStatus(graphId, "twitter", "running");
 
       const cached = await mockRedis.get(`dependency:graph:${graphId}`);
-      assert.ok(cached !== null);
+      expect(cached !== null).toBeTruthy();
 
       const parsedCache = JSON.parse(cached!);
-      assert.ok(parsedCache.nodes);
-      assert.ok(parsedCache.executionOrder);
+      expect(parsedCache.nodes).toBeTruthy();
+      expect(parsedCache.executionOrder).toBeTruthy();
     }
   });
 });

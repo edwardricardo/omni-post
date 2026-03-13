@@ -1,85 +1,69 @@
-/** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
-const config = {
-  packageManager: "pnpm",
+import rootConfig from '../../stryker.config.mjs'
 
-  testRunner: "tap",
-  tap: {
-    testFiles: [
-      // Domain Tier-0 (7 files — pure logic, no DB)
-      "tests/unit/domain/value-objects.test.ts",
-      "tests/unit/domain/entities.test.ts",
-      "tests/unit/domain/aggregates.test.ts",
-      "tests/unit/domain/domain-errors.test.ts",
-      "tests/unit/domain/crisisMode.test.ts",
-      "tests/unit/domain/linkTracking.test.ts",
-      "tests/unit/domain/Container.test.ts",
-      // Application Tier-0 (5 files — mocked repos, no DB)
-      "tests/unit/application/AnalyticsUseCases.test.ts",
-      "tests/unit/application/EventCQRSUseCases.test.ts",
-      "tests/unit/application/ApiKeyUseCases.test.ts",
-      "tests/unit/application/crisis/crisisUseCases.test.ts",
-      "tests/unit/application/links/linkUseCases.test.ts",
-    ],
-    nodeArgs: [
-      "--import", "tsx",
-      "--test-reporter=tap",
-      "--test-force-exit",
-      "--test-timeout=30000",
-      "-r", "{{hookFile}}",
-      "{{testFile}}",
-    ],
-    forceBail: true,
+/** @type {import('@stryker-mutator/core').PartialStrykerOptions} */
+export default {
+  ...rootConfig,
+  tsconfigFile: 'tsconfig.json',
+  incrementalFile: 'reports/stryker-incremental.json',
+  htmlReporter: {
+    fileName: 'reports/mutation/index.html',
   },
-
+  vitest: {
+    configFile: 'vitest.config.ts',
+  },
+  coverageAnalysis: 'perTest',
+  // Disable typescript checker — use vitest's own TS handling
+  checkers: [],
+  plugins: ['@stryker-mutator/vitest-runner'],
+  // 4 workers — vitest forks pool handles isolation per file
+  concurrency: 4,
   mutate: [
-    // Domain layer — value objects, entities, aggregates, events, errors
-    "src/domain/**/*.ts",
-    "!src/domain/**/index.ts",
-    "!src/domain/repositories/**",
-    // Application layer — use cases WITH Tier-0 tests only
-    "src/application/apiKeys/**/*.ts",
-    "src/application/analytics/**/*.ts",
-    "src/application/crisis/**/*.ts",
-    "src/application/events/**/*.ts",
-    "src/application/links/**/*.ts",
-    "!src/application/**/index.ts",
-    "!src/application/**/types.ts",
-    // Excluded (no Tier-0 tests — require Prisma):
-    //   src/application/posts/** → UseCases.test.ts is Tier-1
-    //   src/application/ml/**   → MLUseCases.test.ts is Tier-1
+    // Domain layer — pure logic, no infrastructure dependencies
+    'src/domain/**/*.ts',
+    '!src/domain/**/*.test.ts',
+    '!src/domain/**/*.spec.ts',
+
+    // Application layer
+    'src/application/apiKeys/**/*.ts',
+    '!src/application/apiKeys/**/*.test.ts',
+
+    'src/application/analytics/**/*.ts',
+    '!src/application/analytics/**/*.test.ts',
+
+    'src/application/crisis/**/*.ts',
+    '!src/application/crisis/**/*.test.ts',
+
+    'src/application/events/**/*.ts',
+    '!src/application/events/**/*.test.ts',
+
+    'src/application/links/**/*.ts',
+    '!src/application/links/**/*.test.ts',
+
+    // Auth & security layer (now DB-free with mocked prisma)
+    'src/auth/**/*.ts',
+    '!src/auth/**/*.test.ts',
+
+    'src/audit/**/*.ts',
+    '!src/audit/**/*.test.ts',
+
+    'src/billing/**/*.ts',
+    '!src/billing/**/*.test.ts',
+
+    'src/webhooks/**/*.ts',
+    '!src/webhooks/**/*.test.ts',
+
+    'src/security/**/*.ts',
+    '!src/security/**/*.test.ts',
+
+    'src/services/**/*.ts',
+    '!src/services/**/*.test.ts',
+
+    'src/admin/**/*.ts',
+    '!src/admin/**/*.test.ts',
   ],
-
-  checkers: ["typescript"],
-
-  plugins: [
-    "@stryker-mutator/tap-runner",
-    "@stryker-mutator/typescript-checker",
-  ],
-
-  ignoreStatic: true,
-  coverageAnalysis: "perTest",
-
-  // Baseline (2026-02-24): 25.55% overall → ~50.9% on tested code
-  // NoCoverage mutants excluded from score by scoping mutate targets
   thresholds: {
     high: 80,
     low: 60,
-    break: null, // No CI failure — establishing baseline
+    break: null,   // will be set to (baseline - 3) after first successful run
   },
-
-  reporters: ["clear-text", "progress", "html", "json"],
-  htmlReporter: {
-    fileName: "reports/mutation/index.html",
-  },
-  jsonReporter: {
-    fileName: "reports/mutation/mutation.json",
-  },
-
-  incremental: true,
-  incrementalFile: "reports/stryker-incremental.json",
-
-  concurrency: 4,
-  timeoutMS: 10000,
-};
-
-export default config;
+}

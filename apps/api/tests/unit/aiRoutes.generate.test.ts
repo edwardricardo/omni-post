@@ -1,20 +1,19 @@
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createTestApp, aiService, setupAiServiceMocks } from "./aiRoutes.test-helpers.js";
 
 let app: FastifyInstance;
 
-describe("aiRoutes - POST /ai/generate", { concurrency: 1 }, () => {
-  before(async () => {
+describe("aiRoutes - POST /ai/generate", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  beforeEach((t) => {
-    setupAiServiceMocks(t, aiService);
+  beforeEach(() => {
+    setupAiServiceMocks(aiService);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -34,11 +33,11 @@ describe("aiRoutes - POST /ai/generate", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
-    assert.strictEqual(body.data.success, true);
-    assert.strictEqual(body.data.content, "Generated content here");
-    assert.ok(body.data.metadata);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.success).toBe(true);
+    expect(body.data.content).toBe("Generated content here");
+    expect(body.data.metadata).toBeTruthy();
   });
 
   it("should accept minimal payload with messages only", async () => {
@@ -50,7 +49,7 @@ describe("aiRoutes - POST /ai/generate", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should accept optional provider parameter", async () => {
@@ -63,7 +62,7 @@ describe("aiRoutes - POST /ai/generate", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should reject empty messages array", async () => {
@@ -75,7 +74,7 @@ describe("aiRoutes - POST /ai/generate", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject missing messages field", async () => {
@@ -87,7 +86,7 @@ describe("aiRoutes - POST /ai/generate", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject invalid message format", async () => {
@@ -99,11 +98,11 @@ describe("aiRoutes - POST /ai/generate", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should handle service errors gracefully", async (t) => {
-    t.mock.method(aiService, "generateContent", async () => {
+    vi.spyOn(aiService, "generateContent").mockImplementation(async () => {
       throw new Error("Service unavailable");
     });
 
@@ -115,22 +114,22 @@ describe("aiRoutes - POST /ai/generate", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 500);
+    expect(response.statusCode).toBe(500);
     const body = JSON.parse(response.body);
-    assert.strictEqual(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 });
 
-describe("aiRoutes - POST /ai/analyze", { concurrency: 1 }, () => {
-  before(async () => {
+describe("aiRoutes - POST /ai/analyze", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  beforeEach((t) => {
-    setupAiServiceMocks(t, aiService);
+  beforeEach(() => {
+    setupAiServiceMocks(aiService);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -146,10 +145,10 @@ describe("aiRoutes - POST /ai/analyze", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
-    assert.ok(body.data.success);
-    assert.ok(body.data.analysis);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.success).toBeTruthy();
+    expect(body.data.analysis).toBeTruthy();
   });
 
   it("should accept all valid analysis types", async () => {
@@ -165,7 +164,7 @@ describe("aiRoutes - POST /ai/analyze", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     }
   });
 
@@ -180,7 +179,7 @@ describe("aiRoutes - POST /ai/analyze", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should reject empty content", async () => {
@@ -193,7 +192,7 @@ describe("aiRoutes - POST /ai/analyze", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject invalid analysis type", async () => {
@@ -206,7 +205,7 @@ describe("aiRoutes - POST /ai/analyze", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject missing required fields", async () => {
@@ -218,20 +217,20 @@ describe("aiRoutes - POST /ai/analyze", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 });
 
-describe("aiRoutes - POST /ai/predict", { concurrency: 1 }, () => {
-  before(async () => {
+describe("aiRoutes - POST /ai/predict", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  beforeEach((t) => {
-    setupAiServiceMocks(t, aiService);
+  beforeEach(() => {
+    setupAiServiceMocks(aiService);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -247,10 +246,10 @@ describe("aiRoutes - POST /ai/predict", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
-    assert.ok(body.data.success);
-    assert.ok(body.data.prediction);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.success).toBeTruthy();
+    expect(body.data.prediction).toBeTruthy();
   });
 
   it("should accept optional historical data", async () => {
@@ -267,7 +266,7 @@ describe("aiRoutes - POST /ai/predict", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should accept optional provider parameter", async () => {
@@ -281,7 +280,7 @@ describe("aiRoutes - POST /ai/predict", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should reject empty content", async () => {
@@ -294,7 +293,7 @@ describe("aiRoutes - POST /ai/predict", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject empty platform", async () => {
@@ -307,6 +306,6 @@ describe("aiRoutes - POST /ai/predict", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 });

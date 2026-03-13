@@ -2,8 +2,7 @@
  * ConnectionManager Tests - Health Check, Connection Summary & Cleanup Operations
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import * as assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { ConnectionManager } from "../../src/auth/connectionManager.js";
 import type { ConnectionManagerPrisma } from "../../src/auth/connectionManager.js";
 import { createMockConnection, createMockDb } from "./connectionManager.test-helpers.js";
@@ -12,12 +11,12 @@ import { createMockConnection, createMockDb } from "./connectionManager.test-hel
 // ConnectionManager - Health Check Tests
 // ============================================================================
 
-describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
+describe("ConnectionManager - Health Check", () => {
   let manager: ConnectionManager;
   let mockDb: ConnectionManagerPrisma;
 
-  beforeEach((t) => {
-    mockDb = createMockDb(t);
+  beforeEach(() => {
+    mockDb = createMockDb();
     manager = new ConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
@@ -28,7 +27,7 @@ describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
 
   it("should perform health check on active connection", async (t) => {
     const mockConnection = createMockConnection();
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -36,16 +35,16 @@ describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
 
     const health = await manager.checkConnectionHealth("conn-123");
 
-    assert.ok(health, "Should return health report");
-    assert.strictEqual(typeof health.healthy, "boolean", "Should have healthy flag");
-    assert.strictEqual(typeof health.score, "number", "Should have health score");
-    assert.ok(Array.isArray(health.errors), "Should have errors array");
-    assert.ok(Array.isArray(health.warnings), "Should have warnings array");
+    expect(health).toBeTruthy();
+    expect(typeof health.healthy).toBe("boolean");
+    expect(typeof health.score).toBe("number");
+    expect(Array.isArray(health.errors)).toBeTruthy();
+    expect(Array.isArray(health.warnings)).toBeTruthy();
   });
 
   it("should report unhealthy for ERROR status", async (t) => {
     const mockConnection = createMockConnection({ status: "ERROR" as any });
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -53,13 +52,13 @@ describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
 
     const health = await manager.checkConnectionHealth("conn-123");
 
-    assert.strictEqual(health.healthy, false, "Should be unhealthy");
-    assert.ok(health.errors.length > 0, "Should have error messages");
+    expect(health.healthy).toBe(false);
+    expect(health.errors.length > 0).toBeTruthy();
   });
 
   it("should report unhealthy for EXPIRED status", async (t) => {
     const mockConnection = createMockConnection({ status: "EXPIRED" as any });
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -67,18 +66,15 @@ describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
 
     const health = await manager.checkConnectionHealth("conn-123");
 
-    assert.strictEqual(health.healthy, false, "Should be unhealthy");
-    assert.ok(
-      health.errors.some((e) => e.includes("EXPIRED")),
-      "Should report expired status"
-    );
+    expect(health.healthy).toBe(false);
+    expect(health.errors.some((e) => e.includes("EXPIRED"))).toBeTruthy();
   });
 
   it("should detect expired access token", async (t) => {
     const mockConnection = createMockConnection({
       expiresAt: new Date(Date.now() - 3600000), // 1 hour ago
     });
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -86,18 +82,15 @@ describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
 
     const health = await manager.checkConnectionHealth("conn-123");
 
-    assert.strictEqual(health.healthy, false, "Should be unhealthy");
-    assert.ok(
-      health.errors.some((e) => e.includes("expired")),
-      "Should report token expiration"
-    );
+    expect(health.healthy).toBe(false);
+    expect(health.errors.some((e) => e.includes("expired"))).toBeTruthy();
   });
 
   it("should warn about soon-to-expire tokens", async (t) => {
     const mockConnection = createMockConnection({
       expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours from now
     });
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -105,13 +98,13 @@ describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
 
     const health = await manager.checkConnectionHealth("conn-123");
 
-    assert.ok(health.warnings.length > 0, "Should have warnings");
-    assert.ok(health.recommendations.length > 0, "Should have recommendations");
+    expect(health.warnings.length > 0).toBeTruthy();
+    expect(health.recommendations.length > 0).toBeTruthy();
   });
 
   it("should warn about high error count", async (t) => {
     const mockConnection = createMockConnection({ errorCount: 15 });
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -119,17 +112,14 @@ describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
 
     const health = await manager.checkConnectionHealth("conn-123");
 
-    assert.ok(
-      health.warnings.some((w) => w.includes("error count")),
-      "Should warn about errors"
-    );
+    expect(health.warnings.some((w) => w.includes("error count"))).toBeTruthy();
   });
 
   it("should recommend disconnecting unused connections", async (t) => {
     const mockConnection = createMockConnection({
       lastUsedAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000), // 40 days ago
     });
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
     manager = new ConnectionManager(mockDb);
@@ -137,20 +127,14 @@ describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
 
     const health = await manager.checkConnectionHealth("conn-123");
 
-    assert.ok(
-      health.warnings.some((w) => w.includes("not used")),
-      "Should warn about inactivity"
-    );
-    assert.ok(
-      health.recommendations.some((r) => r.includes("disconnecting")),
-      "Should recommend disconnection"
-    );
+    expect(health.warnings.some((w) => w.includes("not used"))).toBeTruthy();
+    expect(health.recommendations.some((r) => r.includes("disconnecting"))).toBeTruthy();
   });
 
   it("should cache health check results", async (t) => {
     const mockConnection = createMockConnection();
-    const findUniqueMock = t.mock.fn(async () => mockConnection);
-    (mockDb.providerConnection.findUnique as ReturnType<typeof t.mock.fn>) = findUniqueMock;
+    const findUniqueMock = vi.fn(async () => mockConnection);
+    (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = findUniqueMock;
     manager = new ConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
@@ -161,21 +145,14 @@ describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
     await manager.checkConnectionHealth("conn-123");
     const callCount2 = findUniqueMock.mock.calls.length;
 
-    assert.strictEqual(
-      callCount2,
-      callCount1,
-      "Should use cached result (no additional findUnique calls)"
-    );
+    expect(callCount2).toBe(callCount1);
   });
 
   it("should throw error for non-existent connection", async () => {
     // mockDb.providerConnection.findUnique returns null by default
 
-    await assert.rejects(
-      async () => {
-        await manager.checkConnectionHealth("non-existent");
-      },
-      { message: "Connection not found" }
+    await expect(manager.checkConnectionHealth("non-existent")).rejects.toThrow(
+      "Connection not found"
     );
   });
 });
@@ -184,12 +161,12 @@ describe("ConnectionManager - Health Check", { concurrency: 1 }, () => {
 // ConnectionManager - Connection Summary Tests
 // ============================================================================
 
-describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
+describe("ConnectionManager - Connection Summary", () => {
   let manager: ConnectionManager;
   let mockDb: ConnectionManagerPrisma;
 
-  beforeEach((t) => {
-    mockDb = createMockDb(t);
+  beforeEach(() => {
+    mockDb = createMockDb();
     manager = new ConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
@@ -203,7 +180,7 @@ describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
       createMockConnection({ providerId: "X" as any, status: "CONNECTED" as any }),
       createMockConnection({ providerId: "INSTAGRAM" as any, status: "CONNECTED" as any }),
     ];
-    (mockDb.providerConnection.findMany as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnections
     );
     manager = new ConnectionManager(mockDb);
@@ -211,8 +188,8 @@ describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
 
     const summary = await manager.getConnectionsSummary("acc-123");
 
-    assert.strictEqual(summary.total, 2, "Should count total connections");
-    assert.strictEqual(summary.connected, 2, "Should count connected");
+    expect(summary.total).toBe(2);
+    expect(summary.connected).toBe(2);
   });
 
   it("should count connections by status", async (t) => {
@@ -221,7 +198,7 @@ describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
       createMockConnection({ status: "ERROR" as any }),
       createMockConnection({ status: "EXPIRED" as any }),
     ];
-    (mockDb.providerConnection.findMany as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnections
     );
     manager = new ConnectionManager(mockDb);
@@ -229,9 +206,9 @@ describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
 
     const summary = await manager.getConnectionsSummary("acc-123");
 
-    assert.strictEqual(summary.connected, 1, "Should count connected");
-    assert.strictEqual(summary.error, 1, "Should count errors");
-    assert.strictEqual(summary.expired, 1, "Should count expired");
+    expect(summary.connected).toBe(1);
+    expect(summary.error).toBe(1);
+    expect(summary.expired).toBe(1);
   });
 
   it("should count connections by provider", async (t) => {
@@ -240,7 +217,7 @@ describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
       createMockConnection({ providerId: "X" as any }),
       createMockConnection({ providerId: "INSTAGRAM" as any }),
     ];
-    (mockDb.providerConnection.findMany as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnections
     );
     manager = new ConnectionManager(mockDb);
@@ -248,8 +225,8 @@ describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
 
     const summary = await manager.getConnectionsSummary("acc-123");
 
-    assert.strictEqual(summary.byProvider["x"], 2, "Should count X connections");
-    assert.strictEqual(summary.byProvider["instagram"], 1, "Should count Instagram connections");
+    expect(summary.byProvider["x"]).toBe(2);
+    expect(summary.byProvider["instagram"]).toBe(1);
   });
 
   it("should calculate average health score", async (t) => {
@@ -258,7 +235,7 @@ describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
       createMockConnection({ healthScore: 80 }),
       createMockConnection({ healthScore: 60 }),
     ];
-    (mockDb.providerConnection.findMany as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnections
     );
     manager = new ConnectionManager(mockDb);
@@ -266,7 +243,7 @@ describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
 
     const summary = await manager.getConnectionsSummary("acc-123");
 
-    assert.strictEqual(summary.healthScore, 80, "Should calculate average health score");
+    expect(summary.healthScore).toBe(80);
   });
 
   it("should return 100 health score for no connections", async () => {
@@ -274,7 +251,7 @@ describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
 
     const summary = await manager.getConnectionsSummary("acc-123");
 
-    assert.strictEqual(summary.healthScore, 100, "Should return 100 for no connections");
+    expect(summary.healthScore).toBe(100);
   });
 });
 
@@ -282,12 +259,12 @@ describe("ConnectionManager - Connection Summary", { concurrency: 1 }, () => {
 // ConnectionManager - Cleanup Tests
 // ============================================================================
 
-describe("ConnectionManager - Cleanup Operations", { concurrency: 1 }, () => {
+describe("ConnectionManager - Cleanup Operations", () => {
   let manager: ConnectionManager;
   let mockDb: ConnectionManagerPrisma;
 
-  beforeEach((t) => {
-    mockDb = createMockDb(t);
+  beforeEach(() => {
+    mockDb = createMockDb();
     manager = new ConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
@@ -298,7 +275,7 @@ describe("ConnectionManager - Cleanup Operations", { concurrency: 1 }, () => {
 
   it("should cleanup expired connections", async (t) => {
     let capturedArgs: any = null;
-    (mockDb.providerConnection.updateMany as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.updateMany as ReturnType<typeof vi.fn>) = vi.fn(
       async (args: any) => {
         capturedArgs = args;
         return { count: 3 };
@@ -309,16 +286,16 @@ describe("ConnectionManager - Cleanup Operations", { concurrency: 1 }, () => {
 
     const count = await manager.cleanupExpiredConnections();
 
-    assert.strictEqual(count, 3, "Should return count of cleaned up connections");
-    assert.ok(capturedArgs, "Should have called updateMany");
-    assert.ok(capturedArgs.where.expiresAt.lt instanceof Date, "Should filter by expiration date");
-    assert.strictEqual(capturedArgs.data.status, "EXPIRED", "Should set status to EXPIRED");
-    assert.strictEqual(capturedArgs.data.isActive, false, "Should deactivate");
+    expect(count).toBe(3);
+    expect(capturedArgs).toBeTruthy();
+    expect(capturedArgs.where.expiresAt.lt instanceof Date).toBeTruthy();
+    expect(capturedArgs.data.status).toBe("EXPIRED");
+    expect(capturedArgs.data.isActive).toBe(false);
   });
 
   it("should only update active connections that are not already expired", async (t) => {
     let capturedArgs: any = null;
-    (mockDb.providerConnection.updateMany as ReturnType<typeof t.mock.fn>) = t.mock.fn(
+    (mockDb.providerConnection.updateMany as ReturnType<typeof vi.fn>) = vi.fn(
       async (args: any) => {
         capturedArgs = args;
         return { count: 1 };
@@ -329,8 +306,8 @@ describe("ConnectionManager - Cleanup Operations", { concurrency: 1 }, () => {
 
     await manager.cleanupExpiredConnections();
 
-    assert.ok(capturedArgs, "Should have called updateMany");
-    assert.strictEqual(capturedArgs.where.isActive, true, "Should only target active connections");
-    assert.strictEqual(capturedArgs.where.status.not, "EXPIRED", "Should exclude already expired");
+    expect(capturedArgs).toBeTruthy();
+    expect(capturedArgs.where.isActive).toBe(true);
+    expect(capturedArgs.where.status.not).toBe("EXPIRED");
   });
 });

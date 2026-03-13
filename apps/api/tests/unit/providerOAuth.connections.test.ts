@@ -1,11 +1,9 @@
-import { describe, it, mock, beforeEach } from "node:test";
-import assert from "node:assert/strict";
-
+import { describe, it, beforeEach, vi, expect } from "vitest";
 interface MockPrisma {
   providerConnection: {
-    upsert: ReturnType<typeof mock.fn>;
-    findMany: ReturnType<typeof mock.fn>;
-    update: ReturnType<typeof mock.fn>;
+    upsert: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -14,15 +12,15 @@ let mockPrisma: MockPrisma;
 function setupMocks() {
   mockPrisma = {
     providerConnection: {
-      upsert: mock.fn(async () => ({
+      upsert: vi.fn(async () => ({
         id: "conn-123",
         providerId: "X",
         accountName: "@testuser",
         isActive: true,
         status: "CONNECTED",
       })),
-      findMany: mock.fn(async () => []),
-      update: mock.fn(async () => ({})),
+      findMany: vi.fn(async () => []),
+      update: vi.fn(async () => ({})),
     },
   };
 }
@@ -31,18 +29,18 @@ function setupMocks() {
 // OAuth Flow - Connection Storage Tests
 // ============================================================================
 
-describe("ProviderOAuth - Connection Storage", { concurrency: 1 }, () => {
+describe("ProviderOAuth - Connection Storage", () => {
   beforeEach(() => {
     setupMocks();
   });
 
   it("should create new provider connection", async () => {
-    mockPrisma.providerConnection.upsert = mock.fn(
+    mockPrisma.providerConnection.upsert = vi.fn(
       async (args: Record<string, Record<string, unknown>>) => {
-        assert.strictEqual(args.create.providerId, "X", "Should uppercase provider ID");
-        assert.ok(args.create.accessToken, "Should store access token");
-        assert.strictEqual(args.create.status, "CONNECTED", "Should set status to CONNECTED");
-        assert.strictEqual(args.create.isActive, true, "Should set active flag");
+        expect(args.create.providerId).toBe("X");
+        expect(args.create.accessToken).toBeTruthy();
+        expect(args.create.status).toBe("CONNECTED");
+        expect(args.create.isActive).toBe(true);
         return {
           id: "new-conn-123",
           ...args.create,
@@ -76,7 +74,7 @@ describe("ProviderOAuth - Connection Storage", { concurrency: 1 }, () => {
       update: {},
     });
 
-    assert.ok(result.id, "Should return connection ID");
+    expect(result.id).toBeTruthy();
   });
 
   it("should update existing provider connection", async () => {
@@ -88,11 +86,11 @@ describe("ProviderOAuth - Connection Storage", { concurrency: 1 }, () => {
       accessToken: "old-token",
     };
 
-    mockPrisma.providerConnection.upsert = mock.fn(
+    mockPrisma.providerConnection.upsert = vi.fn(
       async (args: Record<string, Record<string, unknown>>) => {
-        assert.ok(args.update.accessToken, "Should update access token");
-        assert.ok(args.update.lastUsedAt, "Should update last used timestamp");
-        assert.strictEqual(args.update.healthScore, 100, "Should reset health score");
+        expect(args.update.accessToken).toBeTruthy();
+        expect(args.update.lastUsedAt).toBeTruthy();
+        expect(args.update.healthScore).toBe(100);
         return {
           ...existingConnection,
           ...args.update,
@@ -117,17 +115,17 @@ describe("ProviderOAuth - Connection Storage", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(result.id, "conn-123", "Should keep same ID");
+    expect(result.id).toBe("conn-123");
   });
 
   it("should store token expiration if provided", async () => {
     const expiresIn = 7200;
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
-    mockPrisma.providerConnection.upsert = mock.fn(
+    mockPrisma.providerConnection.upsert = vi.fn(
       async (args: Record<string, Record<string, unknown>>) => {
         if (args.create.expiresAt) {
-          assert.ok(args.create.expiresAt instanceof Date, "Should store expiration as Date");
+          expect(args.create.expiresAt instanceof Date).toBeTruthy();
         }
         return { id: "conn-123" };
       }
@@ -151,18 +149,14 @@ describe("ProviderOAuth - Connection Storage", { concurrency: 1 }, () => {
       update: {},
     });
 
-    assert.ok(true, "Should handle expiration date");
+    expect(true).toBeTruthy();
   });
 
   it("should store refresh token if provided", async () => {
-    mockPrisma.providerConnection.upsert = mock.fn(
+    mockPrisma.providerConnection.upsert = vi.fn(
       async (args: Record<string, Record<string, unknown>>) => {
         if (args.create.refreshToken) {
-          assert.strictEqual(
-            args.create.refreshToken,
-            "refresh-token",
-            "Should store refresh token"
-          );
+          expect(args.create.refreshToken).toBe("refresh-token");
         }
         return { id: "conn-123" };
       }
@@ -192,7 +186,7 @@ describe("ProviderOAuth - Connection Storage", { concurrency: 1 }, () => {
 // OAuth Flow - Connection Retrieval Tests
 // ============================================================================
 
-describe("ProviderOAuth - Connection Retrieval", { concurrency: 1 }, () => {
+describe("ProviderOAuth - Connection Retrieval", () => {
   beforeEach(() => {
     setupMocks();
   });
@@ -213,11 +207,11 @@ describe("ProviderOAuth - Connection Retrieval", { concurrency: 1 }, () => {
       },
     ];
 
-    mockPrisma.providerConnection.findMany = mock.fn(
+    mockPrisma.providerConnection.findMany = vi.fn(
       async (args: Record<string, Record<string, unknown>>) => {
-        assert.strictEqual(args.where.accountId, "acc-123", "Should filter by account ID");
-        assert.strictEqual(args.where.projectId, "proj-123", "Should filter by project ID");
-        assert.strictEqual(args.where.isActive, true, "Should filter by active status");
+        expect(args.where.accountId).toBe("acc-123");
+        expect(args.where.projectId).toBe("proj-123");
+        expect(args.where.isActive).toBe(true);
         return mockConnections;
       }
     );
@@ -242,13 +236,13 @@ describe("ProviderOAuth - Connection Retrieval", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(result.length, 2, "Should return 2 connections");
+    expect(result.length).toBe(2);
   });
 
   it("should only return active connections", async () => {
-    mockPrisma.providerConnection.findMany = mock.fn(
+    mockPrisma.providerConnection.findMany = vi.fn(
       async (args: Record<string, Record<string, unknown>>) => {
-        assert.strictEqual(args.where.isActive, true, "Should only return active connections");
+        expect(args.where.isActive).toBe(true);
         return [];
       }
     );
@@ -263,12 +257,12 @@ describe("ProviderOAuth - Connection Retrieval", { concurrency: 1 }, () => {
   });
 
   it("should select only necessary fields for privacy", async () => {
-    mockPrisma.providerConnection.findMany = mock.fn(
+    mockPrisma.providerConnection.findMany = vi.fn(
       async (args: Record<string, Record<string, unknown>>) => {
-        assert.ok(args.select, "Should use field selection");
+        expect(args.select).toBeTruthy();
         const select = args.select as Record<string, unknown>;
-        assert.strictEqual(select.accessToken, undefined, "Should not return access token");
-        assert.strictEqual(select.refreshToken, undefined, "Should not return refresh token");
+        expect(select.accessToken).toBe(undefined);
+        expect(select.refreshToken).toBe(undefined);
         return [];
       }
     );
@@ -289,18 +283,18 @@ describe("ProviderOAuth - Connection Retrieval", { concurrency: 1 }, () => {
 // OAuth Flow - Disconnection Tests
 // ============================================================================
 
-describe("ProviderOAuth - Connection Disconnection", { concurrency: 1 }, () => {
+describe("ProviderOAuth - Connection Disconnection", () => {
   beforeEach(() => {
     setupMocks();
   });
 
   it("should disconnect provider connection", async () => {
-    mockPrisma.providerConnection.update = mock.fn(
+    mockPrisma.providerConnection.update = vi.fn(
       async (args: Record<string, Record<string, unknown>>) => {
-        assert.strictEqual(args.data.isActive, false, "Should set isActive to false");
-        assert.strictEqual(args.data.status, "DISCONNECTED", "Should set status to DISCONNECTED");
-        assert.strictEqual(args.data.accessToken, null, "Should clear access token");
-        assert.strictEqual(args.data.refreshToken, null, "Should clear refresh token");
+        expect(args.data.isActive).toBe(false);
+        expect(args.data.status).toBe("DISCONNECTED");
+        expect(args.data.accessToken).toBe(null);
+        expect(args.data.refreshToken).toBe(null);
         return { id: args.where.id };
       }
     );
@@ -317,10 +311,10 @@ describe("ProviderOAuth - Connection Disconnection", { concurrency: 1 }, () => {
   });
 
   it("should clear sensitive credentials on disconnect", async () => {
-    mockPrisma.providerConnection.update = mock.fn(
+    mockPrisma.providerConnection.update = vi.fn(
       async (args: Record<string, Record<string, unknown>>) => {
-        assert.strictEqual(args.data.accessToken, null, "Should clear access token");
-        assert.strictEqual(args.data.refreshToken, null, "Should clear refresh token");
+        expect(args.data.accessToken).toBe(null);
+        expect(args.data.refreshToken).toBe(null);
         return {};
       }
     );

@@ -5,52 +5,64 @@
  * including character-limit enforcement on a body that exceeds 280 chars.
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { prisma } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
 import promClient from "prom-client";
 import { PlatformContentAdapter } from "../../src/content/PlatformContentAdapter";
-import { EventService } from "../../src/events/EventService";
+import type { EventService } from "../../src/events/EventService";
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface";
 
-describe("PlatformContentAdapter - Simple Test", { concurrency: 1 }, () => {
+vi.mock("../../src/lib/logger.js", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
+  },
+}));
+
+/** Minimal Redis mock — no real connection needed for content adaptation logic */
+const mockRedis = {
+  get: vi.fn(async () => null),
+  set: vi.fn(async () => "OK"),
+  setex: vi.fn(async () => "OK"),
+  del: vi.fn(async () => 1),
+  hget: vi.fn(async () => null),
+  hset: vi.fn(async () => 1),
+  hexists: vi.fn(async () => 0),
+  keys: vi.fn(async () => []),
+  lpush: vi.fn(async () => 1),
+  lrange: vi.fn(async () => []),
+  xack: vi.fn(async () => 0),
+  xgroup: vi.fn(async () => "OK"),
+  xreadgroup: vi.fn(async () => null),
+  disconnect: vi.fn(),
+  quit: vi.fn(),
+  status: "ready",
+} as unknown as import("ioredis").default;
+
+describe("PlatformContentAdapter - Simple Test", () => {
   let adapter: PlatformContentAdapter;
-  let prisma: PrismaClient;
-  let redis: Redis;
 
-  before(async () => {
-    prisma = createTestPrismaClient();
-    redis = new Redis({
-      host: process.env.REDIS_HOST || "localhost",
-      port: parseInt(process.env.REDIS_PORT || "6379"),
-      lazyConnect: true,
-      maxRetriesPerRequest: 1,
-      enableReadyCheck: false,
-    });
-
-    const eventService = new EventService({
-      prisma,
-      redis,
-      enableMetrics: false,
-      enableReplay: false,
-    });
+  beforeAll(async () => {
+    const eventService: Pick<EventService, "publishEvent"> = {
+      publishEvent: async () => ({ ok: true as const, value: undefined }),
+    };
 
     adapter = new PlatformContentAdapter({
-      prisma,
-      redis,
-      eventService,
+      prisma: prisma as unknown as PrismaClient,
+      redis: mockRedis,
+      eventService: eventService as EventService,
     });
 
     await adapter.initialize();
   });
 
-  after(async () => {
+  afterAll(async () => {
     promClient.register.clear();
-    redis.disconnect(false);
-    await prisma.$disconnect();
   });
 
   it("should adapt content for Twitter/X and enforce 280-char limit", async () => {
@@ -64,12 +76,9 @@ describe("PlatformContentAdapter - Simple Test", { concurrency: 1 }, () => {
 
     const result = await adapter.adaptForSingleProvider(samplePost, "x" as ProviderId);
 
-    assert.strictEqual(result.ok, true, "Adaptation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.ok(
-        result.value.adaptedContent.body.length <= 280,
-        `Adapted body should be <=280 chars, got ${result.value.adaptedContent.body.length}`
-      );
+      expect(result.value.adaptedContent.body.length <= 280).toBeTruthy();
     }
   });
 });

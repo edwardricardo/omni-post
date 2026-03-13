@@ -15,9 +15,8 @@
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/AccountRepository.test.ts
  */
 
-import { describe, it, before, after } from "node:test";
-import * as assert from "node:assert/strict";
-import { PrismaAccountQueryRepository } from "../../src/infrastructure/repositories/PrismaAccountQueryRepository.js";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { PrismaAccountQueryRepository } from "../../../src/infrastructure/repositories/PrismaAccountQueryRepository.js";
 import { prisma } from "@infra/prisma";
 
 // ========================================
@@ -122,10 +121,10 @@ async function teardownTestData() {
 // TESTS: Basic Repository Operations
 // ========================================
 
-describe("AccountRepository - Basic Operations", { concurrency: 1 }, () => {
+describe("AccountRepository - Basic Operations", () => {
   it("AccountRepository instantiates successfully", () => {
     const repo = new PrismaAccountQueryRepository(prisma);
-    assert.ok(repo !== null, "Should create repository instance");
+    expect(repo !== null).toBeTruthy();
   });
 });
 
@@ -133,12 +132,12 @@ describe("AccountRepository - Basic Operations", { concurrency: 1 }, () => {
 // TESTS: findWithProjects
 // ========================================
 
-describe("AccountRepository - findWithProjects", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AccountRepository - findWithProjects", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -146,11 +145,11 @@ describe("AccountRepository - findWithProjects", { concurrency: 1 }, () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const result = await repo.findWithProjects(testAccountIds[0]!);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.id, testAccountIds[0], "Should return correct account");
-      assert.ok(Array.isArray(result.value.projects), "Should include projects array");
-      assert.strictEqual(result.value.projects.length, 2, "Should include 2 projects");
+      expect(result.value.id).toBe(testAccountIds[0]);
+      expect(Array.isArray(result.value.projects)).toBeTruthy();
+      expect(result.value.projects.length).toBe(2);
     }
   });
 
@@ -158,9 +157,9 @@ describe("AccountRepository - findWithProjects", { concurrency: 1 }, () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const result = await repo.findWithProjects("non-existent-account-id");
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND", "Should return NOT_FOUND error");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 
@@ -168,10 +167,10 @@ describe("AccountRepository - findWithProjects", { concurrency: 1 }, () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const result = await repo.findWithProjects(testAccountIds[1]!);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.ok(Array.isArray(result.value.projects), "Should include projects array");
-      assert.strictEqual(result.value.projects.length, 0, "Should have empty projects array");
+      expect(Array.isArray(result.value.projects)).toBeTruthy();
+      expect(result.value.projects.length).toBe(0);
     }
   });
 });
@@ -180,12 +179,12 @@ describe("AccountRepository - findWithProjects", { concurrency: 1 }, () => {
 // TESTS: findById
 // ========================================
 
-describe("AccountRepository - findById", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AccountRepository - findById", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -193,11 +192,11 @@ describe("AccountRepository - findById", { concurrency: 1 }, () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const result = await repo.findById(testAccountIds[0]!);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.id, testAccountIds[0], "Should return correct account");
-      assert.ok(result.value.email, "Should include email");
-      assert.ok(result.value.subscription, "Should include subscription");
+      expect(result.value.id).toBe(testAccountIds[0]);
+      expect(result.value.email).toBeTruthy();
+      expect(result.value.subscription).toBeTruthy();
     }
   });
 
@@ -205,9 +204,9 @@ describe("AccountRepository - findById", { concurrency: 1 }, () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const result = await repo.findById("non-existent-account-id");
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND", "Should return NOT_FOUND error");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 
@@ -215,10 +214,10 @@ describe("AccountRepository - findById", { concurrency: 1 }, () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const result = await repo.findById(testAccountIds[0]!);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
       // TypeScript won't have 'projects' property since it's not in the type
-      assert.strictEqual((result.value as any).projects, undefined, "Should not include projects");
+      expect((result.value as any).projects).toBe(undefined);
     }
   });
 });
@@ -227,12 +226,12 @@ describe("AccountRepository - findById", { concurrency: 1 }, () => {
 // TESTS: findByEmail
 // ========================================
 
-describe("AccountRepository - findByEmail", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AccountRepository - findByEmail", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -244,10 +243,10 @@ describe("AccountRepository - findByEmail", { concurrency: 1 }, () => {
 
     const result = await repo.findByEmail(account!.email);
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.id, testAccountIds[0], "Should return correct account");
-      assert.strictEqual(result.value.email, account!.email, "Should match email");
+      expect(result.value.id).toBe(testAccountIds[0]);
+      expect(result.value.email).toBe(account!.email);
     }
   });
 
@@ -260,13 +259,9 @@ describe("AccountRepository - findByEmail", { concurrency: 1 }, () => {
     const uppercaseEmail = account!.email.toUpperCase();
     const result = await repo.findByEmail(uppercaseEmail);
 
-    assert.ok(result.ok, "Should return successful result with uppercase email");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(
-        result.value.id,
-        testAccountIds[0],
-        "Should find account with case-insensitive search"
-      );
+      expect(result.value.id).toBe(testAccountIds[0]);
     }
   });
 
@@ -274,9 +269,9 @@ describe("AccountRepository - findByEmail", { concurrency: 1 }, () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const result = await repo.findByEmail("nonexistent@example.com");
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND", "Should return NOT_FOUND error");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 });
@@ -285,12 +280,12 @@ describe("AccountRepository - findByEmail", { concurrency: 1 }, () => {
 // TESTS: findManyWithProjects
 // ========================================
 
-describe("AccountRepository - findManyWithProjects", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AccountRepository - findManyWithProjects", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -299,11 +294,11 @@ describe("AccountRepository - findManyWithProjects", { concurrency: 1 }, () => {
     const accountIds = [testAccountIds[0]!, testAccountIds[1]!];
     const accounts = await repo.findManyWithProjects(accountIds);
 
-    assert.ok(Array.isArray(accounts), "Should return an array");
-    assert.strictEqual(accounts.length, 2, "Should return 2 accounts");
+    expect(Array.isArray(accounts)).toBeTruthy();
+    expect(accounts.length).toBe(2);
 
     accounts.forEach((account) => {
-      assert.ok(Array.isArray(account.projects), "Each account should have projects array");
+      expect(Array.isArray(account.projects)).toBeTruthy();
     });
   });
 
@@ -311,8 +306,8 @@ describe("AccountRepository - findManyWithProjects", { concurrency: 1 }, () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const accounts = await repo.findManyWithProjects([]);
 
-    assert.ok(Array.isArray(accounts), "Should return an array");
-    assert.strictEqual(accounts.length, 0, "Should return empty array");
+    expect(Array.isArray(accounts)).toBeTruthy();
+    expect(accounts.length).toBe(0);
   });
 
   it("only returns accounts that exist", async () => {
@@ -320,18 +315,18 @@ describe("AccountRepository - findManyWithProjects", { concurrency: 1 }, () => {
     const accountIds = [testAccountIds[0]!, "non-existent-id", testAccountIds[1]!];
     const accounts = await repo.findManyWithProjects(accountIds);
 
-    assert.strictEqual(accounts.length, 2, "Should return only existing accounts");
+    expect(accounts.length).toBe(2);
   });
 
   it("returns accounts in correct order", async () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const accounts = await repo.findManyWithProjects(testAccountIds.slice(0, 3));
 
-    assert.ok(accounts.length > 0, "Should return accounts");
+    expect(accounts.length > 0).toBeTruthy();
     // Verify all requested accounts are returned
     const returnedIds = accounts.map((a) => a.id);
     testAccountIds.slice(0, 3).forEach((id) => {
-      assert.ok(returnedIds.includes(id), `Account ${id} should be included in results`);
+      expect(returnedIds.includes(id)).toBeTruthy();
     });
   });
 });
@@ -340,12 +335,12 @@ describe("AccountRepository - findManyWithProjects", { concurrency: 1 }, () => {
 // TESTS: updateSubscription
 // ========================================
 
-describe("AccountRepository - updateSubscription", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AccountRepository - updateSubscription", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -355,16 +350,16 @@ describe("AccountRepository - updateSubscription", { concurrency: 1 }, () => {
       subscription: "PRO",
     });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.subscription, "PRO", "Should update subscription to PRO");
+      expect(result.value.subscription).toBe("PRO");
     }
 
     // Verify in database
     const account = await prisma.account.findUnique({
       where: { id: testAccountIds[0]! },
     });
-    assert.strictEqual(account!.subscription, "PRO", "Should persist subscription update");
+    expect(account!.subscription).toBe("PRO");
   });
 
   it("updates maxProjects successfully", async () => {
@@ -373,9 +368,9 @@ describe("AccountRepository - updateSubscription", { concurrency: 1 }, () => {
       maxProjects: 10,
     });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.maxProjects, 10, "Should update maxProjects");
+      expect(result.value.maxProjects).toBe(10);
     }
   });
 
@@ -386,10 +381,10 @@ describe("AccountRepository - updateSubscription", { concurrency: 1 }, () => {
       trialEndDate: null,
     });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.isOnTrial, false, "Should update trial status");
-      assert.strictEqual(result.value.trialEndDate, null, "Should clear trial end date");
+      expect(result.value.isOnTrial).toBe(false);
+      expect(result.value.trialEndDate).toBe(null);
     }
   });
 
@@ -404,11 +399,11 @@ describe("AccountRepository - updateSubscription", { concurrency: 1 }, () => {
       trialEndDate: newTrialEndDate,
     });
 
-    assert.ok(result.ok, "Should return successful result");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.strictEqual(result.value.subscription, "ENTERPRISE", "Should update subscription");
-      assert.strictEqual(result.value.maxProjects, 50, "Should update maxProjects");
-      assert.strictEqual(result.value.isOnTrial, true, "Should update trial status");
+      expect(result.value.subscription).toBe("ENTERPRISE");
+      expect(result.value.maxProjects).toBe(50);
+      expect(result.value.isOnTrial).toBe(true);
     }
   });
 
@@ -418,9 +413,9 @@ describe("AccountRepository - updateSubscription", { concurrency: 1 }, () => {
       subscription: "PRO",
     });
 
-    assert.strictEqual(result.ok, false, "Should return error result");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND", "Should return NOT_FOUND error");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 });
@@ -429,12 +424,12 @@ describe("AccountRepository - updateSubscription", { concurrency: 1 }, () => {
 // TESTS: getExpiringTrials
 // ========================================
 
-describe("AccountRepository - getExpiringTrials", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AccountRepository - getExpiringTrials", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -442,12 +437,12 @@ describe("AccountRepository - getExpiringTrials", { concurrency: 1 }, () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const accounts = await repo.getExpiringTrials(3); // 3 days threshold
 
-    assert.ok(Array.isArray(accounts), "Should return an array");
-    assert.ok(accounts.length > 0, "Should find expiring trials");
+    expect(Array.isArray(accounts)).toBeTruthy();
+    expect(accounts.length > 0).toBeTruthy();
 
     // Should include account with trial ending in 2 days
     const hasExpiringAccount = accounts.some((a) => a.id === testAccountIds[1]);
-    assert.ok(hasExpiringAccount, "Should include account expiring in 2 days");
+    expect(hasExpiringAccount).toBeTruthy();
   });
 
   it("does not return trials expiring beyond threshold", async () => {
@@ -456,7 +451,7 @@ describe("AccountRepository - getExpiringTrials", { concurrency: 1 }, () => {
 
     // Should not include account expiring in 10 days
     const hasLaterAccount = accounts.some((a) => a.id === testAccountIds[2]);
-    assert.ok(!hasLaterAccount, "Should not include account expiring in 10 days");
+    expect(hasLaterAccount).toBeFalsy();
   });
 
   it("does not return already expired trials", async () => {
@@ -465,7 +460,7 @@ describe("AccountRepository - getExpiringTrials", { concurrency: 1 }, () => {
 
     // Should not include account that already expired
     const hasExpiredAccount = accounts.some((a) => a.id === testAccountIds[3]);
-    assert.ok(!hasExpiredAccount, "Should not include already expired trials");
+    expect(hasExpiredAccount).toBeFalsy();
   });
 
   it("does not return accounts not on trial", async () => {
@@ -474,7 +469,7 @@ describe("AccountRepository - getExpiringTrials", { concurrency: 1 }, () => {
 
     // Should not include account 1 which is not on trial
     const hasNonTrialAccount = accounts.some((a) => a.id === testAccountIds[0]);
-    assert.ok(!hasNonTrialAccount, "Should not include accounts not on trial");
+    expect(hasNonTrialAccount).toBeFalsy();
   });
 
   it("returns accounts ordered by trial end date ascending", async () => {
@@ -486,7 +481,7 @@ describe("AccountRepository - getExpiringTrials", { concurrency: 1 }, () => {
       if (accounts[i]!.trialEndDate && accounts[i + 1]!.trialEndDate) {
         const currentTime = accounts[i]!.trialEndDate!.getTime();
         const nextTime = accounts[i + 1]!.trialEndDate!.getTime();
-        assert.ok(currentTime <= nextTime, "Accounts should be ordered by trialEndDate ascending");
+        expect(currentTime <= nextTime).toBeTruthy();
       }
     }
   });
@@ -495,7 +490,7 @@ describe("AccountRepository - getExpiringTrials", { concurrency: 1 }, () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const accounts = await repo.getExpiringTrials(0);
 
-    assert.ok(Array.isArray(accounts), "Should return an array");
+    expect(Array.isArray(accounts)).toBeTruthy();
     // May return accounts expiring today, but likely empty
   });
 
@@ -504,17 +499,14 @@ describe("AccountRepository - getExpiringTrials", { concurrency: 1 }, () => {
 
     // Threshold 1: Should only get trials expiring tomorrow
     const accounts1Day = await repo.getExpiringTrials(1);
-    assert.ok(Array.isArray(accounts1Day), "Should return array for 1 day threshold");
+    expect(Array.isArray(accounts1Day)).toBeTruthy();
 
     // Threshold 14: Should get multiple trials
     const accounts14Days = await repo.getExpiringTrials(14);
-    assert.ok(Array.isArray(accounts14Days), "Should return array for 14 day threshold");
+    expect(Array.isArray(accounts14Days)).toBeTruthy();
 
     // 14 days should have more results than 1 day
-    assert.ok(
-      accounts14Days.length >= accounts1Day.length,
-      "Longer threshold should return same or more results"
-    );
+    expect(accounts14Days.length >= accounts1Day.length).toBeTruthy();
   });
 });
 
@@ -522,12 +514,12 @@ describe("AccountRepository - getExpiringTrials", { concurrency: 1 }, () => {
 // TESTS: Edge Cases and Error Handling
 // ========================================
 
-describe("AccountRepository - Edge Cases", { concurrency: 1 }, () => {
-  before(async () => {
+describe("AccountRepository - Edge Cases", () => {
+  beforeAll(async () => {
     await setupTestData();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await teardownTestData();
   });
 
@@ -540,23 +532,20 @@ describe("AccountRepository - Edge Cases", { concurrency: 1 }, () => {
       repo.findById(testAccountIds[2]!),
     ]);
 
-    assert.ok(
-      results.every((r) => r.ok),
-      "All concurrent reads should succeed"
-    );
+    expect(results.every((r) => r.ok)).toBeTruthy();
   });
 
   it("handles empty string account ID gracefully", async () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const result = await repo.findById("");
 
-    assert.ok(!result.ok, "Should return error for empty ID");
+    expect(result.ok).toBeFalsy();
   });
 
   it("handles very long threshold values for expiring trials", async () => {
     const repo = new PrismaAccountQueryRepository(prisma);
     const accounts = await repo.getExpiringTrials(365); // 1 year
 
-    assert.ok(Array.isArray(accounts), "Should handle large threshold values");
+    expect(Array.isArray(accounts)).toBeTruthy();
   });
 });

@@ -2,8 +2,7 @@
  * EnhancedOAuthService Tests - Authorization URL Generation & Token Encryption
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import * as assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { EnhancedOAuthService } from "../../src/auth/enhancedOAuthProvider";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface";
 import type { OAuthMocks } from "./enhancedOAuthProvider.test-helpers.js";
@@ -17,8 +16,8 @@ describe("EnhancedOAuthService - Authorization URL Generation", () => {
   let service: EnhancedOAuthService;
   let mocks: OAuthMocks;
 
-  beforeEach((t) => {
-    mocks = setupMocks(t);
+  beforeEach(() => {
+    mocks = setupMocks();
     service = new EnhancedOAuthService(
       mocks.mockRedis as any,
       mocks.mockMetrics as any,
@@ -31,11 +30,11 @@ describe("EnhancedOAuthService - Authorization URL Generation", () => {
 
     const result = await service.generateAuthorizationUrl(provider, "acc-123");
 
-    assert.ok(result.authUrl.includes("response_type=code"), "Should include response_type");
-    assert.ok(result.authUrl.includes("client_id="), "Should include client_id");
-    assert.ok(result.authUrl.includes("redirect_uri="), "Should include redirect_uri");
-    assert.ok(result.authUrl.includes("scope="), "Should include scope");
-    assert.ok(result.authUrl.includes("state="), "Should include state");
+    expect(result.authUrl.includes("response_type=code")).toBeTruthy();
+    expect(result.authUrl.includes("client_id=")).toBeTruthy();
+    expect(result.authUrl.includes("redirect_uri=")).toBeTruthy();
+    expect(result.authUrl.includes("scope=")).toBeTruthy();
+    expect(result.authUrl.includes("state=")).toBeTruthy();
   });
 
   it("should validate and filter scopes", async () => {
@@ -46,7 +45,7 @@ describe("EnhancedOAuthService - Authorization URL Generation", () => {
       "invalid_scope",
     ]);
 
-    assert.ok(result.authUrl.includes("read"), "Should include valid scope");
+    expect(result.authUrl.includes("read")).toBeTruthy();
   });
 
   it("should enforce maximum scope count", async () => {
@@ -58,12 +57,9 @@ describe("EnhancedOAuthService - Authorization URL Generation", () => {
       },
     });
 
-    await assert.rejects(
-      async () => {
-        await service.generateAuthorizationUrl(provider, "acc-123", ["read", "write", "admin"]);
-      },
-      { message: /Too many scopes/ }
-    );
+    await expect(
+      service.generateAuthorizationUrl(provider, "acc-123", ["read", "write", "admin"])
+    ).rejects.toThrow(/Too many scopes/);
   });
 
   it("should reject if no valid scopes provided", async () => {
@@ -74,12 +70,9 @@ describe("EnhancedOAuthService - Authorization URL Generation", () => {
       },
     });
 
-    await assert.rejects(
-      async () => {
-        await service.generateAuthorizationUrl(provider, "acc-123", ["invalid1", "invalid2"]);
-      },
-      { message: /No valid scopes/ }
-    );
+    await expect(
+      service.generateAuthorizationUrl(provider, "acc-123", ["invalid1", "invalid2"])
+    ).rejects.toThrow(/No valid scopes/);
   });
 
   it("should include nonce parameter for security", async () => {
@@ -87,7 +80,7 @@ describe("EnhancedOAuthService - Authorization URL Generation", () => {
 
     const result = await service.generateAuthorizationUrl(provider, "acc-123");
 
-    assert.ok(result.authUrl.includes("nonce="), "Should include nonce parameter");
+    expect(result.authUrl.includes("nonce=")).toBeTruthy();
   });
 });
 
@@ -99,8 +92,8 @@ describe("EnhancedOAuthService - Token Encryption", () => {
   let service: EnhancedOAuthService;
   let mocks: OAuthMocks;
 
-  beforeEach((t) => {
-    mocks = setupMocks(t);
+  beforeEach(() => {
+    mocks = setupMocks();
     process.env.OAUTH_ENCRYPTION_KEY = "a".repeat(64);
     service = new EnhancedOAuthService(
       mocks.mockRedis as any,
@@ -131,11 +124,11 @@ describe("EnhancedOAuthService - Token Encryption", () => {
       expiresAt: Date.now() + 600000,
     };
 
-    mocks.mockRedis.get = t.mock.fn(async () => JSON.stringify(stateData));
-    mocks.mockPrisma.providerConnection.findFirst = t.mock.fn(async () => null);
+    mocks.mockRedis.get = vi.fn(async () => JSON.stringify(stateData));
+    mocks.mockPrisma.providerConnection.findFirst = vi.fn(async () => null);
 
     let capturedAccessToken: string = "";
-    mocks.mockPrisma.providerConnection.create = t.mock.fn(async (args: any) => {
+    mocks.mockPrisma.providerConnection.create = vi.fn(async (args: any) => {
       capturedAccessToken = args.data.accessToken;
       return {
         id: "conn-123",
@@ -145,7 +138,7 @@ describe("EnhancedOAuthService - Token Encryption", () => {
     });
 
     // Mock fetch for token exchange
-    global.fetch = t.mock.fn(async () => ({
+    global.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({
         access_token: "plain-token",
@@ -155,11 +148,8 @@ describe("EnhancedOAuthService - Token Encryption", () => {
 
     await service.handleCallback(provider, "auth-code", "valid-state");
 
-    assert.notStrictEqual(capturedAccessToken, "plain-token", "Token should be encrypted");
-    assert.ok(
-      capturedAccessToken.includes(":"),
-      "Encrypted token should have parts separated by :"
-    );
+    expect(capturedAccessToken).not.toBe("plain-token");
+    expect(capturedAccessToken.includes(":")).toBeTruthy();
 
     // Restore original fetch
     global.fetch = mocks.globalFetch;
@@ -168,7 +158,7 @@ describe("EnhancedOAuthService - Token Encryption", () => {
   it("should decrypt tokens when retrieving", async (t) => {
     const encryptedToken = "iv:authTag:encryptedData";
 
-    mocks.mockPrisma.providerConnection.findUnique = t.mock.fn(async () => ({
+    mocks.mockPrisma.providerConnection.findUnique = vi.fn(async () => ({
       id: "conn-123",
       refreshToken: encryptedToken,
       accountId: "acc-123",
@@ -177,7 +167,7 @@ describe("EnhancedOAuthService - Token Encryption", () => {
 
     const provider = createMockProvider();
     let _capturedRefreshToken = "";
-    provider.refreshAccessToken = t.mock.fn(async (token: string) => {
+    provider.refreshAccessToken = vi.fn(async (token: string) => {
       _capturedRefreshToken = token;
       return {
         accessToken: "new-token",
@@ -185,7 +175,7 @@ describe("EnhancedOAuthService - Token Encryption", () => {
       };
     });
 
-    mocks.mockPrisma.providerConnection.update = t.mock.fn(async () => ({}));
+    mocks.mockPrisma.providerConnection.update = vi.fn(async () => ({}));
 
     try {
       await service.refreshTokens(provider, "conn-123");
@@ -193,6 +183,6 @@ describe("EnhancedOAuthService - Token Encryption", () => {
       // May fail due to decryption, but we're testing the flow
     }
 
-    assert.ok(true, "Should attempt to decrypt token");
+    expect(true).toBeTruthy();
   });
 });

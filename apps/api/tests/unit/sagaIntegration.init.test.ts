@@ -8,8 +8,7 @@
  * - The CQRS bus and job-queue function are wired up and callable.
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SagaIntegration } from "../../src/saga/SagaIntegration";
 import { Command } from "@shared/cqrs";
 import {
@@ -37,7 +36,7 @@ console.warn = () => {};
 // Initialization Tests
 // ============================================================================
 
-describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
+describe("SagaIntegration - Initialization", () => {
   let mockFastify: MockFastifyInstance;
   let mockEventService: MockEventService;
   let mockCQRSBus: MockCQRSBus;
@@ -75,7 +74,7 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
     await integration.initialize();
 
     const manager = integration.getSagaManager();
-    assert.ok(manager, "Saga manager should be initialised");
+    expect(manager).toBeTruthy();
   });
 
   it("should register saga definitions during initialization", async () => {
@@ -93,10 +92,7 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
     const manager = integration.getSagaManager();
     const metrics = manager.getMetrics();
 
-    assert.ok(
-      metrics.definitions.includes("post-publishing-saga"),
-      "Post publishing saga should be registered"
-    );
+    expect(metrics.definitions.includes("post-publishing-saga")).toBeTruthy();
   });
 
   it("should register API routes during initialization", async () => {
@@ -111,22 +107,10 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
 
     await integration.initialize();
 
-    assert.ok(
-      mockFastify.registeredRoutes.has("POST:/api/sagas/post-publishing/start"),
-      "Should register post publishing start route"
-    );
-    assert.ok(
-      mockFastify.registeredRoutes.has("GET:/api/sagas/:sagaId"),
-      "Should register saga status route"
-    );
-    assert.ok(
-      mockFastify.registeredRoutes.has("POST:/api/sagas/:sagaId/continue"),
-      "Should register saga continue route"
-    );
-    assert.ok(
-      mockFastify.registeredRoutes.has("POST:/api/sagas/:sagaId/compensate"),
-      "Should register saga compensate route"
-    );
+    expect(mockFastify.registeredRoutes.has("POST:/api/sagas/post-publishing/start")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("GET:/api/sagas/:sagaId")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("POST:/api/sagas/:sagaId/continue")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("POST:/api/sagas/:sagaId/compensate")).toBeTruthy();
   });
 
   it("should register monitoring routes during initialization", async () => {
@@ -141,18 +125,9 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
 
     await integration.initialize();
 
-    assert.ok(
-      mockFastify.registeredRoutes.has("GET:/api/sagas"),
-      "Should register sagas list route"
-    );
-    assert.ok(
-      mockFastify.registeredRoutes.has("GET:/api/sagas/health"),
-      "Should register health check route"
-    );
-    assert.ok(
-      mockFastify.registeredRoutes.has("GET:/api/sagas/metrics"),
-      "Should register metrics route"
-    );
+    expect(mockFastify.registeredRoutes.has("GET:/api/sagas")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("GET:/api/sagas/health")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("GET:/api/sagas/metrics")).toBeTruthy();
   });
 });
 
@@ -160,7 +135,7 @@ describe("SagaIntegration - Initialization", { concurrency: 1 }, () => {
 // Saga Definition Registration Tests
 // ============================================================================
 
-describe("SagaIntegration - Saga Definition Registration", { concurrency: 1 }, () => {
+describe("SagaIntegration - Saga Definition Registration", () => {
   let integration: SagaIntegration;
   let mockFastify: MockFastifyInstance;
   let mockEventService: MockEventService;
@@ -197,7 +172,7 @@ describe("SagaIntegration - Saga Definition Registration", { concurrency: 1 }, (
     const manager = integration.getSagaManager();
     const metrics = manager.getMetrics();
 
-    assert.ok(metrics.definitions.includes("post-publishing-saga"));
+    expect(metrics.definitions.includes("post-publishing-saga")).toBeTruthy();
   });
 
   it("should configure command executor for saga steps", async () => {
@@ -215,7 +190,7 @@ describe("SagaIntegration - Saga Definition Registration", { concurrency: 1 }, (
     };
 
     const result = await mockCQRSBus.executeCommand(testCommand);
-    assert.ok(result.success, "CQRS bus should execute commands");
+    expect(result.success).toBeTruthy();
   });
 
   it("should configure job queue function for publishing", async () => {
@@ -223,6 +198,6 @@ describe("SagaIntegration - Saga Definition Registration", { concurrency: 1 }, (
 
     // Job queue is wired internally; verify through manager presence
     const manager = integration.getSagaManager();
-    assert.ok(manager, "Manager with job queue should be initialised");
+    expect(manager).toBeTruthy();
   });
 });

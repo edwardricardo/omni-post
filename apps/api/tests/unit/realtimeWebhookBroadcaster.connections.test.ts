@@ -1,5 +1,4 @@
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import {
   MockWebSocket,
   state,
@@ -7,12 +6,12 @@ import {
   teardownBroadcaster,
 } from "./realtimeWebhookBroadcaster.test-helpers.js";
 
-describe("RealtimeWebhookBroadcaster - Connection Management", { concurrency: 1 }, () => {
-  before(async () => {
+describe("RealtimeWebhookBroadcaster - Connection Management", () => {
+  beforeAll(async () => {
     setupBroadcaster();
   });
 
-  after(async () => {
+  afterAll(async () => {
     teardownBroadcaster();
   });
 
@@ -28,9 +27,9 @@ describe("RealtimeWebhookBroadcaster - Connection Management", { concurrency: 1 
     });
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.totalConnections, 1);
-    assert.strictEqual(stats.connectionsByAccount["account-1"], 1);
-    assert.strictEqual(stats.connectionsByProject["project-1"], 1);
+    expect(stats.totalConnections).toBe(1);
+    expect(stats.connectionsByAccount["account-1"]).toBe(1);
+    expect(stats.connectionsByProject["project-1"]).toBe(1);
   });
 
   it("should send connection_established message on new connection", () => {
@@ -39,9 +38,9 @@ describe("RealtimeWebhookBroadcaster - Connection Management", { concurrency: 1 
     state.broadcaster!.addConnection("conn-1", "user-1", "account-1", socket as any);
 
     const message = socket.getLastMessage();
-    assert.strictEqual(message.type, "connection_established");
-    assert.strictEqual(message.connectionId, "conn-1");
-    assert.ok(message.timestamp);
+    expect(message.type).toBe("connection_established");
+    expect(message.connectionId).toBe("conn-1");
+    expect(message.timestamp).toBeTruthy();
   });
 
   it("should handle multiple connections from same account", () => {
@@ -52,8 +51,8 @@ describe("RealtimeWebhookBroadcaster - Connection Management", { concurrency: 1 
     state.broadcaster!.addConnection("conn-2", "user-2", "account-1", socket2 as any);
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.totalConnections, 2);
-    assert.strictEqual(stats.connectionsByAccount["account-1"], 2);
+    expect(stats.totalConnections).toBe(2);
+    expect(stats.connectionsByAccount["account-1"]).toBe(2);
   });
 
   it("should handle multiple projects in single connection", () => {
@@ -64,9 +63,9 @@ describe("RealtimeWebhookBroadcaster - Connection Management", { concurrency: 1 
     });
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.connectionsByProject["project-1"], 1);
-    assert.strictEqual(stats.connectionsByProject["project-2"], 1);
-    assert.strictEqual(stats.connectionsByProject["project-3"], 1);
+    expect(stats.connectionsByProject["project-1"]).toBe(1);
+    expect(stats.connectionsByProject["project-2"]).toBe(1);
+    expect(stats.connectionsByProject["project-3"]).toBe(1);
   });
 
   it("should remove connection when disconnected", () => {
@@ -79,9 +78,9 @@ describe("RealtimeWebhookBroadcaster - Connection Management", { concurrency: 1 
     state.broadcaster!.removeConnection("conn-1");
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.totalConnections, 0);
-    assert.strictEqual(stats.connectionsByAccount["account-1"], undefined);
-    assert.strictEqual(stats.connectionsByProject["project-1"], undefined);
+    expect(stats.totalConnections).toBe(0);
+    expect(stats.connectionsByAccount["account-1"]).toBe(undefined);
+    expect(stats.connectionsByProject["project-1"]).toBe(undefined);
   });
 
   it("should clean up indexes when removing connection", () => {
@@ -94,8 +93,8 @@ describe("RealtimeWebhookBroadcaster - Connection Management", { concurrency: 1 
     state.broadcaster!.removeConnection("conn-1");
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.connectionsByProject["project-1"], undefined);
-    assert.strictEqual(stats.connectionsByProject["project-2"], undefined);
+    expect(stats.connectionsByProject["project-1"]).toBe(undefined);
+    expect(stats.connectionsByProject["project-2"]).toBe(undefined);
   });
 
   it("should handle socket close event", () => {
@@ -106,7 +105,7 @@ describe("RealtimeWebhookBroadcaster - Connection Management", { concurrency: 1 
     socket.close();
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.totalConnections, 0);
+    expect(stats.totalConnections).toBe(0);
   });
 
   it("should handle socket error event", () => {
@@ -117,16 +116,16 @@ describe("RealtimeWebhookBroadcaster - Connection Management", { concurrency: 1 
     socket.simulateError(new Error("WebSocket error"));
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.totalConnections, 0);
+    expect(stats.totalConnections).toBe(0);
   });
 });
 
-describe("RealtimeWebhookBroadcaster - WebSocket Message Handling", { concurrency: 1 }, () => {
-  before(async () => {
+describe("RealtimeWebhookBroadcaster - WebSocket Message Handling", () => {
+  beforeAll(async () => {
     setupBroadcaster();
   });
 
-  after(async () => {
+  afterAll(async () => {
     teardownBroadcaster();
   });
 
@@ -143,8 +142,8 @@ describe("RealtimeWebhookBroadcaster - WebSocket Message Handling", { concurrenc
     socket.simulateMessage(JSON.stringify({ type: "ping" }));
 
     const message = socket.getLastMessage();
-    assert.strictEqual(message.type, "pong");
-    assert.ok(message.timestamp);
+    expect(message.type).toBe("pong");
+    expect(message.timestamp).toBeTruthy();
   });
 
   it("should update project subscriptions", () => {
@@ -163,13 +162,13 @@ describe("RealtimeWebhookBroadcaster - WebSocket Message Handling", { concurrenc
     );
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.connectionsByProject["project-1"], undefined);
-    assert.strictEqual(stats.connectionsByProject["project-2"], 1);
-    assert.strictEqual(stats.connectionsByProject["project-3"], 1);
+    expect(stats.connectionsByProject["project-1"]).toBe(undefined);
+    expect(stats.connectionsByProject["project-2"]).toBe(1);
+    expect(stats.connectionsByProject["project-3"]).toBe(1);
 
     const message = socket.getLastMessage();
-    assert.strictEqual(message.type, "subscription_updated");
-    assert.deepStrictEqual(message.subscriptions.projects, ["project-2", "project-3"]);
+    expect(message.type).toBe("subscription_updated");
+    expect(message.subscriptions.projects).toStrictEqual(["project-2", "project-3"]);
   });
 
   it("should update event type subscriptions", () => {
@@ -186,8 +185,8 @@ describe("RealtimeWebhookBroadcaster - WebSocket Message Handling", { concurrenc
     );
 
     const message = socket.getLastMessage();
-    assert.strictEqual(message.type, "subscription_updated");
-    assert.deepStrictEqual(message.subscriptions.eventTypes, [
+    expect(message.type).toBe("subscription_updated");
+    expect(message.subscriptions.eventTypes).toStrictEqual([
       "POST_PUBLISHED",
       "POST_ENGAGEMENT_UPDATE",
     ]);
@@ -207,8 +206,8 @@ describe("RealtimeWebhookBroadcaster - WebSocket Message Handling", { concurrenc
     );
 
     const message = socket.getLastMessage();
-    assert.strictEqual(message.type, "subscription_updated");
-    assert.deepStrictEqual(message.subscriptions.providers, ["X", "INSTAGRAM"]);
+    expect(message.type).toBe("subscription_updated");
+    expect(message.subscriptions.providers).toStrictEqual(["X", "INSTAGRAM"]);
   });
 
   it("should handle malformed JSON messages gracefully", () => {
@@ -219,7 +218,7 @@ describe("RealtimeWebhookBroadcaster - WebSocket Message Handling", { concurrenc
     socket.simulateMessage("invalid json {{{");
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.totalConnections, 1);
+    expect(stats.totalConnections).toBe(1);
   });
 
   it("should ignore unknown message types", () => {
@@ -236,6 +235,6 @@ describe("RealtimeWebhookBroadcaster - WebSocket Message Handling", { concurrenc
     );
 
     const messages = socket.getAllMessages();
-    assert.strictEqual(messages.length, 0);
+    expect(messages.length).toBe(0);
   });
 });

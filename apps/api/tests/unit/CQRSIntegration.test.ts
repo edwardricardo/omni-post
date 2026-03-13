@@ -12,8 +12,7 @@
  * - Graceful shutdown
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { CQRSIntegration } from "../../src/cqrs/CQRSIntegration";
 import {
@@ -96,8 +95,8 @@ describe("CQRSIntegration - Initialization", () => {
     const bus = integration.getBus();
     const handlers = bus.getHandlersInfo();
 
-    assert.ok(handlers.commands.length > 0);
-    assert.ok(handlers.queries.length > 0);
+    expect(handlers.commands.length > 0).toBeTruthy();
+    expect(handlers.queries.length > 0).toBeTruthy();
   });
 
   it("should register command handlers during initialization", async () => {
@@ -110,9 +109,9 @@ describe("CQRSIntegration - Initialization", () => {
     const bus = integration.getBus();
     const handlers = bus.getHandlersInfo();
 
-    assert.ok(handlers.commands.includes("post.create"));
-    assert.ok(handlers.commands.includes("post.update"));
-    assert.ok(handlers.commands.includes("post.publish"));
+    expect(handlers.commands.includes("post.create")).toBeTruthy();
+    expect(handlers.commands.includes("post.update")).toBeTruthy();
+    expect(handlers.commands.includes("post.publish")).toBeTruthy();
   });
 
   it("should register query handlers during initialization", async () => {
@@ -125,9 +124,9 @@ describe("CQRSIntegration - Initialization", () => {
     const bus = integration.getBus();
     const handlers = bus.getHandlersInfo();
 
-    assert.ok(handlers.queries.includes("post.get"));
-    assert.ok(handlers.queries.includes("post.list"));
-    assert.ok(handlers.queries.includes("post.search"));
+    expect(handlers.queries.includes("post.get")).toBeTruthy();
+    expect(handlers.queries.includes("post.list")).toBeTruthy();
+    expect(handlers.queries.includes("post.search")).toBeTruthy();
   });
 
   it("should use default configuration when not provided", async () => {
@@ -138,7 +137,7 @@ describe("CQRSIntegration - Initialization", () => {
     await integration.initialize();
 
     const bus = integration.getBus();
-    assert.ok(bus);
+    expect(bus).toBeTruthy();
   });
 });
 
@@ -180,10 +179,10 @@ describe("CQRSIntegration - Command Routes", () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
-    assert.ok(body.data.postId);
+    expect(body.success).toBeTruthy();
+    expect(body.data.postId).toBeTruthy();
   });
 
   it("should handle POST /api/cqrs/posts/create with optional fields", async () => {
@@ -201,9 +200,9 @@ describe("CQRSIntegration - Command Routes", () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
+    expect(body.success).toBeTruthy();
   });
 
   it("should handle PUT /api/cqrs/posts/:postId successfully", async () => {
@@ -217,9 +216,9 @@ describe("CQRSIntegration - Command Routes", () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
+    expect(body.success).toBeTruthy();
   });
 
   it("should handle POST /api/cqrs/posts/:postId/publish successfully", async () => {
@@ -232,9 +231,9 @@ describe("CQRSIntegration - Command Routes", () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
+    expect(body.success).toBeTruthy();
   });
 
   it("should handle publish with scheduled time", async () => {
@@ -250,9 +249,9 @@ describe("CQRSIntegration - Command Routes", () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
+    expect(body.success).toBeTruthy();
   });
 
   it("should return error for invalid command data", async () => {
@@ -264,7 +263,7 @@ describe("CQRSIntegration - Command Routes", () => {
       },
     });
 
-    assert.ok(response.statusCode >= 400);
+    expect(response.statusCode >= 400).toBeTruthy();
   });
 });
 
@@ -301,10 +300,10 @@ describe("CQRSIntegration - Query Routes", () => {
       url: `/api/cqrs/posts/${TEST_POST_ID}`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
-    assert.ok(body.data);
+    expect(body.success).toBeTruthy();
+    expect(body.data).toBeTruthy();
   });
 
   it("should handle GET /api/cqrs/posts/:postId with query parameters", async () => {
@@ -313,10 +312,10 @@ describe("CQRSIntegration - Query Routes", () => {
       url: `/api/cqrs/posts/${TEST_POST_ID}?includeContent=true&includeMedia=true&includeAnalytics=true`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
-    assert.ok(body.metadata);
+    expect(body.success).toBeTruthy();
+    expect(body.metadata).toBeTruthy();
   });
 
   it("should handle GET /api/cqrs/posts with filters", async () => {
@@ -325,9 +324,9 @@ describe("CQRSIntegration - Query Routes", () => {
       url: "/api/cqrs/posts?projectId=b2b2b2b2-c3c3-4d3d-8e3e-f3f3f3f3f3f3&status=PUBLISHED&limit=10",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
+    expect(body.success).toBeTruthy();
   });
 
   it("should handle GET /api/cqrs/posts with pagination", async () => {
@@ -336,9 +335,9 @@ describe("CQRSIntegration - Query Routes", () => {
       url: "/api/cqrs/posts?projectId=b2b2b2b2-c3c3-4d3d-8e3e-f3f3f3f3f3f3&limit=20&offset=0&sortBy=createdAt&sortOrder=DESC",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
+    expect(body.success).toBeTruthy();
   });
 
   it("should handle GET /api/cqrs/posts/search successfully", async () => {
@@ -347,9 +346,9 @@ describe("CQRSIntegration - Query Routes", () => {
       url: "/api/cqrs/posts/search?projectId=b2b2b2b2-c3c3-4d3d-8e3e-f3f3f3f3f3f3&q=test",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
+    expect(body.success).toBeTruthy();
   });
 
   it("should return error for search without search term", async () => {
@@ -358,9 +357,9 @@ describe("CQRSIntegration - Query Routes", () => {
       url: "/api/cqrs/posts/search?projectId=b2b2b2b2-c3c3-4d3d-8e3e-f3f3f3f3f3f3",
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
-    assert.ok(body.error);
+    expect(body.error).toBeTruthy();
   });
 
   it("should handle search with filters", async () => {
@@ -369,9 +368,9 @@ describe("CQRSIntegration - Query Routes", () => {
       url: "/api/cqrs/posts/search?projectId=b2b2b2b2-c3c3-4d3d-8e3e-f3f3f3f3f3f3&q=test&status=PUBLISHED&tags=tag1,tag2",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
+    expect(body.success).toBeTruthy();
   });
 });
 
@@ -408,11 +407,11 @@ describe("CQRSIntegration - System Routes", () => {
       url: "/api/cqrs/health",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.status);
-    assert.ok(body.metrics);
-    assert.ok(body.handlers);
+    expect(body.status).toBeTruthy();
+    expect(body.metrics).toBeTruthy();
+    expect(body.handlers).toBeTruthy();
   });
 
   it("should include handler information in health check", async () => {
@@ -422,10 +421,10 @@ describe("CQRSIntegration - System Routes", () => {
     });
 
     const body = JSON.parse(response.body);
-    assert.ok(body.handlers.commands);
-    assert.ok(body.handlers.queries);
-    assert.ok(Array.isArray(body.handlers.commands));
-    assert.ok(Array.isArray(body.handlers.queries));
+    expect(body.handlers.commands).toBeTruthy();
+    expect(body.handlers.queries).toBeTruthy();
+    expect(Array.isArray(body.handlers.commands)).toBeTruthy();
+    expect(Array.isArray(body.handlers.queries)).toBeTruthy();
   });
 
   it("should handle GET /api/cqrs/metrics successfully", async () => {
@@ -434,11 +433,11 @@ describe("CQRSIntegration - System Routes", () => {
       url: "/api/cqrs/metrics",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
-    assert.ok(body.data.performance);
-    assert.ok(body.data.handlers);
+    expect(body.success).toBeTruthy();
+    expect(body.data.performance).toBeTruthy();
+    expect(body.data.handlers).toBeTruthy();
   });
 
   it("should include performance metrics", async () => {
@@ -450,10 +449,10 @@ describe("CQRSIntegration - System Routes", () => {
     const body = JSON.parse(response.body);
     const metrics = body.data.performance;
 
-    assert.ok(typeof metrics.commandsExecuted === "number");
-    assert.ok(typeof metrics.queriesExecuted === "number");
-    assert.ok(typeof metrics.commandErrors === "number");
-    assert.ok(typeof metrics.queryErrors === "number");
+    expect(typeof metrics.commandsExecuted === "number").toBeTruthy();
+    expect(typeof metrics.queriesExecuted === "number").toBeTruthy();
+    expect(typeof metrics.commandErrors === "number").toBeTruthy();
+    expect(typeof metrics.queryErrors === "number").toBeTruthy();
   });
 
   it("should handle DELETE /api/cqrs/cache successfully", async () => {
@@ -462,10 +461,10 @@ describe("CQRSIntegration - System Routes", () => {
       url: "/api/cqrs/cache",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
-    assert.ok(typeof body.data.clearedCount === "number");
+    expect(body.success).toBeTruthy();
+    expect(typeof body.data.clearedCount === "number").toBeTruthy();
   });
 
   it("should handle DELETE /api/cqrs/cache with pattern", async () => {
@@ -474,10 +473,10 @@ describe("CQRSIntegration - System Routes", () => {
       url: "/api/cqrs/cache?pattern=posts:*",
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    assert.ok(body.success);
-    assert.strictEqual(body.data.pattern, "posts:*");
+    expect(body.success).toBeTruthy();
+    expect(body.data.pattern).toBe("posts:*");
   });
 });
 
@@ -522,7 +521,7 @@ describe("CQRSIntegration - Error Handling", () => {
       },
     });
 
-    assert.ok(response.statusCode >= 400, `Expected status >= 400 but got ${response.statusCode}`);
+    expect(response.statusCode >= 400).toBeTruthy();
   });
 
   it("should handle use case errors gracefully", async () => {
@@ -540,7 +539,7 @@ describe("CQRSIntegration - Error Handling", () => {
       },
     });
 
-    assert.ok(response.statusCode >= 400);
+    expect(response.statusCode >= 400).toBeTruthy();
   });
 
   it("should handle non-existent post queries", async () => {
@@ -554,7 +553,7 @@ describe("CQRSIntegration - Error Handling", () => {
       url: "/api/cqrs/posts/00000000-0000-4000-a000-000000000000",
     });
 
-    assert.strictEqual(response.statusCode, 404);
+    expect(response.statusCode).toBe(404);
   });
 });
 
@@ -595,11 +594,11 @@ describe("CQRSIntegration - Query Caching", () => {
       url: `/api/cqrs/posts/${TEST_POST_ID}`,
     });
 
-    assert.strictEqual(response1.statusCode, 200);
-    assert.strictEqual(response2.statusCode, 200);
+    expect(response1.statusCode).toBe(200);
+    expect(response2.statusCode).toBe(200);
 
     const body2 = JSON.parse(response2.body);
-    assert.ok(body2.metadata.fromCache);
+    expect(body2.metadata.fromCache).toBeTruthy();
   });
 
   it("should generate unique cache keys for different queries", async () => {
@@ -614,7 +613,7 @@ describe("CQRSIntegration - Query Caching", () => {
     });
 
     const keys = await mockRedis.keys("cqrs:query:*");
-    assert.ok(keys.length >= 2);
+    expect(keys.length >= 2).toBeTruthy();
   });
 });
 
@@ -651,13 +650,13 @@ describe("CQRSIntegration - Shutdown", () => {
 
     const busBeforeShutdown = integration.getBus();
     const handlersBefore = busBeforeShutdown.getHandlersInfo();
-    assert.ok(handlersBefore.commands.length > 0);
+    expect(handlersBefore.commands.length > 0).toBeTruthy();
 
     await integration.shutdown();
 
     const handlersAfter = busBeforeShutdown.getHandlersInfo();
-    assert.strictEqual(handlersAfter.commands.length, 0);
-    assert.strictEqual(handlersAfter.queries.length, 0);
+    expect(handlersAfter.commands.length).toBe(0);
+    expect(handlersAfter.queries.length).toBe(0);
   });
 });
 
@@ -693,7 +692,7 @@ describe("CQRSIntegration - Event Publishing", () => {
       },
     });
 
-    assert.ok(mockEventService.events.length > 0);
+    expect(mockEventService.events.length > 0).toBeTruthy();
   });
 
   it("should not publish events if command fails", async () => {
@@ -724,7 +723,7 @@ describe("CQRSIntegration - Event Publishing", () => {
       },
     });
 
-    assert.strictEqual(mockEventService2.events.length, 0);
+    expect(mockEventService2.events.length).toBe(0);
     await fastify2.close();
   });
 });

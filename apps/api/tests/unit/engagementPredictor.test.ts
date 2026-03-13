@@ -8,8 +8,7 @@
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/engagementPredictor.test.ts
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { EngagementPredictor } from "../../src/analytics/engagementPredictor.js";
 import {
   PLATFORM_MULTIPLIERS,
@@ -20,38 +19,35 @@ import { getDayName, getMonthName } from "../../src/analytics/engagementPredicto
 describe("EngagementPredictor - Initialization", () => {
   it("initializes successfully", () => {
     const predictor = new EngagementPredictor();
-    assert.ok(
-      predictor instanceof EngagementPredictor,
-      "Should be an EngagementPredictor instance"
-    );
+    expect(predictor instanceof EngagementPredictor).toBeTruthy();
   });
 });
 
 describe("EngagementPredictor - Platform Configuration", () => {
   it("Twitter optimal length is 120 characters", () => {
-    assert.strictEqual(PLATFORM_MULTIPLIERS.twitter.textOptimal, 120);
+    expect(PLATFORM_MULTIPLIERS.twitter.textOptimal).toBe(120);
   });
 
   it("Instagram optimal length is 150 characters", () => {
-    assert.strictEqual(PLATFORM_MULTIPLIERS.instagram.textOptimal, 150);
+    expect(PLATFORM_MULTIPLIERS.instagram.textOptimal).toBe(150);
   });
 
   it("LinkedIn optimal length is 300 characters", () => {
-    assert.strictEqual(PLATFORM_MULTIPLIERS.linkedin.textOptimal, 300);
+    expect(PLATFORM_MULTIPLIERS.linkedin.textOptimal).toBe(300);
   });
 });
 
 describe("EngagementPredictor - Hashtag Configuration", () => {
   it("Twitter prefers 2 hashtags", () => {
-    assert.strictEqual(PLATFORM_MULTIPLIERS.twitter.hashtagOptimal, 2);
+    expect(PLATFORM_MULTIPLIERS.twitter.hashtagOptimal).toBe(2);
   });
 
   it("Instagram prefers 8 hashtags", () => {
-    assert.strictEqual(PLATFORM_MULTIPLIERS.instagram.hashtagOptimal, 8);
+    expect(PLATFORM_MULTIPLIERS.instagram.hashtagOptimal).toBe(8);
   });
 
   it("LinkedIn prefers 5 hashtags", () => {
-    assert.strictEqual(PLATFORM_MULTIPLIERS.linkedin.hashtagOptimal, 5);
+    expect(PLATFORM_MULTIPLIERS.linkedin.hashtagOptimal).toBe(5);
   });
 });
 
@@ -59,11 +55,11 @@ describe("EngagementPredictor - Peak Hours Configuration", () => {
   it("Twitter has 4 peak hours", () => {
     const expectedPeakHours = [9, 12, 17, 19];
 
-    assert.ok(Array.isArray(PLATFORM_MULTIPLIERS.twitter.peakHours));
-    assert.strictEqual(PLATFORM_MULTIPLIERS.twitter.peakHours.length, expectedPeakHours.length);
+    expect(Array.isArray(PLATFORM_MULTIPLIERS.twitter.peakHours)).toBeTruthy();
+    expect(PLATFORM_MULTIPLIERS.twitter.peakHours.length).toBe(expectedPeakHours.length);
 
     expectedPeakHours.forEach((hour) => {
-      assert.ok(PLATFORM_MULTIPLIERS.twitter.peakHours.includes(hour));
+      expect(PLATFORM_MULTIPLIERS.twitter.peakHours.includes(hour)).toBeTruthy();
     });
   });
 
@@ -71,57 +67,57 @@ describe("EngagementPredictor - Peak Hours Configuration", () => {
     const twitterPeakHours = PLATFORM_MULTIPLIERS.twitter.peakHours;
     const instagramPeakHours = PLATFORM_MULTIPLIERS.instagram.peakHours;
 
-    assert.ok(instagramPeakHours.length >= twitterPeakHours.length);
+    expect(instagramPeakHours.length >= twitterPeakHours.length).toBeTruthy();
   });
 });
 
 describe("EngagementPredictor - Content Type Multipliers", () => {
   it("video content has high multiplier on TikTok", () => {
     const videoMultiplier = PLATFORM_MULTIPLIERS.tiktok.contentTypeMultipliers.video;
-    assert.ok(videoMultiplier > 2.0);
+    expect(videoMultiplier > 2.0).toBeTruthy();
   });
 
   it("reel content performs best on Instagram", () => {
     const reelMultiplier = PLATFORM_MULTIPLIERS.instagram.contentTypeMultipliers.reel;
-    assert.ok(reelMultiplier > 2.0);
+    expect(reelMultiplier > 2.0).toBeTruthy();
   });
 
   it("text content performs relatively better on LinkedIn", () => {
     const linkedinTextMultiplier = PLATFORM_MULTIPLIERS.linkedin.contentTypeMultipliers.text;
     const instagramTextMultiplier = PLATFORM_MULTIPLIERS.instagram.contentTypeMultipliers.text;
 
-    assert.ok(linkedinTextMultiplier > instagramTextMultiplier);
+    expect(linkedinTextMultiplier > instagramTextMultiplier).toBeTruthy();
   });
 });
 
 describe("EngagementPredictor - Model Weights", () => {
   it("model weights are properly configured", () => {
-    assert.ok(MODEL_WEIGHTS.contentLength < 0); // Negative impact
-    assert.ok(MODEL_WEIGHTS.mediaPresence > 0.3); // Strong positive
-    assert.ok(MODEL_WEIGHTS.historicalPerformance > 0.2); // Meaningful weight
+    expect(MODEL_WEIGHTS.contentLength < 0).toBeTruthy(); // Negative impact
+    expect(MODEL_WEIGHTS.mediaPresence > 0.3).toBeTruthy(); // Strong positive
+    expect(MODEL_WEIGHTS.historicalPerformance > 0.2).toBeTruthy(); // Meaningful weight
   });
 
   it("hashtag usage has positive weight", () => {
-    assert.ok(MODEL_WEIGHTS.hashtagCount > 0);
-    assert.ok(MODEL_WEIGHTS.hashtagCount < 0.5);
+    expect(MODEL_WEIGHTS.hashtagCount > 0).toBeTruthy();
+    expect(MODEL_WEIGHTS.hashtagCount < 0.5).toBeTruthy();
   });
 
   it("timing factors have meaningful weights", () => {
-    assert.ok(MODEL_WEIGHTS.timeOfDay > 0);
-    assert.ok(MODEL_WEIGHTS.dayOfWeek > 0);
-    assert.ok(MODEL_WEIGHTS.timeOfDay > MODEL_WEIGHTS.dayOfWeek);
+    expect(MODEL_WEIGHTS.timeOfDay > 0).toBeTruthy();
+    expect(MODEL_WEIGHTS.dayOfWeek > 0).toBeTruthy();
+    expect(MODEL_WEIGHTS.timeOfDay > MODEL_WEIGHTS.dayOfWeek).toBeTruthy();
   });
 });
 
 describe("EngagementPredictor - Helper Methods", () => {
   it("getDayName returns correct day names", () => {
-    assert.strictEqual(getDayName(0), "Sunday");
-    assert.strictEqual(getDayName(1), "Monday");
-    assert.strictEqual(getDayName(3), "Wednesday");
+    expect(getDayName(0)).toBe("Sunday");
+    expect(getDayName(1)).toBe("Monday");
+    expect(getDayName(3)).toBe("Wednesday");
   });
 
   it("getMonthName returns correct month names", () => {
-    assert.strictEqual(getMonthName(0), "January");
-    assert.strictEqual(getMonthName(11), "December");
+    expect(getMonthName(0)).toBe("January");
+    expect(getMonthName(11)).toBe("December");
   });
 });

@@ -7,8 +7,7 @@
  * @layer test
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import { createHmac } from "node:crypto";
 import { LinkedInWebhookProcessor } from "../../../src/webhooks/processors/linkedinWebhookProcessor.js";
 
@@ -50,15 +49,15 @@ function makeNotificationPayload(
 // Signature Verification Tests
 // ============================================================================
 
-describe("LinkedInWebhookProcessor - Signature Verification", { concurrency: 1 }, () => {
+describe("LinkedInWebhookProcessor - Signature Verification", () => {
   let processor: LinkedInWebhookProcessor;
 
   let _originalConsoleLog: typeof console.log;
-  before(() => {
+  beforeAll(() => {
     _originalConsoleLog = console.log;
     console.log = () => {};
   });
-  after(() => {
+  afterAll(() => {
     console.log = _originalConsoleLog;
   });
 
@@ -70,22 +69,14 @@ describe("LinkedInWebhookProcessor - Signature Verification", { concurrency: 1 }
     const payload = JSON.stringify(makeNotificationPayload());
     const signature = signLinkedIn(payload, TEST_SECRET);
 
-    assert.strictEqual(
-      processor.verify(payload, signature, TEST_SECRET),
-      true,
-      "Valid hmacsha256 signature must be accepted"
-    );
+    expect(processor.verify(payload, signature, TEST_SECRET)).toBe(true);
   });
 
   it("accepts valid signature without prefix", () => {
     const payload = JSON.stringify(makeNotificationPayload());
     const rawHash = createHmac("sha256", TEST_SECRET).update(payload, "utf8").digest("hex");
 
-    assert.strictEqual(
-      processor.verify(payload, rawHash, TEST_SECRET),
-      true,
-      "Signature without hmacsha256= prefix should also be accepted"
-    );
+    expect(processor.verify(payload, rawHash, TEST_SECRET)).toBe(true);
   });
 
   it("rejects tampered body after signing", () => {
@@ -94,43 +85,27 @@ describe("LinkedInWebhookProcessor - Signature Verification", { concurrency: 1 }
 
     const tamperedPayload = JSON.stringify(makeNotificationPayload({ eventType: "SHARE" }));
 
-    assert.strictEqual(
-      processor.verify(tamperedPayload, signature, TEST_SECRET),
-      false,
-      "Tampered body must be rejected"
-    );
+    expect(processor.verify(tamperedPayload, signature, TEST_SECRET)).toBe(false);
   });
 
   it("rejects empty signature", () => {
     const payload = JSON.stringify(makeNotificationPayload());
 
-    assert.strictEqual(
-      processor.verify(payload, "", TEST_SECRET),
-      false,
-      "Empty signature must be rejected"
-    );
+    expect(processor.verify(payload, "", TEST_SECRET)).toBe(false);
   });
 
   it("rejects signature computed with wrong secret", () => {
     const payload = JSON.stringify(makeNotificationPayload());
     const wrongSignature = signLinkedIn(payload, "attacker-secret");
 
-    assert.strictEqual(
-      processor.verify(payload, wrongSignature, TEST_SECRET),
-      false,
-      "Wrong-secret signature must be rejected"
-    );
+    expect(processor.verify(payload, wrongSignature, TEST_SECRET)).toBe(false);
   });
 
   it("rejects all-zero signature value", () => {
     const payload = JSON.stringify(makeNotificationPayload());
     const zeroSig = "hmacsha256=0000000000000000000000000000000000000000000000000000000000000000";
 
-    assert.strictEqual(
-      processor.verify(payload, zeroSig, TEST_SECRET),
-      false,
-      "All-zero signature must be rejected"
-    );
+    expect(processor.verify(payload, zeroSig, TEST_SECRET)).toBe(false);
   });
 
   it("handles unicode characters in payload correctly", () => {
@@ -149,15 +124,11 @@ describe("LinkedInWebhookProcessor - Signature Verification", { concurrency: 1 }
     });
     const signature = signLinkedIn(payload, TEST_SECRET);
 
-    assert.strictEqual(
-      processor.verify(payload, signature, TEST_SECRET),
-      true,
-      "Unicode payload with matching signature must be accepted"
-    );
+    expect(processor.verify(payload, signature, TEST_SECRET)).toBe(true);
   });
 
   it("returns correct provider ID", () => {
-    assert.strictEqual(processor.getProviderId(), "LINKEDIN");
+    expect(processor.getProviderId()).toBe("LINKEDIN");
   });
 });
 
@@ -165,15 +136,15 @@ describe("LinkedInWebhookProcessor - Signature Verification", { concurrency: 1 }
 // Event Parsing Tests
 // ============================================================================
 
-describe("LinkedInWebhookProcessor - Event Parsing", { concurrency: 1 }, () => {
+describe("LinkedInWebhookProcessor - Event Parsing", () => {
   let processor: LinkedInWebhookProcessor;
 
   let _originalConsoleLog: typeof console.log;
-  before(() => {
+  beforeAll(() => {
     _originalConsoleLog = console.log;
     console.log = () => {};
   });
-  after(() => {
+  afterAll(() => {
     console.log = _originalConsoleLog;
   });
 
@@ -185,50 +156,50 @@ describe("LinkedInWebhookProcessor - Event Parsing", { concurrency: 1 }, () => {
     const payload = makeNotificationPayload({ eventType: "LIKE" });
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
-    assert.strictEqual(result.eventType, "LIKE_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "LIKE");
+    expect(result.eventType).toBe("LIKE_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("LIKE");
   });
 
   it("maps COMMENT event to COMMENT_RECEIVED", async () => {
     const payload = makeNotificationPayload({ eventType: "COMMENT" });
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
   });
 
   it("maps ADMIN_COMMENT event to COMMENT_RECEIVED", async () => {
     const payload = makeNotificationPayload({ eventType: "ADMIN_COMMENT" });
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
   });
 
   it("maps SHARE event to SHARE_RECEIVED", async () => {
     const payload = makeNotificationPayload({ eventType: "SHARE" });
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
-    assert.strictEqual(result.eventType, "SHARE_RECEIVED");
+    expect(result.eventType).toBe("SHARE_RECEIVED");
   });
 
   it("maps SHARE_MENTION event to MENTION_RECEIVED", async () => {
     const payload = makeNotificationPayload({ eventType: "SHARE_MENTION" });
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
-    assert.strictEqual(result.eventType, "MENTION_RECEIVED");
+    expect(result.eventType).toBe("MENTION_RECEIVED");
   });
 
   it("maps COMMENT_EDIT event to POST_UPDATED", async () => {
     const payload = makeNotificationPayload({ eventType: "COMMENT_EDIT" });
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
-    assert.strictEqual(result.eventType, "POST_UPDATED");
+    expect(result.eventType).toBe("POST_UPDATED");
   });
 
   it("maps COMMENT_DELETE event to POST_UPDATED", async () => {
     const payload = makeNotificationPayload({ eventType: "COMMENT_DELETE" });
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
-    assert.strictEqual(result.eventType, "POST_UPDATED");
+    expect(result.eventType).toBe("POST_UPDATED");
   });
 
   it("maps unknown event to POST_ENGAGEMENT_UPDATE", async () => {
@@ -237,7 +208,7 @@ describe("LinkedInWebhookProcessor - Event Parsing", { concurrency: 1 }, () => {
     });
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
-    assert.strictEqual(result.eventType, "POST_ENGAGEMENT_UPDATE");
+    expect(result.eventType).toBe("POST_ENGAGEMENT_UPDATE");
   });
 
   it("normalizes notification data correctly", async () => {
@@ -252,11 +223,11 @@ describe("LinkedInWebhookProcessor - Event Parsing", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
-    assert.strictEqual(result.normalizedData.notificationId, "notif-normalized");
-    assert.strictEqual(result.normalizedData.resourceUrn, "urn:li:share:55555");
-    assert.strictEqual(result.normalizedData.actorUrn, "urn:li:person:actor-norm");
-    assert.strictEqual(result.normalizedData.organizationUrn, "urn:li:organization:org-norm");
-    assert.strictEqual(result.normalizedData.timestamp, 1717300000000);
+    expect(result.normalizedData.notificationId).toBe("notif-normalized");
+    expect(result.normalizedData.resourceUrn).toBe("urn:li:share:55555");
+    expect(result.normalizedData.actorUrn).toBe("urn:li:person:actor-norm");
+    expect(result.normalizedData.organizationUrn).toBe("urn:li:organization:org-norm");
+    expect(result.normalizedData.timestamp).toBe(1717300000000);
   });
 
   it("parses single notification format (no notifications array)", async () => {
@@ -271,8 +242,8 @@ describe("LinkedInWebhookProcessor - Event Parsing", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
-    assert.strictEqual(result.eventType, "LIKE_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "LIKE");
+    expect(result.eventType).toBe("LIKE_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("LIKE");
   });
 
   it("throws error when eventType is missing", async () => {
@@ -281,13 +252,8 @@ describe("LinkedInWebhookProcessor - Event Parsing", { concurrency: 1 }, () => {
       actorUrn: "urn:li:person:actor",
     };
 
-    await assert.rejects(
-      async () => {
-        await processor.parse(payload as unknown as Record<string, unknown>);
-      },
-      {
-        message: /missing eventType/i,
-      }
+    await expect(processor.parse(payload as unknown as Record<string, unknown>)).rejects.toThrow(
+      /missing eventType/
     );
   });
 });

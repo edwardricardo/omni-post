@@ -3,8 +3,7 @@
  * Tests progress tracking, encryption, compression, webhook notifications,
  * and edge cases (tiny files, exact-divisible sizes, unknown extensions).
  */
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import {
   VideoUploadPipeline,
   type UploadOptions,
@@ -12,11 +11,11 @@ import {
 } from "../../src/video/uploadPipeline";
 import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers";
 
-describe("VideoUploadPipeline - Progress Tracking", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - Progress Tracking", () => {
   let pipeline: VideoUploadPipeline;
 
-  beforeEach((t) => {
-    setupFsMocks(t);
+  beforeEach(() => {
+    setupFsMocks();
     pipeline = new VideoUploadPipeline(0);
   });
 
@@ -37,11 +36,11 @@ describe("VideoUploadPipeline - Progress Tracking", { concurrency: 1 }, () => {
     let finalProgress = 0;
 
     await pipeline.uploadFile(filePath, destination, {}, (progress) => {
-      assert.ok(progress.progress >= 0 && progress.progress <= 100);
+      expect(progress.progress >= 0 && progress.progress <= 100).toBeTruthy();
       finalProgress = progress.progress;
     });
 
-    assert.equal(finalProgress, 100);
+    expect(finalProgress).toBe(100);
   });
 
   it("should provide upload speed and ETA", async () => {
@@ -67,15 +66,15 @@ describe("VideoUploadPipeline - Progress Tracking", { concurrency: 1 }, () => {
     });
 
     // At least some progress updates should have speed/ETA
-    assert.ok(receivedSpeed || receivedETA);
+    expect(receivedSpeed || receivedETA).toBeTruthy();
   });
 });
 
-describe("VideoUploadPipeline - Encryption and Compression", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - Encryption and Compression", () => {
   let pipeline: VideoUploadPipeline;
 
-  beforeEach((t) => {
-    setupFsMocks(t);
+  beforeEach(() => {
+    setupFsMocks();
     pipeline = new VideoUploadPipeline(0);
   });
 
@@ -102,7 +101,7 @@ describe("VideoUploadPipeline - Encryption and Compression", { concurrency: 1 },
 
     const session = await pipeline.uploadFile(filePath, destination, options);
 
-    assert.equal(session.status, "completed");
+    expect(session.status).toBe("completed");
   });
 
   it("should support compression option", async () => {
@@ -128,15 +127,15 @@ describe("VideoUploadPipeline - Encryption and Compression", { concurrency: 1 },
 
     const session = await pipeline.uploadFile(filePath, destination, options);
 
-    assert.equal(session.status, "completed");
+    expect(session.status).toBe("completed");
   });
 });
 
-describe("VideoUploadPipeline - Webhook Notifications", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - Webhook Notifications", () => {
   let pipeline: VideoUploadPipeline;
 
-  beforeEach((t) => {
-    setupFsMocks(t);
+  beforeEach(() => {
+    setupFsMocks();
     pipeline = new VideoUploadPipeline(0);
   });
 
@@ -155,7 +154,7 @@ describe("VideoUploadPipeline - Webhook Notifications", { concurrency: 1 }, () =
     };
 
     // Mock global fetch using t.mock.fn
-    globalThis.fetch = t.mock.fn(async () => {
+    globalThis.fetch = vi.fn(async () => {
       return {
         ok: true,
         status: 200,
@@ -175,23 +174,23 @@ describe("VideoUploadPipeline - Webhook Notifications", { concurrency: 1 }, () =
 
     const session = await pipeline.uploadFile(filePath, destination, options);
 
-    assert.equal(session.status, "completed");
+    expect(session.status).toBe("completed");
   });
 });
 
-describe("VideoUploadPipeline - Edge Cases", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - Edge Cases", () => {
   let pipeline: VideoUploadPipeline;
 
-  beforeEach((t) => {
-    setupFsMocks(t);
+  beforeEach(() => {
+    setupFsMocks();
     pipeline = new VideoUploadPipeline(0);
   });
 
   it("should handle very small files", async () => {
     const session = await pipeline.createUploadSession("tiny.mp4", 1024, "video/mp4");
 
-    assert.equal(session.totalChunks, 1);
-    assert.equal(session.chunks[0]!.size, 1024);
+    expect(session.totalChunks).toBe(1);
+    expect(session.chunks[0]!.size).toBe(1024);
   });
 
   it("should handle files exactly divisible by chunk size", async () => {
@@ -199,10 +198,10 @@ describe("VideoUploadPipeline - Edge Cases", { concurrency: 1 }, () => {
       chunkSize: 5 * 1024 * 1024,
     });
 
-    assert.equal(session.totalChunks, 3);
-    assert.equal(session.chunks[0]!.size, 5 * 1024 * 1024);
-    assert.equal(session.chunks[1]!.size, 5 * 1024 * 1024);
-    assert.equal(session.chunks[2]!.size, 5 * 1024 * 1024);
+    expect(session.totalChunks).toBe(3);
+    expect(session.chunks[0]!.size).toBe(5 * 1024 * 1024);
+    expect(session.chunks[1]!.size).toBe(5 * 1024 * 1024);
+    expect(session.chunks[2]!.size).toBe(5 * 1024 * 1024);
   });
 
   it("should handle single chunk upload", async () => {
@@ -221,8 +220,8 @@ describe("VideoUploadPipeline - Edge Cases", { concurrency: 1 }, () => {
 
     const session = await pipeline.uploadFile(filePath, destination);
 
-    assert.equal(session.status, "completed");
-    assert.equal(session.totalChunks, 1);
+    expect(session.status).toBe("completed");
+    expect(session.totalChunks).toBe(1);
   });
 
   it("should handle unknown file extension", async () => {
@@ -241,6 +240,6 @@ describe("VideoUploadPipeline - Edge Cases", { concurrency: 1 }, () => {
 
     const session = await pipeline.uploadFile(filePath, destination);
 
-    assert.equal(session.mimeType, "application/octet-stream");
+    expect(session.mimeType).toBe("application/octet-stream");
   });
 });

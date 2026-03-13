@@ -3,8 +3,7 @@
  * Tests basic generateThumbnail() for jpg/png/webp, filters, ffmpeg failure,
  * checksum calculation, and processing-time recording.
  */
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { ThumbnailGenerator, type ThumbnailOptions } from "../../src/video/thumbnailGenerator";
 import { promises as fs } from "fs";
 import {
@@ -14,12 +13,12 @@ import {
   setupFsMocks,
 } from "./thumbnailGenerator.test-helpers";
 
-describe("ThumbnailGenerator - Single Thumbnail Generation", { concurrency: 1 }, () => {
+describe("ThumbnailGenerator - Single Thumbnail Generation", () => {
   let generator: ThumbnailGenerator;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     generator = new ThumbnailGenerator(createMockSpawn());
-    setupFsMocks(t, fs);
+    setupFsMocks(fs);
   });
 
   it("should generate thumbnail with basic options", async () => {
@@ -43,22 +42,16 @@ describe("ThumbnailGenerator - Single Thumbnail Generation", { concurrency: 1 },
 
     const result = await generator.generateThumbnail(videoPath, outputPath, options);
 
-    assert.strictEqual(typeof result, "object", "result should be a ThumbnailResult object");
-    assert.ok(
-      typeof result.id === "string" && result.id.length > 0,
-      "result should have a non-empty id"
-    );
-    assert.equal(result.width, 1280);
-    assert.equal(result.height, 720);
-    assert.equal(result.format, "jpg");
-    assert.equal(result.quality, 85);
-    assert.equal(result.timestamp, 5);
-    assert.equal(result.inputVideoPath, videoPath);
-    assert.equal(result.outputPath, outputPath);
-    assert.ok(
-      typeof result.checksum === "string" && result.checksum.length > 0,
-      "result should have a non-empty checksum"
-    );
+    expect(typeof result).toBe("object");
+    expect(typeof result.id === "string" && result.id.length > 0).toBeTruthy();
+    expect(result.width).toBe(1280);
+    expect(result.height).toBe(720);
+    expect(result.format).toBe("jpg");
+    expect(result.quality).toBe(85);
+    expect(result.timestamp).toBe(5);
+    expect(result.inputVideoPath).toBe(videoPath);
+    expect(result.outputPath).toBe(outputPath);
+    expect(typeof result.checksum === "string" && result.checksum.length > 0).toBeTruthy();
   });
 
   it("should generate PNG thumbnail", async () => {
@@ -79,9 +72,9 @@ describe("ThumbnailGenerator - Single Thumbnail Generation", { concurrency: 1 },
 
     const result = await generator.generateThumbnail("/test/video.mp4", outputPath, options);
 
-    assert.equal(result.format, "png");
-    assert.equal(result.width, 1920);
-    assert.equal(result.height, 1080);
+    expect(result.format).toBe("png");
+    expect(result.width).toBe(1920);
+    expect(result.height).toBe(1080);
   });
 
   it("should generate WebP thumbnail", async () => {
@@ -101,7 +94,7 @@ describe("ThumbnailGenerator - Single Thumbnail Generation", { concurrency: 1 },
 
     const result = await generator.generateThumbnail("/test/video.mp4", outputPath, options);
 
-    assert.equal(result.format, "webp");
+    expect(result.format).toBe("webp");
   });
 
   it("should apply brightness filter", async () => {
@@ -124,14 +117,11 @@ describe("ThumbnailGenerator - Single Thumbnail Generation", { concurrency: 1 },
 
     const result = await generator.generateThumbnail("/test/video.mp4", outputPath, options);
 
-    assert.strictEqual(typeof result, "object", "result should be a ThumbnailResult object");
-    assert.equal(result.outputPath, outputPath);
-    assert.equal(result.width, 1280, "width should match requested dimensions");
-    assert.equal(result.height, 720, "height should match requested dimensions");
-    assert.ok(
-      typeof result.id === "string" && result.id.length > 0,
-      "result should have a non-empty id"
-    );
+    expect(typeof result).toBe("object");
+    expect(result.outputPath).toBe(outputPath);
+    expect(result.width).toBe(1280);
+    expect(result.height).toBe(720);
+    expect(typeof result.id === "string" && result.id.length > 0).toBeTruthy();
   });
 
   it("should apply multiple filters", async () => {
@@ -157,14 +147,11 @@ describe("ThumbnailGenerator - Single Thumbnail Generation", { concurrency: 1 },
 
     const result = await generator.generateThumbnail("/test/video.mp4", outputPath, options);
 
-    assert.strictEqual(typeof result, "object", "result should be a ThumbnailResult object");
-    assert.equal(result.width, 1280, "width should match requested dimensions");
-    assert.equal(result.height, 720, "height should match requested dimensions");
-    assert.equal(result.format, "jpg", "format should match requested format");
-    assert.ok(
-      typeof result.id === "string" && result.id.length > 0,
-      "result should have a non-empty id"
-    );
+    expect(typeof result).toBe("object");
+    expect(result.width).toBe(1280);
+    expect(result.height).toBe(720);
+    expect(result.format).toBe("jpg");
+    expect(typeof result.id === "string" && result.id.length > 0).toBeTruthy();
   });
 
   it("should handle ffmpeg failure", async () => {
@@ -179,14 +166,9 @@ describe("ThumbnailGenerator - Single Thumbnail Generation", { concurrency: 1 },
     mockSpawnState.stderr = "Invalid input file";
     mockSpawnState.exitCode = 1;
 
-    await assert.rejects(
-      async () => {
-        await generator.generateThumbnail("/invalid/video.mp4", "/test/output.jpg", options);
-      },
-      {
-        message: /FFmpeg failed/,
-      }
-    );
+    await expect(
+      generator.generateThumbnail("/invalid/video.mp4", "/test/output.jpg", options)
+    ).rejects.toThrow(/FFmpeg failed/);
   });
 
   it("should calculate file checksum", async () => {
@@ -207,9 +189,9 @@ describe("ThumbnailGenerator - Single Thumbnail Generation", { concurrency: 1 },
 
     const result = await generator.generateThumbnail("/test/video.mp4", outputPath, options);
 
-    assert.ok(result.checksum);
-    assert.equal(typeof result.checksum, "string");
-    assert.equal(result.checksum.length, 32); // MD5 hex length
+    expect(result.checksum).toBeTruthy();
+    expect(typeof result.checksum).toBe("string");
+    expect(result.checksum.length).toBe(32); // MD5 hex length
   });
 
   it("should record processing time", async () => {
@@ -229,7 +211,7 @@ describe("ThumbnailGenerator - Single Thumbnail Generation", { concurrency: 1 },
 
     const result = await generator.generateThumbnail("/test/video.mp4", outputPath, options);
 
-    assert.ok(result.processingTime >= 0);
-    assert.equal(typeof result.processingTime, "number");
+    expect(result.processingTime >= 0).toBeTruthy();
+    expect(typeof result.processingTime).toBe("number");
   });
 });

@@ -1,6 +1,5 @@
 import "./ContentSynchronizer.test-helpers.js";
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { ContentSynchronizer } from "../../src/orchestration/ContentSynchronizer.js";
 import type { SyncContentRequest, SyncTransformation, VersionDiff } from "@shared/orchestration";
 import {
@@ -12,7 +11,7 @@ import {
   stubSyncCoordinatorSystemError,
 } from "./ContentSynchronizer.test-helpers.js";
 
-describe("ContentSynchronizer - Content Transformations", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Content Transformations", () => {
   it("should apply truncate transformation", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -36,7 +35,7 @@ describe("ContentSynchronizer - Content Transformations", { concurrency: 1 }, ()
 
     const result = await synchronizer.applyTransformations(content, transformations);
 
-    assert.strictEqual(result.body.length, 280, "Should truncate to max length");
+    expect(result.body.length).toBe(280);
   });
 
   it("should apply hashtag_limit transformation", async () => {
@@ -64,7 +63,7 @@ describe("ContentSynchronizer - Content Transformations", { concurrency: 1 }, ()
 
     const result = await synchronizer.applyTransformations(content, transformations);
 
-    assert.strictEqual(result.tags?.length, 3, "Should limit tags to max count");
+    expect(result.tags?.length).toBe(3);
   });
 
   it("should apply multiple transformations in sequence", async () => {
@@ -98,12 +97,12 @@ describe("ContentSynchronizer - Content Transformations", { concurrency: 1 }, ()
 
     const result = await synchronizer.applyTransformations(content, transformations);
 
-    assert.strictEqual(result.body.length, 280, "Should truncate body");
-    assert.strictEqual(result.tags?.length, 3, "Should limit tags");
+    expect(result.body.length).toBe(280);
+    expect(result.tags?.length).toBe(3);
   });
 });
 
-describe("ContentSynchronizer - Real-Time Sync", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Real-Time Sync", () => {
   it("should complete real-time sync without throwing errors", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -127,14 +126,11 @@ describe("ContentSynchronizer - Real-Time Sync", { concurrency: 1 }, () => {
     ];
 
     // realTimeSync should not throw even when no sync configurations exist
-    await assert.doesNotReject(
-      () => synchronizer.realTimeSync("post-123", changes),
-      "Real-time sync should complete without errors"
-    );
+    await expect(synchronizer.realTimeSync("post-123", changes)).resolves.not.toThrow();
   });
 });
 
-describe("ContentSynchronizer - Sync Rule Execution", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Sync Rule Execution", () => {
   it("should execute content sync rule", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -168,7 +164,7 @@ describe("ContentSynchronizer - Sync Rule Execution", { concurrency: 1 }, () => 
 
     const result = await synchronizer.syncContent(request);
 
-    assert.strictEqual(result.ok, true, "Should execute content rule");
+    expect(result.ok).toBe(true);
   });
 
   it("should execute media sync rule", async () => {
@@ -204,7 +200,7 @@ describe("ContentSynchronizer - Sync Rule Execution", { concurrency: 1 }, () => 
 
     const result = await synchronizer.syncContent(request);
 
-    assert.strictEqual(result.ok, true, "Should execute media rule");
+    expect(result.ok).toBe(true);
   });
 
   it("should execute analytics sync rule", async () => {
@@ -240,11 +236,11 @@ describe("ContentSynchronizer - Sync Rule Execution", { concurrency: 1 }, () => 
 
     const result = await synchronizer.syncContent(request);
 
-    assert.strictEqual(result.ok, true, "Should execute analytics rule");
+    expect(result.ok).toBe(true);
   });
 });
 
-describe("ContentSynchronizer - Redis Stream Processing", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Redis Stream Processing", () => {
   it("should add content changes to Redis stream", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -259,12 +255,12 @@ describe("ContentSynchronizer - Redis Stream Processing", { concurrency: 1 }, ()
     await synchronizer.initialize();
 
     const handlerCall = mockEventService.registerHandler.mock.calls.find(
-      (call: any) => call.arguments[0] === "POST_UPDATED"
+      (call: any) => call[0] === "POST_UPDATED"
     );
 
-    assert.ok(handlerCall, "Should register POST_UPDATED handler");
+    expect(handlerCall).toBeTruthy();
 
-    const handler = handlerCall.arguments[1];
+    const handler = handlerCall[1];
 
     await handler.handle({
       id: "event-1",
@@ -280,17 +276,17 @@ describe("ContentSynchronizer - Redis Stream Processing", { concurrency: 1 }, ()
       timestamp: new Date(),
     });
 
-    assert.ok(mockRedis.xadd.mock.calls.length > 0, "Should add to Redis stream");
+    expect(mockRedis.xadd.mock.calls.length > 0).toBeTruthy();
     const xaddCall = mockRedis.xadd.mock.calls[0];
-    assert.strictEqual(xaddCall.arguments[0], "sync:content:changes", "Should use correct stream");
+    expect(xaddCall[0]).toBe("sync:content:changes");
   });
 });
 
-describe("ContentSynchronizer - Error Handling", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Error Handling", () => {
   it("should handle Redis errors gracefully", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
-    mockRedis.lrange.mock.mockImplementationOnce(async () => {
+    mockRedis.lrange.mockImplementationOnce(async () => {
       throw new Error("Redis connection error");
     });
     const mockEventService = createMockEventService();
@@ -303,7 +299,7 @@ describe("ContentSynchronizer - Error Handling", { concurrency: 1 }, () => {
 
     const versions = await synchronizer.getVersionHistory("post-123");
 
-    assert.strictEqual(versions.length, 0, "Should return empty array on error");
+    expect(versions.length).toBe(0);
   });
 
   it("should handle sync execution errors", async () => {
@@ -328,8 +324,8 @@ describe("ContentSynchronizer - Error Handling", { concurrency: 1 }, () => {
 
     const result = await synchronizer.syncContent(request);
 
-    assert.strictEqual(result.ok, false, "Should handle errors");
-    assert.ok(result.error, "Should return error");
-    assert.strictEqual(result.error?.type, "system", "Should be system error");
+    expect(result.ok).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(result.error?.type).toBe("system");
   });
 });

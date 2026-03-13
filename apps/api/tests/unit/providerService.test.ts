@@ -33,8 +33,7 @@
  * @category UnitTests
  */
 
-import { describe, it } from "node:test";
-import * as assert from "node:assert";
+import { describe, it, expect } from "vitest";
 import type { PrismaClient } from "@infra/prisma";
 import { ProviderService } from "../../src/providers/providerService.js";
 
@@ -50,13 +49,9 @@ describe("ProviderService - Get All Providers", () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getAllProviders();
 
-    assert.ok(Array.isArray(result.providers), "Should return providers array");
-    assert.strictEqual(typeof result.total, "number", "Should return total count");
-    assert.strictEqual(
-      result.total,
-      result.providers.length,
-      "Total should match providers length"
-    );
+    expect(Array.isArray(result.providers)).toBeTruthy();
+    expect(typeof result.total).toBe("number");
+    expect(result.total).toBe(result.providers.length);
   });
 
   it("should include complete provider metadata", async () => {
@@ -65,15 +60,11 @@ describe("ProviderService - Get All Providers", () => {
 
     if (result.providers.length > 0) {
       const provider = result.providers[0];
-      assert.ok(provider !== undefined, "Should have at least one provider");
-      assert.strictEqual(typeof provider.id, "string", "Provider should have id");
-      assert.strictEqual(typeof provider.name, "string", "Provider should have name");
-      assert.strictEqual(
-        typeof provider.capabilities,
-        "object",
-        "Provider should have capabilities"
-      );
-      assert.strictEqual(typeof provider.limits, "object", "Provider should have limits");
+      expect(provider !== undefined).toBeTruthy();
+      expect(typeof provider.id).toBe("string");
+      expect(typeof provider.name).toBe("string");
+      expect(typeof provider.capabilities).toBe("object");
+      expect(typeof provider.limits).toBe("object");
     }
   });
 });
@@ -87,22 +78,15 @@ describe("ProviderService - Get Active Providers", () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getActiveProviders();
 
-    assert.ok(Array.isArray(result.providers), "Should return providers array");
-    assert.ok(
-      result.providers.every((p) => p.status === "active"),
-      "All providers should have active status"
-    );
+    expect(Array.isArray(result.providers)).toBeTruthy();
+    expect(result.providers.every((p) => p.status === "active")).toBeTruthy();
   });
 
   it("should return correct total count matching array length", async () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getActiveProviders();
 
-    assert.strictEqual(
-      result.total,
-      result.providers.length,
-      "Total should match providers length"
-    );
+    expect(result.total).toBe(result.providers.length);
   });
 });
 
@@ -115,53 +99,41 @@ describe("ProviderService - Get Providers by Capability", () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getProvidersByCapability("threading");
 
-    assert.strictEqual(result.capability, "threading", "Should return queried capability");
-    assert.ok(Array.isArray(result.providers), "Should return providers array");
-    assert.ok(
-      result.providers.every((p) => p.capabilities.threading === true),
-      "All providers should support threading"
-    );
+    expect(result.capability).toBe("threading");
+    expect(Array.isArray(result.providers)).toBeTruthy();
+    expect(result.providers.every((p) => p.capabilities.threading === true)).toBeTruthy();
   });
 
   it("should return providers with publish capability", async () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getProvidersByCapability("publish");
 
-    assert.strictEqual(result.capability, "publish", "Should return queried capability");
-    assert.ok(result.providers.length > 0, "Should find providers with publish capability");
+    expect(result.capability).toBe("publish");
+    expect(result.providers.length > 0).toBeTruthy();
   });
 
   it("should return providers with schedule capability", async () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getProvidersByCapability("schedule");
 
-    assert.strictEqual(result.capability, "schedule", "Should return queried capability");
-    assert.ok(
-      result.providers.every((p) => p.capabilities.schedule === true),
-      "All providers should support scheduling"
-    );
+    expect(result.capability).toBe("schedule");
+    expect(result.providers.every((p) => p.capabilities.schedule === true)).toBeTruthy();
   });
 
   it("should return providers with analytics capability", async () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getProvidersByCapability("analytics");
 
-    assert.strictEqual(result.capability, "analytics", "Should return queried capability");
-    assert.ok(
-      result.providers.every((p) => p.capabilities.analytics === true),
-      "All providers should support analytics"
-    );
+    expect(result.capability).toBe("analytics");
+    expect(result.providers.every((p) => p.capabilities.analytics === true)).toBeTruthy();
   });
 
   it("should return providers with stories capability", async () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getProvidersByCapability("stories");
 
-    assert.strictEqual(result.capability, "stories", "Should return queried capability");
-    assert.ok(
-      result.providers.every((p) => p.capabilities.stories === true),
-      "All providers should support stories"
-    );
+    expect(result.capability).toBe("stories");
+    expect(result.providers.every((p) => p.capabilities.stories === true)).toBeTruthy();
   });
 });
 
@@ -174,25 +146,25 @@ describe("ProviderService - Get Provider by ID", () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getProviderById("x");
 
-    assert.strictEqual(result.id, "x", "Should return X provider");
-    assert.strictEqual(result.name, "x", "Should have correct name");
-    assert.strictEqual(result.displayName, "X (Twitter)", "Should have correct displayName");
+    expect(result.id).toBe("x");
+    expect(result.name).toBe("x");
+    expect(result.displayName).toBe("X (Twitter)");
   });
 
   it("should return Instagram provider with correct metadata", async () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getProviderById("instagram");
 
-    assert.strictEqual(result.id, "instagram", "Should return Instagram provider");
-    assert.strictEqual(result.name, "instagram", "Should have correct name");
-    assert.strictEqual(result.displayName, "Instagram", "Should have correct displayName");
+    expect(result.id).toBe("instagram");
+    expect(result.name).toBe("instagram");
+    expect(result.displayName).toBe("Instagram");
   });
 
   it("should return null for unknown provider", async () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getProviderById("nonexistent");
 
-    assert.strictEqual(result, null, "Should return null for unknown provider");
+    expect(result).toBe(null);
   });
 });
 
@@ -208,10 +180,10 @@ describe("ProviderService - Validate Provider Constraints", () => {
       mediaCount: 2,
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, true, "Content should be valid");
-      assert.strictEqual(result.value.errors, undefined, "Should have no errors");
+      expect(result.value.valid).toBe(true);
+      expect(result.value.errors).toBe(undefined);
     }
   });
 
@@ -222,14 +194,11 @@ describe("ProviderService - Validate Provider Constraints", () => {
       text: longText,
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, false, "Content should be invalid");
-      assert.ok(Array.isArray(result.value.errors), "Should have errors array");
-      assert.ok(
-        result.value.errors.some((e) => e.includes("exceeds maximum length")),
-        "Should mention character limit"
-      );
+      expect(result.value.valid).toBe(false);
+      expect(Array.isArray(result.value.errors)).toBeTruthy();
+      expect(result.value.errors.some((e) => e.includes("exceeds maximum length"))).toBeTruthy();
     }
   });
 
@@ -240,14 +209,11 @@ describe("ProviderService - Validate Provider Constraints", () => {
       mediaCount: 10, // Exceeds X's 4 media limit
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, false, "Content should be invalid");
-      assert.ok(Array.isArray(result.value.errors), "Should have errors array");
-      assert.ok(
-        result.value.errors.some((e) => e.includes("Media count exceeds")),
-        "Should mention media count limit"
-      );
+      expect(result.value.valid).toBe(false);
+      expect(Array.isArray(result.value.errors)).toBeTruthy();
+      expect(result.value.errors.some((e) => e.includes("Media count exceeds"))).toBeTruthy();
     }
   });
 
@@ -258,10 +224,10 @@ describe("ProviderService - Validate Provider Constraints", () => {
       mediaCount: 5,
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, true, "Content should be valid");
-      assert.strictEqual(result.value.errors, undefined, "Should have no errors");
+      expect(result.value.valid).toBe(true);
+      expect(result.value.errors).toBe(undefined);
     }
   });
 
@@ -273,11 +239,11 @@ describe("ProviderService - Validate Provider Constraints", () => {
       mediaCount: 10,
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, false, "Content should be invalid");
-      assert.ok(Array.isArray(result.value.errors), "Should have errors array");
-      assert.ok(result.value.errors.length >= 2, "Should have multiple errors");
+      expect(result.value.valid).toBe(false);
+      expect(Array.isArray(result.value.errors)).toBeTruthy();
+      expect(result.value.errors.length >= 2).toBeTruthy();
     }
   });
 
@@ -287,12 +253,9 @@ describe("ProviderService - Validate Provider Constraints", () => {
       text: "Test",
     });
 
-    assert.strictEqual(result.ok, false, "Validation should fail for unknown provider");
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.ok(
-        result.error.includes("Provider not found"),
-        "Error should mention provider not found"
-      );
+      expect(result.error.includes("Provider not found")).toBeTruthy();
     }
   });
 });
@@ -306,21 +269,21 @@ describe("ProviderService - Get Provider Config", () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getProviderConfig("x");
 
-    assert.strictEqual(result.id, "x", "Should return X provider config");
-    assert.strictEqual(result.name, "x", "Should have correct name");
-    assert.strictEqual(typeof result.capabilities, "object", "Should have capabilities");
-    assert.strictEqual(typeof result.limits, "object", "Should have limits");
-    assert.strictEqual(typeof result.displayName, "string", "Should have displayName");
-    assert.strictEqual(result.displayName, "X (Twitter)", "Should have correct displayName");
+    expect(result.id).toBe("x");
+    expect(result.name).toBe("x");
+    expect(typeof result.capabilities).toBe("object");
+    expect(typeof result.limits).toBe("object");
+    expect(typeof result.displayName).toBe("string");
+    expect(result.displayName).toBe("X (Twitter)");
   });
 
   it("should return Instagram configuration with all required fields", async () => {
     const service = new ProviderService(mockPrisma);
     const result = await service.getProviderConfig("instagram");
 
-    assert.strictEqual(result.id, "instagram", "Should return Instagram provider config");
-    assert.strictEqual(typeof result.capabilities, "object", "Should have capabilities");
-    assert.strictEqual(typeof result.limits, "object", "Should have limits");
+    expect(result.id).toBe("instagram");
+    expect(typeof result.capabilities).toBe("object");
+    expect(typeof result.limits).toBe("object");
   });
 
   it("should include capability details for all standard capabilities", async () => {
@@ -328,10 +291,10 @@ describe("ProviderService - Get Provider Config", () => {
     const result = await service.getProviderConfig("x");
 
     const caps = result.capabilities;
-    assert.strictEqual(typeof caps.publish, "boolean", "Should have publish capability");
-    assert.strictEqual(typeof caps.schedule, "boolean", "Should have schedule capability");
-    assert.strictEqual(typeof caps.analytics, "boolean", "Should have analytics capability");
-    assert.strictEqual(typeof caps.threading, "boolean", "Should have threading capability");
+    expect(typeof caps.publish).toBe("boolean");
+    expect(typeof caps.schedule).toBe("boolean");
+    expect(typeof caps.analytics).toBe("boolean");
+    expect(typeof caps.threading).toBe("boolean");
   });
 
   it("should include limit details for content constraints", async () => {
@@ -339,27 +302,14 @@ describe("ProviderService - Get Provider Config", () => {
     const result = await service.getProviderConfig("x");
 
     const limits = result.limits;
-    assert.strictEqual(typeof limits.maxChars, "number", "Should have maxChars limit");
-    assert.strictEqual(
-      typeof limits.maxMediaPerPost,
-      "number",
-      "Should have maxMediaPerPost limit"
-    );
+    expect(typeof limits.maxChars).toBe("number");
+    expect(typeof limits.maxMediaPerPost).toBe("number");
   });
 
   it("should throw error for unknown provider", async () => {
     const service = new ProviderService(mockPrisma);
 
-    await assert.rejects(
-      async () => {
-        await service.getProviderConfig("nonexistent");
-      },
-      {
-        name: "Error",
-        message: /Provider not found/,
-      },
-      "Should throw error for unknown provider"
-    );
+    await expect(service.getProviderConfig("nonexistent")).rejects.toThrow(/Provider not found/);
   });
 });
 
@@ -374,9 +324,9 @@ describe("ProviderService - Edge Cases", () => {
       text: "",
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, true, "Empty text should be valid");
+      expect(result.value.valid).toBe(true);
     }
   });
 
@@ -386,9 +336,9 @@ describe("ProviderService - Edge Cases", () => {
       mediaCount: 0,
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, true, "Zero media count should be valid");
+      expect(result.value.valid).toBe(true);
     }
   });
 
@@ -398,9 +348,9 @@ describe("ProviderService - Edge Cases", () => {
       text: "Just text, no media",
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, true, "Text-only content should be valid");
+      expect(result.value.valid).toBe(true);
     }
   });
 
@@ -410,9 +360,9 @@ describe("ProviderService - Edge Cases", () => {
       mediaCount: 2,
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, true, "Media-only content should be valid");
+      expect(result.value.valid).toBe(true);
     }
   });
 
@@ -423,9 +373,9 @@ describe("ProviderService - Edge Cases", () => {
       text: exactLimitText,
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, true, "Content at exact limit should be valid");
+      expect(result.value.valid).toBe(true);
     }
   });
 
@@ -435,9 +385,9 @@ describe("ProviderService - Edge Cases", () => {
       mediaCount: 4, // Exactly X's 4 media limit
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, true, "Media at exact limit should be valid");
+      expect(result.value.valid).toBe(true);
     }
   });
 
@@ -448,9 +398,9 @@ describe("ProviderService - Edge Cases", () => {
       text: overLimitText,
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, false, "Content over limit should be invalid");
+      expect(result.value.valid).toBe(false);
     }
   });
 
@@ -460,9 +410,9 @@ describe("ProviderService - Edge Cases", () => {
       mediaCount: 5, // One over X's 4 media limit
     });
 
-    assert.strictEqual(result.ok, true, "Validation should succeed");
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.strictEqual(result.value.valid, false, "Media over limit should be invalid");
+      expect(result.value.valid).toBe(false);
     }
   });
 });

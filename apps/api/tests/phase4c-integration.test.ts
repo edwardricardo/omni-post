@@ -96,22 +96,22 @@ describe("Phase 4C Integration Tests", () => {
 
       const data = await response.json();
       assert.ok(data.data.providers, "Response should have providers array");
-      assert.strictEqual(data.data.providers.length, 6, "Should have 6 providers registered");
+      assert.strictEqual(data.data.providers.length, 9, "Should have 9 providers registered");
 
       const hasXActive = data.data.providers.some(
         (p: any) => p.id === "x" && p.status === "active"
       );
-      const hasLinkedinComingSoon = data.data.providers.some(
-        (p: any) => p.id === "linkedin" && p.status === "coming_soon"
+      const hasLinkedinActive = data.data.providers.some(
+        (p: any) => p.id === "linkedin" && p.status === "active"
       );
 
       assert.ok(hasXActive, "X provider should be active");
-      assert.ok(hasLinkedinComingSoon, "LinkedIn should be coming soon");
+      assert.ok(hasLinkedinActive, "LinkedIn should be active");
 
       recordResult(
         "Provider Registry API",
         true,
-        `${data.data.providers.length} providers registered, X active, LinkedIn coming soon`,
+        `${data.data.providers.length} providers registered, all active`,
         duration
       );
     });
@@ -128,14 +128,14 @@ describe("Phase 4C Integration Tests", () => {
 
       const data = await response.json();
       const hasXActive =
-        data.data.providers.some((p: any) => p.id === "x") && data.data.providers.length === 5;
+        data.data.providers.some((p: any) => p.id === "x") && data.data.providers.length === 9;
 
-      assert.ok(hasXActive, "5 providers should be active including X");
+      assert.ok(hasXActive, "9 providers should be active including X");
 
       recordResult(
         "Dynamic Provider Discovery",
         hasXActive,
-        `${data.data.providers.length} active providers (x, instagram, facebook, youtube, tiktok)`,
+        `${data.data.providers.length} active providers (all 9 platforms)`,
         duration
       );
     });
@@ -175,7 +175,7 @@ describe("Phase 4C Integration Tests", () => {
 
       const data = await response.json();
       assert.ok(data.data.summary, "Response should have summary");
-      assert.strictEqual(data.data.summary.total, 5, "Should monitor 5 active providers");
+      assert.strictEqual(data.data.summary.total, 9, "Should monitor 9 active providers");
       assert.ok(data.data.summary.healthy >= 1, "Should have at least 1 healthy provider");
 
       const xIsHealthy = data.data.providers.some((p: any) => p.id === "x" && p.healthy === true);
@@ -321,9 +321,9 @@ describe("Phase 4C Integration Tests", () => {
 
       if (allPassed) {
         console.log("\nPhase 4C Features Verified:");
-        console.log("   Provider Registry System with 6 providers");
+        console.log("   Provider Registry System with 9 providers");
         console.log(
-          "   Dynamic Provider Discovery (5 active: x, instagram, facebook, youtube, tiktok)"
+          "   Dynamic Provider Discovery (9 active: x, instagram, facebook, youtube, tiktok, linkedin, snapchat, telegram, pinterest)"
         );
         console.log("   Provider Capability Filtering (threading, etc.)");
         console.log("   Real-time Health Monitoring");

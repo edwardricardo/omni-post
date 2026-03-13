@@ -1,91 +1,130 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for dashboardRoutes
- * Testing all admin dashboard HTTP endpoints
- *
- * Coverage Target: 95%+
+ * @file dashboardRoutes.test.ts
+ * @description Unit tests for dashboardRoutes. Uses mocked Prisma stores and
+ *              a real Fastify instance to test HTTP endpoint behavior.
+ * @layer test
  */
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
-import fastifyCookie from "@fastify/cookie";
-import { dashboardRoutes } from "../../src/admin/dashboardRoutes.js";
-import { authRoutes } from "../../src/auth/authRoutes.js";
-import type { AuthService } from "../../src/auth/authService.js";
-import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
-import { TOKENS } from "../../src/infrastructure/container/types.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
 
-// Populated by createTestApp() — must match the instance used by the middleware.
-let containerAuthService: AuthService;
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
 
-// Create test Fastify instance with auth
-async function createTestApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false });
+const { mockPrisma } = createMockPrismaModule();
 
-  const typedApp = app.withTypeProvider<ZodTypeProvider>();
-  typedApp.setValidatorCompiler(validatorCompiler);
-  typedApp.setSerializerCompiler(serializerCompiler);
+// DashboardService uses post, channel, analytics, publishLog via prisma
+const extraModels = {
+  post: buildModelMock(createStore()),
+  channel: buildModelMock(createStore()),
+  analytics: buildModelMock(createStore()),
+  publishLog: buildModelMock(createStore()),
+  adminUserPermission: buildModelMock(createStore()),
+};
+Object.assign(mockPrisma.prisma, extraModels);
 
-  const container = setupContainer({ prisma });
-  // Capture the container's AuthService so token generation uses the same JWT secret.
-  containerAuthService = container.resolve<AuthService>(TOKENS.AuthService);
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
 
-  typedApp.decorate("container", container);
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
 
-  await typedApp.register(fastifyCookie);
-  await typedApp.register(authRoutes);
-  await typedApp.register(dashboardRoutes);
+// ---------------------------------------------------------------------------
+// Dynamic imports after mocks
+// ---------------------------------------------------------------------------
 
-  return typedApp;
-}
+const Fastify = (await import("fastify")).default;
+const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
+const fastifyCookie = (await import("@fastify/cookie")).default;
+const { dashboardRoutes } = await import("../../src/admin/dashboardRoutes.js");
+const { authRoutes } = await import("../../src/auth/authRoutes.js");
+const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { TOKENS } = await import("../../src/infrastructure/container/types.js");
+const { generateAdminToken } = await import("./admin/adminTestHelper.js");
+const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
+const { MfaService } = await import("../../src/auth/mfaService.js");
+const { PrismaAdminUserRepository } = await import(
+  "../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
+);
+
+// Ensure no Redis for unit tests
+setRedisInstance(null as never);
+
+// ---------------------------------------------------------------------------
+// Test setup
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const adminEmail = `admin-dashboard-${timestamp}@example.com`;
 const supportEmail = `support-dashboard-${timestamp}@example.com`;
-const testPassword = "TestPassword123!";
 
-let app: FastifyInstance;
+let app: import("fastify").FastifyInstance;
 let adminToken: string;
 let supportToken: string;
 
-describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
-  before(async () => {
-    app = await createTestApp();
+async function createTestApp() {
+  const app = Fastify({ logger: false });
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
-    // Create admin user
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+
+  // Wire up AuthService so authRoutes can register/login
+  const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+  const mfaSvc = new MfaService(adminUserRepo);
+  const authSvc = new AuthService(adminUserRepo, mfaSvc);
+  container.registerInstance(TOKENS.AuthService, authSvc);
+
+  app.decorate("container", container);
+  await app.register(fastifyCookie);
+  await app.register(authRoutes);
+  await app.register(dashboardRoutes);
+  await app.ready();
+  return { app, authSvc };
+}
+
+describe("dashboardRoutes Unit Tests", () => {
+  beforeAll(async () => {
+    const result = await createTestApp();
+    app = result.app;
+
+    // Register + login admin user via authRoutes
     await app.inject({
       method: "POST",
       url: "/auth/register",
       payload: {
         email: adminEmail,
-        password: testPassword,
+        password: "TestPassword123!",
         name: "Admin Dashboard User",
         role: "ADMIN",
       },
     });
-
-    // Login as admin
-    const adminLoginResponse = await app.inject({
+    const adminLoginRes = await app.inject({
       method: "POST",
       url: "/auth/login",
-      payload: {
-        email: adminEmail,
-        password: testPassword,
-      },
+      payload: { email: adminEmail, password: "TestPassword123!" },
     });
-
-    const adminBody = JSON.parse(adminLoginResponse.body);
+    const adminBody = JSON.parse(adminLoginRes.body);
     adminToken = adminBody.data?.accessToken || "";
 
-    // Create support user directly via containerAuthService (SUPPORT role not accepted by register route)
-    await containerAuthService.registerAdmin(supportEmail, testPassword, "Support User", "SUPPORT");
-
-    // Login as support
-    const supportLoginResult = await containerAuthService.login(
-      { email: supportEmail, password: testPassword },
+    // Create support user via AuthService (SUPPORT role not accepted by register route)
+    await result.authSvc.registerAdmin(supportEmail, "TestPassword123!", "Support User", "SUPPORT");
+    const supportLoginResult = await result.authSvc.login(
+      { email: supportEmail, password: "TestPassword123!" },
       "127.0.0.1",
       "test-agent"
     );
@@ -94,24 +133,7 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
     }
   });
 
-  after(async () => {
-    try {
-      // Cleanup test users
-      const testUsers = await prisma.adminUser.findMany({
-        where: {
-          email: { contains: `dashboard-${timestamp}` },
-        },
-      });
-
-      for (const user of testUsers) {
-        await prisma.auditLog.deleteMany({ where: { userId: user.id } });
-        await prisma.adminSession.deleteMany({ where: { userId: user.id } });
-        await prisma.adminUser.delete({ where: { id: user.id } });
-      }
-    } catch (err) {
-      console.warn("Cleanup warning:", err);
-    }
-
+  afterAll(async () => {
     await app.close();
   });
 
@@ -122,12 +144,10 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/dashboard/stats",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.stats);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.stats).toBeTruthy();
     });
 
     it("should include expected stat fields", async () => {
@@ -136,25 +156,15 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/dashboard/stats",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-
-      // Verify stats structure exists
-      assert.ok(body.data?.stats);
-
-      // Stats should be an object
-      assert.strictEqual(typeof body.data.stats, "object");
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.stats).toBeTruthy();
+      expect(typeof body.data.stats).toBe("object");
     });
 
     it("should reject without authentication", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/dashboard/stats",
-      });
-
-      assert.strictEqual(response.statusCode, 401);
+      const response = await app.inject({ method: "GET", url: "/admin/dashboard/stats" });
+      expect(response.statusCode).toBe(401);
     });
 
     it("should reject with invalid token", async () => {
@@ -163,8 +173,7 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/dashboard/stats",
         headers: { authorization: "Bearer invalid-token" },
       });
-
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("should allow support user with admin privileges", async () => {
@@ -173,13 +182,7 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/dashboard/stats",
         headers: { authorization: `Bearer ${supportToken}` },
       });
-
-      // Support role may or may not have access depending on requireAdmin implementation
-      // This test documents the expected behavior: 200 (allowed), 401 (token not accepted), or 403 (forbidden)
-      assert.ok(
-        [200, 401, 403].includes(response.statusCode),
-        `Expected 200, 401, or 403 but got ${response.statusCode}`
-      );
+      expect([200, 401, 403].includes(response.statusCode)).toBeTruthy();
     });
 
     it("should return consistent data structure", async () => {
@@ -188,22 +191,16 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/dashboard/stats",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const response2 = await app.inject({
         method: "GET",
         url: "/admin/dashboard/stats",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body1 = JSON.parse(response1.body);
       const body2 = JSON.parse(response2.body);
-
-      assert.strictEqual(response1.statusCode, 200);
-      assert.strictEqual(response2.statusCode, 200);
-
-      // Both responses should have the same structure
-      assert.deepStrictEqual(
-        Object.keys(body1.data?.stats || {}).sort(),
+      expect(response1.statusCode).toBe(200);
+      expect(response2.statusCode).toBe(200);
+      expect(Object.keys(body1.data?.stats || {}).sort()).toStrictEqual(
         Object.keys(body2.data?.stats || {}).sort()
       );
     });
@@ -216,12 +213,10 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/accounts/summary",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
     });
 
     it("should include account statistics", async () => {
@@ -230,25 +225,15 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/accounts/summary",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-
-      // Verify data exists
-      assert.ok(body.data);
-
-      // Should return object with summary data
-      assert.strictEqual(typeof body.data, "object");
+      expect(response.statusCode).toBe(200);
+      expect(body.data).toBeTruthy();
+      expect(typeof body.data).toBe("object");
     });
 
     it("should reject without authentication", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/accounts/summary",
-      });
-
-      assert.strictEqual(response.statusCode, 401);
+      const response = await app.inject({ method: "GET", url: "/admin/accounts/summary" });
+      expect(response.statusCode).toBe(401);
     });
 
     it("should reject with expired token", async () => {
@@ -257,24 +242,19 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/accounts/summary",
         headers: { authorization: "Bearer expired-token" },
       });
-
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("should return data within reasonable time", async () => {
       const startTime = Date.now();
-
       const response = await app.inject({
         method: "GET",
         url: "/admin/accounts/summary",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(duration < 5000, "Response should be returned within 5 seconds");
+      const duration = Date.now() - startTime;
+      expect(response.statusCode).toBe(200);
+      expect(duration < 5000).toBeTruthy();
     });
   });
 
@@ -285,12 +265,10 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/subscriptions/summary",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
     });
 
     it("should include subscription statistics", async () => {
@@ -299,23 +277,15 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/subscriptions/summary",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-
-      // Verify data structure
-      assert.ok(body.data);
-      assert.strictEqual(typeof body.data, "object");
+      expect(response.statusCode).toBe(200);
+      expect(body.data).toBeTruthy();
+      expect(typeof body.data).toBe("object");
     });
 
     it("should reject without authentication", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/subscriptions/summary",
-      });
-
-      assert.strictEqual(response.statusCode, 401);
+      const response = await app.inject({ method: "GET", url: "/admin/subscriptions/summary" });
+      expect(response.statusCode).toBe(401);
     });
 
     it("should reject with malformed authorization header", async () => {
@@ -324,8 +294,7 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/subscriptions/summary",
         headers: { authorization: "InvalidFormat" },
       });
-
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("should return valid JSON response", async () => {
@@ -334,13 +303,10 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/subscriptions/summary",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
-      assert.strictEqual(response.statusCode, 200);
-
-      // Should not throw when parsing
-      assert.doesNotThrow(() => {
+      expect(response.statusCode).toBe(200);
+      expect(() => {
         JSON.parse(response.body);
-      });
+      }).not.toThrow();
     });
   });
 
@@ -351,12 +317,10 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/analytics/overview",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
     });
 
     it("should include analytics data", async () => {
@@ -365,23 +329,15 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/analytics/overview",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-
-      // Verify data exists and is object
-      assert.ok(body.data);
-      assert.strictEqual(typeof body.data, "object");
+      expect(response.statusCode).toBe(200);
+      expect(body.data).toBeTruthy();
+      expect(typeof body.data).toBe("object");
     });
 
     it("should reject without authentication", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/analytics/overview",
-      });
-
-      assert.strictEqual(response.statusCode, 401);
+      const response = await app.inject({ method: "GET", url: "/admin/analytics/overview" });
+      expect(response.statusCode).toBe(401);
     });
 
     it("should reject with missing Bearer prefix", async () => {
@@ -390,8 +346,7 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/analytics/overview",
         headers: { authorization: adminToken },
       });
-
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("should handle concurrent requests correctly", async () => {
@@ -404,14 +359,11 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
             headers: { authorization: `Bearer ${adminToken}` },
           })
         );
-
       const responses = await Promise.all(requests);
-
-      // All requests should succeed
       for (const response of responses) {
-        assert.strictEqual(response.statusCode, 200);
+        expect(response.statusCode).toBe(200);
         const body = JSON.parse(response.body);
-        assert.strictEqual(body.ok, true);
+        expect(body.ok).toBe(true);
       }
     });
 
@@ -421,21 +373,16 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/analytics/overview",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const response2 = await app.inject({
         method: "GET",
         url: "/admin/analytics/overview",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body1 = JSON.parse(response1.body);
       const body2 = JSON.parse(response2.body);
-
-      assert.strictEqual(response1.statusCode, 200);
-      assert.strictEqual(response2.statusCode, 200);
-
-      // Structure should be consistent
-      assert.strictEqual(typeof body1.data, typeof body2.data);
+      expect(response1.statusCode).toBe(200);
+      expect(response2.statusCode).toBe(200);
+      expect(typeof body1.data).toBe(typeof body2.data);
     });
   });
 
@@ -447,14 +394,9 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         "/admin/subscriptions/summary",
         "/admin/analytics/overview",
       ];
-
       for (const endpoint of endpoints) {
-        const response = await app.inject({
-          method: "GET",
-          url: endpoint,
-        });
-
-        assert.strictEqual(response.statusCode, 401, `${endpoint} should reject without token`);
+        const response = await app.inject({ method: "GET", url: endpoint });
+        expect(response.statusCode).toBe(401);
       }
     });
 
@@ -465,19 +407,13 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         "/admin/subscriptions/summary",
         "/admin/analytics/overview",
       ];
-
       for (const endpoint of endpoints) {
         const response = await app.inject({
           method: "GET",
           url: endpoint,
           headers: { authorization: "Bearer invalid-token-123" },
         });
-
-        assert.strictEqual(
-          response.statusCode,
-          401,
-          `${endpoint} should reject with invalid token`
-        );
+        expect(response.statusCode).toBe(401);
       }
     });
 
@@ -488,15 +424,13 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         "/admin/subscriptions/summary",
         "/admin/analytics/overview",
       ];
-
       for (const endpoint of endpoints) {
         const response = await app.inject({
           method: "GET",
           url: endpoint,
           headers: { authorization: `Bearer ${adminToken}` },
         });
-
-        assert.strictEqual(response.statusCode, 200, `${endpoint} should allow with admin token`);
+        expect(response.statusCode).toBe(200);
       }
     });
   });
@@ -508,13 +442,11 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/dashboard/stats",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
       const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data);
-      assert.ok(body.data.stats);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data).toBeTruthy();
+      expect(body.data.stats).toBeTruthy();
     });
 
     it("should return JSON content type", async () => {
@@ -523,9 +455,8 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/dashboard/stats",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(response.headers["content-type"]?.includes("application/json"));
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]?.includes("application/json")).toBeTruthy();
     });
 
     it("should include appropriate response headers", async () => {
@@ -534,38 +465,27 @@ describe("dashboardRoutes Unit Tests", { concurrency: 1 }, () => {
         url: "/admin/dashboard/stats",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.ok(response.headers["content-type"]);
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toBeTruthy();
     });
   });
 
   describe("Error Handling", () => {
     it("should handle database errors gracefully", async () => {
-      // This test would require mocking prisma to simulate errors
-      // For now, we verify the endpoint is resilient
       const response = await app.inject({
         method: "GET",
         url: "/admin/dashboard/stats",
         headers: { authorization: `Bearer ${adminToken}` },
       });
-
-      // Should not crash, either succeed or return proper error
-      assert.ok([200, 500].includes(response.statusCode));
+      expect([200, 500].includes(response.statusCode)).toBeTruthy();
     });
 
     it("should return proper error format on failure", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/dashboard/stats",
-      });
-
+      const response = await app.inject({ method: "GET", url: "/admin/dashboard/stats" });
       const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 401);
-      // Auth middleware returns { error: "..." } without ok field
-      assert.ok(body.error);
-      assert.strictEqual(typeof body.error, "string");
+      expect(response.statusCode).toBe(401);
+      expect(body.error).toBeTruthy();
+      expect(typeof body.error).toBe("string");
     });
   });
 });

@@ -17,9 +17,27 @@
  * 10. Prisma Middleware - Performance monitoring integration
  */
 
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import * as assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
+
+// Mock @infra/prisma so prisma.post.count() etc. return 0 instead of undefined
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const { vi: _vi } = await import("vitest");
+  const orig = await importOriginal<Record<string, unknown>>();
+  const mkModel = () => ({ count: _vi.fn(async () => 0) });
+  return {
+    ...orig,
+    prisma: {
+      post: mkModel(),
+      postContent: mkModel(),
+      publishLog: mkModel(),
+      analytics: mkModel(),
+      $connect: _vi.fn(async () => undefined),
+      $disconnect: _vi.fn(async () => undefined),
+      $queryRaw: _vi.fn(async () => []),
+    },
+  };
+});
+
 import { DatabaseOptimizer, OptimizedQueries } from "../../src/utils/dbOptimization";
 import type { ApiMetrics } from "../../src/metrics/apiMetrics";
 
@@ -27,13 +45,13 @@ import type { ApiMetrics } from "../../src/metrics/apiMetrics";
 // Mock Setup
 // ============================================================================
 
-function createMockApiMetrics(t: TestContext): ApiMetrics {
+function createMockApiMetrics(): ApiMetrics {
   return {
     metrics: {
       dbOperations: {
-        inc: t.mock.fn(),
-        labels: t.mock.fn(() => ({
-          inc: t.mock.fn(),
+        inc: vi.fn(),
+        labels: vi.fn(() => ({
+          inc: vi.fn(),
         })),
       },
     },
@@ -46,17 +64,17 @@ function createMockApiMetrics(t: TestContext): ApiMetrics {
 
 describe("DatabaseOptimizer - Initialization", () => {
   it("should initialize with metrics", (t) => {
-    const metrics = createMockApiMetrics(t);
+    const metrics = createMockApiMetrics();
     const optimizer = new DatabaseOptimizer(metrics);
 
-    assert.ok(optimizer, "Should create optimizer instance");
+    expect(optimizer).toBeTruthy();
   });
 
   it("should use default slow query threshold", (t) => {
-    const metrics = createMockApiMetrics(t);
+    const metrics = createMockApiMetrics();
     const optimizer = new DatabaseOptimizer(metrics);
 
-    assert.ok(optimizer, "Should initialize with default threshold");
+    expect(optimizer).toBeTruthy();
   });
 });
 
@@ -68,62 +86,54 @@ describe("DatabaseOptimizer - Query Tracking", () => {
   let optimizer: DatabaseOptimizer;
   let mockMetrics: ApiMetrics;
 
-  beforeEach((t) => {
-    mockMetrics = createMockApiMetrics(t);
+  beforeEach(() => {
+    mockMetrics = createMockApiMetrics();
     optimizer = new DatabaseOptimizer(mockMetrics);
   });
 
   it("should track query execution", async () => {
     await optimizer.trackQuery("SELECT * FROM posts", 50);
 
-    assert.strictEqual(
-      mockMetrics.metrics.dbOperations.inc.mock.calls.length,
-      1,
-      "Should increment db operations"
-    );
+    expect(mockMetrics.metrics.dbOperations.inc.mock.calls.length).toBe(1);
   });
 
   it("should track queries with parameters", async () => {
     await optimizer.trackQuery("SELECT * FROM posts WHERE id = $1", 50, ["post-123"]);
 
-    assert.strictEqual(
-      mockMetrics.metrics.dbOperations.inc.mock.calls.length,
-      1,
-      "Should track query"
-    );
+    expect(mockMetrics.metrics.dbOperations.inc.mock.calls.length).toBe(1);
   });
 
   it("should detect slow queries", async () => {
     await optimizer.trackQuery("SELECT * FROM posts", 150);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length > 0, "Should record slow query");
+    expect(stats.slowQueries.length > 0).toBeTruthy();
   });
 
   it("should not log fast queries as slow", async () => {
     await optimizer.trackQuery("SELECT * FROM posts", 50);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.strictEqual(stats.slowQueries.length, 0, "Should not record fast query as slow");
+    expect(stats.slowQueries.length).toBe(0);
   });
 
   it("should sanitize query before logging", async () => {
     await optimizer.trackQuery("SELECT * FROM users WHERE password = 'secret123'", 150);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length > 0, "Should record slow query");
+    expect(stats.slowQueries.length > 0).toBeTruthy();
     const recorded = stats.slowQueries[0]!;
-    assert.ok(!recorded.query.includes("secret123"), "Should sanitize sensitive data");
+    expect(recorded.query.includes("secret123")).toBeFalsy();
   });
 
   it("should capture stack trace for slow queries", async () => {
     await optimizer.trackQuery("SELECT * FROM posts", 150);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length > 0, "Should record slow query");
+    expect(stats.slowQueries.length > 0).toBeTruthy();
     const recorded = stats.slowQueries[0]!;
-    assert.ok(recorded.stackTrace, "Should capture stack trace");
-    assert.ok(recorded.stackTrace!.length > 0, "Stack trace should not be empty");
+    expect(recorded.stackTrace).toBeTruthy();
+    expect(recorded.stackTrace!.length > 0).toBeTruthy();
   });
 
   it("should limit slow query history to max size", async () => {
@@ -132,7 +142,7 @@ describe("DatabaseOptimizer - Query Tracking", () => {
     }
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length <= 100, "Should limit slow query history");
+    expect(stats.slowQueries.length <= 100).toBeTruthy();
   });
 });
 
@@ -143,53 +153,49 @@ describe("DatabaseOptimizer - Query Tracking", () => {
 describe("DatabaseOptimizer - Database Statistics", () => {
   let optimizer: DatabaseOptimizer;
 
-  beforeEach((t) => {
-    const mockMetrics = createMockApiMetrics(t);
+  beforeEach(() => {
+    const mockMetrics = createMockApiMetrics();
     optimizer = new DatabaseOptimizer(mockMetrics);
   });
 
   it("should return database statistics", async () => {
     const stats = await optimizer.getDatabaseStats();
 
-    assert.ok(stats, "Should return stats object");
-    assert.strictEqual(typeof stats.connectionPoolSize, "number", "Should include pool size");
-    assert.strictEqual(
-      typeof stats.activeConnections,
-      "number",
-      "Should include active connections"
-    );
-    assert.strictEqual(typeof stats.idleConnections, "number", "Should include idle connections");
+    expect(stats).toBeTruthy();
+    expect(typeof stats.connectionPoolSize).toBe("number");
+    expect(typeof stats.activeConnections).toBe("number");
+    expect(typeof stats.idleConnections).toBe("number");
   });
 
   it("should include slow queries in stats", async () => {
     await optimizer.trackQuery("SELECT * FROM posts", 150);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(Array.isArray(stats.slowQueries), "Should include slow queries array");
+    expect(Array.isArray(stats.slowQueries)).toBeTruthy();
   });
 
   it("should include index recommendations in stats", async () => {
     const stats = await optimizer.getDatabaseStats();
 
-    assert.ok(Array.isArray(stats.indexRecommendations), "Should include recommendations");
-    assert.ok(stats.indexRecommendations.length > 0, "Should have some recommendations");
+    expect(Array.isArray(stats.indexRecommendations)).toBeTruthy();
+    expect(stats.indexRecommendations.length > 0).toBeTruthy();
   });
 
   it("should include table statistics in stats", async () => {
     const stats = await optimizer.getDatabaseStats();
 
-    assert.ok(Array.isArray(stats.tableStats), "Should include table stats");
-    assert.ok(stats.tableStats.length > 0, "Should have table information");
+    expect(Array.isArray(stats.tableStats)).toBeTruthy();
+    expect(stats.tableStats.length > 0).toBeTruthy();
   });
 
   it("should handle stats errors gracefully", async (t) => {
-    const errorMetrics = createMockApiMetrics(t);
+    const errorMetrics = createMockApiMetrics();
     const errorOptimizer = new DatabaseOptimizer(errorMetrics);
 
     const stats = await errorOptimizer.getDatabaseStats();
 
-    assert.ok(stats, "Should return stats even with errors");
-    assert.strictEqual(stats.connectionPoolSize, 0, "Should use default values on error");
+    expect(stats).toBeTruthy();
+    expect(stats.connectionPoolSize).toBe(0);
   });
 });
 
@@ -200,28 +206,25 @@ describe("DatabaseOptimizer - Database Statistics", () => {
 describe("DatabaseOptimizer - Index Recommendations", () => {
   let optimizer: DatabaseOptimizer;
 
-  beforeEach((t) => {
-    const mockMetrics = createMockApiMetrics(t);
+  beforeEach(() => {
+    const mockMetrics = createMockApiMetrics();
     optimizer = new DatabaseOptimizer(mockMetrics);
   });
 
   it("should generate index recommendations", async () => {
     const stats = await optimizer.getDatabaseStats();
 
-    assert.ok(stats.indexRecommendations.length > 0, "Should provide recommendations");
+    expect(stats.indexRecommendations.length > 0).toBeTruthy();
   });
 
   it("should recommend indexes for posts table", async () => {
     const stats = await optimizer.getDatabaseStats();
 
     const postsRecommendation = stats.indexRecommendations.find((r) => r.table === "posts");
-    assert.ok(postsRecommendation, "Should recommend index for posts");
-    assert.ok(postsRecommendation.columns.length > 0, "Should specify columns");
-    assert.ok(postsRecommendation.reason, "Should include reason");
-    assert.ok(
-      ["high", "medium", "low"].includes(postsRecommendation.priority),
-      "Should have priority"
-    );
+    expect(postsRecommendation).toBeTruthy();
+    expect(postsRecommendation.columns.length > 0).toBeTruthy();
+    expect(postsRecommendation.reason).toBeTruthy();
+    expect(["high", "medium", "low"].includes(postsRecommendation.priority)).toBeTruthy();
   });
 
   it("should recommend indexes for publishLogs table", async () => {
@@ -230,22 +233,22 @@ describe("DatabaseOptimizer - Index Recommendations", () => {
     const publishLogsRecommendation = stats.indexRecommendations.find(
       (r) => r.table === "publishLogs"
     );
-    assert.ok(publishLogsRecommendation, "Should recommend index for publishLogs");
+    expect(publishLogsRecommendation).toBeTruthy();
   });
 
   it("should recommend indexes for analytics table", async () => {
     const stats = await optimizer.getDatabaseStats();
 
     const analyticsRecommendation = stats.indexRecommendations.find((r) => r.table === "analytics");
-    assert.ok(analyticsRecommendation, "Should recommend index for analytics");
+    expect(analyticsRecommendation).toBeTruthy();
   });
 
   it("should include estimated improvement in recommendations", async () => {
     const stats = await optimizer.getDatabaseStats();
 
     stats.indexRecommendations.forEach((rec) => {
-      assert.ok(rec.estimatedImprovement, "Should include estimated improvement");
-      assert.ok(rec.estimatedImprovement.length > 0, "Improvement should be described");
+      expect(rec.estimatedImprovement).toBeTruthy();
+      expect(rec.estimatedImprovement.length > 0).toBeTruthy();
     });
   });
 });
@@ -257,8 +260,8 @@ describe("DatabaseOptimizer - Index Recommendations", () => {
 describe("DatabaseOptimizer - Query Sanitization", () => {
   let optimizer: DatabaseOptimizer;
 
-  beforeEach((t) => {
-    const mockMetrics = createMockApiMetrics(t);
+  beforeEach(() => {
+    const mockMetrics = createMockApiMetrics();
     optimizer = new DatabaseOptimizer(mockMetrics);
   });
 
@@ -269,27 +272,27 @@ describe("DatabaseOptimizer - Query Sanitization", () => {
     ]);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length > 0, "Should record slow query");
+    expect(stats.slowQueries.length > 0).toBeTruthy();
     const recorded = stats.slowQueries[0]!;
-    assert.ok(!recorded.query.includes("$1"), "Should replace parameters");
+    expect(recorded.query.includes("$1")).toBeFalsy();
   });
 
   it("should sanitize string literals", async () => {
     await optimizer.trackQuery("SELECT * FROM posts WHERE title = 'Secret Title'", 150);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length > 0, "Should record slow query");
+    expect(stats.slowQueries.length > 0).toBeTruthy();
     const recorded = stats.slowQueries[0]!;
-    assert.ok(!recorded.query.includes("Secret Title"), "Should sanitize string literals");
+    expect(recorded.query.includes("Secret Title")).toBeFalsy();
   });
 
   it("should normalize whitespace in queries", async () => {
     await optimizer.trackQuery("SELECT  *   FROM    posts   WHERE   id = $1", 150);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length > 0, "Should record slow query");
+    expect(stats.slowQueries.length > 0).toBeTruthy();
     const recorded = stats.slowQueries[0]!;
-    assert.ok(!recorded.query.includes("  "), "Should normalize whitespace");
+    expect(recorded.query.includes("  ")).toBeFalsy();
   });
 
   it("should truncate long parameter values", async () => {
@@ -297,11 +300,11 @@ describe("DatabaseOptimizer - Query Sanitization", () => {
     await optimizer.trackQuery("SELECT * FROM posts", 150, [longString]);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length > 0, "Should record slow query");
+    expect(stats.slowQueries.length > 0).toBeTruthy();
     const recorded = stats.slowQueries[0]!;
-    assert.ok(recorded.params, "Should have params");
+    expect(recorded.params).toBeTruthy();
     const param = recorded.params![0] as string;
-    assert.ok(param.length <= 13, "Should truncate long params");
+    expect(param.length <= 13).toBeTruthy();
   });
 });
 
@@ -312,8 +315,8 @@ describe("DatabaseOptimizer - Query Sanitization", () => {
 describe("DatabaseOptimizer - Slow Query Analysis", () => {
   let optimizer: DatabaseOptimizer;
 
-  beforeEach((t) => {
-    const mockMetrics = createMockApiMetrics(t);
+  beforeEach(() => {
+    const mockMetrics = createMockApiMetrics();
     optimizer = new DatabaseOptimizer(mockMetrics);
   });
 
@@ -321,7 +324,7 @@ describe("DatabaseOptimizer - Slow Query Analysis", () => {
     await optimizer.trackQuery("SELECT * FROM posts", 150);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length > 0, "Should include recent slow queries");
+    expect(stats.slowQueries.length > 0).toBeTruthy();
   });
 
   it("should sort slow queries by duration", async () => {
@@ -333,7 +336,7 @@ describe("DatabaseOptimizer - Slow Query Analysis", () => {
     const durations = stats.slowQueries.map((q) => q.duration);
 
     for (let i = 0; i < durations.length - 1; i++) {
-      assert.ok(durations[i]! >= durations[i + 1]!, "Should sort by duration descending");
+      expect(durations[i]! >= durations[i + 1]!).toBeTruthy();
     }
   });
 
@@ -343,7 +346,7 @@ describe("DatabaseOptimizer - Slow Query Analysis", () => {
     }
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length <= 20, "Should limit to top 20");
+    expect(stats.slowQueries.length <= 20).toBeTruthy();
   });
 
   it("should identify common query patterns", async () => {
@@ -351,7 +354,7 @@ describe("DatabaseOptimizer - Slow Query Analysis", () => {
     await optimizer.trackQuery("SELECT * FROM posts WHERE postId = $1 ORDER BY createdAt", 150);
 
     const stats = await optimizer.getDatabaseStats();
-    assert.ok(stats.slowQueries.length >= 2, "Should have recorded both slow query patterns");
+    expect(stats.slowQueries.length >= 2).toBeTruthy();
   });
 });
 
@@ -362,16 +365,16 @@ describe("DatabaseOptimizer - Slow Query Analysis", () => {
 describe("DatabaseOptimizer - Prisma Middleware", () => {
   let optimizer: DatabaseOptimizer;
 
-  beforeEach((t) => {
-    const mockMetrics = createMockApiMetrics(t);
+  beforeEach(() => {
+    const mockMetrics = createMockApiMetrics();
     optimizer = new DatabaseOptimizer(mockMetrics);
   });
 
   it("should create Prisma middleware", () => {
     const middleware = optimizer.createPrismaMiddleware();
 
-    assert.ok(middleware, "Should create middleware function");
-    assert.strictEqual(typeof middleware, "function", "Should be a function");
+    expect(middleware).toBeTruthy();
+    expect(typeof middleware).toBe("function");
   });
 
   it("should track query through middleware", async (t) => {
@@ -383,11 +386,11 @@ describe("DatabaseOptimizer - Prisma Middleware", () => {
       args: { where: { projectId: "project-123" } },
     };
 
-    const mockNext = t.mock.fn(async () => [{ id: "post-123" }]);
+    const mockNext = vi.fn(async () => [{ id: "post-123" }]);
 
     await middleware(mockParams, mockNext);
 
-    assert.strictEqual(mockNext.mock.calls.length, 1, "Should call next");
+    expect(mockNext.mock.calls.length).toBe(1);
   });
 
   it("should measure query duration in middleware", async (t) => {
@@ -399,14 +402,14 @@ describe("DatabaseOptimizer - Prisma Middleware", () => {
       args: {},
     };
 
-    const mockNext = t.mock.fn(async () => {
+    const mockNext = vi.fn(async () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
       return [{ id: "post-123" }];
     });
 
     const result = await middleware(mockParams, mockNext);
 
-    assert.ok(result, "Should return query result");
+    expect(result).toBeTruthy();
   });
 });
 
@@ -417,27 +420,27 @@ describe("DatabaseOptimizer - Prisma Middleware", () => {
 describe("DatabaseOptimizer - Index Creation", () => {
   let optimizer: DatabaseOptimizer;
 
-  beforeEach((t) => {
-    const mockMetrics = createMockApiMetrics(t);
+  beforeEach(() => {
+    const mockMetrics = createMockApiMetrics();
     optimizer = new DatabaseOptimizer(mockMetrics);
   });
 
   it("should provide index creation commands", async () => {
     const result = await optimizer.createRecommendedIndexes();
 
-    assert.ok(result, "Should return result");
-    assert.ok(Array.isArray(result.created), "Should have created array");
-    assert.ok(Array.isArray(result.failed), "Should have failed array");
+    expect(result).toBeTruthy();
+    expect(Array.isArray(result.created)).toBeTruthy();
+    expect(Array.isArray(result.failed)).toBeTruthy();
   });
 
   it("should return index commands for recommended indexes", async () => {
     const result = await optimizer.createRecommendedIndexes();
 
-    assert.ok(result.created.length > 0, "Should have index commands");
+    expect(result.created.length > 0).toBeTruthy();
 
     result.created.forEach((cmd) => {
-      assert.ok(cmd.includes("CREATE INDEX"), "Should be CREATE INDEX command");
-      assert.ok(cmd.includes("CONCURRENTLY"), "Should use CONCURRENTLY");
+      expect(cmd.includes("CREATE INDEX")).toBeTruthy();
+      expect(cmd.includes("CONCURRENTLY")).toBeTruthy();
     });
   });
 
@@ -445,21 +448,21 @@ describe("DatabaseOptimizer - Index Creation", () => {
     const result = await optimizer.createRecommendedIndexes();
 
     const postsIndex = result.created.find((cmd) => cmd.includes("posts"));
-    assert.ok(postsIndex, "Should create index for posts");
+    expect(postsIndex).toBeTruthy();
   });
 
   it("should create indexes for publishLogs table", async () => {
     const result = await optimizer.createRecommendedIndexes();
 
     const publishLogsIndex = result.created.find((cmd) => cmd.includes("publishLogs"));
-    assert.ok(publishLogsIndex, "Should create index for publishLogs");
+    expect(publishLogsIndex).toBeTruthy();
   });
 
   it("should create indexes for analytics table", async () => {
     const result = await optimizer.createRecommendedIndexes();
 
     const analyticsIndex = result.created.find((cmd) => cmd.includes("analytics"));
-    assert.ok(analyticsIndex, "Should create index for analytics");
+    expect(analyticsIndex).toBeTruthy();
   });
 });
 
@@ -469,12 +472,8 @@ describe("DatabaseOptimizer - Index Creation", () => {
 
 describe("OptimizedQueries - Paginated Posts", () => {
   it("should provide paginated posts query helper", () => {
-    assert.ok(OptimizedQueries.getPostsPaginated, "Should have getPostsPaginated method");
-    assert.strictEqual(
-      typeof OptimizedQueries.getPostsPaginated,
-      "function",
-      "Should be a function"
-    );
+    expect(OptimizedQueries.getPostsPaginated).toBeTruthy();
+    expect(typeof OptimizedQueries.getPostsPaginated).toBe("function");
   });
 
   it("should calculate correct offset for pagination", async () => {
@@ -482,7 +481,7 @@ describe("OptimizedQueries - Paginated Posts", () => {
     const limit = 20;
     const expectedOffset = (page - 1) * limit;
 
-    assert.strictEqual(expectedOffset, 40, "Should calculate correct offset");
+    expect(expectedOffset).toBe(40);
   });
 });
 
@@ -492,12 +491,8 @@ describe("OptimizedQueries - Paginated Posts", () => {
 
 describe("OptimizedQueries - Analytics Aggregation", () => {
   it("should provide analytics aggregation helper", () => {
-    assert.ok(OptimizedQueries.getAnalyticsAggregated, "Should have getAnalyticsAggregated method");
-    assert.strictEqual(
-      typeof OptimizedQueries.getAnalyticsAggregated,
-      "function",
-      "Should be a function"
-    );
+    expect(OptimizedQueries.getAnalyticsAggregated).toBeTruthy();
+    expect(typeof OptimizedQueries.getAnalyticsAggregated).toBe("function");
   });
 });
 
@@ -507,12 +502,8 @@ describe("OptimizedQueries - Analytics Aggregation", () => {
 
 describe("OptimizedQueries - Publish Logs", () => {
   it("should provide publish logs query helper", () => {
-    assert.ok(OptimizedQueries.getPublishLogsByStatus, "Should have getPublishLogsByStatus method");
-    assert.strictEqual(
-      typeof OptimizedQueries.getPublishLogsByStatus,
-      "function",
-      "Should be a function"
-    );
+    expect(OptimizedQueries.getPublishLogsByStatus).toBeTruthy();
+    expect(typeof OptimizedQueries.getPublishLogsByStatus).toBe("function");
   });
 });
 
@@ -523,8 +514,8 @@ describe("OptimizedQueries - Publish Logs", () => {
 describe("DatabaseOptimizer - Table Statistics", () => {
   let optimizer: DatabaseOptimizer;
 
-  beforeEach((t) => {
-    const mockMetrics = createMockApiMetrics(t);
+  beforeEach(() => {
+    const mockMetrics = createMockApiMetrics();
     optimizer = new DatabaseOptimizer(mockMetrics);
   });
 
@@ -532,37 +523,37 @@ describe("DatabaseOptimizer - Table Statistics", () => {
     const stats = await optimizer.getDatabaseStats();
 
     const postsTable = stats.tableStats.find((tbl) => tbl.name === "posts");
-    assert.ok(postsTable, "Should include posts table");
-    assert.strictEqual(typeof postsTable.rowCount, "number", "Should have row count");
-    assert.ok(Array.isArray(postsTable.indexes), "Should list indexes");
+    expect(postsTable).toBeTruthy();
+    expect(typeof postsTable.rowCount).toBe("number");
+    expect(Array.isArray(postsTable.indexes)).toBeTruthy();
   });
 
   it("should include postContent table in statistics", async () => {
     const stats = await optimizer.getDatabaseStats();
 
     const postContentTable = stats.tableStats.find((tbl) => tbl.name === "postContent");
-    assert.ok(postContentTable, "Should include postContent table");
+    expect(postContentTable).toBeTruthy();
   });
 
   it("should include publishLogs table in statistics", async () => {
     const stats = await optimizer.getDatabaseStats();
 
     const publishLogsTable = stats.tableStats.find((tbl) => tbl.name === "publishLogs");
-    assert.ok(publishLogsTable, "Should include publishLogs table");
+    expect(publishLogsTable).toBeTruthy();
   });
 
   it("should include analytics table in statistics", async () => {
     const stats = await optimizer.getDatabaseStats();
 
     const analyticsTable = stats.tableStats.find((tbl) => tbl.name === "analytics");
-    assert.ok(analyticsTable, "Should include analytics table");
+    expect(analyticsTable).toBeTruthy();
   });
 
   it("should list known indexes for each table", async () => {
     const stats = await optimizer.getDatabaseStats();
 
     stats.tableStats.forEach((table) => {
-      assert.ok(table.indexes.length > 0, `${table.name} should have indexes listed`);
+      expect(table.indexes.length > 0).toBeTruthy();
     });
   });
 });

@@ -10,8 +10,47 @@
  */
 
 import "./templateRoutes.env-setup.js";
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const { vi: _vi } = await import("vitest");
+  const { buildModelMock, createStore } = await import("./helpers/mockPrisma.js");
+
+  const p: Record<string, unknown> = {
+    template: buildModelMock(createStore()),
+    templateVersion: buildModelMock(createStore()),
+    templateComponent: buildModelMock(createStore()),
+    templateComponentUsage: buildModelMock(createStore()),
+    project: buildModelMock(createStore()),
+    aBTest: buildModelMock(createStore()),
+    $connect: _vi.fn(async () => undefined),
+    $disconnect: _vi.fn(async () => undefined),
+  };
+  p.$transaction = _vi.fn(async (fnOrArray: unknown) => {
+    if (typeof fnOrArray === "function") {
+      return (fnOrArray as (tx: unknown) => Promise<unknown>)(p);
+    }
+    return Promise.all(fnOrArray as Promise<unknown>[]);
+  });
+
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: p };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = () => {};
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
 import { prisma } from "@infra/prisma";
 import { ServerTemplateEngine } from "../../src/lib/templates/ServerTemplateEngine";
 import type { Template, TemplateContext } from "@shared/types";
@@ -21,15 +60,15 @@ const _originalComponentFindUnique = prisma.templateComponent.findUnique;
 const _originalComponentUsageFindMany = prisma.templateComponentUsage.findMany;
 
 // Restore real prisma methods after all tests complete
-after(() => {
+afterAll(() => {
   prisma.templateComponent.findUnique = _originalComponentFindUnique;
   prisma.templateComponentUsage.findMany = _originalComponentUsageFindMany;
 });
 
-describe("ServerTemplateEngine - Platform Validation", { concurrency: 1 }, () => {
+describe("ServerTemplateEngine - Platform Validation", () => {
   let engine: ServerTemplateEngine;
 
-  before(() => {
+  beforeAll(() => {
     engine = new ServerTemplateEngine();
   });
 
@@ -44,8 +83,8 @@ describe("ServerTemplateEngine - Platform Validation", { concurrency: 1 }, () =>
     };
 
     const result = engine.validateTemplate(template);
-    assert.strictEqual(result.valid, true);
-    assert.strictEqual(result.errors.length, 0);
+    expect(result.valid).toBe(true);
+    expect(result.errors.length).toBe(0);
   });
 
   it("should fail validation for content exceeding Twitter limit", () => {
@@ -60,8 +99,8 @@ describe("ServerTemplateEngine - Platform Validation", { concurrency: 1 }, () =>
     };
 
     const result = engine.validateTemplate(template);
-    assert.strictEqual(result.valid, false);
-    assert.ok(result.errors.some((err) => err.includes("character limit")));
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((err) => err.includes("character limit"))).toBeTruthy();
   });
 
   it("should validate content for Instagram character limit", () => {
@@ -75,7 +114,7 @@ describe("ServerTemplateEngine - Platform Validation", { concurrency: 1 }, () =>
     };
 
     const result = engine.validateTemplate(template);
-    assert.strictEqual(result.valid, true);
+    expect(result.valid).toBe(true);
   });
 
   it("should validate content for LinkedIn line limit", () => {
@@ -89,7 +128,7 @@ describe("ServerTemplateEngine - Platform Validation", { concurrency: 1 }, () =>
     };
 
     const result = engine.validateTemplate(template);
-    assert.strictEqual(result.valid, true);
+    expect(result.valid).toBe(true);
   });
 
   it("should fail validation for unknown platform", () => {
@@ -103,8 +142,8 @@ describe("ServerTemplateEngine - Platform Validation", { concurrency: 1 }, () =>
     };
 
     const result = engine.validateTemplate(template);
-    assert.strictEqual(result.valid, false);
-    assert.ok(result.errors.some((err) => err.includes("Unknown platform")));
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((err) => err.includes("Unknown platform"))).toBeTruthy();
   });
 
   it("should validate multiple platforms", () => {
@@ -118,14 +157,14 @@ describe("ServerTemplateEngine - Platform Validation", { concurrency: 1 }, () =>
     };
 
     const result = engine.validateTemplate(template);
-    assert.strictEqual(result.valid, true);
+    expect(result.valid).toBe(true);
   });
 });
 
-describe("ServerTemplateEngine - Content Adaptation", { concurrency: 1 }, () => {
+describe("ServerTemplateEngine - Content Adaptation", () => {
   let engine: ServerTemplateEngine;
 
-  before(() => {
+  beforeAll(() => {
     engine = new ServerTemplateEngine();
   });
 
@@ -143,10 +182,10 @@ describe("ServerTemplateEngine - Content Adaptation", { concurrency: 1 }, () => 
 
     const result = await engine.compileForPlatform(template, context, "TWITTER");
 
-    assert.strictEqual(result.success, true);
-    assert.ok(result.content);
-    assert.ok(result.content.length <= 280);
-    assert.ok(result.content.endsWith("..."));
+    expect(result.success).toBe(true);
+    expect(result.content).toBeTruthy();
+    expect(result.content.length <= 280).toBeTruthy();
+    expect(result.content.endsWith("...")).toBeTruthy();
   });
 
   it("should track truncation in adaptations", async () => {
@@ -163,7 +202,7 @@ describe("ServerTemplateEngine - Content Adaptation", { concurrency: 1 }, () => 
 
     const result = await engine.compileForPlatform(template, context, "X");
 
-    assert.ok(result.adaptations?.truncated);
+    expect(result.adaptations?.truncated).toBeTruthy();
   });
 
   it("should not adapt content within limits", async () => {
@@ -179,9 +218,9 @@ describe("ServerTemplateEngine - Content Adaptation", { concurrency: 1 }, () => 
 
     const result = await engine.compileForPlatform(template, context, "TWITTER");
 
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.content, "Short content");
-    assert.ok(!result.adaptations?.truncated);
+    expect(result.success).toBe(true);
+    expect(result.content).toBe("Short content");
+    expect(result.adaptations?.truncated).toBeFalsy();
   });
 
   it("should handle platform case insensitivity", async () => {
@@ -197,15 +236,15 @@ describe("ServerTemplateEngine - Content Adaptation", { concurrency: 1 }, () => 
 
     const result = await engine.compileForPlatform(template, context, "twitter");
 
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.platform, "twitter");
+    expect(result.success).toBe(true);
+    expect(result.platform).toBe("twitter");
   });
 });
 
-describe("ServerTemplateEngine - Content Sanitization", { concurrency: 1 }, () => {
+describe("ServerTemplateEngine - Content Sanitization", () => {
   let engine: ServerTemplateEngine;
 
-  before(() => {
+  beforeAll(() => {
     engine = new ServerTemplateEngine();
   });
 
@@ -213,36 +252,36 @@ describe("ServerTemplateEngine - Content Sanitization", { concurrency: 1 }, () =
     const maliciousContent = '<script>alert("xss")</script><p>Safe content</p>';
     const sanitized = engine.sanitize(maliciousContent);
 
-    assert.ok(!sanitized.includes("<script>"));
-    assert.ok(sanitized.includes("Safe content"));
+    expect(sanitized.includes("<script>")).toBeFalsy();
+    expect(sanitized.includes("Safe content")).toBeTruthy();
   });
 
   it("should preserve safe HTML tags", () => {
     const safeContent = "<p>Paragraph</p><strong>Bold</strong><em>Italic</em>";
     const sanitized = engine.sanitize(safeContent);
 
-    assert.ok(sanitized.includes("<p>"));
-    assert.ok(sanitized.includes("<strong>"));
-    assert.ok(sanitized.includes("<em>"));
+    expect(sanitized.includes("<p>")).toBeTruthy();
+    expect(sanitized.includes("<strong>")).toBeTruthy();
+    expect(sanitized.includes("<em>")).toBeTruthy();
   });
 
   it("should remove malicious attributes", () => {
     const maliciousContent = '<a href="javascript:alert(1)">Click me</a>';
     const sanitized = engine.sanitize(maliciousContent);
 
-    assert.ok(!sanitized.includes("javascript:"));
+    expect(sanitized.includes("javascript:")).toBeFalsy();
   });
 
   it("should handle empty content", () => {
     const sanitized = engine.sanitize("");
-    assert.strictEqual(sanitized, "");
+    expect(sanitized).toBe("");
   });
 });
 
-describe("ServerTemplateEngine - Platform Compilation", { concurrency: 1 }, () => {
+describe("ServerTemplateEngine - Platform Compilation", () => {
   let engine: ServerTemplateEngine;
 
-  before(() => {
+  beforeAll(() => {
     engine = new ServerTemplateEngine();
   });
 
@@ -262,8 +301,8 @@ describe("ServerTemplateEngine - Platform Compilation", { concurrency: 1 }, () =
 
     const result = await engine.compileForPlatform(template, context, "TWITTER");
 
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.content, "Hello John! Welcome to Twitter");
+    expect(result.success).toBe(true);
+    expect(result.content).toBe("Hello John! Welcome to Twitter");
   });
 
   it("should compile for multiple platforms", async () => {
@@ -279,10 +318,10 @@ describe("ServerTemplateEngine - Platform Compilation", { concurrency: 1 }, () =
 
     const results = await engine.compileTemplate(template, context);
 
-    assert.strictEqual(results.length, 3);
-    assert.strictEqual(results[0]!.platform, "TWITTER");
-    assert.strictEqual(results[1]!.platform, "INSTAGRAM");
-    assert.strictEqual(results[2]!.platform, "LINKEDIN");
+    expect(results.length).toBe(3);
+    expect(results[0]!.platform).toBe("TWITTER");
+    expect(results[1]!.platform).toBe("INSTAGRAM");
+    expect(results[2]!.platform).toBe("LINKEDIN");
   });
 
   it("should handle compilation errors gracefully", async () => {
@@ -298,9 +337,9 @@ describe("ServerTemplateEngine - Platform Compilation", { concurrency: 1 }, () =
 
     const result = await engine.compileForPlatform(template, context, "TWITTER");
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.errors);
-    assert.ok(result.errors.length > 0);
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeTruthy();
+    expect(result.errors.length > 0).toBeTruthy();
   });
 
   it("should include platform in result", async () => {
@@ -316,81 +355,81 @@ describe("ServerTemplateEngine - Platform Compilation", { concurrency: 1 }, () =
 
     const result = await engine.compileForPlatform(template, context, "FACEBOOK");
 
-    assert.strictEqual(result.platform, "FACEBOOK");
+    expect(result.platform).toBe("FACEBOOK");
   });
 });
 
-describe("ServerTemplateEngine - Platform Limits", { concurrency: 1 }, () => {
+describe("ServerTemplateEngine - Platform Limits", () => {
   let engine: ServerTemplateEngine;
 
-  before(() => {
+  beforeAll(() => {
     engine = new ServerTemplateEngine();
   });
 
   it("should return Twitter platform limits", () => {
     const limits = engine.getPlatformLimits("TWITTER");
 
-    assert.ok(limits);
-    assert.strictEqual(limits.maxLength, 280);
-    assert.strictEqual(limits.allowsHashtags, true);
-    assert.strictEqual(limits.allowsMentions, true);
+    expect(limits).toBeTruthy();
+    expect(limits.maxLength).toBe(280);
+    expect(limits.allowsHashtags).toBe(true);
+    expect(limits.allowsMentions).toBe(true);
   });
 
   it("should return Instagram platform limits", () => {
     const limits = engine.getPlatformLimits("INSTAGRAM");
 
-    assert.ok(limits);
-    assert.strictEqual(limits.maxLength, 2200);
-    assert.strictEqual(limits.recommendedHashtagCount, 30);
+    expect(limits).toBeTruthy();
+    expect(limits.maxLength).toBe(2200);
+    expect(limits.recommendedHashtagCount).toBe(30);
   });
 
   it("should return LinkedIn platform limits", () => {
     const limits = engine.getPlatformLimits("LINKEDIN");
 
-    assert.ok(limits);
-    assert.strictEqual(limits.maxLength, 3000);
-    assert.strictEqual(limits.maxLines, 7);
+    expect(limits).toBeTruthy();
+    expect(limits.maxLength).toBe(3000);
+    expect(limits.maxLines).toBe(7);
   });
 
   it("should return null for unknown platform", () => {
     const limits = engine.getPlatformLimits("UNKNOWN");
-    assert.strictEqual(limits, null);
+    expect(limits).toBe(null);
   });
 
   it("should handle case-insensitive platform names", () => {
     const limits = engine.getPlatformLimits("twitter");
-    assert.ok(limits);
-    assert.strictEqual(limits.maxLength, 280);
+    expect(limits).toBeTruthy();
+    expect(limits.maxLength).toBe(280);
   });
 
   it("should return all supported platforms", () => {
     const platforms = engine.getSupportedPlatforms();
 
-    assert.ok(Array.isArray(platforms));
-    assert.ok(platforms.length > 0);
-    assert.ok(platforms.includes("TWITTER"));
-    assert.ok(platforms.includes("INSTAGRAM"));
-    assert.ok(platforms.includes("LINKEDIN"));
-    assert.ok(platforms.includes("FACEBOOK"));
+    expect(Array.isArray(platforms)).toBeTruthy();
+    expect(platforms.length > 0).toBeTruthy();
+    expect(platforms.includes("TWITTER")).toBeTruthy();
+    expect(platforms.includes("INSTAGRAM")).toBeTruthy();
+    expect(platforms.includes("LINKEDIN")).toBeTruthy();
+    expect(platforms.includes("FACEBOOK")).toBeTruthy();
   });
 });
 
-describe("ServerTemplateEngine - Component Compilation", { concurrency: 1 }, () => {
+describe("ServerTemplateEngine - Component Compilation", () => {
   let engine: ServerTemplateEngine;
   let mockFindUnique: ReturnType<typeof import("node:test").mock.fn>;
   let mockFindMany: ReturnType<typeof import("node:test").mock.fn>;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     engine = new ServerTemplateEngine();
     // Create fresh mocks per test via t.mock — auto-restored when the test ends
-    mockFindUnique = t.mock.fn();
-    mockFindMany = t.mock.fn();
+    mockFindUnique = vi.fn();
+    mockFindMany = vi.fn();
     prisma.templateComponent.findUnique = mockFindUnique as any;
     prisma.templateComponentUsage.findMany = mockFindMany as any;
   });
 
   it("should compile component by ID", async () => {
-    mockFindUnique.mock.mockImplementationOnce(() =>
+    mockFindUnique.mockImplementationOnce(() =>
       Promise.resolve({
         id: "component-1",
         name: "Header",
@@ -401,15 +440,14 @@ describe("ServerTemplateEngine - Component Compilation", { concurrency: 1 }, () 
     const context: TemplateContext = { username: "Alice" };
     const result = await engine.compileComponent("component-1", context);
 
-    assert.strictEqual(result, "Welcome Alice!");
-    assert.strictEqual(mockFindUnique.mock.calls.length, 1);
+    expect(result).toBe("Welcome Alice!");
+    expect(mockFindUnique.mock.calls.length).toBe(1);
   });
 
   it("should throw error for missing component", async () => {
-    mockFindUnique.mock.mockImplementationOnce(() => Promise.resolve(null));
+    mockFindUnique.mockImplementationOnce(() => Promise.resolve(null));
 
-    await assert.rejects(
-      async () => await engine.compileComponent("missing-component", {}),
+    await expect(engine.compileComponent("missing-component", {})).rejects.toThrow(
       /Template component .+ not found/
     );
   });
@@ -424,7 +462,7 @@ describe("ServerTemplateEngine - Component Compilation", { concurrency: 1 }, () 
       platforms: ["TWITTER"],
     };
 
-    mockFindMany.mock.mockImplementationOnce(() =>
+    mockFindMany.mockImplementationOnce(() =>
       Promise.resolve([
         {
           componentId: "comp-1",
@@ -437,7 +475,7 @@ describe("ServerTemplateEngine - Component Compilation", { concurrency: 1 }, () 
       ])
     );
 
-    mockFindUnique.mock.mockImplementationOnce(() =>
+    mockFindUnique.mockImplementationOnce(() =>
       Promise.resolve({
         id: "comp-1",
         name: "header",
@@ -448,15 +486,15 @@ describe("ServerTemplateEngine - Component Compilation", { concurrency: 1 }, () 
     const context: TemplateContext = { content: "Major update" };
     const results = await engine.compileTemplateWithComponents(template, context);
 
-    assert.ok(results.length > 0);
-    assert.strictEqual(results[0]!.success, true);
+    expect(results.length > 0).toBeTruthy();
+    expect(results[0]!.success).toBe(true);
   });
 });
 
-describe("ServerTemplateEngine - A/B Testing", { concurrency: 1 }, () => {
+describe("ServerTemplateEngine - A/B Testing", () => {
   let engine: ServerTemplateEngine;
 
-  before(() => {
+  beforeAll(() => {
     engine = new ServerTemplateEngine();
   });
 
@@ -479,9 +517,9 @@ describe("ServerTemplateEngine - A/B Testing", { concurrency: 1 }, () => {
 
     const results = await engine.compileWithABTest(template, context, abTestConfig);
 
-    assert.ok(results.length > 0);
-    assert.strictEqual(results[0]!.success, true);
-    assert.ok(results[0]!.content === "Content A" || results[0]!.content === "Content B");
+    expect(results.length > 0).toBeTruthy();
+    expect(results[0]!.success).toBe(true);
+    expect(results[0]!.content === "Content A" || results[0]!.content === "Content B").toBeTruthy();
   });
 
   it("should use default content if no variants", async () => {
@@ -499,14 +537,14 @@ describe("ServerTemplateEngine - A/B Testing", { concurrency: 1 }, () => {
 
     const results = await engine.compileWithABTest(template, context, abTestConfig);
 
-    assert.strictEqual(results[0]!.content, "Default only");
+    expect(results[0]!.content).toBe("Default only");
   });
 });
 
-describe("ServerTemplateEngine - Adaptation Tracking", { concurrency: 1 }, () => {
+describe("ServerTemplateEngine - Adaptation Tracking", () => {
   let engine: ServerTemplateEngine;
 
-  before(() => {
+  beforeAll(() => {
     engine = new ServerTemplateEngine();
   });
 
@@ -523,8 +561,8 @@ describe("ServerTemplateEngine - Adaptation Tracking", { concurrency: 1 }, () =>
 
     const result = await engine.compileForPlatform(template, context, "TWITTER");
 
-    assert.strictEqual(result.success, true);
-    assert.ok(result.adaptations?.truncated);
+    expect(result.success).toBe(true);
+    expect(result.adaptations?.truncated).toBeTruthy();
   });
 
   it("should detect hashtag relocation for Instagram", async () => {
@@ -540,6 +578,6 @@ describe("ServerTemplateEngine - Adaptation Tracking", { concurrency: 1 }, () =>
 
     const result = await engine.compileForPlatform(template, context, "INSTAGRAM");
 
-    assert.strictEqual(result.success, true);
+    expect(result.success).toBe(true);
   });
 });

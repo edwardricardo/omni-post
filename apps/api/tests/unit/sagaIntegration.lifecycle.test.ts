@@ -9,8 +9,7 @@
  *   surfaced correctly from route handlers
  */
 
-import { describe, it, beforeEach, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SagaIntegration } from "../../src/saga/SagaIntegration";
 import {
   buildIntegration,
@@ -30,7 +29,7 @@ console.warn = () => {};
 // Event Handling Tests
 // ============================================================================
 
-describe("SagaIntegration - Event Handling", { concurrency: 1 }, () => {
+describe("SagaIntegration - Event Handling", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
   let mockEventService: MockEventService;
@@ -51,7 +50,7 @@ describe("SagaIntegration - Event Handling", { concurrency: 1 }, () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 100));
 
     const startedEvents = mockEventService.publishedEvents.filter((e) => e.type === "saga.started");
-    assert.ok(startedEvents.length > 0, "Should emit saga.started event");
+    expect(startedEvents.length > 0).toBeTruthy();
   });
 });
 
@@ -59,7 +58,7 @@ describe("SagaIntegration - Event Handling", { concurrency: 1 }, () => {
 // Graceful Shutdown Tests
 // ============================================================================
 
-describe("SagaIntegration - Graceful Shutdown", { concurrency: 1 }, () => {
+describe("SagaIntegration - Graceful Shutdown", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
   let mockRedis: MockRedis;
@@ -84,7 +83,7 @@ describe("SagaIntegration - Graceful Shutdown", { concurrency: 1 }, () => {
     const manager = integration.getSagaManager();
     const metrics = manager.getMetrics();
 
-    assert.strictEqual(metrics.activeInstances, 0);
+    expect(metrics.activeInstances).toBe(0);
   });
 
   it("should persist running sagas during shutdown", async () => {
@@ -95,7 +94,7 @@ describe("SagaIntegration - Graceful Shutdown", { concurrency: 1 }, () => {
     await integration.shutdown();
 
     const data = await mockRedis.get(`saga:${result.data.sagaId}`);
-    assert.ok(data, "Saga should be persisted in Redis during shutdown");
+    expect(data).toBeTruthy();
   });
 });
 
@@ -103,7 +102,7 @@ describe("SagaIntegration - Graceful Shutdown", { concurrency: 1 }, () => {
 // Error Handling Tests
 // ============================================================================
 
-describe("SagaIntegration - Error Handling", { concurrency: 1 }, () => {
+describe("SagaIntegration - Error Handling", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
 
@@ -137,9 +136,9 @@ describe("SagaIntegration - Error Handling", { concurrency: 1 }, () => {
 
     try {
       await handler(request, reply);
-      assert.fail("Should throw validation error");
+      expect.unreachable("Should throw validation error");
     } catch (error: any) {
-      assert.ok(error, "Should catch validation error");
+      expect(error).toBeTruthy();
     }
   });
 
@@ -159,6 +158,6 @@ describe("SagaIntegration - Error Handling", { concurrency: 1 }, () => {
 
     // Should not throw unhandled errors for valid input.
     const result = await handler(request, passthroughReply);
-    assert.ok(result, "Should return some result");
+    expect(result).toBeTruthy();
   });
 });

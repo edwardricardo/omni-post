@@ -6,8 +6,7 @@
  * - USE_REAL_PROVIDERS=true - Use real provider metadata (default: uses mock providers)
  */
 
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { ProviderConstraintValidator } from "../../src/providers/providerConstraintValidator.js";
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderAdapter } from "../../src/providers/providerAdapter.interface.js";
@@ -123,7 +122,7 @@ const scheduledContent: CanonicalPost = {
 // Test Setup
 // ============================================================================
 
-before(() => {
+beforeAll(() => {
   console.log("🔥 Starting Provider Constraint Validator Tests");
   console.log("=".repeat(60));
   if (USE_REAL_PROVIDERS) {
@@ -142,36 +141,36 @@ before(() => {
 describe("Provider Constraint Validator - Initialization & Basic Validation", () => {
   it("should initialize validator successfully", () => {
     const validator = new ProviderConstraintValidator();
-    assert.ok(validator, "Validator should be defined");
+    expect(validator).toBeTruthy();
   });
 
   it("should return validation result with correct structure", async () => {
     const validator = new ProviderConstraintValidator();
     const result = await validator.validateContent(shortContent, mockXProvider);
 
-    assert.ok(result, "Result should be defined");
-    assert.equal(typeof result.valid, "boolean", "Result should have valid boolean");
-    assert.ok(Array.isArray(result.errors), "Result should have errors array");
-    assert.ok(Array.isArray(result.suggestions), "Result should have suggestions array");
-    assert.ok(Array.isArray(result.adaptations), "Result should have adaptations array");
+    expect(result).toBeTruthy();
+    expect(typeof result.valid).toBe("boolean");
+    expect(Array.isArray(result.errors)).toBeTruthy();
+    expect(Array.isArray(result.suggestions)).toBeTruthy();
+    expect(Array.isArray(result.adaptations)).toBeTruthy();
   });
 
   it("should pass validation for short valid content", async () => {
     const validator = new ProviderConstraintValidator();
     const result = await validator.validateContent(shortContent, mockXProvider);
 
-    assert.equal(result.valid, true, "Short content should be valid");
-    assert.equal(result.errors.length, 0, "Should have no errors");
+    expect(result.valid).toBe(true);
+    expect(result.errors.length).toBe(0);
   });
 
   it("should have expected validation result structure", async () => {
     const validator = new ProviderConstraintValidator();
     const result = await validator.validateContent(shortContent, mockXProvider);
 
-    assert.equal(typeof result.valid, "boolean", "valid should be boolean");
-    assert.ok(Array.isArray(result.errors), "errors should be array");
-    assert.ok(Array.isArray(result.suggestions), "suggestions should be array");
-    assert.ok(Array.isArray(result.adaptations), "adaptations should be array");
+    expect(typeof result.valid).toBe("boolean");
+    expect(Array.isArray(result.errors)).toBeTruthy();
+    expect(Array.isArray(result.suggestions)).toBeTruthy();
+    expect(Array.isArray(result.adaptations)).toBeTruthy();
   });
 });
 
@@ -184,8 +183,8 @@ describe("Provider Constraint Validator - Character Limit Validation", () => {
     const validator = new ProviderConstraintValidator();
     const result = await validator.validateContent(longContentForX, mockXProvider);
 
-    assert.equal(result.valid, false, "Long content should fail validation");
-    assert.ok(result.errors.length > 0, "Should have errors");
+    expect(result.valid).toBe(false);
+    expect(result.errors.length > 0).toBeTruthy();
   });
 
   it("should include character limit error message", async () => {
@@ -197,25 +196,21 @@ describe("Provider Constraint Validator - Character Limit Validation", () => {
         e.message.toLowerCase().includes("character") || e.message.toLowerCase().includes("char")
     );
 
-    assert.ok(hasCharLimitError, "Should have character limit error message");
+    expect(hasCharLimitError).toBeTruthy();
   });
 
   it("should provide suggestions for character limit violation", async () => {
     const validator = new ProviderConstraintValidator();
     const result = await validator.validateContent(longContentForX, mockXProvider);
 
-    assert.ok(result.suggestions.length > 0, "Should provide suggestions");
+    expect(result.suggestions.length > 0).toBeTruthy();
   });
 
   it("should pass long content for Instagram with higher limit", async () => {
     const validator = new ProviderConstraintValidator();
     const result = await validator.validateContent(longContentForX, mockInstagramProvider);
 
-    assert.equal(
-      result.valid,
-      true,
-      "Long content (500 chars) should pass for Instagram (2200 char limit)"
-    );
+    expect(result.valid).toBe(true);
   });
 });
 
@@ -228,21 +223,21 @@ describe("Provider Constraint Validator - Media Validation", () => {
     const validator = new ProviderConstraintValidator();
     const result = await validator.validateContent(contentWithMedia, mockXProvider);
 
-    assert.equal(result.valid, true, "Content with 2 images should pass for X (max 4)");
+    expect(result.valid).toBe(true);
   });
 
   it("should fail validation for excessive media count", async () => {
     const validator = new ProviderConstraintValidator();
     const result = await validator.validateContent(contentWithExcessiveMedia, mockXProvider);
 
-    assert.equal(result.valid, false, "Content with 5 images should fail for X (max 4)");
+    expect(result.valid).toBe(false);
   });
 
   it("should fail validation for unsupported media type", async () => {
     const validator = new ProviderConstraintValidator();
     const result = await validator.validateContent(contentWithUnsupportedMedia, mockXProvider);
 
-    assert.equal(result.valid, false, "Content with audio (unsupported) should fail for X");
+    expect(result.valid).toBe(false);
   });
 
   it("should include unsupported media type in error message", async () => {
@@ -254,7 +249,7 @@ describe("Provider Constraint Validator - Media Validation", () => {
         e.message.toLowerCase().includes("unsupported") || e.message.toLowerCase().includes("media")
     );
 
-    assert.ok(hasMediaTypeError, "Error should mention unsupported media type");
+    expect(hasMediaTypeError).toBeTruthy();
   });
 
   it("should warn about video duration exceeding limit", async () => {
@@ -268,7 +263,7 @@ describe("Provider Constraint Validator - Media Validation", () => {
         e.message.toLowerCase().includes("long")
     );
 
-    assert.ok(hasVideoDurationWarning, "Should warn about video exceeding duration limit");
+    expect(hasVideoDurationWarning).toBeTruthy();
   });
 });
 
@@ -294,10 +289,7 @@ describe("Provider Constraint Validator - Capability Validation", () => {
           e.message.toLowerCase().includes("character"))
     );
 
-    assert.ok(
-      hasThreadingError,
-      "Should have error for content requiring threading on non-threading provider"
-    );
+    expect(hasThreadingError).toBeTruthy();
   });
 
   it("should fail validation for scheduled post on provider without scheduling", async () => {
@@ -308,10 +300,7 @@ describe("Provider Constraint Validator - Capability Validation", () => {
       (e) => e.severity === "error" && e.message.toLowerCase().includes("schedul")
     );
 
-    assert.ok(
-      hasSchedulingError,
-      "Should have error for scheduled post on provider without scheduling"
-    );
+    expect(hasSchedulingError).toBeTruthy();
   });
 
   it("should pass validation for scheduled post on provider with scheduling", async () => {
@@ -322,11 +311,7 @@ describe("Provider Constraint Validator - Capability Validation", () => {
       e.message.toLowerCase().includes("schedul")
     );
 
-    assert.equal(
-      hasSchedulingError,
-      false,
-      "Scheduled post should pass for X (supports scheduling)"
-    );
+    expect(hasSchedulingError).toBe(false);
   });
 });
 
@@ -346,7 +331,7 @@ describe("Provider Constraint Validator - Custom Rules", () => {
     });
 
     // Should not throw
-    assert.ok(true, "Custom rule registration should succeed");
+    expect(true).toBeTruthy();
   });
 
   it("should execute custom rule during validation", async () => {
@@ -365,7 +350,7 @@ describe("Provider Constraint Validator - Custom Rules", () => {
 
     await validator.validateContent(shortContent, mockXProvider);
 
-    assert.equal(customRuleExecuted, true, "Custom rule should execute during validation");
+    expect(customRuleExecuted).toBe(true);
   });
 
   it("should fail validation when custom rule returns invalid", async () => {
@@ -384,11 +369,8 @@ describe("Provider Constraint Validator - Custom Rules", () => {
 
     const result = await validator.validateContent(shortContent, mockXProvider);
 
-    assert.equal(result.valid, false, "Validation should fail");
-    assert.ok(
-      result.errors.some((e) => e.message === "Custom failure"),
-      "Should have custom failure message"
-    );
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.message === "Custom failure")).toBeTruthy();
   });
 });
 
@@ -402,7 +384,7 @@ describe("Provider Constraint Validator - Multi-Provider Validation", () => {
     const providers = [mockXProvider, mockInstagramProvider];
     const summaries = await validator.validateMultipleProviders(shortContent, providers);
 
-    assert.equal(summaries.length, 2, "Should return summary for each provider");
+    expect(summaries.length).toBe(2);
   });
 
   it("should sort summaries by score in descending order", async () => {
@@ -410,28 +392,25 @@ describe("Provider Constraint Validator - Multi-Provider Validation", () => {
     const providers = [mockXProvider, mockInstagramProvider];
     const summaries = await validator.validateMultipleProviders(longContentForX, providers);
 
-    assert.ok(
-      summaries[0].score >= summaries[1].score,
-      "Summaries should be sorted by score descending"
-    );
+    expect(summaries[0].score >= summaries[1].score).toBeTruthy();
   });
 
   it("should include score in validation summary", async () => {
     const validator = new ProviderConstraintValidator();
     const summaries = await validator.validateMultipleProviders(shortContent, [mockXProvider]);
 
-    assert.equal(typeof summaries[0].score, "number", "Score should be a number");
-    assert.ok(summaries[0].score >= 0, "Score should be >= 0");
-    assert.ok(summaries[0].score <= 100, "Score should be <= 100");
+    expect(typeof summaries[0].score).toBe("number");
+    expect(summaries[0].score >= 0).toBeTruthy();
+    expect(summaries[0].score <= 100).toBeTruthy();
   });
 
   it("should include error counts in summary", async () => {
     const validator = new ProviderConstraintValidator();
     const summaries = await validator.validateMultipleProviders(shortContent, [mockXProvider]);
 
-    assert.equal(typeof summaries[0].errors, "number", "Should have errors count");
-    assert.equal(typeof summaries[0].warnings, "number", "Should have warnings count");
-    assert.equal(typeof summaries[0].infos, "number", "Should have infos count");
+    expect(typeof summaries[0].errors).toBe("number");
+    expect(typeof summaries[0].warnings).toBe("number");
+    expect(typeof summaries[0].infos).toBe("number");
   });
 
   it("should include estimated effort in summary", async () => {
@@ -439,10 +418,7 @@ describe("Provider Constraint Validator - Multi-Provider Validation", () => {
     const summaries = await validator.validateMultipleProviders(shortContent, [mockXProvider]);
 
     const validEfforts = ["none", "minimal", "moderate", "significant"];
-    assert.ok(
-      validEfforts.includes(summaries[0].estimatedEffort),
-      "Should have valid estimated effort"
-    );
+    expect(validEfforts.includes(summaries[0].estimatedEffort)).toBeTruthy();
   });
 });
 
@@ -456,7 +432,7 @@ describe("Provider Constraint Validator - Best Provider Selection", () => {
     const providers = [mockXProvider, mockInstagramProvider];
     const bestProvider = await validator.getBestProvider(shortContent, providers);
 
-    assert.ok(bestProvider !== null, "Should return a provider for valid content");
+    expect(bestProvider !== null).toBeTruthy();
   });
 
   it("should select best provider based on content constraints", async () => {
@@ -464,11 +440,7 @@ describe("Provider Constraint Validator - Best Provider Selection", () => {
     const providers = [mockXProvider, mockInstagramProvider];
     const bestProvider = await validator.getBestProvider(longContentForX, providers);
 
-    assert.equal(
-      bestProvider?.id,
-      "instagram",
-      "Should select Instagram for long content (no threading error)"
-    );
+    expect(bestProvider?.id).toBe("instagram");
   });
 
   it("should return null when no provider meets minimum score", async () => {
@@ -477,7 +449,7 @@ describe("Provider Constraint Validator - Best Provider Selection", () => {
       requiredScore: 150, // Impossible score
     });
 
-    assert.equal(bestProvider, null, "Should return null when no provider meets minimum score");
+    expect(bestProvider).toBe(null);
   });
 
   it("should handle very problematic content", async () => {
@@ -496,10 +468,7 @@ describe("Provider Constraint Validator - Best Provider Selection", () => {
     // Should return null or a provider (algorithm working)
     const isValid =
       bestProvider === null || bestProvider.id === "x" || bestProvider.id === "instagram";
-    assert.ok(
-      isValid,
-      `Should handle problematic content gracefully (returned: ${bestProvider?.id || "null"})`
-    );
+    expect(isValid).toBeTruthy();
   });
 });
 
@@ -512,14 +481,14 @@ describe("Provider Constraint Validator - Adaptation Suggestions", () => {
     const validator = new ProviderConstraintValidator();
     const adaptations = await validator.suggestAdaptations(longContentForX, mockXProvider);
 
-    assert.ok(adaptations.length > 0, "Should provide adaptations for long content");
+    expect(adaptations.length > 0).toBeTruthy();
   });
 
   it("should not provide adaptations for valid content", async () => {
     const validator = new ProviderConstraintValidator();
     const adaptations = await validator.suggestAdaptations(shortContent, mockXProvider);
 
-    assert.equal(adaptations.length, 0, "Should not provide adaptations for valid content");
+    expect(adaptations.length).toBe(0);
   });
 
   it("should include preview in adaptation when available", async () => {
@@ -527,10 +496,10 @@ describe("Provider Constraint Validator - Adaptation Suggestions", () => {
     const adaptations = await validator.suggestAdaptations(longContentForX, mockXProvider);
 
     if (adaptations.length > 0) {
-      assert.ok(adaptations[0].preview !== undefined, "Adaptation should include preview");
+      expect(adaptations[0].preview !== undefined).toBeTruthy();
     } else {
       // If no adaptations, test passes (content might be valid)
-      assert.ok(true, "No adaptations to test preview (skipped)");
+      expect(true).toBeTruthy();
     }
   });
 });

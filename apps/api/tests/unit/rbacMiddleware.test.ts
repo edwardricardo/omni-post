@@ -7,8 +7,7 @@
  * Test Count: 28
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   requirePermission,
   requireAllPermissions,
@@ -133,10 +132,10 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.getStatusCode(), 401);
-      assert.ok(reply.wasSent());
+      expect(reply.getStatusCode()).toBe(401);
+      expect(reply.wasSent()).toBeTruthy();
       const body = reply.getBody();
-      assert.strictEqual(body.error, "Authentication required");
+      expect(body.error).toBe("Authentication required");
     });
 
     it("should allow access when user has required permission", async () => {
@@ -147,7 +146,7 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       // Should not send response (allow through)
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should deny access when user lacks permission", async () => {
@@ -157,11 +156,11 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.getStatusCode(), 403);
-      assert.ok(reply.wasSent());
+      expect(reply.getStatusCode()).toBe(403);
+      expect(reply.wasSent()).toBeTruthy();
       const body = reply.getBody();
-      assert.strictEqual(body.error, "Insufficient permissions");
-      assert.ok(body.message);
+      expect(body.error).toBe("Insufficient permissions");
+      expect(body.message).toBeTruthy();
     });
 
     it("should allow access with any of multiple permissions", async () => {
@@ -172,7 +171,7 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       // Admin has USER_READ and USER_UPDATE permission
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should include current permissions in error response", async () => {
@@ -183,8 +182,8 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       const body = reply.getBody();
-      assert.ok(body.current);
-      assert.ok(Array.isArray(body.current));
+      expect(body.current).toBeTruthy();
+      expect(Array.isArray(body.current)).toBeTruthy();
     });
   });
 
@@ -200,8 +199,8 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.getStatusCode(), 401);
-      assert.ok(reply.wasSent());
+      expect(reply.getStatusCode()).toBe(401);
+      expect(reply.wasSent()).toBeTruthy();
     });
 
     it("should allow access when user has all required permissions", async () => {
@@ -211,7 +210,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should deny access when user lacks one permission", async () => {
@@ -221,8 +220,8 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.getStatusCode(), 403);
-      assert.ok(reply.wasSent());
+      expect(reply.getStatusCode()).toBe(403);
+      expect(reply.wasSent()).toBeTruthy();
     });
 
     it("should list missing permissions in error response", async () => {
@@ -237,9 +236,9 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       const body = reply.getBody();
-      assert.ok(body.missing);
-      assert.ok(Array.isArray(body.missing));
-      assert.ok(body.missing.length > 0);
+      expect(body.missing).toBeTruthy();
+      expect(Array.isArray(body.missing)).toBeTruthy();
+      expect(body.missing.length > 0).toBeTruthy();
     });
 
     it("should allow super admin with all permissions", async () => {
@@ -253,7 +252,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
   });
 
@@ -272,8 +271,8 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.getStatusCode(), 401);
-      assert.ok(reply.wasSent());
+      expect(reply.getStatusCode()).toBe(401);
+      expect(reply.wasSent()).toBeTruthy();
     });
 
     it("should allow access when user is resource owner", async () => {
@@ -284,7 +283,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should allow access when user has fallback permission", async () => {
@@ -297,7 +296,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should deny access when user is not owner and lacks permission", async () => {
@@ -310,10 +309,10 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.getStatusCode(), 403);
-      assert.ok(reply.wasSent());
+      expect(reply.getStatusCode()).toBe(403);
+      expect(reply.wasSent()).toBeTruthy();
       const body = reply.getBody();
-      assert.strictEqual(body.error, "Access denied");
+      expect(body.error).toBe("Access denied");
     });
 
     it("should handle async ownership check from request params", async () => {
@@ -329,7 +328,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should handle errors in ownership check gracefully", async () => {
@@ -341,8 +340,8 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.getStatusCode(), 500);
-      assert.ok(reply.wasSent());
+      expect(reply.getStatusCode()).toBe(500);
+      expect(reply.wasSent()).toBeTruthy();
     });
   });
 
@@ -361,8 +360,8 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.getStatusCode(), 401);
-      assert.ok(reply.wasSent());
+      expect(reply.getStatusCode()).toBe(401);
+      expect(reply.wasSent()).toBeTruthy();
     });
 
     it("should allow access when user has base permission", async () => {
@@ -375,7 +374,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should deny access when user lacks base permission", async () => {
@@ -388,8 +387,8 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.getStatusCode(), 403);
-      assert.ok(reply.wasSent());
+      expect(reply.getStatusCode()).toBe(403);
+      expect(reply.wasSent()).toBeTruthy();
     });
 
     it("should include context in error response", async () => {
@@ -401,7 +400,7 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       const body = reply.getBody();
-      assert.deepStrictEqual(body.context, context);
+      expect(body.context).toStrictEqual(context);
     });
 
     it("should handle errors in context retrieval", async () => {
@@ -413,8 +412,8 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.getStatusCode(), 500);
-      assert.ok(reply.wasSent());
+      expect(reply.getStatusCode()).toBe(500);
+      expect(reply.wasSent()).toBeTruthy();
     });
   });
 
@@ -430,7 +429,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should set rate limit headers for SUPER_ADMIN", async () => {
@@ -441,9 +440,9 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       const headers = reply.getHeaders();
-      assert.ok(headers["X-RateLimit-Limit"]);
-      assert.strictEqual(headers["X-RateLimit-Limit"], "1000");
-      assert.strictEqual(headers["X-RateLimit-Role"], "SUPER_ADMIN");
+      expect(headers["X-RateLimit-Limit"]).toBeTruthy();
+      expect(headers["X-RateLimit-Limit"]).toBe("1000");
+      expect(headers["X-RateLimit-Role"]).toBe("SUPER_ADMIN");
     });
 
     it("should set rate limit headers for ADMIN", async () => {
@@ -454,8 +453,8 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       const headers = reply.getHeaders();
-      assert.strictEqual(headers["X-RateLimit-Limit"], "500");
-      assert.strictEqual(headers["X-RateLimit-Role"], "ADMIN");
+      expect(headers["X-RateLimit-Limit"]).toBe("500");
+      expect(headers["X-RateLimit-Role"]).toBe("ADMIN");
     });
 
     it("should set rate limit headers for SUPPORT", async () => {
@@ -466,8 +465,8 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       const headers = reply.getHeaders();
-      assert.strictEqual(headers["X-RateLimit-Limit"], "200");
-      assert.strictEqual(headers["X-RateLimit-Role"], "SUPPORT");
+      expect(headers["X-RateLimit-Limit"]).toBe("200");
+      expect(headers["X-RateLimit-Role"]).toBe("SUPPORT");
     });
   });
 
@@ -483,7 +482,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should add audit trail ID header for authenticated users", async () => {
@@ -494,8 +493,8 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       const headers = reply.getHeaders();
-      assert.ok(headers["X-Audit-Trail-Id"]);
-      assert.ok(headers["X-Audit-Trail-Id"].startsWith("audit_"));
+      expect(headers["X-Audit-Trail-Id"]).toBeTruthy();
+      expect(headers["X-Audit-Trail-Id"].startsWith("audit_")).toBeTruthy();
     });
 
     it("should include user ID in audit trail", async () => {
@@ -506,7 +505,7 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       const headers = reply.getHeaders();
-      assert.ok(headers["X-Audit-Trail-Id"].includes(mockSuperAdmin.id));
+      expect(headers["X-Audit-Trail-Id"].includes(mockSuperAdmin.id)).toBeTruthy();
     });
 
     it("should not interfere with response flow", async () => {
@@ -516,7 +515,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
   });
 
@@ -535,7 +534,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
 
       process.env.NODE_ENV = originalEnv;
     });
@@ -550,7 +549,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
 
       process.env.NODE_ENV = originalEnv;
     });
@@ -565,7 +564,7 @@ describe("rbacMiddleware Tests", () => {
 
       await middleware(request, reply);
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
 
       process.env.NODE_ENV = originalEnv;
     });
@@ -588,7 +587,7 @@ describe("rbacMiddleware Tests", () => {
         await middleware2(request, reply);
       }
 
-      assert.strictEqual(reply.wasSent(), false);
+      expect(reply.wasSent()).toBe(false);
     });
 
     it("should stop chain when first middleware denies", async () => {
@@ -603,8 +602,8 @@ describe("rbacMiddleware Tests", () => {
         await middleware2(request, reply);
       }
 
-      assert.strictEqual(reply.wasSent(), true);
-      assert.strictEqual(reply.getStatusCode(), 403);
+      expect(reply.wasSent()).toBe(true);
+      expect(reply.getStatusCode()).toBe(403);
     });
   });
 });

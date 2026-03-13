@@ -1,6 +1,5 @@
 #!/usr/bin/env tsx
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import Fastify from "fastify";
 import {
   autoCachePlugin,
@@ -18,8 +17,8 @@ const testRedis = new Redis({
 
 let cacheManager: RedisCacheManager;
 
-describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 }, () => {
-  before(async () => {
+describe("autoCacheMiddleware - Registration and GET Caching", () => {
+  beforeAll(async () => {
     const redisHost = process.env.REDIS_HOST || "localhost";
     const redisPort = process.env.REDIS_PORT || "6379";
     cacheManager = new RedisCacheManager({
@@ -34,7 +33,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
     }
   });
 
-  after(async () => {
+  afterAll(async () => {
     try {
       const keys = await testRedis.keys("test:*");
       if (keys.length > 0) {
@@ -62,7 +61,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
 
       await app.register(autoCachePlugin);
 
-      assert.ok(app.printRoutes, "App should be properly initialized after plugin registration");
+      expect(app.printRoutes).toBeTruthy();
       await app.close();
     });
 
@@ -77,7 +76,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
         logCacheOps: true,
       });
 
-      assert.ok(app.printRoutes, "App should be properly initialized with custom options");
+      expect(app.printRoutes).toBeTruthy();
       await app.close();
     });
 
@@ -86,7 +85,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
 
       await app.register(autoCachePlugin);
 
-      assert.ok(app.printRoutes, "App should initialize without cache manager");
+      expect(app.printRoutes).toBeTruthy();
       await app.close();
     });
   });
@@ -112,15 +111,15 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
         url: "/providers",
       });
 
-      assert.strictEqual(response1.statusCode, 200);
+      expect(response1.statusCode).toBe(200);
 
       const response2 = await app.inject({
         method: "GET",
         url: "/providers",
       });
 
-      assert.strictEqual(response2.statusCode, 200);
-      assert.deepStrictEqual(JSON.parse(response1.payload), JSON.parse(response2.payload));
+      expect(response2.statusCode).toBe(200);
+      expect(JSON.parse(response1.payload)).toStrictEqual(JSON.parse(response2.payload));
 
       await app.close();
     });
@@ -145,8 +144,8 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
         payload: { data: "test" },
       });
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(response.headers["x-cache"], undefined);
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["x-cache"]).toBe(undefined);
 
       await app.close();
     });
@@ -171,8 +170,8 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
         url: "/health",
       });
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(response.headers["x-cache"], undefined);
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["x-cache"]).toBe(undefined);
 
       await app.close();
     });
@@ -196,14 +195,14 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
         url: "/error",
       });
 
-      assert.strictEqual(response1.statusCode, 500);
+      expect(response1.statusCode).toBe(500);
 
       const response2 = await app.inject({
         method: "GET",
         url: "/error",
       });
 
-      assert.strictEqual(response2.statusCode, 500);
+      expect(response2.statusCode).toBe(500);
 
       await app.close();
     });
@@ -227,7 +226,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
         url: "/test",
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       await app.close();
     });
@@ -248,11 +247,11 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
       await app.ready();
 
       const response = await app.inject({ method: "GET", url: "/stats" });
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       const stats = JSON.parse(response.payload);
       if (stats.error !== "No stats") {
-        assert.ok(typeof stats.hitRate === "number");
+        expect(typeof stats.hitRate === "number").toBeTruthy();
       }
 
       await app.close();
@@ -272,7 +271,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
 
       const response = await app.inject({ method: "GET", url: "/stats" });
       const data = JSON.parse(response.payload);
-      assert.strictEqual(data.stats, null);
+      expect(data.stats).toBe(null);
 
       await app.close();
     });
@@ -301,12 +300,12 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
       await app.ready();
 
       const get1 = await app.inject({ method: "GET", url: "/data" });
-      assert.strictEqual(JSON.parse(get1.payload).counter, 1);
+      expect(JSON.parse(get1.payload).counter).toBe(1);
 
       await app.inject({ method: "POST", url: "/invalidate" });
 
       const get2 = await app.inject({ method: "GET", url: "/data" });
-      assert.strictEqual(JSON.parse(get2.payload).counter, 2);
+      expect(JSON.parse(get2.payload).counter).toBe(2);
 
       await app.close();
     });
@@ -324,7 +323,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", { concurrency: 1 
       await app.ready();
 
       const response = await app.inject({ method: "POST", url: "/invalidate" });
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
 
       await app.close();
     });

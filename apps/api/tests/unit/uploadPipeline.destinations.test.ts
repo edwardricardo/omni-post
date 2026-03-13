@@ -2,18 +2,17 @@
  * Unit Tests for VideoUploadPipeline — Multi-Destination Support
  * Tests uploading to S3, Google Cloud Storage, Azure Blob Storage, and YouTube.
  */
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { VideoUploadPipeline, type UploadDestination } from "../../src/video/uploadPipeline";
 import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers";
 
 // Apply fs mocks before any describe/it blocks run
 setupFsMocks();
 
-describe("VideoUploadPipeline - Multi-Destination Support", { concurrency: 1 }, () => {
+describe("VideoUploadPipeline - Multi-Destination Support", () => {
   let pipeline: VideoUploadPipeline;
 
-  before(() => {
+  beforeAll(() => {
     pipeline = new VideoUploadPipeline(0);
   });
 
@@ -38,9 +37,9 @@ describe("VideoUploadPipeline - Multi-Destination Support", { concurrency: 1 }, 
 
     const session = await pipeline.uploadFile(filePath, destination);
 
-    assert.equal(session.status, "completed");
-    assert.ok(session.finalUrl?.startsWith("s3://"));
-    assert.ok(session.finalUrl?.includes("test-bucket"));
+    expect(session.status).toBe("completed");
+    expect(session.finalUrl?.startsWith("s3://")).toBeTruthy();
+    expect(session.finalUrl?.includes("test-bucket")).toBeTruthy();
   });
 
   it("should upload to Google Cloud Storage", async () => {
@@ -62,8 +61,8 @@ describe("VideoUploadPipeline - Multi-Destination Support", { concurrency: 1 }, 
 
     const session = await pipeline.uploadFile(filePath, destination);
 
-    assert.equal(session.status, "completed");
-    assert.ok(session.finalUrl?.startsWith("gs://"));
+    expect(session.status).toBe("completed");
+    expect(session.finalUrl?.startsWith("gs://")).toBeTruthy();
   });
 
   it("should upload to Azure Blob Storage", async () => {
@@ -86,8 +85,8 @@ describe("VideoUploadPipeline - Multi-Destination Support", { concurrency: 1 }, 
 
     const session = await pipeline.uploadFile(filePath, destination);
 
-    assert.equal(session.status, "completed");
-    assert.ok(session.finalUrl?.includes("blob.core.windows.net"));
+    expect(session.status).toBe("completed");
+    expect(session.finalUrl?.includes("blob.core.windows.net")).toBeTruthy();
   });
 
   it("should upload to YouTube", async () => {
@@ -112,7 +111,7 @@ describe("VideoUploadPipeline - Multi-Destination Support", { concurrency: 1 }, 
 
     const session = await pipeline.uploadFile(filePath, destination);
 
-    assert.equal(session.status, "completed");
-    assert.ok(session.finalUrl?.includes("youtube.com"));
+    expect(session.status).toBe("completed");
+    expect(session.finalUrl?.includes("youtube.com")).toBeTruthy();
   });
 });

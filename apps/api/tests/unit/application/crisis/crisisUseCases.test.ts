@@ -5,9 +5,7 @@
  * Tests for EnterCrisisMode, ExitCrisisMode, and GetCrisisStatus use cases.
  */
 
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { ok, err } from "@shared/types";
 import {
   Project,
@@ -25,28 +23,28 @@ import {
 } from "../../../../src/application/crisis/index.js";
 
 // Mock factories using test context
-function createMockProjectRepository(t: TestContext) {
+function createMockProjectRepository() {
   return {
-    findById: t.mock.fn(async () => err(new EntityNotFoundError("Project", "test"))),
-    save: t.mock.fn(async () => ok(undefined)),
+    findById: vi.fn(async () => err(new EntityNotFoundError("Project", "test"))),
+    save: vi.fn(async () => ok(undefined)),
   };
 }
 
-function createMockEventDispatcher(t: TestContext) {
+function createMockEventDispatcher() {
   return {
-    dispatch: t.mock.fn(async () => {}),
-    dispatchAll: t.mock.fn(async () => {}),
+    dispatch: vi.fn(async () => {}),
+    dispatchAll: vi.fn(async () => {}),
   };
 }
 
-describe("EnterCrisisModeUseCase", { concurrency: 1 }, () => {
+describe("EnterCrisisModeUseCase", () => {
   let useCase: EnterCrisisModeUseCase;
   let mockProjectRepo: ReturnType<typeof createMockProjectRepository>;
   let mockEventDispatcher: ReturnType<typeof createMockEventDispatcher>;
 
-  beforeEach((t) => {
-    mockProjectRepo = createMockProjectRepository(t);
-    mockEventDispatcher = createMockEventDispatcher(t);
+  beforeEach(() => {
+    mockProjectRepo = createMockProjectRepository();
+    mockEventDispatcher = createMockEventDispatcher();
     useCase = new EnterCrisisModeUseCase(mockProjectRepo, mockEventDispatcher);
   });
 
@@ -56,10 +54,10 @@ describe("EnterCrisisModeUseCase", { concurrency: 1 }, () => {
       accountId,
       name: "Test Project",
     });
-    assert.ok(projectResult.ok);
+    expect(projectResult.ok).toBeTruthy();
     const project = projectResult.value;
 
-    mockProjectRepo.findById.mock.mockImplementation(async () => ok(project));
+    mockProjectRepo.findById.mockImplementation(async () => ok(project));
 
     const input: EnterCrisisModeInput = {
       projectId: project.id.value,
@@ -68,14 +66,14 @@ describe("EnterCrisisModeUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(result.ok, "Should succeed");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.isInCrisisMode, true);
-      assert.equal(result.value.reason, input.reason);
-      assert.ok(result.value.startedAt);
+      expect(result.value.isInCrisisMode).toBe(true);
+      expect(result.value.reason).toBe(input.reason);
+      expect(result.value.startedAt).toBeTruthy();
     }
-    assert.equal(mockProjectRepo.save.mock.calls.length, 1);
-    assert.equal(mockEventDispatcher.dispatchAll.mock.calls.length, 1);
+    expect(mockProjectRepo.save.mock.calls.length).toBe(1);
+    expect(mockEventDispatcher.dispatchAll.mock.calls.length).toBe(1);
   });
 
   it("should fail if already in crisis mode", async () => {
@@ -84,11 +82,11 @@ describe("EnterCrisisModeUseCase", { concurrency: 1 }, () => {
       accountId,
       name: "Test Project",
     });
-    assert.ok(projectResult.ok);
+    expect(projectResult.ok).toBeTruthy();
     const project = projectResult.value;
     project.enterCrisisMode("Previous crisis");
 
-    mockProjectRepo.findById.mock.mockImplementation(async () => ok(project));
+    mockProjectRepo.findById.mockImplementation(async () => ok(project));
 
     const input: EnterCrisisModeInput = {
       projectId: project.id.value,
@@ -97,7 +95,7 @@ describe("EnterCrisisModeUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(!result.ok, "Should fail when already in crisis mode");
+    expect(result.ok).toBeFalsy();
   });
 
   it("should fail with invalid project ID", async () => {
@@ -108,7 +106,7 @@ describe("EnterCrisisModeUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(!result.ok);
+    expect(result.ok).toBeFalsy();
   });
 
   it("should fail when project not found", async () => {
@@ -119,18 +117,18 @@ describe("EnterCrisisModeUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(!result.ok);
+    expect(result.ok).toBeFalsy();
   });
 });
 
-describe("ExitCrisisModeUseCase", { concurrency: 1 }, () => {
+describe("ExitCrisisModeUseCase", () => {
   let useCase: ExitCrisisModeUseCase;
   let mockProjectRepo: ReturnType<typeof createMockProjectRepository>;
   let mockEventDispatcher: ReturnType<typeof createMockEventDispatcher>;
 
-  beforeEach((t) => {
-    mockProjectRepo = createMockProjectRepository(t);
-    mockEventDispatcher = createMockEventDispatcher(t);
+  beforeEach(() => {
+    mockProjectRepo = createMockProjectRepository();
+    mockEventDispatcher = createMockEventDispatcher();
     useCase = new ExitCrisisModeUseCase(mockProjectRepo, mockEventDispatcher);
   });
 
@@ -140,12 +138,12 @@ describe("ExitCrisisModeUseCase", { concurrency: 1 }, () => {
       accountId,
       name: "Test Project",
     });
-    assert.ok(projectResult.ok);
+    expect(projectResult.ok).toBeTruthy();
     const project = projectResult.value;
     project.enterCrisisMode("Test crisis");
     project.clearDomainEvents(); // Clear enter event
 
-    mockProjectRepo.findById.mock.mockImplementation(async () => ok(project));
+    mockProjectRepo.findById.mockImplementation(async () => ok(project));
 
     const input: ExitCrisisModeInput = {
       projectId: project.id.value,
@@ -153,13 +151,13 @@ describe("ExitCrisisModeUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(result.ok, "Should succeed");
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.isInCrisisMode, false);
-      assert.ok(result.value.duration >= 0); // Duration can be 0 if enter/exit happens quickly
+      expect(result.value.isInCrisisMode).toBe(false);
+      expect(result.value.duration >= 0).toBeTruthy(); // Duration can be 0 if enter/exit happens quickly
     }
-    assert.equal(mockProjectRepo.save.mock.calls.length, 1);
-    assert.equal(mockEventDispatcher.dispatchAll.mock.calls.length, 1);
+    expect(mockProjectRepo.save.mock.calls.length).toBe(1);
+    expect(mockEventDispatcher.dispatchAll.mock.calls.length).toBe(1);
   });
 
   it("should fail if not in crisis mode", async () => {
@@ -168,10 +166,10 @@ describe("ExitCrisisModeUseCase", { concurrency: 1 }, () => {
       accountId,
       name: "Test Project",
     });
-    assert.ok(projectResult.ok);
+    expect(projectResult.ok).toBeTruthy();
     const project = projectResult.value;
 
-    mockProjectRepo.findById.mock.mockImplementation(async () => ok(project));
+    mockProjectRepo.findById.mockImplementation(async () => ok(project));
 
     const input: ExitCrisisModeInput = {
       projectId: project.id.value,
@@ -179,16 +177,16 @@ describe("ExitCrisisModeUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(!result.ok, "Should fail when not in crisis mode");
+    expect(result.ok).toBeFalsy();
   });
 });
 
-describe("GetCrisisStatusUseCase", { concurrency: 1 }, () => {
+describe("GetCrisisStatusUseCase", () => {
   let useCase: GetCrisisStatusUseCase;
   let mockProjectRepo: ReturnType<typeof createMockProjectRepository>;
 
-  beforeEach((t) => {
-    mockProjectRepo = createMockProjectRepository(t);
+  beforeEach(() => {
+    mockProjectRepo = createMockProjectRepository();
     useCase = new GetCrisisStatusUseCase(mockProjectRepo);
   });
 
@@ -198,11 +196,11 @@ describe("GetCrisisStatusUseCase", { concurrency: 1 }, () => {
       accountId,
       name: "Test Project",
     });
-    assert.ok(projectResult.ok);
+    expect(projectResult.ok).toBeTruthy();
     const project = projectResult.value;
     project.enterCrisisMode("Active crisis");
 
-    mockProjectRepo.findById.mock.mockImplementation(async () => ok(project));
+    mockProjectRepo.findById.mockImplementation(async () => ok(project));
 
     const input: GetCrisisStatusInput = {
       projectId: project.id.value,
@@ -210,11 +208,11 @@ describe("GetCrisisStatusUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(result.ok);
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.isInCrisisMode, true);
-      assert.equal(result.value.reason, "Active crisis");
-      assert.ok(result.value.startedAt);
+      expect(result.value.isInCrisisMode).toBe(true);
+      expect(result.value.reason).toBe("Active crisis");
+      expect(result.value.startedAt).toBeTruthy();
     }
   });
 
@@ -224,10 +222,10 @@ describe("GetCrisisStatusUseCase", { concurrency: 1 }, () => {
       accountId,
       name: "Test Project",
     });
-    assert.ok(projectResult.ok);
+    expect(projectResult.ok).toBeTruthy();
     const project = projectResult.value;
 
-    mockProjectRepo.findById.mock.mockImplementation(async () => ok(project));
+    mockProjectRepo.findById.mockImplementation(async () => ok(project));
 
     const input: GetCrisisStatusInput = {
       projectId: project.id.value,
@@ -235,10 +233,10 @@ describe("GetCrisisStatusUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(result.ok);
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.isInCrisisMode, false);
-      assert.equal(result.value.reason, undefined);
+      expect(result.value.isInCrisisMode).toBe(false);
+      expect(result.value.reason).toBe(undefined);
     }
   });
 
@@ -248,13 +246,13 @@ describe("GetCrisisStatusUseCase", { concurrency: 1 }, () => {
       accountId,
       name: "Test Project",
     });
-    assert.ok(projectResult.ok);
+    expect(projectResult.ok).toBeTruthy();
     const project = projectResult.value;
     project.enterCrisisMode("First crisis");
     project.exitCrisisMode();
     project.enterCrisisMode("Second crisis");
 
-    mockProjectRepo.findById.mock.mockImplementation(async () => ok(project));
+    mockProjectRepo.findById.mockImplementation(async () => ok(project));
 
     const input: GetCrisisStatusInput = {
       projectId: project.id.value,
@@ -262,9 +260,9 @@ describe("GetCrisisStatusUseCase", { concurrency: 1 }, () => {
 
     const result = await useCase.execute(input);
 
-    assert.ok(result.ok);
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
-      assert.equal(result.value.history.length, 2);
+      expect(result.value.history.length).toBe(2);
     }
   });
 });

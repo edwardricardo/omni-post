@@ -36,8 +36,7 @@
  * @category UnitTests
  */
 
-import { describe, it, before } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, expect } from "vitest";
 import { createHmac } from "crypto";
 import { YouTubeWebhookProcessor } from "../../../src/webhooks/processors/youtubeWebhookProcessor.js";
 
@@ -53,11 +52,11 @@ function generateHmacSignatureSHA1(payload: string, secret: string): string {
 // Signature Verification Tests (8 tests)
 // ===========================
 
-describe("YouTubeWebhookProcessor - Signature Verification", { concurrency: 1 }, () => {
+describe("YouTubeWebhookProcessor - Signature Verification", () => {
   let processor: YouTubeWebhookProcessor;
   const testSecret = "test-youtube-subscription-secret";
 
-  before(() => {
+  beforeAll(() => {
     processor = new YouTubeWebhookProcessor();
   });
 
@@ -66,7 +65,7 @@ describe("YouTubeWebhookProcessor - Signature Verification", { concurrency: 1 },
     const signature = generateHmacSignatureSHA1(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha1=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should verify valid webhook signature without sha1= prefix", () => {
@@ -74,7 +73,7 @@ describe("YouTubeWebhookProcessor - Signature Verification", { concurrency: 1 },
     const signature = generateHmacSignatureSHA1(payload, testSecret);
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should reject invalid signature", () => {
@@ -82,7 +81,7 @@ describe("YouTubeWebhookProcessor - Signature Verification", { concurrency: 1 },
     const invalidSignature = "sha1=invalid-signature-value";
 
     const isValid = processor.verify(payload, invalidSignature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should reject signature with tampered payload", () => {
@@ -91,7 +90,7 @@ describe("YouTubeWebhookProcessor - Signature Verification", { concurrency: 1 },
 
     const tamperedPayload = JSON.stringify({ test: "tampered" });
     const isValid = processor.verify(tamperedPayload, signature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should reject signature with wrong secret", () => {
@@ -99,7 +98,7 @@ describe("YouTubeWebhookProcessor - Signature Verification", { concurrency: 1 },
     const signature = generateHmacSignatureSHA1(payload, "wrong-secret");
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 
   it("should handle empty payload", () => {
@@ -107,7 +106,7 @@ describe("YouTubeWebhookProcessor - Signature Verification", { concurrency: 1 },
     const signature = generateHmacSignatureSHA1(payload, testSecret);
 
     const isValid = processor.verify(payload, signature, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should handle special characters in payload", () => {
@@ -115,7 +114,7 @@ describe("YouTubeWebhookProcessor - Signature Verification", { concurrency: 1 },
     const signature = generateHmacSignatureSHA1(payload, testSecret);
 
     const isValid = processor.verify(payload, `sha1=${signature}`, testSecret);
-    assert.strictEqual(isValid, true);
+    expect(isValid).toBe(true);
   });
 
   it("should use constant-time comparison", () => {
@@ -125,7 +124,7 @@ describe("YouTubeWebhookProcessor - Signature Verification", { concurrency: 1 },
     // Test multiple attempts to verify timing consistency
     for (let i = 0; i < 10; i++) {
       const isValid = processor.verify(payload, correctSignature, testSecret);
-      assert.strictEqual(isValid, true);
+      expect(isValid).toBe(true);
     }
   });
 });
@@ -134,10 +133,10 @@ describe("YouTubeWebhookProcessor - Signature Verification", { concurrency: 1 },
 // Video Feed Entry Parsing Tests (6 tests)
 // ===========================
 
-describe("YouTubeWebhookProcessor - Video Feed Entry Parsing", { concurrency: 1 }, () => {
+describe("YouTubeWebhookProcessor - Video Feed Entry Parsing", () => {
   let processor: YouTubeWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new YouTubeWebhookProcessor();
   });
 
@@ -157,12 +156,12 @@ describe("YouTubeWebhookProcessor - Video Feed Entry Parsing", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_PUBLISHED");
-    assert.strictEqual(result.normalizedData.eventType, "video_published");
-    assert.strictEqual(result.normalizedData.videoId, "video-123");
-    assert.strictEqual(result.normalizedData.channelId, "channel-456");
-    assert.strictEqual(result.normalizedData.title, "Test Video Title");
-    assert.strictEqual(result.normalizedData.author, "Test Channel");
+    expect(result.eventType).toBe("POST_PUBLISHED");
+    expect(result.normalizedData.eventType).toBe("video_published");
+    expect(result.normalizedData.videoId).toBe("video-123");
+    expect(result.normalizedData.channelId).toBe("channel-456");
+    expect(result.normalizedData.title).toBe("Test Video Title");
+    expect(result.normalizedData.author).toBe("Test Channel");
   });
 
   it("should parse video updated event from feed entry", async () => {
@@ -182,9 +181,9 @@ describe("YouTubeWebhookProcessor - Video Feed Entry Parsing", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_UPDATED");
-    assert.strictEqual(result.normalizedData.eventType, "video_updated");
-    assert.strictEqual(result.normalizedData.updatedAt, "2024-01-15T11:00:00Z");
+    expect(result.eventType).toBe("POST_UPDATED");
+    expect(result.normalizedData.eventType).toBe("video_updated");
+    expect(result.normalizedData.updatedAt).toBe("2024-01-15T11:00:00Z");
   });
 
   it("should parse single entry notification", async () => {
@@ -201,8 +200,8 @@ describe("YouTubeWebhookProcessor - Video Feed Entry Parsing", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.videoId, "video-single");
-    assert.strictEqual(result.normalizedData.channelId, "channel-222");
+    expect(result.normalizedData.videoId).toBe("video-single");
+    expect(result.normalizedData.channelId).toBe("channel-222");
   });
 
   it("should handle array format for yt:videoId", async () => {
@@ -221,8 +220,8 @@ describe("YouTubeWebhookProcessor - Video Feed Entry Parsing", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.videoId, "video-array");
-    assert.strictEqual(result.normalizedData.channelId, "channel-array");
+    expect(result.normalizedData.videoId).toBe("video-array");
+    expect(result.normalizedData.channelId).toBe("channel-array");
   });
 
   it("should generate default link if not provided", async () => {
@@ -240,7 +239,7 @@ describe("YouTubeWebhookProcessor - Video Feed Entry Parsing", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.link, "https://www.youtube.com/watch?v=video-no-link");
+    expect(result.normalizedData.link).toBe("https://www.youtube.com/watch?v=video-no-link");
   });
 
   it("should extract published and updated timestamps", async () => {
@@ -261,8 +260,8 @@ describe("YouTubeWebhookProcessor - Video Feed Entry Parsing", { concurrency: 1 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.publishedAt, publishedTime);
-    assert.strictEqual(result.normalizedData.updatedAt, updatedTime);
+    expect(result.normalizedData.publishedAt).toBe(publishedTime);
+    expect(result.normalizedData.updatedAt).toBe(updatedTime);
   });
 });
 
@@ -270,10 +269,10 @@ describe("YouTubeWebhookProcessor - Video Feed Entry Parsing", { concurrency: 1 
 // Comment Event Parsing Tests (3 tests)
 // ===========================
 
-describe("YouTubeWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, () => {
+describe("YouTubeWebhookProcessor - Comment Event Parsing", () => {
   let processor: YouTubeWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new YouTubeWebhookProcessor();
   });
 
@@ -294,13 +293,13 @@ describe("YouTubeWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "COMMENT_RECEIVED");
-    assert.strictEqual(result.normalizedData.eventType, "comment_received");
-    assert.strictEqual(result.normalizedData.commentId, "comment-123");
-    assert.strictEqual(result.normalizedData.videoId, "video-456");
-    assert.strictEqual(result.normalizedData.text, "Great video!");
-    assert.strictEqual(result.normalizedData.authorDisplayName, "Commenter Name");
-    assert.strictEqual(result.normalizedData.isReply, false);
+    expect(result.eventType).toBe("COMMENT_RECEIVED");
+    expect(result.normalizedData.eventType).toBe("comment_received");
+    expect(result.normalizedData.commentId).toBe("comment-123");
+    expect(result.normalizedData.videoId).toBe("video-456");
+    expect(result.normalizedData.text).toBe("Great video!");
+    expect(result.normalizedData.authorDisplayName).toBe("Commenter Name");
+    expect(result.normalizedData.isReply).toBe(false);
   });
 
   it("should parse comment reply event", async () => {
@@ -320,8 +319,8 @@ describe("YouTubeWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.isReply, true);
-    assert.strictEqual(result.normalizedData.parentId, "comment-123");
+    expect(result.normalizedData.isReply).toBe(true);
+    expect(result.normalizedData.parentId).toBe("comment-123");
   });
 
   it("should use textDisplay when text is not available", async () => {
@@ -339,7 +338,7 @@ describe("YouTubeWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.text, "Display text only");
+    expect(result.normalizedData.text).toBe("Display text only");
   });
 });
 
@@ -347,10 +346,10 @@ describe("YouTubeWebhookProcessor - Comment Event Parsing", { concurrency: 1 }, 
 // Channel Update Event Parsing Tests (2 tests)
 // ===========================
 
-describe("YouTubeWebhookProcessor - Channel Update Event Parsing", { concurrency: 1 }, () => {
+describe("YouTubeWebhookProcessor - Channel Update Event Parsing", () => {
   let processor: YouTubeWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new YouTubeWebhookProcessor();
   });
 
@@ -369,13 +368,13 @@ describe("YouTubeWebhookProcessor - Channel Update Event Parsing", { concurrency
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "ACCOUNT_CONNECTED");
-    assert.strictEqual(result.normalizedData.eventType, "channel_updated");
-    assert.strictEqual(result.normalizedData.channelId, "channel-123");
-    assert.strictEqual(result.normalizedData.title, "Updated Channel Title");
-    assert.strictEqual(result.normalizedData.subscriberCount, 10000);
-    assert.strictEqual(result.normalizedData.videoCount, 250);
-    assert.strictEqual(result.normalizedData.viewCount, 500000);
+    expect(result.eventType).toBe("ACCOUNT_CONNECTED");
+    expect(result.normalizedData.eventType).toBe("channel_updated");
+    expect(result.normalizedData.channelId).toBe("channel-123");
+    expect(result.normalizedData.title).toBe("Updated Channel Title");
+    expect(result.normalizedData.subscriberCount).toBe(10000);
+    expect(result.normalizedData.videoCount).toBe(250);
+    expect(result.normalizedData.viewCount).toBe(500000);
   });
 
   it("should use current timestamp if updatedAt not provided", async () => {
@@ -392,8 +391,8 @@ describe("YouTubeWebhookProcessor - Channel Update Event Parsing", { concurrency
 
     const afterTime = new Date().toISOString();
 
-    assert.ok(result.normalizedData.updatedAt >= beforeTime);
-    assert.ok(result.normalizedData.updatedAt <= afterTime);
+    expect(result.normalizedData.updatedAt >= beforeTime).toBeTruthy();
+    expect(result.normalizedData.updatedAt <= afterTime).toBeTruthy();
   });
 });
 
@@ -401,10 +400,10 @@ describe("YouTubeWebhookProcessor - Channel Update Event Parsing", { concurrency
 // Analytics Event Parsing Tests (3 tests)
 // ===========================
 
-describe("YouTubeWebhookProcessor - Analytics Event Parsing", { concurrency: 1 }, () => {
+describe("YouTubeWebhookProcessor - Analytics Event Parsing", () => {
   let processor: YouTubeWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new YouTubeWebhookProcessor();
   });
 
@@ -427,13 +426,13 @@ describe("YouTubeWebhookProcessor - Analytics Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.eventType, "POST_ENGAGEMENT_UPDATE");
-    assert.strictEqual(result.normalizedData.eventType, "analytics_update");
-    assert.strictEqual(result.normalizedData.videoId, "video-123");
-    assert.strictEqual(result.normalizedData.views, 10000);
-    assert.strictEqual(result.normalizedData.likes, 500);
-    assert.strictEqual(result.normalizedData.comments, 100);
-    assert.strictEqual(result.normalizedData.shares, 50);
+    expect(result.eventType).toBe("POST_ENGAGEMENT_UPDATE");
+    expect(result.normalizedData.eventType).toBe("analytics_update");
+    expect(result.normalizedData.videoId).toBe("video-123");
+    expect(result.normalizedData.views).toBe(10000);
+    expect(result.normalizedData.likes).toBe(500);
+    expect(result.normalizedData.comments).toBe(100);
+    expect(result.normalizedData.shares).toBe(50);
   });
 
   it("should handle analytics with default values", async () => {
@@ -446,10 +445,10 @@ describe("YouTubeWebhookProcessor - Analytics Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.views, 0);
-    assert.strictEqual(result.normalizedData.likes, 0);
-    assert.strictEqual(result.normalizedData.comments, 0);
-    assert.strictEqual(result.normalizedData.shares, 0);
+    expect(result.normalizedData.views).toBe(0);
+    expect(result.normalizedData.likes).toBe(0);
+    expect(result.normalizedData.comments).toBe(0);
+    expect(result.normalizedData.shares).toBe(0);
   });
 
   it("should include YouTube-specific metrics", async () => {
@@ -470,9 +469,9 @@ describe("YouTubeWebhookProcessor - Analytics Event Parsing", { concurrency: 1 }
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.watchTimeMinutes, 2500);
-    assert.strictEqual(result.normalizedData.averageViewDuration, 180);
-    assert.strictEqual(result.normalizedData.estimatedRevenue, 25.75);
+    expect(result.normalizedData.watchTimeMinutes).toBe(2500);
+    expect(result.normalizedData.averageViewDuration).toBe(180);
+    expect(result.normalizedData.estimatedRevenue).toBe(25.75);
   });
 });
 
@@ -480,10 +479,10 @@ describe("YouTubeWebhookProcessor - Analytics Event Parsing", { concurrency: 1 }
 // Error Handling Tests (3 tests)
 // ===========================
 
-describe("YouTubeWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
+describe("YouTubeWebhookProcessor - Error Handling", () => {
   let processor: YouTubeWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new YouTubeWebhookProcessor();
   });
 
@@ -492,13 +491,8 @@ describe("YouTubeWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
       unknown_event: { data: "test" },
     };
 
-    await assert.rejects(
-      async () => {
-        await processor.parse(payload);
-      },
-      {
-        message: /Unsupported YouTube webhook event type/,
-      }
+    await expect(processor.parse(payload)).rejects.toThrow(
+      /Unsupported YouTube webhook event type/
     );
   });
 
@@ -507,13 +501,8 @@ describe("YouTubeWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
       feed: {},
     };
 
-    await assert.rejects(
-      async () => {
-        await processor.parse(payload);
-      },
-      {
-        message: /Unsupported YouTube webhook event type/,
-      }
+    await expect(processor.parse(payload)).rejects.toThrow(
+      /Unsupported YouTube webhook event type/
     );
   });
 
@@ -522,7 +511,7 @@ describe("YouTubeWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
 
     // This should return false instead of throwing
     const isValid = processor.verify("invalid\x00data", "signature", "secret");
-    assert.strictEqual(isValid, false);
+    expect(isValid).toBe(false);
   });
 });
 
@@ -530,10 +519,10 @@ describe("YouTubeWebhookProcessor - Error Handling", { concurrency: 1 }, () => {
 // XML Parsing Tests (3 tests)
 // ===========================
 
-describe("YouTubeWebhookProcessor - XML Parsing", { concurrency: 1 }, () => {
+describe("YouTubeWebhookProcessor - XML Parsing", () => {
   let processor: YouTubeWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new YouTubeWebhookProcessor();
   });
 
@@ -551,7 +540,7 @@ describe("YouTubeWebhookProcessor - XML Parsing", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.videoId, "video-json");
+    expect(result.normalizedData.videoId).toBe("video-json");
   });
 
   it("should handle entry array with multiple entries", async () => {
@@ -577,7 +566,7 @@ describe("YouTubeWebhookProcessor - XML Parsing", { concurrency: 1 }, () => {
     const result = await processor.parse(payload);
 
     // Should parse the first entry
-    assert.strictEqual(result.normalizedData.videoId, "video-first");
+    expect(result.normalizedData.videoId).toBe("video-first");
   });
 
   it("should extract nested link href correctly", async () => {
@@ -599,8 +588,7 @@ describe("YouTubeWebhookProcessor - XML Parsing", { concurrency: 1 }, () => {
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(
-      result.normalizedData.link,
+    expect(result.normalizedData.link).toBe(
       "https://www.youtube.com/watch?v=video-link&feature=youtube_gdata"
     );
   });
@@ -610,10 +598,10 @@ describe("YouTubeWebhookProcessor - XML Parsing", { concurrency: 1 }, () => {
 // Timestamp Handling Tests (2 tests)
 // ===========================
 
-describe("YouTubeWebhookProcessor - Timestamp Handling", { concurrency: 1 }, () => {
+describe("YouTubeWebhookProcessor - Timestamp Handling", () => {
   let processor: YouTubeWebhookProcessor;
 
-  before(() => {
+  beforeAll(() => {
     processor = new YouTubeWebhookProcessor();
   });
 
@@ -632,7 +620,7 @@ describe("YouTubeWebhookProcessor - Timestamp Handling", { concurrency: 1 }, () 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.publishedAt, publishedTime);
+    expect(result.normalizedData.publishedAt).toBe(publishedTime);
   });
 
   it("should handle timestamp in analytics events", async () => {
@@ -648,7 +636,7 @@ describe("YouTubeWebhookProcessor - Timestamp Handling", { concurrency: 1 }, () 
 
     const result = await processor.parse(payload);
 
-    assert.strictEqual(result.normalizedData.timestamp, analyticsTime);
+    expect(result.normalizedData.timestamp).toBe(analyticsTime);
   });
 });
 

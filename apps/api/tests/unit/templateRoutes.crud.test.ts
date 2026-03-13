@@ -1,7 +1,6 @@
 #!/usr/bin/env tsx
 import "./templateRoutes.env-setup.js";
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { FastifyInstance } from "fastify";
 import {
   createTestApp,
@@ -10,14 +9,14 @@ import {
   templateId,
 } from "./templateRoutes.test-helpers.js";
 
-describe("Template Routes - GET /projects/:projectId/templates", { concurrency: 1 }, () => {
+describe("Template Routes - GET /projects/:projectId/templates", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -29,9 +28,9 @@ describe("Template Routes - GET /projects/:projectId/templates", { concurrency: 
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
-    assert.ok(Array.isArray(body.data));
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(Array.isArray(body.data)).toBeTruthy();
   });
 
   it("should support category filter", async () => {
@@ -40,7 +39,7 @@ describe("Template Routes - GET /projects/:projectId/templates", { concurrency: 
       url: `/projects/${projectId}/templates?category=social`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should support platform filter", async () => {
@@ -49,7 +48,7 @@ describe("Template Routes - GET /projects/:projectId/templates", { concurrency: 
       url: `/projects/${projectId}/templates?platform=x`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should support tags filter", async () => {
@@ -58,7 +57,7 @@ describe("Template Routes - GET /projects/:projectId/templates", { concurrency: 
       url: `/projects/${projectId}/templates?tags=test,social`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should support search filter", async () => {
@@ -67,7 +66,7 @@ describe("Template Routes - GET /projects/:projectId/templates", { concurrency: 
       url: `/projects/${projectId}/templates?search=hello`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should support pagination with limit", async () => {
@@ -76,7 +75,7 @@ describe("Template Routes - GET /projects/:projectId/templates", { concurrency: 
       url: `/projects/${projectId}/templates?limit=10`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should support pagination with offset", async () => {
@@ -85,7 +84,7 @@ describe("Template Routes - GET /projects/:projectId/templates", { concurrency: 
       url: `/projects/${projectId}/templates?limit=10&offset=20`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should reject invalid project ID", async () => {
@@ -94,7 +93,7 @@ describe("Template Routes - GET /projects/:projectId/templates", { concurrency: 
       url: "/projects/invalid/templates",
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should use default pagination when not provided", async () => {
@@ -103,70 +102,66 @@ describe("Template Routes - GET /projects/:projectId/templates", { concurrency: 
       url: `/projects/${projectId}/templates`,
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 });
 
-describe(
-  "Template Routes - GET /projects/:projectId/templates/:templateId",
-  { concurrency: 1 },
-  () => {
-    let app: FastifyInstance;
-
-    before(async () => {
-      app = await createTestApp();
-    });
-
-    after(async () => {
-      await app.close();
-    });
-
-    it("should get template by ID", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: `/projects/${projectId}/templates/${templateId}`,
-      });
-
-      const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(typeof body.data, "object");
-    });
-
-    it("should return 404 when template not found", async () => {
-      mockTemplateService.getTemplate.mock.mockImplementationOnce(async () => ({
-        ok: true,
-        value: null,
-      }));
-
-      const response = await app.inject({
-        method: "GET",
-        url: `/projects/${projectId}/templates/${templateId}`,
-      });
-
-      assert.strictEqual(response.statusCode, 404);
-    });
-
-    it("should reject invalid template ID", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: `/projects/${projectId}/templates/invalid`,
-      });
-
-      assert.strictEqual(response.statusCode, 400);
-    });
-  }
-);
-
-describe("Template Routes - POST /projects/:projectId/templates", { concurrency: 1 }, () => {
+describe("Template Routes - GET /projects/:projectId/templates/:templateId", () => {
   let app: FastifyInstance;
 
-  before(async () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  after(async () => {
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("should get template by ID", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/projects/${projectId}/templates/${templateId}`,
+    });
+
+    const body = JSON.parse(response.body);
+
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(typeof body.data).toBe("object");
+  });
+
+  it("should return 404 when template not found", async () => {
+    mockTemplateService.getTemplate.mockImplementationOnce(async () => ({
+      ok: true,
+      value: null,
+    }));
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/projects/${projectId}/templates/${templateId}`,
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("should reject invalid template ID", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/projects/${projectId}/templates/invalid`,
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+});
+
+describe("Template Routes - POST /projects/:projectId/templates", () => {
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
     await app.close();
   });
 
@@ -187,8 +182,8 @@ describe("Template Routes - POST /projects/:projectId/templates", { concurrency:
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 201);
-    assert.strictEqual(body.ok, true);
+    expect(response.statusCode).toBe(201);
+    expect(body.ok).toBe(true);
   });
 
   it("should create template with minimal required fields", async () => {
@@ -202,7 +197,7 @@ describe("Template Routes - POST /projects/:projectId/templates", { concurrency:
       },
     });
 
-    assert.strictEqual(response.statusCode, 201);
+    expect(response.statusCode).toBe(201);
   });
 
   it("should reject template without name", async () => {
@@ -215,7 +210,7 @@ describe("Template Routes - POST /projects/:projectId/templates", { concurrency:
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject template without content", async () => {
@@ -228,7 +223,7 @@ describe("Template Routes - POST /projects/:projectId/templates", { concurrency:
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should accept optional isPublic flag", async () => {
@@ -243,120 +238,112 @@ describe("Template Routes - POST /projects/:projectId/templates", { concurrency:
       },
     });
 
-    assert.strictEqual(response.statusCode, 201);
+    expect(response.statusCode).toBe(201);
   });
 });
 
-describe(
-  "Template Routes - PUT /projects/:projectId/templates/:templateId",
-  { concurrency: 1 },
-  () => {
-    let app: FastifyInstance;
+describe("Template Routes - PUT /projects/:projectId/templates/:templateId", () => {
+  let app: FastifyInstance;
 
-    before(async () => {
-      app = await createTestApp();
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("should update template", async () => {
+    const response = await app.inject({
+      method: "PUT",
+      url: `/projects/${projectId}/templates/${templateId}`,
+      payload: {
+        name: "Updated Template",
+        description: "Updated description",
+      },
     });
 
-    after(async () => {
-      await app.close();
+    const body = JSON.parse(response.body);
+
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+  });
+
+  it("should update only provided fields", async () => {
+    const response = await app.inject({
+      method: "PUT",
+      url: `/projects/${projectId}/templates/${templateId}`,
+      payload: {
+        name: "New Name",
+      },
     });
 
-    it("should update template", async () => {
-      const response = await app.inject({
-        method: "PUT",
-        url: `/projects/${projectId}/templates/${templateId}`,
-        payload: {
-          name: "Updated Template",
-          description: "Updated description",
-        },
-      });
+    expect(response.statusCode).toBe(200);
+  });
 
-      const body = JSON.parse(response.body);
+  it("should return 404 when template not found", async () => {
+    mockTemplateService.updateTemplate.mockImplementationOnce(async () => ({
+      ok: true,
+      value: null,
+    }));
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+    const response = await app.inject({
+      method: "PUT",
+      url: `/projects/${projectId}/templates/${templateId}`,
+      payload: {
+        name: "Updated",
+      },
     });
 
-    it("should update only provided fields", async () => {
-      const response = await app.inject({
-        method: "PUT",
-        url: `/projects/${projectId}/templates/${templateId}`,
-        payload: {
-          name: "New Name",
-        },
-      });
+    expect(response.statusCode).toBe(404);
+  });
 
-      assert.strictEqual(response.statusCode, 200);
+  it("should accept empty payload for update", async () => {
+    const response = await app.inject({
+      method: "PUT",
+      url: `/projects/${projectId}/templates/${templateId}`,
+      payload: {},
     });
 
-    it("should return 404 when template not found", async () => {
-      mockTemplateService.updateTemplate.mock.mockImplementationOnce(async () => ({
-        ok: true,
-        value: null,
-      }));
+    expect(response.statusCode).toBe(200);
+  });
+});
 
-      const response = await app.inject({
-        method: "PUT",
-        url: `/projects/${projectId}/templates/${templateId}`,
-        payload: {
-          name: "Updated",
-        },
-      });
+describe("Template Routes - DELETE /projects/:projectId/templates/:templateId", () => {
+  let app: FastifyInstance;
 
-      assert.strictEqual(response.statusCode, 404);
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("should delete template", async () => {
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/projects/${projectId}/templates/${templateId}`,
     });
 
-    it("should accept empty payload for update", async () => {
-      const response = await app.inject({
-        method: "PUT",
-        url: `/projects/${projectId}/templates/${templateId}`,
-        payload: {},
-      });
+    const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-    });
-  }
-);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.message).toBe("Template deleted successfully");
+  });
 
-describe(
-  "Template Routes - DELETE /projects/:projectId/templates/:templateId",
-  { concurrency: 1 },
-  () => {
-    let app: FastifyInstance;
+  it("should return 404 when template not found", async () => {
+    mockTemplateService.deleteTemplate.mockImplementationOnce(async () => ({
+      ok: true,
+      value: false,
+    }));
 
-    before(async () => {
-      app = await createTestApp();
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/projects/${projectId}/templates/${templateId}`,
     });
 
-    after(async () => {
-      await app.close();
-    });
-
-    it("should delete template", async () => {
-      const response = await app.inject({
-        method: "DELETE",
-        url: `/projects/${projectId}/templates/${templateId}`,
-      });
-
-      const body = JSON.parse(response.body);
-
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data.message, "Template deleted successfully");
-    });
-
-    it("should return 404 when template not found", async () => {
-      mockTemplateService.deleteTemplate.mock.mockImplementationOnce(async () => ({
-        ok: true,
-        value: false,
-      }));
-
-      const response = await app.inject({
-        method: "DELETE",
-        url: `/projects/${projectId}/templates/${templateId}`,
-      });
-
-      assert.strictEqual(response.statusCode, 404);
-    });
-  }
-);
+    expect(response.statusCode).toBe(404);
+  });
+});

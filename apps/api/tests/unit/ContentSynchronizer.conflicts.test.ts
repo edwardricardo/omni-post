@@ -1,6 +1,5 @@
 import "./ContentSynchronizer.test-helpers.js";
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { ContentSynchronizer } from "../../src/orchestration/ContentSynchronizer.js";
 import {
   createMockPrisma,
@@ -9,7 +8,7 @@ import {
   createMockPost,
 } from "./ContentSynchronizer.test-helpers.js";
 
-describe("ContentSynchronizer - Conflict Detection", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Conflict Detection", () => {
   it("should detect modification conflicts", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -31,14 +30,10 @@ describe("ContentSynchronizer - Conflict Detection", { concurrency: 1 }, () => {
       { strategy: "source_wins" }
     );
 
-    assert.ok(result.conflicts.length > 0, "Should detect conflicts");
+    expect(result.conflicts.length > 0).toBeTruthy();
     const titleConflict = result.conflicts.find((c: any) => c.field === "title");
-    assert.ok(titleConflict, "Should detect title conflict");
-    assert.strictEqual(
-      titleConflict?.conflictType,
-      "modification",
-      "Should be modification conflict"
-    );
+    expect(titleConflict).toBeTruthy();
+    expect(titleConflict?.conflictType).toBe("modification");
   });
 
   it("should detect deletion conflicts", async () => {
@@ -63,8 +58,8 @@ describe("ContentSynchronizer - Conflict Detection", { concurrency: 1 }, () => {
     );
 
     const tagsConflict = result.conflicts.find((c: any) => c.field === "tags");
-    assert.ok(tagsConflict, "Should detect tags conflict");
-    assert.strictEqual(tagsConflict?.conflictType, "deletion", "Should be deletion conflict");
+    expect(tagsConflict).toBeTruthy();
+    expect(tagsConflict?.conflictType).toBe("deletion");
   });
 
   it("should detect creation conflicts", async () => {
@@ -89,12 +84,12 @@ describe("ContentSynchronizer - Conflict Detection", { concurrency: 1 }, () => {
     );
 
     const tagsConflict = result.conflicts.find((c: any) => c.field === "tags");
-    assert.ok(tagsConflict, "Should detect tags conflict");
-    assert.strictEqual(tagsConflict?.conflictType, "creation", "Should be creation conflict");
+    expect(tagsConflict).toBeTruthy();
+    expect(tagsConflict?.conflictType).toBe("creation");
   });
 });
 
-describe("ContentSynchronizer - Conflict Resolution Strategies", { concurrency: 1 }, () => {
+describe("ContentSynchronizer - Conflict Resolution Strategies", () => {
   it("should resolve conflicts using source_wins strategy", async () => {
     const mockPrisma = createMockPrisma();
     const mockRedis = createMockRedis();
@@ -116,13 +111,9 @@ describe("ContentSynchronizer - Conflict Resolution Strategies", { concurrency: 
       { strategy: "source_wins" }
     );
 
-    assert.strictEqual(result.resolvedContent.title, "Source Title", "Should use source value");
+    expect(result.resolvedContent.title).toBe("Source Title");
     const titleConflict = result.conflicts.find((c: any) => c.field === "title");
-    assert.strictEqual(
-      titleConflict?.resolution?.strategy,
-      "source_wins",
-      "Should apply source_wins strategy"
-    );
+    expect(titleConflict?.resolution?.strategy).toBe("source_wins");
   });
 
   it("should resolve conflicts using target_wins strategy", async () => {
@@ -146,7 +137,7 @@ describe("ContentSynchronizer - Conflict Resolution Strategies", { concurrency: 
       { strategy: "target_wins" }
     );
 
-    assert.strictEqual(result.resolvedContent.body, "Target body", "Should use target value");
+    expect(result.resolvedContent.body).toBe("Target body");
   });
 
   it("should resolve conflicts using timestamp_wins strategy", async () => {
@@ -170,7 +161,7 @@ describe("ContentSynchronizer - Conflict Resolution Strategies", { concurrency: 
       { strategy: "timestamp_wins" }
     );
 
-    assert.strictEqual(result.resolvedContent.title, "Newer content", "Should use newer value");
+    expect(result.resolvedContent.title).toBe("Newer content");
   });
 
   it("should resolve conflicts using merge strategy for arrays", async () => {
@@ -194,10 +185,10 @@ describe("ContentSynchronizer - Conflict Resolution Strategies", { concurrency: 
       { strategy: "merge" }
     );
 
-    assert.ok(Array.isArray(result.resolvedContent.tags), "Should merge arrays");
-    assert.ok(result.resolvedContent.tags?.includes("source"), "Should include source tags");
-    assert.ok(result.resolvedContent.tags?.includes("target"), "Should include target tags");
-    assert.ok(result.resolvedContent.tags?.includes("tag"), "Should deduplicate");
+    expect(Array.isArray(result.resolvedContent.tags)).toBeTruthy();
+    expect(result.resolvedContent.tags?.includes("source")).toBeTruthy();
+    expect(result.resolvedContent.tags?.includes("target")).toBeTruthy();
+    expect(result.resolvedContent.tags?.includes("tag")).toBeTruthy();
   });
 
   it("should resolve conflicts using merge strategy for strings", async () => {
@@ -221,11 +212,7 @@ describe("ContentSynchronizer - Conflict Resolution Strategies", { concurrency: 
       { strategy: "merge" }
     );
 
-    assert.strictEqual(
-      result.resolvedContent.body,
-      "Much longer content",
-      "Should use longer string"
-    );
+    expect(result.resolvedContent.body).toBe("Much longer content");
   });
 
   it("should require manual resolution for manual strategy", async () => {
@@ -250,14 +237,7 @@ describe("ContentSynchronizer - Conflict Resolution Strategies", { concurrency: 
     );
 
     const conflict = result.conflicts.find((c: any) => c.field === "title");
-    assert.strictEqual(
-      conflict?.resolution?.strategy,
-      "manual",
-      "Should mark for manual resolution"
-    );
-    assert.ok(
-      conflict?.resolution?.rationale?.toLowerCase().includes("manual"),
-      "Should indicate manual resolution needed"
-    );
+    expect(conflict?.resolution?.strategy).toBe("manual");
+    expect(conflict?.resolution?.rationale?.toLowerCase().includes("manual")).toBeTruthy();
   });
 });

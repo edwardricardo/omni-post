@@ -1,6 +1,7 @@
-#!/usr/bin/env tsx
 /**
- * Unit Tests for schedulingRoutes
+ * @file schedulingRoutes.test.ts
+ * @description Unit tests for schedulingRoutes. Uses mocked Prisma stores and
+ *              a real Fastify instance to test HTTP endpoint behavior.
  *
  * Covers:
  *   GET  /admin/posts/scheduled
@@ -11,32 +12,80 @@
  *   GET  /api/scheduling/rules
  *   POST /api/scheduling/slots
  *   POST /api/scheduling/slots/bulk
+ * @layer test
  */
 
-// Suppress console output during tests
-const originalConsole = {
-  log: console.log,
-  info: console.info,
-  warn: console.warn,
-  error: console.error,
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
+
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+// Scheduling handlers use post, channel, analytics, publishLog, schedulingRule, postContent.
+// Post defaults include empty relation arrays so include: { publishLogs, contents } works.
+const postDefaults = {
+  status: "DRAFT",
+  scheduledAt: null,
+  publishedAt: null,
+  deletedAt: null,
+  publishLogs: [],
+  contents: [],
+  project: null,
 };
-console.log = () => {};
-console.info = () => {};
-console.warn = () => {};
-console.error = () => {};
+const extraModels = {
+  post: buildModelMock(createStore(), postDefaults),
+  postContent: buildModelMock(createStore()),
+  channel: buildModelMock(createStore()),
+  analytics: buildModelMock(createStore()),
+  publishLog: buildModelMock(createStore()),
+  schedulingRule: buildModelMock(createStore()),
+  adminUserPermission: buildModelMock(createStore()),
+};
+Object.assign(mockPrisma.prisma, extraModels);
 
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { FastifyInstance } from "fastify";
-import fastifyCookie from "@fastify/cookie";
-import { schedulingRoutes } from "../../src/admin/schedulingRoutes.js";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
-import { prisma } from "@infra/prisma";
-import { createTestAdminUser, cleanupTestAdminUsersByEmail } from "./admin/adminTestHelper.js";
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
 
-async function createTestApp(): Promise<FastifyInstance> {
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
+// ---------------------------------------------------------------------------
+// Dynamic imports after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const fastifyCookie = (await import("@fastify/cookie")).default;
+const { schedulingRoutes } = await import("../../src/admin/schedulingRoutes.js");
+const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { generateAdminToken } = await import("./admin/adminTestHelper.js");
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const prisma = mockPrisma.prisma as Record<string, unknown>;
+const timestamp = Date.now();
+const adminEmail = `scheduling-test-${timestamp}@example.com`;
+
+async function createTestApp() {
   const app = Fastify({ logger: false });
-  const container = setupContainer({ prisma });
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
   app.decorate("container", container);
   await app.register(fastifyCookie);
   await app.register(schedulingRoutes);
@@ -44,32 +93,25 @@ async function createTestApp(): Promise<FastifyInstance> {
   return app;
 }
 
-const timestamp = Date.now();
-const adminEmail = `scheduling-test-${timestamp}@example.com`;
-const testPassword = "TestPassword123";
-
-let app: FastifyInstance;
+let app: import("fastify").FastifyInstance;
 let adminToken: string;
 let testAccountId: string;
 let testProjectId: string;
-// Scheduling rules created during tests (for cleanup)
 const createdRuleIds: string[] = [];
 
-describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
-  before(async () => {
+describe("schedulingRoutes Unit Tests", () => {
+  beforeAll(async () => {
     app = await createTestApp();
 
-    // Create admin user and generate a valid admin JWT token
-    const result = await createTestAdminUser({
+    adminToken = generateAdminToken({
+      id: "scheduling-admin-test-id",
       email: adminEmail,
       name: "Scheduling Test Admin",
-      password: testPassword,
       role: "ADMIN",
     });
-    adminToken = result.token;
 
-    // Create a test account and project for slot/rule tests
-    const account = await prisma.account.create({
+    // Create test account and project via mock prisma
+    const account = await (prisma.account as { create: Function }).create({
       data: {
         name: `Scheduling Test Account ${timestamp}`,
         email: `scheduling-account-${timestamp}@example.com`,
@@ -78,40 +120,21 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
     });
     testAccountId = account.id;
 
-    const project = await prisma.project.create({
-      data: {
-        name: `Scheduling Test Project ${timestamp}`,
-        accountId: testAccountId,
-      },
+    const project = await (prisma.project as { create: Function }).create({
+      data: { name: `Scheduling Test Project ${timestamp}`, accountId: testAccountId },
     });
     testProjectId = project.id;
   });
 
-  after(async () => {
-    // Clean up scheduling rules created in tests
-    if (createdRuleIds.length > 0) {
-      await prisma.schedulingRule.deleteMany({
-        where: { id: { in: createdRuleIds } },
-      });
-    }
-    // Clean up project and account
-    await prisma.project.deleteMany({ where: { id: testProjectId } });
-    await prisma.account.deleteMany({ where: { id: testAccountId } });
-    // Clean up admin users
-    await cleanupTestAdminUsersByEmail(`scheduling-test-${timestamp}`);
+  afterAll(async () => {
     await app.close();
-    await prisma.$disconnect();
-    Object.assign(console, originalConsole);
   });
 
   // ── GET /admin/posts/scheduled ─────────────────────────────────────────────
 
   it("should return 401 without auth for scheduled posts list", async () => {
-    const res = await app.inject({
-      method: "GET",
-      url: "/admin/posts/scheduled",
-    });
-    assert.equal(res.statusCode, 401);
+    const res = await app.inject({ method: "GET", url: "/admin/posts/scheduled" });
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return paginated scheduled posts with auth", async () => {
@@ -120,18 +143,14 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/admin/posts/scheduled",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data, "Should have value field");
-    // formatPaginatedResponse returns { ok, data, pagination }
-    assert.ok("data" in body.data, "Should have data field");
-    assert.ok("pagination" in body.data, "Should have pagination field");
-    assert.ok(Array.isArray(body.data.data), "data should be an array");
-    assert.ok(
-      typeof body.data.pagination.total === "number",
-      "pagination.total should be a number"
-    );
+    expect(body.ok).toBeTruthy();
+    expect(body.data).toBeTruthy();
+    expect("data" in body.data).toBeTruthy();
+    expect("pagination" in body.data).toBeTruthy();
+    expect(Array.isArray(body.data.data)).toBeTruthy();
+    expect(typeof body.data.pagination.total === "number").toBeTruthy();
   });
 
   it("should filter scheduled posts by projectId", async () => {
@@ -140,10 +159,10 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: `/admin/posts/scheduled?projectId=${testProjectId}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.ok(Array.isArray(body.data.data));
+    expect(body.ok).toBeTruthy();
+    expect(Array.isArray(body.data.data)).toBeTruthy();
   });
 
   // ── POST /admin/posts/:id/cancel ──────────────────────────────────────────
@@ -153,7 +172,7 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "POST",
       url: "/admin/posts/a0000000-0000-4000-8000-000000000000/cancel",
     });
-    assert.equal(res.statusCode, 401);
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return 404 when cancelling non-existent post", async () => {
@@ -162,18 +181,15 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/admin/posts/a0000000-0000-4000-8000-000000000000/cancel",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 404);
+    expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should return 400 when cancelling a non-scheduled post", async () => {
-    // Create a DRAFT post directly in DB (locale is on PostContent, not Post)
-    const post = await prisma.post.create({
-      data: {
-        projectId: testProjectId,
-        status: "DRAFT",
-      },
+    // Create a DRAFT post
+    const post = await (prisma.post as { create: Function }).create({
+      data: { projectId: testProjectId, status: "DRAFT" },
     });
 
     const res = await app.inject({
@@ -182,23 +198,15 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       headers: { authorization: `Bearer ${adminToken}` },
     });
 
-    // Clean up regardless
-    await prisma.post.delete({ where: { id: post.id } });
-
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should successfully cancel a scheduled post", async () => {
-    // Create a SCHEDULED post directly in DB
     const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const post = await prisma.post.create({
-      data: {
-        projectId: testProjectId,
-        status: "SCHEDULED",
-        scheduledAt: futureDate,
-      },
+    const post = await (prisma.post as { create: Function }).create({
+      data: { projectId: testProjectId, status: "SCHEDULED", scheduledAt: futureDate },
     });
 
     const res = await app.inject({
@@ -207,13 +215,10 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       headers: { authorization: `Bearer ${adminToken}` },
     });
 
-    // Clean up
-    await prisma.post.delete({ where: { id: post.id } });
-
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.equal(body.data.status, "DRAFT", "Cancelled post should have DRAFT status");
+    expect(body.ok).toBeTruthy();
+    expect(body.data.status).toBe("DRAFT");
   });
 
   // ── POST /admin/posts/:id/reschedule ──────────────────────────────────────
@@ -224,7 +229,7 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/admin/posts/a0000000-0000-4000-8000-000000000000/reschedule",
       payload: { scheduledAt: new Date(Date.now() + 3600000).toISOString() },
     });
-    assert.equal(res.statusCode, 401);
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return 404 when rescheduling non-existent post", async () => {
@@ -235,20 +240,15 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       headers: { authorization: `Bearer ${adminToken}` },
       payload: { scheduledAt: futureTime },
     });
-    assert.equal(res.statusCode, 404);
+    expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should successfully reschedule a post to a future time", async () => {
-    // Create a SCHEDULED post
     const initialDate = new Date(Date.now() + 2 * 60 * 60 * 1000);
-    const post = await prisma.post.create({
-      data: {
-        projectId: testProjectId,
-        status: "SCHEDULED",
-        scheduledAt: initialDate,
-      },
+    const post = await (prisma.post as { create: Function }).create({
+      data: { projectId: testProjectId, status: "SCHEDULED", scheduledAt: initialDate },
     });
 
     const newDate = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
@@ -259,24 +259,18 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       payload: { scheduledAt: newDate, timezone: "UTC" },
     });
 
-    // Clean up
-    await prisma.post.delete({ where: { id: post.id } });
-
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.equal(body.data.status, "SCHEDULED", "Rescheduled post should remain SCHEDULED");
-    assert.ok(body.data.scheduledAt, "Should have a new scheduledAt date");
+    expect(body.ok).toBeTruthy();
+    expect(body.data.status).toBe("SCHEDULED");
+    expect(body.data.scheduledAt).toBeTruthy();
   });
 
   // ── GET /api/scheduling/slots ──────────────────────────────────────────────
 
   it("should return 401 without auth for scheduling slots", async () => {
-    const res = await app.inject({
-      method: "GET",
-      url: "/api/scheduling/slots",
-    });
-    assert.equal(res.statusCode, 401);
+    const res = await app.inject({ method: "GET", url: "/api/scheduling/slots" });
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return 404 for non-existent project in scheduling slots", async () => {
@@ -287,9 +281,9 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: `/api/scheduling/slots?projectId=a0000000-0000-4000-8000-000000000000&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 404);
+    expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should return scheduling slots for a valid project", async () => {
@@ -300,24 +294,21 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: `/api/scheduling/slots?projectId=${testProjectId}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data, "Should have value field");
-    assert.ok("slots" in body.data, "Should have slots field");
-    assert.ok("rules" in body.data, "Should have rules field");
-    assert.ok(Array.isArray(body.data.slots), "slots should be an array");
-    assert.equal(body.data.projectId, testProjectId, "projectId should match");
+    expect(body.ok).toBeTruthy();
+    expect(body.data).toBeTruthy();
+    expect("slots" in body.data).toBeTruthy();
+    expect("rules" in body.data).toBeTruthy();
+    expect(Array.isArray(body.data.slots)).toBeTruthy();
+    expect(body.data.projectId).toBe(testProjectId);
   });
 
   // ── GET /api/analytics/optimal-times ─────────────────────────────────────
 
   it("should return 401 without auth for optimal posting times", async () => {
-    const res = await app.inject({
-      method: "GET",
-      url: "/api/analytics/optimal-times",
-    });
-    assert.equal(res.statusCode, 401);
+    const res = await app.inject({ method: "GET", url: "/api/analytics/optimal-times" });
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return 404 for non-existent project in optimal times", async () => {
@@ -326,9 +317,9 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/analytics/optimal-times?projectId=a0000000-0000-4000-8000-000000000000",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 404);
+    expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should return optimal posting times for a valid project", async () => {
@@ -337,13 +328,13 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: `/api/analytics/optimal-times?projectId=${testProjectId}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data, "Should have value field");
-    assert.ok("optimalTimes" in body.data, "Should have optimalTimes field");
-    assert.ok(Array.isArray(body.data.optimalTimes), "optimalTimes should be an array");
-    assert.equal(body.data.projectId, testProjectId, "projectId should match");
+    expect(body.ok).toBeTruthy();
+    expect(body.data).toBeTruthy();
+    expect("optimalTimes" in body.data).toBeTruthy();
+    expect(Array.isArray(body.data.optimalTimes)).toBeTruthy();
+    expect(body.data.projectId).toBe(testProjectId);
   });
 
   it("should return optimal times with lookbackDays param", async () => {
@@ -352,20 +343,17 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: `/api/analytics/optimal-times?projectId=${testProjectId}&lookbackDays=7`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.ok(Array.isArray(body.data.optimalTimes));
+    expect(body.ok).toBeTruthy();
+    expect(Array.isArray(body.data.optimalTimes)).toBeTruthy();
   });
 
   // ── GET /api/scheduling/rules ──────────────────────────────────────────────
 
   it("should return 401 without auth for scheduling rules", async () => {
-    const res = await app.inject({
-      method: "GET",
-      url: "/api/scheduling/rules",
-    });
-    assert.equal(res.statusCode, 401);
+    const res = await app.inject({ method: "GET", url: "/api/scheduling/rules" });
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return 404 for non-existent project in scheduling rules", async () => {
@@ -374,9 +362,9 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: "/api/scheduling/rules?projectId=a0000000-0000-4000-8000-000000000000",
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 404);
+    expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should return scheduling rules for a valid project", async () => {
@@ -385,14 +373,14 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: `/api/scheduling/rules?projectId=${testProjectId}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data, "Should have value field");
-    assert.ok("rules" in body.data, "Should have rules field");
-    assert.ok(Array.isArray(body.data.rules), "rules should be an array");
-    assert.equal(body.data.projectId, testProjectId, "projectId should match");
-    assert.ok(typeof body.data.total === "number", "total should be a number");
+    expect(body.ok).toBeTruthy();
+    expect(body.data).toBeTruthy();
+    expect("rules" in body.data).toBeTruthy();
+    expect(Array.isArray(body.data.rules)).toBeTruthy();
+    expect(body.data.projectId).toBe(testProjectId);
+    expect(typeof body.data.total === "number").toBeTruthy();
   });
 
   it("should filter scheduling rules by isActive", async () => {
@@ -401,10 +389,10 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       url: `/api/scheduling/rules?projectId=${testProjectId}&isActive=true`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    assert.equal(res.statusCode, 200);
+    expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok);
-    assert.ok(Array.isArray(body.data.rules));
+    expect(body.ok).toBeTruthy();
+    expect(Array.isArray(body.data.rules)).toBeTruthy();
   });
 
   // ── POST /api/scheduling/slots ─────────────────────────────────────────────
@@ -413,14 +401,9 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/scheduling/slots",
-      payload: {
-        projectId: testProjectId,
-        dayOfWeek: 1,
-        hour: 9,
-        providers: ["X"],
-      },
+      payload: { projectId: testProjectId, dayOfWeek: 1, hour: 9, providers: ["X"] },
     });
-    assert.equal(res.statusCode, 401);
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return 404 when creating slot for non-existent project", async () => {
@@ -435,9 +418,9 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
         providers: ["X"],
       },
     });
-    assert.equal(res.statusCode, 404);
+    expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should create a schedule slot successfully", async () => {
@@ -455,17 +438,16 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
         isActive: true,
       },
     });
-    assert.equal(res.statusCode, 201);
+    expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data, "Should have value field");
-    assert.ok(body.data.id, "Should have id field");
-    assert.equal(body.data.projectId, testProjectId, "projectId should match");
-    assert.ok(Array.isArray(body.data.platforms), "platforms should be an array");
-    assert.ok(body.data.slot, "Should have slot field");
-    assert.equal(body.data.slot.dayOfWeek, 1, "dayOfWeek should match");
-    assert.equal(body.data.slot.hour, 9, "hour should match");
-    // Track for cleanup
+    expect(body.ok).toBeTruthy();
+    expect(body.data).toBeTruthy();
+    expect(body.data.id).toBeTruthy();
+    expect(body.data.projectId).toBe(testProjectId);
+    expect(Array.isArray(body.data.platforms)).toBeTruthy();
+    expect(body.data.slot).toBeTruthy();
+    expect(body.data.slot.dayOfWeek).toBe(1);
+    expect(body.data.slot.hour).toBe(9);
     createdRuleIds.push(body.data.id);
   });
 
@@ -474,14 +456,11 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "POST",
       url: "/api/scheduling/slots",
       headers: { authorization: `Bearer ${adminToken}` },
-      payload: {
-        // Missing dayOfWeek, hour, providers
-        projectId: testProjectId,
-      },
+      payload: { projectId: testProjectId },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   // ── POST /api/scheduling/slots/bulk ──────────────────────────────────────
@@ -495,7 +474,7 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
         slots: [{ dayOfWeek: 2, hour: 10, providers: ["INSTAGRAM"] }],
       },
     });
-    assert.equal(res.statusCode, 401);
+    expect(res.statusCode).toBe(401);
   });
 
   it("should return 404 when bulk creating slots for non-existent project", async () => {
@@ -508,9 +487,9 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
         slots: [{ dayOfWeek: 2, hour: 10, providers: ["INSTAGRAM"] }],
       },
     });
-    assert.equal(res.statusCode, 404);
+    expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 
   it("should bulk create schedule slots successfully", async () => {
@@ -528,14 +507,13 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
         isActive: true,
       },
     });
-    assert.equal(res.statusCode, 201);
+    expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.body);
-    assert.ok(body.ok, "Should have ok: true");
-    assert.ok(body.data, "Should have value field");
-    assert.equal(body.data.total, 2, "Should create 2 slots");
-    assert.ok(Array.isArray(body.data.slots), "slots should be an array");
-    assert.equal(body.data.slots.length, 2, "Should return 2 created slots");
-    // Track for cleanup
+    expect(body.ok).toBeTruthy();
+    expect(body.data).toBeTruthy();
+    expect(body.data.total).toBe(2);
+    expect(Array.isArray(body.data.slots)).toBeTruthy();
+    expect(body.data.slots.length).toBe(2);
     for (const slot of body.data.slots) {
       createdRuleIds.push(slot.id);
     }
@@ -546,13 +524,10 @@ describe("schedulingRoutes Unit Tests", { concurrency: 1 }, () => {
       method: "POST",
       url: "/api/scheduling/slots/bulk",
       headers: { authorization: `Bearer ${adminToken}` },
-      payload: {
-        projectId: testProjectId,
-        slots: [],
-      },
+      payload: { projectId: testProjectId, slots: [] },
     });
-    assert.equal(res.statusCode, 400);
+    expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    assert.equal(body.ok, false);
+    expect(body.ok).toBe(false);
   });
 });

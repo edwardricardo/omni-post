@@ -1,37 +1,119 @@
 /**
- * Unit Tests for subscriptionRoutes — Plans and Subscription Management
- * Covers: GET /plans, GET /plans/:tier, GET/PUT /accounts/:id/subscription, GET /subscriptions
+ * @file subscriptionRoutes.plans.test.ts
+ * @description Unit tests for subscriptionRoutes — Plans and Subscription Management.
+ *              Uses in-memory mocked Prisma stores — no real database needed.
+ * @layer test
  */
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import { FastifyInstance } from "fastify";
-import {
-  createTestApp,
-  createTestUsers,
-  cleanupTestUsers,
-  prisma,
-} from "./subscriptionRoutes.test-helpers.js";
+
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import type { FastifyInstance } from "fastify";
+
+// ---------------------------------------------------------------------------
+// Mock setup — must come BEFORE any SUT imports
+// ---------------------------------------------------------------------------
+
+const { mockPrisma, stores } = createMockPrismaModule();
+
+// Patch account.findUnique to resolve include: { projects: true }
+const origAccountFindUnique = mockPrisma.prisma.account.findUnique;
+mockPrisma.prisma.account.findUnique = vi.fn(async (args: Record<string, unknown>) => {
+  const result = await origAccountFindUnique(args);
+  if (!result) return null;
+  const include = args.include as Record<string, unknown> | undefined;
+  if (include?.projects) {
+    (result as Record<string, unknown>).projects = stores.project
+      .all()
+      .filter((p) => p.accountId === result.id);
+  }
+  if (include?._count) {
+    (result as Record<string, unknown>)._count = {
+      projects: stores.project.all().filter((p) => p.accountId === result.id).length,
+    };
+  }
+  return result;
+});
+
+const origAccountFindMany = mockPrisma.prisma.account.findMany;
+mockPrisma.prisma.account.findMany = vi.fn(async (args?: Record<string, unknown>) => {
+  const results = await origAccountFindMany(args);
+  const include = (args as Record<string, unknown> | undefined)?.include as
+    | Record<string, unknown>
+    | undefined;
+  if (include?.projects) {
+    for (const r of results) {
+      (r as Record<string, unknown>).projects = stores.project
+        .all()
+        .filter((p) => p.accountId === r.id);
+    }
+  }
+  return results;
+});
+
+// Add models not in the default store
+const prismaAny = mockPrisma.prisma as Record<string, unknown>;
+prismaAny.adminUserPermission = { deleteMany: vi.fn(async () => ({ count: 0 })) };
+prismaAny.teamMember = { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) };
+prismaAny.post = { deleteMany: vi.fn(async () => ({ count: 0 })) };
+prismaAny.channel = { deleteMany: vi.fn(async () => ({ count: 0 })) };
+prismaAny.postContent = { deleteMany: vi.fn(async () => ({ count: 0 })) };
+prismaAny.postMedia = { deleteMany: vi.fn(async () => ({ count: 0 })) };
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return {
+    logger: noopLogger,
+    authLogger: noopLogger,
+    createLogger: () => noopLogger,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// Import SUT after mocks
+// ---------------------------------------------------------------------------
+
+const { createTestApp, createTestUsers, cleanupTestUsers, prisma } = await import(
+  "./subscriptionRoutes.test-helpers.js"
+);
+
+// ---------------------------------------------------------------------------
+// Test suite
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 let app: FastifyInstance;
 let adminToken: string;
 let testAccountId: string;
 
-describe("subscriptionRoutes - Plans and Subscription Management", { concurrency: 1 }, () => {
-  before(async () => {
+describe("subscriptionRoutes - Plans and Subscription Management", () => {
+  beforeAll(async () => {
     app = await createTestApp();
     const users = await createTestUsers(timestamp);
     adminToken = users.adminToken;
     testAccountId = users.testAccountId;
   });
 
-  after(async () => {
+  afterAll(async () => {
     await cleanupTestUsers(timestamp, testAccountId);
     await app.close();
     try {
       await prisma.$disconnect();
-    } catch (err) {
-      console.warn("Prisma disconnect warning:", err);
+    } catch (_err) {
+      // best-effort
     }
   });
 
@@ -45,10 +127,10 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data?.plans));
-      assert.ok(body.data?.plans.length >= 3);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.plans)).toBeTruthy();
+      expect(body.data?.plans.length >= 3).toBeTruthy();
     });
 
     it("should reject without authentication", async () => {
@@ -57,7 +139,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
         url: "/admin/billing/plans",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -71,9 +153,9 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.strictEqual(body.data?.plan?.tier, "BASIC");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.plan?.tier).toBe("BASIC");
     });
 
     it("should get PRO plan", async () => {
@@ -85,8 +167,8 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.plan?.tier, "PRO");
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.plan?.tier).toBe("PRO");
     });
 
     it("should get ENTERPRISE plan", async () => {
@@ -98,8 +180,8 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.plan?.tier, "ENTERPRISE");
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.plan?.tier).toBe("ENTERPRISE");
     });
 
     it("should reject invalid tier", async () => {
@@ -109,7 +191,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -118,7 +200,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
         url: "/admin/billing/plans/BASIC",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -132,9 +214,9 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.subscription);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.subscription).toBeTruthy();
     });
 
     it("should reject non-existent account", async () => {
@@ -145,7 +227,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.strictEqual(response.statusCode, 404);
+      expect(response.statusCode).toBe(404);
     });
 
     it("should reject without authentication", async () => {
@@ -154,7 +236,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
         url: `/admin/billing/accounts/${testAccountId}/subscription`,
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -173,9 +255,9 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(body.data?.subscription);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.subscription).toBeTruthy();
     });
 
     it("should reject invalid tier", async () => {
@@ -189,7 +271,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject invalid billing cycle", async () => {
@@ -203,7 +285,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
         },
       });
 
-      assert.strictEqual(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject without authentication", async () => {
@@ -216,7 +298,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
         },
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -230,10 +312,10 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
-      assert.ok(Array.isArray(body.data?.subscriptions));
-      assert.ok(body.data?.pagination);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data?.subscriptions)).toBeTruthy();
+      expect(body.data?.pagination).toBeTruthy();
     });
 
     it("should filter by tier", async () => {
@@ -245,8 +327,8 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should paginate results", async () => {
@@ -258,9 +340,9 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.data?.pagination?.page, 1);
-      assert.strictEqual(body.data?.pagination?.limit, 10);
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.pagination?.page).toBe(1);
+      expect(body.data?.pagination?.limit).toBe(10);
     });
 
     it("should sort by field", async () => {
@@ -272,8 +354,8 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
 
       const body = JSON.parse(response.body);
 
-      assert.strictEqual(response.statusCode, 200);
-      assert.strictEqual(body.ok, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
     });
 
     it("should reject without authentication", async () => {
@@ -282,7 +364,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", { concurrency
         url: "/admin/billing/subscriptions",
       });
 
-      assert.strictEqual(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
   });
 });

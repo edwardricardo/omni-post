@@ -4,8 +4,7 @@
  * Tests the Anti-Corruption Layer that translates normalized webhook data into
  * strongly-typed domain webhook events. All tests are pure (no I/O, no DB).
  */
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   WebhookEventMapper,
   type WebhookPostPublishedEvent,
@@ -29,7 +28,7 @@ const RELATED: RelatedEntities = {
 
 const NO_RELATED: RelatedEntities = {};
 
-describe("WebhookEventMapper", { concurrency: 1 }, () => {
+describe("WebhookEventMapper", () => {
   // ── Base fields ──────────────────────────────────────────────────────────
 
   describe("common base fields", () => {
@@ -40,31 +39,31 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         { tweetId: "123", createdAt: "2026-01-01T00:00:00Z" },
         RELATED
       );
-      assert.match(event.domainEventId, /^[\da-f-]{36}$/i);
+      expect(event.domainEventId).toMatch(/^[\da-f-]{36}$/i);
     });
 
     it("should propagate provider", () => {
       const event = WebhookEventMapper.fromNormalized("LIKE_RECEIVED", "INSTAGRAM", {}, RELATED);
-      assert.equal(event.provider, "INSTAGRAM");
+      expect(event.provider).toBe("INSTAGRAM");
     });
 
     it("should set occurredAt to a recent Date", () => {
       const before = Date.now();
       const event = WebhookEventMapper.fromNormalized("LIKE_RECEIVED", "X", {}, RELATED);
       const after = Date.now();
-      assert.ok(event.occurredAt instanceof Date);
-      assert.ok(event.occurredAt.getTime() >= before);
-      assert.ok(event.occurredAt.getTime() <= after);
+      expect(event.occurredAt instanceof Date).toBeTruthy();
+      expect(event.occurredAt.getTime() >= before).toBeTruthy();
+      expect(event.occurredAt.getTime() <= after).toBeTruthy();
     });
 
     it("should propagate relatedEntities", () => {
       const event = WebhookEventMapper.fromNormalized("LIKE_RECEIVED", "X", {}, RELATED);
-      assert.deepEqual(event.relatedEntities, RELATED);
+      expect(event.relatedEntities).toEqual(RELATED);
     });
 
     it("should work with empty relatedEntities", () => {
       const event = WebhookEventMapper.fromNormalized("LIKE_RECEIVED", "X", {}, NO_RELATED);
-      assert.deepEqual(event.relatedEntities, {});
+      expect(event.relatedEntities).toEqual({});
     });
   });
 
@@ -84,8 +83,8 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostPublishedEvent;
 
-      assert.equal(event.eventType, "POST_PUBLISHED");
-      assert.equal(event.externalPostId, "tweet-abc");
+      expect(event.eventType).toBe("POST_PUBLISHED");
+      expect(event.externalPostId).toBe("tweet-abc");
     });
 
     it("should build engagement snapshot from X fields", () => {
@@ -96,10 +95,10 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostPublishedEvent;
 
-      assert.equal(event.engagementSnapshot.shares, 3);
-      assert.equal(event.engagementSnapshot.likes, 7);
-      assert.equal(event.engagementSnapshot.comments, 0);
-      assert.equal(event.engagementSnapshot.views, 0);
+      expect(event.engagementSnapshot.shares).toBe(3);
+      expect(event.engagementSnapshot.likes).toBe(7);
+      expect(event.engagementSnapshot.comments).toBe(0);
+      expect(event.engagementSnapshot.views).toBe(0);
     });
 
     it("should fall back to originalTweetId when tweetId absent", () => {
@@ -110,7 +109,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostPublishedEvent;
 
-      assert.equal(event.externalPostId, "orig-99");
+      expect(event.externalPostId).toBe("orig-99");
     });
   });
 
@@ -123,9 +122,9 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostPublishedEvent;
 
-      assert.equal(event.externalPostId, "ig-media-1");
-      assert.equal(event.engagementSnapshot.likes, 20);
-      assert.equal(event.engagementSnapshot.comments, 3);
+      expect(event.externalPostId).toBe("ig-media-1");
+      expect(event.engagementSnapshot.likes).toBe(20);
+      expect(event.engagementSnapshot.comments).toBe(3);
     });
   });
 
@@ -138,8 +137,8 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostPublishedEvent;
 
-      assert.equal(event.eventType, "STORY_PUBLISHED");
-      assert.equal(event.externalPostId, "story-1");
+      expect(event.eventType).toBe("STORY_PUBLISHED");
+      expect(event.externalPostId).toBe("story-1");
     });
   });
 
@@ -152,7 +151,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostPublishedEvent;
 
-      assert.equal(event.eventType, "REEL_PUBLISHED");
+      expect(event.eventType).toBe("REEL_PUBLISHED");
     });
   });
 
@@ -168,10 +167,10 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostDeletedEvent;
 
-      assert.equal(event.eventType, "POST_DELETED");
-      assert.equal(event.externalPostId, "dead-tweet");
-      assert.ok(event.deletedAt instanceof Date);
-      assert.equal(event.deletedAt.toISOString(), new Date(deletedAt).toISOString());
+      expect(event.eventType).toBe("POST_DELETED");
+      expect(event.externalPostId).toBe("dead-tweet");
+      expect(event.deletedAt instanceof Date).toBeTruthy();
+      expect(event.deletedAt.toISOString()).toBe(new Date(deletedAt).toISOString());
     });
 
     it("should use current date when deletedAt is absent", () => {
@@ -183,7 +182,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostDeletedEvent;
 
-      assert.ok(event.deletedAt.getTime() >= before);
+      expect(event.deletedAt.getTime() >= before).toBeTruthy();
     });
   });
 
@@ -198,9 +197,9 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookStoryExpiredEvent;
 
-      assert.equal(event.eventType, "STORY_EXPIRED");
-      assert.equal(event.externalPostId, "story-99");
-      assert.ok(event.expiredAt instanceof Date);
+      expect(event.eventType).toBe("STORY_EXPIRED");
+      expect(event.externalPostId).toBe("story-99");
+      expect(event.expiredAt instanceof Date).toBeTruthy();
     });
   });
 
@@ -215,9 +214,9 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookEngagementEvent;
 
-      assert.equal(event.eventType, "LIKE_RECEIVED");
-      assert.equal(event.delta.likes, 1);
-      assert.equal(event.externalUserId, "user-42");
+      expect(event.eventType).toBe("LIKE_RECEIVED");
+      expect(event.delta.likes).toBe(1);
+      expect(event.externalUserId).toBe("user-42");
     });
   });
 
@@ -230,7 +229,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookEngagementEvent;
 
-      assert.equal(event.delta.shares, 1);
+      expect(event.delta.shares).toBe(1);
     });
   });
 
@@ -243,8 +242,8 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookEngagementEvent;
 
-      assert.equal(event.delta.comments, 1);
-      assert.equal(event.externalPostId, "yt-1");
+      expect(event.delta.comments).toBe(1);
+      expect(event.externalPostId).toBe("yt-1");
     });
   });
 
@@ -257,8 +256,8 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookEngagementEvent;
 
-      assert.equal(event.eventType, "MENTION_RECEIVED");
-      assert.equal(event.delta.mentions, 1);
+      expect(event.eventType).toBe("MENTION_RECEIVED");
+      expect(event.delta.mentions).toBe(1);
     });
   });
 
@@ -281,14 +280,14 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookAnalyticsUpdatedEvent;
 
-      assert.equal(event.eventType, "POST_ENGAGEMENT_UPDATE");
-      assert.equal(event.externalPostId, "yt-video-1");
-      assert.equal(event.metrics.views, 10000);
-      assert.equal(event.metrics.likes, 500);
-      assert.equal(event.metrics.comments, 75);
-      assert.equal(event.metrics.impressions, 20000);
-      assert.equal(event.metrics.reach, 15000);
-      assert.equal(event.metrics.engagementRate, 2.875);
+      expect(event.eventType).toBe("POST_ENGAGEMENT_UPDATE");
+      expect(event.externalPostId).toBe("yt-video-1");
+      expect(event.metrics.views).toBe(10000);
+      expect(event.metrics.likes).toBe(500);
+      expect(event.metrics.comments).toBe(75);
+      expect(event.metrics.impressions).toBe(20000);
+      expect(event.metrics.reach).toBe(15000);
+      expect(event.metrics.engagementRate).toBe(2.875);
     });
 
     it("should omit undefined metric fields", () => {
@@ -299,9 +298,9 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookAnalyticsUpdatedEvent;
 
-      assert.equal(event.metrics.views, 999);
-      assert.equal(event.metrics.likes, undefined);
-      assert.equal(event.metrics.impressions, undefined);
+      expect(event.metrics.views).toBe(999);
+      expect(event.metrics.likes).toBe(undefined);
+      expect(event.metrics.impressions).toBe(undefined);
     });
   });
 
@@ -314,8 +313,8 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookAnalyticsUpdatedEvent;
 
-      assert.equal(event.eventType, "VIRAL_CONTENT_DETECTED");
-      assert.equal(event.metrics.views, 1000000);
+      expect(event.eventType).toBe("VIRAL_CONTENT_DETECTED");
+      expect(event.metrics.views).toBe(1000000);
     });
   });
 
@@ -330,9 +329,9 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookVideoEvent;
 
-      assert.equal(event.eventType, "VIDEO_PROCESSED");
-      assert.equal(event.externalVideoId, "yt-processed-1");
-      assert.equal(event.status, "ready");
+      expect(event.eventType).toBe("VIDEO_PROCESSED");
+      expect(event.externalVideoId).toBe("yt-processed-1");
+      expect(event.status).toBe("ready");
     });
 
     it("should map TikTok itemId as video ID", () => {
@@ -343,7 +342,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookVideoEvent;
 
-      assert.equal(event.externalVideoId, "tt-item-1");
+      expect(event.externalVideoId).toBe("tt-item-1");
     });
   });
 
@@ -358,8 +357,8 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookLiveStreamEvent;
 
-      assert.equal(started.eventType, "LIVE_STREAM_STARTED");
-      assert.equal(started.externalStreamId, "stream-1");
+      expect(started.eventType).toBe("LIVE_STREAM_STARTED");
+      expect(started.externalStreamId).toBe("stream-1");
 
       const ended = WebhookEventMapper.fromNormalized(
         "LIVE_STREAM_ENDED",
@@ -368,8 +367,8 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookLiveStreamEvent;
 
-      assert.equal(ended.eventType, "LIVE_STREAM_ENDED");
-      assert.equal(ended.externalStreamId, "stream-2");
+      expect(ended.eventType).toBe("LIVE_STREAM_ENDED");
+      expect(ended.externalStreamId).toBe("stream-2");
     });
   });
 
@@ -384,8 +383,8 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookAccountStatusEvent;
 
-      assert.equal(connected.eventType, "ACCOUNT_CONNECTED");
-      assert.equal(connected.externalUserId, "x-user-99");
+      expect(connected.eventType).toBe("ACCOUNT_CONNECTED");
+      expect(connected.externalUserId).toBe("x-user-99");
 
       const disconnected = WebhookEventMapper.fromNormalized(
         "ACCOUNT_DISCONNECTED",
@@ -394,7 +393,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookAccountStatusEvent;
 
-      assert.equal(disconnected.eventType, "ACCOUNT_DISCONNECTED");
+      expect(disconnected.eventType).toBe("ACCOUNT_DISCONNECTED");
     });
 
     it("should handle absent userId gracefully", () => {
@@ -405,7 +404,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookAccountStatusEvent;
 
-      assert.equal(event.externalUserId, undefined);
+      expect(event.externalUserId).toBe(undefined);
     });
   });
 
@@ -420,10 +419,10 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookRateLimitEvent;
 
-      assert.equal(event.eventType, "RATE_LIMIT_REACHED");
-      assert.equal(event.retryAfterMs, 60000);
-      assert.equal(event.errorCode, "88");
-      assert.equal(event.errorMessage, "Rate limit exceeded");
+      expect(event.eventType).toBe("RATE_LIMIT_REACHED");
+      expect(event.retryAfterMs).toBe(60000);
+      expect(event.errorCode).toBe("88");
+      expect(event.errorMessage).toBe("Rate limit exceeded");
     });
 
     it("should omit absent optional fields", () => {
@@ -434,9 +433,9 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookRateLimitEvent;
 
-      assert.equal(event.errorCode, "E500");
-      assert.equal(event.retryAfterMs, undefined);
-      assert.equal(event.errorMessage, undefined);
+      expect(event.errorCode).toBe("E500");
+      expect(event.retryAfterMs).toBe(undefined);
+      expect(event.errorMessage).toBe(undefined);
     });
   });
 
@@ -466,7 +465,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
           data,
           RELATED
         ) as WebhookPostPublishedEvent;
-        assert.equal(event.externalPostId, expected);
+        expect(event.externalPostId).toBe(expected);
       });
     }
   });
@@ -482,7 +481,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostPublishedEvent;
 
-      assert.equal(event.engagementSnapshot.likes, 0);
+      expect(event.engagementSnapshot.likes).toBe(0);
     });
 
     it("should treat string numbers as numbers", () => {
@@ -493,7 +492,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostPublishedEvent;
 
-      assert.equal(event.engagementSnapshot.likes, 42);
+      expect(event.engagementSnapshot.likes).toBe(42);
     });
 
     it("should treat NaN as 0", () => {
@@ -504,7 +503,7 @@ describe("WebhookEventMapper", { concurrency: 1 }, () => {
         RELATED
       ) as WebhookPostPublishedEvent;
 
-      assert.equal(event.engagementSnapshot.likes, 0);
+      expect(event.engagementSnapshot.likes).toBe(0);
     });
   });
 });

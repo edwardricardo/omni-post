@@ -5,8 +5,7 @@ console.error = () => {};
 console.log = () => {};
 console.warn = () => {};
 
-import { describe, it, beforeEach, afterEach, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
 import { ContentVersionManager } from "../../src/content/ContentVersionManager";
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
@@ -28,8 +27,8 @@ let mockEventService: MockEventService;
 let mockPrisma: PrismaClient;
 let versionManager: ContentVersionManager;
 
-describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
-  after(() => {
+describe("ContentVersionManager - createVersion", () => {
+  afterAll(() => {
     console.error = _origConsoleError;
     console.log = _origConsoleLog;
     console.warn = _origConsoleWarn;
@@ -53,7 +52,7 @@ describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
     }
   });
 
-  describe("Initial Version Creation", { concurrency: 1 }, () => {
+  describe("Initial Version Creation", () => {
     it("should create version 1 for new post", async () => {
       const result = await versionManager.createVersion(
         testPostId,
@@ -65,14 +64,14 @@ describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
         }
       );
 
-      assert.ok(result.ok, "Version creation should succeed");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.strictEqual(result.value.version, 1);
-        assert.strictEqual(result.value.postId, testPostId);
-        assert.strictEqual(result.value.createdBy, testUserId);
-        assert.strictEqual(result.value.changelog, "Initial version");
-        assert.ok(result.value.id, "Version should have an ID");
-        assert.ok(result.value.createdAt instanceof Date, "Should have createdAt timestamp");
+        expect(result.value.version).toBe(1);
+        expect(result.value.postId).toBe(testPostId);
+        expect(result.value.createdBy).toBe(testUserId);
+        expect(result.value.changelog).toBe("Initial version");
+        expect(result.value.id).toBeTruthy();
+        expect(result.value.createdAt instanceof Date).toBeTruthy();
       }
     });
 
@@ -86,9 +85,9 @@ describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
         }
       );
 
-      assert.ok(result.ok, "Version creation should succeed");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.strictEqual(result.value.isActive, true, "Main branch version should be active");
+        expect(result.value.isActive).toBe(true);
       }
     });
 
@@ -103,9 +102,9 @@ describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
         }
       );
 
-      assert.ok(result.ok, "Version creation should succeed");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.strictEqual(result.value.isActive, false, "Branch version should not be active");
+        expect(result.value.isActive).toBe(false);
       }
     });
 
@@ -119,10 +118,10 @@ describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
         }
       );
 
-      assert.ok(result.ok, "Version creation should succeed");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.deepStrictEqual(result.value.content, testCanonicalPost);
-        assert.deepStrictEqual(result.value.adaptations, testAdaptations);
+        expect(result.value.content).toStrictEqual(testCanonicalPost);
+        expect(result.value.adaptations).toStrictEqual(testAdaptations);
       }
     });
 
@@ -136,14 +135,14 @@ describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
         }
       );
 
-      assert.ok(result.ok, "Version creation should succeed");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.strictEqual(result.value.changelog, undefined);
+        expect(result.value.changelog).toBe(undefined);
       }
     });
   });
 
-  describe("Incremental Version Creation", { concurrency: 1 }, () => {
+  describe("Incremental Version Creation", () => {
     it("should increment version number for subsequent versions", async () => {
       const result1 = await versionManager.createVersion(
         testPostId,
@@ -152,16 +151,16 @@ describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
         { createdBy: testUserId }
       );
 
-      assert.ok(result1.ok);
+      expect(result1.ok).toBeTruthy();
 
       const updatedPost = { ...testCanonicalPost, title: "Updated Title" };
       const result2 = await versionManager.createVersion(testPostId, updatedPost, testAdaptations, {
         createdBy: testUserId,
       });
 
-      assert.ok(result2.ok);
+      expect(result2.ok).toBeTruthy();
       if (result2.ok) {
-        assert.strictEqual(result2.value.version, 2, "Should be version 2");
+        expect(result2.value.version).toBe(2);
       }
     });
 
@@ -176,7 +175,7 @@ describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
         }
       );
 
-      assert.ok(result.ok, "Version creation should succeed");
+      expect(result.ok).toBeTruthy();
     });
 
     it("should handle version creation with category", async () => {
@@ -190,11 +189,11 @@ describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
         }
       );
 
-      assert.ok(result.ok, "Version creation should succeed");
+      expect(result.ok).toBeTruthy();
     });
   });
 
-  describe("Version Creation Error Handling", { concurrency: 1 }, () => {
+  describe("Version Creation Error Handling", () => {
     it("should handle errors gracefully", async () => {
       const invalidManager = new ContentVersionManager({
         prisma: mockPrisma,
@@ -214,17 +213,17 @@ describe("ContentVersionManager - createVersion", { concurrency: 1 }, () => {
         { createdBy: testUserId }
       );
 
-      assert.ok(!result.ok, "Should return error result");
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.strictEqual(result.error.type, "system");
-        assert.ok(result.error.message.includes("Failed to create version"));
-        assert.strictEqual(result.error.retryable, true);
+        expect(result.error.type).toBe("system");
+        expect(result.error.message.includes("Failed to create version")).toBeTruthy();
+        expect(result.error.retryable).toBe(true);
       }
     });
   });
 });
 
-describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
+describe("ContentVersionManager - createBranch", () => {
   let baseVersionId: string;
 
   beforeEach(async () => {
@@ -244,7 +243,7 @@ describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
       testAdaptations,
       { createdBy: testUserId }
     );
-    assert.ok(result.ok);
+    expect(result.ok).toBeTruthy();
     if (result.ok) {
       baseVersionId = result.value.id;
     }
@@ -256,7 +255,7 @@ describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
     }
   });
 
-  describe("Branch Creation Success", { concurrency: 1 }, () => {
+  describe("Branch Creation Success", () => {
     it("should create a new branch successfully", async () => {
       const result = await versionManager.createBranch(
         testPostId,
@@ -266,17 +265,17 @@ describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
         "New feature development"
       );
 
-      assert.ok(result.ok, "Branch creation should succeed");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.strictEqual(result.value.name, "feature-branch");
-        assert.strictEqual(result.value.postId, testPostId);
-        assert.strictEqual(result.value.baseVersionId, baseVersionId);
-        assert.strictEqual(result.value.headVersionId, baseVersionId);
-        assert.strictEqual(result.value.isActive, true);
-        assert.strictEqual(result.value.createdBy, testUserId);
-        assert.strictEqual(result.value.description, "New feature development");
-        assert.strictEqual(result.value.mergeable, true);
-        assert.deepStrictEqual(result.value.conflictsWith, []);
+        expect(result.value.name).toBe("feature-branch");
+        expect(result.value.postId).toBe(testPostId);
+        expect(result.value.baseVersionId).toBe(baseVersionId);
+        expect(result.value.headVersionId).toBe(baseVersionId);
+        expect(result.value.isActive).toBe(true);
+        expect(result.value.createdBy).toBe(testUserId);
+        expect(result.value.description).toBe("New feature development");
+        expect(result.value.mergeable).toBe(true);
+        expect(result.value.conflictsWith).toStrictEqual([]);
       }
     });
 
@@ -288,9 +287,9 @@ describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
         testUserId
       );
 
-      assert.ok(result.ok, "Branch creation should succeed");
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.strictEqual(result.value.description, undefined);
+        expect(result.value.description).toBe(undefined);
       }
     });
 
@@ -302,18 +301,14 @@ describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
         testUserId
       );
 
-      assert.ok(result.ok);
+      expect(result.ok).toBeTruthy();
       if (result.ok) {
-        assert.strictEqual(
-          result.value.headVersionId,
-          result.value.baseVersionId,
-          "Head should initially point to base"
-        );
+        expect(result.value.headVersionId).toBe(result.value.baseVersionId);
       }
     });
   });
 
-  describe("Branch Creation Validation", { concurrency: 1 }, () => {
+  describe("Branch Creation Validation", () => {
     it("should reject duplicate branch names", async () => {
       const result1 = await versionManager.createBranch(
         testPostId,
@@ -321,7 +316,7 @@ describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
         baseVersionId,
         testUserId
       );
-      assert.ok(result1.ok);
+      expect(result1.ok).toBeTruthy();
 
       const result2 = await versionManager.createBranch(
         testPostId,
@@ -330,11 +325,11 @@ describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
         testUserId
       );
 
-      assert.ok(!result2.ok, "Duplicate branch should fail");
+      expect(result2.ok).toBeFalsy();
       if (!result2.ok) {
-        assert.strictEqual(result2.error.type, "validation");
-        assert.ok(result2.error.message.includes("Branch already exists"));
-        assert.strictEqual(result2.error.retryable, false);
+        expect(result2.error.type).toBe("validation");
+        expect(result2.error.message.includes("Branch already exists")).toBeTruthy();
+        expect(result2.error.retryable).toBe(false);
       }
     });
 
@@ -346,10 +341,10 @@ describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
         testUserId
       );
 
-      assert.ok(!result.ok, "Branch creation should fail with non-existent base version");
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.strictEqual(result.error.type, "validation");
-        assert.ok(result.error.message.includes("Invalid base version"));
+        expect(result.error.type).toBe("validation");
+        expect(result.error.message.includes("Invalid base version")).toBeTruthy();
       }
     });
 
@@ -361,7 +356,7 @@ describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
         testAdaptations,
         { createdBy: testUserId }
       );
-      assert.ok(otherResult.ok);
+      expect(otherResult.ok).toBeTruthy();
 
       const otherVersionId = otherResult.ok ? otherResult.value.id : "";
 
@@ -372,10 +367,10 @@ describe("ContentVersionManager - createBranch", { concurrency: 1 }, () => {
         testUserId
       );
 
-      assert.ok(!result.ok, "Branch creation should fail with cross-post base version");
+      expect(result.ok).toBeFalsy();
       if (!result.ok) {
-        assert.strictEqual(result.error.type, "validation");
-        assert.ok(result.error.message.includes("Invalid base version"));
+        expect(result.error.type).toBe("validation");
+        expect(result.error.message.includes("Invalid base version")).toBeTruthy();
       }
     });
   });

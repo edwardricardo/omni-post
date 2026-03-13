@@ -8,8 +8,7 @@
  * Instead, the fs mocks in this file use wildcard matching for frame paths:
  * any path matching /frame_\d+\.jpg$/ is treated as an existing frame file.
  */
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { ThumbnailGenerator } from "../../src/video/thumbnailGenerator";
 import { promises as fs } from "fs";
 import { mockSpawnState, createMockSpawn } from "./thumbnailGenerator.test-helpers";
@@ -23,14 +22,14 @@ function getFrameIndex(path: string): number | null {
   return match ? parseInt(match[1]!, 10) : null;
 }
 
-describe("ThumbnailGenerator - Video Analysis", { concurrency: 1 }, () => {
+describe("ThumbnailGenerator - Video Analysis", () => {
   let generator: ThumbnailGenerator;
 
-  beforeEach((t) => {
+  beforeEach(() => {
     generator = new ThumbnailGenerator(createMockSpawn());
 
     // Mock fs.stat: real paths use frameData, others fall through to ENOENT
-    t.mock.method(fs, "stat", async (path: string) => {
+    vi.spyOn(fs, "stat").mockImplementation(async (path: string) => {
       const idx = getFrameIndex(path);
       if (idx !== null && frameData.has(idx)) {
         return { size: frameData.get(idx)!, mtime: new Date() } as any;
@@ -39,7 +38,7 @@ describe("ThumbnailGenerator - Video Analysis", { concurrency: 1 }, () => {
     });
 
     // Mock fs.readFile: not used in analysis path, but keep consistent
-    t.mock.method(fs, "readFile", async (path: string) => {
+    vi.spyOn(fs, "readFile").mockImplementation(async (path: string) => {
       const idx = getFrameIndex(path);
       if (idx !== null && frameData.has(idx)) {
         return Buffer.from(`frame-${idx}`);
@@ -48,22 +47,22 @@ describe("ThumbnailGenerator - Video Analysis", { concurrency: 1 }, () => {
     });
 
     // Mock fs.writeFile: no-op (analysis doesn't write)
-    t.mock.method(fs, "writeFile", async (_path: string, _data: Buffer | string) => {
+    vi.spyOn(fs, "writeFile").mockImplementation(async (_path: string, _data: Buffer | string) => {
       return undefined;
     });
 
     // Mock fs.mkdir: always succeed
-    t.mock.method(fs, "mkdir", async () => {
+    vi.spyOn(fs, "mkdir").mockImplementation(async () => {
       return undefined;
     });
 
     // Mock fs.rm: always succeed (cleanup of analysis dir)
-    t.mock.method(fs, "rm", async () => {
+    vi.spyOn(fs, "rm").mockImplementation(async () => {
       return undefined;
     });
 
     // Mock fs.access: succeed for frame paths present in frameData
-    t.mock.method(fs, "access", async (path: string) => {
+    vi.spyOn(fs, "access").mockImplementation(async (path: string) => {
       const idx = getFrameIndex(path);
       if (idx !== null && frameData.has(idx)) {
         return; // file exists
@@ -93,12 +92,12 @@ describe("ThumbnailGenerator - Video Analysis", { concurrency: 1 }, () => {
       analyzeColors: true,
     });
 
-    assert.ok(analysis);
-    assert.ok(Array.isArray(analysis.optimalTimestamps));
-    assert.ok(Array.isArray(analysis.sceneChanges));
-    assert.ok(Array.isArray(analysis.qualityScores));
-    assert.ok(Array.isArray(analysis.colorAnalysis));
-    assert.ok(Array.isArray(analysis.motionAnalysis));
+    expect(analysis).toBeTruthy();
+    expect(Array.isArray(analysis.optimalTimestamps)).toBeTruthy();
+    expect(Array.isArray(analysis.sceneChanges)).toBeTruthy();
+    expect(Array.isArray(analysis.qualityScores)).toBeTruthy();
+    expect(Array.isArray(analysis.colorAnalysis)).toBeTruthy();
+    expect(Array.isArray(analysis.motionAnalysis)).toBeTruthy();
   });
 
   it("should detect scene changes", async () => {
@@ -118,7 +117,7 @@ describe("ThumbnailGenerator - Video Analysis", { concurrency: 1 }, () => {
       detectSceneChanges: true,
     });
 
-    assert.ok(analysis.sceneChanges.length > 0);
+    expect(analysis.sceneChanges.length > 0).toBeTruthy();
   });
 
   it("should calculate quality scores for frames", async () => {
@@ -139,11 +138,11 @@ describe("ThumbnailGenerator - Video Analysis", { concurrency: 1 }, () => {
       minQualityScore: 50,
     });
 
-    assert.ok(analysis.qualityScores.length > 0);
+    expect(analysis.qualityScores.length > 0).toBeTruthy();
     analysis.qualityScores.forEach((score) => {
-      assert.ok(score.score >= 0 && score.score <= 100);
-      assert.ok(score.timestamp >= 0);
-      assert.ok(Array.isArray(score.reasoning));
+      expect(score.score >= 0 && score.score <= 100).toBeTruthy();
+      expect(score.timestamp >= 0).toBeTruthy();
+      expect(Array.isArray(score.reasoning)).toBeTruthy();
     });
   });
 
@@ -165,12 +164,12 @@ describe("ThumbnailGenerator - Video Analysis", { concurrency: 1 }, () => {
       analyzeColors: true,
     });
 
-    assert.ok(analysis.colorAnalysis.length > 0);
+    expect(analysis.colorAnalysis.length > 0).toBeTruthy();
     analysis.colorAnalysis.forEach((colorData) => {
-      assert.ok(Array.isArray(colorData.dominantColors));
-      assert.equal(colorData.dominantColors.length, 0, "Stub returns empty colors");
-      assert.equal(colorData.brightness, 0, "Stub returns zero brightness");
-      assert.equal(colorData.contrast, 0, "Stub returns zero contrast");
+      expect(Array.isArray(colorData.dominantColors)).toBeTruthy();
+      expect(colorData.dominantColors.length).toBe(0);
+      expect(colorData.brightness).toBe(0);
+      expect(colorData.contrast).toBe(0);
     });
   });
 
@@ -192,10 +191,10 @@ describe("ThumbnailGenerator - Video Analysis", { concurrency: 1 }, () => {
       analyzeMotion: true,
     });
 
-    assert.ok(analysis.motionAnalysis.length > 0);
+    expect(analysis.motionAnalysis.length > 0).toBeTruthy();
     analysis.motionAnalysis.forEach((motion) => {
-      assert.equal(motion.motionLevel, 0, "Stub returns zero motion");
-      assert.equal(motion.type, "static", "Stub returns static type");
+      expect(motion.motionLevel).toBe(0);
+      expect(motion.type).toBe("static");
     });
   });
 });

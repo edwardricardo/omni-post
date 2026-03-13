@@ -2,8 +2,7 @@
  * Tests for RealtimeWebhookBroadcaster — Filtering Logic, Connection Statistics, and Shutdown
  * Covers: multi-connection broadcasts, combined filters, system alerts, stats tracking, shutdown behavior
  */
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import { type WebhookEventBroadcast } from "../../src/webhooks/realtimeWebhookBroadcaster.js";
 import type { Provider, WebhookEventType } from "@infra/prisma";
 import {
@@ -13,12 +12,12 @@ import {
   teardownBroadcaster,
 } from "./realtimeWebhookBroadcaster.test-helpers.js";
 
-describe("RealtimeWebhookBroadcaster - Broadcast Filtering Logic", { concurrency: 1 }, () => {
-  before(async () => {
+describe("RealtimeWebhookBroadcaster - Broadcast Filtering Logic", () => {
+  beforeAll(async () => {
     setupBroadcaster();
   });
 
-  after(async () => {
+  afterAll(async () => {
     teardownBroadcaster();
   });
 
@@ -62,9 +61,9 @@ describe("RealtimeWebhookBroadcaster - Broadcast Filtering Logic", { concurrency
     const events2 = socket2.getAllMessages().filter((m) => m.type === "webhook_event");
     const events3 = socket3.getAllMessages().filter((m) => m.type === "webhook_event");
 
-    assert.ok(events1.length >= 1, "Account 1 connection 1 should receive event");
-    assert.ok(events2.length >= 1, "Account 1 connection 2 should receive event");
-    assert.strictEqual(events3.length, 0, "Account 2 connection should not receive event");
+    expect(events1.length >= 1).toBeTruthy();
+    expect(events2.length >= 1).toBeTruthy();
+    expect(events3.length).toBe(0);
   });
 
   it("should filter by combined event type and provider", async () => {
@@ -91,7 +90,7 @@ describe("RealtimeWebhookBroadcaster - Broadcast Filtering Logic", { concurrency
     await state.broadcaster!.broadcastWebhookEvent(matchingEvent);
 
     let messages = socket.getAllMessages().filter((m) => m.type === "webhook_event");
-    assert.ok(messages.length >= 1, "Should receive matching event");
+    expect(messages.length >= 1).toBeTruthy();
 
     socket.clearMessages();
 
@@ -110,7 +109,7 @@ describe("RealtimeWebhookBroadcaster - Broadcast Filtering Logic", { concurrency
     await state.broadcaster!.broadcastWebhookEvent(nonMatchingEvent);
 
     messages = socket.getAllMessages().filter((m) => m.type === "webhook_event");
-    assert.strictEqual(messages.length, 0, "Should not receive non-matching event");
+    expect(messages.length).toBe(0);
   });
 
   it("should broadcast system alert to account", async () => {
@@ -130,19 +129,19 @@ describe("RealtimeWebhookBroadcaster - Broadcast Filtering Logic", { concurrency
     );
 
     const messages = socket.getAllMessages().filter((m) => m.type === "webhook_event");
-    assert.ok(messages.length >= 1, "Should receive system alert");
-    assert.strictEqual(messages[0].event.type, "RATE_LIMIT_REACHED");
-    assert.strictEqual(messages[0].event.data.type, "system_alert");
-    assert.strictEqual(messages[0].event.data.payload.alertType, "rate_limit");
+    expect(messages.length >= 1).toBeTruthy();
+    expect(messages[0].event.type).toBe("RATE_LIMIT_REACHED");
+    expect(messages[0].event.data.type).toBe("system_alert");
+    expect(messages[0].event.data.payload.alertType).toBe("rate_limit");
   });
 });
 
-describe("RealtimeWebhookBroadcaster - Connection Statistics", { concurrency: 1 }, () => {
-  before(async () => {
+describe("RealtimeWebhookBroadcaster - Connection Statistics", () => {
+  beforeAll(async () => {
     setupBroadcaster();
   });
 
-  after(async () => {
+  afterAll(async () => {
     teardownBroadcaster();
   });
 
@@ -158,7 +157,7 @@ describe("RealtimeWebhookBroadcaster - Connection Statistics", { concurrency: 1 
     state.broadcaster!.addConnection("conn-2", "user-2", "account-2", socket2 as any);
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.totalConnections, 2);
+    expect(stats.totalConnections).toBe(2);
   });
 
   it("should track connections by account", () => {
@@ -171,8 +170,8 @@ describe("RealtimeWebhookBroadcaster - Connection Statistics", { concurrency: 1 
     state.broadcaster!.addConnection("conn-3", "user-3", "account-2", socket3 as any);
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.connectionsByAccount["account-1"], 2);
-    assert.strictEqual(stats.connectionsByAccount["account-2"], 1);
+    expect(stats.connectionsByAccount["account-1"]).toBe(2);
+    expect(stats.connectionsByAccount["account-2"]).toBe(1);
   });
 
   it("should track connections by project", () => {
@@ -187,18 +186,18 @@ describe("RealtimeWebhookBroadcaster - Connection Statistics", { concurrency: 1 
     });
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.connectionsByProject["project-1"], 1);
-    assert.strictEqual(stats.connectionsByProject["project-2"], 2);
-    assert.strictEqual(stats.connectionsByProject["project-3"], 1);
+    expect(stats.connectionsByProject["project-1"]).toBe(1);
+    expect(stats.connectionsByProject["project-2"]).toBe(2);
+    expect(stats.connectionsByProject["project-3"]).toBe(1);
   });
 });
 
-describe("RealtimeWebhookBroadcaster - Shutdown", { concurrency: 1 }, () => {
-  before(async () => {
+describe("RealtimeWebhookBroadcaster - Shutdown", () => {
+  beforeAll(async () => {
     setupBroadcaster();
   });
 
-  after(async () => {
+  afterAll(async () => {
     teardownBroadcaster();
   });
 
@@ -215,8 +214,8 @@ describe("RealtimeWebhookBroadcaster - Shutdown", { concurrency: 1 }, () => {
 
     state.broadcaster!.shutdown();
 
-    assert.strictEqual(socket1.readyState, socket1.CLOSED);
-    assert.strictEqual(socket2.readyState, socket2.CLOSED);
+    expect(socket1.readyState).toBe(socket1.CLOSED);
+    expect(socket2.readyState).toBe(socket2.CLOSED);
   });
 
   it("should clear all connection data on shutdown", () => {
@@ -229,8 +228,8 @@ describe("RealtimeWebhookBroadcaster - Shutdown", { concurrency: 1 }, () => {
     state.broadcaster!.shutdown();
 
     const stats = state.broadcaster!.getConnectionStats();
-    assert.strictEqual(stats.totalConnections, 0);
-    assert.deepStrictEqual(stats.connectionsByAccount, {});
-    assert.deepStrictEqual(stats.connectionsByProject, {});
+    expect(stats.totalConnections).toBe(0);
+    expect(stats.connectionsByAccount).toStrictEqual({});
+    expect(stats.connectionsByProject).toStrictEqual({});
   });
 });

@@ -1,58 +1,132 @@
-#!/usr/bin/env tsx
 /**
  * @file teamRoutes.test.ts
  * @description Unit tests for team management HTTP endpoints.
- *   Uses real DI container with Prisma for integration-style route testing.
- * @layer infrastructure
+ *   Uses mocked Prisma stores and a real Fastify instance to test HTTP endpoint behavior.
+ * @layer test
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
-import Fastify, { type FastifyInstance } from "fastify";
-import {
-  type ZodTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-type-provider-zod";
-import { teamRoutes } from "../../../src/team/teamRoutes.js";
-import type { AuthService } from "../../../src/auth/authService.js";
-import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../../src/infrastructure/container/setup.js";
-import { TOKENS } from "../../../src/infrastructure/container/types.js";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { createMockPrismaModule, createStore, buildModelMock } from "../helpers/mockPrisma.js";
 
-// --- Test helpers ---
+// ---------------------------------------------------------------------------
+// Mock setup
+// ---------------------------------------------------------------------------
 
-let containerAuthService: AuthService;
+const { mockPrisma } = createMockPrismaModule();
 
-async function createTestApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false });
-  const typedApp = app.withTypeProvider<ZodTypeProvider>();
-  typedApp.setValidatorCompiler(validatorCompiler);
-  typedApp.setSerializerCompiler(serializerCompiler);
+// TeamMember store with compound unique key support
+const teamMemberStore = createStore<Record<string, unknown>>();
+const teamMemberMock = buildModelMock(teamMemberStore, {
+  isActive: true,
+  role: "MEMBER",
+  avatarUrl: null,
+  invitedBy: null,
+});
 
-  const container = setupContainer({ prisma });
-  containerAuthService = container.resolve<AuthService>(TOKENS.AuthService);
-  typedApp.decorate("container", container);
+// Override findUnique to support Prisma compound keys like accountId_email
+const originalFindUnique = teamMemberMock.findUnique;
+teamMemberMock.findUnique = vi.fn(
+  async (args: { where: Record<string, unknown>; include?: Record<string, unknown> }) => {
+    const { where } = args;
+    // Handle compound unique keys: { accountId_email: { accountId, email } }
+    if (where.accountId_email && typeof where.accountId_email === "object") {
+      const compound = where.accountId_email as Record<string, unknown>;
+      const flatWhere: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(compound)) {
+        flatWhere[k] = v;
+      }
+      return originalFindUnique({ where: flatWhere, include: args.include });
+    }
+    return originalFindUnique(args);
+  }
+);
 
-  await typedApp.register(teamRoutes);
-  return typedApp;
-}
+// Add extra models needed by team routes and their repositories
+const extraModels = {
+  teamMember: teamMemberMock,
+  projectMember: buildModelMock(createStore()),
+  post: buildModelMock(createStore()),
+  adminUserPermission: buildModelMock(createStore()),
+};
+Object.assign(mockPrisma.prisma, extraModels);
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
+});
+
+// ---------------------------------------------------------------------------
+// Dynamic imports after mocks
+// ---------------------------------------------------------------------------
+
+const Fastify = (await import("fastify")).default;
+const fastifyCookie = (await import("@fastify/cookie")).default;
+const { teamRoutes } = await import("../../../src/team/teamRoutes.js");
+const { authRoutes } = await import("../../../src/auth/authRoutes.js");
+const { setupContainer } = await import("../../../src/infrastructure/container/setup.js");
+const { TOKENS } = await import("../../../src/infrastructure/container/types.js");
+const { AuthService, setRedisInstance } = await import("../../../src/auth/authService.js");
+const { MfaService } = await import("../../../src/auth/mfaService.js");
+const { PrismaAdminUserRepository } = await import(
+  "../../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
+);
+
+setRedisInstance(null as never);
+
+// ---------------------------------------------------------------------------
+// Test setup
+// ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
 const adminEmail = `team-admin-${timestamp}@example.com`;
-const testPassword = "TestPassword123!";
+const testPassword = "TestPassword123";
 
-let app: FastifyInstance;
+let app: import("fastify").FastifyInstance;
 let adminToken: string;
 let testAccountId: string;
-let testMemberId: string;
+let _testMemberId: string;
 
-describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
-  before(async () => {
-    app = await createTestApp();
+async function createTestApp() {
+  const localApp = Fastify({ logger: false });
+  const container = setupContainer({ prisma: mockPrisma.prisma as never });
 
-    // Create an account for team management
-    const account = await prisma.account.create({
+  const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+  const mfaSvc = new MfaService(adminUserRepo);
+  const authSvc = new AuthService(adminUserRepo, mfaSvc);
+  container.registerInstance(TOKENS.AuthService, authSvc);
+
+  localApp.decorate("container", container);
+  await localApp.register(fastifyCookie);
+  await localApp.register(authRoutes);
+  await localApp.register(teamRoutes);
+  await localApp.ready();
+  return { app: localApp, authSvc };
+}
+
+describe("teamRoutes Unit Tests", () => {
+  let authSvc: InstanceType<typeof AuthService>;
+
+  beforeAll(async () => {
+    const result = await createTestApp();
+    app = result.app;
+    authSvc = result.authSvc;
+
+    // Create account via mock prisma
+    const account = await (mockPrisma.prisma.account as { create: Function }).create({
       data: {
         email: `team-account-${timestamp}@example.com`,
         name: "Team Test Account",
@@ -62,59 +136,18 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
     });
     testAccountId = account.id;
 
-    // Create admin user for authentication
-    const adminResult = await containerAuthService.registerAdmin(
-      adminEmail,
-      testPassword,
-      "Team Admin",
-      "ADMIN"
-    );
-    assert.ok(adminResult.ok, "Admin registration should succeed");
-
-    // Get auth token
-    const loginResult = await containerAuthService.login(
-      { email: adminEmail, password: testPassword },
-      "127.0.0.1",
-      "test-agent"
-    );
-    assert.ok(loginResult.ok, "Login should succeed");
-    if (loginResult.ok && "tokens" in loginResult.value) {
-      adminToken = loginResult.value.tokens.accessToken;
-    }
+    // Register admin user and get token
+    await authSvc.registerAdmin(adminEmail, testPassword, "Team Admin", "ADMIN");
+    const loginRes = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { email: adminEmail, password: testPassword },
+    });
+    const loginBody = JSON.parse(loginRes.body);
+    adminToken = loginBody.data?.accessToken ?? "";
   });
 
-  after(async () => {
-    try {
-      // Clean up team members and account
-      await prisma.projectMember.deleteMany({
-        where: {
-          member: { accountId: testAccountId },
-        },
-      });
-      await prisma.teamMember.deleteMany({
-        where: { accountId: testAccountId },
-      });
-      await prisma.project.deleteMany({
-        where: { accountId: testAccountId },
-      });
-      await prisma.account.deleteMany({
-        where: { id: testAccountId },
-      });
-
-      // Clean up admin user
-      const adminUser = await prisma.adminUser.findUnique({
-        where: { email: adminEmail },
-      });
-      if (adminUser) {
-        await prisma.session.deleteMany({ where: { userId: adminUser.id } });
-        await prisma.loginAttempt.deleteMany({ where: { userId: adminUser.id } });
-        await prisma.adminRoleHistory.deleteMany({ where: { userId: adminUser.id } });
-        await prisma.adminUser.delete({ where: { id: adminUser.id } });
-      }
-    } catch (_err: unknown) {
-      // Cleanup is best-effort
-    }
-
+  afterAll(async () => {
     await app.close();
   });
 
@@ -129,7 +162,7 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
           name: "New Member",
         },
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("invites a new team member successfully", async () => {
@@ -147,10 +180,10 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 201);
-      assert.equal(body.ok, true);
-      assert.ok(body.data?.id, "Should return member ID");
-      testMemberId = body.data.id;
+      expect(response.statusCode).toBe(201);
+      expect(body.ok).toBe(true);
+      expect(body.data?.id).toBeTruthy();
+      _testMemberId = body.data.id;
     });
 
     it("rejects duplicate email in same account", async () => {
@@ -167,8 +200,8 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 409);
-      assert.equal(body.ok, false);
+      expect(response.statusCode).toBe(409);
+      expect(body.ok).toBe(false);
     });
 
     it("rejects invalid email format", async () => {
@@ -183,7 +216,7 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.equal(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("rejects missing name", async () => {
@@ -198,7 +231,7 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.equal(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
 
     it("invites member with VIEWER role", async () => {
@@ -216,8 +249,8 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 201);
-      assert.equal(body.ok, true);
+      expect(response.statusCode).toBe(201);
+      expect(body.ok).toBe(true);
     });
   });
 
@@ -227,7 +260,7 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
         method: "GET",
         url: `/team?accountId=${testAccountId}`,
       });
-      assert.equal(response.statusCode, 401);
+      expect(response.statusCode).toBe(401);
     });
 
     it("lists team members for account", async () => {
@@ -238,19 +271,19 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.ok(Array.isArray(body.data), "Data should be an array");
-      assert.ok(body.data.length >= 2, "Should have at least 2 members");
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data)).toBeTruthy();
+      expect(body.data.length >= 2).toBeTruthy();
 
       // Verify DTO shape
       const first = body.data[0];
-      assert.ok(first.id, "DTO should have id");
-      assert.ok(first.email, "DTO should have email");
-      assert.ok(first.name, "DTO should have name");
-      assert.ok(first.role, "DTO should have role");
-      assert.ok(typeof first.isActive === "boolean", "DTO should have isActive boolean");
-      assert.ok(first.joinedAt, "DTO should have joinedAt");
+      expect(first.id).toBeTruthy();
+      expect(first.email).toBeTruthy();
+      expect(first.name).toBeTruthy();
+      expect(first.role).toBeTruthy();
+      expect(typeof first.isActive === "boolean").toBeTruthy();
+      expect(first.joinedAt).toBeTruthy();
     });
 
     it("rejects invalid accountId format", async () => {
@@ -260,7 +293,7 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      assert.equal(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -268,7 +301,7 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
     let ownerMemberId: string;
     let targetMemberId: string;
 
-    before(async () => {
+    beforeAll(async () => {
       // Create an OWNER member for role change tests
       const ownerEmail = `owner-${timestamp}@example.com`;
       const ownerResponse = await app.inject({
@@ -314,9 +347,9 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.equal(body.data?.updated, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.updated).toBe(true);
     });
 
     it("rejects role update with insufficient hierarchy", async () => {
@@ -332,8 +365,8 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 403);
-      assert.equal(body.ok, false);
+      expect(response.statusCode).toBe(403);
+      expect(body.ok).toBe(false);
     });
 
     it("returns 404 for non-existent member", async () => {
@@ -349,8 +382,8 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 404);
-      assert.equal(body.ok, false);
+      expect(response.statusCode).toBe(404);
+      expect(body.ok).toBe(false);
     });
 
     it("rejects invalid role value", async () => {
@@ -364,7 +397,7 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
         },
       });
 
-      assert.equal(response.statusCode, 400);
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -372,7 +405,7 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
     let removableMemberId: string;
     let ownerForRemovalId: string;
 
-    before(async () => {
+    beforeAll(async () => {
       // Create an owner for removal operations
       const ownerEmail = `removal-owner-${timestamp}@example.com`;
       const ownerRes = await app.inject({
@@ -415,9 +448,9 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 200);
-      assert.equal(body.ok, true);
-      assert.equal(body.data?.removed, true);
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.removed).toBe(true);
 
       // Verify deactivation by listing
       const listResponse = await app.inject({
@@ -427,8 +460,8 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
       const listBody = JSON.parse(listResponse.body);
       const removed = listBody.data.find((m: { id: string }) => m.id === removableMemberId);
-      assert.ok(removed, "Member should still exist");
-      assert.equal(removed.isActive, false, "Member should be inactive");
+      expect(removed).toBeTruthy();
+      expect(removed.isActive).toBe(false);
     });
 
     it("rejects deactivation of owner", async () => {
@@ -442,8 +475,8 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 403);
-      assert.equal(body.ok, false);
+      expect(response.statusCode).toBe(403);
+      expect(body.ok).toBe(false);
     });
 
     it("returns 404 for non-existent member", async () => {
@@ -458,8 +491,8 @@ describe("teamRoutes Unit Tests", { concurrency: 1 }, () => {
       });
 
       const body = JSON.parse(response.body);
-      assert.equal(response.statusCode, 404);
-      assert.equal(body.ok, false);
+      expect(response.statusCode).toBe(404);
+      expect(body.ok).toBe(false);
     });
   });
 });

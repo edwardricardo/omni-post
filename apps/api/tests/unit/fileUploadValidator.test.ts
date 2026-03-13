@@ -24,8 +24,7 @@
  * @module tests/unit/fileUploadValidator
  */
 
-import { describe, it } from "node:test";
-import * as assert from "node:assert";
+import { describe, it, expect } from "vitest";
 import {
   FileUploadValidator,
   createFileUploadValidator,
@@ -114,7 +113,7 @@ describe("FileUploadValidator", () => {
       const mockMetrics = new MockApiMetrics() as any;
       const validator = new FileUploadValidator({}, mockMetrics);
 
-      assert.ok(validator, "FileUploadValidator instance created successfully");
+      expect(validator).toBeTruthy();
     });
 
     it("should accept custom configuration", () => {
@@ -127,24 +126,19 @@ describe("FileUploadValidator", () => {
         mockMetrics
       );
 
-      assert.ok(validator, "Constructor accepts custom configuration");
+      expect(validator).toBeTruthy();
     });
 
     it("should create instance via factory function", () => {
       const mockMetrics = new MockApiMetrics() as any;
       const validator = createFileUploadValidator({}, mockMetrics);
 
-      assert.ok(
-        validator instanceof FileUploadValidator,
-        "Factory function creates FileUploadValidator instance"
-      );
+      expect(validator instanceof FileUploadValidator).toBeTruthy();
     });
 
     it("should throw error when metrics not provided to factory", () => {
-      assert.throws(
-        () => createFileUploadValidator({}, undefined as any),
-        /ApiMetrics instance is required/,
-        "Factory throws error when metrics not provided"
+      expect(() => createFileUploadValidator({}, undefined as any)).toThrow(
+        /ApiMetrics instance is required/
       );
     });
   });
@@ -157,9 +151,9 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(jpegBuffer, "test.jpg", "image/jpeg");
 
-      assert.strictEqual(result.isValid, true, "Valid JPEG file passes validation");
-      assert.strictEqual(result.threats.length, 0, "Valid JPEG has no threats");
-      assert.strictEqual(result.risk, "low", "Valid JPEG has low risk");
+      expect(result.isValid).toBe(true);
+      expect(result.threats.length).toBe(0);
+      expect(result.risk).toBe("low");
     });
 
     it("should detect file exceeding size limit", async () => {
@@ -172,12 +166,8 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(largeBuffer, "large.jpg", "image/jpeg");
 
-      assert.ok(result.threats.includes("FILE_TOO_LARGE"), "Detects file exceeding size limit");
-      assert.strictEqual(
-        result.risk,
-        "medium",
-        "Large file has medium risk (without magic number validation)"
-      );
+      expect(result.threats.includes("FILE_TOO_LARGE")).toBeTruthy();
+      expect(result.risk).toBe("medium");
     });
 
     it("should reject empty files", async () => {
@@ -187,8 +177,8 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(emptyBuffer, "empty.jpg", "image/jpeg");
 
-      assert.strictEqual(result.isValid, false, "Empty file is rejected");
-      assert.ok(result.threats.includes("EMPTY_FILE"), "Detects empty file");
+      expect(result.isValid).toBe(false);
+      expect(result.threats.includes("EMPTY_FILE")).toBeTruthy();
     });
 
     it("should detect invalid file extension", async () => {
@@ -198,8 +188,8 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "test.exe", "image/jpeg");
 
-      assert.ok(result.threats.includes("INVALID_EXTENSION"), "Detects invalid file extension");
-      assert.strictEqual(result.risk, "high", "Invalid extension has high risk");
+      expect(result.threats.includes("INVALID_EXTENSION")).toBeTruthy();
+      expect(result.risk).toBe("high");
     });
 
     it("should detect invalid MIME type", async () => {
@@ -209,7 +199,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "test.jpg", "application/x-executable");
 
-      assert.ok(result.threats.includes("INVALID_MIME_TYPE"), "Detects invalid MIME type");
+      expect(result.threats.includes("INVALID_MIME_TYPE")).toBeTruthy();
     });
   });
 
@@ -221,11 +211,8 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(pngBuffer, "test.png", "image/png");
 
-      assert.ok(
-        !result.threats.includes("MAGIC_NUMBER_MISMATCH"),
-        "Valid PNG magic number passes validation"
-      );
-      assert.ok(result.fileInfo.magicNumber !== undefined, "Magic number is included in result");
+      expect(result.threats.includes("MAGIC_NUMBER_MISMATCH")).toBeFalsy();
+      expect(result.fileInfo.magicNumber !== undefined).toBeTruthy();
     });
 
     it("should detect magic number mismatch", async () => {
@@ -235,10 +222,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(jpegBuffer, "test.png", "image/png");
 
-      assert.ok(
-        result.threats.includes("MAGIC_NUMBER_MISMATCH"),
-        "Detects magic number mismatch (JPEG header with PNG extension)"
-      );
+      expect(result.threats.includes("MAGIC_NUMBER_MISMATCH")).toBeTruthy();
     });
 
     it("should detect executable files by magic number", async () => {
@@ -252,10 +236,7 @@ describe("FileUploadValidator", () => {
         "application/octet-stream"
       );
 
-      assert.ok(
-        result.threats.includes("EXECUTABLE_FILE_DETECTED"),
-        "Detects executable file by magic number"
-      );
+      expect(result.threats.includes("EXECUTABLE_FILE_DETECTED")).toBeTruthy();
     });
 
     it("should validate GIF magic number", async () => {
@@ -265,10 +246,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(gifBuffer, "test.gif", "image/gif");
 
-      assert.ok(
-        !result.threats.includes("MAGIC_NUMBER_MISMATCH"),
-        "Valid GIF magic number passes validation"
-      );
+      expect(result.threats.includes("MAGIC_NUMBER_MISMATCH")).toBeFalsy();
     });
   });
 
@@ -280,11 +258,8 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(scriptBuffer, "file.txt", "text/plain");
 
-      assert.ok(
-        result.threats.includes("EMBEDDED_SCRIPT_DETECTED"),
-        "Detects embedded script tags"
-      );
-      assert.strictEqual(result.risk, "high", "Embedded script has high risk");
+      expect(result.threats.includes("EMBEDDED_SCRIPT_DETECTED")).toBeTruthy();
+      expect(result.risk).toBe("high");
     });
 
     it("should detect PHP code in content", async () => {
@@ -294,10 +269,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(phpBuffer, "file.txt", "text/plain");
 
-      assert.ok(
-        result.threats.includes("METADATA_EXPLOIT_DETECTED"),
-        "Detects PHP code in content"
-      );
+      expect(result.threats.includes("METADATA_EXPLOIT_DETECTED")).toBeTruthy();
     });
 
     it("should detect null bytes in text files", async () => {
@@ -307,7 +279,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(nullByteBuffer, "file.txt", "text/plain");
 
-      assert.ok(result.threats.includes("NULL_BYTE_DETECTED"), "Detects null bytes in text files");
+      expect(result.threats.includes("NULL_BYTE_DETECTED")).toBeTruthy();
     });
 
     it("should detect high entropy content", async () => {
@@ -321,10 +293,7 @@ describe("FileUploadValidator", () => {
         "application/octet-stream"
       );
 
-      assert.ok(
-        result.threats.includes("HIGH_ENTROPY_CONTENT"),
-        "Detects high entropy content (potential encryption/obfuscation)"
-      );
+      expect(result.threats.includes("HIGH_ENTROPY_CONTENT")).toBeTruthy();
     });
 
     it("should skip content analysis when disabled", async () => {
@@ -334,10 +303,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(scriptBuffer, "file.txt", "text/plain");
 
-      assert.ok(
-        !result.threats.includes("EMBEDDED_SCRIPT_DETECTED"),
-        "Content analysis skipped when disabled"
-      );
+      expect(result.threats.includes("EMBEDDED_SCRIPT_DETECTED")).toBeFalsy();
     });
   });
 
@@ -353,10 +319,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "photo.jpg", "image/jpeg");
 
-      assert.ok(
-        result.threats.includes("OVERSIZED_METADATA"),
-        "Detects oversized EXIF metadata (>50% of file)"
-      );
+      expect(result.threats.includes("OVERSIZED_METADATA")).toBeTruthy();
     });
 
     it("should pass validation for normal metadata size", async () => {
@@ -369,10 +332,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "photo.jpg", "image/jpeg");
 
-      assert.ok(
-        !result.threats.includes("OVERSIZED_METADATA"),
-        "Normal metadata size passes validation"
-      );
+      expect(result.threats.includes("OVERSIZED_METADATA")).toBeFalsy();
     });
 
     it("should skip metadata validation when disabled", async () => {
@@ -385,10 +345,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "photo.jpg", "image/jpeg");
 
-      assert.ok(
-        !result.threats.includes("OVERSIZED_METADATA"),
-        "Metadata validation skipped when disabled"
-      );
+      expect(result.threats.includes("OVERSIZED_METADATA")).toBeFalsy();
     });
   });
 
@@ -400,9 +357,9 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(pngBuffer, "image.png", "image/png");
 
-      assert.ok(result.fileInfo.dimensions !== undefined, "PNG dimensions are extracted");
-      assert.strictEqual(result.fileInfo.dimensions?.width, 100, "PNG width is correct");
-      assert.strictEqual(result.fileInfo.dimensions?.height, 100, "PNG height is correct");
+      expect(result.fileInfo.dimensions !== undefined).toBeTruthy();
+      expect(result.fileInfo.dimensions?.width).toBe(100);
+      expect(result.fileInfo.dimensions?.height).toBe(100);
     });
 
     it("should detect image dimensions exceeding limit", async () => {
@@ -412,10 +369,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(pngBuffer, "image.png", "image/png");
 
-      assert.ok(
-        result.threats.includes("IMAGE_DIMENSIONS_TOO_LARGE"),
-        "Detects image dimensions exceeding limit"
-      );
+      expect(result.threats.includes("IMAGE_DIMENSIONS_TOO_LARGE")).toBeTruthy();
     });
 
     it("should detect invalid image dimensions", async () => {
@@ -431,10 +385,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "invalid.png", "image/png");
 
-      assert.ok(
-        result.threats.includes("INVALID_IMAGE_DIMENSIONS"),
-        "Detects invalid image dimensions (0x0)"
-      );
+      expect(result.threats.includes("INVALID_IMAGE_DIMENSIONS")).toBeTruthy();
     });
 
     it("should extract JPEG dimensions", async () => {
@@ -450,8 +401,8 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "photo.jpg", "image/jpeg");
 
-      assert.ok(result.fileInfo.dimensions !== undefined, "JPEG dimensions are extracted");
-      assert.strictEqual(result.fileInfo.dimensions?.width, 300, "JPEG width is correct");
+      expect(result.fileInfo.dimensions !== undefined).toBeTruthy();
+      expect(result.fileInfo.dimensions?.width).toBe(300);
     });
   });
 
@@ -463,8 +414,8 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(cleanBuffer, "clean.jpg", "image/jpeg");
 
-      assert.ok(!result.threats.includes("MALWARE_DETECTED"), "Clean file passes malware scan");
-      assert.ok(result.scanResults !== undefined, "Scan results are included");
+      expect(result.threats.includes("MALWARE_DETECTED")).toBeFalsy();
+      expect(result.scanResults !== undefined).toBeTruthy();
     });
 
     it("should not trigger malware detection for clean hash", async () => {
@@ -474,15 +425,8 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(cleanBuffer, "file.txt", "text/plain");
 
-      assert.ok(
-        !result.threats.includes("MALWARE_DETECTED"),
-        "Clean file hash does not trigger malware detection"
-      );
-      assert.strictEqual(
-        result.scanResults?.virusFound,
-        false,
-        "Scan results show no virus for clean hash"
-      );
+      expect(result.threats.includes("MALWARE_DETECTED")).toBeFalsy();
+      expect(result.scanResults?.virusFound).toBe(false);
     });
 
     it("should skip scanning when disabled", async () => {
@@ -492,11 +436,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(maliciousBuffer, "file.txt", "text/plain");
 
-      assert.strictEqual(
-        result.scanResults,
-        undefined,
-        "Scan results not included when scanning disabled"
-      );
+      expect(result.scanResults).toBe(undefined);
     });
   });
 
@@ -508,11 +448,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "test.txt", "text/plain");
 
-      assert.strictEqual(
-        result.fileInfo.hash.length,
-        64,
-        "SHA-256 hash is generated (64 hex chars)"
-      );
+      expect(result.fileInfo.hash.length).toBe(64);
     });
 
     it("should provide complete file info", async () => {
@@ -522,10 +458,10 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "photo.jpg", "image/jpeg");
 
-      assert.strictEqual(result.fileInfo.originalName, "photo.jpg", "Original name is preserved");
-      assert.strictEqual(result.fileInfo.size, buffer.length, "File size is correct");
-      assert.strictEqual(result.fileInfo.mimeType, "image/jpeg", "MIME type is preserved");
-      assert.strictEqual(result.fileInfo.extension, ".jpg", "Extension is extracted correctly");
+      expect(result.fileInfo.originalName).toBe("photo.jpg");
+      expect(result.fileInfo.size).toBe(buffer.length);
+      expect(result.fileInfo.mimeType).toBe("image/jpeg");
+      expect(result.fileInfo.extension).toBe(".jpg");
     });
   });
 
@@ -537,7 +473,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "photo.jpg", "image/jpeg");
 
-      assert.strictEqual(result.risk, "low", "Valid file has low risk");
+      expect(result.risk).toBe("low");
     });
 
     it("should escalate risk with multiple threats", async () => {
@@ -554,7 +490,7 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(buffer, "bad.txt", "text/plain");
 
-      assert.strictEqual(result.risk, "high", "Multiple threats escalate risk to high");
+      expect(result.risk).toBe("high");
     });
   });
 
@@ -568,11 +504,8 @@ describe("FileUploadValidator", () => {
 
       const result = await validator.validateFile(corruptBuffer, "corrupt.png", "image/png");
 
-      assert.ok(result !== undefined, "Validation handles corrupt files gracefully");
-      assert.ok(
-        result.threats.length > 0 || result.isValid === false,
-        "Corrupt file is flagged appropriately"
-      );
+      expect(result !== undefined).toBeTruthy();
+      expect(result.threats.length > 0 || result.isValid === false).toBeTruthy();
     });
   });
 
@@ -588,8 +521,8 @@ describe("FileUploadValidator", () => {
         mimetype: "image/jpeg",
       });
 
-      assert.strictEqual(result.isValid, true, "validateUploadedFile wrapper works correctly");
-      assert.strictEqual(result.fileInfo.originalName, "upload.jpg", "Wrapper preserves filename");
+      expect(result.isValid).toBe(true);
+      expect(result.fileInfo.originalName).toBe("upload.jpg");
     });
   });
 
@@ -599,7 +532,7 @@ describe("FileUploadValidator", () => {
       const validator = new FileUploadValidator({}, mockMetrics);
       const plugin = validator.getPlugin();
 
-      assert.strictEqual(typeof plugin, "function", "getPlugin() returns a function");
+      expect(typeof plugin).toBe("function");
     });
 
     it("should register content parser and hook", async () => {
@@ -621,12 +554,8 @@ describe("FileUploadValidator", () => {
       const plugin = validator.getPlugin();
       await plugin(mockFastify as any);
 
-      assert.strictEqual(
-        contentParserRegistered,
-        true,
-        "Plugin registers multipart/form-data content parser"
-      );
-      assert.strictEqual(hookRegistered, true, "Plugin registers preHandler hook");
+      expect(contentParserRegistered).toBe(true);
+      expect(hookRegistered).toBe(true);
     });
   });
 });

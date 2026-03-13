@@ -1,5 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import {
   GetPostQueryHandler,
   ListPostsQueryHandler,
@@ -14,7 +13,7 @@ import {
   type MockPostQueryRepository,
 } from "./PostQueryHandlers.test-helpers";
 
-describe("GetPostQueryHandler - Basic Functionality", { concurrency: 1 }, () => {
+describe("GetPostQueryHandler - Basic Functionality", () => {
   let handler: GetPostQueryHandler;
   let mockRepo: MockPostQueryRepository;
 
@@ -26,7 +25,7 @@ describe("GetPostQueryHandler - Basic Functionality", { concurrency: 1 }, () => 
   });
 
   it("should have correct query type", () => {
-    assert.strictEqual(handler.queryType, POST_QUERIES.GET_POST);
+    expect(handler.queryType).toBe(POST_QUERIES.GET_POST);
   });
 
   it("should retrieve post successfully", async () => {
@@ -48,9 +47,9 @@ describe("GetPostQueryHandler - Basic Functionality", { concurrency: 1 }, () => 
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
-    assert.ok(result.data);
-    assert.strictEqual(result.data.type, "PostReadModel");
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
+    expect(result.data.type).toBe("PostReadModel");
   });
 
   it("should return error when post not found", async () => {
@@ -72,8 +71,8 @@ describe("GetPostQueryHandler - Basic Functionality", { concurrency: 1 }, () => 
 
     const result = await handler.handle(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error?.includes("not found"));
+    expect(result.success).toBe(false);
+    expect(result.error?.includes("not found")).toBeTruthy();
   });
 
   it("should include post content in read model", async () => {
@@ -95,9 +94,9 @@ describe("GetPostQueryHandler - Basic Functionality", { concurrency: 1 }, () => 
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
-    assert.ok(result.data);
-    assert.ok(result.data.data.body);
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
+    expect(result.data.data.body).toBeTruthy();
   });
 
   it("should return mediaUrls as empty array (domain read model has mediaCount)", async () => {
@@ -119,10 +118,10 @@ describe("GetPostQueryHandler - Basic Functionality", { concurrency: 1 }, () => 
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
-    assert.ok(result.data);
-    assert.ok(Array.isArray(result.data.data.mediaUrls));
-    assert.strictEqual(result.data.data.mediaUrls.length, 0);
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
+    expect(Array.isArray(result.data.data.mediaUrls)).toBeTruthy();
+    expect(result.data.data.mediaUrls.length).toBe(0);
   });
 
   it("should return channels as empty array (from separate endpoints)", async () => {
@@ -144,10 +143,10 @@ describe("GetPostQueryHandler - Basic Functionality", { concurrency: 1 }, () => 
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
-    assert.ok(result.data);
-    assert.ok(Array.isArray(result.data.data.channels));
-    assert.strictEqual(result.data.data.channels.length, 0);
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
+    expect(Array.isArray(result.data.data.channels)).toBeTruthy();
+    expect(result.data.data.channels.length).toBe(0);
   });
 
   it("should transform domain read model to CQRS envelope", async () => {
@@ -169,19 +168,19 @@ describe("GetPostQueryHandler - Basic Functionality", { concurrency: 1 }, () => 
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
-    assert.ok(result.data);
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
 
     const readModel = result.data;
-    assert.ok(readModel.id.startsWith("post-readmodel-"));
-    assert.strictEqual(readModel.type, "PostReadModel");
-    assert.strictEqual(readModel.version, 1);
-    assert.ok(readModel.lastUpdated);
-    assert.ok(readModel.data);
-    assert.ok(readModel.data.id);
-    assert.ok(readModel.data.projectId);
-    assert.ok(readModel.data.body);
-    assert.ok(readModel.data.locale);
+    expect(readModel.id.startsWith("post-readmodel-")).toBeTruthy();
+    expect(readModel.type).toBe("PostReadModel");
+    expect(readModel.version).toBe(1);
+    expect(readModel.lastUpdated).toBeTruthy();
+    expect(readModel.data).toBeTruthy();
+    expect(readModel.data.id).toBeTruthy();
+    expect(readModel.data.projectId).toBeTruthy();
+    expect(readModel.data.body).toBeTruthy();
+    expect(readModel.data.locale).toBeTruthy();
   });
 
   it("should return error for invalid UUID", async () => {
@@ -203,8 +202,8 @@ describe("GetPostQueryHandler - Basic Functionality", { concurrency: 1 }, () => 
 
     const result = await handler.handle(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error?.includes("Invalid post ID"));
+    expect(result.success).toBe(false);
+    expect(result.error?.includes("Invalid post ID")).toBeTruthy();
   });
 
   it("should handle repository errors gracefully", async () => {
@@ -230,12 +229,12 @@ describe("GetPostQueryHandler - Basic Functionality", { concurrency: 1 }, () => 
 
     const result = await handler.handle(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 });
 
-describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () => {
+describe("ListPostsQueryHandler - Basic Functionality", () => {
   let handler: ListPostsQueryHandler;
   let mockRepo: MockPostQueryRepository;
 
@@ -247,7 +246,7 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
   });
 
   it("should have correct query type", () => {
-    assert.strictEqual(handler.queryType, POST_QUERIES.LIST_POSTS);
+    expect(handler.queryType).toBe(POST_QUERIES.LIST_POSTS);
   });
 
   it("should list posts successfully", async () => {
@@ -270,9 +269,9 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
-    assert.ok(result.data);
-    assert.strictEqual(result.data.type, "PostsListReadModel");
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
+    expect(result.data.type).toBe("PostsListReadModel");
   });
 
   it("should include pagination metadata", async () => {
@@ -295,11 +294,11 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
-    assert.ok(result.metadata);
-    assert.ok(typeof result.metadata.totalCount === "number");
-    assert.ok(typeof result.metadata.page === "number");
-    assert.ok(typeof result.metadata.limit === "number");
+    expect(result.success).toBeTruthy();
+    expect(result.metadata).toBeTruthy();
+    expect(typeof result.metadata.totalCount === "number").toBeTruthy();
+    expect(typeof result.metadata.page === "number").toBeTruthy();
+    expect(typeof result.metadata.limit === "number").toBeTruthy();
   });
 
   it("should accept status filter", async () => {
@@ -323,8 +322,8 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
-    assert.ok(result.data);
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
   });
 
   it("should accept channel filter", async () => {
@@ -348,7 +347,7 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
+    expect(result.success).toBeTruthy();
   });
 
   it("should accept date range filter", async () => {
@@ -373,7 +372,7 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
+    expect(result.success).toBeTruthy();
   });
 
   it("should accept tags filter", async () => {
@@ -397,7 +396,7 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
+    expect(result.success).toBeTruthy();
   });
 
   it("should support different sort orders", async () => {
@@ -422,7 +421,7 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
       };
 
       const result = await handler.handle(query);
-      assert.ok(result.success);
+      expect(result.success).toBeTruthy();
     }
   });
 
@@ -448,7 +447,7 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
       };
 
       const result = await handler.handle(query);
-      assert.ok(result.success);
+      expect(result.success).toBeTruthy();
     }
   });
 
@@ -472,16 +471,16 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
-    assert.ok(result.data);
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
 
     const posts = result.data.data.posts;
-    assert.ok(posts.length > 0);
+    expect(posts.length > 0).toBeTruthy();
     const firstPost = posts[0];
-    assert.ok(firstPost);
-    assert.ok(typeof firstPost.channelCount === "number");
-    assert.ok(typeof firstPost.publishedChannels === "number");
-    assert.ok(typeof firstPost.failedChannels === "number");
+    expect(firstPost).toBeTruthy();
+    expect(typeof firstPost.channelCount === "number").toBeTruthy();
+    expect(typeof firstPost.publishedChannels === "number").toBeTruthy();
+    expect(typeof firstPost.failedChannels === "number").toBeTruthy();
   });
 
   it("should include hasMedia based on mediaCount", async () => {
@@ -504,17 +503,17 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
 
     const result = await handler.handle(query);
 
-    assert.ok(result.success);
-    assert.ok(result.data);
+    expect(result.success).toBeTruthy();
+    expect(result.data).toBeTruthy();
 
     const posts = result.data.data.posts;
     // First post has mediaCount: 1, second has mediaCount: 0
     const firstPost = posts[0];
     const secondPost = posts[1];
-    assert.ok(firstPost);
-    assert.ok(secondPost);
-    assert.strictEqual(firstPost.hasMedia, true);
-    assert.strictEqual(secondPost.hasMedia, false);
+    expect(firstPost).toBeTruthy();
+    expect(secondPost).toBeTruthy();
+    expect(firstPost.hasMedia).toBe(true);
+    expect(secondPost.hasMedia).toBe(false);
   });
 
   it("should return error for invalid project UUID", async () => {
@@ -537,8 +536,8 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
 
     const result = await handler.handle(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error?.includes("Invalid project ID"));
+    expect(result.success).toBe(false);
+    expect(result.error?.includes("Invalid project ID")).toBeTruthy();
   });
 
   it("should handle repository errors gracefully", async () => {
@@ -565,7 +564,7 @@ describe("ListPostsQueryHandler - Basic Functionality", { concurrency: 1 }, () =
 
     const result = await handler.handle(query);
 
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 });

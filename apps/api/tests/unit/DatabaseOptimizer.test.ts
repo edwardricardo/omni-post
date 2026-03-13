@@ -17,28 +17,26 @@
  * 10. Index Efficiency - Usage tracking and recommendations
  */
 
-import { describe, it, beforeEach } from "node:test";
-import type { TestContext } from "node:test";
-import * as assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { DatabaseOptimizer } from "../../src/database/DatabaseOptimizer";
 
 // ============================================================================
 // Mock Factories
 // ============================================================================
 
-function createMockPrismaClient(t: TestContext) {
+function createMockPrismaClient() {
   return {
-    $executeRaw: t.mock.fn(async () => undefined),
-    $queryRaw: t.mock.fn(async () => []),
+    $executeRaw: vi.fn(async () => undefined),
+    $queryRaw: vi.fn(async () => []),
   };
 }
 
-function createMockLogger(t: TestContext) {
+function createMockLogger() {
   return {
-    info: t.mock.fn(),
-    error: t.mock.fn(),
-    warn: t.mock.fn(),
-    debug: t.mock.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   };
 }
 
@@ -48,12 +46,12 @@ function createMockLogger(t: TestContext) {
 
 describe("DatabaseOptimizer - Initialization", () => {
   it("should initialize with prisma client and logger", (t) => {
-    const prisma = createMockPrismaClient(t);
-    const logger = createMockLogger(t);
+    const prisma = createMockPrismaClient();
+    const logger = createMockLogger();
 
     const optimizer = new DatabaseOptimizer(prisma as any, logger as any);
 
-    assert.ok(optimizer, "Should create optimizer instance");
+    expect(optimizer).toBeTruthy();
   });
 });
 
@@ -66,45 +64,34 @@ describe("DatabaseOptimizer - Materialized View Refresh", () => {
   let mockPrisma: ReturnType<typeof createMockPrismaClient>;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
-  beforeEach((t) => {
-    mockPrisma = createMockPrismaClient(t);
-    mockLogger = createMockLogger(t);
+  beforeEach(() => {
+    mockPrisma = createMockPrismaClient();
+    mockLogger = createMockLogger();
     optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
   });
 
   it("should refresh materialized views successfully", async () => {
     await optimizer.refreshMaterializedViews();
 
-    assert.strictEqual(
-      mockPrisma.$executeRaw.mock.calls.length,
-      1,
-      "Should execute refresh function"
-    );
-    assert.strictEqual(mockLogger.info.mock.calls.length, 2, "Should log start and completion");
+    expect(mockPrisma.$executeRaw.mock.calls.length).toBe(1);
+    expect(mockLogger.info.mock.calls.length).toBe(2);
   });
 
   it("should log error on materialized view refresh failure", async (t) => {
-    mockPrisma.$executeRaw = t.mock.fn(async () => {
+    mockPrisma.$executeRaw = vi.fn(async () => {
       throw new Error("Refresh failed");
     });
 
-    await assert.rejects(
-      async () => {
-        await optimizer.refreshMaterializedViews();
-      },
-      {
-        message: "Refresh failed",
-      }
-    );
+    await expect(optimizer.refreshMaterializedViews()).rejects.toThrow("Refresh failed");
 
-    assert.strictEqual(mockLogger.error.mock.calls.length, 1, "Should log error");
+    expect(mockLogger.error.mock.calls.length).toBe(1);
   });
 
   it("should use stored function for refresh", async () => {
     await optimizer.refreshMaterializedViews();
 
     const executeCall = mockPrisma.$executeRaw.mock.calls[0];
-    assert.ok(executeCall, "Should call $executeRaw");
+    expect(executeCall).toBeTruthy();
   });
 });
 
@@ -117,13 +104,13 @@ describe("DatabaseOptimizer - Database Health Report", () => {
   let mockPrisma: ReturnType<typeof createMockPrismaClient>;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
-  beforeEach((t) => {
-    mockPrisma = createMockPrismaClient(t);
-    mockLogger = createMockLogger(t);
+  beforeEach(() => {
+    mockPrisma = createMockPrismaClient();
+    mockLogger = createMockLogger();
     optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
 
     // Mock connection stats
-    mockPrisma.$queryRaw = t.mock.fn(async (query: any) => {
+    mockPrisma.$queryRaw = vi.fn(async (query: any) => {
       const queryStr = query?.sql || String(query);
 
       if (queryStr.includes("connection_pool_stats")) {
@@ -166,68 +153,46 @@ describe("DatabaseOptimizer - Database Health Report", () => {
   it("should generate comprehensive health report", async () => {
     const health = await optimizer.getDatabaseHealthReport();
 
-    assert.ok(health, "Should return health report");
-    assert.ok(
-      ["healthy", "warning", "critical"].includes(health.overall),
-      "Should have valid status"
-    );
+    expect(health).toBeTruthy();
+    expect(["healthy", "warning", "critical"].includes(health.overall)).toBeTruthy();
   });
 
   it("should include connection usage in health report", async () => {
     const health = await optimizer.getDatabaseHealthReport();
 
-    assert.ok(health.connectionUsage, "Should include connection usage");
-    assert.strictEqual(
-      typeof health.connectionUsage.total,
-      "number",
-      "Should include total connections"
-    );
-    assert.strictEqual(
-      typeof health.connectionUsage.active,
-      "number",
-      "Should include active connections"
-    );
-    assert.strictEqual(
-      typeof health.connectionUsage.idle,
-      "number",
-      "Should include idle connections"
-    );
-    assert.strictEqual(
-      typeof health.connectionUsage.utilization,
-      "number",
-      "Should include utilization"
-    );
+    expect(health.connectionUsage).toBeTruthy();
+    expect(typeof health.connectionUsage.total).toBe("number");
+    expect(typeof health.connectionUsage.active).toBe("number");
+    expect(typeof health.connectionUsage.idle).toBe("number");
+    expect(typeof health.connectionUsage.utilization).toBe("number");
   });
 
   it("should include query performance metrics in health report", async () => {
     const health = await optimizer.getDatabaseHealthReport();
 
-    assert.ok(Array.isArray(health.queryPerformance), "Should include query performance array");
+    expect(Array.isArray(health.queryPerformance)).toBeTruthy();
   });
 
   it("should include index efficiency in health report", async () => {
     const health = await optimizer.getDatabaseHealthReport();
 
-    assert.ok(Array.isArray(health.indexEfficiency), "Should include index efficiency array");
+    expect(Array.isArray(health.indexEfficiency)).toBeTruthy();
   });
 
   it("should include materialized view status in health report", async () => {
     const health = await optimizer.getDatabaseHealthReport();
 
-    assert.ok(
-      Array.isArray(health.materializedViewStatus),
-      "Should include materialized view status"
-    );
+    expect(Array.isArray(health.materializedViewStatus)).toBeTruthy();
   });
 
   it("should report healthy status with good metrics", async () => {
     const health = await optimizer.getDatabaseHealthReport();
 
-    assert.strictEqual(health.overall, "healthy", "Should report healthy status");
+    expect(health.overall).toBe("healthy");
   });
 
   it("should report warning status with high utilization", async (t) => {
-    mockPrisma.$queryRaw = t.mock.fn(async (query: any) => {
+    mockPrisma.$queryRaw = vi.fn(async (query: any) => {
       const queryStr = query?.sql || String(query);
 
       if (queryStr.includes("connection_pool_stats")) {
@@ -246,11 +211,11 @@ describe("DatabaseOptimizer - Database Health Report", () => {
 
     const health = await optimizer.getDatabaseHealthReport();
 
-    assert.strictEqual(health.overall, "warning", "Should report warning status");
+    expect(health.overall).toBe("warning");
   });
 
   it("should report critical status with very high utilization", async (t) => {
-    mockPrisma.$queryRaw = t.mock.fn(async (query: any) => {
+    mockPrisma.$queryRaw = vi.fn(async (query: any) => {
       const queryStr = query?.sql || String(query);
 
       if (queryStr.includes("connection_pool_stats")) {
@@ -269,24 +234,17 @@ describe("DatabaseOptimizer - Database Health Report", () => {
 
     const health = await optimizer.getDatabaseHealthReport();
 
-    assert.strictEqual(health.overall, "critical", "Should report critical status");
+    expect(health.overall).toBe("critical");
   });
 
   it("should handle health check errors gracefully", async (t) => {
-    mockPrisma.$queryRaw = t.mock.fn(async () => {
+    mockPrisma.$queryRaw = vi.fn(async () => {
       throw new Error("Health check failed");
     });
 
-    await assert.rejects(
-      async () => {
-        await optimizer.getDatabaseHealthReport();
-      },
-      {
-        message: "Health check failed",
-      }
-    );
+    await expect(optimizer.getDatabaseHealthReport()).rejects.toThrow("Health check failed");
 
-    assert.strictEqual(mockLogger.error.mock.calls.length, 1, "Should log error");
+    expect(mockLogger.error.mock.calls.length).toBe(1);
   });
 });
 
@@ -299,12 +257,12 @@ describe("DatabaseOptimizer - Dashboard Posts", () => {
   let mockPrisma: ReturnType<typeof createMockPrismaClient>;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
-  beforeEach((t) => {
-    mockPrisma = createMockPrismaClient(t);
-    mockLogger = createMockLogger(t);
+  beforeEach(() => {
+    mockPrisma = createMockPrismaClient();
+    mockLogger = createMockLogger();
     optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
 
-    mockPrisma.$queryRaw = t.mock.fn(async () => [
+    mockPrisma.$queryRaw = vi.fn(async () => [
       {
         post_id: "post-123",
         title: "Test Post",
@@ -321,8 +279,8 @@ describe("DatabaseOptimizer - Dashboard Posts", () => {
     const accountId = "account-123";
     const posts = await optimizer.getDashboardPosts(accountId);
 
-    assert.ok(Array.isArray(posts), "Should return array of posts");
-    assert.strictEqual(posts.length, 1, "Should return posts");
+    expect(Array.isArray(posts)).toBeTruthy();
+    expect(posts.length).toBe(1);
   });
 
   it("should format post data correctly", async () => {
@@ -330,43 +288,36 @@ describe("DatabaseOptimizer - Dashboard Posts", () => {
     const posts = await optimizer.getDashboardPosts(accountId);
 
     const post = posts[0];
-    assert.strictEqual(post?.id, "post-123", "Should have correct ID");
-    assert.strictEqual(post?.title, "Test Post", "Should have title");
-    assert.strictEqual(post?.status, "PUBLISHED", "Should have status");
-    assert.strictEqual(post?.channelCount, 3, "Should have channel count");
-    assert.strictEqual(post?.totalViews, 1000, "Should have total views");
+    expect(post?.id).toBe("post-123");
+    expect(post?.title).toBe("Test Post");
+    expect(post?.status).toBe("PUBLISHED");
+    expect(post?.channelCount).toBe(3);
+    expect(post?.totalViews).toBe(1000);
   });
 
   it("should use custom limit and offset", async () => {
     const accountId = "account-123";
     await optimizer.getDashboardPosts(accountId, 100, 50);
 
-    assert.strictEqual(mockPrisma.$queryRaw.mock.calls.length, 1, "Should execute query");
+    expect(mockPrisma.$queryRaw.mock.calls.length).toBe(1);
   });
 
   it("should handle empty results", async (t) => {
-    mockPrisma.$queryRaw = t.mock.fn(async () => []);
+    mockPrisma.$queryRaw = vi.fn(async () => []);
 
     const posts = await optimizer.getDashboardPosts("account-123");
 
-    assert.strictEqual(posts.length, 0, "Should return empty array");
+    expect(posts.length).toBe(0);
   });
 
   it("should log error on query failure", async (t) => {
-    mockPrisma.$queryRaw = t.mock.fn(async () => {
+    mockPrisma.$queryRaw = vi.fn(async () => {
       throw new Error("Query failed");
     });
 
-    await assert.rejects(
-      async () => {
-        await optimizer.getDashboardPosts("account-123");
-      },
-      {
-        message: "Query failed",
-      }
-    );
+    await expect(optimizer.getDashboardPosts("account-123")).rejects.toThrow("Query failed");
 
-    assert.strictEqual(mockLogger.error.mock.calls.length, 1, "Should log error");
+    expect(mockLogger.error.mock.calls.length).toBe(1);
   });
 });
 
@@ -379,12 +330,12 @@ describe("DatabaseOptimizer - Tenant Dashboard Stats", () => {
   let mockPrisma: ReturnType<typeof createMockPrismaClient>;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
-  beforeEach((t) => {
-    mockPrisma = createMockPrismaClient(t);
-    mockLogger = createMockLogger(t);
+  beforeEach(() => {
+    mockPrisma = createMockPrismaClient();
+    mockLogger = createMockLogger();
     optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
 
-    mockPrisma.$queryRaw = t.mock.fn(async () => [
+    mockPrisma.$queryRaw = vi.fn(async () => [
       {
         accountId: "account-123",
         total_posts: 50,
@@ -401,43 +352,38 @@ describe("DatabaseOptimizer - Tenant Dashboard Stats", () => {
   it("should retrieve tenant dashboard statistics", async () => {
     const stats = await optimizer.getTenantDashboardStats("account-123");
 
-    assert.ok(stats, "Should return statistics");
-    assert.strictEqual(stats?.totalPosts, 50, "Should have total posts");
-    assert.strictEqual(stats?.publishedPosts, 30, "Should have published posts");
-    assert.strictEqual(stats?.scheduledPosts, 15, "Should have scheduled posts");
+    expect(stats).toBeTruthy();
+    expect(stats?.totalPosts).toBe(50);
+    expect(stats?.publishedPosts).toBe(30);
+    expect(stats?.scheduledPosts).toBe(15);
   });
 
   it("should format statistics correctly", async () => {
     const stats = await optimizer.getTenantDashboardStats("account-123");
 
-    assert.ok(stats, "Should return stats");
-    assert.strictEqual(typeof stats?.totalPosts, "number", "Total posts should be number");
-    assert.strictEqual(typeof stats?.avgPostViews, "number", "Average views should be number");
+    expect(stats).toBeTruthy();
+    expect(typeof stats?.totalPosts).toBe("number");
+    expect(typeof stats?.avgPostViews).toBe("number");
   });
 
   it("should return null when no stats found", async (t) => {
-    mockPrisma.$queryRaw = t.mock.fn(async () => []);
+    mockPrisma.$queryRaw = vi.fn(async () => []);
 
     const stats = await optimizer.getTenantDashboardStats("account-123");
 
-    assert.strictEqual(stats, null, "Should return null for no results");
+    expect(stats).toBe(null);
   });
 
   it("should handle query errors", async (t) => {
-    mockPrisma.$queryRaw = t.mock.fn(async () => {
+    mockPrisma.$queryRaw = vi.fn(async () => {
       throw new Error("Stats query failed");
     });
 
-    await assert.rejects(
-      async () => {
-        await optimizer.getTenantDashboardStats("account-123");
-      },
-      {
-        message: "Stats query failed",
-      }
+    await expect(optimizer.getTenantDashboardStats("account-123")).rejects.toThrow(
+      "Stats query failed"
     );
 
-    assert.strictEqual(mockLogger.error.mock.calls.length, 1, "Should log error");
+    expect(mockLogger.error.mock.calls.length).toBe(1);
   });
 });
 
@@ -450,12 +396,12 @@ describe("DatabaseOptimizer - Hourly Analytics Summary", () => {
   let mockPrisma: ReturnType<typeof createMockPrismaClient>;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
-  beforeEach((t) => {
-    mockPrisma = createMockPrismaClient(t);
-    mockLogger = createMockLogger(t);
+  beforeEach(() => {
+    mockPrisma = createMockPrismaClient();
+    mockLogger = createMockLogger();
     optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
 
-    mockPrisma.$queryRaw = t.mock.fn(async () => [
+    mockPrisma.$queryRaw = vi.fn(async () => [
       {
         hour: new Date("2024-01-01T10:00:00Z"),
         total_views: 1000,
@@ -478,50 +424,45 @@ describe("DatabaseOptimizer - Hourly Analytics Summary", () => {
   it("should retrieve hourly analytics summary", async () => {
     const summary = await optimizer.getHourlyAnalyticsSummary("channel-123");
 
-    assert.ok(Array.isArray(summary), "Should return array");
-    assert.strictEqual(summary.length, 2, "Should return 2 hourly summaries");
+    expect(Array.isArray(summary)).toBeTruthy();
+    expect(summary.length).toBe(2);
   });
 
   it("should format analytics data correctly", async () => {
     const summary = await optimizer.getHourlyAnalyticsSummary("channel-123");
 
     const firstHour = summary[0];
-    assert.ok(firstHour, "Should have first hour data");
-    assert.strictEqual(firstHour.totalViews, 1000, "Should have views");
-    assert.strictEqual(firstHour.totalLikes, 50, "Should have likes");
-    assert.strictEqual(firstHour.totalComments, 20, "Should have comments");
-    assert.strictEqual(firstHour.totalShares, 10, "Should have shares");
+    expect(firstHour).toBeTruthy();
+    expect(firstHour.totalViews).toBe(1000);
+    expect(firstHour.totalLikes).toBe(50);
+    expect(firstHour.totalComments).toBe(20);
+    expect(firstHour.totalShares).toBe(10);
   });
 
   it("should use custom hours parameter", async () => {
     await optimizer.getHourlyAnalyticsSummary("channel-123", 48);
 
-    assert.strictEqual(mockPrisma.$queryRaw.mock.calls.length, 1, "Should execute query");
+    expect(mockPrisma.$queryRaw.mock.calls.length).toBe(1);
   });
 
   it("should handle empty analytics", async (t) => {
-    mockPrisma.$queryRaw = t.mock.fn(async () => []);
+    mockPrisma.$queryRaw = vi.fn(async () => []);
 
     const summary = await optimizer.getHourlyAnalyticsSummary("channel-123");
 
-    assert.strictEqual(summary.length, 0, "Should return empty array");
+    expect(summary.length).toBe(0);
   });
 
   it("should log error on query failure", async (t) => {
-    mockPrisma.$queryRaw = t.mock.fn(async () => {
+    mockPrisma.$queryRaw = vi.fn(async () => {
       throw new Error("Analytics query failed");
     });
 
-    await assert.rejects(
-      async () => {
-        await optimizer.getHourlyAnalyticsSummary("channel-123");
-      },
-      {
-        message: "Analytics query failed",
-      }
+    await expect(optimizer.getHourlyAnalyticsSummary("channel-123")).rejects.toThrow(
+      "Analytics query failed"
     );
 
-    assert.strictEqual(mockLogger.error.mock.calls.length, 1, "Should log error");
+    expect(mockLogger.error.mock.calls.length).toBe(1);
   });
 });
 
@@ -534,37 +475,28 @@ describe("DatabaseOptimizer - Performance Metrics", () => {
   let mockPrisma: ReturnType<typeof createMockPrismaClient>;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
-  beforeEach((t) => {
-    mockPrisma = createMockPrismaClient(t);
-    mockLogger = createMockLogger(t);
+  beforeEach(() => {
+    mockPrisma = createMockPrismaClient();
+    mockLogger = createMockLogger();
     optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
   });
 
   it("should record performance metric", async () => {
     await optimizer.recordPerformanceMetric("query_time", 50, "ms", { query: "SELECT posts" });
 
-    assert.strictEqual(
-      mockPrisma.$executeRaw.mock.calls.length,
-      1,
-      "Should execute metric recording"
-    );
+    expect(mockPrisma.$executeRaw.mock.calls.length).toBe(1);
   });
 
   it("should handle metric recording errors", async (t) => {
-    mockPrisma.$executeRaw = t.mock.fn(async () => {
+    mockPrisma.$executeRaw = vi.fn(async () => {
       throw new Error("Metric recording failed");
     });
 
-    await assert.rejects(
-      async () => {
-        await optimizer.recordPerformanceMetric("query_time", 50, "ms");
-      },
-      {
-        message: "Metric recording failed",
-      }
+    await expect(optimizer.recordPerformanceMetric("query_time", 50, "ms")).rejects.toThrow(
+      "Metric recording failed"
     );
 
-    assert.strictEqual(mockLogger.error.mock.calls.length, 1, "Should log error");
+    expect(mockLogger.error.mock.calls.length).toBe(1);
   });
 });
 
@@ -577,12 +509,12 @@ describe("DatabaseOptimizer - Performance Baselines", () => {
   let mockPrisma: ReturnType<typeof createMockPrismaClient>;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
-  beforeEach((t) => {
-    mockPrisma = createMockPrismaClient(t);
-    mockLogger = createMockLogger(t);
+  beforeEach(() => {
+    mockPrisma = createMockPrismaClient();
+    mockLogger = createMockLogger();
     optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
 
-    mockPrisma.$queryRaw = t.mock.fn(async () => [
+    mockPrisma.$queryRaw = vi.fn(async () => [
       {
         metric_name: "query_time",
         current_value: 45,
@@ -601,37 +533,30 @@ describe("DatabaseOptimizer - Performance Baselines", () => {
   it("should retrieve performance baselines", async () => {
     const baselines = await optimizer.getPerformanceBaselines();
 
-    assert.ok(Array.isArray(baselines), "Should return array");
-    assert.strictEqual(baselines.length, 2, "Should return 2 baselines");
+    expect(Array.isArray(baselines)).toBeTruthy();
+    expect(baselines.length).toBe(2);
   });
 
   it("should format baseline data with status", async () => {
     const baselines = await optimizer.getPerformanceBaselines();
 
     const improved = baselines.find((b) => b.metricName === "query_time");
-    assert.ok(improved, "Should have query_time baseline");
-    assert.strictEqual(improved.status, "improved", "Should mark as improved");
+    expect(improved).toBeTruthy();
+    expect(improved.status).toBe("improved");
 
     const degraded = baselines.find((b) => b.metricName === "connection_pool_usage");
-    assert.ok(degraded, "Should have connection_pool_usage baseline");
-    assert.strictEqual(degraded.status, "degraded", "Should mark as degraded");
+    expect(degraded).toBeTruthy();
+    expect(degraded.status).toBe("degraded");
   });
 
   it("should handle baseline query errors", async (t) => {
-    mockPrisma.$queryRaw = t.mock.fn(async () => {
+    mockPrisma.$queryRaw = vi.fn(async () => {
       throw new Error("Baseline query failed");
     });
 
-    await assert.rejects(
-      async () => {
-        await optimizer.getPerformanceBaselines();
-      },
-      {
-        message: "Baseline query failed",
-      }
-    );
+    await expect(optimizer.getPerformanceBaselines()).rejects.toThrow("Baseline query failed");
 
-    assert.strictEqual(mockLogger.error.mock.calls.length, 1, "Should log error");
+    expect(mockLogger.error.mock.calls.length).toBe(1);
   });
 });
 
@@ -644,38 +569,27 @@ describe("DatabaseOptimizer - Table Optimization", () => {
   let mockPrisma: ReturnType<typeof createMockPrismaClient>;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
-  beforeEach((t) => {
-    mockPrisma = createMockPrismaClient(t);
-    mockLogger = createMockLogger(t);
+  beforeEach(() => {
+    mockPrisma = createMockPrismaClient();
+    mockLogger = createMockLogger();
     optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
   });
 
   it("should optimize tables successfully", async () => {
     await optimizer.optimizeTables();
 
-    assert.strictEqual(
-      mockPrisma.$executeRaw.mock.calls.length,
-      2,
-      "Should execute ANALYZE and stats collection"
-    );
-    assert.strictEqual(mockLogger.info.mock.calls.length, 2, "Should log start and completion");
+    expect(mockPrisma.$executeRaw.mock.calls.length).toBe(2);
+    expect(mockLogger.info.mock.calls.length).toBe(2);
   });
 
   it("should handle optimization errors", async (t) => {
-    mockPrisma.$executeRaw = t.mock.fn(async () => {
+    mockPrisma.$executeRaw = vi.fn(async () => {
       throw new Error("Optimization failed");
     });
 
-    await assert.rejects(
-      async () => {
-        await optimizer.optimizeTables();
-      },
-      {
-        message: "Optimization failed",
-      }
-    );
+    await expect(optimizer.optimizeTables()).rejects.toThrow("Optimization failed");
 
-    assert.strictEqual(mockLogger.error.mock.calls.length, 1, "Should log error");
+    expect(mockLogger.error.mock.calls.length).toBe(1);
   });
 });
 
@@ -688,9 +602,9 @@ describe("DatabaseOptimizer - Automatic Refresh", () => {
   let mockPrisma: ReturnType<typeof createMockPrismaClient>;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
-  beforeEach((t) => {
-    mockPrisma = createMockPrismaClient(t);
-    mockLogger = createMockLogger(t);
+  beforeEach(() => {
+    mockPrisma = createMockPrismaClient();
+    mockLogger = createMockLogger();
     optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
   });
 
@@ -699,7 +613,7 @@ describe("DatabaseOptimizer - Automatic Refresh", () => {
 
     await optimizer.scheduleAutomaticRefresh();
 
-    assert.strictEqual(mockLogger.info.mock.calls.length, 1, "Should log scheduling");
+    expect(mockLogger.info.mock.calls.length).toBe(1);
 
     delete process.env.MATERIALIZED_VIEW_REFRESH_INTERVAL;
   });
@@ -709,6 +623,6 @@ describe("DatabaseOptimizer - Automatic Refresh", () => {
 
     await optimizer.scheduleAutomaticRefresh();
 
-    assert.strictEqual(mockLogger.info.mock.calls.length, 1, "Should log scheduling with default");
+    expect(mockLogger.info.mock.calls.length).toBe(1);
   });
 });

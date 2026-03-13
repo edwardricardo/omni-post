@@ -65,8 +65,8 @@ describe("Provider Registry System", () => {
 
       assert.strictEqual(
         json.data.providers.length,
-        6,
-        `Expected 6 providers, got ${json.data.providers.length}`
+        9,
+        `Expected 9 providers, got ${json.data.providers.length}`
       );
     });
 
@@ -81,7 +81,7 @@ describe("Provider Registry System", () => {
       assert.strictEqual(xProvider.status, "active", "X provider should be active");
     });
 
-    it("should include LinkedIn as coming soon", async (t) => {
+    it("should include LinkedIn as active", async (t) => {
       if (skipIfUnavailable(t)) return;
       const response = await fetch(`${BASE_URL}/providers`);
       const json = await response.json();
@@ -89,7 +89,7 @@ describe("Provider Registry System", () => {
       const linkedinProvider = json.data.providers.find((p: any) => p.id === "linkedin");
 
       assert.ok(linkedinProvider, "Should have LinkedIn provider");
-      assert.strictEqual(linkedinProvider.status, "coming_soon", "LinkedIn should be coming soon");
+      assert.strictEqual(linkedinProvider.status, "active", "LinkedIn should be active");
     });
 
     it("should complete within reasonable time", async (t) => {
@@ -136,15 +136,15 @@ describe("Provider Registry System", () => {
       assert.ok(allActive, "All returned providers should have active status");
     });
 
-    it("should have exactly 5 active providers", async (t) => {
+    it("should have exactly 9 active providers", async (t) => {
       if (skipIfUnavailable(t)) return;
       const response = await fetch(`${BASE_URL}/providers/active`);
       const json = await response.json();
 
       assert.strictEqual(
         json.data.providers.length,
-        5,
-        `Expected 5 active providers, got ${json.data.providers.length}`
+        9,
+        `Expected 9 active providers, got ${json.data.providers.length}`
       );
     });
   });
@@ -274,8 +274,8 @@ describe("Provider Registry System", () => {
 
       assert.strictEqual(
         json.data.summary.total,
-        5,
-        "Should have 5 active providers in health check"
+        9,
+        "Should have 9 active providers in health check"
       );
     });
 

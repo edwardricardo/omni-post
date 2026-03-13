@@ -5,49 +5,63 @@
  * and Instagram (2200 char caption, 30 hashtag max, carousel support).
  */
 
-import { describe, it, before, beforeEach, after } from "node:test";
-import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
+import { describe, it, beforeAll, beforeEach, afterAll, expect, vi } from "vitest";
+import { prisma } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
 import promClient from "prom-client";
 import { PlatformContentAdapter } from "../../src/content/PlatformContentAdapter.js";
-import { EventService } from "../../src/events/EventService.js";
+import type { EventService } from "../../src/events/EventService.js";
 
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface.js";
 
-describe("PlatformContentAdapter - Twitter/X and Instagram", { concurrency: 1 }, () => {
+vi.mock("../../src/lib/logger.js", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
+  },
+}));
+
+const mockRedis = {
+  get: vi.fn(async () => null),
+  set: vi.fn(async () => "OK"),
+  setex: vi.fn(async () => "OK"),
+  del: vi.fn(async () => 1),
+  hget: vi.fn(async () => null),
+  hset: vi.fn(async () => 1),
+  hexists: vi.fn(async () => 0),
+  keys: vi.fn(async () => []),
+  lpush: vi.fn(async () => 1),
+  lrange: vi.fn(async () => []),
+  xack: vi.fn(async () => 0),
+  xgroup: vi.fn(async () => "OK"),
+  xreadgroup: vi.fn(async () => null),
+  disconnect: vi.fn(),
+  quit: vi.fn(),
+  status: "ready",
+} as unknown as import("ioredis").default;
+
+describe("PlatformContentAdapter - Twitter/X and Instagram", () => {
   let adapter: PlatformContentAdapter;
-  let prisma: PrismaClient;
-  let redis: Redis;
 
-  before(async () => {
-    prisma = createTestPrismaClient();
-    redis = new Redis({
-      host: process.env.REDIS_HOST || "localhost",
-      port: parseInt(process.env.REDIS_PORT || "6379"),
-      lazyConnect: true,
-      maxRetriesPerRequest: 1,
-      enableReadyCheck: false,
-    });
-
+  beforeAll(async () => {
     const eventService: Pick<EventService, "publishEvent"> = {
       publishEvent: async () => ({ ok: true as const, value: undefined }),
     };
 
     adapter = new PlatformContentAdapter({
-      prisma,
-      redis,
+      prisma: prisma as unknown as PrismaClient,
+      redis: mockRedis,
       eventService: eventService as EventService,
     });
     await adapter.initialize();
   });
 
-  after(async () => {
+  afterAll(async () => {
     promClient.register.clear();
-    redis.disconnect(false);
-    await prisma.$disconnect();
   });
 
   describe("Twitter/X Adaptation", () => {
@@ -73,28 +87,21 @@ describe("PlatformContentAdapter - Twitter/X and Instagram", { concurrency: 1 },
 
       const result = await adapter.adaptForSingleProvider(longPost, "x" as ProviderId);
 
-      assert.strictEqual(
-        result.ok,
-        true,
-        `Adaptation should succeed. Error: ${!result.ok ? result.error.message : "none"}`
-      );
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adaptedLength = result.value.adaptedContent.body.length;
-        assert.ok(
-          adaptedLength <= 280,
-          `Adapted content should be <= 280 chars, got ${adaptedLength}`
-        );
+        expect(adaptedLength <= 280).toBeTruthy();
       }
     });
 
     it("should preserve hashtags within character limit", async () => {
       const result = await adapter.adaptForSingleProvider(samplePost, "x" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(adapted.tags, "Tags should be preserved");
-        assert.ok(adapted.tags!.length > 0, "Should have at least one tag");
+        expect(adapted.tags).toBeTruthy();
+        expect(adapted.tags!.length > 0).toBeTruthy();
       }
     });
 
@@ -121,11 +128,11 @@ describe("PlatformContentAdapter - Twitter/X and Instagram", { concurrency: 1 },
 
       const result = await adapter.adaptForSingleProvider(postWithMedia, "x" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(adapted.media, "Media should be present");
-        assert.ok(adapted.media!.length <= 4, "Should respect Twitter's 4 media limit");
+        expect(adapted.media).toBeTruthy();
+        expect(adapted.media!.length <= 4).toBeTruthy();
       }
     });
 
@@ -137,11 +144,11 @@ describe("PlatformContentAdapter - Twitter/X and Instagram", { concurrency: 1 },
 
       const result = await adapter.adaptForSingleProvider(longPost, "x" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent.body;
         if (adapted.length < longPost.body.length) {
-          assert.ok(adapted.endsWith("..."), "Truncated content should end with ellipsis");
+          expect(adapted.endsWith("...")).toBeTruthy();
         }
       }
     });
@@ -154,12 +161,12 @@ describe("PlatformContentAdapter - Twitter/X and Instagram", { concurrency: 1 },
 
       const result = await adapter.adaptForSingleProvider(longPost, "x" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent.body;
         const withoutEllipsis = adapted.replace(/\.\.\.$/, "").trim();
         const lastWord = withoutEllipsis.split(" ").pop() || "";
-        assert.strictEqual(lastWord, "word", `Last word should be complete, got "${lastWord}"`);
+        expect(lastWord).toBe("word");
       }
     });
   });
@@ -195,14 +202,10 @@ describe("PlatformContentAdapter - Twitter/X and Instagram", { concurrency: 1 },
 
       const result = await adapter.adaptForSingleProvider(longCaption, "instagram" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.strictEqual(
-          adapted.body.length,
-          2000,
-          "Content within limit should not be truncated"
-        );
+        expect(adapted.body.length).toBe(2000);
       }
     });
 
@@ -214,13 +217,10 @@ describe("PlatformContentAdapter - Twitter/X and Instagram", { concurrency: 1 },
 
       const result = await adapter.adaptForSingleProvider(manyTags, "instagram" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(
-          adapted.tags!.length <= 30,
-          `Should limit to 30 tags, got ${adapted.tags!.length}`
-        );
+        expect(adapted.tags!.length <= 30).toBeTruthy();
       }
     });
 
@@ -238,23 +238,20 @@ describe("PlatformContentAdapter - Twitter/X and Instagram", { concurrency: 1 },
 
       const result = await adapter.adaptForSingleProvider(carouselPost, "instagram" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(
-          adapted.media!.length <= 10,
-          "Should respect Instagram's 10 media carousel limit"
-        );
+        expect(adapted.media!.length <= 10).toBeTruthy();
       }
     });
 
     it("should preserve emoji in captions", async () => {
       const result = await adapter.adaptForSingleProvider(samplePost, "instagram" as ProviderId);
 
-      assert.strictEqual(result.ok, true, "Adaptation should succeed");
+      expect(result.ok).toBe(true);
       if (result.ok) {
         const adapted = result.value.adaptedContent;
-        assert.ok(adapted.body.includes("\u{1F305}"), "Emoji should be preserved");
+        expect(adapted.body.includes("\u{1F305}")).toBeTruthy();
       }
     });
   });

@@ -1,9 +1,8 @@
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import { GeminiProvider } from "../../../src/ai/providers/gemini.js";
 import { mockConfig, makeMockClient } from "./gemini.test-helpers.js";
 
-describe("GeminiProvider - Performance Prediction", { concurrency: 1 }, () => {
+describe("GeminiProvider - Performance Prediction", () => {
   let provider: GeminiProvider;
 
   beforeEach(() => {
@@ -27,15 +26,15 @@ describe("GeminiProvider - Performance Prediction", { concurrency: 1 }, () => {
       },
     });
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.predictPerformance("Great content!", "twitter");
-    assert.strictEqual(result.platform, "twitter");
-    assert.strictEqual(result.metrics.expectedEngagement.value, 150);
-    assert.strictEqual(result.optimalTiming.hour, 14);
+    expect(result.platform).toBe("twitter");
+    expect(result.metrics.expectedEngagement.value).toBe(150);
+    expect(result.optimalTiming.hour).toBe(14);
   });
 
   it("should include historical data in prediction", async (t) => {
@@ -56,8 +55,8 @@ describe("GeminiProvider - Performance Prediction", { concurrency: 1 }, () => {
       competitiveAnalysis: { benchmarkScore: 80, opportunities: [], threats: [] },
     });
 
-    const generateContentFn = t.mock.fn(async (params: any) => {
-      assert.ok(params.contents.includes("Historical performance context"));
+    const generateContentFn = vi.fn(async (params: any) => {
+      expect(params.contents.includes("Historical performance context")).toBeTruthy();
       return { text: mockResponse };
     });
     const mockClient = makeMockClient(generateContentFn);
@@ -65,24 +64,24 @@ describe("GeminiProvider - Performance Prediction", { concurrency: 1 }, () => {
     provider.client = mockClient;
 
     await provider.predictPerformance("Test content", "twitter", historicalData);
-    assert.strictEqual(generateContentFn.mock.calls.length, 1);
+    expect(generateContentFn.mock.calls.length).toBe(1);
   });
 
   it("should throw error on prediction failure", async (t) => {
-    const generateContentFn = t.mock.fn(async () => {
+    const generateContentFn = vi.fn(async () => {
       throw new Error("API Error");
     });
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.predictPerformance("Test content", "twitter");
-    }, /Gemini prediction failed/);
+    await expect(provider.predictPerformance("Test content", "twitter")).rejects.toThrow(
+      /Gemini prediction failed/
+    );
   });
 });
 
-describe("GeminiProvider - Content Variations", { concurrency: 1 }, () => {
+describe("GeminiProvider - Content Variations", () => {
   let provider: GeminiProvider;
 
   beforeEach(() => {
@@ -96,14 +95,14 @@ describe("GeminiProvider - Content Variations", { concurrency: 1 }, () => {
       "Humorous tone variation",
     ]);
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.generateVariations("Original content", "tone", 3);
-    assert.ok(Array.isArray(result));
-    assert.strictEqual(result.length, 3);
+    expect(Array.isArray(result)).toBeTruthy();
+    expect(result.length).toBe(3);
   });
 
   it("should generate length variations", async (t) => {
@@ -113,57 +112,57 @@ describe("GeminiProvider - Content Variations", { concurrency: 1 }, () => {
       "Long detailed version with more context",
     ]);
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.generateVariations("Original content", "length", 3);
-    assert.ok(Array.isArray(result));
-    assert.strictEqual(result.length, 3);
+    expect(Array.isArray(result)).toBeTruthy();
+    expect(result.length).toBe(3);
   });
 
   it("should generate audience variations", async (t) => {
     const mockResponse = JSON.stringify(["For executives", "For marketers", "For consumers"]);
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.generateVariations("Original content", "audience", 3);
-    assert.ok(Array.isArray(result));
-    assert.strictEqual(result.length, 3);
+    expect(Array.isArray(result)).toBeTruthy();
+    expect(result.length).toBe(3);
   });
 
   it("should extract JSON array from markdown-wrapped response", async (t) => {
     const mockResponse = '```json\n["Variation 1", "Variation 2"]\n```';
 
-    const generateContentFn = t.mock.fn(async () => ({ text: mockResponse }));
+    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.generateVariations("Original", "tone", 2);
-    assert.ok(Array.isArray(result));
-    assert.strictEqual(result.length, 2);
+    expect(Array.isArray(result)).toBeTruthy();
+    expect(result.length).toBe(2);
   });
 
   it("should throw error on variation generation failure", async (t) => {
-    const generateContentFn = t.mock.fn(async () => {
+    const generateContentFn = vi.fn(async () => {
       throw new Error("API Error");
     });
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.generateVariations("Test", "tone", 3);
-    }, /Gemini variation generation failed/);
+    await expect(provider.generateVariations("Test", "tone", 3)).rejects.toThrow(
+      /Gemini variation generation failed/
+    );
   });
 });
 
-describe("GeminiProvider - Error Handling", { concurrency: 1 }, () => {
+describe("GeminiProvider - Error Handling", () => {
   let provider: GeminiProvider;
 
   beforeEach(() => {
@@ -171,7 +170,7 @@ describe("GeminiProvider - Error Handling", { concurrency: 1 }, () => {
   });
 
   it("should handle rate limit errors", async (t) => {
-    const generateContentFn = t.mock.fn(async () => {
+    const generateContentFn = vi.fn(async () => {
       const error: any = new Error("Rate limit exceeded");
       error.status = 429;
       throw error;
@@ -180,13 +179,13 @@ describe("GeminiProvider - Error Handling", { concurrency: 1 }, () => {
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /Gemini generation failed/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /Gemini generation failed/
+    );
   });
 
   it("should handle authentication errors", async (t) => {
-    const generateContentFn = t.mock.fn(async () => {
+    const generateContentFn = vi.fn(async () => {
       const error: any = new Error("Invalid API key");
       error.status = 401;
       throw error;
@@ -195,13 +194,13 @@ describe("GeminiProvider - Error Handling", { concurrency: 1 }, () => {
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /Gemini generation failed/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /Gemini generation failed/
+    );
   });
 
   it("should handle server errors", async (t) => {
-    const generateContentFn = t.mock.fn(async () => {
+    const generateContentFn = vi.fn(async () => {
       const error: any = new Error("Internal server error");
       error.status = 500;
       throw error;
@@ -210,18 +209,18 @@ describe("GeminiProvider - Error Handling", { concurrency: 1 }, () => {
     // @ts-ignore
     provider.client = mockClient;
 
-    await assert.rejects(async () => {
-      await provider.generateText([{ role: "user", content: "Test" }]);
-    }, /Gemini generation failed/);
+    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
+      /Gemini generation failed/
+    );
   });
 
   it("should handle malformed API responses", async (t) => {
-    const generateContentFn = t.mock.fn(async () => ({}));
+    const generateContentFn = vi.fn(async () => ({}));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
     provider.client = mockClient;
 
     const result = await provider.generateText([{ role: "user", content: "Test" }]);
-    assert.strictEqual(result, "");
+    expect(result).toBe("");
   });
 });

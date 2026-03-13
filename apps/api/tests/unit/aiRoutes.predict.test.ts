@@ -1,20 +1,19 @@
-import { describe, it, before, after, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createTestApp, aiService, setupAiServiceMocks } from "./aiRoutes.test-helpers.js";
 
 let app: FastifyInstance;
 
-describe("aiRoutes - POST /ai/optimize", { concurrency: 1 }, () => {
-  before(async () => {
+describe("aiRoutes - POST /ai/optimize", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  beforeEach((t) => {
-    setupAiServiceMocks(t, aiService);
+  beforeEach(() => {
+    setupAiServiceMocks(aiService);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -30,10 +29,10 @@ describe("aiRoutes - POST /ai/optimize", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
-    assert.ok(body.data.success);
-    assert.ok(body.data.optimization);
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.success).toBeTruthy();
+    expect(body.data.optimization).toBeTruthy();
   });
 
   it("should accept optional brand voice parameter", async () => {
@@ -47,7 +46,7 @@ describe("aiRoutes - POST /ai/optimize", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    expect(response.statusCode).toBe(200);
   });
 
   it("should accept different platforms", async () => {
@@ -63,7 +62,7 @@ describe("aiRoutes - POST /ai/optimize", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     }
   });
 
@@ -77,7 +76,7 @@ describe("aiRoutes - POST /ai/optimize", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject empty platform", async () => {
@@ -90,7 +89,7 @@ describe("aiRoutes - POST /ai/optimize", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject missing required fields", async () => {
@@ -102,20 +101,20 @@ describe("aiRoutes - POST /ai/optimize", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 });
 
-describe("aiRoutes - POST /ai/variations", { concurrency: 1 }, () => {
-  before(async () => {
+describe("aiRoutes - POST /ai/variations", () => {
+  beforeAll(async () => {
     app = await createTestApp();
   });
 
-  beforeEach((t) => {
-    setupAiServiceMocks(t, aiService);
+  beforeEach(() => {
+    setupAiServiceMocks(aiService);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -132,10 +131,10 @@ describe("aiRoutes - POST /ai/variations", { concurrency: 1 }, () => {
 
     const body = JSON.parse(response.body);
 
-    assert.strictEqual(response.statusCode, 200);
-    assert.strictEqual(body.ok, true);
-    assert.ok(body.data.success);
-    assert.ok(Array.isArray(body.data.variations));
+    expect(response.statusCode).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.success).toBeTruthy();
+    expect(Array.isArray(body.data.variations)).toBeTruthy();
   });
 
   it("should accept all valid variation types", async () => {
@@ -152,7 +151,7 @@ describe("aiRoutes - POST /ai/variations", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     }
   });
 
@@ -168,7 +167,7 @@ describe("aiRoutes - POST /ai/variations", { concurrency: 1 }, () => {
         },
       });
 
-      assert.strictEqual(response.statusCode, 200);
+      expect(response.statusCode).toBe(200);
     }
   });
 
@@ -183,7 +182,7 @@ describe("aiRoutes - POST /ai/variations", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject count greater than 10", async () => {
@@ -197,7 +196,7 @@ describe("aiRoutes - POST /ai/variations", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject invalid variation type", async () => {
@@ -211,7 +210,7 @@ describe("aiRoutes - POST /ai/variations", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 
   it("should reject non-integer count", async () => {
@@ -225,6 +224,6 @@ describe("aiRoutes - POST /ai/variations", { concurrency: 1 }, () => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 400);
+    expect(response.statusCode).toBe(400);
   });
 });
