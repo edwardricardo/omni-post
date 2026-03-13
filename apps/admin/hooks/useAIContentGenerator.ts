@@ -9,6 +9,36 @@ import { useState, useEffect, useCallback } from "react";
 import type { ContentTemplate, GeneratedContent, GenerationSettings } from "../types/ai-content";
 import { DEFAULT_CONTENT_TEMPLATES } from "../components/ai/ai-content-templates";
 import { useAIContentGeneration } from "./api/useAIContentGeneration";
+import { useAIPromptTemplates, type AIPromptTemplateDto } from "./api/useAIPromptTemplates";
+
+/** Maps an API AIPromptTemplateDto to the legacy ContentTemplate shape. */
+function mapApiTemplate(dto: AIPromptTemplateDto): ContentTemplate {
+  return {
+    id: dto.id,
+    name: dto.name,
+    description: dto.category,
+    category: dto.category,
+    platforms: dto.platforms,
+    variables: dto.variables.map((v) => ({
+      name: v.name,
+      type:
+        v.type === "url"
+          ? "url"
+          : v.type === "date"
+            ? "date"
+            : v.type === "select"
+              ? "select"
+              : "text",
+      label: v.label,
+      placeholder: v.placeholder,
+      required: v.required,
+      ...(v.options !== undefined && { options: v.options }),
+    })),
+    template: dto.prompt,
+    tone: dto.tone,
+    estimatedEngagement: 75,
+  };
+}
 
 export type ActiveTab = "templates" | "generate" | "results";
 
@@ -63,12 +93,19 @@ export function useAIContentGenerator({
   // AI content generation via backend API (with client-side fallback)
   const aiMutation = useAIContentGeneration();
 
+  // Load templates from API; fall back to hardcoded list while loading or on error
+  const { data: apiTemplates } = useAIPromptTemplates();
+
   useEffect(() => {
-    setTemplates(DEFAULT_CONTENT_TEMPLATES);
+    if (apiTemplates && apiTemplates.length > 0) {
+      setTemplates(apiTemplates.map(mapApiTemplate));
+    } else {
+      setTemplates(DEFAULT_CONTENT_TEMPLATES);
+    }
     if (selectedTemplate) {
       setSelectedTemplateId(selectedTemplate);
     }
-  }, [selectedTemplate]);
+  }, [selectedTemplate, apiTemplates]);
 
   const selectedTemplateObj = templates.find((t) => t.id === selectedTemplateId);
 

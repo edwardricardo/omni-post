@@ -69,6 +69,7 @@ export class YouTubeAdapter extends AbstractProviderAdapter<YouTubeCredentials> 
     comments: true,
     replies: true,
     threading: false,
+    communityPosts: false,
   };
 
   protected readonly requiredCredentialFields: (keyof YouTubeCredentials)[] = [
@@ -267,20 +268,16 @@ export class YouTubeAdapter extends AbstractProviderAdapter<YouTubeCredentials> 
 
   /**
    * Publish YouTube Community Post
-   */
-  /**
-   * YouTube Community Tab API has extremely limited access and is not
-   * available through the standard YouTube Data API v3. This feature
-   * requires special partner-level permissions that are not generally
-   * granted. Returns a clear FEATURE_NOT_AVAILABLE error instead of
-   * faking a successful publish.
+   * @deprecated OUT OF SCOPE: YouTube Community Tab API requires YouTube Partner Program.
+   * Not available via standard Data API v3. See capabilities.communityPosts = false.
    */
   private async publishCommunityPost(
     _apiClient: YouTubeApiClient,
     _post: RenderedPost
   ): Promise<Result<PublishReceipt, PublishError>> {
-    // YouTube Community Tab API requires partner-level access not available
-    // through the standard YouTube Data API v3. Return VALIDATION error.
+    // OUT OF SCOPE: YouTube Community Tab API requires YouTube Partner Program.
+    // Not available via standard Data API v3. Callers should check
+    // capabilities.communityPosts before attempting to publish community posts.
     return err("VALIDATION");
   }
 

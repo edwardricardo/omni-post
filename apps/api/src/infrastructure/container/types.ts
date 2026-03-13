@@ -260,6 +260,24 @@ export const TOKENS = {
   ListRecurringPostsQuery_Recurring: Symbol.for("ListRecurringPostsQuery_Recurring"),
   GetRecurringPostQuery: Symbol.for("GetRecurringPostQuery"),
   ProcessRecurrenceUseCase: Symbol.for("ProcessRecurrenceUseCase"),
+
+  // AI Prompt Templates (Task 11.3)
+  AIPromptTemplateRepository: Symbol.for("AIPromptTemplateRepository"),
+  ListAIPromptTemplatesQuery: Symbol.for("ListAIPromptTemplatesQuery"),
+  CreateAIPromptTemplateUseCase: Symbol.for("CreateAIPromptTemplateUseCase"),
+  UpdateAIPromptTemplateUseCase: Symbol.for("UpdateAIPromptTemplateUseCase"),
+  DeleteAIPromptTemplateUseCase: Symbol.for("DeleteAIPromptTemplateUseCase"),
+
+  // Usage Metering (Task 11.5)
+  UsageMetricRepository: Symbol.for("UsageMetricRepository"),
+  IncrementUsageUseCase: Symbol.for("IncrementUsageUseCase"),
+  GetUsageUseCase: Symbol.for("GetUsageUseCase"),
+
+  // Brand Voice Profiles (Task 11.7)
+  BrandVoiceRepository: Symbol.for("BrandVoiceRepository"),
+  GetBrandVoiceQuery: Symbol.for("GetBrandVoiceQuery"),
+  UpsertBrandVoiceUseCase: Symbol.for("UpsertBrandVoiceUseCase"),
+  DeleteBrandVoiceUseCase: Symbol.for("DeleteBrandVoiceUseCase"),
 } as const;
 
 /**

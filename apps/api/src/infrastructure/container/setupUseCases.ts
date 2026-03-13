@@ -17,6 +17,9 @@ import { setupFirstCommentUseCases } from "./setupFirstCommentUseCases.js";
 import { setupExternalNotificationUseCases } from "./setupExternalNotificationUseCases.js";
 import { setupAIImageUseCases } from "./setupAIImageUseCases.js";
 import { setupRecurringPostUseCases } from "./setupRecurringPostUseCases.js";
+import { setupAIPromptTemplateUseCases } from "./setupAIPromptTemplateUseCases.js";
+import { setupUsageUseCases } from "./setupUsageUseCases.js";
+import { setupBrandVoiceUseCases } from "./setupBrandVoiceUseCases.js";
 
 /**
  * @method setupUseCases
@@ -35,4 +38,7 @@ export function setupUseCases(container: Container): void {
   setupExternalNotificationUseCases(container);
   setupAIImageUseCases(container);
   setupRecurringPostUseCases(container);
+  setupAIPromptTemplateUseCases(container);
+  setupUsageUseCases(container);
+  setupBrandVoiceUseCases(container);
 }

@@ -61,6 +61,10 @@ export interface DashboardFilters {
   contentTypes: string[];
   status: string[];
   priority: string[];
+  /** Filter by campaign ID — empty string means no filter */
+  campaignId: string;
+  /** Filter by assignee (team member) ID — empty string means no filter */
+  assigneeId: string;
 }
 
 // ---------------------------------------------------------------------------

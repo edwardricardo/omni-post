@@ -5,6 +5,7 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { AIService } from "./aiService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
+import type { GetBrandVoiceQuery } from "../application/brand-voice/GetBrandVoiceQuery.js";
 
 // ============================================================================
 // Zod Validation Schemas
@@ -28,6 +29,7 @@ const GenerateContentBodySchema = z.object({
   messages: z.array(MessageSchema).min(1, { message: "Messages array cannot be empty" }),
   options: GenerateOptionsSchema,
   provider: z.string().optional(),
+  accountId: z.string().uuid().optional(),
 });
 
 const AnalysisTypeSchema = z.enum(["sentiment", "tone", "readability", "engagement"]);
@@ -43,6 +45,7 @@ const OptimizeContentBodySchema = z.object({
   platform: z.string().min(1),
   brandVoice: z.string().optional(),
   provider: z.string().optional(),
+  accountId: z.string().uuid().optional(),
 });
 
 const PredictPerformanceBodySchema = z.object({
@@ -69,6 +72,7 @@ const SmartAnalysisBodySchema = z.object({
   includePrediction: z.boolean().optional().default(true),
   includeVariations: z.boolean().optional().default(false),
   variationCount: z.number().int().min(1).max(10).optional().default(3),
+  accountId: z.string().uuid().optional(),
 });
 
 // ============================================================================
@@ -78,8 +82,26 @@ const SmartAnalysisBodySchema = z.object({
 class AiRouteHandler extends BaseRouteHandler {
   protected routeName = "ai";
 
-  constructor(private readonly aiService: AIService) {
+  constructor(
+    private readonly aiService: AIService,
+    private readonly getBrandVoiceQuery?: GetBrandVoiceQuery
+  ) {
     super();
+  }
+
+  /**
+   * Resolves the active brand voice system prompt for the given account.
+   * Returns undefined when no brand voice is configured or accountId is absent.
+   */
+  private async resolveBrandVoicePrompt(accountId?: string): Promise<string | undefined> {
+    if (!accountId || !this.getBrandVoiceQuery) {
+      return undefined;
+    }
+    const result = await this.getBrandVoiceQuery.execute({ accountId });
+    if (!result.ok || !result.value || !result.value.isActive) {
+      return undefined;
+    }
+    return result.value.systemPrompt;
   }
 
   /**
@@ -110,8 +132,13 @@ class AiRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 400, "Messages array is required");
       }
 
-      const { messages, options } = validation.value;
-      const result = await this.aiService.generateContent(messages, options);
+      const { messages, options, accountId } = validation.value;
+      const brandVoicePrompt = await this.resolveBrandVoicePrompt(accountId);
+      const effectiveMessages =
+        brandVoicePrompt && !messages.some((m) => m.role === "system")
+          ? [{ role: "system", content: brandVoicePrompt }, ...messages]
+          : messages;
+      const result = await this.aiService.generateContent(effectiveMessages, options);
 
       this.sendSuccess(ctx, result, 200);
     } catch (error: unknown) {
@@ -154,8 +181,9 @@ class AiRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 400, "Content and platform are required");
       }
 
-      const { content, platform, brandVoice } = validation.value;
-      const result = await this.aiService.optimizeContent(content, platform, brandVoice);
+      const { content, platform, brandVoice, accountId } = validation.value;
+      const effectiveBrandVoice = brandVoice ?? (await this.resolveBrandVoicePrompt(accountId));
+      const result = await this.aiService.optimizeContent(content, platform, effectiveBrandVoice);
 
       this.sendSuccess(ctx, result, 200);
     } catch (error: unknown) {
@@ -230,7 +258,12 @@ class AiRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 400, "Content is required");
       }
 
-      const results = await this.aiService.smartAnalysis(validation.value);
+      const { accountId, ...analysisParams } = validation.value;
+      const brandVoicePrompt = await this.resolveBrandVoicePrompt(accountId);
+      const effectiveParams = brandVoicePrompt
+        ? { ...analysisParams, brandVoice: analysisParams.brandVoice ?? brandVoicePrompt }
+        : analysisParams;
+      const results = await this.aiService.smartAnalysis(effectiveParams);
 
       this.sendSuccess(
         ctx,
@@ -299,7 +332,10 @@ export {
 
 const aiRoutes: FastifyPluginAsync = async (fastify) => {
   const aiService = fastify.container!.resolve<AIService>(TOKENS.AIService);
-  const handler = new AiRouteHandler(aiService);
+  const getBrandVoiceQuery = fastify.container!.resolve<GetBrandVoiceQuery>(
+    TOKENS.GetBrandVoiceQuery
+  );
+  const handler = new AiRouteHandler(aiService, getBrandVoiceQuery);
 
   // Health check removed - use main /health endpoint instead
 

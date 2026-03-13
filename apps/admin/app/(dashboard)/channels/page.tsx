@@ -63,6 +63,10 @@ function ChannelsPageContent() {
   const [selectedChannels, setSelectedChannels] = useState<Set<string>>(new Set());
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [blueskyHandle, setBlueskyHandle] = useState("");
+  const [blueskyAppPassword, setBlueskyAppPassword] = useState("");
+  const [blueskyConnecting, setBlueskyConnecting] = useState(false);
+  const [blueskyError, setBlueskyError] = useState<string | null>(null);
 
   const isLoading = channelsLoading || providersLoading;
   const error = channelsError || providersError;
@@ -79,7 +83,40 @@ function ChannelsPageContent() {
 
   const handleConnectProvider = (provider: Provider) => {
     setSelectedProvider(provider);
+    setBlueskyHandle("");
+    setBlueskyAppPassword("");
+    setBlueskyError(null);
     setShowConnectModal(true);
+  };
+
+  const handleBlueskyConnect = async () => {
+    if (!blueskyHandle.trim() || !blueskyAppPassword.trim()) {
+      setBlueskyError("Handle y App Password son obligatorios.");
+      return;
+    }
+    setBlueskyConnecting(true);
+    setBlueskyError(null);
+    try {
+      const response = await fetch("/api/backend/channels/bluesky/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier: blueskyHandle.trim(),
+          appPassword: blueskyAppPassword.trim(),
+        }),
+      });
+      const data = (await response.json()) as { ok?: boolean; error?: string };
+      if (!response.ok || !data.ok) {
+        setBlueskyError(data.error ?? "Handle o App Password inválido.");
+        return;
+      }
+      setShowConnectModal(false);
+      refetchChannels();
+    } catch {
+      setBlueskyError("Error de conexión. Intenta de nuevo.");
+    } finally {
+      setBlueskyConnecting(false);
+    }
   };
 
   const handleDisconnectChannel = async (channelId: string) => {
@@ -536,6 +573,48 @@ function ChannelsPageContent() {
                   </div>
                 )}
 
+                {selectedProvider.id === "bluesky" && (
+                  <div className="space-y-4">
+                    <div className="bg-sky-50 border border-sky-200 rounded-lg p-4">
+                      <p className="text-sm text-sky-800 font-medium">App Password requerido</p>
+                      <p className="text-xs text-sky-700 mt-1">
+                        Bluesky usa App Passwords en lugar de OAuth. Genera una en{" "}
+                        <a
+                          href="https://bsky.app/settings/app-passwords"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline font-medium"
+                        >
+                          bsky.app/settings/app-passwords →
+                        </a>
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Handle</label>
+                      <input
+                        type="text"
+                        value={blueskyHandle}
+                        onChange={(e) => setBlueskyHandle(e.target.value)}
+                        placeholder="tuusuario.bsky.social"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        App Password
+                      </label>
+                      <input
+                        type="password"
+                        value={blueskyAppPassword}
+                        onChange={(e) => setBlueskyAppPassword(e.target.value)}
+                        placeholder="xxxx-xxxx-xxxx-xxxx"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+                    {blueskyError && <p className="text-sm text-red-600">{blueskyError}</p>}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-gray-700">Required Permissions:</h3>
                   <ul className="text-xs text-gray-600 space-y-1">
@@ -566,16 +645,27 @@ function ChannelsPageContent() {
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={() => {
-                    // OAuth flow not yet implemented — requires redirect to provider OAuth URL
-                    setShowConnectModal(false);
-                  }}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  aria-label={`Connect ${selectedProvider.displayName} account`}
-                >
-                  Connect Account
-                </button>
+                {selectedProvider.id === "bluesky" ? (
+                  <button
+                    onClick={handleBlueskyConnect}
+                    disabled={blueskyConnecting}
+                    className="flex-1 px-4 py-2 bg-sky-600 text-white rounded-sm hover:bg-sky-700 disabled:opacity-50 focus:outline-hidden focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+                    aria-label="Conectar cuenta de Bluesky"
+                  >
+                    {blueskyConnecting ? "Conectando..." : "Conectar Bluesky"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      // OAuth flow not yet implemented — requires redirect to provider OAuth URL
+                      setShowConnectModal(false);
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    aria-label={`Connect ${selectedProvider.displayName} account`}
+                  >
+                    Connect Account
+                  </button>
+                )}
               </div>
             </div>
           </div>

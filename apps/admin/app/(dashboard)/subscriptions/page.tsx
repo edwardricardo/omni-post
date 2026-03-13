@@ -6,8 +6,10 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSubscriptions } from "@/hooks/api/useSubscriptions";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { UsageMetricsPanel } from "@/components/settings/UsageMetricsPanel";
 
 interface SubscriptionAccount {
   id: string;
@@ -42,6 +44,10 @@ interface TrialAccount {
 function SubscriptionsPageContent() {
   // Use TanStack Query hook for data fetching
   const { data: subscriptionData, isLoading, error, refetch } = useSubscriptions();
+  const searchParams = useSearchParams();
+  // accountId for UsageMetricsPanel comes from ?accountId= query param,
+  // set when the admin clicks "View Usage" on a specific account row.
+  const selectedAccountId = searchParams.get("accountId");
 
   const [activeTab, setActiveTab] = useState<"subscriptions" | "trials" | "billing">(
     "subscriptions"
@@ -167,6 +173,21 @@ function SubscriptionsPageContent() {
             </button>
           </div>
         </div>
+
+        {/* Usage Metering — shown only when an account is selected via ?accountId= */}
+        {selectedAccountId ? (
+          <div className="mb-8">
+            <UsageMetricsPanel accountId={selectedAccountId} />
+          </div>
+        ) : (
+          <div className="mb-8 bg-gray-50 border border-dashed border-gray-300 rounded-lg p-4 text-sm text-gray-500 text-center">
+            Select an account to view usage metrics. Append{" "}
+            <code className="font-mono text-xs bg-gray-100 px-1 rounded">
+              ?accountId=&lt;uuid&gt;
+            </code>{" "}
+            to the URL or add a &quot;View Usage&quot; link on the account row.
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div

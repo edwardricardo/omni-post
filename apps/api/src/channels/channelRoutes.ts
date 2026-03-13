@@ -27,6 +27,8 @@ import type { ChannelRepository } from "../domain/repositories/ChannelRepository
 import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
 import { authenticateMiddleware, requireSuperAdmin } from "../auth/authMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
+import type { PrismaClient } from "@infra/prisma";
+import { BlueskyClient } from "@providers/bluesky";
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,16 @@ type ChannelParamsType = z.infer<typeof ChannelParams>;
 
 const ProjectParams = z.object({ projectId: IdSchema });
 type ProjectParamsType = z.infer<typeof ProjectParams>;
+
+const BlueskyConnectBody = z.object({
+  projectId: IdSchema,
+  identifier: z.string().min(1).max(256),
+  appPassword: z.string().regex(/^[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/, {
+    message: "App Password must be in format xxxx-xxxx-xxxx-xxxx",
+  }),
+});
+
+type BlueskyConnectBodyType = z.infer<typeof BlueskyConnectBody>;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -85,7 +97,8 @@ class ChannelRouteHandler extends BaseRouteHandler {
 
   constructor(
     private readonly channelRepo: ChannelRepository,
-    private readonly projectRepo: ProjectRepositoryPort
+    private readonly projectRepo: ProjectRepositoryPort,
+    private readonly prismaClient: PrismaClient
   ) {
     super();
   }
@@ -262,6 +275,75 @@ class ChannelRouteHandler extends BaseRouteHandler {
   }
 
   /**
+   * POST /channels/bluesky/connect
+   * Connect a Bluesky account using App Password authentication.
+   * Validates credentials immediately by calling AtpAgent.login(), then stores
+   * the identifier + appPassword as the channel credentials JSON so the worker
+   * can re-authenticate on each publish.
+   */
+  async connectBluesky(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    this.logInfo(ctx, "Connecting Bluesky account");
+
+    const bodyResult = await this.validateBody<BlueskyConnectBodyType>(ctx, BlueskyConnectBody);
+    if (!bodyResult.ok) return this.sendError(ctx, 400, "Validation failed");
+
+    const { projectId, identifier, appPassword } = bodyResult.value;
+
+    // Verify project exists
+    const projectResult = await this.projectRepo.findById(ProjectId.fromStringUnsafe(projectId));
+    if (!projectResult.ok) {
+      return this.sendError(ctx, 404, "Project not found");
+    }
+
+    // Validate Bluesky credentials immediately
+    const client = new BlueskyClient({ identifier, appPassword });
+    const loginResult = await client.login();
+    if (!loginResult.ok) {
+      return this.sendError(ctx, 401, "Invalid Bluesky handle or App Password");
+    }
+
+    const { handle } = loginResult.value;
+
+    // Store channel with raw Bluesky credentials in the JSON field.
+    // We bypass the domain Channel entity here because ChannelCredentials.accessToken
+    // is designed for OAuth tokens, but Bluesky uses identifier + appPassword.
+    // The AbstractProviderAdapter.getCredentialsFromDatabase() reads raw JSON from Prisma
+    // and casts directly to BlueskyCredentials, so this shape is correct for the adapter.
+    try {
+      const existing = await this.prismaClient.channel.findFirst({
+        where: { projectId, provider: "BLUESKY", handle, deletedAt: null },
+        select: { id: true },
+      });
+
+      const channelId = existing?.id ?? ChannelId.generate().value;
+
+      await this.prismaClient.channel.upsert({
+        where: { id: channelId },
+        create: {
+          id: channelId,
+          projectId,
+          provider: "BLUESKY",
+          handle,
+          credentials: { identifier, appPassword },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        update: {
+          credentials: { identifier, appPassword },
+          updatedAt: new Date(),
+        },
+      });
+
+      this.logInfo(ctx, "Bluesky channel connected", { channelId, handle });
+      return this.sendSuccess(ctx, { channelId, handle, provider: "BLUESKY" }, 201);
+    } catch (error: unknown) {
+      this.logError(ctx, "Failed to save Bluesky channel", { error });
+      return this.sendError(ctx, 500, "Failed to connect Bluesky account");
+    }
+  }
+
+  /**
    * DELETE /channels/:channelId/hard
    * Hard-delete a channel and ALL cascade data permanently (irreversible).
    * SUPER_ADMIN only. Cascades to publishLogs, analytics.
@@ -305,10 +387,12 @@ export const channelRoutes: FastifyPluginAsync = async (fastify) => {
 
   const channelRepo = container.resolve<ChannelRepository>(TOKENS.ChannelRepository);
   const projectRepo = container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository);
+  const prismaClient = container.resolve<PrismaClient>(TOKENS.PrismaClient);
 
-  const handler = new ChannelRouteHandler(channelRepo, projectRepo);
+  const handler = new ChannelRouteHandler(channelRepo, projectRepo, prismaClient);
 
   fastify.post("/channels", (req, reply) => handler.createChannel(req, reply));
+  fastify.post("/channels/bluesky/connect", (req, reply) => handler.connectBluesky(req, reply));
   fastify.get("/channels/:channelId", (req, reply) => handler.getChannel(req, reply));
   fastify.get("/projects/:projectId/channels", (req, reply) =>
     handler.listChannelsByProject(req, reply)

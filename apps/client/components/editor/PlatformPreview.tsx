@@ -238,6 +238,226 @@ export function PlatformPreview({
     </div>
   );
 
+  const renderFacebookPreview = () => {
+    const preview = content.length > 400 ? content.slice(0, 400) : content;
+    const hasMore = content.length > 400;
+    return (
+      <div className="bg-white border rounded-lg max-w-lg mx-auto">
+        <div className="p-3 flex items-center space-x-2">
+          <Avatar className="w-10 h-10">
+            <AvatarImage src={userInfo.avatar} />
+            <AvatarFallback>{userInfo.name[0]}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-semibold text-sm text-gray-900">{userInfo.name}</p>
+            <p className="text-xs text-gray-500">Just now · 🌐</p>
+          </div>
+          <Button variant="ghost" size="sm" className="ml-auto">
+            <MoreHorizontal className="w-4 h-4" />
+          </Button>
+        </div>
+        <div className="px-3 pb-2">
+          <p className="text-sm text-gray-900 whitespace-pre-wrap">
+            {preview}
+            {hasMore && <span className="text-blue-600 cursor-pointer"> See more</span>}
+          </p>
+        </div>
+        {mediaFiles.length > 0 && mediaFiles[0] && (
+          <div className="bg-gray-100">
+            <img
+              src={URL.createObjectURL(mediaFiles[0])}
+              alt=""
+              className="w-full object-cover max-h-80"
+            />
+          </div>
+        )}
+        <div className="px-3 py-2 border-t flex items-center justify-around text-gray-500 text-sm">
+          <Button variant="ghost" size="sm" className="flex items-center gap-1">
+            <span>👍</span>
+            <span>Like</span>
+          </Button>
+          <Button variant="ghost" size="sm" className="flex items-center gap-1">
+            <MessageCircle className="w-4 h-4" />
+            <span>Comment</span>
+          </Button>
+          <Button variant="ghost" size="sm" className="flex items-center gap-1">
+            <Share className="w-4 h-4" />
+            <span>Share</span>
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTikTokPreview = () => {
+    const caption = content.length > 150 ? content.slice(0, 150) + "..." : content;
+    const hashtags: string[] = caption.match(/#\w+/g) ?? [];
+    const captionWithHighlights = caption.split(/(#\w+)/g).map((part, i) =>
+      hashtags.includes(part) ? (
+        <span key={i} className="text-cyan-400">
+          {part}
+        </span>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
+    return (
+      <div
+        className="relative bg-gray-900 rounded-xl mx-auto overflow-hidden"
+        style={{ width: 280, height: 497 }}
+      >
+        {mediaFiles.length > 0 && mediaFiles[0] ? (
+          <img
+            src={URL.createObjectURL(mediaFiles[0])}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-600 text-sm">
+            <span>9:16 Video</span>
+          </div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+          <p className="text-white text-sm font-medium mb-1">@{userInfo.username}</p>
+          <p className="text-white text-sm leading-snug">{captionWithHighlights}</p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderYouTubePreview = () => {
+    const title = content.length > 70 ? content.slice(0, 70) : content;
+    const description = content.slice(0, 200);
+    return (
+      <div className="bg-white border rounded-lg max-w-lg mx-auto overflow-hidden">
+        <div className="relative bg-black aspect-video flex items-center justify-center">
+          {mediaFiles.length > 0 && mediaFiles[0] ? (
+            <img
+              src={URL.createObjectURL(mediaFiles[0])}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="text-white text-5xl">▶</div>
+          )}
+        </div>
+        <div className="p-3">
+          <p className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">{title}</p>
+          <div className="flex items-center gap-2 mt-2">
+            <Avatar className="w-8 h-8">
+              <AvatarImage src={userInfo.avatar} />
+              <AvatarFallback>{userInfo.name[0]}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="text-xs font-medium text-gray-800">{userInfo.name}</p>
+              <p className="text-xs text-gray-500">0 views · Just now</p>
+            </div>
+          </div>
+          {content.length > 0 && (
+            <p className="mt-2 text-xs text-gray-600 line-clamp-3">{description}</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderSnapchatPreview = () => {
+    const SNAPCHAT_LIMIT = 80;
+    const tooLong = content.length > SNAPCHAT_LIMIT;
+    return (
+      <div
+        className="relative bg-gray-900 rounded-xl mx-auto overflow-hidden"
+        style={{ width: 280, height: 497 }}
+      >
+        {mediaFiles.length > 0 && mediaFiles[0] ? (
+          <img
+            src={URL.createObjectURL(mediaFiles[0])}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-300" />
+        )}
+        <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+          <Avatar className="w-8 h-8 border-2 border-white">
+            <AvatarFallback>{userInfo.name[0]}</AvatarFallback>
+          </Avatar>
+          <span className="text-white text-xs font-medium">⏱ 10s</span>
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center px-6">
+          <p className="text-white text-xl font-bold text-center drop-shadow-lg">
+            {content.slice(0, SNAPCHAT_LIMIT)}
+          </p>
+        </div>
+        {tooLong && (
+          <div className="absolute bottom-4 left-4 right-4 bg-yellow-400/90 rounded-md p-2">
+            <p className="text-xs text-gray-900 font-medium text-center">
+              ⚠ Caption exceeds 80 characters ({content.length - SNAPCHAT_LIMIT} over limit)
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPinterestPreview = () => {
+    const pinDescription = content.length > 200 ? content.slice(0, 200) + "..." : content;
+    return (
+      <div className="bg-white rounded-xl max-w-xs mx-auto overflow-hidden shadow-md">
+        <div className="bg-gray-100 relative" style={{ aspectRatio: "2/3" }}>
+          {mediaFiles.length > 0 && mediaFiles[0] ? (
+            <img
+              src={URL.createObjectURL(mediaFiles[0])}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+              2:3 image
+            </div>
+          )}
+          <button className="absolute top-3 right-3 bg-red-600 text-white text-sm font-semibold rounded-full px-3 py-1">
+            Save
+          </button>
+        </div>
+        <div className="p-3">
+          <p className="font-semibold text-sm text-gray-900 truncate">{userInfo.name}</p>
+          <p className="text-sm text-gray-700 mt-1 line-clamp-3">{pinDescription}</p>
+          <p className="text-xs text-gray-400 mt-2">{userInfo.username} · Board</p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTelegramPreview = () => {
+    const MAX_CAPTION = 1024;
+    const body = content.length > MAX_CAPTION ? content.slice(0, MAX_CAPTION) + "..." : content;
+    return (
+      <div className="bg-gray-100 rounded-xl max-w-sm mx-auto p-4 space-y-2">
+        <div className="flex items-center gap-2 mb-3">
+          <Avatar className="w-9 h-9">
+            <AvatarImage src={userInfo.avatar} />
+            <AvatarFallback>{userInfo.name[0]}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-semibold text-blue-600">{userInfo.name}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl rounded-tl-none px-4 py-3 shadow-sm max-w-xs">
+          {mediaFiles.length > 0 && mediaFiles[0] && (
+            <img
+              src={URL.createObjectURL(mediaFiles[0])}
+              alt=""
+              className="w-full rounded-lg mb-2 object-cover max-h-48"
+            />
+          )}
+          <p className="text-sm text-gray-900 whitespace-pre-wrap">{body}</p>
+          <p className="text-right text-xs text-gray-400 mt-1">now ✓✓</p>
+        </div>
+      </div>
+    );
+  };
+
   const renderLinkedInPreview = () => (
     <div className="bg-white border rounded-lg max-w-lg mx-auto">
       <div className="p-4">
@@ -303,6 +523,18 @@ export function PlatformPreview({
         return renderTwitterPreview();
       case "instagram":
         return renderInstagramPreview();
+      case "facebook":
+        return renderFacebookPreview();
+      case "tiktok":
+        return renderTikTokPreview();
+      case "youtube":
+        return renderYouTubePreview();
+      case "snapchat":
+        return renderSnapchatPreview();
+      case "pinterest":
+        return renderPinterestPreview();
+      case "telegram":
+        return renderTelegramPreview();
       case "linkedin":
         return renderLinkedInPreview();
       default:

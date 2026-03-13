@@ -7,6 +7,7 @@
  */
 
 import React, { useState } from "react";
+import { CSVBulkUpload } from "@/components/scheduling/CSVBulkUpload";
 
 interface BulkScheduleViewProps {
   onBulkSchedule: (
@@ -16,9 +17,11 @@ interface BulkScheduleViewProps {
     frequency: "daily" | "weekly" | "monthly",
     interval: number
   ) => void;
+  projectId?: string;
+  timezone?: string;
 }
 
-export function BulkScheduleView({ onBulkSchedule }: BulkScheduleViewProps) {
+export function BulkScheduleView({ onBulkSchedule, projectId, timezone }: BulkScheduleViewProps) {
   const [contentText, setContentText] = useState("");
   const [selectedProviders, setSelectedProviders] = useState<string[]>([]);
   const [startDate, setStartDate] = useState("");
@@ -206,6 +209,13 @@ export function BulkScheduleView({ onBulkSchedule }: BulkScheduleViewProps) {
           </div>
         </div>
       </div>
+
+      {/* CSV Bulk Upload */}
+      {projectId !== undefined && (
+        <div className="bg-white rounded-lg border p-6">
+          <CSVBulkUpload projectId={projectId} {...(timezone !== undefined && { timezone })} />
+        </div>
+      )}
 
       {/* Templates */}
       <div className="bg-white rounded-lg border p-6">

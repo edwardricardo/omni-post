@@ -24,6 +24,7 @@
     "@providers/telegram": "workspace:*",
     "@providers/pinterest": "workspace:*",
     "@providers/linkedin": "workspace:*",
+    "@providers/bluesky": "workspace:*",
     "@observability/opentelemetry": "workspace:*",
     "@shared/types": "workspace:*",
     "bullmq": "5.58.9",

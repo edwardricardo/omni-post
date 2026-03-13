@@ -10,7 +10,8 @@ export type Provider =
   | "SNAPCHAT"
   | "TELEGRAM"
   | "PINTEREST"
-  | "LINKEDIN";
+  | "LINKEDIN"
+  | "BLUESKY";
 export type PrismaSubscriptionTier = "BASIC" | "PRO" | "ENTERPRISE";
 export type PrismaThreadStrategy = "SEQUENTIAL" | "INSTANT" | "BATCH";
 export type PrismaTweetStatus = "PENDING" | "PUBLISHED" | "FAILED";
@@ -24,7 +25,8 @@ type AppProvider =
   | "snapchat"
   | "telegram"
   | "pinterest"
-  | "linkedin";
+  | "linkedin"
+  | "bluesky";
 
 /**
  * Maps database Provider enum to application provider string

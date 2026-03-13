@@ -86,6 +86,9 @@ import { firstCommentRoutes } from "./first-comment/firstCommentRoutes.js";
 import { externalNotificationRoutes } from "./external-notifications/externalNotificationRoutes.js";
 import { aiImageRoutes } from "./ai-image/aiImageRoutes.js";
 import { recurringPostRoutes } from "./recurring/recurringPostRoutes.js";
+import { promptTemplateRoutes } from "./ai/promptTemplateRoutes.js";
+import { usageRoutes } from "./usage/usageRoutes.js";
+import { brandVoiceRoutes } from "./brand-voice/brandVoiceRoutes.js";
 
 // Phase 3 imports
 import { DatabaseOptimizer } from "./utils/dbOptimization.js";
@@ -413,6 +416,9 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(externalNotificationRoutes);
   await typedApp.register(aiImageRoutes);
   await typedApp.register(recurringPostRoutes);
+  await typedApp.register(promptTemplateRoutes);
+  await typedApp.register(usageRoutes);
+  await typedApp.register(brandVoiceRoutes);
 
   // Register provider routes
   const { providerRoutes } = await import("./providers/providerRoutes.js");

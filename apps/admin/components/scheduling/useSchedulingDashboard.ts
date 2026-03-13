@@ -169,6 +169,8 @@ export function useSchedulingDashboard({
     contentTypes: [],
     status: [],
     priority: [],
+    campaignId: "",
+    assigneeId: "",
   });
 
   // -----------------------------------------------------------------------
@@ -181,6 +183,8 @@ export function useSchedulingDashboard({
   } = useScheduledPosts({
     ...(projectId !== undefined && { projectId }),
     ...(accountId !== undefined && { accountId }),
+    ...(filters.campaignId !== "" && { campaignId: filters.campaignId }),
+    ...(filters.assigneeId !== "" && { assigneeId: filters.assigneeId }),
   });
 
   // Report fetch errors to the parent via effect to avoid render-loop

@@ -24,6 +24,11 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "mutation": {
+      "dependsOn": ["^build", "test"],
+      "outputs": ["reports/mutation/**", "reports/stryker-incremental.json"],
+      "cache": true
     }
   }
 }

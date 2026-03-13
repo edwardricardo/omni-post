@@ -162,6 +162,9 @@ export {
   type GeneratedImageData,
 } from "./GeneratedImageRepository.js";
 
+// UsageMetric repository port (Task 11.5: Usage Metering)
+export { type UsageMetricRepository, type UsageMetricData } from "./UsageMetricRepository.js";
+
 // Plain domain DTOs — Prisma-free type mirrors for read-model ports
 export {
   type ProviderKind,

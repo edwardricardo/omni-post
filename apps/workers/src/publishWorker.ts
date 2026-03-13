@@ -17,6 +17,7 @@ import { snapchatAdapter } from "@providers/snapchat";
 import { telegramAdapter } from "@providers/telegram";
 import { pinterestAdapter } from "@providers/pinterest";
 import { linkedInAdapter } from "@providers/linkedin";
+import { blueskyAdapter } from "@providers/bluesky";
 import { createBullMQConsumerAdapter } from "@adapters/queue-bullmq";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import client from "prom-client";
@@ -49,6 +50,7 @@ const providerRegistry: Record<string, PublishProvider> = {
   telegram: telegramAdapter,
   pinterest: pinterestAdapter,
   linkedin: linkedInAdapter,
+  bluesky: blueskyAdapter,
 };
 
 // Enhanced Metrics

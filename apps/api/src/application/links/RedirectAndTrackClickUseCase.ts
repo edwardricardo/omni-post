@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { LinkClick, type TrackedLinkRepository } from "../../domain/index.js";
 import { type RedirectInput, type RedirectOutput } from "./types.js";
+import { type GA4TrackingPort } from "../../domain/repositories/GA4TrackingPort.js";
 
 /**
  * Redirect And Track Click Use Case
@@ -18,7 +19,10 @@ import { type RedirectInput, type RedirectOutput } from "./types.js";
 export class RedirectAndTrackClickUseCase
   implements UseCase<RedirectInput, RedirectOutput, UseCaseError>
 {
-  constructor(private readonly repository: TrackedLinkRepository) {}
+  constructor(
+    private readonly repository: TrackedLinkRepository,
+    private readonly ga4?: GA4TrackingPort
+  ) {}
 
   async execute(input: RedirectInput): Promise<Result<RedirectOutput, UseCaseError>> {
     // Find the link by short code
@@ -58,6 +62,17 @@ export class RedirectAndTrackClickUseCase
 
     // Record the click (fire and forget for performance)
     void this.repository.recordClick(link.id, clickResult.value);
+
+    // Fire-and-forget GA4 event — failures must never block the redirect
+    void this.ga4?.trackEvent({
+      name: "link_click",
+      params: {
+        short_code: input.shortCode,
+        original_url: link.originalUrl,
+        ...(input.referrer !== undefined && { referrer: input.referrer }),
+        ...(input.country !== undefined && { country: input.country }),
+      },
+    });
 
     // Return the original URL
     return ok({

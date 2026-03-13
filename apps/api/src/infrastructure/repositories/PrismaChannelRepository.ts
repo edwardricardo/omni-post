@@ -143,7 +143,7 @@ export class PrismaChannelRepository implements ChannelRepository {
         create: {
           id: channel.id.value,
           projectId: channel.projectId.value,
-          provider: channel.provider.type as "X" | "INSTAGRAM" | "FACEBOOK" | "YOUTUBE" | "TIKTOK",
+          provider: channel.provider.type as import("@infra/prisma").Provider,
           handle: channel.handle,
           credentials,
           createdAt: channel.createdAt,

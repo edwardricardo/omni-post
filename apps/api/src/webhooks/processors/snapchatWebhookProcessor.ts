@@ -157,7 +157,7 @@ export class SnapchatWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Finds related OmniPost entities from Snapchat creative data
    */
-  private async findRelatedEntities(payload: SnapchatCreativeStatusPayload): Promise<{
+  private async findRelatedEntities(_payload: SnapchatCreativeStatusPayload): Promise<{
     accountId?: string;
     projectId?: string;
     postId?: string;

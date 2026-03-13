@@ -6,7 +6,7 @@
  * a scrollable list of posts for the selected (or today's) date.
  */
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import type { DashboardScheduledPost, DashboardFilters } from "./schedulingDashboardTypes";
 import {
   getStatusColor,
@@ -15,6 +15,19 @@ import {
   formatTime,
   formatRelativeTime,
 } from "./schedulingDashboardUtils";
+
+// ---------------------------------------------------------------------------
+// Types for campaign and team data
+// ---------------------------------------------------------------------------
+interface CampaignOption {
+  id: string;
+  name: string;
+}
+
+interface TeamMemberOption {
+  id: string;
+  name: string;
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -27,6 +40,8 @@ interface SchedulingDashboardSidebarProps {
   filteredPosts: DashboardScheduledPost[];
   selectedDatePosts: DashboardScheduledPost[];
   onPostClick: (post: DashboardScheduledPost) => void;
+  /** Project ID used to load campaign and assignee filter options */
+  projectId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,7 +55,51 @@ export function SchedulingDashboardSidebar({
   filteredPosts,
   selectedDatePosts,
   onPostClick,
+  projectId,
 }: SchedulingDashboardSidebarProps) {
+  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberOption[]>([]);
+
+  // Load campaign and team options for the filter dropdowns
+  useEffect(() => {
+    if (!projectId) return;
+
+    void fetch(`/api/backend/campaigns?projectId=${projectId}`)
+      .then((r) => r.json() as Promise<{ ok: boolean; data?: CampaignOption[] }>)
+      .then((d) => {
+        if (d.ok && d.data) setCampaigns(d.data);
+      })
+      .catch(() => {
+        /* graceful degradation — filters still usable without options */
+      });
+
+    void fetch(`/api/backend/team?projectId=${projectId}`)
+      .then((r) => r.json() as Promise<{ ok: boolean; data?: { members?: TeamMemberOption[] } }>)
+      .then((d) => {
+        if (d.ok && d.data?.members) setTeamMembers(d.data.members);
+      })
+      .catch(() => {
+        /* graceful degradation */
+      });
+  }, [projectId]);
+
+  const hasActiveFilters =
+    filters.platforms.length > 0 ||
+    filters.contentTypes.length > 0 ||
+    filters.status.length > 0 ||
+    filters.campaignId !== "" ||
+    filters.assigneeId !== "";
+
+  const clearFilters = () => {
+    setFilters({
+      platforms: [],
+      contentTypes: [],
+      status: [],
+      priority: [],
+      campaignId: "",
+      assigneeId: "",
+    });
+  };
   // Determine which posts to show in the sidebar list
   const sidebarPosts = selectedDate
     ? selectedDatePosts
@@ -58,7 +117,17 @@ export function SchedulingDashboardSidebar({
     <div className="w-80 bg-white border-r flex flex-col">
       {/* Filters */}
       <div className="p-4 border-b">
-        <h3 className="font-medium text-gray-900 mb-3">Filters</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-medium text-gray-900">Filters</h3>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
 
         <div className="space-y-4">
           {/* Platform Filter */}
@@ -136,6 +205,52 @@ export function SchedulingDashboardSidebar({
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* Campaign Filter */}
+          <div>
+            <label
+              htmlFor="filter-campaign"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Campaign
+            </label>
+            <select
+              id="filter-campaign"
+              value={filters.campaignId}
+              onChange={(e) => setFilters((prev) => ({ ...prev, campaignId: e.target.value }))}
+              className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All campaigns</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Assignee Filter */}
+          <div>
+            <label
+              htmlFor="filter-assignee"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Assignee
+            </label>
+            <select
+              id="filter-assignee"
+              value={filters.assigneeId}
+              onChange={(e) => setFilters((prev) => ({ ...prev, assigneeId: e.target.value }))}
+              className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All assignees</option>
+              {teamMembers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

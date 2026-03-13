@@ -18,8 +18,8 @@
   ],
   "scripts": {
     "test": "turbo run test",
-    "lint": "turbo run lint",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix --max-warnings 0",
     "format": "prettier -w .",
     "format:check": "prettier -c .",
     "typecheck": "turbo run typecheck",
@@ -60,6 +60,10 @@
   "devDependencies": {
     "@ast-grep/cli": "^0.41.0",
     "@eslint/js": "9.36.0",
+    "@stryker-mutator/core": "9.6.0",
+    "@stryker-mutator/tap-runner": "9.6.0",
+    "@stryker-mutator/typescript-checker": "9.6.0",
+    "@stryker-mutator/vitest-runner": "9.6.0",
     "@types/opossum": "8.1.9",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",

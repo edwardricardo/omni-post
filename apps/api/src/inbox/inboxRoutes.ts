@@ -14,7 +14,6 @@ import { authenticateMiddleware } from "../auth/authMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // Use case / query types (type-only imports)
-import type { IngestSocialMessageUseCase } from "../application/inbox/IngestSocialMessageUseCase.js";
 import type { MarkMessageReadUseCase } from "../application/inbox/MarkMessageReadUseCase.js";
 import type { MarkMessageArchivedUseCase } from "../application/inbox/MarkMessageArchivedUseCase.js";
 import type { AssignMessageUseCase } from "../application/inbox/AssignMessageUseCase.js";

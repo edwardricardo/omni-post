@@ -181,7 +181,9 @@ export abstract class AbstractProviderAdapter<TCredentials extends ProviderCrede
         return err("AUTH");
       }
 
-      const credentials = JSON.parse(String(channel.credentials)) as TCredentials;
+      // channel.credentials is already a parsed object from Prisma (Json field).
+      // Do not double-parse — use it directly.
+      const credentials = channel.credentials as unknown as TCredentials;
       const validationResult = this.validateCredentialStructure(credentials);
 
       if (!validationResult.ok) {

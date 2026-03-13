@@ -29,6 +29,7 @@ import type { SchedulePostUseCase } from "../application/posts/SchedulePostUseCa
 import { USE_CASE_ERRORS } from "../application/UseCase.js";
 import { ProjectId, type ContentLocale, type ProjectRepository } from "../domain/index.js";
 import type { PublishStatusValue } from "../domain/value-objects/PublishStatus.js";
+import type { IncrementUsageUseCase } from "../application/usage/IncrementUsageUseCase.js";
 
 // ---------------------------------------------------------------------------
 // Zod Schemas for Validation with security enhancement
@@ -36,6 +37,8 @@ import type { PublishStatusValue } from "../domain/value-objects/PublishStatus.j
 
 const CreatePostBodySchema = z.object({
   projectId: z.string().uuid(),
+  /** Optional — when provided, usage counter is incremented for this account */
+  accountId: z.string().uuid().optional(),
   locale: z.string().min(2).max(5),
   body: SecureSchemas.postBody,
   title: SecureSchemas.userName.optional(), // userName has max 256 chars built-in
@@ -62,6 +65,17 @@ const UpdatePostBodySchema = z.object({
 const ListPostsQuerySchema = z.object({
   projectId: z.string().uuid().optional(),
   status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"]).optional(),
+  tags: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v
+        ? v
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : undefined
+    ),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -97,7 +111,8 @@ class PostRouteHandler extends BaseRouteHandler {
     private readonly listPostsGlobalQuery: ListPostsGlobalQuery,
     private readonly deletePostUseCase: DeletePostUseCase,
     private readonly schedulePostUseCase: SchedulePostUseCase,
-    private readonly projectRepository: ProjectRepository
+    private readonly projectRepository: ProjectRepository,
+    private readonly incrementUsageUseCase: IncrementUsageUseCase
   ) {
     super();
   }
@@ -181,8 +196,9 @@ class PostRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const { projectId, locale, body, title, tags } = validated.value.body as {
+    const { projectId, accountId, locale, body, title, tags } = validated.value.body as {
       projectId: string;
+      accountId?: string;
       locale: string;
       body: string;
       title?: string;
@@ -215,6 +231,13 @@ class PostRouteHandler extends BaseRouteHandler {
 
       const output = result.value;
       this.logInfo(ctx, "Post created successfully", { postId: output.id });
+
+      // Increment usage counter — best-effort, does not fail the request
+      if (accountId) {
+        void this.incrementUsageUseCase
+          .execute({ accountId, field: "postsPublished" })
+          .catch(() => void 0);
+      }
 
       this.sendSuccess(
         ctx,
@@ -495,7 +518,8 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
     container.resolve<ListPostsGlobalQuery>(TOKENS.ListPostsGlobalQuery),
     container.resolve<DeletePostUseCase>(TOKENS.DeletePostUseCase),
     container.resolve<SchedulePostUseCase>(TOKENS.SchedulePostUseCase),
-    container.resolve<ProjectRepository>(TOKENS.ProjectRepository)
+    container.resolve<ProjectRepository>(TOKENS.ProjectRepository),
+    container.resolve<IncrementUsageUseCase>(TOKENS.IncrementUsageUseCase)
   );
 
   // List posts

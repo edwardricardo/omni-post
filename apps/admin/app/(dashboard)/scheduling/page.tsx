@@ -6,6 +6,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { SchedulingDashboard } from "@/components/scheduling";
 import { MultiPlatformScheduler } from "@/components/scheduling/MultiPlatformSchedulerRefactored";
 import { BulkScheduleView } from "@/components/scheduling/views/BulkScheduleView";
@@ -54,6 +55,16 @@ export default function SchedulingPage() {
             </button>
           ))}
         </nav>
+      </div>
+
+      {/* Recurring posts shortcut */}
+      <div className="border-b border-gray-100 bg-gray-50 px-6 py-2 text-right">
+        <Link
+          href="/scheduling/recurring"
+          className="text-sm font-medium text-blue-600 hover:text-blue-700"
+        >
+          Publicaciones recurrentes →
+        </Link>
       </div>
 
       {/* Tab panels */}

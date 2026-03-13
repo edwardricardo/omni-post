@@ -27,8 +27,6 @@ import { exportToCSV, type ColumnDefinition } from "@packages/api-common";
 
 const QUEUE_NAME = QUEUE_NAMES.REPORT_GENERATION;
 
-type ReportJobType = "check-due-reports" | "generate-report";
-
 interface CheckDueReportsJobData {
   type: "check-due-reports";
 }

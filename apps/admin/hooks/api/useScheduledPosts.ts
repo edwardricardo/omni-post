@@ -9,15 +9,26 @@ import type { ScheduledPost } from "../../types/scheduling";
 interface UseScheduledPostsParams {
   projectId?: string;
   accountId?: string;
+  /** Filter by campaign ID */
+  campaignId?: string;
+  /** Filter by assignee (team member) ID */
+  assigneeId?: string;
 }
 
-export function useScheduledPosts({ projectId, accountId }: UseScheduledPostsParams) {
+export function useScheduledPosts({
+  projectId,
+  accountId,
+  campaignId,
+  assigneeId,
+}: UseScheduledPostsParams) {
   return useQuery({
-    queryKey: ["scheduled-posts", projectId, accountId],
+    queryKey: ["scheduled-posts", projectId, accountId, campaignId, assigneeId],
     queryFn: async (): Promise<ScheduledPost[]> => {
       const params = new URLSearchParams({
         ...(projectId !== undefined && { projectId }),
         ...(accountId !== undefined && { accountId }),
+        ...(campaignId !== undefined && { campaignId }),
+        ...(assigneeId !== undefined && { assigneeId }),
       });
       const response = await fetch(`/api/backend/admin/posts/scheduled?${params}`);
       if (!response.ok) throw new Error("Failed to fetch scheduled posts");

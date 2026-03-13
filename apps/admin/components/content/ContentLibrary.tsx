@@ -7,7 +7,7 @@
  * sections are rendered by dedicated sub-components.
  */
 
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import type { ContentItem, SortField, SortOrder, ViewMode } from "./library/types";
 import { useContentLibraryState } from "./library/useContentLibraryState";
 import { ContentLibraryHeader } from "./library/ContentLibraryHeader";
@@ -71,6 +71,27 @@ export function ContentLibrary({
     onContentDelete?.(itemId);
   };
 
+  const handleTagClick = useCallback(
+    (tag: string) => {
+      state.setFilter((prev) => {
+        const currentTags = prev.tags ?? [];
+        if (currentTags.includes(tag)) {
+          return { ...prev, tags: currentTags.filter((t) => t !== tag) };
+        }
+        return { ...prev, tags: [...currentTags, tag] };
+      });
+      if (!state.showFilterPanel) {
+        state.setShowFilterPanel(true);
+      }
+    },
+    [state]
+  );
+
+  const availableTags = useMemo(
+    () => [...new Set(state.contentItems.flatMap((item) => item.tags))].sort(),
+    [state.contentItems]
+  );
+
   if (state.isLoading) {
     return <LoadingSkeleton />;
   }
@@ -101,6 +122,7 @@ export function ContentLibrary({
           filterOptions={state.filterOptions}
           onFilterChange={state.setFilter}
           onClearFilters={() => state.setFilter({})}
+          availableTags={availableTags}
         />
       )}
 
@@ -122,6 +144,7 @@ export function ContentLibrary({
               enableBulkActions={enableBulkActions}
               onItemSelect={state.handleItemSelect}
               onItemClick={handleContentSelect}
+              onTagClick={handleTagClick}
             />
           ) : (
             <ContentListView

@@ -21,6 +21,7 @@ export const PROVIDERS = {
   TELEGRAM: "TELEGRAM",
   SNAPCHAT: "SNAPCHAT",
   PINTEREST: "PINTEREST",
+  BLUESKY: "BLUESKY",
 } as const;
 
 export type ProviderType = (typeof PROVIDERS)[keyof typeof PROVIDERS];
@@ -203,6 +204,23 @@ const PROVIDER_CAPABILITIES: Record<ProviderType, ProviderCapabilities> = {
     maxImages: 1,
     maxVideoDurationSeconds: 900, // 15 minutes
   },
+  [PROVIDERS.BLUESKY]: {
+    supportsImages: true,
+    supportsVideos: false,
+    supportsGifs: false,
+    supportsThreads: false,
+    supportsStories: false,
+    supportsReels: false,
+    supportsScheduling: false,
+    supportsCarousel: false,
+    supportsHashtags: true,
+    supportsMentions: true,
+    supportsLinks: true,
+    supportsPolls: false,
+    maxCharacters: 300,
+    maxImages: 4,
+    maxVideoDurationSeconds: 0,
+  },
 };
 
 /**
@@ -218,6 +236,7 @@ const PROVIDER_DISPLAY: Record<ProviderType, { name: string; icon: string; color
   [PROVIDERS.TELEGRAM]: { name: "Telegram", icon: "telegram", color: "#26A5E4" },
   [PROVIDERS.SNAPCHAT]: { name: "Snapchat", icon: "snapchat", color: "#FFFC00" },
   [PROVIDERS.PINTEREST]: { name: "Pinterest", icon: "pinterest", color: "#E60023" },
+  [PROVIDERS.BLUESKY]: { name: "Bluesky", icon: "bluesky", color: "#0085ff" },
 };
 
 /**
@@ -290,6 +309,10 @@ export class Provider {
 
   static pinterest(): Provider {
     return new Provider(PROVIDERS.PINTEREST);
+  }
+
+  static bluesky(): Provider {
+    return new Provider(PROVIDERS.BLUESKY);
   }
 
   /**

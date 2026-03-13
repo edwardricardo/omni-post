@@ -15,7 +15,7 @@ export const TEAM_ROLE = {
 
 export type TeamRoleValue = (typeof TEAM_ROLE)[keyof typeof TEAM_ROLE];
 
-const TEAM_PERMISSIONS = {
+export const TEAM_PERMISSIONS = {
   READ: "READ",
   WRITE: "WRITE",
   PUBLISH: "PUBLISH",

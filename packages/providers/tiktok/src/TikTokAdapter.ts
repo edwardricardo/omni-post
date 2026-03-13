@@ -301,52 +301,17 @@ export class TikTokAdapter extends AbstractProviderAdapter<TikTokCredentials> {
 
   /**
    * Create promoted content via Marketing API
+   * @deprecated NOT_IMPLEMENTED — TikTok Marketing API requires advertiser approval.
+   * See docs/providers/tiktok.md for the approval process.
    */
   private async createPromotedContent(
-    credentials: TikTokCredentials,
-    videoId: string,
-    meta?: Record<string, unknown>
+    _credentials: TikTokCredentials,
+    _videoId: string,
+    _meta?: Record<string, unknown>
   ): Promise<void> {
-    if (!meta?.promotedContent || !meta?.marketingBudget) {
-      return;
-    }
-
-    try {
-      const marketingClient = this.marketingClientFactory
-        ? this.marketingClientFactory({
-            ...credentials,
-            advertiserAccountId: process.env.TIKTOK_ADVERTISER_ACCOUNT_ID || "placeholder",
-          })
-        : new TikTokMarketingApiClient({
-            clientKey: credentials.clientKey,
-            clientSecret: credentials.clientSecret,
-            accessToken: credentials.accessToken,
-            openId: credentials.openId,
-            advertiserAccountId: process.env.TIKTOK_ADVERTISER_ACCOUNT_ID || "placeholder",
-          });
-
-      // Note: This is a simplified example. The actual implementation would need
-      // to create a full ad campaign with proper targeting and creative setup.
-      // For now, we're using the Marketing API client to demonstrate the integration.
-      await marketingClient.getAdAccount(); // Validate the marketing account exists
-
-      // In a real implementation, you would create a campaign here with:
-      // - Campaign creation with videoId
-      // - Budget allocation
-      // - Targeting based on demographics
-      // This is left as placeholder for the full marketing integration
-      this.logError(
-        "createPromotedContent",
-        new Error("Marketing campaign creation not fully implemented"),
-        {
-          videoId,
-          budget: meta.marketingBudget,
-        }
-      );
-    } catch (error) {
-      this.logError("createPromotedContent", error, {});
-      // Don't fail the publish if promotion fails
-    }
+    throw new Error(
+      "NOT_IMPLEMENTED: TikTok Marketing API — TikTok Ads API requires advertiser account approval. See docs/providers/tiktok.md"
+    );
   }
 
   /**

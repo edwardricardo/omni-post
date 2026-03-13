@@ -255,6 +255,26 @@ async function purgeRaw(): Promise<void> {
   logger.info({ totalDeleted }, "Raw analytics purge completed");
 }
 
+/**
+ * Purges AnalyticsDailySummary records older than 365 days.
+ * Monthly summaries are preserved (only daily summaries are purged).
+ */
+async function purgeOldDailySummaries(): Promise<void> {
+  const cutoffDate = new Date();
+  cutoffDate.setFullYear(cutoffDate.getFullYear() - 1);
+  cutoffDate.setHours(0, 0, 0, 0);
+
+  const result = await prisma.analyticsDailySummary.deleteMany({
+    where: { date: { lt: cutoffDate } },
+  });
+
+  rowsAffected.inc({ type: "retention", operation: "delete" }, result.count);
+  logger.info(
+    { deletedCount: result.count, cutoffDate: cutoffDate.toISOString().slice(0, 10) },
+    `Retention cleanup: deleted ${result.count} daily summaries older than 365 days`
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Job processor
 // ---------------------------------------------------------------------------
@@ -272,6 +292,7 @@ async function processJob(job: Job<AggregationJobData>): Promise<void> {
     switch (jobType) {
       case "aggregate-daily":
         await aggregateDaily();
+        await purgeOldDailySummaries();
         break;
       case "aggregate-monthly":
         await aggregateMonthly();

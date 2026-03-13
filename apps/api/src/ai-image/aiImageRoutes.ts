@@ -13,11 +13,14 @@ import { authenticateMiddleware } from "../auth/authMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GenerateImageUseCase } from "../application/ai-image/GenerateImageUseCase.js";
 import type { ListGeneratedImagesQuery } from "../application/ai-image/ListGeneratedImagesQuery.js";
+import type { IncrementUsageUseCase } from "../application/usage/IncrementUsageUseCase.js";
 
 // --- Zod Schemas ---
 
 const GenerateImageBodySchema = z.object({
   projectId: z.string().uuid(),
+  /** Optional — when provided, aiCallsMade usage counter is incremented */
+  accountId: z.string().uuid().optional(),
   prompt: z.string().min(1).max(4000),
   size: z.enum(["1024x1024", "1024x1792", "1792x1024"]).optional(),
   quality: z.enum(["standard", "hd"]).optional(),
@@ -43,7 +46,8 @@ class AIImageRouteHandler extends BaseRouteHandler {
 
   constructor(
     private readonly generateUseCase: GenerateImageUseCase,
-    private readonly listQuery: ListGeneratedImagesQuery
+    private readonly listQuery: ListGeneratedImagesQuery,
+    private readonly incrementUsageUseCase: IncrementUsageUseCase
   ) {
     super();
   }
@@ -80,6 +84,13 @@ class AIImageRouteHandler extends BaseRouteHandler {
     if (!result.ok) {
       const statusCode = result.error.code === "VALIDATION_FAILED" ? 400 : 500;
       return this.sendError(ctx, statusCode, result.error.message);
+    }
+
+    // Increment AI calls usage counter — best-effort, does not fail the request
+    if (body.accountId) {
+      void this.incrementUsageUseCase
+        .execute({ accountId: body.accountId, field: "aiCallsMade" })
+        .catch(() => void 0);
     }
 
     this.sendSuccess(ctx, result.value, 201);
@@ -129,7 +140,10 @@ export const aiImageRoutes: FastifyPluginAsync = async (app) => {
     TOKENS.ListGeneratedImagesQuery_AIImage
   );
 
-  const handler = new AIImageRouteHandler(generateUseCase, listQuery);
+  const incrementUsageUseCase = app.container.resolve<IncrementUsageUseCase>(
+    TOKENS.IncrementUsageUseCase
+  );
+  const handler = new AIImageRouteHandler(generateUseCase, listQuery, incrementUsageUseCase);
 
   // Generate an AI image from a prompt
   app.post(

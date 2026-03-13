@@ -58,7 +58,7 @@ module.exports = [
       "no-useless-escape": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", ignoreRestSiblings: true },
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", ignoreRestSiblings: true },
       ],
     },
   },
@@ -93,7 +93,7 @@ module.exports = [
       "no-useless-escape": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", ignoreRestSiblings: true },
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", ignoreRestSiblings: true },
       ],
       // React rules
       "react/jsx-uses-react": "off", // Not needed in React 17+

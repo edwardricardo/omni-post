@@ -33,12 +33,15 @@ import {
   TrendingUp,
   ScrollText,
   Webhook,
+  Inbox,
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
   type LucideIcon,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,6 +51,7 @@ interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  badge?: number;
 }
 
 interface NavGroup {
@@ -60,6 +64,13 @@ interface NavGroup {
 // ---------------------------------------------------------------------------
 
 const NAV_GROUPS: NavGroup[] = [
+  {
+    title: "Social",
+    items: [
+      { label: "Inbox", href: "/inbox", icon: Inbox },
+      { label: "Approvals", href: "/approvals", icon: CheckSquare },
+    ],
+  },
   {
     title: "Content",
     items: [
@@ -144,7 +155,12 @@ function NavLink({ item, pathname, collapsed }: NavLinkProps) {
         className={["h-4 w-4 shrink-0", active ? "text-white" : "text-gray-500"].join(" ")}
         aria-hidden="true"
       />
-      {!collapsed && <span className="truncate">{item.label}</span>}
+      {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+      {!collapsed && item.badge !== undefined && item.badge > 0 && (
+        <span className="ml-auto flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+          {item.badge > 99 ? "99+" : item.badge}
+        </span>
+      )}
     </Link>
   );
 }
@@ -210,9 +226,27 @@ function CollapsibleGroup({ group, pathname, collapsed }: CollapsibleGroupProps)
 // Main export
 // ---------------------------------------------------------------------------
 
+async function fetchInboxUnread(): Promise<number> {
+  try {
+    const res = await fetch("/api/backend/inbox/unread-count", { cache: "no-store" });
+    if (!res.ok) return 0;
+    const data = (await res.json()) as { ok: boolean; value?: { count: number } };
+    return data.ok && data.value ? data.value.count : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function SidebarNav() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  const { data: inboxUnread = 0 } = useQuery({
+    queryKey: ["inbox", "unread-count"],
+    queryFn: fetchInboxUnread,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
 
   const toggleCollapsed = useCallback(() => setCollapsed((prev) => !prev), []);
 
@@ -265,14 +299,27 @@ export function SidebarNav() {
 
       {/* Scrollable nav groups */}
       <nav aria-label="Sidebar navigation" className="flex-1 overflow-y-auto px-3 pb-4 space-y-4">
-        {NAV_GROUPS.map((group) => (
-          <CollapsibleGroup
-            key={group.title}
-            group={group}
-            pathname={pathname}
-            collapsed={collapsed}
-          />
-        ))}
+        {NAV_GROUPS.map((group) => {
+          // Inject dynamic badges into the Social group
+          const enrichedGroup: NavGroup =
+            group.title === "Social"
+              ? {
+                  ...group,
+                  items: group.items.map((item) =>
+                    item.href === "/inbox" ? { ...item, badge: inboxUnread } : item
+                  ),
+                }
+              : group;
+
+          return (
+            <CollapsibleGroup
+              key={group.title}
+              group={enrichedGroup}
+              pathname={pathname}
+              collapsed={collapsed}
+            />
+          );
+        })}
       </nav>
     </aside>
   );

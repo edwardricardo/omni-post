@@ -7,6 +7,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { TrackedLinkRepository } from "../../domain/repositories/TrackedLinkRepository.js";
+import type { GA4TrackingPort } from "../../domain/repositories/GA4TrackingPort.js";
 import {
   CreateTrackedLinkUseCase,
   GetTrackedLinkUseCase,
@@ -56,7 +57,8 @@ export function setupLinkUseCases(container: Container): void {
     TOKENS.RedirectAndTrackClickUseCase,
     () =>
       new RedirectAndTrackClickUseCase(
-        container.resolve<TrackedLinkRepository>(TOKENS.TrackedLinkRepository)
+        container.resolve<TrackedLinkRepository>(TOKENS.TrackedLinkRepository),
+        container.resolve<GA4TrackingPort>(TOKENS.GA4TrackingPort)
       ),
     true
   );

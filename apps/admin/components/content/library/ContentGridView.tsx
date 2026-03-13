@@ -16,6 +16,7 @@ interface ContentGridViewProps {
   enableBulkActions: boolean;
   onItemSelect: (itemId: string) => void;
   onItemClick: (item: ContentItem) => void;
+  onTagClick?: (tag: string) => void;
 }
 
 export function ContentGridView({
@@ -24,6 +25,7 @@ export function ContentGridView({
   enableBulkActions,
   onItemSelect,
   onItemClick,
+  onTagClick,
 }: ContentGridViewProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
@@ -35,6 +37,7 @@ export function ContentGridView({
           enableBulkActions={enableBulkActions}
           onSelect={onItemSelect}
           onItemClick={onItemClick}
+          {...(onTagClick !== undefined && { onTagClick })}
         />
       ))}
     </div>

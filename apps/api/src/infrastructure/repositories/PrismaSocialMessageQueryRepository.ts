@@ -207,7 +207,7 @@ export class PrismaSocialMessageQueryRepository implements SocialMessageQueryRep
   private buildPaginatedResult(
     rows: unknown[],
     limit: number,
-    direction: "ASC" | "DESC"
+    _direction: "ASC" | "DESC"
   ): CursorPaginatedResult<SocialMessageDTO> {
     const hasMore = rows.length > limit;
     const items = (hasMore ? rows.slice(0, limit) : rows) as PrismaSocialMessageRow[];

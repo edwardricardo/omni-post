@@ -14,6 +14,8 @@ interface FilterPanelProps {
   filterOptions: FilterOptions;
   onFilterChange: (filter: ContentFilter) => void;
   onClearFilters: () => void;
+  /** All known tags across items — for the tag filter input suggestions */
+  availableTags?: string[];
 }
 
 export function FilterPanel({
@@ -21,6 +23,7 @@ export function FilterPanel({
   filterOptions,
   onFilterChange,
   onClearFilters,
+  availableTags = [],
 }: FilterPanelProps) {
   const handleStatusChange = (
     status: "published" | "scheduled" | "draft" | "archived",
@@ -82,6 +85,15 @@ export function FilterPanel({
       ...filter,
       hasMedia: checked,
     });
+  };
+
+  const handleTagClick = (tag: string) => {
+    const currentTags = filter.tags ?? [];
+    if (currentTags.includes(tag)) {
+      onFilterChange({ ...filter, tags: currentTags.filter((t) => t !== tag) });
+    } else {
+      onFilterChange({ ...filter, tags: [...currentTags, tag] });
+    }
   };
 
   return (
@@ -175,10 +187,51 @@ export function FilterPanel({
         </div>
       </div>
 
+      {/* Tag filter */}
+      {(availableTags.length > 0 || filterOptions.tags.length > 0) && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+          <div className="flex flex-wrap gap-1">
+            {(availableTags.length > 0 ? availableTags : filterOptions.tags).map((tag) => (
+              <button
+                key={tag}
+                onClick={() => handleTagClick(tag)}
+                className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                  filter.tags?.includes(tag)
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mt-4">
         <button onClick={onClearFilters} className="text-sm text-gray-600 hover:text-gray-800">
           Clear All Filters
         </button>
+        {(filter.tags?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap gap-1">
+            <span className="text-xs text-gray-500">Active tags:</span>
+            {filter.tags?.map((tag) => (
+              <span
+                key={tag}
+                onClick={() => handleTagClick(tag)}
+                className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full cursor-pointer hover:bg-blue-200"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") handleTagClick(tag);
+                }}
+              >
+                {tag} ×
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

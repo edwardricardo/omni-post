@@ -21,7 +21,8 @@ export type ProviderId =
   | "snapchat"
   | "telegram"
   | "pinterest"
-  | "linkedin";
+  | "linkedin"
+  | "bluesky";
 
 export type ProviderLimits = {
   maxChars: number;

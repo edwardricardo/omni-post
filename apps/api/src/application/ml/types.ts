@@ -82,4 +82,11 @@ export interface PredictTimingOutput {
   timezone: string;
   activityPatterns?: ActivityPattern[];
   recommendations: string[];
+  /**
+   * true when output is based on industry heuristics (< 14 days of account data).
+   * false when derived from real historical analytics.
+   */
+  isEstimated: boolean;
+  /** Number of analytics data points used to generate these recommendations */
+  sampleSize: number;
 }

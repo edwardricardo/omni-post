@@ -40,6 +40,9 @@ model Account {
   teamMembers            TeamMember[]
   socialMessages         SocialMessage[]
   socialConversations    SocialConversation[]
+  aiPromptTemplates      AIPromptTemplate[]
+  usageMetrics           UsageMetric[]
+  brandVoice             BrandVoice?
   // @@index([subscription]) - REMOVED: Low cardinality (only 3 values)
   // @@index([createdAt]) - REMOVED: Rarely queried alone
   // @@index([updatedAt]) - REMOVED: Rarely queried alone
@@ -482,6 +485,7 @@ model PostMedia {
   durationMs          Int?
   alt                 String?
   hash                String?
+  tags                String[]             @default([])
   createdAt           DateTime             @default(now())
   type                MediaKind
   post                Post                 @relation(fields: [postId], references: [id])
@@ -912,6 +916,7 @@ enum Provider {
   TELEGRAM
   PINTEREST
   LINKEDIN
+  BLUESKY
 }
 
 enum SubscriptionTier {
@@ -2143,4 +2148,55 @@ model RecurringPost {
 enum ReportFormat {
   CSV
   JSON
+}
+
+model AIPromptTemplate {
+  id        String   @id @default(uuid())
+  accountId String?  // null = global system template
+  name      String
+  category  String
+  platforms String[]
+  prompt    String   @db.Text
+  variables Json
+  tone      String[]
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+model UsageMetric {
+  id               String   @id @default(uuid())
+  accountId        String
+  periodYear       Int
+  periodMonth      Int      // 1-12
+  postsPublished   Int      @default(0)
+  aiCallsMade      Int      @default(0)
+  storageGb        Float    @default(0)
+  teamMemberCount  Int      @default(0)
+  updatedAt        DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, periodYear, periodMonth])
+  @@index([accountId, periodYear, periodMonth])
+}
+
+model BrandVoice {
+  id           String   @id @default(uuid())
+  accountId    String   @unique
+  name         String
+  systemPrompt String   @db.Text
+  tone         String[]
+  examples     String[]
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
 }

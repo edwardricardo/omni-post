@@ -67,8 +67,11 @@ const PROVIDER_TO_PLATFORM: Record<MLProvider, string> = {
   LINKEDIN: "LinkedIn",
 };
 
-/** Minimum number of analytics records to consider data sufficient */
-const MIN_ANALYTICS_RECORDS = 10;
+/**
+ * Minimum number of analytics data points to consider data sufficient for real predictions.
+ * Proxy for "at least 14 days of account data" (hourly granularity).
+ */
+const MIN_ANALYTICS_RECORDS = 14;
 
 /**
  * @class PredictOptimalTimingUseCase
@@ -177,6 +180,8 @@ export class PredictOptimalTimingUseCase
           ...aiRecommendations,
           `Based on ${analytics.length} historical data points from the last 8 weeks.`,
         ],
+        isEstimated: false,
+        sampleSize: analytics.length,
         ...(activityPatterns && { activityPatterns }),
       };
     } catch {
@@ -336,6 +341,8 @@ export class PredictOptimalTimingUseCase
       provider: input.provider,
       timezone: input.timezone,
       recommendations,
+      isEstimated: true,
+      sampleSize: 0,
       ...(activityPatterns && { activityPatterns }),
     };
   }

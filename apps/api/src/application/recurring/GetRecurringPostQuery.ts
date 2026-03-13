@@ -4,8 +4,8 @@
  * @layer application
  */
 
-import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type Result, ok } from "@shared/types";
+import { type UseCase, UseCaseError } from "../UseCase.js";
 import type { RecurringPostRepository } from "../../domain/repositories/RecurringPostRepository.js";
 
 /**

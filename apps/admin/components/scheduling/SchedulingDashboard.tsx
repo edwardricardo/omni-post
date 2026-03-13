@@ -139,6 +139,7 @@ export function SchedulingDashboard({
           filteredPosts={filteredPosts}
           selectedDatePosts={selectedDatePosts}
           onPostClick={handlePostClick}
+          projectId={projectId}
         />
 
         {/* Main Calendar Area */}

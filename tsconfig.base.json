@@ -32,6 +32,7 @@
       "@providers/telegram": ["packages/providers/telegram/src/index.ts"],
       "@providers/pinterest": ["packages/providers/pinterest/src/index.ts"],
       "@providers/linkedin": ["packages/providers/linkedin/src/index.ts"],
+      "@providers/bluesky": ["packages/providers/bluesky/src/index.ts"],
       "@providers/shared": ["packages/providers/shared/src/index.ts"],
       "@packages/providers/instagram/src/*": ["packages/providers/instagram/src/*"],
       "@adapters/db-prisma": ["packages/adapters/db-prisma/src/index.ts"],
