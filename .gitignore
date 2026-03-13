@@ -19,6 +19,14 @@ coverage/
 .nyc_output/
 **/__snapshots__/
 
+# Mutation testing (Stryker)
+.stryker-tmp/
+**/.stryker-tmp/
+**/reports/mutation/
+**/reports/stryker-incremental.json
+stryker-output-*.json
+**/stryker-output-*.json
+
 # Environment variables
 .env
 .env.local

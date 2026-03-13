@@ -1,235 +1,746 @@
 # OmniPost — Feature Decisions
 
-> Decisiones accionables por cada capability no implementada o parcialmente implementada.
-> Fecha: 2026-03-08 | Alimenta el roadmap de producto.
+> One decision block per non-fully-implemented capability, sorted by recommendation type.
+> Generated: 2026-03-10 | Feeds directly into sprint planning.
+> Every IMPLEMENT or HOMOLOGATE entry is independently actionable by a developer.
 
 ---
 
-## Classification Legend
-
-| Clasificación  | Significado                                                   |
-| -------------- | ------------------------------------------------------------- |
-| **IMPLEMENT**  | Implementar — gap crítico, alto valor para usuarios           |
-| **HOMOLOGATE** | Completar lo parcial — ya existe base, falta pulir            |
-| **DECIDE**     | Requiere decisión de negocio antes de actuar                  |
-| **DEFER**      | Diferir — bajo valor relativo o alta complejidad sin urgencia |
-| **REMOVE**     | Eliminar código existente sin valor                           |
-
-## Scope Legend
-
-| Scope | Significado |
-| ----- | ----------- |
-| XS    | < 1 día     |
-| S     | 1-3 días    |
-| M     | 1-2 semanas |
-| L     | 2-4 semanas |
-| XL    | > 1 mes     |
+## IMPLEMENT — Build this capability. Core value proposition.
 
 ---
 
-## D1: Unified Composer
+### DOMAIN 4 — Social Inbox: Unified View (All Platforms)
 
-| #    | Capability              | Decision  | Scope | Rationale                                                                                          | Dependencies                    | Preguntas Abiertas        |
-| ---- | ----------------------- | --------- | ----- | -------------------------------------------------------------------------------------------------- | ------------------------------- | ------------------------- |
-| 1.6  | Link preview/unfurling  | IMPLEMENT | S     | Mejora UX del editor significativamente. Fetch OG tags server-side.                                | Backend endpoint para OG fetch  | ¿Cachear OG metadata?     |
-| 1.8  | Emoji picker            | IMPLEMENT | XS    | Componente estándar, usar librería existente (emoji-mart o similar).                               | Ninguna                         | —                         |
-| 1.9  | @mention autocomplete   | DEFER     | M     | Requiere Social Inbox (D4) primero — sin datos de usuarios/followers no hay qué autocompletar.     | D4 Social Inbox                 | —                         |
-| 1.10 | Canva/Adobe integration | DEFER     | L     | Requiere partnership/API keys de terceros. Alto esfuerzo, valor marginal sin asset library madura. | D9 Asset Library, Canva API key | ¿Priorizar Canva o Adobe? |
+**Current status:** 🟡 PARTIAL — Backend 100% complete (15 use cases, SocialMessageAggregate, SocialConversation entity, inboxRoutes.ts, cursor-paginated GetInboxQuery). Zero frontend UI.
 
----
+**Recommendation:** IMPLEMENT — Build the UI.
 
-## D2: Scheduling & Calendar
+**Rationale:** This is the #1 feature users expect from a social media management tool. The backend is production-ready. Only the frontend is missing. An admin inbox page with conversation list, platform filter, and message thread view would make this feature fully usable.
 
-| #    | Capability                  | Decision    | Scope | Rationale                                                                                               | Dependencies                     | Preguntas Abiertas                |
-| ---- | --------------------------- | ----------- | ----- | ------------------------------------------------------------------------------------------------------- | -------------------------------- | --------------------------------- |
-| 2.4  | Bulk scheduling (completar) | HOMOLOGATE  | S     | Ya existe MultiPlatformScheduler. Falta UI batch upload (CSV/paste).                                    | —                                | ¿Formato CSV estándar?            |
-| 2.5  | Timezone picker en UI       | HOMOLOGATE  | XS    | Timezone existe en modelo, falta selector en scheduler UI.                                              | —                                | —                                 |
-| 2.7  | Recurring/evergreen posts   | IMPLEMENTED | M     | Cron-based templates with BullMQ repeatable jobs. Variable substitution, max occurrences, pause/resume. | Queue infrastructure (ya existe) | BullMQ repeatable jobs            |
-| 2.9  | Holiday/event calendar      | DEFER       | S     | Nice-to-have. Overlay de holidays por país.                                                             | —                                | ¿Qué calendario de holidays usar? |
-| 2.10 | Queue pause/resume          | HOMOLOGATE  | XS    | Queue manager existe. Agregar estado paused + UI toggle.                                                | —                                | —                                 |
+**Estimated scope:** L (2-4 weeks)
+
+**Dependencies:** Backend already complete. No additional backend work needed for MVP inbox.
+
+**Open questions:** Start with read-only (comments + mentions) or include DM support in v1? TikTok and Telegram DM APIs have access restrictions — recommend starting with comment/mention threads for X, Instagram, Facebook, YouTube, LinkedIn.
 
 ---
 
-## D3: Multi-Platform Publishing
+### DOMAIN 4 — Social Inbox: Reply from Dashboard
 
-| #    | Capability                | Decision    | Scope | Rationale                                                                                       | Dependencies              | Preguntas Abiertas          |
-| ---- | ------------------------- | ----------- | ----- | ----------------------------------------------------------------------------------------------- | ------------------------- | --------------------------- |
-| 3.6  | LinkedIn provider         | IMPLEMENTED | L     | Posts API (REST), OAuth 2.0, versioned headers, 2-step media upload, personal + org posts.      | LinkedIn API approval     | Posts API (REST, versioned) |
-| 3.7  | Pinterest provider        | IMPLEMENTED | M     | API v5, OAuth 2.0, pins + board management, 100 calls/s/user.                                   | Pinterest API access      | —                           |
-| 3.8  | Bluesky provider          | IMPLEMENT   | M     | Crecimiento rápido, API abierta (AT Protocol), baja barrera de entrada.                         | —                         | —                           |
-| 3.9  | Snapchat provider         | IMPLEMENTED | L     | Public Profile API, OAuth 2.0 with PKCE, Stories/Spotlight, 20 req/s.                           | Snapchat Business API     | —                           |
-| 3.10 | Telegram provider         | IMPLEMENTED | M     | Bot API, bot token auth, channels/groups, 4096 chars, 30 msg/s.                                 | —                         | —                           |
-| 3.14 | Post-publish verification | HOMOLOGATE  | S     | Webhook processors existen. Agregar verificación activa (poll post status).                     | —                         | ¿Polling interval?          |
-| 3.15 | First comment scheduling  | IMPLEMENTED | S     | Auto-post first comment 5s after publish. Supported: X, Instagram, Facebook, YouTube, LinkedIn. | Comments API por provider | —                           |
+**Current status:** 🟡 PARTIAL — Backend: `SendReplyUseCase.ts` complete, calls provider `postReply()` for X, Instagram, Facebook, YouTube, LinkedIn. No UI.
 
----
+**Recommendation:** IMPLEMENT — Build reply composer in inbox UI.
 
-## D4: Social Inbox
+**Rationale:** Without reply capability the inbox is read-only and loses its operational value. Should be part of the same sprint as inbox view.
 
-| #    | Capability                 | Decision  | Scope | Rationale                                                                            | Dependencies                                              | Preguntas Abiertas                       |
-| ---- | -------------------------- | --------- | ----- | ------------------------------------------------------------------------------------ | --------------------------------------------------------- | ---------------------------------------- |
-| 4.1  | Unified inbox              | IMPLEMENT | XL    | **Gap #1 de la plataforma.** Consolidar mensajes/comentarios de todos los providers. | Prisma models (Message, Conversation), webhook processors | ¿MVP con solo comentarios o también DMs? |
-| 4.2  | Comment management         | IMPLEMENT | L     | Parte del MVP de inbox. CRUD de comentarios.                                         | 4.1 Unified inbox, Comments API por provider              | —                                        |
-| 4.3  | DM management              | DECIDE    | L     | Requiere permisos especiales de cada provider API.                                   | 4.1 Unified inbox, DM API access                          | ¿Instagram/Facebook DM API access?       |
-| 4.4  | Mention monitoring         | IMPLEMENT | M     | Requiere webhook inbound (ya existe para 5 providers). Filtrar mentions.             | 4.1 Unified inbox                                         | —                                        |
-| 4.5  | Reply from dashboard       | IMPLEMENT | M     | Core de inbox. Enviar replies via provider API.                                      | 4.1, 4.2                                                  | —                                        |
-| 4.6  | Conversation threading     | IMPLEMENT | M     | Agrupar messages por conversation.                                                   | 4.1                                                       | —                                        |
-| 4.7  | Sentiment tagging          | DEFER     | M     | Requiere NLP. Implementar después del MVP de inbox.                                  | 4.1, D5 Sentiment analysis                                | —                                        |
-| 4.8  | Auto-response rules        | DEFER     | M     | Feature avanzada. Después del MVP.                                                   | 4.1, 4.5                                                  | —                                        |
-| 4.9  | Assignment to team members | IMPLEMENT | S     | Necesario para teams. Asignar conversación a un admin user.                          | 4.1, D8 Team workflows                                    | —                                        |
-| 4.10 | SLA tracking               | DEFER     | M     | Feature enterprise.                                                                  | 4.1, 4.9                                                  | —                                        |
+**Estimated scope:** M (1-2 weeks)
+
+**Dependencies:** Inbox unified view (D4.1 above), provider `postReply()` already implemented for 5 providers.
+
+**Open questions:** Inline reply vs. reply modal — recommend inline composer anchored below the conversation thread.
 
 ---
 
-## D5: Social Listening & Monitoring
+### DOMAIN 4 — Social Inbox: Conversation Assignment UI
 
-| #   | Capability                  | Decision   | Scope | Rationale                                                                           | Dependencies                                                  | Preguntas Abiertas                        |
-| --- | --------------------------- | ---------- | ----- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------- |
-| 5.1 | Keyword monitoring          | DECIDE     | L     | Alto valor pero requiere APIs de search de cada provider o servicio externo.        | Provider search APIs o servicio externo (Brandwatch, Mention) | ¿Build vs buy?                            |
-| 5.2 | Brand mention alerts        | IMPLEMENT  | M     | Basado en webhooks inbound existentes. Filtrar menciones y notificar.               | Notification system (D8.7), webhook processors                | —                                         |
-| 5.3 | Sentiment analysis (NLP)    | DEFER      | L     | Requiere NLP pipeline (OpenAI o dedicated model). Diferir a post-MVP.               | AI providers (ya existen)                                     | ¿OpenAI para sentiment o modelo dedicado? |
-| 5.4 | Competitor tracking         | DEFER      | XL    | Complejidad extrema. Requiere scraping o APIs especializadas.                       | —                                                             | —                                         |
-| 5.5 | Trend analysis (completar)  | HOMOLOGATE | M     | Base existe. Conectar a fuentes de datos reales (Google Trends, provider APIs).     | External APIs                                                 | —                                         |
-| 5.6 | Crisis detection automática | HOMOLOGATE | M     | Crisis mode manual existe. Agregar detección basada en spike de mentions negativas. | 5.2, 5.3                                                      | —                                         |
-| 5.7 | Hashtag tracking            | IMPLEMENT  | S     | Tracking de rendimiento de hashtags usados. Analytics ya existen.                   | Analytics infrastructure                                      | —                                         |
-| 5.8 | Influencer identification   | DEFER      | L     | Baja prioridad. Requiere datos de audiencia de providers.                           | —                                                             | —                                         |
-| 5.9 | Share of voice reporting    | DEFER      | XL    | Requiere competitive data.                                                          | 5.1, 5.4                                                      | —                                         |
+**Current status:** 🟡 PARTIAL — Backend: `AssignMessageUseCase.ts` complete. No UI.
 
----
+**Recommendation:** IMPLEMENT — Add assignee picker to conversation view.
 
-## D6: AI-Assisted Content Creation
+**Rationale:** Teams need to distribute engagement work. The backend is trivial to wire. Depends on team member list from D8.
 
-| #    | Capability                   | Decision    | Scope | Rationale                                                                       | Dependencies                | Preguntas Abiertas                          |
-| ---- | ---------------------------- | ----------- | ----- | ------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------- |
-| 6.3  | AI image generation          | IMPLEMENTED | M     | DALL-E 3 via AIServicePort. Sizes: 1024x1024/1792/1024x1792. Stored in DB + S3. | OpenAI (ya integrado)       | DALL-E 3                                    |
-| 6.4  | Prompt library (completar)   | HOMOLOGATE  | S     | Templates existen. Hacer editable/persistente en DB.                            | Prisma model para prompts   | —                                           |
-| 6.5  | Brand voice training         | DECIDE      | L     | Requiere fine-tuning o system prompts per-account.                              | AI providers, Account model | ¿Fine-tuning vs system prompt con ejemplos? |
-| 6.6  | Content repurposing          | IMPLEMENT   | M     | Blog→posts, long→short. Usar AI providers existentes.                           | AI providers (ya existen)   | —                                           |
-| 6.7  | Caption generation for media | IMPLEMENT   | S     | Vision API de OpenAI/Gemini. Auto-caption de imágenes subidas.                  | AI providers con vision     | —                                           |
-| 6.10 | Whiteboard/brainstorming     | DEFER       | L     | Feature de nicho. Baja prioridad.                                               | —                           | —                                           |
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** Inbox unified view, team member list API (already exists in teamRoutes.ts).
+
+**Open questions:** None.
 
 ---
 
-## D7: Analytics & Reporting
+### DOMAIN 4 — Social Inbox: Mention Monitoring
 
-| #    | Capability                   | Decision  | Scope | Rationale                                                           | Dependencies                        | Preguntas Abiertas                       |
-| ---- | ---------------------------- | --------- | ----- | ------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------- |
-| 7.8  | 12-month historical tracking | IMPLEMENT | M     | Data retention policy + aggregation jobs.                           | DB storage strategy                 | ¿Aggregar datos antiguos o mantener raw? |
-| 7.9  | GA4/UTM integration          | IMPLEMENT | M     | UTM builder + GA4 Measurement Protocol. Alto valor para marketers.  | TrackedLink model (ya existe)       | —                                        |
-| 7.10 | Campaign tagging             | IMPLEMENT | M     | Nuevo modelo Campaign. Agrupar posts por campaña.                   | Prisma model Campaign               | —                                        |
-| 7.11 | Scheduled reports            | IMPLEMENT | M     | BullMQ cron job + email/export. Infrastructure ya existe.           | Queue infrastructure, email service | ¿Email o descarga en dashboard?          |
-| 7.12 | Custom dashboard builder     | DEFER     | L     | Alta complejidad UI. Dashboards estáticos son suficientes para MVP. | —                                   | —                                        |
-| 7.13 | Benchmark data               | DEFER     | XL    | Requiere datos agregados de múltiples cuentas o fuentes externas.   | —                                   | —                                        |
+**Current status:** 🟡 PARTIAL — Backend: `GetMentionsQuery.ts` exists, filters by `type: 'MENTION'`. Webhook processors for all providers can ingest mentions. No UI entry point.
 
----
+**Recommendation:** IMPLEMENT — Add "Mentions" tab to inbox UI.
 
-## D8: Team Collaboration & Approval Workflows
+**Rationale:** High-value feature for brand monitoring. Zero new backend work required — just a filtered view of the inbox.
 
-| #    | Capability                  | Decision  | Scope | Rationale                                                                                             | Dependencies                              | Preguntas Abiertas              |
-| ---- | --------------------------- | --------- | ----- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------- |
-| 8.4  | Content approval workflow   | IMPLEMENT | M     | **Sprint 1 priority.** Ya tiene RBAC + audit log. Agregar states: DRAFT→IN_REVIEW→APPROVED→SCHEDULED. | Post model (agregar approvalStatus), RBAC | ¿Cuántos niveles de aprobación? |
-| 8.5  | In-context comments         | IMPLEMENT | M     | Comments en content versions. UI de annotaciones.                                                     | ContentVersion model                      | —                               |
-| 8.6  | Task assignment             | DECIDE    | M     | ¿Integrar con tool externo (Linear, Jira) o build interno?                                            | —                                         | ¿Build vs integrate?            |
-| 8.7  | Notification system         | IMPLEMENT | M     | Necesario para inbox, approvals, mentions. WebSocket o SSE.                                           | —                                         | ¿WebSocket (Socket.io) o SSE?   |
-| 8.8  | Activity feed               | IMPLEMENT | S     | Basado en audit log existente. Transformar a feed legible.                                            | AuditLog model (ya existe)                | —                               |
-| 8.10 | Multi-level approval chains | DEFER     | M     | Feature enterprise. Primero implementar approval simple (8.4).                                        | 8.4                                       | —                               |
+**Estimated scope:** XS (< 1 day)
+
+**Dependencies:** Inbox unified view.
+
+**Open questions:** None.
 
 ---
 
-## D9: Asset Library & Brand Kit
+### DOMAIN 8 — Team Collaboration: Approval Workflow UI
 
-| #   | Capability               | Decision   | Scope | Rationale                                                          | Dependencies                 | Preguntas Abiertas                        |
-| --- | ------------------------ | ---------- | ----- | ------------------------------------------------------------------ | ---------------------------- | ----------------------------------------- |
-| 9.2 | Folder/tag organization  | IMPLEMENT  | M     | Necesario para escalar la media library. Modelo Folder + Tag.      | Prisma models                | —                                         |
-| 9.3 | Search (text + visual)   | IMPLEMENT  | M     | Full-text search en metadata. Visual search es DEFER.              | PostgreSQL FTS o Meilisearch | ¿PostgreSQL FTS o search service externo? |
-| 9.4 | Brand colors/fonts/logos | IMPLEMENT  | S     | Modelo BrandKit per account. UI de configuración.                  | Prisma model BrandKit        | —                                         |
-| 9.5 | Brand guidelines storage | HOMOLOGATE | S     | Extensión de BrandKit. Documento markdown/PDF storage.             | 9.4, S3 (ya existe)          | —                                         |
-| 9.7 | Image editing            | DEFER      | L     | Alta complejidad UI. Usar integración con Canva/Figma en su lugar. | 1.10 Canva integration       | —                                         |
-| 9.8 | Usage rights tracking    | DEFER      | M     | Feature de nicho.                                                  | —                            | —                                         |
+**Current status:** 🟡 PARTIAL — Backend: full approval pipeline (`SubmitForReviewUseCase`, `ApprovePostUseCase`, `RejectPostUseCase`, `GetPendingApprovalsQuery`, `GetApprovalHistoryQuery`). `ApprovalRequestAggregate` with state machine. `PENDING_REVIEW` publish status. No UI.
 
----
+**Recommendation:** IMPLEMENT — Add approval flow to post editor and a reviewer dashboard.
 
-## D10: Employee Advocacy
+**Rationale:** Enterprise and agency teams require content approval before publishing. The entire state machine is built. This is purely UI work: a "Submit for Review" button in the post editor, a pending approvals panel in admin, and approve/reject actions with optional rejection comment.
 
-| #         | Capability      | Decision | Scope | Rationale                                                                                                                                    | Dependencies      | Preguntas Abiertas                  |
-| --------- | --------------- | -------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ----------------------------------- |
-| 10.1-10.5 | Todo el dominio | DECIDE   | XL    | **¿Es prioridad para nuestro target?** Si target es agencies/SMBs, este dominio es irrelevante. Si target incluye enterprise, es importante. | D8 Team workflows | ¿Quién es nuestro target principal? |
+**Estimated scope:** M (1-2 weeks)
+
+**Dependencies:** None — backend complete.
+
+**Open questions:** Should rejected posts return to DRAFT or go to FAILED? (Recommend DRAFT with rejection comment shown in editor.)
 
 ---
 
-## D11: Social Advertising
+### DOMAIN 8 — Team Collaboration: Notification Center UI
 
-| #                     | Capability             | Decision   | Scope | Rationale                                                      | Dependencies                              | Preguntas Abiertas                           |
-| --------------------- | ---------------------- | ---------- | ----- | -------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------- |
-| 11.1                  | Meta Ads Manager       | DECIDE     | XL    | Alto esfuerzo. Requiere Facebook Marketing API approval.       | Facebook provider (ya existe)             | ¿Es ad management parte de nuestro MVP?      |
-| 11.2                  | TikTok Ads (completar) | HOMOLOGATE | L     | Placeholder existe. Conectar a real API.                       | TikTok Marketing API (placeholder existe) | —                                            |
-| 11.5                  | Post boosting          | DECIDE     | M     | Menor scope que ad manager completo. "Boost this post" button. | Meta/TikTok ads API                       | ¿Empezar con boost antes de full ad manager? |
-| 11.3, 11.4, 11.6-11.8 | Resto                  | DEFER      | XL    | Full ad management es scope enorme. Diferir post-launch.       | —                                         | —                                            |
+**Current status:** 🟡 PARTIAL — Backend: `Notification` entity, SSE broadcaster via Redis pub/sub, 5 use cases (`CreateNotification`, `MarkRead`, `GetNotifications`, `GetUnreadCount`, `NotificationEventHandlers` wired to domain events). `notificationRoutes.ts`. No UI.
 
----
+**Recommendation:** IMPLEMENT — Add notification bell to admin header with dropdown and SSE connection.
 
-## D12: Multi-Tenant Account Management
+**Rationale:** Notifications are the connective tissue that makes approvals, inbox, and team collaboration feel real-time. The SSE endpoint exists. A simple bell icon + dropdown showing unread notifications + "mark all read" is all that's needed.
 
-| #    | Capability                  | Decision   | Scope | Rationale                                                                           | Dependencies                     | Preguntas Abiertas                      |
-| ---- | --------------------------- | ---------- | ----- | ----------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------- |
-| 12.6 | SSO (SAML/OIDC)             | IMPLEMENT  | L     | Requisito enterprise. OIDC con Keycloak o Auth0.                                    | —                                | ¿Self-hosted (Keycloak) o SaaS (Auth0)? |
-| 12.7 | White-label/custom branding | DEFER      | L     | Feature enterprise premium.                                                         | —                                | —                                       |
-| 12.8 | Usage metering (completar)  | HOMOLOGATE | M     | Rate limiting existe. Agregar metering detallado (posts/month, API calls, storage). | Prisma model UsageMetric, BullMQ | —                                       |
+**Estimated scope:** M (1-2 weeks)
+
+**Dependencies:** None — backend complete.
+
+**Open questions:** Web push notifications (browser) vs SSE only — recommend SSE for MVP.
 
 ---
 
-## D13: Integrations & Extensibility
+### DOMAIN 8 — Team Collaboration: In-Post Comment Thread UI
 
-| #     | Capability                      | Decision    | Scope | Rationale                                                                                         | Dependencies                 | Preguntas Abiertas            |
-| ----- | ------------------------------- | ----------- | ----- | ------------------------------------------------------------------------------------------------- | ---------------------------- | ----------------------------- |
-| 13.4  | Canva integration               | DECIDE      | M     | Depende de si Canva ofrece embed SDK gratis para SaaS.                                            | Canva Connect API            | ¿API cost?                    |
-| 13.5  | Google Drive/Dropbox            | IMPLEMENT   | M     | Media import desde cloud storage. Google Drive API + Dropbox API.                                 | OAuth for Google/Dropbox     | ¿Solo import o bidireccional? |
-| 13.6  | CRM integration                 | DEFER       | L     | Feature enterprise. Bajo valor para MVP.                                                          | —                            | —                             |
-| 13.7  | Slack/Teams notifications       | IMPLEMENTED | S     | Webhook-based outbound notifications. Slack Block Kit + Teams Adaptive Cards. Retry with backoff. | Webhook system (ya existe)   | —                             |
-| 13.8  | Zapier/Make connector           | DECIDE      | M     | Multiplica integraciones sin desarrollo. Requiere publicar connector.                             | Public API (ya existe)       | ¿Zapier o Make primero?       |
-| 13.9  | SDK/client library              | IMPLEMENT   | M     | TypeScript SDK auto-generado desde OpenAPI spec.                                                  | 13.10 API docs               | —                             |
-| 13.10 | API documentation (interactive) | IMPLEMENT   | M     | Swagger/Scalar UI. Pre-requisito para SDK y developer adoption.                                   | OpenAPI spec generation      | ¿Swagger UI o Scalar?         |
-| 13.12 | Integration marketplace         | DEFER       | XL    | Feature de plataforma madura. Post-launch.                                                        | Muchas integraciones primero | —                             |
+**Current status:** 🟡 PARTIAL — Backend: `PostCommentAggregate` with threaded replies, 4 use cases (Create, Edit, Delete, GetPostComments). `commentRoutes.ts`. No UI.
 
----
+**Recommendation:** IMPLEMENT — Add comment panel to post detail / review view.
 
-## Dead Weight — Candidatos a REMOVE
+**Rationale:** In-context commenting enables the review conversation that makes approval workflows actionable. Builds on the approval UI (same view).
 
-| Archivo/Módulo                                                  | Decision   | Rationale                                                        |
-| --------------------------------------------------------------- | ---------- | ---------------------------------------------------------------- |
-| `apps/api/src/application/ml/PredictAudienceResponseUseCase.ts` | REMOVE     | Heurística sin valor real. Sin frontend que la consuma.          |
-| `apps/api/src/application/ml/PredictOptimalTimingUseCase.ts`    | DECIDE     | Podría tener valor si se alimenta con datos reales de analytics. |
-| `apps/api/src/application/ml/OptimizeContentUseCase.ts`         | DECIDE     | Similar — podría conectarse a AI providers reales.               |
-| `apps/api/src/analytics/performanceComparison/`                 | HOMOLOGATE | Tiene valor conceptual. Conectar a datos reales.                 |
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** Approval workflow UI — comment panel lives inside the review view.
+
+**Open questions:** Markdown support in comments? Recommend plain text for MVP.
 
 ---
 
-## Resumen por Clasificación
+### DOMAIN 6 — AI: Image Generation UI
 
-| Clasificación   | Count | Capabilities                                                                                                                                                                                         |
-| --------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **IMPLEMENTED** | 7     | D2: 2.7 / D3: 3.6, 3.7, 3.9, 3.10, 3.15 / D6: 6.3 / D13: 13.7                                                                                                                                        |
-| **IMPLEMENT**   | 21    | D1: 1.6, 1.8 / D3: 3.8 / D4: 4.1, 4.2, 4.4, 4.5, 4.6, 4.9 / D5: 5.2, 5.7 / D6: 6.6, 6.7 / D7: 7.8, 7.9, 7.10, 7.11 / D8: 8.4, 8.5, 8.7, 8.8 / D9: 9.2, 9.3, 9.4 / D12: 12.6 / D13: 13.5, 13.9, 13.10 |
-| **HOMOLOGATE**  | 10    | D2: 2.4, 2.5, 2.10 / D3: 3.14 / D5: 5.5, 5.6 / D6: 6.4 / D9: 9.5 / D11: 11.2 / D12: 12.8                                                                                                             |
-| **DECIDE**      | 10    | D4: 4.3 / D5: 5.1 / D6: 6.5 / D8: 8.6 / D10: 10.x / D11: 11.1, 11.5 / D13: 13.4, 13.8                                                                                                                |
-| **DEFER**       | 17    | D1: 1.9, 1.10 / D2: 2.9 / D4: 4.7, 4.8, 4.10 / D5: 5.3, 5.4, 5.8, 5.9 / D6: 6.10 / D7: 7.12, 7.13 / D8: 8.10 / D9: 9.7, 9.8 / D11: 11.3-11.8 / D12: 12.7 / D13: 13.6, 13.12                          |
-| **REMOVE**      | 1     | PredictAudienceResponseUseCase                                                                                                                                                                       |
+**Current status:** 🟡 PARTIAL — Backend: `GenerateImageUseCase.ts` (DALL-E 3 via OpenAI), `ListGeneratedImagesQuery.ts`. Prisma `GeneratedImage` + S3 storage. `aiImageRoutes.ts` (2 endpoints). No UI.
+
+**Recommendation:** IMPLEMENT — Build generation form in AI section + insert-to-editor action.
+
+**Rationale:** The backend integration is complete and tested. A simple form (prompt input, size selector, generate button) + a gallery of previously generated images + "Insert into post" action is all that's missing. High visual impact, low effort.
+
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** None — backend complete.
+
+**Open questions:** Watermarking before insert? Usage limits per tier? Recommend adding to usage metering (D12.6).
 
 ---
 
-## Top 10 IMPLEMENT por Prioridad
+### DOMAIN 2 — Scheduling: Recurring Posts UI
 
-| Prioridad | Capability                         | Dominio | Scope | Justificación                                                              |
-| --------- | ---------------------------------- | ------- | ----- | -------------------------------------------------------------------------- |
-| 1         | Content approval workflow (8.4)    | D8      | M     | Highest ROI — ya tiene RBAC/audit como base, desbloquea team workflows     |
-| 2         | Notification system (8.7)          | D8      | M     | Pre-requisito para inbox, approvals, mentions. Infraestructura transversal |
-| 3         | Unified inbox MVP (4.1)            | D4      | XL    | Gap #1 de la plataforma. Inicia con comentarios de 9 providers             |
-| 4         | Comment management (4.2)           | D4      | L     | Parte del inbox MVP                                                        |
-| 5         | API documentation (13.10)          | D13     | M     | Desbloquea developer adoption, SDK generation                              |
-| 6         | Campaign tagging (7.10)            | D7      | M     | Organiza analytics, alto valor para marketers                              |
-| 7         | Bluesky provider (3.8)             | D3      | M     | API abierta, growing platform, baja barrera                                |
-| 8         | Content repurposing (6.6)          | D6      | M     | Blog→posts, long→short. AI providers ya integrados                         |
-| 9         | Caption generation for media (6.7) | D6      | S     | Vision API, auto-caption de imágenes subidas                               |
-| 10        | SSO SAML/OIDC (12.6)               | D12     | L     | Requisito enterprise, desbloquea adopción corporativa                      |
+**Current status:** 🟡 PARTIAL — Backend: `RecurringPost` domain entity with `CronExpression` VO, 6 use cases (Create, Update, Deactivate, Process, Get, List), `recurringPostRoutes.ts` (5 endpoints), BullMQ repeatable jobs. No UI.
 
-> Items completed in Phase 4 and removed from this list: LinkedIn provider (3.6), AI image generation (6.3), Slack/Teams notifications (13.7).
+**Recommendation:** IMPLEMENT — Build recurring post CRUD UI in scheduling section.
+
+**Rationale:** Power users expect this. Backend is production-ready. UI needs: cron picker (or human-friendly recurrence selector), content rotation config (EXACT / ROTATED / AI_GENERATED), max occurrences, end date, pause/resume toggle.
+
+**Estimated scope:** M (1-2 weeks)
+
+**Dependencies:** None — backend complete.
+
+**Open questions:** Expose raw cron expression or build friendly UI (every day / every week / every month)? Recommend friendly UI with cron as advanced option.
+
+---
+
+### DOMAIN 3 — Publishing: Bluesky Provider
+
+**Current status:** 🔴 MISSING — No Bluesky provider exists.
+
+**Recommendation:** IMPLEMENT — Build AT Protocol provider adapter.
+
+**Rationale:** Bluesky is the fastest-growing alternative social platform (AT Protocol). The API is fully open — no approval process, no API key required for basic publishing. It accepts posts, images, and link cards. Its users skew tech-savvy, making it high-value for early adopters of a tool like OmniPost.
+
+**Estimated scope:** M (1-2 weeks)
+
+**Dependencies:** `AbstractProviderAdapter` base class already defined. Pattern established by existing 9 providers.
+
+**Open questions:** Does AT Protocol support OAuth or is it login-based? Bluesky uses App Passwords for third-party auth — need to document in OAuth flow.
+
+---
+
+### DOMAIN 1 — Composer: Platform Preview for Missing Providers
+
+**Current status:** 🟡 PARTIAL — `PlatformPreview.tsx` renders X, Instagram, LinkedIn. Missing: Facebook, TikTok, YouTube, Snapchat, Pinterest, Telegram (6 of 9 providers).
+
+**Recommendation:** IMPLEMENT — Extend PlatformPreview with all active providers.
+
+**Rationale:** Users cannot see how their content will look on 6 of 9 connected platforms before publishing. This breaks the core "preview before you post" value proposition.
+
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** None.
+
+**Open questions:** For Telegram (text channel), should preview show a simulated chat bubble UI or just a text rendering?
+
+---
+
+### DOMAIN 7 — Analytics: Scheduled Reports UI
+
+**Current status:** 🟡 PARTIAL — Backend: `CreateScheduledReportUseCase`, `GenerateReportUseCase`, `ScheduledReport` entity, `reportGenerationWorker.ts`, `reportRoutes.ts`. CSV export via `csvExport.ts`. No UI confirmed for scheduled reports management.
+
+**Recommendation:** IMPLEMENT — Build scheduled reports management panel in analytics section.
+
+**Rationale:** Scheduled reports close the analytics loop. Stakeholders need automated exports. The BullMQ cron infrastructure is in place. UI needs: create report form (frequency, metrics, email destination), list of active schedules, manual generate button.
+
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** None — backend complete.
+
+**Open questions:** PDF export vs CSV only? Recommend CSV for MVP.
+
+---
+
+### DOMAIN 13 — Integrations: Interactive API Documentation
+
+**Current status:** 🔴 MISSING — No Swagger/Scalar UI. 41 route files with 90+ endpoints exist but are undocumented for external consumers.
+
+**Recommendation:** IMPLEMENT — Add `@fastify/swagger` + `@scalar/fastify-api-reference` to the API.
+
+**Rationale:** Developer adoption requires documentation. The API already exists and is well-structured. Swagger/Scalar auto-generates from route schemas. This is a 1-day task with high leverage — it unlocks SDK generation, partner integrations, and Zapier/Make connectors.
+
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** None.
+
+**Open questions:** Should the docs be public (no auth) or require API key? Recommend public for discoverability.
+
+---
+
+### DOMAIN 13 — Integrations: Slack/Teams Notification UI
+
+**Current status:** 🟡 PARTIAL — Backend: `SlackNotifierAdapter.ts`, `TeamsNotifierAdapter.ts`, `ExternalNotificationDispatcher.ts`, `externalNotificationRoutes.ts` (configure, delete, test, list). Prisma `ExternalNotificationConfig`. No UI.
+
+**Recommendation:** IMPLEMENT — Build webhook config form in settings/integrations section.
+
+**Rationale:** Quick win. Backend complete. UI is a simple form: webhook URL, platform type (Slack/Teams), notification triggers (post published, approval pending, crisis mode). Test button already backed by `TestExternalNotificationUseCase`.
+
+**Estimated scope:** XS (< 1 day)
+
+**Dependencies:** None — backend complete.
+
+**Open questions:** None.
+
+---
+
+### DOMAIN 4 — Social Inbox: Internal Notes on Conversations
+
+**Current status:** 🔴 MISSING — No `AddInternalNoteUseCase` or `InternalNote` model exists anywhere.
+
+**Recommendation:** IMPLEMENT — Add internal note capability to conversation model.
+
+**Rationale:** Internal notes are the mechanism that prevents agents from sending duplicate replies and lets teams coordinate on complex conversations. Required for any team using the inbox at scale.
+
+**Estimated scope:** S (1-3 days) — new Prisma field + use case + UI addition to conversation view.
+
+**Dependencies:** Inbox unified view (D4.1).
+
+**Open questions:** Notes as a separate model or as a `SocialMessage` with `type: 'INTERNAL_NOTE'`? Recommend separate field on `SocialConversation` for simplicity.
+
+---
+
+## HOMOLOGATE — We have something similar; align it to the reference model.
+
+---
+
+### DOMAIN 2 — Scheduling: Bulk Scheduling via CSV
+
+**Current status:** 🟡 PARTIAL — `BulkScheduleView.tsx` and `MultiPlatformSchedulerRefactored.tsx` exist. CSV import not confirmed — the form may require manual per-post entry.
+
+**Recommendation:** HOMOLOGATE — Add CSV template download + bulk upload to the existing BulkScheduleView.
+
+**Rationale:** CSV bulk scheduling is the standard for agencies managing campaigns weeks in advance. The UI scaffold exists. Adding file upload + CSV parsing + batch post creation aligns it to the reference model standard.
+
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** None.
+
+**Open questions:** CSV column schema: `date, time, platform, copy, media_url, campaign` — confirm standard.
+
+---
+
+### DOMAIN 7 — Analytics: 12-Month Historical Tracking
+
+**Current status:** 🟡 PARTIAL — Prisma `AnalyticsDailySummary` + `AnalyticsMonthlySummary` models exist. `GetHistoricalAnalyticsQuery.ts` exists. `analyticsAggregationWorker.ts` runs aggregation. 12-month specific retention policy not confirmed.
+
+**Recommendation:** HOMOLOGATE — Add explicit 12-month data retention config and confirm the aggregation worker runs on a daily schedule.
+
+**Rationale:** The infrastructure exists. Needs explicit configuration of retention period and a cron schedule for the aggregation worker.
+
+**Estimated scope:** XS (< 1 day)
+
+**Dependencies:** None.
+
+**Open questions:** Archive strategy for data older than 12 months — delete vs. compress to annual summary.
+
+---
+
+### DOMAIN 7 — Analytics: GA4 / UTM Integration
+
+**Current status:** 🟡 PARTIAL — `GA4TrackingPort.ts` (domain port) + `GenerateUTMLinksUseCase.ts` + `utmRoutes.ts`. Concrete GA4 adapter implementation not confirmed.
+
+**Recommendation:** HOMOLOGATE — Implement GA4 Measurement Protocol adapter and wire it to tracked link clicks.
+
+**Rationale:** UTM links are generated but GA4 reporting is incomplete. Implementing the `GA4TrackingPort` adapter with the Measurement Protocol API closes the loop: link click → UTM → GA4 event → attribution in Google Analytics.
+
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** `GA4TrackingPort` interface defined. Google Analytics Measurement Protocol API key needed.
+
+**Open questions:** Server-side GA4 events (Measurement Protocol) vs. client-side — recommend server-side for reliability.
+
+---
+
+### DOMAIN 2 — Scheduling: Calendar Filtering
+
+**Current status:** 🟡 PARTIAL — Basic scheduling rules and sidebar exist. Full multi-dimension filtering (platform + campaign + team member simultaneously) not confirmed.
+
+**Recommendation:** HOMOLOGATE — Add platform, campaign, and assignee filters to the calendar sidebar.
+
+**Rationale:** Users with large content calendars need to filter by platform or campaign to see relevant content. The Campaign model exists, the provider list exists — wiring them to calendar filters is straightforward.
+
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** Campaign model (exists), provider connections (exist).
+
+**Open questions:** None.
+
+---
+
+### DOMAIN 6 — AI: Prompt Library — Make User-Editable
+
+**Current status:** 🟡 PARTIAL — `ai-content-templates.ts` in admin + `AITemplateSelector.tsx`. Templates are hardcoded in source — not stored in DB, not user-editable.
+
+**Recommendation:** HOMOLOGATE — Move prompt templates to Prisma + CRUD endpoints.
+
+**Rationale:** A prompt library hardcoded in source code cannot be extended by users or customized per account. Storing prompts in DB (a simple `AIPromptTemplate` model: title, category, prompt, variables) enables personalization.
+
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** None.
+
+**Open questions:** Per-account templates or global? Recommend both: global system templates + per-account custom templates.
+
+---
+
+### DOMAIN 9 — Asset Library: Search and Tag Support
+
+**Current status:** 🟡 PARTIAL — `SearchAndSortBar.tsx` + `FilterPanel.tsx` exist. Folder-based organization and media-specific tags not confirmed in the data model.
+
+**Recommendation:** HOMOLOGATE — Add media-level tags to `PostMedia` model and wire to ContentLibrary search.
+
+**Rationale:** Users who upload hundreds of assets need search and filtering to find them. The UI components exist but the data model may not support media tagging independently of post tags.
+
+**Estimated scope:** S (1-3 days)
+
+**Dependencies:** None.
+
+**Open questions:** Should tags be free-form text or predefined categories?
+
+---
+
+### DOMAIN 12 — Multi-Tenant: Detailed Usage Metering
+
+**Current status:** 🟡 PARTIAL — `SubscriptionTier`, `maxProjects`, rate limiting via `advancedRateLimit.ts`. No per-tier metering of posts/month, API calls/month, or storage GB.
+
+**Recommendation:** HOMOLOGATE — Add `UsageMetric` model tracking consumption per account per month, enforce tier limits.
+
+**Rationale:** Without usage metering, enforcing feature limits per subscription tier is impossible. Required before scaling to paid customers.
+
+**Estimated scope:** M (1-2 weeks)
+
+**Dependencies:** None.
+
+**Open questions:** Which dimensions to meter: posts/month, storage GB, AI calls/month, team members? Recommend all four.
+
+---
+
+## DECIDE — Requires a product/business decision before engineering proceeds.
+
+---
+
+### DOMAIN 2 — Scheduling: Optimal Timing (Heuristic vs. Real Predictions)
+
+**Current status:** 🟡 PARTIAL — `PredictOptimalTimingUseCase.ts` is rule-based heuristic. `OptimalTimesView.tsx` shows suggestions.
+
+**Recommendation:** DECIDE — Choose between keeping heuristic (simple) or wiring real historical analytics data.
+
+**Rationale:** The use case currently uses `AnalyticsReadRepository` for timing input but the prediction logic is rule-based. With real analytics data per account, this can become genuinely useful without any ML. Decision: invest in smarter heuristic with real account data, or accept current level as sufficient.
+
+**Estimated scope:** M (1-2 weeks) if real analytics wired.
+
+**Dependencies:** `AnalyticsDailySummary` data accumulation per account.
+
+**Open questions:** Is there enough historical data per account at launch to make per-account recommendations meaningful?
+
+---
+
+### DOMAIN 5 — Social Listening: Keyword Monitoring
+
+**Current status:** 🔴 MISSING — No keyword monitoring infrastructure.
+
+**Recommendation:** DECIDE — Build vs. Buy.
+
+**Rationale:** Implementing real-time keyword monitoring across multiple platforms requires either (a) building integrations with each platform's search/stream APIs, or (b) integrating a third-party listening service (Brandwatch, Mention.com, Sprout Listening). Platform search APIs have severe rate limits. Option (b) is expensive but faster.
+
+**Estimated scope:** XL if built internally. M if via third-party API integration.
+
+**Dependencies:** Budget for third-party service, or significant engineering time.
+
+**Open questions:** Is social listening a core differentiator or a nice-to-have? If core: build. If secondary: buy.
+
+---
+
+### DOMAIN 6 — AI: Brand Voice Profiles
+
+**Current status:** 🔴 MISSING — No brand voice model or per-account AI configuration.
+
+**Recommendation:** DECIDE — System prompts vs. fine-tuning.
+
+**Rationale:** Brand voice can be simulated via a per-account system prompt injected into every AI request (cheap, immediate) or via fine-tuning a model on brand examples (expensive, much better results). The AI orchestrator already supports per-request configuration.
+
+**Estimated scope:** S (1-3 days) for system prompt approach. XL for fine-tuning.
+
+**Dependencies:** None for system prompt approach.
+
+**Open questions:** Is fine-tuned brand voice a differentiator worth the cost, or is system prompt sufficient for target market?
+
+---
+
+### DOMAIN 8 — Team Collaboration: Task Assignment
+
+**Current status:** 🔴 MISSING — No task model. Team member model exists but post-to-member assignment for creation (not approval) is not implemented.
+
+**Recommendation:** DECIDE — Build internal task management or integrate with Linear/Jira/Asana.
+
+**Rationale:** A full internal task system (task model, status, priority, due date) is significant scope. For most social media teams, approval workflow + inbox assignment covers 80% of coordination needs. External integration via webhook/API is cheaper.
+
+**Estimated scope:** M (1-2 weeks) for basic internal tasks. L for full task management.
+
+**Dependencies:** Notification system (D8.4).
+
+**Open questions:** Is task management within OmniPost a feature our target users explicitly want, or do they already use a dedicated tool?
+
+---
+
+### DOMAIN 10 — Employee Advocacy: Full Module
+
+**Current status:** 🔴 MISSING — Entire module does not exist.
+
+**Recommendation:** DECIDE — Product scope decision required.
+
+**Rationale:** Employee advocacy is a distinct product module with its own user type (advocate), data model, and UX. It makes sense for enterprise customers (10,000+ employee companies) but adds significant complexity for SMBs and agencies. Should only be built if the target market includes enterprise.
+
+**Estimated scope:** XL (> 1 month)
+
+**Dependencies:** D8 Team workflows fully functional, D3 Publishing engine stable.
+
+**Open questions:** Is enterprise (advocacy use case) part of the target market for the current launch phase?
+
+---
+
+### DOMAIN 11 — Social Advertising: Post Boosting
+
+**Current status:** 🔴 MISSING — No boost functionality.
+
+**Recommendation:** DECIDE — Start with post-boost before full ad management.
+
+**Rationale:** "Boost this post" is a simpler entry point into social advertising than full campaign creation. Meta (Facebook + Instagram) and TikTok support single-click boosting via their APIs. This could be a quick win with high perceived value, but requires ad API approval from Meta (review process, business verification).
+
+**Estimated scope:** M (1-2 weeks) once API access granted.
+
+**Dependencies:** Meta Marketing API approval (business verification required). TikTok Marketing API functional implementation.
+
+**Open questions:** Is advertising in scope for the current product phase? What is the business verification status with Meta?
+
+---
+
+## DEFER — Not critical for current phase; add to backlog.
+
+---
+
+### DOMAIN 1 — Composer: Emoji Picker
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — Low priority, add after core features are complete.
+
+**Rationale:** Users can paste emojis from their OS. An embedded picker improves UX but is not blocking for launch. Use `emoji-mart` or a similar library when prioritized.
+
+**Estimated scope:** XS (< 1 day)
+
+**Dependencies:** None.
+
+**Open questions:** None.
+
+---
+
+### DOMAIN 1 — Composer: Design Tool Integration (Canva, Adobe Express)
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — Requires Canva Connect API partnership (free tier may not support embedded editing for SaaS) and API key setup.
+
+**Rationale:** High effort to do correctly. Users can create in Canva and upload the result. Adds polish but not core functionality.
+
+**Estimated scope:** L (2-4 weeks)
+
+**Dependencies:** Canva Connect API access (partnership/agreement).
+
+**Open questions:** Does Canva's free tier allow embedding in third-party SaaS applications?
+
+---
+
+### DOMAIN 1 — Composer: @Mention Autocomplete
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — Requires Social Inbox (D4) to have follower/contact data. Without inbox data, there's nothing to autocomplete against.
+
+**Estimated scope:** M (1-2 weeks) after D4 is complete.
+
+**Dependencies:** Social Inbox with contact/follower data.
+
+**Open questions:** None.
+
+---
+
+### DOMAIN 5 — Social Listening: Sentiment Analysis
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — Requires keyword monitoring (D5 keyword monitoring) to have data. Without inbound mentions, there's nothing to run sentiment on. Implement after keyword monitoring decision is made.
+
+**Estimated scope:** M (1-2 weeks) — could be wired through existing `aiService.ts`.
+
+**Dependencies:** D5 keyword monitoring, Social Inbox data.
+
+**Open questions:** None (decision depends on D5 keyword monitoring decision above).
+
+---
+
+### DOMAIN 5 — Social Listening: Competitor Tracking
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — Extremely high complexity. Requires scraping public profiles or expensive third-party data APIs. Not feasible without significant infrastructure investment.
+
+**Estimated scope:** XL
+
+**Dependencies:** D5 keyword monitoring infrastructure.
+
+**Open questions:** None — defer until market validation confirms demand.
+
+---
+
+### DOMAIN 7 — Analytics: Custom Report Builder
+
+**Current status:** 🔴 MISSING — Static dashboards only.
+
+**Recommendation:** DEFER — Static dashboards cover 90% of use cases. A drag-and-drop report builder is high complexity UI work for marginal gain at launch.
+
+**Estimated scope:** L (2-4 weeks)
+
+**Dependencies:** Stable analytics data layer.
+
+**Open questions:** None.
+
+---
+
+### DOMAIN 7 — Analytics: Industry Benchmark Data
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — Requires data from a large base of accounts or a third-party benchmark service. Not feasible until OmniPost has significant data of its own.
+
+**Estimated scope:** XL
+
+**Dependencies:** Large account base (>1000 accounts) or third-party benchmark data license.
+
+**Open questions:** None.
+
+---
+
+### DOMAIN 8 — Team Collaboration: Multi-Level Approval Chains
+
+**Current status:** 🔴 MISSING — Single-level approval exists in backend (submit → approve/reject).
+
+**Recommendation:** DEFER — Single-level approval (D8.2) covers most use cases. Multi-level chains (manager → director → legal) are an enterprise feature. Build after single-level approval is proven in production.
+
+**Estimated scope:** M (1-2 weeks)
+
+**Dependencies:** D8.2 approval workflow UI.
+
+**Open questions:** None.
+
+---
+
+### DOMAIN 9 — Asset Library: Brand Kit (Colors, Fonts, Logos)
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — No `BrandKit` Prisma model exists. Useful but not blocking for launch.
+
+**Estimated scope:** M (1-2 weeks) — new model + settings UI + integration with content templates.
+
+**Dependencies:** D9.1 asset library functional.
+
+**Open questions:** Should brand colors enforce themselves in the TipTap editor (custom color palette)?
+
+---
+
+### DOMAIN 9 — Asset Library: External Storage Import (Google Drive, Dropbox)
+
+**Current status:** 🟡 PARTIAL — Internal S3/Cloudinary storage works. No cloud storage import.
+
+**Recommendation:** DEFER — Users can upload directly. Drive/Dropbox import is a convenience feature.
+
+**Estimated scope:** M (1-2 weeks)
+
+**Dependencies:** OAuth for Google/Dropbox (separate from provider OAuth).
+
+**Open questions:** None.
+
+---
+
+### DOMAIN 11 — Social Advertising: Full Ad Management
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — Full campaign creation, budget management, audience targeting, and ad performance tracking is a product category unto itself. Far outside current scope.
+
+**Estimated scope:** XL (> 2 months)
+
+**Dependencies:** Meta Marketing API approval, LinkedIn Campaign Manager API access, ad creative model, budget model.
+
+**Open questions:** None — this is a separate product phase decision.
+
+---
+
+### DOMAIN 12 — Multi-Tenant: SSO / SAML / OIDC
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — Required for enterprise customers but not for SMB/agency launch. Add when first enterprise deal requires it.
+
+**Estimated scope:** L (2-4 weeks)
+
+**Dependencies:** Auth infrastructure (already solid). Decision on provider: Keycloak (self-hosted) vs. Auth0 (SaaS).
+
+**Open questions:** None — implement when a customer requires it.
+
+---
+
+### DOMAIN 13 — Integrations: CRM Integration
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — CRM integration (Salesforce, HubSpot) is an enterprise feature. Low priority for current phase.
+
+**Estimated scope:** L (2-4 weeks per CRM)
+
+**Dependencies:** None.
+
+**Open questions:** None.
+
+---
+
+### DOMAIN 13 — Integrations: Zapier / Make Connector
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — The public API already exists. Zapier/Make connectors require publishing to their marketplaces and ongoing maintenance. Build after API documentation is complete.
+
+**Estimated scope:** M (1-2 weeks)
+
+**Dependencies:** D13 API documentation (Swagger/Scalar).
+
+**Open questions:** Zapier first or Make? Recommend Zapier due to larger user base.
+
+---
+
+### DOMAIN 13 — Integrations: Integration Marketplace
+
+**Current status:** 🔴 MISSING
+
+**Recommendation:** DEFER — A marketplace requires multiple integrations to exist first. Premature at this stage.
+
+**Estimated scope:** XL
+
+**Dependencies:** 10+ integrations implemented.
+
+**Open questions:** None.
+
+---
+
+## REMOVE — Dead code with no implementation path and no product value.
+
+---
+
+### DOMAIN 6 — AI: PredictAudienceResponseUseCase
+
+**Current status:** 🟡 PARTIAL — `apps/api/src/application/ml/PredictAudienceResponseUseCase.ts` exists. Rule-based heuristic. No route wires to it. No frontend consumer.
+
+**Recommendation:** REMOVE — This use case is unreachable from any route. It computes a heuristic "audience response" score with no real data. It is dead code that adds maintenance surface without value.
+
+**Estimated scope:** XS (< 1 day) — delete file + remove DI registration.
+
+**Dependencies:** None.
+
+**Open questions:** None. If audience prediction is desired in future, rebuild properly using real analytics data.
+
+---
+
+### DOMAIN 11 — Social Advertising: TikTok Marketing API createPromotedContent stub
+
+**Current status:** 🟡 PARTIAL — `packages/providers/tiktok/src/marketingApiClient.ts` `createPromotedContent()` logs `"Marketing campaign creation not fully implemented"` and does not return a valid result.
+
+**Recommendation:** REMOVE the stub implementation. Keep the `marketingApiClient.ts` file as a placeholder for future work but remove the misleading `createPromotedContent()` body that pretends to work while doing nothing useful.
+
+**Estimated scope:** XS (< 1 day)
+
+**Dependencies:** None.
+
+**Open questions:** None.
+
+---
+
+### DOMAIN 3 — Publishing: YouTube Community Posts stub
+
+**Current status:** 🟡 PARTIAL — `publishCommunityPost()` in `YouTubeAdapter.ts` returns hardcoded `err("VALIDATION")`.
+
+**Recommendation:** REMOVE the stub and replace with a clear `⚫ OUT OF SCOPE` comment explaining that YouTube Community Tab API requires YouTube Partner Program access (not available via standard API). Document in the adapter's capabilities object by setting `communityPosts: false`.
+
+**Estimated scope:** XS (< 1 day)
+
+**Dependencies:** None.
+
+**Open questions:** None.
+
+---
+
+## TOP 10 IMPLEMENT PRIORITIES (Ordered by Impact × Effort)
+
+| Priority | Capability                             | Domain | Status           | Scope | Rationale                              |
+| -------- | -------------------------------------- | ------ | ---------------- | ----- | -------------------------------------- |
+| 1        | Social Inbox UI (unified view)         | D4     | 🟡 Backend ready | L     | #1 expected feature, backend done      |
+| 2        | Approval Workflow UI                   | D8     | 🟡 Backend ready | M     | Unblocks team adoption                 |
+| 3        | Notification Center UI                 | D8     | 🟡 Backend ready | M     | Transversal — powers approvals + inbox |
+| 4        | Reply from Inbox                       | D4     | 🟡 Backend ready | M     | Without reply, inbox is read-only      |
+| 5        | AI Image Generation UI                 | D6     | 🟡 Backend ready | S     | Backend done, 1-3 days of UI           |
+| 6        | Slack/Teams Notification UI            | D13    | 🟡 Backend ready | XS    | < 1 day, high perceived value          |
+| 7        | Recurring Posts UI                     | D2     | 🟡 Backend ready | M     | Power user feature, backend done       |
+| 8        | Platform Preview (6 missing providers) | D1     | 🟡 Partial       | S     | Core UX gap in composer                |
+| 9        | Bluesky provider                       | D3     | 🔴 Missing       | M     | Growing platform, no approval needed   |
+| 10       | API Documentation (Swagger/Scalar)     | D13    | 🔴 Missing       | S     | Unlocks developer adoption + SDK       |

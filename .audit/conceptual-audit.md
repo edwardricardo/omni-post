@@ -1,403 +1,500 @@
 # OmniPost — Conceptual Feature Audit
 
-> Comparación feature-por-feature contra un modelo de referencia de plataforma madura de gestión de redes sociales.
-> Fecha: 2026-03-08 | Versión del codebase: Genesis (clean-main)
+> Deep comparison between OmniPost codebase and the feature model of a full-spectrum
+> social media management platform.
+> **Generated:** 2026-03-10 | **Codebase:** Genesis branch (post Phase 1 + Phase 4)
+> **Method:** Exhaustive codebase exploration — 41 route files, 90+ use cases, 65 Prisma models,
+> 9 provider packages, 160+ frontend components audited before writing a single line.
 
 ---
 
-## 1. Executive Summary
+## EXECUTIVE SUMMARY
 
-### Overall Score: ~38% (31/80 capabilities implemented or partially implemented)
+### Domain Completion Scores
 
-| Dominio                              | Score | Status       |
-| ------------------------------------ | ----- | ------------ |
-| D1: Unified Composer                 | 55%   | 🟡 Parcial   |
-| D2: Scheduling & Calendar            | 65%   | 🟡 Parcial   |
-| D3: Multi-Platform Publishing        | 70%   | 🟢 Funcional |
-| D4: Social Inbox                     | 0%    | 🔴 No existe |
-| D5: Social Listening & Monitoring    | 5%    | 🔴 Mínimo    |
-| D6: AI-Assisted Content Creation     | 45%   | 🟡 Parcial   |
-| D7: Analytics & Reporting            | 55%   | 🟡 Parcial   |
-| D8: Team Collaboration & Approval    | 35%   | 🟡 Parcial   |
-| D9: Asset Library & Brand Kit        | 25%   | 🔴 Básico    |
-| D10: Employee Advocacy               | 0%    | 🔴 No existe |
-| D11: Social Advertising Integration  | 5%    | 🔴 Mínimo    |
-| D12: Multi-Tenant Account Management | 65%   | 🟡 Parcial   |
-| D13: Integrations & Extensibility    | 25%   | 🔴 Básico    |
+| Domain                                | Implemented | Partial | Missing | Score   | Status                          |
+| ------------------------------------- | ----------- | ------- | ------- | ------- | ------------------------------- |
+| D1: Unified Content Composer          | 2/6         | 3/6     | 1/6     | **58%** | 🟡 Parcial                      |
+| D2: Scheduling & Content Calendar     | 3/6         | 3/6     | 0/6     | **75%** | 🟡 Parcial                      |
+| D3: Multi-Platform Publishing Engine  | 8/14        | 5/14    | 1/14    | **75%** | 🟡 Parcial                      |
+| D4: Social Inbox (Unified Engagement) | 0/7         | 6/7     | 1/7     | **43%** | 🟡 Backend only, 0% UI          |
+| D5: Social Listening                  | 0/8         | 1/8     | 7/8     | **6%**  | 🔴 Mínimo                       |
+| D6: AI-Assisted Content Creation      | 2/8         | 2/8     | 4/8     | **38%** | 🟡 Parcial                      |
+| D7: Analytics & Reporting             | 4/10        | 5/10    | 1/10    | **65%** | 🟡 Parcial                      |
+| D8: Team Collaboration & Approvals    | 2/6         | 4/6     | 0/6     | **67%** | 🟡 Backend complete, UI missing |
+| D9: Asset Library & Content Storage   | 0/6         | 4/6     | 2/6     | **33%** | 🔴 Básico                       |
+| D10: Employee Advocacy                | 0/5         | 0/5     | 5/5     | **0%**  | 🔴 No existe                    |
+| D11: Social Advertising               | 0/5         | 1/5     | 4/5     | **10%** | 🔴 Mínimo                       |
+| D12: Multi-Tenant Account Management  | 4/6         | 1/6     | 1/6     | **75%** | 🟡 Parcial                      |
+| D13: Integrations & Extensibility     | 2/7         | 1/7     | 4/7     | **36%** | 🟡 Parcial                      |
 
-### Top 3 Fortalezas
-
-1. **Arquitectura Hexagonal + DDD + CQRS + Saga** — Base técnica excepcional (domain layer, Unit of Work, event-driven, outbox pattern). Supera el modelo de referencia en madurez arquitectónica.
-2. **Multi-Platform Publishing Pipeline** — 5 providers reales (X, Instagram, Facebook, YouTube, TikTok) con APIs reales, video processing, threading, deduplication, circuit breaker, DLQ.
-3. **Security & Auth Layer** — MFA (TOTP), RBAC granular, argon2, brute force protection, device fingerprinting, audit logging, session management, credential encryption. Sólido para producción.
-
-### Top 3 Gaps Críticos
-
-1. **Social Inbox (D4)** — 0% implementado. Sin DMs, sin comentarios unificados, sin mention monitoring. Es la feature #1 que esperan los usuarios de una herramienta de social media management.
-2. **Social Listening (D5)** — 5% implementado. Solo trend analysis básico. Sin keyword monitoring, sin sentiment analysis, sin competitor tracking, sin brand mention alerts.
-3. **Employee Advocacy (D10)** — 0% implementado. Sin content curation para empleados, sin gamification, sin compliance controls.
-
-### Capabilities que Exceden el Modelo
-
-- **Crisis Mode** — Sistema completo de crisis management por proyecto (enter/exit/history). No es típico en plataformas de referencia.
-- **Saga Orchestration** — Transacciones distribuidas con compensación automática. Más sofisticado que la mayoría de competidores.
-- **Content Versioning con Git-like Branching** — Branch, merge, diff, conflict detection. Excepcional para content workflows.
-- **Link Tracking** — Tracked links con click analytics integrados. No siempre presente en competidores.
-
-### Dead Weight (Código sin valor actual)
-
-- `apps/api/src/application/ml/` — Use cases de "ML" que son heurísticas simples sin modelo real (OptimizeContent, PredictAudience, PredictTiming). Valor limitado.
-- `apps/api/src/analytics/performanceComparison/` — Comparación de rendimiento entre providers sin datos reales que lo alimenten.
-
-### Recomendación de Sprint
-
-**Sprint 1 (Foundational):** D8 Approval Workflows (alto impacto, baja complejidad — ya tiene RBAC y audit log como base).
-**Sprint 2 (Core Gap):** D4 Social Inbox MVP (comentarios unificados — requiere webhook processors que ya existen para 5 providers).
-**Sprint 3 (Differentiation):** D7 Analytics avanzados (campaign tagging, exportable reports, 12-month tracking).
-**Sprint 4 (Growth):** D13 Integrations (Canva, Google Drive, CRM webhooks).
+**Overall: ~49% (across 98 individual capabilities)**
 
 ---
 
-## 2. Matriz Dominio-por-Dominio
+### Top 3 Strengths
 
-### Status Legend
+1. **Architecture — Hexagonal + DDD + CQRS + Saga** — The technical foundation exceeds
+   any commercial reference platform. Domain layer is fully clean (no Prisma, no Fastify,
+   no BullMQ), 28 repository ports, Unit of Work with atomic event dispatch, dual-persistence
+   Saga orchestration with compensating transactions. This is production-grade architecture
+   rarely seen at this development stage.
 
-| Símbolo | Significado                    |
-| ------- | ------------------------------ |
-| ✅      | Implementado y funcional       |
-| 🟡      | Parcialmente implementado      |
-| 🔴      | No implementado                |
-| ⚫      | No aplica al scope actual      |
-| 🔵      | Excede el modelo de referencia |
+2. **Multi-Platform Publishing Pipeline** — 9 active providers (X, Instagram, Facebook, YouTube,
+   TikTok, LinkedIn, Pinterest, Snapchat, Telegram), all with real API calls (no stubs in
+   publish path). Video transcoding pipeline, chunked upload with retry, circuit breaker
+   protection, Dead Letter Queue, deduplication, rate-limit awareness. Exceeds reference model
+   in Snapchat (model says listening-only) and Telegram (not in model).
 
----
-
-### D1: Unified Composer (55%)
-
-| #    | Capability                             | Status | Evidencia                                                                                                         | Nota                                                 |
-| ---- | -------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| 1.1  | Rich text editor (WYSIWYG)             | ✅     | `apps/client/components/editor/ClientContentEditor.tsx`, `apps/client/components/templates/TipTapEditor.tsx`      | TipTap 3.6.1, full WYSIWYG                           |
-| 1.2  | Per-platform content preview           | ✅     | `apps/client/components/editor/PlatformPreview.tsx`, `apps/admin/components/editor/ContentPreviewSystem.tsx`      | Preview per provider con character counts            |
-| 1.3  | Platform-specific character limits     | ✅     | `packages/ports/src/ProviderAdapter.ts` (ProviderLimits), `apps/api/src/providers/providerConstraintValidator.ts` | Validación con maxChars, maxHashtags, etc.           |
-| 1.4  | Media attachment (images, video, docs) | ✅     | `apps/admin/components/instagram/MediaUploadZone.tsx`, `infra/prisma/schema.prisma` (PostMedia)                   | Upload + processing pipeline                         |
-| 1.5  | Video editing/splitting                | ✅     | `apps/admin/components/instagram/VideoSplitPreview.tsx`, `apps/api/src/video/videoProcessor.ts`                   | Video split, thumbnails, segments                    |
-| 1.6  | Link preview/unfurling                 | 🔴     | —                                                                                                                 | No existe OG tag fetching ni link preview en editor  |
-| 1.7  | Hashtag suggestions                    | ✅     | `apps/api/src/ai/aiService.ts`, `apps/admin/components/ai/SmartContentOptimizerHashtags.tsx`                      | AI-assisted hashtag generation                       |
-| 1.8  | Emoji picker                           | 🔴     | —                                                                                                                 | No hay emoji picker component                        |
-| 1.9  | @mention autocomplete                  | 🔴     | —                                                                                                                 | No existe mention resolution ni autocomplete         |
-| 1.10 | Canva/Adobe integration                | 🔴     | —                                                                                                                 | No hay integración con design tools                  |
-| 1.11 | Template insertion                     | ✅     | `apps/client/components/editor/TemplateSelector.tsx`, `apps/client/components/templates/TemplateEditor.tsx`       | Template library con variables, versions, AB testing |
-| 1.12 | Draft auto-save                        | ✅     | `apps/client/lib/hooks/useAutoSave.ts`                                                                            | Auto-save hook con debounce                          |
-| 1.13 | Content adaptation engine              | ✅     | `apps/api/src/content/PlatformContentAdapter.ts` (+Core, Strategy, Validation splits)                             | Adapta contenido por provider automáticamente        |
-| 1.14 | Multi-locale content                   | ✅     | `infra/prisma/schema.prisma` (PostContent.locale), `apps/api/src/content/PlatformContentAdapterCore.ts`           | Soporte i18n por post                                |
-
-**Qué falta para 100%:** Link preview (1.6), emoji picker (1.8), @mention autocomplete (1.9), Canva/Adobe integration (1.10).
+3. **Security & Identity Layer** — MFA (TOTP + backup codes), RBAC with granular permissions
+   per resource/action, argon2id password hashing, brute force protection, device fingerprinting,
+   session management with concurrent limits, audit log middleware, credential encryption per
+   provider. Exceeds commercial reference in auth maturity.
 
 ---
 
-### D2: Scheduling & Calendar (65%)
+### Top 3 Critical Gaps
 
-| #    | Capability                     | Status | Evidencia                                                                                                | Nota                                                          |
-| ---- | ------------------------------ | ------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| 2.1  | Visual calendar view           | ✅     | `apps/admin/components/scheduling/SchedulingDashboard.tsx`, `SchedulingDashboardCalendar.tsx`            | Calendario con vistas día/semana/mes                          |
-| 2.2  | Drag-and-drop rescheduling     | ✅     | `apps/admin/components/scheduling/SchedulingDashboard.tsx`                                               | Drag-drop en calendario                                       |
-| 2.3  | Queue-based auto-publishing    | ✅     | `apps/admin/components/queue/PublishingQueueManager.tsx`, `infra/prisma/schema.prisma` (PublishingQueue) | Queue con prioridad, retry, DLQ                               |
-| 2.4  | Bulk scheduling                | 🟡     | `apps/admin/components/scheduling/MultiPlatformSchedulerRefactored.tsx`                                  | Multi-platform scheduler existe, bulk parcial                 |
-| 2.5  | Time zone support              | 🟡     | `infra/prisma/schema.prisma` (AdminUser.timezone)                                                        | Timezone por admin user, pero no timezone picker en scheduler |
-| 2.6  | Optimal time suggestions       | 🟡     | `apps/api/src/application/ml/PredictOptimalTimingUseCase.ts`                                             | Heurística básica, no ML real                                 |
-| 2.7  | Recurring/evergreen posts      | 🔴     | —                                                                                                        | No hay modelo de recurrence ni evergreen queue                |
-| 2.8  | Scheduling rules per channel   | ✅     | `infra/prisma/schema.prisma` (SchedulingRule)                                                            | Reglas de scheduling por cuenta/proyecto                      |
-| 2.9  | Holiday/event calendar overlay | 🔴     | —                                                                                                        | No hay calendario de holidays/events                          |
-| 2.10 | Pause/resume queue             | 🟡     | `apps/admin/components/queue/PublishingQueueManager.tsx`                                                 | Queue management existe pero no pause/resume explícito        |
+1. **Social Inbox UI (D4)** — The backend is 100% complete: Social Inbox module with 15 use cases
+   (`IngestSocialMessage`, `SyncProviderComments`, `AssignMessage`, `SendReply`, `MarkRead`,
+   `Archive`, `ResolveConversation`, `Reopen`, `GetInbox`, `GetConversation`, `GetMessages`,
+   `GetMentions`, `GetUnreadCount`), `SocialMessageAggregate`, `SocialConversation` domain entities,
+   `inboxRoutes.ts`. Zero frontend UI exists for any of this. This is the #1 feature users expect
+   from a social media management platform.
 
-**Qué falta para 100%:** Recurring posts (2.7), holiday calendar (2.9), timezone picker en UI (2.5), queue pause/resume (2.10).
+2. **Approval Workflow UI + Team Collaboration UI (D8)** — Backend fully implemented in Phase 1:
+   `ApprovalRequest` aggregate, `SubmitForReview/Approve/Reject` use cases, `PostComment` aggregate,
+   `Notification` entity with SSE broadcaster, team member invite/remove/role management.
+   Zero frontend UI exists for any approval flow, comment system, or notification center.
 
----
-
-### D3: Multi-Platform Publishing (70%)
-
-| #    | Capability                    | Status | Evidencia                                                                            | Nota                                                                 |
-| ---- | ----------------------------- | ------ | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| 3.1  | X (Twitter)                   | ✅     | `packages/providers/x/src/XAdapter.ts`                                               | Publish, threading, analytics                                        |
-| 3.2  | Instagram                     | ✅     | `packages/providers/instagram/src/InstagramAdapter.ts`                               | Feed, Stories, Reels, carousels                                      |
-| 3.3  | Facebook                      | ✅     | `packages/providers/facebook/src/FacebookAdapter.ts`                                 | Pages, Reels, Stories, Events, Shop                                  |
-| 3.4  | YouTube                       | ✅     | `packages/providers/youtube/src/YouTubeAdapter.ts`                                   | Videos, Shorts, playlists, live streaming, community                 |
-| 3.5  | TikTok                        | ✅     | `packages/providers/tiktok/src/TikTokAdapter.ts`                                     | Videos, hashtags, content analytics                                  |
-| 3.6  | LinkedIn                      | 🔴     | —                                                                                    | No existe provider                                                   |
-| 3.7  | Pinterest                     | 🔴     | —                                                                                    | No existe provider                                                   |
-| 3.8  | Bluesky                       | 🔴     | —                                                                                    | No existe provider                                                   |
-| 3.9  | Snapchat                      | 🔴     | —                                                                                    | No existe provider                                                   |
-| 3.10 | Threading support             | ✅     | `packages/ports/src/ProviderAdapter.ts` (planThread, publishThread)                  | X threads, generic threading interface                               |
-| 3.11 | Cross-posting with adaptation | ✅     | `apps/api/src/content/PlatformContentAdapter.ts`                                     | Adapta contenido per-provider                                        |
-| 3.12 | Publish deduplication         | ✅     | `packages/ports/src/ProviderAdapter.ts` (dedupeKey in PublishInput)                  | Dedup key en publish pipeline                                        |
-| 3.13 | Video processing pipeline     | ✅     | `apps/api/src/video/videoProcessor.ts`, `thumbnailGenerator.ts`, `uploadPipeline.ts` | Transcode, thumbnail, segments                                       |
-| 3.14 | Post-publish verification     | 🟡     | `apps/api/src/webhooks/processors/` (5 webhook processors)                           | Webhooks reciben callbacks, pero no verificación activa post-publish |
-| 3.15 | First comment scheduling      | 🔴     | —                                                                                    | No existe first comment feature                                      |
-
-**Qué falta para 100%:** LinkedIn (3.6), Pinterest (3.7), Bluesky (3.8), Snapchat (3.9), first comment (3.15).
+3. **Social Listening (D5)** — Near-total gap. Only `trendAnalysisService.ts` exists (trend analysis
+   from TikTok trends API). No keyword monitoring, no brand mention alerts, no sentiment analysis,
+   no competitor tracking, no alert system. These require either provider search APIs or a third-party
+   listening service.
 
 ---
 
-### D4: Social Inbox (0%)
+### Capabilities That Exceed the Reference Model
 
-| #    | Capability                    | Status | Evidencia | Nota      |
-| ---- | ----------------------------- | ------ | --------- | --------- |
-| 4.1  | Unified inbox (all platforms) | 🔴     | —         | No existe |
-| 4.2  | Comment management            | 🔴     | —         | No existe |
-| 4.3  | DM management                 | 🔴     | —         | No existe |
-| 4.4  | Mention monitoring            | 🔴     | —         | No existe |
-| 4.5  | Reply from dashboard          | 🔴     | —         | No existe |
-| 4.6  | Conversation threading        | 🔴     | —         | No existe |
-| 4.7  | Sentiment tagging             | 🔴     | —         | No existe |
-| 4.8  | Auto-response rules           | 🔴     | —         | No existe |
-| 4.9  | Assignment to team members    | 🔴     | —         | No existe |
-| 4.10 | SLA tracking                  | 🔴     | —         | No existe |
-
-**Nota:** Este dominio requiere implementación completa desde cero. Los webhook processors existentes (Facebook, Instagram, X, TikTok, YouTube) proporcionan la base para recibir eventos entrantes.
+| Capability                          | Location                                                              | Description                                                                               |
+| ----------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Telegram provider**               | `packages/providers/telegram/`                                        | Bot API publishing, text/photo/video/poll/media group. Not in reference model.            |
+| **Snapchat publishing**             | `packages/providers/snapchat/`                                        | Reference model says "listening only." OmniPost publishes Stories/Spotlight.              |
+| **Crisis Mode Management**          | `apps/api/src/application/crisis/`, `projects/crisisRoutes.ts`        | Enter/Exit/History crisis mode per project, pauses scheduled publishing.                  |
+| **Content Versioning (git-like)**   | `apps/api/src/content/DiffCalculator.ts`, `ContentVersionManager.ts`  | Branch, merge, diff, conflict detection, commit history for content. Exceptional.         |
+| **A/B Testing for Templates**       | `apps/client/components/templates/ABTestManager.tsx`, Prisma `ABTest` | Full A/B test manager with variant tracking and results analysis.                         |
+| **Link Click Tracking**             | `apps/api/src/application/links/`, Prisma `TrackedLink`, `LinkClick`  | Branded tracked links with click analytics and referrer data.                             |
+| **Saga Orchestration**              | `infra/prisma/schema.prisma` (SagaInstance), saga domain modules      | Distributed transaction coordination with automatic compensation.                         |
+| **Multi-provider AI Orchestration** | `apps/api/src/ai/orchestrator.ts`                                     | Fallback chain across OpenAI, Gemini, Perplexity with caching and metrics.                |
+| **MFA + Device Fingerprinting**     | `apps/api/src/auth/mfaRoutes.ts`, `authServiceCore.ts`                | TOTP + backup codes + device-level session management. Exceeds typical SaaS auth.         |
+| **Recurring Posts (cron-based)**    | `apps/api/src/application/recurring/`, domain `RecurringPost` entity  | CronExpression VO, BullMQ repeatable jobs, content rotation (EXACT/ROTATED/AI_GENERATED). |
 
 ---
 
-### D5: Social Listening & Monitoring (5%)
+### Dead Weight
 
-| #   | Capability                | Status | Evidencia                                                       | Nota                                                              |
-| --- | ------------------------- | ------ | --------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 5.1 | Keyword monitoring        | 🔴     | —                                                               | No existe                                                         |
-| 5.2 | Brand mention alerts      | 🔴     | —                                                               | No existe                                                         |
-| 5.3 | Sentiment analysis (NLP)  | 🔴     | —                                                               | No existe                                                         |
-| 5.4 | Competitor tracking       | 🔴     | —                                                               | No existe                                                         |
-| 5.5 | Trend analysis            | 🟡     | `apps/api/src/trends/trendAnalysisService.ts`, `trendRoutes.ts` | Básico: analiza tendencias, pero sin fuente de datos externa real |
-| 5.6 | Crisis detection          | 🟡     | `apps/api/src/application/crisis/` (Enter/Exit/GetCrisisStatus) | Crisis mode manual por proyecto, no detección automática          |
-| 5.7 | Hashtag tracking          | 🔴     | —                                                               | Solo generación de hashtags, no tracking de rendimiento           |
-| 5.8 | Influencer identification | 🔴     | —                                                               | No existe                                                         |
-| 5.9 | Share of voice reporting  | 🔴     | —                                                               | No existe                                                         |
-
-**Qué falta para 100%:** Prácticamente todo. Solo hay trend analysis básico y crisis mode manual.
+| File / Module                                                                    | Evidence                                                                                                           | Recommendation                                                            |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `apps/api/src/application/ml/PredictAudienceResponseUseCase.ts`                  | Rule-based heuristic. No frontend consumer. No evidence it is wired to any route.                                  | **REMOVE**                                                                |
+| `packages/providers/tiktok/src/marketingApiClient.ts` `.createPromotedContent()` | Logs `"Marketing campaign creation not fully implemented"` but doesn't fail. Dead stub that confuses the pipeline. | **REMOVE or IMPLEMENT**                                                   |
+| `packages/providers/youtube/src/` community posts in `publishCommunityPost()`    | Returns hardcoded `err("VALIDATION")` — YouTube Community Tab API requires partner-level access not grantable.     | **DOCUMENT and REMOVE stub** — replace with clear `⚫ OUT OF SCOPE` note. |
 
 ---
 
-### D6: AI-Assisted Content Creation (45%)
+### Recommended Next Sprint Focus
 
-| #    | Capability                       | Status | Evidencia                                                                                    | Nota                                                     |
-| ---- | -------------------------------- | ------ | -------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| 6.1  | AI text generation               | ✅     | `apps/api/src/ai/aiService.ts`, `apps/api/src/ai/providers/` (OpenAI, Gemini, Perplexity)    | Multi-provider AI con orchestrator                       |
-| 6.2  | AI content optimization          | ✅     | `apps/admin/components/ai/SmartContentOptimizer.tsx` (+Hashtags, Metrics, Suggestions, Tone) | Sugerencias de mejora, tono, hashtags                    |
-| 6.3  | AI image generation              | 🔴     | —                                                                                            | No existe                                                |
-| 6.4  | Prompt library/templates         | 🟡     | `apps/admin/components/ai/ai-content-templates.ts`                                           | Templates de AI content, pero no prompt library editable |
-| 6.5  | Brand voice training             | 🔴     | —                                                                                            | No existe fine-tuning ni brand voice profiles            |
-| 6.6  | Content repurposing (long→short) | 🔴     | —                                                                                            | No existe web-to-social ni blog-to-posts                 |
-| 6.7  | Caption generation for media     | 🔴     | —                                                                                            | No existe auto-captioning de imágenes/video              |
-| 6.8  | A/B test content variants        | ✅     | `apps/client/components/templates/ABTestManager.tsx`, `infra/prisma/schema.prisma` (ABTest)  | A/B testing con variantes y tracking                     |
-| 6.9  | Engagement prediction            | 🟡     | `apps/api/src/analytics/engagementPredictor.ts` (+config, factors, scoring)                  | Heurístico rule-based, no ML real                        |
-| 6.10 | Whiteboard/brainstorming         | 🔴     | —                                                                                            | No existe                                                |
-| 6.11 | Multi-provider AI orchestration  | ✅     | `apps/api/src/ai/orchestrator.ts`, providers: OpenAI, Gemini, Perplexity                     | Fallback entre providers                                 |
+Based on the full audit, the 7 highest-leverage items:
 
-**Qué falta para 100%:** Image generation (6.3), brand voice (6.5), content repurposing (6.6), caption generation (6.7), whiteboard (6.10).
+1. **D4 — Social Inbox UI** (XL) — Backend 100% ready. Build admin inbox view: conversation list, message thread, reply composer, assignment, resolution. This unlocks the core engagement loop.
+2. **D8 — Approval Workflow UI** (M) — Backend 100% ready. Add approval panel to post editor: submit-for-review button, reviewer interface, approve/reject actions with comment. Unblocks team collaboration.
+3. **D8 — Notification Center UI** (M) — Backend 100% ready. Add notification bell to admin header with dropdown, SSE listener for real-time updates.
+4. **D6 — AI Image Generation UI** (S) — Backend complete (DALL-E 3 via `GenerateImageUseCase`). Build generation form in admin AI section, output gallery, insert-to-editor action.
+5. **D2 — Recurring Posts UI** (M) — Backend complete. Build CRUD UI for recurring post schedules with cron picker, content rotation config.
+6. **D1 — Platform Preview expansion** (S) — Current preview covers X, Instagram, LinkedIn. Extend to Facebook, TikTok, YouTube, Snapchat, Pinterest, Telegram.
+7. **D3 — Bluesky provider** (M) — The last major missing provider. AT Protocol is open, no API key approval required. Unlocks growing audience.
 
 ---
 
-### D7: Analytics & Reporting (55%)
+## DOMAIN-BY-DOMAIN AUDIT MATRIX
 
-| #    | Capability                   | Status | Evidencia                                                                                                                           | Nota                                              |
-| ---- | ---------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| 7.1  | Per-post metrics             | ✅     | `infra/prisma/schema.prisma` (Analytics), `apps/api/src/analytics/analyticsRoutes.ts`                                               | Likes, shares, comments, impressions, reach       |
-| 7.2  | Cross-platform comparison    | ✅     | `apps/api/src/analytics/crossPlatform/`, `apps/admin/components/analytics/UniversalAnalyticsDashboard.tsx`                          | Dashboard unificado                               |
-| 7.3  | CSV/PDF export               | ✅     | `packages/api-common/src/utils/csvExport.ts`                                                                                        | CSV export funcional                              |
-| 7.4  | ROI calculator               | ✅     | `apps/api/src/analytics/roiCalculator.ts`, `apps/api/src/analytics/roi/`                                                            | ROI per campaign/post                             |
-| 7.5  | Real-time analytics          | ✅     | `apps/api/src/analytics/realtimeAnalytics.ts`                                                                                       | Real-time metrics stream                          |
-| 7.6  | Thread analytics             | ✅     | `apps/api/src/analytics/threadAnalytics.ts`                                                                                         | Analytics per thread segment                      |
-| 7.7  | Performance insights         | ✅     | `apps/admin/components/analytics/PerformanceInsights.tsx`                                                                           | Dashboard con insights                            |
-| 7.8  | 12-month historical tracking | 🔴     | —                                                                                                                                   | No hay data retention policy ni long-term storage |
-| 7.9  | GA4/UTM integration          | 🔴     | —                                                                                                                                   | No existe GA4 connection                          |
-| 7.10 | Campaign tagging             | 🔴     | —                                                                                                                                   | No hay campaign model ni tagging system           |
-| 7.11 | Scheduled reports            | 🔴     | —                                                                                                                                   | No hay report scheduling                          |
-| 7.12 | Custom dashboard builder     | 🔴     | —                                                                                                                                   | Dashboards son estáticos, no configurables        |
-| 7.13 | Benchmark data               | 🔴     | —                                                                                                                                   | No hay industry benchmarks                        |
-| 7.14 | Link click tracking          | ✅     | `apps/api/src/application/links/` (CreateTrackedLink, RedirectAndTrackClick), `infra/prisma/schema.prisma` (TrackedLink, LinkClick) | Links rastreados con click analytics              |
+### Status Codes
 
-**Qué falta para 100%:** Historical tracking (7.8), GA4 (7.9), campaign tagging (7.10), scheduled reports (7.11), custom dashboards (7.12), benchmarks (7.13).
+| Code             | Meaning                                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| ✅ IMPLEMENTED   | Fully working end-to-end: UI → use case → adapter → platform API. Not mocked.                  |
+| 🟡 PARTIAL       | Exists in code but incomplete: missing UI, mocked data, stub, or wired to only some platforms. |
+| 🔴 MISSING       | No evidence of this capability anywhere in the codebase.                                       |
+| ⚫ OUT OF SCOPE  | Deliberately excluded from OmniPost's product vision.                                          |
+| 🔵 EXCEEDS MODEL | OmniPost has a capability that the reference model does not describe.                          |
 
 ---
 
-### D8: Team Collaboration & Approval Workflows (35%)
+### DOMAIN 1 — UNIFIED CONTENT COMPOSER
 
-| #    | Capability                      | Status | Evidencia                                                                | Nota                                                     |
-| ---- | ------------------------------- | ------ | ------------------------------------------------------------------------ | -------------------------------------------------------- |
-| 8.1  | Role-based access control       | ✅     | `apps/api/src/auth/rbacService.ts`, `rbacMiddleware.ts`, `rbacRoutes.ts` | RBAC granular con permisos por recurso/acción            |
-| 8.2  | Permission management UI        | ✅     | `apps/admin/components/security/RbacManager.tsx`                         | UI completa para gestión de roles                        |
-| 8.3  | Audit log                       | ✅     | `apps/api/src/audit/auditMiddleware.ts`, `auditRoutes.ts`                | Audit trail completo                                     |
-| 8.4  | Content approval workflow       | 🔴     | —                                                                        | No hay approval states (draft→review→approved→published) |
-| 8.5  | In-context comments/annotations | 🔴     | —                                                                        | No existe commenting system en content                   |
-| 8.6  | Task assignment                 | 🔴     | —                                                                        | No hay task model ni assignment                          |
-| 8.7  | Notification system             | 🔴     | —                                                                        | No existe notification service                           |
-| 8.8  | Activity feed                   | 🔴     | —                                                                        | Solo audit log, no activity feed                         |
-| 8.9  | Version comparison (diff view)  | ✅     | `apps/api/src/content/DiffCalculator.ts`, `ContentVersionManager.ts`     | Diff, branch, merge — excepcional                        |
-| 8.10 | Multi-level approval chains     | 🔴     | —                                                                        | No existe                                                |
+> Reference: Single composer interface for multi-platform post creation with per-platform preview,
+> customization, emoji/hashtag/link insertion, design tool integration, all media types,
+> publish-now and schedule-later paths.
 
-**Qué falta para 100%:** Approval workflow (8.4), comments (8.5), tasks (8.6), notifications (8.7), activity feed (8.8), multi-level approvals (8.10).
+| #   | Capability                                                     | Status         | Evidence                                                                                                                                                                                                               | Notes / What's Missing                                                                                    |
+| --- | -------------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 1.1 | Platform-specific preview per channel                          | 🟡 PARTIAL     | `apps/client/components/editor/PlatformPreview.tsx` — renders X/Twitter, Instagram, LinkedIn thread segments                                                                                                           | Missing preview for Facebook, TikTok, YouTube, Snapchat, Pinterest, Telegram (6 of 9 providers uncovered) |
+| 1.2 | Per-platform copy and media customization                      | ✅ IMPLEMENTED | `apps/api/src/content/PlatformContentAdapter.ts` (+ Core, Strategy, Validation splits); `apps/admin/components/editor/ProviderAdaptationEngine.tsx`                                                                    | Adapts content per provider: char limits, hashtag strategy, media format                                  |
+| 1.3 | Emoji, hashtag, and shortened link insertion                   | 🟡 PARTIAL     | Hashtag: `SmartContentOptimizerHashtags.tsx`, AI generation via `aiService.ts`. Links: `apps/api/src/application/links/CreateTrackedLinkUseCase.ts`, `utm/GenerateUTMLinksUseCase.ts`                                  | No emoji picker component. Hashtag insertion via AI suggestion, not inline picker.                        |
+| 1.4 | Inline design tool integration (Canva, Adobe)                  | 🔴 MISSING     | No file found.                                                                                                                                                                                                         | No Canva Connect API, no Adobe Express embed integration.                                                 |
+| 1.5 | All media types: images, video, carousels, PDFs, link previews | 🟡 PARTIAL     | Images/video: `apps/admin/components/instagram/MediaUploadZone.tsx`, Prisma `PostMedia`. Carousels: Instagram/LinkedIn adapters. PDFs: LinkedIn `LinkedInAdapter.ts` `uploadDocument()`. Link previews: no file found. | Link preview/unfurling (OG tag fetch) does not exist in editor. PDF support limited to LinkedIn.          |
+| 1.6 | Publish now + schedule for later from same interface           | ✅ IMPLEMENTED | `apps/client/app/(dashboard)/posts/new/page.tsx`, `apps/client/components/publishing/PublishingInterface.tsx`, `apps/client/components/editor/SchedulePicker.tsx`                                                      | Both publish paths wired to same creation flow.                                                           |
 
----
-
-### D9: Asset Library & Brand Kit (25%)
-
-| #    | Capability                          | Status | Evidencia                                                                                            | Nota                                            |
-| ---- | ----------------------------------- | ------ | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| 9.1  | Media library (images/video)        | 🟡     | `apps/admin/components/content/ContentLibrary.tsx`, `apps/admin/components/content/library/`         | Content library básica, sin folder organization |
-| 9.2  | Folder/tag organization             | 🔴     | —                                                                                                    | No hay folders ni tags para assets              |
-| 9.3  | Search (text + visual)              | 🔴     | —                                                                                                    | No hay search en media library                  |
-| 9.4  | Brand colors/fonts/logos            | 🔴     | —                                                                                                    | No hay brand kit model                          |
-| 9.5  | Brand guidelines storage            | 🔴     | —                                                                                                    | No existe                                       |
-| 9.6  | Asset versioning                    | 🟡     | `infra/prisma/schema.prisma` (ContentVersion)                                                        | Versioning de content, no de media assets       |
-| 9.7  | Image editing (crop, resize)        | 🔴     | —                                                                                                    | No hay editor de imágenes                       |
-| 9.8  | Usage rights tracking               | 🔴     | —                                                                                                    | No existe                                       |
-| 9.9  | Storage integration (S3/Cloudinary) | ✅     | `packages/adapters/storage-s3/`, `packages/adapters/storage-cloudinary/`                             | S3 y Cloudinary adapters                        |
-| 9.10 | Content templates library           | ✅     | `apps/admin/components/content/templates/`, `infra/prisma/schema.prisma` (Template, TemplateVersion) | Templates con versions, components, commits     |
-
-**Qué falta para 100%:** Folder organization (9.2), search (9.3), brand kit (9.4, 9.5), image editing (9.7), rights tracking (9.8).
+**Score: 2 ✅ + 3 🟡 + 1 🔴 = ~58%**
 
 ---
 
-### D10: Employee Advocacy (0%)
+### DOMAIN 2 — SCHEDULING & CONTENT CALENDAR
 
-| #    | Capability                         | Status | Evidencia | Nota      |
-| ---- | ---------------------------------- | ------ | --------- | --------- |
-| 10.1 | Curated content feed for employees | 🔴     | —         | No existe |
-| 10.2 | One-click sharing                  | 🔴     | —         | No existe |
-| 10.3 | Gamification/leaderboard           | 🔴     | —         | No existe |
-| 10.4 | Compliance controls                | 🔴     | —         | No existe |
-| 10.5 | Reach amplification metrics        | 🔴     | —         | No existe |
+> Reference: Individual scheduling, bulk CSV scheduling, visual drag-and-drop calendar,
+> filtered views, queue-based auto-scheduling, preview in calendar.
 
-**Nota:** Dominio completo no implementado. Requiere nuevo módulo desde cero.
+| #   | Capability                                                  | Status         | Evidence                                                                                                                    | Notes / What's Missing                                                                                                   |
+| --- | ----------------------------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 2.1 | Individual post scheduling with date/time picker            | ✅ IMPLEMENTED | `apps/client/components/editor/SchedulePicker.tsx`, `apps/api/src/application/posts/SchedulePostUseCase.ts`                 | Date/time picker, transitions post to SCHEDULED status.                                                                  |
+| 2.2 | Bulk scheduling via CSV or batch mechanism                  | 🟡 PARTIAL     | `apps/admin/components/scheduling/SchedulingDashboard.tsx` (`BulkScheduleView` tab), `MultiPlatformSchedulerRefactored.tsx` | Bulk scheduling UI exists. CSV import not confirmed — bulk form may require manual entry per post.                       |
+| 2.3 | Visual calendar with drag-and-drop rescheduling             | ✅ IMPLEMENTED | `apps/admin/components/scheduling/SchedulingDashboardCalendar.tsx`, `CalendarView.tsx`                                      | Calendar with day/week/month views, drag-and-drop rescheduling confirmed.                                                |
+| 2.4 | Calendar filtered by platform, account, team, tag, campaign | 🟡 PARTIAL     | `apps/admin/components/scheduling/SchedulingDashboardSidebar.tsx`, `RulesView.tsx`                                          | Scheduling rules exist. Full multi-dimension filtering (platform + campaign + team member simultaneously) not confirmed. |
+| 2.5 | Queue-based auto-scheduling                                 | ✅ IMPLEMENTED | Prisma `PublishingQueue`, `apps/admin/components/queue/PublishingQueueManager.tsx`, `apps/workers/src/publishWorker.ts`     | BullMQ workers publish from queue. Priority, retry, DLQ all wired.                                                       |
+| 2.6 | Post preview in calendar view before publishing             | 🟡 PARTIAL     | `apps/admin/components/scheduling/SchedulingDashboardPostModal.tsx`                                                         | Post modal exists on calendar. Full rich preview (rendered per platform) not confirmed in calendar view.                 |
 
----
-
-### D11: Social Advertising Integration (5%)
-
-| #    | Capability                   | Status | Evidencia                                             | Nota                                                  |
-| ---- | ---------------------------- | ------ | ----------------------------------------------------- | ----------------------------------------------------- |
-| 11.1 | Meta Ads Manager integration | 🔴     | —                                                     | No existe                                             |
-| 11.2 | TikTok Ads integration       | 🟡     | `packages/providers/tiktok/src/marketingApiClient.ts` | API client placeholder, sin UI ni campaign management |
-| 11.3 | X Ads integration            | 🔴     | —                                                     | No existe                                             |
-| 11.4 | LinkedIn Ads integration     | 🔴     | —                                                     | No existe (no hay LinkedIn provider)                  |
-| 11.5 | Post boosting from dashboard | 🔴     | —                                                     | No existe                                             |
-| 11.6 | Ad performance analytics     | 🔴     | —                                                     | No existe                                             |
-| 11.7 | Budget management            | 🔴     | —                                                     | No existe                                             |
-| 11.8 | Audience targeting           | 🔴     | —                                                     | No existe                                             |
-
-**Qué falta para 100%:** Prácticamente todo. Solo placeholder de TikTok marketing API.
+**Score: 3 ✅ + 3 🟡 + 0 🔴 = ~75%**
 
 ---
 
-### D12: Multi-Tenant Account Management (65%)
+### DOMAIN 3 — MULTI-PLATFORM PUBLISHING ENGINE
 
-| #     | Capability                         | Status | Evidencia                                                                                                  | Nota                                                           |
-| ----- | ---------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| 12.1  | Multi-account support              | ✅     | `infra/prisma/schema.prisma` (Account), `apps/api/src/accounts/accountRoutes.ts`                           | Account → Projects → Channels hierarchy                        |
-| 12.2  | Subscription tiers                 | ✅     | `infra/prisma/schema.prisma` (SubscriptionTier: BASIC, PRO, ENTERPRISE)                                    | 3 tiers con limits                                             |
-| 12.3  | Billing/Stripe integration         | ✅     | `apps/api/src/billing/subscriptionService.ts`, schema (stripeCustomerId, stripeSubscriptionId)             | Stripe integration                                             |
-| 12.4  | Trial period management            | ✅     | `apps/api/src/admin/accountLifecycleService.ts`, schema (isOnTrial, trialStartDate, trialEndDate)          | Trial con auto-renewal                                         |
-| 12.5  | Per-tenant API keys                | ✅     | `infra/prisma/schema.prisma` (ApiKey), `apps/api/src/auth/apiKeyRoutes.ts`                                 | API keys por account                                           |
-| 12.6  | SSO (SAML/OIDC)                    | 🔴     | —                                                                                                          | No existe SSO enterprise                                       |
-| 12.7  | White-label/custom branding        | 🔴     | —                                                                                                          | No existe                                                      |
-| 12.8  | Usage metering/quotas              | 🟡     | `apps/api/src/security/advancedRateLimit.ts`, schema (maxProjects)                                         | Rate limiting y maxProjects, pero sin usage metering detallado |
-| 12.9  | Account lifecycle (suspend/delete) | ✅     | `apps/api/src/admin/accountLifecycleService.ts` (+QueryService, Types)                                     | Lifecycle completo: create, suspend, reactivate, delete        |
-| 12.10 | Executive dashboard                | ✅     | `apps/api/src/admin/executiveRoutes.ts`, `ExecutiveDashboardHandlers.ts`, `ExecutiveComplianceHandlers.ts` | Dashboard ejecutivo con compliance                             |
-| 12.11 | OAuth provider connections         | ✅     | `apps/api/src/auth/providerOAuth.ts`, `enhancedOAuthProvider.ts`, `connectionManager.ts`                   | OAuth para 5 providers, PKCE                                   |
+> Reference: X, Instagram (Feed/Stories/Reels/Carousel), Facebook (Page/Stories/Reels),
+> YouTube (Videos/Shorts/Community), TikTok, LinkedIn, Pinterest, Bluesky, Snapchat (listening only).
+> Format enforcement, transcoding, chunked upload, retry, rate limiting.
 
-**Qué falta para 100%:** SSO (12.6), white-label (12.7), usage metering detallado (12.8).
+| #    | Capability                                | Status           | Evidence                                                                                                                                                                                                   | Notes / What's Missing                                                                                                        |
+| ---- | ----------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 3.1  | X / Twitter publishing                    | ✅ IMPLEMENTED   | `packages/providers/x/src/XAdapter.ts` — calls POST /2/tweets, media upload, thread support                                                                                                                | Threading, media upload, analytics all real API calls.                                                                        |
+| 3.2  | Instagram: Feed, Stories, Reels, Carousel | ✅ IMPLEMENTED   | `packages/providers/instagram/src/InstagramAdapter.ts` — routes to `publishFeedPost()`, `publishStory()`, `publishReel()`, `publishCarousel()`                                                             | Each content type has dedicated API path. Reels validated ≤90s.                                                               |
+| 3.3  | Facebook: Page posts, Stories, Reels      | ✅ IMPLEMENTED   | `packages/providers/facebook/src/FacebookAdapter.ts` — `publishPost()`, `publishStory()` via `FacebookStoriesApi`, `publishReel()` via `FacebookReelsApi`                                                  | Real API calls. Stories support interactive elements.                                                                         |
+| 3.4  | YouTube: Videos, Shorts, Community posts  | 🟡 PARTIAL       | `packages/providers/youtube/src/YouTubeAdapter.ts` — `publishVideo()`, `publishShort()` via `YouTubeShortsService`, `publishLiveStream()`. `publishCommunityPost()` returns hardcoded `err("VALIDATION")`. | Community posts API requires YouTube Partner Program — currently a stub returning error.                                      |
+| 3.5  | TikTok: Videos                            | ✅ IMPLEMENTED   | `packages/providers/tiktok/src/TikTokAdapter.ts` — routes to `publishPhotoPost()` (images) or `apiClient.uploadVideo()` (video)                                                                            | Real API. Photo/video posts confirmed.                                                                                        |
+| 3.6  | LinkedIn: Posts, Articles                 | 🟡 PARTIAL       | `packages/providers/linkedin/src/LinkedInAdapter.ts` — `apiClient.createPost()`, 2-step media upload, org post support                                                                                     | Posts confirmed real. LinkedIn Articles API requires separate `w_member_social` scope and different endpoint — not confirmed. |
+| 3.7  | Pinterest                                 | ✅ IMPLEMENTED   | `packages/providers/pinterest/src/PinterestAdapter.ts` — `apiClient.createPin()` via POST /v5/pins. Images via `image_url`, video via `video_id`.                                                          | Pins + boards. 100 calls/s/user rate limit noted.                                                                             |
+| 3.8  | Bluesky                                   | 🔴 MISSING       | No file found.                                                                                                                                                                                             | AT Protocol provider does not exist.                                                                                          |
+| 3.9  | Snapchat                                  | 🔵 EXCEEDS MODEL | `packages/providers/snapchat/src/SnapchatAdapter.ts` — `apiClient.uploadMedia()` + `apiClient.createStory()`. Reference says "listening only."                                                             | OmniPost publishes Stories/Spotlight — exceeds the reference model's scope for Snapchat.                                      |
+| 3.10 | Per-platform format enforcement           | ✅ IMPLEMENTED   | `packages/ports/src/ProviderAdapter.ts` (`ProviderLimits`: maxChars, maxHashtags, maxMediaPerPost, aspectRatios, maxVideoDuration, etc.), `apps/api/src/providers/providerConstraintValidator.ts`          | Validation on render + before publish. Enforced per provider.                                                                 |
+| 3.11 | Media transcoding / processing pipeline   | ✅ IMPLEMENTED   | `apps/api/src/video/videoProcessor.ts`, `thumbnailGenerator.ts`, `uploadPipeline.ts`, `packages/providers/instagram/src/mediaProcessor.ts`                                                                 | Transcode, thumbnail generation, video segment splitting, format optimization.                                                |
+| 3.12 | Chunked media upload for large video      | ✅ IMPLEMENTED   | `packages/providers/shared/src/AbstractProviderAdapter.ts` — `uploadMediaWithRetry()` (3 retries, exponential backoff), `uploadMediaBatch()`                                                               | Sequential upload with fallback on first failure.                                                                             |
+| 3.13 | Retry and error handling per platform     | ✅ IMPLEMENTED   | `packages/adapters/dead-letter-queue/` (DLQ with Knuth hash jitter), `packages/adapters/fallback-strategies/` (circuit breaker), `packages/monitoring/`                                                    | Per-platform failure reported to DLQ. Circuit breaker prevents cascade failures.                                              |
+| 3.14 | Rate limit awareness and backoff          | 🟡 PARTIAL       | `packages/ports/src/ProviderAdapter.ts` (`rateLimitHints: { burst, perSeconds }` in ProviderLimits)                                                                                                        | Rate limit metadata declared per provider. Actual backoff strategy at worker level not confirmed as per-platform adaptive.    |
 
----
+**Score: 8 ✅ + 5 🟡 + 1 🔴 = ~75%**
+_(Exceeds model with Snapchat publishing and Telegram provider — see D3-Telegram below.)_
 
-### D13: Integrations & Extensibility (25%)
-
-| #     | Capability                           | Status | Evidencia                                                                                                  | Nota                                    |
-| ----- | ------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| 13.1  | Public REST API                      | ✅     | `apps/api/src/` (28 route files, ~237 endpoints)                                                           | API REST completa                       |
-| 13.2  | Webhook system (outbound)            | ✅     | `apps/api/src/webhooks/webhookManager.ts`, `webhookHandler.ts`, schema (WebhookSubscription, WebhookEvent) | Webhooks con subscriptions, events, DLQ |
-| 13.3  | Webhook system (inbound)             | ✅     | `apps/api/src/webhooks/processors/` (5 processors: Facebook, Instagram, TikTok, X, YouTube)                | Inbound webhook processing per provider |
-| 13.4  | Canva integration                    | 🔴     | —                                                                                                          | No existe                               |
-| 13.5  | Google Drive/Dropbox                 | 🔴     | —                                                                                                          | No existe                               |
-| 13.6  | CRM integration (Salesforce/HubSpot) | 🔴     | —                                                                                                          | No existe                               |
-| 13.7  | Slack/Teams notifications            | 🔴     | —                                                                                                          | No existe                               |
-| 13.8  | Zapier/Make connector                | 🔴     | —                                                                                                          | No existe                               |
-| 13.9  | SDK/client library                   | 🔴     | —                                                                                                          | No existe SDK publicado                 |
-| 13.10 | API documentation (interactive)      | 🔴     | —                                                                                                          | No existe Swagger/OpenAPI UI            |
-| 13.11 | Rate limiting for API consumers      | ✅     | `apps/api/src/security/rateLimit.ts`, `advancedRateLimit.ts`, `slidingWindowRateLimit.ts`                  | Rate limiting multi-capa                |
-| 13.12 | Integration marketplace              | 🔴     | —                                                                                                          | No existe                               |
-
-**Qué falta para 100%:** Canva (13.4), cloud storage (13.5), CRM (13.6), Slack/Teams (13.7), Zapier (13.8), SDK (13.9), API docs (13.10), marketplace (13.12).
+🔵 **EXCEEDS MODEL — Telegram provider:** `packages/providers/telegram/src/TelegramAdapter.ts` —
+Bot API, text/photo/video/poll/media group. Not mentioned in reference model. Real API calls via
+`sendMessage`, `sendPhoto`, `sendVideo`, `sendMediaGroup`, `sendPoll`.
 
 ---
 
-## 3. Platform Coverage Matrix
+### DOMAIN 4 — SOCIAL INBOX (UNIFIED ENGAGEMENT)
 
-Capabilities por provider implementado y por providers faltantes.
+> Reference: All inbound interactions unified (DMs, comments, replies, mentions), platform coverage
+> including TikTok Business Messaging + YouTube comments, conversation assignment, ticket tagging,
+> filtering/search, internal notes, read/unread state.
 
-| Capability       | X   | Instagram | Facebook | YouTube     | TikTok | LinkedIn | Pinterest | Bluesky |
-| ---------------- | --- | --------- | -------- | ----------- | ------ | -------- | --------- | ------- |
-| Publish post     | ✅  | ✅        | ✅       | ✅          | ✅     | 🔴       | 🔴        | 🔴      |
-| Schedule post    | ✅  | ✅        | ✅       | ✅          | ✅     | 🔴       | 🔴        | 🔴      |
-| Threading        | ✅  | 🔴        | 🔴       | 🔴          | 🔴     | 🔴       | 🔴        | 🔴      |
-| Stories/Reels    | 🔴  | ✅        | ✅       | ✅ (Shorts) | ✅     | 🔴       | 🔴        | 🔴      |
-| Analytics        | ✅  | ✅        | ✅       | ✅          | ✅     | 🔴       | 🔴        | 🔴      |
-| Video upload     | 🔴  | ✅        | ✅       | ✅          | ✅     | 🔴       | 🔴        | 🔴      |
-| Webhook inbound  | ✅  | ✅        | ✅       | ✅          | ✅     | 🔴       | 🔴        | 🔴      |
-| OAuth connection | ✅  | ✅        | ✅       | ✅          | ✅     | 🔴       | 🔴        | 🔴      |
-| Comments API     | 🔴  | 🔴        | 🔴       | 🔴          | 🔴     | 🔴       | 🔴        | 🔴      |
+**Critical Finding:** The backend implementation is **fully complete** (Phase 2 implementation).
+The frontend UI has **zero components**. Every row below reflects this asymmetry.
 
-### Provider-Specific Features
+| #   | Capability                                    | Status     | Evidence                                                                                                                                                                                                     | Notes / What's Missing                            |
+| --- | --------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| 4.1 | All inbound interactions in one view          | 🟡 PARTIAL | Backend: `apps/api/src/inbox/inboxRoutes.ts`, `GetInboxQuery.ts` (cursor-paginated), `SocialConversation` entity, Prisma `SocialMessage` + `SocialConversation`                                              | **UI: No inbox page exists in admin or client.**  |
+| 4.2 | Platform coverage (TikTok, YouTube included)  | 🟡 PARTIAL | Backend: `SyncProviderCommentsUseCase.ts`, webhook processors for all 9 providers. Provider `getComments()` implemented for X, Instagram, Facebook, YouTube, LinkedIn. TikTok: `comments: false` in adapter. | TikTok Business Messaging not implemented. No UI. |
+| 4.3 | Conversation assignment to team members       | 🟡 PARTIAL | Backend: `AssignMessageUseCase.ts`, `SocialMessageAggregate` — `assignTo(memberId)` method                                                                                                                   | No UI.                                            |
+| 4.4 | Ticket tagging and resolution status tracking | 🟡 PARTIAL | Backend: `ResolveConversationUseCase.ts`, `ReopenConversationUseCase.ts`, `MarkMessageArchivedUseCase.ts`, Prisma `SocialConversation.status`                                                                | No UI.                                            |
+| 4.5 | Filtering and search within inbox             | 🟡 PARTIAL | Backend: `GetInboxQuery.ts` — supports filter by status, platform, assignee, unread. `GetMentionsQuery.ts` — filter by type:mention                                                                          | No UI.                                            |
+| 4.6 | Internal notes on conversations               | 🔴 MISSING | No `AddInternalNoteUseCase` or `InternalNote` model found.                                                                                                                                                   | Not implemented in backend either.                |
+| 4.7 | Read/unread state management                  | 🟡 PARTIAL | Backend: `MarkMessageReadUseCase.ts`, `GetUnreadInboxCountQuery.ts`, Prisma `SocialMessage.isRead`                                                                                                           | No UI.                                            |
 
-| Provider  | Unique Features Implementados                                                        |
-| --------- | ------------------------------------------------------------------------------------ |
-| X         | Threading (planThread, publishThread), PKCE S256 OAuth                               |
-| Instagram | Stories editor, carousels, media processor, scheduling service                       |
-| Facebook  | Reels, Stories, Events, Shop, Community features                                     |
-| YouTube   | Shorts, playlists, live streaming, community posts                                   |
-| TikTok    | Hashtag manager, content analytics client, research API, marketing API (placeholder) |
+**Score: 0 ✅ + 6 🟡 + 1 🔴 = ~43% (0% from end-user product perspective)**
 
 ---
 
-## 4. AI Capabilities Inventory
+### DOMAIN 5 — SOCIAL LISTENING
 
-| Capability                       | Status | Backend                                                         | Frontend                                           | Provider(s)                | Tipo                 |
-| -------------------------------- | ------ | --------------------------------------------------------------- | -------------------------------------------------- | -------------------------- | -------------------- |
-| Text generation                  | ✅     | `apps/api/src/ai/aiService.ts`                                  | `apps/admin/components/ai/AIContentGenerator.tsx`  | OpenAI, Gemini, Perplexity | LLM API              |
-| Content optimization suggestions | ✅     | `apps/api/src/ai/aiService.ts`                                  | `SmartContentOptimizer*.tsx` (5 sub-components)    | OpenAI, Gemini             | LLM API              |
-| Hashtag generation               | ✅     | `apps/api/src/ai/aiService.ts`                                  | `SmartContentOptimizerHashtags.tsx`                | OpenAI, Gemini             | LLM API              |
-| Engagement prediction            | 🟡     | `apps/api/src/analytics/engagementPredictor.ts` (+3 files)      | `apps/admin/components/ai/PredictiveAnalytics.tsx` | —                          | Rule-based heuristic |
-| Optimal timing prediction        | 🟡     | `apps/api/src/application/ml/PredictOptimalTimingUseCase.ts`    | —                                                  | —                          | Rule-based heuristic |
-| Audience response prediction     | 🟡     | `apps/api/src/application/ml/PredictAudienceResponseUseCase.ts` | —                                                  | —                          | Rule-based heuristic |
-| Content optimization scoring     | 🟡     | `apps/api/src/application/ml/OptimizeContentUseCase.ts`         | —                                                  | —                          | Rule-based heuristic |
-| Multi-provider orchestration     | ✅     | `apps/api/src/ai/orchestrator.ts`                               | —                                                  | OpenAI, Gemini, Perplexity | Fallback chain       |
-| AI template selection            | ✅     | —                                                               | `apps/admin/components/ai/AITemplateSelector.tsx`  | —                          | UI helper            |
-| Tone analysis                    | ✅     | `apps/api/src/ai/aiService.ts`                                  | `SmartContentOptimizerTone.tsx`                    | OpenAI, Gemini             | LLM API              |
-| Image generation                 | 🔴     | —                                                               | —                                                  | —                          | —                    |
-| Caption generation               | 🔴     | —                                                               | —                                                  | —                          | —                    |
-| Brand voice fine-tuning          | 🔴     | —                                                               | —                                                  | —                          | —                    |
-| Sentiment analysis (NLP)         | 🔴     | —                                                               | —                                                  | —                          | —                    |
+> Reference: Real-time keyword/hashtag/brand mention monitoring across platforms and web.
+> Sentiment analysis, trending detection, volume tracking, conversation clustering, alert system,
+> multi-source data, AI-assisted creation triggered from listening data.
+
+| #   | Capability                                    | Status     | Evidence                                                                                                           | Notes / What's Missing                                                                 |
+| --- | --------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| 5.1 | Real-time keyword/hashtag monitoring          | 🔴 MISSING | No file found.                                                                                                     | No keyword subscription model, no monitoring service.                                  |
+| 5.2 | Brand mention alerts                          | 🔴 MISSING | No file found.                                                                                                     | Webhook processors receive inbound events but no mention detection service exists.     |
+| 5.3 | Sentiment analysis per mention/topic          | 🔴 MISSING | No file found in `apps/api/src/ai/` or elsewhere.                                                                  | AI service exists but not wired to sentiment pipeline.                                 |
+| 5.4 | Trending topic detection                      | 🟡 PARTIAL | `apps/api/src/trends/trendAnalysisService.ts`, `trendRoutes.ts`. Integrates TikTok Trends API via circuit breaker. | Source: TikTok API only. No multi-platform trend aggregation. No real-time monitoring. |
+| 5.5 | Volume tracking over time for monitored terms | 🔴 MISSING | No file found.                                                                                                     | Requires keyword subscription + time-series storage.                                   |
+| 5.6 | Conversation clustering by topic/keyword      | 🔴 MISSING | No file found.                                                                                                     |                                                                                        |
+| 5.7 | Alert system when keywords spike              | 🔴 MISSING | No file found.                                                                                                     |                                                                                        |
+| 5.8 | AI-assisted creation from listening data      | 🔴 MISSING | No connection between `trendAnalysisService.ts` and the composer/AI content generator.                             |                                                                                        |
+
+**Score: 0 ✅ + 1 🟡 + 7 🔴 = ~6%**
+
+---
+
+### DOMAIN 6 — AI-ASSISTED CONTENT CREATION
+
+> Reference: AI caption generator, hashtag generator, post repurposing, web-to-social,
+> persistent AI writing assistant side panel, prompt library, collaborative whiteboard,
+> content suggestions from listening data.
+
+| #   | Capability                                    | Status         | Evidence                                                                                                                                                                                                                                                     | Notes / What's Missing                                                                              |
+| --- | --------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| 6.1 | AI caption generator inside composer          | ✅ IMPLEMENTED | `apps/api/src/ai/aiService.ts`, `apps/api/src/ai/orchestrator.ts` (OpenAI + Gemini + Perplexity), `apps/admin/components/ai/AIContentGenerator.tsx`, `AIPromptForm.tsx`, `AIContentResults.tsx`                                                              | Multi-provider LLM. Real API calls. Content generation, tone analysis, readability.                 |
+| 6.2 | Hashtag generator                             | ✅ IMPLEMENTED | `apps/admin/components/ai/SmartContentOptimizerHashtags.tsx`, `aiService.ts` — dedicated hashtag generation method                                                                                                                                           | Real API calls. Platform-aware hashtag suggestions.                                                 |
+| 6.3 | Post repurposing (transform existing content) | 🔴 MISSING     | No `RepurposeContentUseCase` or equivalent found.                                                                                                                                                                                                            | AI providers exist and could support this; no orchestration exists for the repurposing flow.        |
+| 6.4 | Web-to-social (URL/article → social post)     | 🔴 MISSING     | No file found.                                                                                                                                                                                                                                               | No URL scraping + LLM transform pipeline.                                                           |
+| 6.5 | AI writing assistant as persistent side panel | 🟡 PARTIAL     | `apps/admin/components/ai/SmartContentOptimizer.tsx` (5 sub-components: Overview, Suggestions, Hashtags, Metrics, Tone) exists in admin. `apps/client/components/editor/ClientContentEditor.tsx` — does not appear to include the optimizer as a side panel. | Exists in admin optimizer page, not embedded in client post composer as persistent side panel.      |
+| 6.6 | Prompt library with pre-built templates       | 🟡 PARTIAL     | `apps/admin/components/ai/ai-content-templates.ts` — pre-built prompt templates in code. `AITemplateSelector.tsx` — UI for selection.                                                                                                                        | Hardcoded in source file. Not user-editable, not stored in DB, not extensible without code changes. |
+| 6.7 | Collaborative whiteboard for brainstorming    | 🔴 MISSING     | No file found.                                                                                                                                                                                                                                               | No whiteboard component or multi-user ideation feature.                                             |
+| 6.8 | Content suggestions from listening data       | 🔴 MISSING     | No connection between `trendAnalysisService.ts` and AI content generation pipeline.                                                                                                                                                                          | D5 listening capabilities are near-zero, so this has no data source to draw from.                   |
+
+**Score: 2 ✅ + 2 🟡 + 4 🔴 = ~38%**
+
+🔵 **EXCEEDS MODEL — AI Image Generation:**
+`apps/api/src/application/ai-image/GenerateImageUseCase.ts` — DALL-E 3 via `aiService.ts`/OpenAI provider.
+Sizes: 1024×1024, 1792×1024, 1024×1792. Results stored in Prisma `GeneratedImage` + S3.
+`apps/api/src/ai-image/aiImageRoutes.ts` (2 endpoints). **Backend complete. UI not yet built.**
+
+🔵 **EXCEEDS MODEL — Multi-provider AI orchestration:**
+`apps/api/src/ai/orchestrator.ts` — Fallback chain (OpenAI → Gemini → Perplexity), per-request caching (TTL), usage metrics, automatic provider health checks. Not in reference model.
+
+---
+
+### DOMAIN 7 — ANALYTICS & REPORTING
+
+> Reference: Per-post metrics, 12-month metric tracking post-publish, audience growth, best-time
+> recommendations, custom report builder, exportable reports, GA4 integration, campaign tagging,
+> ad ROI tracking, platform-specific metrics.
+
+| #    | Capability                                                              | Status         | Evidence                                                                                                                                                                                                    | Notes / What's Missing                                                                                                                                     |
+| ---- | ----------------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 7.1  | Per-post performance metrics                                            | ✅ IMPLEMENTED | Prisma `Analytics`, `apps/api/src/analytics/analyticsRoutes.ts`, `apps/admin/components/analytics/UniversalAnalyticsDashboard.tsx`                                                                          | Likes, shares, comments, impressions, reach per post.                                                                                                      |
+| 7.2  | Metrics updated up to 12 months post-publish                            | 🟡 PARTIAL     | Prisma `AnalyticsDailySummary` + `AnalyticsMonthlySummary`, `apps/api/src/application/analytics/GetHistoricalAnalyticsQuery.ts`, `apps/workers/src/analyticsAggregationWorker.ts`                           | Infrastructure for aggregation exists. 12-month specific retention policy / scheduled pull not confirmed.                                                  |
+| 7.3  | Audience growth metrics per platform                                    | ✅ IMPLEMENTED | All 9 provider `fetchAnalytics()` implementations return follower/subscriber counts. `GetCrossPlatformAnalyticsUseCase.ts`                                                                                  | Real API data per provider.                                                                                                                                |
+| 7.4  | Best time to publish recommendations                                    | 🟡 PARTIAL     | `apps/api/src/application/ml/PredictOptimalTimingUseCase.ts`, `apps/admin/components/scheduling/SchedulingDashboard.tsx` (`OptimalTimesView.tsx`)                                                           | Rule-based heuristic using `AnalyticsReadRepository`. Uses historical data but not ML. Functional as a feature.                                            |
+| 7.5  | Custom report builder with configurable metrics                         | 🔴 MISSING     | Dashboards in admin are statically built components. No drag-and-drop report builder exists.                                                                                                                |                                                                                                                                                            |
+| 7.6  | Exportable reports (CSV, PDF)                                           | 🟡 PARTIAL     | `packages/api-common/src/utils/csvExport.ts` (CSV confirmed). `apps/api/src/application/reports/GenerateReportUseCase.ts`, `CreateScheduledReportUseCase.ts`, `apps/workers/src/reportGenerationWorker.ts`. | CSV confirmed. PDF export format not confirmed. Scheduled reports backend complete. UI not confirmed.                                                      |
+| 7.7  | Integration with external analytics (GA4)                               | 🟡 PARTIAL     | `apps/api/src/domain/repositories/GA4TrackingPort.ts` (domain port), `apps/api/src/utm/utmRoutes.ts` + `GenerateUTMLinksUseCase.ts`                                                                         | UTM parameter generation confirmed. GA4 Measurement Protocol adapter implementation not confirmed. The port exists but the concrete adapter may be a stub. |
+| 7.8  | Post tagging for campaign-level reporting                               | ✅ IMPLEMENTED | Prisma `Campaign` + `CampaignPost`, `apps/api/src/application/campaigns/TagPostWithCampaignUseCase.ts`, `UntagPostFromCampaignUseCase.ts`, `GetCampaignAnalyticsUseCase.ts`, `campaignRoutes.ts`            | Full campaign model: create, tag posts, analytics per campaign, archive.                                                                                   |
+| 7.9  | Social advertising ROI tracking                                         | 🟡 PARTIAL     | `apps/api/src/application/analytics/CalculateROIUseCase.ts`, `apps/api/src/analytics/roiCalculator.ts`, `apps/api/src/analytics/roi/`                                                                       | ROI calculation exists but for organic content. No paid ad tracking.                                                                                       |
+| 7.10 | Platform-specific metrics (Reels views, watch time, TikTok completions) | ✅ IMPLEMENTED | Each provider `fetchAnalytics()` returns platform-native metrics. Instagram: impressions/reach/profile_views. YouTube: views/likes/comments/shares/watch time. TikTok: follower count + basic metrics.      | TikTok analytics limited by basic API tier. Others comprehensive.                                                                                          |
+
+**Score: 4 ✅ + 5 🟡 + 1 🔴 = ~65%**
+
+🔵 **EXCEEDS MODEL — Link click tracking:**
+`apps/api/src/application/links/` (CreateTrackedLink, GetLinkStats, RedirectAndTrackClick),
+Prisma `TrackedLink` + `LinkClick`. Branded short links with click analytics, referrer tracking.
+Not in reference model.
+
+---
+
+### DOMAIN 8 — TEAM COLLABORATION & APPROVAL WORKFLOWS
+
+> Reference: Multi-user RBAC (admin, editor, approver, viewer), approval workflow
+> (draft→review→approved→scheduled), in-workflow commenting, notification system for state changes,
+> audit log, content assignment.
+
+**Critical Finding:** Backend fully implemented in Phase 1. Frontend UI has zero implementation
+for approvals, comments, and notifications.
+
+| #   | Capability                                     | Status         | Evidence                                                                                                                                                                                                                                   | Notes / What's Missing                                                                                                                                                                                 |
+| --- | ---------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 8.1 | Multi-user workspace with RBAC                 | ✅ IMPLEMENTED | `apps/api/src/auth/rbacService.ts`, `rbacMiddleware.ts`, `rbacRoutes.ts`, `apps/admin/components/security/RbacManager.tsx`                                                                                                                 | Granular permissions per resource/action. Admin UI for role management. Roles: SUPER_ADMIN, ADMIN, SUPPORT. Team roles: OWNER, MANAGER, MEMBER, VIEWER.                                                |
+| 8.2 | Content approval workflow                      | 🟡 PARTIAL     | Backend: `apps/api/src/application/approvals/` (5 use cases: SubmitForReview, Approve, Reject, GetPending, GetHistory). `ApprovalRequestAggregate.ts`. `PublishStatus.PENDING_REVIEW`. `approvalRoutes.ts`.                                | **No frontend UI.** No submit-for-review button, no reviewer interface in admin or client.                                                                                                             |
+| 8.3 | In-workflow commenting and annotation          | 🟡 PARTIAL     | Backend: `apps/api/src/application/comments/` (4 use cases: Create, Edit, Delete, GetPostComments). `PostCommentAggregate.ts` with threaded replies. `commentRoutes.ts`.                                                                   | **No frontend UI.** No comment thread in post editor or review view.                                                                                                                                   |
+| 8.4 | Notification system for workflow state changes | 🟡 PARTIAL     | Backend: `apps/api/src/application/notifications/` (5 use cases + event handlers). `Notification` entity. SSE broadcaster via Redis pub/sub. `notificationRoutes.ts`. `NotificationEventHandlers.ts` wires domain events to notifications. | **No frontend UI.** No notification bell, no notification center, no SSE listener in client.                                                                                                           |
+| 8.5 | Audit log                                      | ✅ IMPLEMENTED | `apps/api/src/audit/auditMiddleware.ts` (Fastify middleware, auto-logs all authenticated requests), `auditRoutes.ts`, `apps/api/src/audit/activityFeedRoutes.ts` + `activityFeedService.ts`                                                | Audit log complete. Activity feed with cursor pagination also implemented. Admin `/(dashboard)/logs/page.tsx` exists.                                                                                  |
+| 8.6 | Content assignment between team members        | 🟡 PARTIAL     | Backend: `apps/api/src/application/team/` (4 use cases: Invite, Remove, UpdateRole, GetMembers). `TeamMember` entity + `TeamRole` VO. Social Inbox has `AssignMessageUseCase`.                                                             | Team member model exists. Direct post-to-member assignment (e.g., "this draft is assigned to Person X for editing") not explicitly confirmed. Approval submission to a reviewer is the closest analog. |
+
+**Score: 2 ✅ + 4 🟡 + 0 🔴 = ~67%**
+
+🔵 **EXCEEDS MODEL — Content Versioning (git-like):**
+`apps/api/src/content/DiffCalculator.ts`, `ContentVersionManager.ts`, Prisma `ContentVersion`, `TemplateCommit`, `TemplateCollaboration`.
+Branch, merge, diff comparison, conflict detection, commit history. Not described in reference model.
+
+---
+
+### DOMAIN 9 — ASSET LIBRARY & CONTENT STORAGE
+
+> Reference: Centralized media library with folders/tags/search, brand asset management
+> (logos, colors, templates), content reuse in composer, asset expiry/archiving,
+> external storage integration (Google Drive, Dropbox, OneDrive).
+
+| #   | Capability                                            | Status     | Evidence                                                                                                                                                                           | Notes / What's Missing                                                                                                     |
+| --- | ----------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 9.1 | Centralized media library                             | 🟡 PARTIAL | `apps/admin/components/content/ContentLibrary.tsx` (+ 11 sub-components: Header, SearchBar, FilterPanel, GridView, ListView, BulkActions, Pagination, EmptyState, LoadingSkeleton) | Library is for content/posts, not pure media assets. Images stored in S3/Cloudinary but no media-first browsing interface. |
+| 9.2 | Folders, tags, and search                             | 🟡 PARTIAL | `apps/admin/components/content/library/SearchAndSortBar.tsx`, `FilterPanel.tsx`                                                                                                    | Search and sort exist. Folder-based organization not confirmed. Tags for media (vs. post tags) not confirmed.              |
+| 9.3 | Brand asset management (logos, colors, templates)     | 🔴 MISSING | No `BrandKit` Prisma model found. No brand colors/fonts UI.                                                                                                                        | Content templates exist but no brand kit / brand guidelines storage.                                                       |
+| 9.4 | Content reuse: pull assets from library into composer | 🟡 PARTIAL | `apps/client/components/editor/TemplateSelector.tsx` — pulls templates into editor. `apps/client/components/editor/ClientContentEditor.tsx`                                        | Templates reusable. Media asset library → composer integration not confirmed.                                              |
+| 9.5 | Asset expiry or archiving policies                    | 🔴 MISSING | No `expiresAt` or `archivedAt` field on media models found.                                                                                                                        |                                                                                                                            |
+| 9.6 | External storage integration (Google Drive, Dropbox)  | 🟡 PARTIAL | `packages/adapters/storage-s3/` (S3-compatible internal storage), `packages/adapters/storage-cloudinary/` (Cloudinary for images/video)                                            | Internal S3/Cloudinary confirmed. Google Drive, Dropbox, OneDrive import: no file found.                                   |
+
+**Score: 0 ✅ + 4 🟡 + 2 🔴 = ~33%**
+
+🔵 **EXCEEDS MODEL — Template versioning with git-like history:**
+Prisma `Template`, `TemplateVersion`, `TemplateCommit`, `TemplateCollaboration`. Content templates
+have version control, branching, and collaboration tracking — not in reference model.
+
+---
+
+### DOMAIN 10 — EMPLOYEE ADVOCACY MODULE
+
+> Reference: Push calendar content to advocacy feed, employee sharing to personal accounts,
+> reach tracking from advocate activity, advocate management, share-only permissions.
+
+| #    | Capability                                            | Status     | Evidence       | Notes / What's Missing |
+| ---- | ----------------------------------------------------- | ---------- | -------------- | ---------------------- |
+| 10.1 | Push approved content to advocacy feed                | 🔴 MISSING | No file found. |                        |
+| 10.2 | Employees share approved content to personal accounts | 🔴 MISSING | No file found. |                        |
+| 10.3 | Tracking of reach driven by advocate activity         | 🔴 MISSING | No file found. |                        |
+| 10.4 | Advocate management (invite, onboard, report)         | 🔴 MISSING | No file found. |                        |
+| 10.5 | Permission controls (share-only, not edit)            | 🔴 MISSING | No file found. |                        |
+
+**Score: 0 ✅ + 0 🟡 + 5 🔴 = 0%**
+
+---
+
+### DOMAIN 11 — SOCIAL ADVERTISING
+
+> Reference: Create/manage paid ads, boost organic posts on LinkedIn/Facebook/Instagram,
+> automated boosting rules, ad spend tracking and ROI, Meta Ads + LinkedIn Campaign Manager API.
+
+| #    | Capability                                 | Status     | Evidence                                                                                                                                                        | Notes / What's Missing                                                                      |
+| ---- | ------------------------------------------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 11.1 | Create and manage paid social ads          | 🔴 MISSING | No file found.                                                                                                                                                  |                                                                                             |
+| 11.2 | Boost organic posts on supported platforms | 🔴 MISSING | No file found.                                                                                                                                                  |                                                                                             |
+| 11.3 | Automated boosting rules                   | 🔴 MISSING | No file found.                                                                                                                                                  |                                                                                             |
+| 11.4 | Ad spend tracking and ROI reporting        | 🔴 MISSING | No file found.                                                                                                                                                  | ROI calculator exists for organic; no paid ad tracking.                                     |
+| 11.5 | Platform ad API integration                | 🟡 PARTIAL | `packages/providers/tiktok/src/marketingApiClient.ts` — `createPromotedContent()` logs `"Marketing campaign creation not fully implemented"` and returns error. | Dead stub. No Meta Ads, no LinkedIn Campaign Manager, no TikTok Ads functional integration. |
+
+**Score: 0 ✅ + 1 🟡 + 4 🔴 = ~10%**
+
+---
+
+### DOMAIN 12 — MULTI-TENANT ACCOUNT MANAGEMENT
+
+> Reference: Organization-level workspace isolation, multiple social accounts per tenant,
+> workspace settings for posting/approval/notification defaults, SSO (SAML/OAuth),
+> per-tenant API keys, usage quotas per tier.
+
+| #    | Capability                                            | Status         | Evidence                                                                                                                                                                                                 | Notes / What's Missing                                                                                                    |
+| ---- | ----------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 12.1 | Organization-level workspace isolation                | ✅ IMPLEMENTED | Prisma `Account` → `Project` → `Channel` hierarchy. `apps/api/src/accounts/accountRoutes.ts`. Multi-tenant from ground up.                                                                               | Full tenant isolation. Soft-delete with `deletedAt` timestamp.                                                            |
+| 12.2 | Multiple social accounts per tenant                   | ✅ IMPLEMENTED | Multiple `Project` per `Account`, multiple `Channel` per `Project`. `ProviderConnection` table for OAuth tokens.                                                                                         | One brand can have multiple IG accounts via multiple projects.                                                            |
+| 12.3 | Workspace-level posting and notification defaults     | ✅ IMPLEMENTED | Prisma `SchedulingRule` per project. `apps/api/src/admin/schedulingRoutes.ts`. Project-level locale, crisis mode, defaults.                                                                              | Scheduling rules per project.                                                                                             |
+| 12.4 | SSO and enterprise authentication (SAML, OAuth login) | 🔴 MISSING     | No SAML provider, no Keycloak/Auth0 integration found.                                                                                                                                                   | OAuth-based social login exists for provider connections (publishing auth), not for enterprise employee SSO.              |
+| 12.5 | Per-tenant API keys                                   | ✅ IMPLEMENTED | Prisma `ApiKey` (scoped to Account), `apps/api/src/auth/apiKeyRoutes.ts`, `apps/api/src/application/apiKeys/ApiKeyUseCases.ts`                                                                           | API key generation, rotation, revocation per account.                                                                     |
+| 12.6 | Usage quotas and limits per tenant tier               | 🟡 PARTIAL     | Prisma `Account.maxProjects`, `Account.subscription` (`SubscriptionTier`: BASIC, PRO, ENTERPRISE). `apps/api/src/security/advancedRateLimit.ts`. `apps/api/src/billing/subscriptionService.ts` (Stripe). | maxProjects enforced. Rate limiting per tenant. No detailed usage metering (posts/month, API calls, storage GB) per tier. |
+
+**Score: 4 ✅ + 1 🟡 + 1 🔴 = ~75%**
+
+---
+
+### DOMAIN 13 — INTEGRATIONS & EXTENSIBILITY
+
+> Reference: Canva/Adobe Express, Google Drive/Dropbox storage, CRM integrations, GA4,
+> app marketplace (100+ integrations), public API, outbound webhooks.
+
+| #    | Capability                                             | Status         | Evidence                                                                                                                            | Notes / What's Missing                                                                                                                      |
+| ---- | ------------------------------------------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 13.1 | Native design tool integrations (Canva, Adobe Express) | 🔴 MISSING     | No file found.                                                                                                                      |                                                                                                                                             |
+| 13.2 | Native storage integrations (Google Drive, Dropbox)    | 🔴 MISSING     | No file found.                                                                                                                      | S3/Cloudinary are internal storage, not user-facing cloud storage import.                                                                   |
+| 13.3 | Native CRM integrations                                | 🔴 MISSING     | No file found.                                                                                                                      |                                                                                                                                             |
+| 13.4 | GA4 analytics integration                              | 🟡 PARTIAL     | `apps/api/src/domain/repositories/GA4TrackingPort.ts` (domain port), `apps/api/src/utm/utmRoutes.ts`, `GenerateUTMLinksUseCase.ts`  | UTM link generation confirmed. GA4 Measurement Protocol concrete adapter implementation not confirmed. Port exists but adapter may be stub. |
+| 13.5 | App marketplace or integration directory               | 🔴 MISSING     | No file found.                                                                                                                      |                                                                                                                                             |
+| 13.6 | Public API for external automation                     | ✅ IMPLEMENTED | 41 route files, 90+ endpoints, API key auth (`ApiKey` model), rate limiting (`advancedRateLimit.ts`, `slidingWindowRateLimit.ts`)   | Full REST API available for external consumers with API key authentication.                                                                 |
+| 13.7 | Webhook support for outbound event notifications       | ✅ IMPLEMENTED | `apps/api/src/webhooks/webhookManager.ts`, `webhookHandler.ts`, Prisma `WebhookSubscription` + `WebhookEvent` + `WebhookDeadLetter` | Subscription-based outbound webhooks. Events with DLQ, retry. Admin UI for config: `apps/admin/app/(dashboard)/webhooks/page.tsx`.          |
+
+**Score: 2 ✅ + 1 🟡 + 4 🔴 = ~36%**
+
+🔵 **EXCEEDS MODEL — Slack/Teams notifications:**
+`apps/api/src/infrastructure/adapters/SlackNotifierAdapter.ts` + `TeamsNotifierAdapter.ts` +
+`ExternalNotificationDispatcher.ts`. Webhook-based, Slack Block Kit + Teams Adaptive Cards.
+`apps/api/src/external-notifications/externalNotificationRoutes.ts` (4 endpoints: configure, delete, test, list).
+Prisma `ExternalNotificationConfig`. Backend complete. No UI.
+
+🔵 **EXCEEDS MODEL — First Comment Scheduling:**
+`apps/api/src/application/first-comment/` (Set, Remove, Get, Publish use cases).
+Auto-posts a comment 5s after publish. Supported providers: X, Instagram, Facebook, YouTube, LinkedIn.
+Prisma `FirstComment` model. Backend complete. No UI.
+
+---
+
+## PLATFORM COVERAGE MATRIX
+
+Coverage across all connected platforms for each publishing and engagement capability.
+
+| Capability                        | X/Twitter | Instagram     | Facebook | YouTube   | TikTok   | LinkedIn    | Pinterest         | Snapchat | Telegram             | Bluesky |
+| --------------------------------- | --------- | ------------- | -------- | --------- | -------- | ----------- | ----------------- | -------- | -------------------- | ------- |
+| **Publish post**                  | ✅        | ✅            | ✅       | ✅        | ✅       | ✅          | ✅                | ✅       | ✅                   | 🔴      |
+| **Stories**                       | 🔴 N/A    | ✅            | ✅       | 🔴 N/A    | 🔴 N/A   | 🔴 N/A      | 🔴 N/A            | ✅       | 🔴 N/A               | 🔴 N/A  |
+| **Reels / Shorts**                | 🔴 N/A    | ✅            | ✅       | ✅ Shorts | 🔴 N/A   | 🔴 N/A      | 🔴 N/A            | 🔴 N/A   | 🔴 N/A               | 🔴 N/A  |
+| **Carousel**                      | 🔴 N/A    | ✅            | 🔴       | 🔴 N/A    | 🔴       | 🟡 (images) | 🔴 N/A            | 🔴 N/A   | 🟡 (media group)     | 🔴 N/A  |
+| **Video upload**                  | 🔴        | ✅            | ✅       | ✅        | ✅       | ✅          | 🟡 (via video_id) | ✅       | ✅                   | 🔴      |
+| **Threads / long-form**           | ✅        | 🟡 (carousel) | 🔴       | 🔴        | 🔴       | 🔴          | 🔴                | 🔴       | 🔴                   | 🔴      |
+| **Analytics pull**                | ✅        | ✅            | ✅       | ✅        | 🟡 basic | ✅          | ✅                | ✅       | 🟡 member count only | 🔴      |
+| **Comment reading (getComments)** | ✅        | ✅            | ✅       | ✅        | 🔴       | ✅          | 🔴                | 🔴       | 🔴                   | 🔴      |
+| **Reply posting (postReply)**     | ✅        | ✅            | ✅       | ✅        | 🔴       | ✅          | 🔴                | 🔴       | 🔴                   | 🔴      |
+| **DM / Inbox**                    | 🔴        | 🔴            | 🔴       | 🔴        | 🔴       | 🔴          | 🔴                | 🔴       | 🔴                   | 🔴      |
+| **Webhook inbound**               | ✅        | ✅            | ✅       | ✅        | ✅       | ✅          | ✅                | ✅       | 🔴                   | 🔴      |
+| **OAuth / token management**      | ✅        | ✅            | ✅       | ✅        | ✅       | ✅          | ✅                | ✅       | 🟡 Bot token         | 🔴      |
+
+### Provider-Specific Unique Capabilities
+
+| Provider  | Unique Feature                                                                       | Status |
+| --------- | ------------------------------------------------------------------------------------ | ------ |
+| X         | Thread publishing (planThread + publishThread, up to 25 tweets), PKCE S256           | ✅     |
+| Instagram | Stories editor, carousel, Reels (≤90s), media container polling                      | ✅     |
+| Facebook  | Stories with interactive elements, Reels with music/effects, Shop, Events, Community | ✅     |
+| YouTube   | Shorts service, live streaming, playlist management, community posts\*               | 🟡     |
+| TikTok    | Hashtag manager, research API, marketing API placeholder                             | 🟡     |
+| LinkedIn  | 2-step media upload, org posts, document upload (.pdf/.pptx), polls                  | ✅     |
+| Pinterest | API v5, pins + boards, 100 calls/s/user rate limit                                   | ✅     |
+| Snapchat  | Stories/Spotlight, 9:16 vertical, ≤60s video                                         | ✅     |
+| Telegram  | Text/Photo/Video/Poll/MediaGroup, Bot token auth                                     | ✅     |
+
+\*YouTube Community posts: stub returning error — YouTube Partner Program API required.
+
+---
+
+## AI CAPABILITIES INVENTORY
+
+| Capability                             | Status         | Backend File(s)                                                                       | Frontend File(s)                                                                              | AI Provider(s)                        | Type                                                |
+| -------------------------------------- | -------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------------------- |
+| Text / caption generation              | ✅ IMPLEMENTED | `apps/api/src/ai/aiService.ts`, `orchestrator.ts`                                     | `apps/admin/components/ai/AIContentGenerator.tsx`, `AIPromptForm.tsx`, `AIContentResults.tsx` | OpenAI, Gemini, Perplexity            | LLM API (real)                                      |
+| Content optimization suggestions       | ✅ IMPLEMENTED | `apps/api/src/ai/aiService.ts`                                                        | `SmartContentOptimizer.tsx` (5 sub-components)                                                | OpenAI, Gemini                        | LLM API (real)                                      |
+| Hashtag generation                     | ✅ IMPLEMENTED | `apps/api/src/ai/aiService.ts`                                                        | `SmartContentOptimizerHashtags.tsx`                                                           | OpenAI, Gemini                        | LLM API (real)                                      |
+| Tone analysis and adjustment           | ✅ IMPLEMENTED | `apps/api/src/ai/aiService.ts`                                                        | `SmartContentOptimizerTone.tsx`                                                               | OpenAI, Gemini                        | LLM API (real)                                      |
+| Readability scoring                    | ✅ IMPLEMENTED | `apps/api/src/ai/aiService.ts`                                                        | `SmartContentOptimizerMetrics.tsx`                                                            | OpenAI, Gemini                        | LLM API (real)                                      |
+| Engagement prediction                  | 🟡 PARTIAL     | `apps/api/src/analytics/engagementPredictor.ts` (+config, factors, scoring)           | `apps/admin/components/ai/PredictiveAnalytics.tsx` (AudienceTab, PerformancePredictionCard)   | —                                     | Rule-based heuristic (no ML)                        |
+| Optimal timing prediction              | 🟡 PARTIAL     | `apps/api/src/application/ml/PredictOptimalTimingUseCase.ts`                          | `apps/admin/components/scheduling/SchedulingDashboard.tsx` (OptimalTimesView)                 | —                                     | Rule-based heuristic (uses AnalyticsReadRepository) |
+| Audience response prediction           | 🟡 PARTIAL     | `apps/api/src/application/ml/PredictAudienceResponseUseCase.ts`                       | No frontend consumer found                                                                    | —                                     | Rule-based heuristic (dead — no route wired)        |
+| Content optimization scoring           | 🟡 PARTIAL     | `apps/api/src/application/ml/OptimizeContentUseCase.ts`                               | —                                                                                             | OpenAI/Gemini with fallback heuristic | Hybrid (real AI with heuristic fallback)            |
+| Multi-provider AI orchestration        | 🔵 EXCEEDS     | `apps/api/src/ai/orchestrator.ts`                                                     | —                                                                                             | OpenAI, Gemini, Perplexity            | Fallback chain with caching + metrics               |
+| AI template selection                  | ✅ IMPLEMENTED | —                                                                                     | `apps/admin/components/ai/AITemplateSelector.tsx`                                             | —                                     | UI helper                                           |
+| AI image generation (DALL-E 3)         | 🟡 PARTIAL     | `apps/api/src/application/ai-image/GenerateImageUseCase.ts`, `ai/providers/openai.ts` | **No UI built yet**                                                                           | OpenAI (DALL-E 3)                     | Real API — backend complete, UI missing             |
+| Caption generation for images (vision) | 🔴 MISSING     | No file found                                                                         | No file found                                                                                 | —                                     | —                                                   |
+| Post repurposing                       | 🔴 MISSING     | No file found                                                                         | No file found                                                                                 | —                                     | —                                                   |
+| Web-to-social transformation           | 🔴 MISSING     | No file found                                                                         | No file found                                                                                 | —                                     | —                                                   |
+| Sentiment analysis (NLP)               | 🔴 MISSING     | No file found                                                                         | No file found                                                                                 | —                                     | —                                                   |
+| Brand voice fine-tuning / profiles     | 🔴 MISSING     | No file found                                                                         | No file found                                                                                 | —                                     | —                                                   |
+| Trend-aware content suggestion         | 🟡 PARTIAL     | `apps/api/src/trends/trendAnalysisService.ts`                                         | —                                                                                             | TikTok Trends API + `aiService.ts`    | Real trend data but not connected to composer       |
 
 ### AI Provider Configuration
 
-| Provider   | File                                      | Capabilities                        |
-| ---------- | ----------------------------------------- | ----------------------------------- |
-| OpenAI     | `apps/api/src/ai/providers/openai.ts`     | Text generation, optimization, tone |
-| Gemini     | `apps/api/src/ai/providers/gemini.ts`     | Text generation, optimization       |
-| Perplexity | `apps/api/src/ai/providers/perplexity.ts` | Research, trend-aware generation    |
-
----
-
-## 5. Architecture Quality Assessment
-
-| Aspecto                | Score  | Nota                                                          |
-| ---------------------- | ------ | ------------------------------------------------------------- |
-| Hexagonal Architecture | 🔵 95% | Domain layer limpia, ports/adapters, DI con 130+ tokens       |
-| DDD                    | 🔵 90% | Aggregates, Value Objects, Domain Events, Repository Ports    |
-| CQRS                   | ✅ 85% | CQRSBus, Command/Query handlers separados                     |
-| Event-Driven           | ✅ 85% | Outbox pattern, EventStore, EventPublisher                    |
-| Saga Orchestration     | 🔵 90% | Dual persistence, compensación, idempotencia                  |
-| Testing                | ✅ 80% | 5300+ API tests, 3 frameworks (node:test, vitest, Playwright) |
-| Security               | ✅ 85% | MFA, RBAC, argon2, brute force, device fingerprint, audit log |
-| Observability          | ✅ 75% | Prometheus, Pino, OpenTelemetry, Jaeger                       |
-| CI/CD                  | ✅ 70% | GitHub Actions, lint, test, build, quality gates              |
-| Code Quality           | ✅ 80% | 0 TS errors, 0 lint errors, madge, knip, jscpd                |
-
-**Veredicto:** La base técnica es excepcionalmente sólida para el stage del proyecto. Los gaps son funcionales (features), no arquitectónicos.
+| Provider        | Package                                   | Capabilities Used                                                      |
+| --------------- | ----------------------------------------- | ---------------------------------------------------------------------- |
+| OpenAI (GPT-4o) | `apps/api/src/ai/providers/openai.ts`     | Text generation, content optimization, tone, hashtags, DALL-E 3 images |
+| Google Gemini   | `apps/api/src/ai/providers/gemini.ts`     | Text generation, content optimization, tone                            |
+| Perplexity      | `apps/api/src/ai/providers/perplexity.ts` | Research-grounded generation, trend-aware content                      |
