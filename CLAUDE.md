@@ -28,6 +28,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm db:migrate` - Run Prisma migrations
 - `pnpm db:seed` - Seed database with test data
 
+> **MANDATORY:** When a task includes Prisma schema changes, **always** run `pnpm db:up` first to start PostgreSQL + Redis, then run the migration. Never skip a migration because "DB is not running" — start it.
+
 ### Test Commands (API)
 
 - `pnpm --filter @apps/api test` - Run unit tests with Vitest

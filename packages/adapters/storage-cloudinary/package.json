@@ -10,14 +10,19 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "@shared/types": "workspace:*",
-    "@ports/core": "workspace:*",
     "@adapters/external-apis": "workspace:*",
     "@observability/logger": "workspace:*",
+    "@ports/core": "workspace:*",
+    "@shared/types": "workspace:*",
     "cloudinary": "2.0.0",
     "prom-client": "15.0.0"
   },
+  "scripts": {
+    "test": "vitest run",
+    "test:unit": "vitest run"
+  },
   "devDependencies": {
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vitest": "^4.1.0"
   }
 }

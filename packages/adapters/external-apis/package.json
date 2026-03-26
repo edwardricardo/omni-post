@@ -10,15 +10,20 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "@ports/core": "workspace:*",
-    "@adapters/queue-bullmq": "workspace:*",
-    "@adapters/fallback-strategies": "workspace:*",
     "@adapters/dead-letter-queue": "workspace:*",
+    "@adapters/fallback-strategies": "workspace:*",
+    "@adapters/queue-bullmq": "workspace:*",
     "@observability/logger": "workspace:*",
+    "@ports/core": "workspace:*",
     "opossum": "8.0.0",
     "prom-client": "15.1.3"
   },
+  "scripts": {
+    "test": "vitest run",
+    "test:unit": "vitest run"
+  },
   "devDependencies": {
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vitest": "^4.1.0"
   }
 }

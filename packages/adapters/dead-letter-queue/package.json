@@ -10,15 +10,20 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "@shared/types": "workspace:*",
-    "@ports/core": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
+    "@ports/core": "workspace:*",
+    "@shared/types": "workspace:*",
     "bullmq": "5.58.9",
     "ioredis": "5.7.0",
     "pino": "10.3.1",
     "uuid": "13.0.0"
   },
+  "scripts": {
+    "test": "vitest run",
+    "test:unit": "vitest run"
+  },
   "devDependencies": {
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vitest": "^4.1.0"
   }
 }

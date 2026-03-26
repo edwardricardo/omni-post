@@ -4,28 +4,29 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/publishWorker.ts",
-    "test": "node --import tsx --test --test-force-exit 'tests/**/*.test.ts'",
-    "test:watch": "node --import tsx --test --watch --test-force-exit 'tests/**/*.test.ts'",
-    "test:coverage": "node --import tsx --test --test-force-exit --experimental-test-coverage 'tests/**/*.test.ts'",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@packages/api-common": "workspace:*",
     "@adapters/db-prisma": "workspace:*",
-    "@infra/prisma": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
+    "@infra/prisma": "workspace:*",
+    "@observability/opentelemetry": "workspace:*",
+    "@packages/api-common": "workspace:*",
     "@ports/core": "workspace:*",
+    "@providers/bluesky": "workspace:*",
     "@providers/facebook": "workspace:*",
     "@providers/instagram": "workspace:*",
+    "@providers/linkedin": "workspace:*",
+    "@providers/pinterest": "workspace:*",
+    "@providers/snapchat": "workspace:*",
+    "@providers/telegram": "workspace:*",
     "@providers/tiktok": "workspace:*",
     "@providers/x": "workspace:*",
     "@providers/youtube": "workspace:*",
-    "@providers/snapchat": "workspace:*",
-    "@providers/telegram": "workspace:*",
-    "@providers/pinterest": "workspace:*",
-    "@providers/linkedin": "workspace:*",
-    "@providers/bluesky": "workspace:*",
-    "@observability/opentelemetry": "workspace:*",
     "@shared/types": "workspace:*",
     "bullmq": "5.58.9",
     "dotenv": "17.2.2",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "tsx": "4.20.5",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vitest": "^4.1.0"
   }
 }

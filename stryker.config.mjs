@@ -17,7 +17,7 @@ export default {
   thresholds: {
     high: 80,
     low: 60,
-    break: null,   // null during initial setup — will be set after baseline is established
+    break: 52,
   },
   tempDirName: '.stryker-tmp',
   cleanTempDir: true,
