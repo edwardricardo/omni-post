@@ -1,0 +1,51 @@
+import rootConfig from '../../stryker.config.mjs'
+
+/** @type {import('@stryker-mutator/core').PartialStrykerOptions} */
+export default {
+  ...rootConfig,
+  tsconfigFile: 'tsconfig.json',
+  incrementalFile: 'reports/stryker-incremental.json',
+  htmlReporter: {
+    fileName: 'reports/mutation/batch-3.html',
+  },
+  vitest: {
+    configFile: 'vitest.config.ts',
+  },
+  coverageAnalysis: 'perTest',
+  checkers: [],
+  plugins: ['@stryker-mutator/vitest-runner'],
+  concurrency: 4,
+  dryRunTimeoutMinutes: 30,
+  mutate: [
+    'src/database/**/*.ts',
+    '!src/database/**/*.test.ts',
+    '!src/database/**/*.spec.ts',
+    'src/lib/**/*.ts',
+    '!src/lib/**/*.test.ts',
+    '!src/lib/**/*.spec.ts',
+    'src/templates/**/*.ts',
+    '!src/templates/**/*.test.ts',
+    '!src/templates/**/*.spec.ts',
+    'src/cqrs/**/*.ts',
+    '!src/cqrs/**/*.test.ts',
+    '!src/cqrs/**/*.spec.ts',
+    'src/providers/**/*.ts',
+    '!src/providers/**/*.test.ts',
+    '!src/providers/**/*.spec.ts',
+    'src/video/**/*.ts',
+    '!src/video/**/*.test.ts',
+    '!src/video/**/*.spec.ts',
+    'src/ai/**/*.ts',
+    '!src/ai/**/*.test.ts',
+    '!src/ai/**/*.spec.ts',
+    'src/billing/**/*.ts',
+    '!src/billing/**/*.test.ts',
+    '!src/billing/**/*.spec.ts',
+    '!src/lib/templates/**/*.ts',
+  ],
+  thresholds: {
+    high: 80,
+    low: 60,
+    break: 45,
+  },
+}

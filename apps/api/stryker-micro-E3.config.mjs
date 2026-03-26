@@ -1,0 +1,35 @@
+import rootConfig from '../../stryker.config.mjs'
+/** @type {import('@stryker-mutator/core').PartialStrykerOptions} */
+export default {
+  ...rootConfig,
+  tsconfigFile: 'tsconfig.json',
+  incrementalFile: 'reports/stryker-incremental-micro.json',
+  htmlReporter: { fileName: 'reports/mutation/micro-E3.html' },
+  vitest: { configFile: 'vitest.config.ts' },
+  coverageAnalysis: 'perTest',
+  checkers: [],
+  plugins: ['@stryker-mutator/vitest-runner'],
+  concurrency: 4,
+  dryRunTimeoutMinutes: 15,
+  mutate: [
+    "src/application/reports/**/*.ts",
+    "src/application/approvals/**/*.ts",
+    "src/application/links/**/*.ts",
+    "src/application/team/**/*.ts",
+    "src/application/comments/**/*.ts",
+    "src/application/first-comment/**/*.ts",
+    "!src/application/reports/**/*.test.ts",
+    "!src/application/reports/**/*.spec.ts",
+    "!src/application/approvals/**/*.test.ts",
+    "!src/application/approvals/**/*.spec.ts",
+    "!src/application/links/**/*.test.ts",
+    "!src/application/links/**/*.spec.ts",
+    "!src/application/team/**/*.test.ts",
+    "!src/application/team/**/*.spec.ts",
+    "!src/application/comments/**/*.test.ts",
+    "!src/application/comments/**/*.spec.ts",
+    "!src/application/first-comment/**/*.test.ts",
+    "!src/application/first-comment/**/*.spec.ts"
+],
+  thresholds: { high: 80, low: 60, break: null },
+}

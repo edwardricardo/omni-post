@@ -1,0 +1,32 @@
+import rootConfig from '../../stryker.config.mjs'
+/** @type {import('@stryker-mutator/core').PartialStrykerOptions} */
+export default {
+  ...rootConfig,
+  tsconfigFile: 'tsconfig.json',
+  incrementalFile: 'reports/stryker-incremental-micro.json',
+  htmlReporter: { fileName: 'reports/mutation/micro-A6.html' },
+  vitest: { configFile: 'vitest.config.ts' },
+  coverageAnalysis: 'perTest',
+  checkers: [],
+  plugins: ['@stryker-mutator/vitest-runner'],
+  concurrency: 4,
+  dryRunTimeoutMinutes: 15,
+  mutate: [
+    "src/events/**/*.ts",
+    "src/inbox/**/*.ts",
+    "src/mappers/**/*.ts",
+    "src/accounts/**/*.ts",
+    "src/channels/**/*.ts",
+    "!src/events/**/*.test.ts",
+    "!src/events/**/*.spec.ts",
+    "!src/inbox/**/*.test.ts",
+    "!src/inbox/**/*.spec.ts",
+    "!src/mappers/**/*.test.ts",
+    "!src/mappers/**/*.spec.ts",
+    "!src/accounts/**/*.test.ts",
+    "!src/accounts/**/*.spec.ts",
+    "!src/channels/**/*.test.ts",
+    "!src/channels/**/*.spec.ts"
+],
+  thresholds: { high: 80, low: 60, break: null },
+}

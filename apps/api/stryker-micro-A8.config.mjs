@@ -1,0 +1,35 @@
+import rootConfig from '../../stryker.config.mjs'
+/** @type {import('@stryker-mutator/core').PartialStrykerOptions} */
+export default {
+  ...rootConfig,
+  tsconfigFile: 'tsconfig.json',
+  incrementalFile: 'reports/stryker-incremental-micro.json',
+  htmlReporter: { fileName: 'reports/mutation/micro-A8.html' },
+  vitest: { configFile: 'vitest.config.ts' },
+  coverageAnalysis: 'perTest',
+  checkers: [],
+  plugins: ['@stryker-mutator/vitest-runner'],
+  concurrency: 4,
+  dryRunTimeoutMinutes: 15,
+  mutate: [
+    "src/external-notifications/**/*.ts",
+    "src/first-comment/**/*.ts",
+    "src/utm/**/*.ts",
+    "src/ai-image/**/*.ts",
+    "src/brand-voice/**/*.ts",
+    "src/usage/**/*.ts",
+    "!src/external-notifications/**/*.test.ts",
+    "!src/external-notifications/**/*.spec.ts",
+    "!src/first-comment/**/*.test.ts",
+    "!src/first-comment/**/*.spec.ts",
+    "!src/utm/**/*.test.ts",
+    "!src/utm/**/*.spec.ts",
+    "!src/ai-image/**/*.test.ts",
+    "!src/ai-image/**/*.spec.ts",
+    "!src/brand-voice/**/*.test.ts",
+    "!src/brand-voice/**/*.spec.ts",
+    "!src/usage/**/*.test.ts",
+    "!src/usage/**/*.spec.ts"
+],
+  thresholds: { high: 80, low: 60, break: null },
+}

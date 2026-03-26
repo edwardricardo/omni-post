@@ -8,8 +8,24 @@
 import { defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
 import path from "node:path";
+import { existsSync } from "node:fs";
 
-const root = path.resolve(__dirname, "../../");
+// Find monorepo root by walking up to find pnpm-workspace.yaml.
+// This handles Stryker's sandbox (.stryker-tmp/sandbox-xxx/) where
+// __dirname is 2 extra levels deep, breaking the normal "../../" path.
+function findMonorepoRoot(startDir: string): string {
+  let dir = path.resolve(startDir);
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  // Fallback to the original relative path
+  return path.resolve(startDir, "../../");
+}
+
+const root = findMonorepoRoot(__dirname);
 
 export default defineConfig({
   plugins: [tsconfigPaths({ root, ignoreConfigErrors: true })],

@@ -1,0 +1,20 @@
+import rootConfig from '../../stryker.config.mjs'
+export default {
+  ...rootConfig, tsconfigFile: 'tsconfig.json',
+  incrementalFile: 'reports/stryker-session-c.json',
+  htmlReporter: { fileName: 'reports/mutation/session-c.html' },
+  vitest: { configFile: 'vitest.config.ts' },
+  coverageAnalysis: 'perTest', checkers: [], plugins: ['@stryker-mutator/vitest-runner'],
+  concurrency: 4, dryRunTimeoutMinutes: 15,
+  mutate: [
+    'src/application/usage/**/*.ts', '!src/application/usage/**/*.test.ts',
+    'src/application/brand-voice/**/*.ts', '!src/application/brand-voice/**/*.test.ts',
+    'src/application/ai-image/**/*.ts', '!src/application/ai-image/**/*.test.ts',
+    'src/application/utm/**/*.ts', '!src/application/utm/**/*.test.ts',
+    'src/application/first-comment/**/*.ts', '!src/application/first-comment/**/*.test.ts',
+    'src/application/external-notifications/**/*.ts', '!src/application/external-notifications/**/*.test.ts',
+    'src/application/campaigns/CreateCampaignUseCase.ts',
+    'src/application/recurring/CreateRecurringPostUseCase.ts',
+  ],
+  thresholds: { high: 80, low: 60, break: null },
+}
