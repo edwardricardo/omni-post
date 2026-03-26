@@ -27,7 +27,7 @@
     "prom-client": "15.1.3"
   },
   "devDependencies": {
-    "@types/fluent-ffmpeg": "2.1.24",
+    "@types/fluent-ffmpeg": "2.1.28",
     "vitest": "^4.1.0"
   }
 }
