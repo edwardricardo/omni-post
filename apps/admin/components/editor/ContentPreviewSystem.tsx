@@ -7,6 +7,13 @@
  */
 
 import React, { useState, useCallback } from "react";
+import {
+  renderLinkedInPreview,
+  renderSnapchatPreview,
+  renderTelegramPreview,
+  renderPinterestPreview,
+  renderBlueskyPreview,
+} from "./provider-previews";
 
 // Types for preview system
 interface CanonicalPost {
@@ -465,6 +472,16 @@ export function ContentPreviewSystem({
         return renderYouTubePreview(content);
       case "tiktok":
         return renderTikTokPreview(content);
+      case "linkedin":
+        return renderLinkedInPreview(content);
+      case "snapchat":
+        return renderSnapchatPreview(content);
+      case "telegram":
+        return renderTelegramPreview(content);
+      case "pinterest":
+        return renderPinterestPreview(content);
+      case "bluesky":
+        return renderBlueskyPreview(content);
       default:
         return (
           <div className="bg-gray-100 rounded-lg p-6 max-w-md mx-auto">

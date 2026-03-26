@@ -362,7 +362,7 @@ export function PlatformPreview({
   };
 
   const renderSnapchatPreview = () => {
-    const SNAPCHAT_LIMIT = 80;
+    const SNAPCHAT_LIMIT = 250;
     const tooLong = content.length > SNAPCHAT_LIMIT;
     return (
       <div
@@ -392,7 +392,7 @@ export function PlatformPreview({
         {tooLong && (
           <div className="absolute bottom-4 left-4 right-4 bg-yellow-400/90 rounded-md p-2">
             <p className="text-xs text-gray-900 font-medium text-center">
-              ⚠ Caption exceeds 80 characters ({content.length - SNAPCHAT_LIMIT} over limit)
+              ⚠ Caption exceeds 250 characters ({content.length - SNAPCHAT_LIMIT} over limit)
             </p>
           </div>
         )}
@@ -430,7 +430,7 @@ export function PlatformPreview({
   };
 
   const renderTelegramPreview = () => {
-    const MAX_CAPTION = 1024;
+    const MAX_CAPTION = 4096;
     const body = content.length > MAX_CAPTION ? content.slice(0, MAX_CAPTION) + "..." : content;
     return (
       <div className="bg-gray-100 rounded-xl max-w-sm mx-auto p-4 space-y-2">
@@ -453,6 +453,109 @@ export function PlatformPreview({
           )}
           <p className="text-sm text-gray-900 whitespace-pre-wrap">{body}</p>
           <p className="text-right text-xs text-gray-400 mt-1">now ✓✓</p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBlueskyPreview = () => {
+    const BLUESKY_LIMIT = 300;
+    const displayText = content.slice(0, BLUESKY_LIMIT);
+    const overLimit = content.length > BLUESKY_LIMIT;
+    return (
+      <div className="bg-white border rounded-lg max-w-lg mx-auto">
+        <div className="p-4">
+          <div className="flex items-start space-x-3">
+            <Avatar className="w-10 h-10">
+              <AvatarImage src={userInfo.avatar} />
+              <AvatarFallback>{userInfo.name[0]}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-1">
+                <span className="font-bold text-gray-900">{userInfo.name}</span>
+                <span className="text-gray-500">@{userInfo.username}</span>
+              </div>
+              <div className="mt-1">
+                <p className="text-gray-900 whitespace-pre-wrap">{displayText}</p>
+                {mediaFiles.length > 0 && (
+                  <div
+                    className={cn(
+                      "mt-3 grid gap-1 rounded-xl overflow-hidden",
+                      mediaFiles.length === 1
+                        ? "grid-cols-1"
+                        : mediaFiles.length === 2
+                          ? "grid-cols-2"
+                          : mediaFiles.length === 3
+                            ? "grid-cols-2"
+                            : "grid-cols-2"
+                    )}
+                  >
+                    {mediaFiles.slice(0, 4).map((file, mediaIdx) => (
+                      <div
+                        key={mediaIdx}
+                        className={cn(
+                          "relative bg-gray-100",
+                          mediaFiles.length === 3 && mediaIdx === 0 ? "row-span-2" : "",
+                          mediaFiles.length === 1 ? "aspect-video max-h-80" : "aspect-square"
+                        )}
+                      >
+                        {file.type.startsWith("image/") ? (
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-black flex items-center justify-center text-white">
+                            Video
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between max-w-md mt-3 text-gray-500">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center space-x-2 hover:text-blue-500"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="text-sm">5</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center space-x-2 hover:text-green-500"
+                >
+                  <Repeat2 className="w-4 h-4" />
+                  <span className="text-sm">12</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center space-x-2 hover:text-red-500"
+                >
+                  <Heart className="w-4 h-4" />
+                  <span className="text-sm">89</span>
+                </Button>
+                <Button variant="ghost" size="sm" className="hover:text-blue-500">
+                  <Share className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="flex justify-end mt-1">
+                <span
+                  className={cn(
+                    "text-xs",
+                    overLimit ? "text-red-500 font-medium" : "text-gray-400"
+                  )}
+                >
+                  {content.length}/{BLUESKY_LIMIT}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -537,6 +640,8 @@ export function PlatformPreview({
         return renderTelegramPreview();
       case "linkedin":
         return renderLinkedInPreview();
+      case "bluesky":
+        return renderBlueskyPreview();
       default:
         return renderTwitterPreview();
     }
