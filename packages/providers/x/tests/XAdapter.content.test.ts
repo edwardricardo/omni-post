@@ -14,7 +14,7 @@
  * All tests are Tier 0 (no network, no DB, no Redis).
  */
 
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { XAdapter } from "../src/XAdapter.js";
 import { createTestCanonicalPost, SHORT_BODY, LONG_BODY } from "./XAdapter.test-helpers.js";
@@ -24,10 +24,11 @@ import type { Media } from "@shared/types";
 // 1. ValidateContent Tests (8 tests)
 // ============================================================================
 
-describe("XAdapter - validateContent()", { concurrency: 1 }, () => {
+describe("XAdapter - validateContent()", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
@@ -158,10 +159,11 @@ describe("XAdapter - validateContent()", { concurrency: 1 }, () => {
 // 2. GeneratePreview Tests (5 tests)
 // ============================================================================
 
-describe("XAdapter - generatePreview()", { concurrency: 1 }, () => {
+describe("XAdapter - generatePreview()", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
@@ -243,10 +245,11 @@ describe("XAdapter - generatePreview()", { concurrency: 1 }, () => {
 // 3. Edge Cases Tests (7 tests)
 // ============================================================================
 
-describe("XAdapter - Edge Cases", { concurrency: 1 }, () => {
+describe("XAdapter - Edge Cases", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 

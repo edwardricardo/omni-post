@@ -3,172 +3,142 @@
  * @description Tests for InstagramMediaProcessor -- getVideoMetadata,
  *              splitVideoForStories, optimizeForReels, createThumbnail,
  *              and metrics.
- * Framework: node:test + node:assert/strict
+ * Framework: vitest + node:assert/strict
  *
  * Tests for validateVideo, error handling, and integration scenarios
  * live in mediaProcessor.validation.test.ts.
  *
- * Mocking: mock.module() intercepts module-level dependencies
+ * Mocking: vi.mock() intercepts module-level dependencies
  * (fluent-ffmpeg, @adapters/external-apis, @adapters/storage-s3, prom-client)
  * so that the processor can be instantiated without real Redis/FFmpeg/S3.
  */
 
-import { describe, it, before, beforeEach, after, mock } from "node:test";
+import { describe, it, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import assert from "node:assert/strict";
-import { createPassthroughCB, createMockFfmpegInstance } from "./mediaProcessor.test-helpers.js";
+import { createMockFfmpegInstance } from "./mediaProcessor.test-helpers.js";
 
-let InstagramMediaProcessor: any;
+// ── Hoist mock state initialization before vi.mock() factories run ──
+const { ffprobeMockFn, ffmpegMockFn } = vi.hoisted(() => {
+  const ffprobeMockFn = vi.fn((url: string, cb: (err: any, data: any) => void) => {
+    if (url.includes("non-existent")) {
+      cb(new Error("File not found"), null);
+      return;
+    }
+    cb(null, {
+      streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
+      format: { duration: "45.5", bit_rate: "2500000", format_name: "mp4,mov" },
+    });
+  });
+  const ffmpegMockFn = vi.fn();
+  return { ffprobeMockFn, ffmpegMockFn };
+});
 
-// Shared mock state so that per-test overrides in beforeEach work
-let ffprobeMockFn: ReturnType<typeof mock.fn>;
-let ffmpegMockFn: ReturnType<typeof mock.fn>;
-let _uploadMockFn: ReturnType<typeof mock.fn>;
+// ── Hoist mock setup before module evaluation ──
 
-describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
+vi.mock("@adapters/external-apis", () => ({
+  createExternalApiCircuitBreaker: () => ({
+    call: async (_svc: string, _op: string, fn: (...a: any[]) => Promise<any>) => fn(),
+    getAllStatuses: () => ({}),
+  }),
+  resetExternalApiCircuitBreaker: async () => undefined,
+}));
+
+vi.mock("@adapters/storage-s3", () => ({
+  createS3StorageAdapter: () => ({
+    generateUploadSignature: async () => ({
+      ok: true as const,
+      value: {
+        url: "https://s3.amazonaws.com/bucket/",
+        fields: { key: "test-key" },
+      },
+    }),
+  }),
+}));
+
+vi.mock("prom-client", () => ({
+  default: {
+    Registry: class {
+      registerMetric() {}
+      removeSingleMetric() {}
+    },
+    Counter: class {
+      inc() {}
+      labels() {
+        return this;
+      }
+    },
+    Histogram: class {
+      observe() {}
+      labels() {
+        return this;
+      }
+      startTimer() {
+        return () => 0;
+      }
+    },
+    Gauge: class {
+      set() {}
+      inc() {}
+      dec() {}
+      labels() {
+        return this;
+      }
+    },
+  },
+}));
+
+vi.mock("fluent-ffmpeg", () => {
+  // ffmpegMockFn default implementation is set here and overridden per-test in beforeEach
+  ffmpegMockFn.mockImplementation(() => createMockFfmpegInstance());
+
+  const mockFfmpeg = Object.assign(ffmpegMockFn, {
+    ffprobe: ffprobeMockFn,
+  });
+
+  return { default: mockFfmpeg };
+});
+
+vi.mock("fs", () => ({
+  promises: {
+    readFile: async () => Buffer.from("fake-video-data"),
+    unlink: async () => undefined,
+    writeFile: async () => undefined,
+  },
+  readFileSync: () => Buffer.from("fake-data"),
+  existsSync: () => true,
+  default: {
+    promises: {
+      readFile: async () => Buffer.from("fake-video-data"),
+      unlink: async () => undefined,
+      writeFile: async () => undefined,
+    },
+    readFileSync: () => Buffer.from("fake-data"),
+    existsSync: () => true,
+  },
+}));
+
+// Static import after mocks are registered (Vitest hoists vi.mock calls before imports)
+import { InstagramMediaProcessor } from "../src/mediaProcessor.js";
+
+describe("InstagramMediaProcessor", { concurrent: false }, () => {
   let mediaProcessor: any;
 
-  before(async () => {
-    // ── Prepare mock functions ──
-    ffprobeMockFn = mock.fn((url: string, cb: (err: any, data: any) => void) => {
-      if (url.includes("non-existent")) {
-        cb(new Error("File not found"), null);
-        return;
-      }
-      cb(null, {
-        streams: [
-          {
-            codec_type: "video",
-            width: 1080,
-            height: 1920,
-            r_frame_rate: "30/1",
-          },
-        ],
-        format: {
-          duration: "45.5",
-          bit_rate: "2500000",
-          format_name: "mp4,mov",
-        },
-      });
-    });
-
-    ffmpegMockFn = mock.fn(() => createMockFfmpegInstance());
-
-    _uploadMockFn = mock.fn(
-      async (_filePath: string, filename: string) => `https://s3.amazonaws.com/bucket/${filename}`
-    );
-
-    // ── Mock modules ──
-    const cbPassthrough = createPassthroughCB();
-
-    mock.module("@adapters/external-apis", {
-      namedExports: {
-        createExternalApiCircuitBreaker: () => cbPassthrough,
-        resetExternalApiCircuitBreaker: async () => undefined,
-      },
-    });
-
-    mock.module("@adapters/storage-s3", {
-      namedExports: {
-        createS3StorageAdapter: () => ({
-          generateUploadSignature: async () => ({
-            ok: true as const,
-            value: {
-              url: "https://s3.amazonaws.com/bucket/",
-              fields: { key: "test-key" },
-            },
-          }),
-        }),
-      },
-    });
-
-    mock.module("prom-client", {
-      defaultExport: {
-        Registry: class {
-          registerMetric() {}
-          removeSingleMetric() {}
-        },
-        Counter: class {
-          inc() {}
-          labels() {
-            return this;
-          }
-        },
-        Histogram: class {
-          observe() {}
-          labels() {
-            return this;
-          }
-          startTimer() {
-            return () => 0;
-          }
-        },
-        Gauge: class {
-          set() {}
-          inc() {}
-          dec() {}
-          labels() {
-            return this;
-          }
-        },
-      },
-    });
-
-    // Mock fluent-ffmpeg: the source does `import ffmpeg from "fluent-ffmpeg"`
-    // and then calls `ffmpeg.ffprobe(url, cb)` and `ffmpeg(url)` as a constructor.
-    const mockFfmpeg = Object.assign(ffmpegMockFn, {
-      ffprobe: ffprobeMockFn,
-    });
-
-    mock.module("fluent-ffmpeg", {
-      defaultExport: mockFfmpeg,
-      namedExports: {
-        // Type imports used by the source:
-        // FfmpegCommand, FfprobeData -- these are type-only so no runtime export needed
-      },
-    });
-
-    // Mock fs operations used internally for file read/write/unlink
-    // The source uses `fs.promises.readFile`, `fs.promises.unlink`
-    mock.module("fs", {
-      namedExports: {
-        promises: {
-          readFile: async () => Buffer.from("fake-video-data"),
-          unlink: async () => undefined,
-          writeFile: async () => undefined,
-        },
-        readFileSync: () => Buffer.from("fake-data"),
-        existsSync: () => true,
-      },
-      defaultExport: {
-        promises: {
-          readFile: async () => Buffer.from("fake-video-data"),
-          unlink: async () => undefined,
-          writeFile: async () => undefined,
-        },
-        readFileSync: () => Buffer.from("fake-data"),
-        existsSync: () => true,
-      },
-    });
-
+  beforeAll(() => {
     // Mock globalThis.fetch so S3 upload requests don't hit the network
-    mock.method(globalThis, "fetch", async () => {
-      return new Response("OK", { status: 200, statusText: "OK" });
-    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("OK", { status: 200, statusText: "OK" })
+    );
 
     // Set required env vars
     process.env.AWS_REGION = "us-east-1";
     process.env.AWS_S3_BUCKET = "test-bucket";
-
-    // Dynamic import after mocks
-    const mod = await import("../src/mediaProcessor.js");
-    InstagramMediaProcessor = mod.InstagramMediaProcessor;
   });
 
   beforeEach(() => {
     mediaProcessor = new InstagramMediaProcessor("https://test-storage.com");
 
     // Reset mock implementations to defaults for each test
-    ffprobeMockFn.mock.mockImplementation((url: string, cb: (err: any, data: any) => void) => {
+    ffprobeMockFn.mockImplementation((url: string, cb: (err: any, data: any) => void) => {
       if (url.includes("non-existent")) {
         cb(new Error("File not found"), null);
         return;
@@ -190,20 +160,21 @@ describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
       });
     });
 
-    ffmpegMockFn.mock.mockImplementation(() => createMockFfmpegInstance());
+    ffmpegMockFn.mockImplementation(() => createMockFfmpegInstance());
   });
 
-  after(() => {
+  afterAll(() => {
     // Cleanup env vars
     delete process.env.AWS_REGION;
     delete process.env.AWS_S3_BUCKET;
+    vi.restoreAllMocks();
   });
 
   // =========================================================================
   // getVideoMetadata
   // =========================================================================
 
-  describe("getVideoMetadata", { concurrency: 1 }, () => {
+  describe("getVideoMetadata", { concurrent: false }, () => {
     it("should return video metadata for valid video URL", async () => {
       const result = await mediaProcessor.getVideoMetadata("https://example.com/test-video.mp4");
 
@@ -226,7 +197,7 @@ describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
     });
 
     it("should handle videos without video stream", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "audio" }],
           format: { duration: "30.0", bit_rate: "128000" },
@@ -253,7 +224,7 @@ describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
       ];
 
       for (const testCase of testCases) {
-        ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+        ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
           cb(null, {
             streams: [
               {
@@ -285,7 +256,7 @@ describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
   // validateVideo
   // =========================================================================
 
-  describe("validateVideo", { concurrency: 1 }, () => {
+  describe("validateVideo", { concurrent: false }, () => {
     it("should validate video for STORIES content type", async () => {
       const result = await mediaProcessor.validateVideo(
         "https://example.com/story-video.mp4",
@@ -298,7 +269,7 @@ describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
     });
 
     it("should detect duration issues for STORIES", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
           format: { duration: "120", bit_rate: "2500000", format_name: "mp4" },
@@ -315,7 +286,7 @@ describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
     });
 
     it("should detect duration issues for REELS", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
           format: { duration: "120", bit_rate: "2500000", format_name: "mp4" },
@@ -332,7 +303,7 @@ describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
     });
 
     it("should pass validation for optimal videos", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
           format: { duration: "30", bit_rate: "2500000", format_name: "mp4" },
@@ -353,7 +324,7 @@ describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
   // optimizeForReels
   // =========================================================================
 
-  describe("optimizeForReels", { concurrency: 1 }, () => {
+  describe("optimizeForReels", { concurrent: false }, () => {
     it("should return original URL if already optimized", async () => {
       // Default mock returns 1080x1920 45.5s -- already optimal aspect ratio
       const videoUrl = "https://example.com/optimal-reel.mp4";
@@ -363,7 +334,7 @@ describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
     });
 
     it("should optimize videos exceeding 90-second limit", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1920, height: 1080, r_frame_rate: "30/1" }],
           format: { duration: "150", bit_rate: "2500000", format_name: "mp4" },
@@ -377,7 +348,7 @@ describe("InstagramMediaProcessor", { concurrency: 1 }, () => {
     });
 
     it("should optimize landscape aspect ratio", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1920, height: 1080, r_frame_rate: "30/1" }],
           format: { duration: "30", bit_rate: "2500000", format_name: "mp4" },

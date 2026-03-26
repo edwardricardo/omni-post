@@ -16,7 +16,7 @@
  * All tests are Tier 0 (no network, no DB, no Redis).
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { XAdapter } from "../src/XAdapter.js";
 import {
@@ -31,10 +31,11 @@ import {
 // 1. Metadata Tests (7 tests)
 // ============================================================================
 
-describe("XAdapter - Metadata", { concurrency: 1 }, () => {
+describe("XAdapter - Metadata", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
@@ -101,10 +102,11 @@ describe("XAdapter - Metadata", { concurrency: 1 }, () => {
 // 2. Render Tests (6 tests)
 // ============================================================================
 
-describe("XAdapter - render()", { concurrency: 1 }, () => {
+describe("XAdapter - render()", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
@@ -200,10 +202,11 @@ describe("XAdapter - render()", { concurrency: 1 }, () => {
 // 3. PlanThread Tests (4 tests)
 // ============================================================================
 
-describe("XAdapter - planThread()", { concurrency: 1 }, () => {
+describe("XAdapter - planThread()", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
@@ -260,10 +263,11 @@ describe("XAdapter - planThread()", { concurrency: 1 }, () => {
 // 4. ValidateCredentials Tests (5 tests)
 // ============================================================================
 
-describe("XAdapter - validateCredentials()", { concurrency: 1 }, () => {
+describe("XAdapter - validateCredentials()", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
@@ -279,7 +283,7 @@ describe("XAdapter - validateCredentials()", { concurrency: 1 }, () => {
 
   it("should succeed with valid credentials and working API client", async () => {
     const mockClient = createMockApiClient();
-    mock.method(adapter as any, "createApiClient", () => mockClient);
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.validateCredentials({
       apiKey: "valid-key",
@@ -299,7 +303,7 @@ describe("XAdapter - validateCredentials()", { concurrency: 1 }, () => {
 
   it("should return AUTH_INVALID when API client throws generic error", async () => {
     const mockClient = createFailingApiClient("Connection refused");
-    mock.method(adapter as any, "createApiClient", () => mockClient);
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.validateCredentials({
       apiKey: "key",
@@ -313,7 +317,7 @@ describe("XAdapter - validateCredentials()", { concurrency: 1 }, () => {
 
   it("should return AUTH_EXPIRED when API returns 401", async () => {
     const mockClient = createFailingApiClient("Unauthorized", 401);
-    mock.method(adapter as any, "createApiClient", () => mockClient);
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.validateCredentials({
       apiKey: "expired-key",
@@ -341,7 +345,7 @@ describe("XAdapter - validateCredentials()", { concurrency: 1 }, () => {
 // 5. GetCredentialsFromEnvironment Tests (4 tests)
 // ============================================================================
 
-describe("XAdapter - getCredentialsFromEnvironment()", { concurrency: 1 }, () => {
+describe("XAdapter - getCredentialsFromEnvironment()", { concurrent: false }, () => {
   let adapter: XAdapter;
   const envVars = [
     "X_API_KEY",
@@ -355,6 +359,7 @@ describe("XAdapter - getCredentialsFromEnvironment()", { concurrency: 1 }, () =>
   let savedEnv: Record<string, string | undefined>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
     savedEnv = {};
     for (const key of envVars) {

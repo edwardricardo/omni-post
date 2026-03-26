@@ -6,7 +6,7 @@
  * Tier 0: no real Redis required.
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterAll, afterEach, expect } from "vitest";
 import assert from "node:assert/strict";
 import client from "prom-client";
 import { RedisCacheManager } from "../src/cache-manager.js";
@@ -150,7 +150,7 @@ function makeManager(opts: Record<string, unknown> = {}): {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-after(() => {
+afterAll(() => {
   client.register.clear();
 });
 
@@ -169,30 +169,30 @@ describe("RedisCacheManager — set() and get()", { concurrency: 1 }, () => {
     (global as any).__cacheManagerUnderTest = manager;
   });
 
-  after(async () => {
+  afterEach(async () => {
     await manager.close();
     (global as any).__cacheManagerUnderTest = undefined;
   });
 
   it("get() returns ok(null) for a missing key", async () => {
     const result = await manager.get("missing");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, null);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(null);
   });
 
   it("set() then get() returns the stored value", async () => {
     await manager.set("greet", "hello", { ttl: 60 });
     const result = await manager.get<string>("greet");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, "hello");
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe("hello");
   });
 
   it("set() stores objects correctly", async () => {
     const payload = { id: 1, name: "Alice", active: true };
     await manager.set("user:1", payload, { ttl: 60 });
     const result = await manager.get<typeof payload>("user:1");
-    assert.ok(result.ok);
-    assert.deepStrictEqual(result.value, payload);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toEqual(payload);
   });
 
   it("second get() hits L1 cache (avoids Redis round-trip)", async () => {
@@ -200,8 +200,8 @@ describe("RedisCacheManager — set() and get()", { concurrency: 1 }, () => {
     // Remove from fake Redis to prove L1 serves the second get
     fakeRedis.store.delete("l1-test");
     const result = await manager.get<string>("l1-test");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, "cached");
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe("cached");
   });
 
   it("get() returns ok(null) for an expired Redis entry", async () => {
@@ -221,27 +221,27 @@ describe("RedisCacheManager — set() and get()", { concurrency: 1 }, () => {
     fakeRedis.store.set("stale-key", JSON.stringify(expiredItem));
 
     const result = await manager.get("stale-key");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, null);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(null);
   });
 
   it("set() with tags registers tags in Redis sadd", async () => {
     await manager.set("post:1", "data", { ttl: 60, tags: ["posts", "user:42"] });
     const postsMembers = await fakeRedis.smembers("tag:posts");
     const userMembers = await fakeRedis.smembers("tag:user:42");
-    assert.ok(postsMembers.includes("post:1"), "tag:posts should contain post:1");
-    assert.ok(userMembers.includes("post:1"), "tag:user:42 should contain post:1");
+    expect(postsMembers.includes("post:1")).toBe(true);
+    expect(userMembers.includes("post:1")).toBe(true);
   });
 
   it("set() uses provided ttl over defaultTtl", async () => {
     await manager.set("k", "v", { ttl: 900 });
-    assert.strictEqual(fakeRedis.ttls.get("k"), 900);
+    expect(fakeRedis.ttls.get("k")).toBe(900);
   });
 
   it("set() uses defaultTtl when no ttl option provided", async () => {
     const { manager: mgr, fakeRedis: redis } = makeManager({ defaultTtl: 300 });
     await mgr.set("k", "v");
-    assert.strictEqual(redis.ttls.get("k"), 300);
+    expect(redis.ttls.get("k")).toBe(300);
     await mgr.close();
   });
 
@@ -262,7 +262,7 @@ describe("RedisCacheManager — set() and get()", { concurrency: 1 }, () => {
 
     await manager.get("hc-key");
     const updated = JSON.parse(fakeRedis.store.get("hc-key") ?? "{}");
-    assert.strictEqual(updated.metadata.hitCount, 1);
+    expect(updated.metadata.hitCount).toBe(1);
   });
 
   it("set() returns err(CACHE_ERROR) when Redis throws", async () => {
@@ -270,8 +270,8 @@ describe("RedisCacheManager — set() and get()", { concurrency: 1 }, () => {
       throw new Error("Redis unavailable");
     };
     const result = await manager.set("k", "v");
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual((result as any).error, "CACHE_ERROR");
+    expect(result.ok).toBe(false);
+    expect((result as any).error).toBe("CACHE_ERROR");
   });
 
   it("get() returns err(CACHE_ERROR) when Redis throws", async () => {
@@ -280,8 +280,8 @@ describe("RedisCacheManager — set() and get()", { concurrency: 1 }, () => {
       throw new Error("Redis unavailable");
     };
     const result = await manager.get("k");
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual((result as any).error, "CACHE_ERROR");
+    expect(result.ok).toBe(false);
+    expect((result as any).error).toBe("CACHE_ERROR");
   });
 });
 
@@ -297,16 +297,16 @@ describe("RedisCacheManager — del()", { concurrency: 1 }, () => {
     fakeRedis = setup.fakeRedis;
   });
 
-  after(async () => {
+  afterEach(async () => {
     await manager.close();
   });
 
   it("del() removes key from L2 and returns ok(true) for existing key", async () => {
     await manager.set("to-delete", "value");
     const result = await manager.del("to-delete");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, true);
-    assert.strictEqual(await fakeRedis.get("to-delete"), null);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(true);
+    expect(await fakeRedis.get("to-delete")).toBe(null);
   });
 
   it("del() removes key from L1 cache", async () => {
@@ -315,14 +315,14 @@ describe("RedisCacheManager — del()", { concurrency: 1 }, () => {
     // Remove from Redis too so we can confirm L1 is cleared
     fakeRedis.store.delete("to-delete");
     const result = await manager.get("to-delete");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, null);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(null);
   });
 
   it("del() returns ok(false) for non-existent key", async () => {
     const result = await manager.del("ghost");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, false);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(false);
   });
 
   it("del() returns err(CACHE_ERROR) when Redis throws", async () => {
@@ -330,7 +330,7 @@ describe("RedisCacheManager — del()", { concurrency: 1 }, () => {
       throw new Error("Redis error");
     };
     const result = await manager.del("k");
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
   });
 });
 
@@ -344,7 +344,7 @@ describe("RedisCacheManager — getOrSet()", { concurrency: 1 }, () => {
     manager = setup.manager;
   });
 
-  after(async () => {
+  afterEach(async () => {
     await manager.close();
   });
 
@@ -358,9 +358,9 @@ describe("RedisCacheManager — getOrSet()", { concurrency: 1 }, () => {
       },
       { ttl: 60 }
     );
-    assert.ok(result.ok);
-    assert.strictEqual((result as any).value, "factory-value");
-    assert.ok(factoryCalled);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe("factory-value");
+    expect(factoryCalled).toBe(true);
   });
 
   it("does NOT call factory when key is already cached", async () => {
@@ -375,9 +375,9 @@ describe("RedisCacheManager — getOrSet()", { concurrency: 1 }, () => {
       },
       { ttl: 60 }
     );
-    assert.ok(result.ok);
-    assert.strictEqual((result as any).value, "existing");
-    assert.strictEqual(factoryCalled, false);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe("existing");
+    expect(factoryCalled).toBe(false);
   });
 
   it("returns err(FACTORY_ERROR) when factory throws", async () => {
@@ -388,8 +388,8 @@ describe("RedisCacheManager — getOrSet()", { concurrency: 1 }, () => {
       },
       { ttl: 60 }
     );
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual((result as any).error, "FACTORY_ERROR");
+    expect(result.ok).toBe(false);
+    expect((result as any).error).toBe("FACTORY_ERROR");
   });
 
   it("caches factory result so second call does not re-invoke factory", async () => {
@@ -402,7 +402,7 @@ describe("RedisCacheManager — getOrSet()", { concurrency: 1 }, () => {
       callCount++;
       return "val";
     });
-    assert.strictEqual(callCount, 1, "factory should only be called once");
+    expect(callCount).toBe(1);
   });
 });
 
@@ -418,7 +418,7 @@ describe("RedisCacheManager — invalidation methods", { concurrency: 1 }, () =>
     fakeRedis = setup.fakeRedis;
   });
 
-  after(async () => {
+  afterEach(async () => {
     await manager.close();
   });
 
@@ -427,16 +427,16 @@ describe("RedisCacheManager — invalidation methods", { concurrency: 1 }, () =>
     await manager.set("post:2", "data2", { ttl: 60, tags: ["posts"] });
 
     const result = await manager.invalidateByTag("posts");
-    assert.ok(result.ok);
+    expect(result.ok).toBe(true);
 
     // L1 should be cleared
     const l1Cache = (manager as any).l1Cache;
-    assert.strictEqual(l1Cache.get("post:1"), undefined);
-    assert.strictEqual(l1Cache.get("post:2"), undefined);
+    expect(l1Cache.get("post:1")).toBe(undefined);
+    expect(l1Cache.get("post:2")).toBe(undefined);
 
     // Redis should be cleared
-    assert.strictEqual(fakeRedis.store.get("post:1"), undefined);
-    assert.strictEqual(fakeRedis.store.get("post:2"), undefined);
+    expect(fakeRedis.store.get("post:1")).toBe(undefined);
+    expect(fakeRedis.store.get("post:2")).toBe(undefined);
   });
 
   it("invalidateByPattern() deletes matched keys", async () => {
@@ -446,11 +446,11 @@ describe("RedisCacheManager — invalidation methods", { concurrency: 1 }, () =>
     fakeRedis.store.set("post:1", "p1");
 
     const result = await manager.invalidateByPattern("user:*");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 2);
-    assert.strictEqual(fakeRedis.store.get("user:1"), undefined);
-    assert.strictEqual(fakeRedis.store.get("user:2"), undefined);
-    assert.strictEqual(fakeRedis.store.get("post:1"), "p1"); // unaffected
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(2);
+    expect(fakeRedis.store.get("user:1")).toBe(undefined);
+    expect(fakeRedis.store.get("user:2")).toBe(undefined);
+    expect(fakeRedis.store.get("post:1")).toBe("p1"); // unaffected
   });
 
   it("invalidate() with immediate strategy deletes keys", async () => {
@@ -458,16 +458,16 @@ describe("RedisCacheManager — invalidation methods", { concurrency: 1 }, () =>
     await manager.set("k2", "v2");
 
     const result = await manager.invalidate(["k1", "k2"], "immediate");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 2);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(2);
   });
 
   it("invalidateByDependencies() cascades to dependent keys", async () => {
     await manager.set("post:1", "data", { ttl: 60, dependencies: ["project:1"] });
 
     const result = await manager.invalidateByDependencies(["project:1"]);
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 1);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(1);
   });
 });
 
@@ -483,7 +483,7 @@ describe("RedisCacheManager — flush() and healthCheck()", { concurrency: 1 }, 
     fakeRedis = setup.fakeRedis;
   });
 
-  after(async () => {
+  afterEach(async () => {
     await manager.close();
   });
 
@@ -492,21 +492,21 @@ describe("RedisCacheManager — flush() and healthCheck()", { concurrency: 1 }, 
     await manager.set("b", "2");
 
     const result = await manager.flush();
-    assert.ok(result.ok);
+    expect(result.ok).toBe(true);
 
     // L1 should be empty
     const l1 = (manager as any).l1Cache;
-    assert.strictEqual(l1.size(), 0);
+    expect(l1.size()).toBe(0);
     // Redis should be empty
-    assert.strictEqual(fakeRedis.store.size, 0);
+    expect(fakeRedis.store.size).toBe(0);
   });
 
   it("healthCheck() returns healthy status and non-negative latency when ping succeeds", async () => {
     const result = await manager.healthCheck();
-    assert.ok(result.ok);
+    expect(result.ok).toBe(true);
     const value = (result as any).value;
-    assert.ok(["healthy", "degraded", "unhealthy"].includes(value.status));
-    assert.ok(value.latency >= 0);
+    expect(["healthy", "degraded", "unhealthy"].includes(value.status)).toBe(true);
+    expect(value.latency).toBeGreaterThanOrEqual(0);
   });
 
   it("healthCheck() returns err(CACHE_ERROR) when ping throws", async () => {
@@ -514,8 +514,8 @@ describe("RedisCacheManager — flush() and healthCheck()", { concurrency: 1 }, 
       throw new Error("Connection refused");
     };
     const result = await manager.healthCheck();
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual((result as any).error, "CACHE_ERROR");
+    expect(result.ok).toBe(false);
+    expect((result as any).error).toBe("CACHE_ERROR");
   });
 });
 
@@ -529,28 +529,28 @@ describe("RedisCacheManager — getStats()", { concurrency: 1 }, () => {
     manager = setup.manager;
   });
 
-  after(async () => {
+  afterEach(async () => {
     await manager.close();
   });
 
   it("returns ok with a complete CacheStats object", async () => {
     const result = await manager.getStats();
-    assert.ok(result.ok);
+    expect(result.ok).toBe(true);
     const stats = (result as any).value;
-    assert.ok(typeof stats.hits === "number");
-    assert.ok(typeof stats.misses === "number");
-    assert.ok(typeof stats.hitRate === "number");
-    assert.ok(typeof stats.totalKeys === "number");
-    assert.ok(typeof stats.l1Hits === "number");
-    assert.ok(typeof stats.l2Hits === "number");
-    assert.ok(typeof stats.l1Size === "number");
-    assert.ok(Array.isArray(stats.hotKeys));
+    expect(typeof stats.hits).toBe("number");
+    expect(typeof stats.misses).toBe("number");
+    expect(typeof stats.hitRate).toBe("number");
+    expect(typeof stats.totalKeys).toBe("number");
+    expect(typeof stats.l1Hits).toBe("number");
+    expect(typeof stats.l2Hits).toBe("number");
+    expect(typeof stats.l1Size).toBe("number");
+    expect(Array.isArray(stats.hotKeys)).toBe(true);
   });
 
   it("hitRate is 0 when no operations have occurred", async () => {
     const result = await manager.getStats();
-    assert.ok(result.ok);
-    assert.strictEqual((result as any).value.hitRate, 0);
+    expect(result.ok).toBe(true);
+    expect((result as any).value.hitRate).toBe(0);
   });
 
   it("hitRate is > 0 after cache hits occur", async () => {
@@ -558,8 +558,8 @@ describe("RedisCacheManager — getStats()", { concurrency: 1 }, () => {
     await manager.get("k"); // L1 hit
 
     const result = await manager.getStats();
-    assert.ok(result.ok);
-    assert.ok((result as any).value.hitRate > 0);
+    expect(result.ok).toBe(true);
+    expect((result as any).value.hitRate).toBeGreaterThan(0);
   });
 
   it("l1Hits is tracked separately", async () => {
@@ -567,8 +567,8 @@ describe("RedisCacheManager — getStats()", { concurrency: 1 }, () => {
     await manager.get("k"); // L1 hit (set() populates L1)
 
     const result = await manager.getStats();
-    assert.ok(result.ok);
-    assert.ok((result as any).value.l1Hits >= 1);
+    expect(result.ok).toBe(true);
+    expect((result as any).value.l1Hits).toBeGreaterThanOrEqual(1);
   });
 
   it("returns err(CACHE_ERROR) when Redis.info throws", async () => {
@@ -583,7 +583,7 @@ describe("RedisCacheManager — getStats()", { concurrency: 1 }, () => {
     }
 
     const result = await mgr.getStats();
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
     await mgr.close();
   });
 });
@@ -593,12 +593,12 @@ describe("RedisCacheManager — getStats()", { concurrency: 1 }, () => {
 describe("RedisCacheManager — warmCache()", { concurrency: 1 }, () => {
   let manager: RedisCacheManager;
 
-  before(() => {
+  beforeEach(() => {
     const setup = makeManager();
     manager = setup.manager;
   });
 
-  after(async () => {
+  afterEach(async () => {
     await manager.close();
   });
 
@@ -606,16 +606,16 @@ describe("RedisCacheManager — warmCache()", { concurrency: 1 }, () => {
     // Set isWarming to true manually
     (manager as any).isWarming = true;
     const result = await manager.warmCache();
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 0);
+    expect(result.ok).toBe(true);
+    expect(result.value).toBe(0);
     (manager as any).isWarming = false;
   });
 
   it("returns ok when no hot patterns exist", async () => {
     const result = await manager.warmCache();
-    assert.ok(result.ok);
-    assert.ok(typeof result.value === "number");
-    assert.ok(result.value >= 0);
+    expect(result.ok).toBe(true);
+    expect(typeof result.value).toBe("number");
+    expect(result.value).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -625,9 +625,9 @@ describe("RedisCacheManager — getKeyPattern() private helper", { concurrency: 
   it("returns namespace:* for colon-separated keys", async () => {
     const { manager: mgr } = makeManager();
     const fn = (mgr as any).getKeyPattern.bind(mgr);
-    assert.strictEqual(fn("user:123"), "user:*");
-    assert.strictEqual(fn("post:abc:extra"), "post:*");
-    assert.strictEqual(fn("standalone"), "other");
+    expect(fn("user:123")).toBe("user:*");
+    expect(fn("post:abc:extra")).toBe("post:*");
+    expect(fn("standalone")).toBe("other");
     await mgr.close();
   });
 });
@@ -637,14 +637,14 @@ describe("RedisCacheManager — parseRedisInfo() private helper", { concurrency:
     const { manager: mgr } = makeManager();
     const fn = (mgr as any).parseRedisInfo.bind(mgr);
     const info = "# Memory\r\nused_memory:102400\r\nused_memory_human:100.00K\r\n";
-    assert.strictEqual(fn(info, "used_memory"), 102400);
+    expect(fn(info, "used_memory")).toBe(102400);
     await mgr.close();
   });
 
   it("returns 0 when key is not found in INFO string", async () => {
     const { manager: mgr } = makeManager();
     const fn = (mgr as any).parseRedisInfo.bind(mgr);
-    assert.strictEqual(fn("# Memory\r\n", "nonexistent"), 0);
+    expect(fn("# Memory\r\n", "nonexistent")).toBe(0);
     await mgr.close();
   });
 });

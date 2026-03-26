@@ -7,7 +7,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { LinkedInAdapter } from "../src/LinkedInAdapter.js";
 import type { PublishInput } from "@ports/core";
@@ -45,20 +45,21 @@ function makeCredentialsResult() {
 
 describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
-  let mockCreatePost: ReturnType<typeof mock.fn>;
-  let mockInitializeDocumentUpload: ReturnType<typeof mock.fn>;
-  let mockUploadMediaBinary: ReturnType<typeof mock.fn>;
-  let mockInitializeImageUpload: ReturnType<typeof mock.fn>;
+  let mockCreatePost: ReturnType<typeof vi.fn>;
+  let mockInitializeDocumentUpload: ReturnType<typeof vi.fn>;
+  let mockUploadMediaBinary: ReturnType<typeof vi.fn>;
+  let mockInitializeImageUpload: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
 
-    mockCreatePost = mock.fn(async () => ({
+    mockCreatePost = vi.fn(async () => ({
       id: "urn:li:share:99999",
       activity: "urn:li:activity:99999",
     }));
 
-    mockInitializeDocumentUpload = mock.fn(async () => ({
+    mockInitializeDocumentUpload = vi.fn(async () => ({
       value: {
         uploadUrlExpiresAt: Date.now() + 300000,
         uploadUrl: "https://api.linkedin.com/upload/document/presigned-url",
@@ -66,9 +67,9 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
       },
     }));
 
-    mockUploadMediaBinary = mock.fn(async () => undefined);
+    mockUploadMediaBinary = vi.fn(async () => undefined);
 
-    mockInitializeImageUpload = mock.fn(async () => ({
+    mockInitializeImageUpload = vi.fn(async () => ({
       value: {
         uploadUrlExpiresAt: Date.now() + 300000,
         uploadUrl: "https://api.linkedin.com/upload/image/presigned-url",
@@ -83,13 +84,13 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
       uploadMediaBinary: mockUploadMediaBinary,
     });
 
-    (adapter as Record<string, unknown>).getCredentials = mock.fn(async () =>
+    (adapter as Record<string, unknown>).getCredentials = vi.fn(async () =>
       makeCredentialsResult()
     );
 
     // Mock global fetch for document/image binary download
     const originalFetch = globalThis.fetch;
-    mock.method(globalThis, "fetch", async (url: string) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url: RequestInfo | URL) => {
       if (typeof url === "string" && url.startsWith("https://api.linkedin.com")) {
         return originalFetch(url);
       }
@@ -97,7 +98,7 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
         ok: true,
         arrayBuffer: async () => new ArrayBuffer(1024),
         headers: new Headers({ "content-type": "application/pdf" }),
-      };
+      } as Response;
     });
   });
 
@@ -118,7 +119,7 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
     }
 
     assert.strictEqual(mockInitializeDocumentUpload.mock.calls.length, 1);
-    const ownerUrn = mockInitializeDocumentUpload.mock.calls[0]?.arguments[0] as string;
+    const ownerUrn = mockInitializeDocumentUpload.mock.calls[0]?.[0] as string;
     assert.strictEqual(ownerUrn, "urn:li:person:abc123");
   });
 
@@ -170,7 +171,7 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
     await adapter.publish(input);
 
     assert.strictEqual(mockCreatePost.mock.calls.length, 1);
-    const payload = mockCreatePost.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
     const content = payload.content as { media: { id: string; title: string } };
     assert.strictEqual(content.media.id, "urn:li:document:doc-001");
     assert.strictEqual(content.media.title, "Q4 Report");
@@ -187,7 +188,7 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
 
     await adapter.publish(input);
 
-    const payload = mockCreatePost.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
     const content = payload.content as { media: { id: string; title: string } };
     assert.strictEqual(content.media.title, "Document");
   });

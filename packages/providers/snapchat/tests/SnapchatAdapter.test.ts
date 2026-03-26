@@ -7,7 +7,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { SnapchatAdapter } from "../src/SnapchatAdapter.js";
 import { ok } from "@shared/types";
@@ -71,10 +71,10 @@ function createTestPublishInput(postOverrides: Partial<RenderedPost> = {}): Publ
 
 function createMockApiClient() {
   return {
-    validateCredentials: mock.fn(async () => ({
+    validateCredentials: vi.fn(async () => ({
       organizations: [{ id: "org-123", name: "Test Org" }],
     })),
-    uploadMedia: mock.fn(async (_url: string, _type: string) => ({
+    uploadMedia: vi.fn(async (_url: string, _type: string) => ({
       media: {
         id: "media-uploaded-123",
         type: "IMAGE",
@@ -82,7 +82,7 @@ function createMockApiClient() {
         name: "omnipost-media-test",
       },
     })),
-    createStory: mock.fn(async (_mediaId: string, _caption?: string) => ({
+    createStory: vi.fn(async (_mediaId: string, _caption?: string) => ({
       creative: {
         id: "creative-123",
         name: "omnipost-story-test",
@@ -92,7 +92,7 @@ function createMockApiClient() {
         top_snap_media_id: _mediaId,
       },
     })),
-    getStoryAnalytics: mock.fn(async (_creativeId: string) => ({
+    getStoryAnalytics: vi.fn(async (_creativeId: string) => ({
       total_views: 1500,
       unique_views: 1200,
       screenshots: 45,
@@ -100,15 +100,15 @@ function createMockApiClient() {
       shares: 30,
       avg_view_time_seconds: 4.5,
     })),
-    refreshAccessToken: mock.fn(async () => ({
+    refreshAccessToken: vi.fn(async () => ({
       access_token: "new-access-token",
       token_type: "bearer",
       expires_in: 3600,
       refresh_token: "new-refresh-token",
       scope: "snapchat-marketing-api",
     })),
-    getCircuitBreakerStatus: mock.fn(() => ({})),
-    clearCache: mock.fn(() => undefined),
+    getCircuitBreakerStatus: vi.fn(() => ({})),
+    clearCache: vi.fn(() => undefined),
   };
 }
 
@@ -122,23 +122,23 @@ function createFailingApiClient(errorMessage = "API error", statusCode?: number)
   };
 
   return {
-    validateCredentials: mock.fn(async () => {
+    validateCredentials: vi.fn(async () => {
       throw makeError();
     }),
-    uploadMedia: mock.fn(async () => {
+    uploadMedia: vi.fn(async () => {
       throw makeError();
     }),
-    createStory: mock.fn(async () => {
+    createStory: vi.fn(async () => {
       throw makeError();
     }),
-    getStoryAnalytics: mock.fn(async () => {
+    getStoryAnalytics: vi.fn(async () => {
       throw makeError();
     }),
-    refreshAccessToken: mock.fn(async () => {
+    refreshAccessToken: vi.fn(async () => {
       throw makeError();
     }),
-    getCircuitBreakerStatus: mock.fn(() => ({})),
-    clearCache: mock.fn(() => undefined),
+    getCircuitBreakerStatus: vi.fn(() => ({})),
+    clearCache: vi.fn(() => undefined),
   };
 }
 
@@ -150,6 +150,7 @@ describe("SnapchatAdapter - getProviderInfo / metadata", { concurrency: 1 }, () 
   let adapter: SnapchatAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new SnapchatAdapter();
   });
 
@@ -182,6 +183,57 @@ describe("SnapchatAdapter - getProviderInfo / metadata", { concurrency: 1 }, () 
     assert.strictEqual(adapter.capabilities.analytics, true);
     assert.strictEqual(adapter.capabilities.threading, false);
     assert.strictEqual(adapter.capabilities.stories, true);
+    assert.strictEqual(adapter.capabilities.comments, false);
+    assert.strictEqual(adapter.capabilities.replies, false);
+    assert.strictEqual(adapter.capabilities.media, true);
+    assert.strictEqual(adapter.capabilities.images, true);
+    assert.strictEqual(adapter.capabilities.videos, true);
+  });
+
+  it("has correct metadata description", () => {
+    assert.strictEqual(
+      adapter.metadata.description,
+      "Publish stories and spotlight content to Snapchat"
+    );
+  });
+
+  it("has correct metadata website", () => {
+    assert.strictEqual(adapter.metadata.website, "https://www.snapchat.com");
+  });
+
+  it("has correct metadata icon path", () => {
+    assert.strictEqual(adapter.metadata.icon, "/providers/snapchat-icon.svg");
+  });
+
+  it("has correct required scopes", () => {
+    assert.deepStrictEqual(adapter.metadata.requiredScopes, [
+      "snapchat-marketing-api",
+      "snapchat-profile-api",
+    ]);
+  });
+
+  it("requires business account", () => {
+    assert.strictEqual(adapter.constraints.businessAccountRequired, true);
+  });
+
+  it("has correct rateLimitHints", () => {
+    assert.deepStrictEqual(adapter.limits.rateLimitHints, { burst: 20, perSeconds: 1 });
+  });
+
+  it("declares threading not supported", () => {
+    assert.strictEqual(adapter.limits.threadingSupported, false);
+  });
+
+  it("has correct required credential fields", () => {
+    // @ts-expect-error — accessing protected field for testing
+    const fields = adapter.requiredCredentialFields;
+    assert.deepStrictEqual(fields, [
+      "clientId",
+      "clientSecret",
+      "accessToken",
+      "refreshToken",
+      "organizationId",
+    ]);
   });
 });
 
@@ -193,6 +245,7 @@ describe("SnapchatAdapter - render()", { concurrency: 1 }, () => {
   let adapter: SnapchatAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new SnapchatAdapter();
   });
 
@@ -297,6 +350,111 @@ describe("SnapchatAdapter - render()", { concurrency: 1 }, () => {
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error, "UNSUPPORTED_MEDIA");
   });
+
+  it("uses empty string for caption when body is undefined", () => {
+    const post = createTestCanonicalPost({
+      body: undefined as unknown as string,
+      media: [{ id: "m1", type: "image", url: "https://example.com/img.jpg" }],
+    });
+
+    const result = adapter.render(post);
+    assert.ok(result.ok);
+    const content = result.value.content as { body: string };
+    assert.strictEqual(content.body, "");
+  });
+
+  it("includes alt text when media has it", () => {
+    const post = createTestCanonicalPost({
+      media: [
+        {
+          id: "m1",
+          type: "image",
+          url: "https://example.com/img.jpg",
+          alt: "Photo description",
+        },
+      ],
+    });
+
+    const result = adapter.render(post);
+    assert.ok(result.ok);
+    const content = result.value.content as { media: Array<{ alt?: string }> };
+    assert.strictEqual(content.media[0]?.alt, "Photo description");
+  });
+
+  it("omits alt from media when not provided", () => {
+    const post = createTestCanonicalPost({
+      media: [
+        {
+          id: "m1",
+          type: "image",
+          url: "https://example.com/img.jpg",
+        },
+      ],
+    });
+
+    const result = adapter.render(post);
+    assert.ok(result.ok);
+    const content = result.value.content as { media: Array<Record<string, unknown>> };
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(content.media[0], "alt"), false);
+  });
+
+  it("sets meta.platform to snapchat", () => {
+    const post = createTestCanonicalPost();
+    const result = adapter.render(post);
+    assert.ok(result.ok);
+    assert.strictEqual(result.value.meta?.platform, "snapchat");
+  });
+
+  it("sets meta.storyFormat to true", () => {
+    const post = createTestCanonicalPost();
+    const result = adapter.render(post);
+    assert.ok(result.ok);
+    assert.strictEqual(result.value.meta?.storyFormat, true);
+  });
+
+  it("sets content.text equal to content.body", () => {
+    const post = createTestCanonicalPost({ body: "Same text" });
+    const result = adapter.render(post);
+    assert.ok(result.ok);
+    const content = result.value.content as { body: string; text: string };
+    assert.strictEqual(content.text, content.body);
+    assert.strictEqual(content.text, "Same text");
+  });
+
+  it("truncates caption to exactly 250 chars boundary", () => {
+    const body250 = "X".repeat(250);
+    const post = createTestCanonicalPost({
+      body: body250,
+      media: [{ id: "m1", type: "image", url: "https://example.com/img.jpg" }],
+    });
+    const result = adapter.render(post);
+    assert.ok(result.ok);
+    const content = result.value.content as { body: string };
+    assert.strictEqual(content.body.length, 250);
+  });
+
+  it("does not truncate caption at exactly 250 chars", () => {
+    const body249 = "Y".repeat(249);
+    const post = createTestCanonicalPost({
+      body: body249,
+      media: [{ id: "m1", type: "image", url: "https://example.com/img.jpg" }],
+    });
+    const result = adapter.render(post);
+    assert.ok(result.ok);
+    const content = result.value.content as { body: string };
+    assert.strictEqual(content.body.length, 249);
+  });
+
+  it("takes only first media item", () => {
+    const post = createTestCanonicalPost({
+      media: [{ id: "m1", type: "image", url: "https://example.com/1.jpg" }],
+    });
+    const result = adapter.render(post);
+    assert.ok(result.ok);
+    const content = result.value.content as { media: Array<{ url: string }> };
+    assert.strictEqual(content.media.length, 1);
+    assert.strictEqual(content.media[0]?.url, "https://example.com/1.jpg");
+  });
 });
 
 // ============================================================================
@@ -307,6 +465,7 @@ describe("SnapchatAdapter - threading (not supported)", { concurrency: 1 }, () =
   let adapter: SnapchatAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new SnapchatAdapter();
   });
 
@@ -344,13 +503,14 @@ describe("SnapchatAdapter - publish()", { concurrency: 1 }, () => {
   let adapter: SnapchatAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new SnapchatAdapter();
   });
 
   it("publishes a story successfully with media", async () => {
     const mockClient = createMockApiClient();
-    mock.method(adapter as any, "getCredentials", async () => ok(MOCK_CREDENTIALS));
-    mock.method(adapter as any, "createApiClient", () => mockClient);
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
 
     const input = createTestPublishInput({
       body: "My snap story",
@@ -382,8 +542,8 @@ describe("SnapchatAdapter - publish()", { concurrency: 1 }, () => {
 
   it("passes correct media type for video uploads", async () => {
     const mockClient = createMockApiClient();
-    mock.method(adapter as any, "getCredentials", async () => ok(MOCK_CREDENTIALS));
-    mock.method(adapter as any, "createApiClient", () => mockClient);
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
 
     const input = createTestPublishInput({
       body: "Video snap",
@@ -400,13 +560,13 @@ describe("SnapchatAdapter - publish()", { concurrency: 1 }, () => {
     assert.ok(result.ok, "Publish should succeed");
     const uploadCall = mockClient.uploadMedia.mock.calls[0];
     assert.ok(uploadCall, "uploadMedia should have been called");
-    assert.strictEqual(uploadCall.arguments[1], "video/mp4");
+    assert.strictEqual(uploadCall[1], "video/mp4");
   });
 
   it("returns VALIDATION error when post has no media", async () => {
     const mockClient = createMockApiClient();
-    mock.method(adapter as any, "getCredentials", async () => ok(MOCK_CREDENTIALS));
-    mock.method(adapter as any, "createApiClient", () => mockClient);
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
 
     const input = createTestPublishInput({
       body: "Text only snap",
@@ -420,7 +580,7 @@ describe("SnapchatAdapter - publish()", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH error when credentials fail", async () => {
-    mock.method(adapter as any, "getCredentials", async () => ({
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ({
       ok: false,
       error: "AUTH",
     }));
@@ -434,8 +594,8 @@ describe("SnapchatAdapter - publish()", { concurrency: 1 }, () => {
 
   it("returns NETWORK error when circuit breaker is OPEN", async () => {
     const failingClient = createFailingApiClient("Circuit breaker is OPEN");
-    mock.method(adapter as any, "getCredentials", async () => ok(MOCK_CREDENTIALS));
-    mock.method(adapter as any, "createApiClient", () => failingClient);
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => failingClient);
 
     const input = createTestPublishInput({
       body: "Snap with circuit breaker open",
@@ -462,13 +622,14 @@ describe("SnapchatAdapter - publish error mapping", { concurrency: 1 }, () => {
   let adapter: SnapchatAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new SnapchatAdapter();
   });
 
   it("maps 429 status to RATE_LIMIT error", async () => {
     const failingClient = createFailingApiClient("Rate limit exceeded", 429);
-    mock.method(adapter as any, "getCredentials", async () => ok(MOCK_CREDENTIALS));
-    mock.method(adapter as any, "createApiClient", () => failingClient);
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => failingClient);
 
     const input = createTestPublishInput({
       body: "Rate limited snap",
@@ -488,8 +649,8 @@ describe("SnapchatAdapter - publish error mapping", { concurrency: 1 }, () => {
 
   it("maps 401 status to AUTH error", async () => {
     const failingClient = createFailingApiClient("Unauthorized", 401);
-    mock.method(adapter as any, "getCredentials", async () => ok(MOCK_CREDENTIALS));
-    mock.method(adapter as any, "createApiClient", () => failingClient);
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => failingClient);
 
     const input = createTestPublishInput({
       body: "Auth error snap",
@@ -509,8 +670,8 @@ describe("SnapchatAdapter - publish error mapping", { concurrency: 1 }, () => {
 
   it("maps 500 status to NETWORK error", async () => {
     const failingClient = createFailingApiClient("Internal server error", 500);
-    mock.method(adapter as any, "getCredentials", async () => ok(MOCK_CREDENTIALS));
-    mock.method(adapter as any, "createApiClient", () => failingClient);
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => failingClient);
 
     const input = createTestPublishInput({
       body: "Server error snap",
@@ -537,12 +698,13 @@ describe("SnapchatAdapter - validateCredentials()", { concurrency: 1 }, () => {
   let adapter: SnapchatAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new SnapchatAdapter();
   });
 
   it("returns ok with valid credentials", async () => {
     const mockClient = createMockApiClient();
-    mock.method(adapter as any, "createApiClient", () => mockClient);
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
 
     const result = await adapter.validateCredentials(MOCK_CREDENTIALS);
 
@@ -566,7 +728,7 @@ describe("SnapchatAdapter - validateCredentials()", { concurrency: 1 }, () => {
 
   it("returns AUTH_EXPIRED when API returns 401", async () => {
     const failingClient = createFailingApiClient("Unauthorized", 401);
-    mock.method(adapter as any, "createApiClient", () => failingClient);
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => failingClient);
 
     const result = await adapter.validateCredentials(MOCK_CREDENTIALS);
 
@@ -583,13 +745,14 @@ describe("SnapchatAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
   let adapter: SnapchatAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new SnapchatAdapter();
   });
 
   it("returns analytics with correct metrics mapping", async () => {
     const mockClient = createMockApiClient();
-    mock.method(adapter as any, "getCredentials", async () => ok(MOCK_CREDENTIALS));
-    mock.method(adapter as any, "createApiClient", () => mockClient);
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
 
     const result = await adapter.fetchAnalytics!({
       channelId: "creative-123",
@@ -623,8 +786,8 @@ describe("SnapchatAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
 
   it("passes date range parameters when provided", async () => {
     const mockClient = createMockApiClient();
-    mock.method(adapter as any, "getCredentials", async () => ok(MOCK_CREDENTIALS));
-    mock.method(adapter as any, "createApiClient", () => mockClient);
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
 
     const since = new Date("2025-01-01T00:00:00Z");
     const until = new Date("2025-01-31T23:59:59Z");
@@ -642,7 +805,7 @@ describe("SnapchatAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH error when credentials fail", async () => {
-    mock.method(adapter as any, "getCredentials", async () => ({
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ({
       ok: false,
       error: "AUTH",
     }));
@@ -657,8 +820,8 @@ describe("SnapchatAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
 
   it("returns NETWORK error when API call fails", async () => {
     const failingClient = createFailingApiClient("Server error", 500);
-    mock.method(adapter as any, "getCredentials", async () => ok(MOCK_CREDENTIALS));
-    mock.method(adapter as any, "createApiClient", () => failingClient);
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => failingClient);
 
     const result = await adapter.fetchAnalytics!({
       channelId: "creative-broken",
@@ -670,13 +833,273 @@ describe("SnapchatAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
 });
 
 // ============================================================================
-// 8. Content Validation Tests (3 tests)
+// 8. Credentials from Environment Tests
+// ============================================================================
+
+describe("SnapchatAdapter - getCredentialsFromEnvironment()", { concurrency: 1 }, () => {
+  let adapter: SnapchatAdapter;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    adapter = new SnapchatAdapter();
+    delete process.env.SNAPCHAT_CLIENT_ID;
+    delete process.env.SNAPCHAT_CLIENT_SECRET;
+    delete process.env.SNAPCHAT_ACCESS_TOKEN;
+    delete process.env.SNAPCHAT_REFRESH_TOKEN;
+    delete process.env.SNAPCHAT_ORGANIZATION_ID;
+  });
+
+  it("returns AUTH error when env vars are not set (all placeholders)", () => {
+    // @ts-expect-error — accessing protected method for testing
+    const result = adapter.getCredentialsFromEnvironment();
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error, "AUTH");
+  });
+
+  it("returns AUTH error when only clientId is set but accessToken is placeholder", () => {
+    process.env.SNAPCHAT_CLIENT_ID = "real-id";
+    // @ts-expect-error — accessing protected method for testing
+    const result = adapter.getCredentialsFromEnvironment();
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error, "AUTH");
+  });
+
+  it("returns AUTH error when only accessToken is set but clientId is placeholder", () => {
+    process.env.SNAPCHAT_ACCESS_TOKEN = "real-token";
+    // @ts-expect-error — accessing protected method for testing
+    const result = adapter.getCredentialsFromEnvironment();
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error, "AUTH");
+  });
+
+  it("returns credentials when clientId and accessToken are both set", () => {
+    process.env.SNAPCHAT_CLIENT_ID = "real-client-id";
+    process.env.SNAPCHAT_CLIENT_SECRET = "real-secret";
+    process.env.SNAPCHAT_ACCESS_TOKEN = "real-access-token";
+    process.env.SNAPCHAT_REFRESH_TOKEN = "real-refresh";
+    process.env.SNAPCHAT_ORGANIZATION_ID = "real-org-id";
+
+    // @ts-expect-error — accessing protected method for testing
+    const result = adapter.getCredentialsFromEnvironment();
+    assert.ok(result.ok, "Should return credentials");
+    assert.strictEqual(result.value.clientId, "real-client-id");
+    assert.strictEqual(result.value.clientSecret, "real-secret");
+    assert.strictEqual(result.value.accessToken, "real-access-token");
+    assert.strictEqual(result.value.refreshToken, "real-refresh");
+    assert.strictEqual(result.value.organizationId, "real-org-id");
+  });
+
+  it("uses placeholder for missing optional fields but returns ok when required set", () => {
+    process.env.SNAPCHAT_CLIENT_ID = "id";
+    process.env.SNAPCHAT_ACCESS_TOKEN = "token";
+    // clientSecret, refreshToken, organizationId will be "placeholder"
+
+    // @ts-expect-error — accessing protected method for testing
+    const result = adapter.getCredentialsFromEnvironment();
+    assert.ok(result.ok, "Should return ok when clientId and accessToken are non-placeholder");
+    assert.strictEqual(result.value.clientSecret, "placeholder");
+    assert.strictEqual(result.value.refreshToken, "placeholder");
+    assert.strictEqual(result.value.organizationId, "placeholder");
+  });
+});
+
+// ============================================================================
+// 9. Publish Additional Edge Cases
+// ============================================================================
+
+describe("SnapchatAdapter - publish() additional edge cases", { concurrency: 1 }, () => {
+  let adapter: SnapchatAdapter;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    adapter = new SnapchatAdapter();
+  });
+
+  it("uses post.text as caption when post.body is empty", async () => {
+    const mockClient = createMockApiClient();
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
+
+    const input = createTestPublishInput({
+      body: "",
+      text: "Fallback caption",
+      media: [{ url: "https://example.com/photo.jpg", type: "image" }],
+    });
+
+    const result = await adapter.publish(input);
+    assert.ok(result.ok);
+    const storyCall = mockClient.createStory.mock.calls[0];
+    assert.ok(storyCall, "createStory should have been called");
+    assert.strictEqual(storyCall[1], "Fallback caption");
+  });
+
+  it("passes undefined caption when both body and text are empty", async () => {
+    const mockClient = createMockApiClient();
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
+
+    const input = createTestPublishInput({
+      body: "",
+      text: "",
+      media: [{ url: "https://example.com/photo.jpg", type: "image" }],
+    });
+
+    const result = await adapter.publish(input);
+    assert.ok(result.ok);
+    const storyCall = mockClient.createStory.mock.calls[0];
+    assert.strictEqual(storyCall?.[1], undefined);
+  });
+
+  it("returns VALIDATION when media is undefined in post", async () => {
+    const mockClient = createMockApiClient();
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
+
+    const input = {
+      channelId: "chan-1",
+      dedupeKey: "d-1",
+      post: { body: "text", media: undefined },
+    };
+
+    const result = await adapter.publish(input);
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error, "VALIDATION");
+  });
+
+  it("constructs correct story URL from creative ID", async () => {
+    const mockClient = createMockApiClient();
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
+
+    const input = createTestPublishInput({
+      media: [{ url: "https://example.com/photo.jpg", type: "image" }],
+    });
+
+    const result = await adapter.publish(input);
+    assert.ok(result.ok);
+    assert.strictEqual(result.value.url, "https://www.snapchat.com/stories/creative-123");
+  });
+
+  it("parses publishedAt from creative.created_at", async () => {
+    const mockClient = createMockApiClient();
+    mockClient.createStory.mockResolvedValue({
+      creative: {
+        id: "cr-x",
+        name: "test",
+        type: "SNAP_AD",
+        created_at: "2025-06-15T12:30:00Z",
+        updated_at: "2025-06-15T12:30:00Z",
+        top_snap_media_id: "m-x",
+      },
+    });
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
+
+    const input = createTestPublishInput({
+      media: [{ url: "https://example.com/photo.jpg", type: "image" }],
+    });
+
+    const result = await adapter.publish(input);
+    assert.ok(result.ok);
+    assert.strictEqual(result.value.publishedAt.toISOString(), "2025-06-15T12:30:00.000Z");
+  });
+
+  it("passes image/jpeg for image media type", async () => {
+    const mockClient = createMockApiClient();
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
+
+    const input = createTestPublishInput({
+      media: [{ url: "https://example.com/photo.jpg", type: "image" }],
+    });
+
+    await adapter.publish(input);
+    const uploadCall = mockClient.uploadMedia.mock.calls[0];
+    assert.strictEqual(uploadCall?.[1], "image/jpeg");
+  });
+
+  it("returns mapped error when non-circuit-breaker error occurs", async () => {
+    const failingClient = createFailingApiClient("Something went wrong");
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => failingClient);
+
+    const input = createTestPublishInput({
+      media: [{ url: "https://example.com/photo.jpg", type: "image" }],
+    });
+
+    const result = await adapter.publish(input);
+    assert.strictEqual(result.ok, false);
+    // mapErrorToPublishError should map to NETWORK for generic errors
+    assert.strictEqual(result.error, "NETWORK");
+  });
+});
+
+// ============================================================================
+// 10. Analytics Edge Cases
+// ============================================================================
+
+describe("SnapchatAdapter - fetchAnalytics() edge cases", { concurrency: 1 }, () => {
+  let adapter: SnapchatAdapter;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    adapter = new SnapchatAdapter();
+  });
+
+  it("omits since from result when not provided", async () => {
+    const mockClient = createMockApiClient();
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
+
+    const result = await adapter.fetchAnalytics!({ channelId: "cr-1" });
+    assert.ok(result.ok);
+    const data = result.value as Record<string, unknown>;
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(data, "since"), false);
+  });
+
+  it("omits until from result when not provided", async () => {
+    const mockClient = createMockApiClient();
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
+
+    const result = await adapter.fetchAnalytics!({ channelId: "cr-1" });
+    assert.ok(result.ok);
+    const data = result.value as Record<string, unknown>;
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(data, "until"), false);
+  });
+
+  it("maps circuit breaker OPEN error to NETWORK in analytics", async () => {
+    const failingClient = createFailingApiClient("Circuit breaker is OPEN");
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => failingClient);
+
+    const result = await adapter.fetchAnalytics!({ channelId: "cr-broken" });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error, "NETWORK");
+  });
+
+  it("maps hardcoded likes to 0 and comments to 0", async () => {
+    const mockClient = createMockApiClient();
+    vi.spyOn(adapter as any, "getCredentials").mockImplementation(async () => ok(MOCK_CREDENTIALS));
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => mockClient);
+
+    const result = await adapter.fetchAnalytics!({ channelId: "cr-1" });
+    assert.ok(result.ok);
+    const data = result.value as { metrics: { likes: number; comments: number } };
+    assert.strictEqual(data.metrics.likes, 0);
+    assert.strictEqual(data.metrics.comments, 0);
+  });
+});
+
+// ============================================================================
+// 11. Content Validation Tests (3 tests)
 // ============================================================================
 
 describe("SnapchatAdapter - validateContent()", { concurrency: 1 }, () => {
   let adapter: SnapchatAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new SnapchatAdapter();
   });
 

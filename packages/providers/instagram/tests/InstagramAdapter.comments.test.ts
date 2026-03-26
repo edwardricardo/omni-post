@@ -5,7 +5,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { InstagramAdapter } from "../src/InstagramAdapter.js";
 
@@ -15,7 +15,7 @@ import { InstagramAdapter } from "../src/InstagramAdapter.js";
 
 function makeMockApiClient() {
   return {
-    getMediaComments: mock.fn(async () => ({
+    getMediaComments: vi.fn(async () => ({
       data: [
         {
           id: "comment-001",
@@ -45,10 +45,10 @@ function makeMockApiClient() {
         next: "https://graph.facebook.com/v23.0/...",
       },
     })),
-    replyToComment: mock.fn(async () => ({
+    replyToComment: vi.fn(async () => ({
       id: "reply-new-001",
     })),
-    validateCredentials: mock.fn(async () => ({
+    validateCredentials: vi.fn(async () => ({
       id: "user-001",
       username: "testuser",
       account_type: "BUSINESS",
@@ -65,20 +65,19 @@ const TEST_CREDENTIALS = {
 // 1. getComments Tests
 // ============================================================================
 
-describe("InstagramAdapter - getComments", { concurrency: 1 }, () => {
+describe("InstagramAdapter - getComments", () => {
   let adapter: InstagramAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new InstagramAdapter();
   });
 
   it("returns comments with threaded replies", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi
+      .spyOn(adapter as never, "createApiClient" as never)
+      .mockImplementation((() => mockClient) as never);
 
     const result = await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -108,7 +107,7 @@ describe("InstagramAdapter - getComments", { concurrency: 1 }, () => {
 
     assert.strictEqual(result.value.nextCursor, "cursor-page-2");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns empty when no postExternalId", async () => {
@@ -122,11 +121,9 @@ describe("InstagramAdapter - getComments", { concurrency: 1 }, () => {
 
   it("passes cursor and limit to API client", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi
+      .spyOn(adapter as never, "createApiClient" as never)
+      .mockImplementation((() => mockClient) as never);
 
     await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -137,24 +134,22 @@ describe("InstagramAdapter - getComments", { concurrency: 1 }, () => {
 
     const call = mockClient.getMediaComments.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[0], "media-001");
-    assert.strictEqual(call.arguments[1], 25);
-    assert.strictEqual(call.arguments[2], "page-2-cursor");
+    assert.strictEqual(call[0], "media-001");
+    assert.strictEqual(call[1], 25);
+    assert.strictEqual(call[2], "page-2-cursor");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns NETWORK error on failure", async () => {
     const mockClient = makeMockApiClient();
-    mockClient.getMediaComments = mock.fn(async () => {
+    mockClient.getMediaComments = vi.fn(async () => {
       throw new Error("API unavailable");
     });
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi
+      .spyOn(adapter as never, "createApiClient" as never)
+      .mockImplementation((() => mockClient) as never);
 
     const result = await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -164,7 +159,7 @@ describe("InstagramAdapter - getComments", { concurrency: 1 }, () => {
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "NETWORK");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 });
 
@@ -172,20 +167,19 @@ describe("InstagramAdapter - getComments", { concurrency: 1 }, () => {
 // 2. postReply Tests
 // ============================================================================
 
-describe("InstagramAdapter - postReply", { concurrency: 1 }, () => {
+describe("InstagramAdapter - postReply", () => {
   let adapter: InstagramAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new InstagramAdapter();
   });
 
   it("posts a reply to a comment", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi
+      .spyOn(adapter as never, "createApiClient" as never)
+      .mockImplementation((() => mockClient) as never);
 
     const result = await adapter.postReply({
       channelCredentials: TEST_CREDENTIALS,
@@ -199,23 +193,21 @@ describe("InstagramAdapter - postReply", { concurrency: 1 }, () => {
 
     const call = mockClient.replyToComment.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[0], "comment-001");
-    assert.strictEqual(call.arguments[1], "Thanks for the kind words!");
+    assert.strictEqual(call[0], "comment-001");
+    assert.strictEqual(call[1], "Thanks for the kind words!");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns RATE_LIMIT error on 429", async () => {
     const mockClient = makeMockApiClient();
-    mockClient.replyToComment = mock.fn(async () => {
+    mockClient.replyToComment = vi.fn(async () => {
       throw new Error("Instagram API Error: 429 Too Many Requests");
     });
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi
+      .spyOn(adapter as never, "createApiClient" as never)
+      .mockImplementation((() => mockClient) as never);
 
     const result = await adapter.postReply({
       channelCredentials: TEST_CREDENTIALS,
@@ -226,20 +218,18 @@ describe("InstagramAdapter - postReply", { concurrency: 1 }, () => {
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "RATE_LIMIT");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns NETWORK error on general failure", async () => {
     const mockClient = makeMockApiClient();
-    mockClient.replyToComment = mock.fn(async () => {
+    mockClient.replyToComment = vi.fn(async () => {
       throw new Error("Connection refused");
     });
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi
+      .spyOn(adapter as never, "createApiClient" as never)
+      .mockImplementation((() => mockClient) as never);
 
     const result = await adapter.postReply({
       channelCredentials: TEST_CREDENTIALS,
@@ -250,6 +240,6 @@ describe("InstagramAdapter - postReply", { concurrency: 1 }, () => {
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "NETWORK");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 });

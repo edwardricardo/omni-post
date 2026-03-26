@@ -3,130 +3,119 @@
  * @description Tests for InstagramMediaProcessor -- validateVideo, error handling,
  *              resilience, and integration scenarios (Stories/Reels workflows).
  *
- * Framework: node:test + node:assert/strict
- * Mocking:   mock.module() for fluent-ffmpeg, external-apis, storage-s3, prom-client.
+ * Framework: vitest + node:assert/strict
+ * Mocking:   vi.mock() for fluent-ffmpeg, external-apis, storage-s3, prom-client.
  */
 
-import { describe, it, before, beforeEach, after, mock } from "node:test";
+import { describe, it, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import assert from "node:assert/strict";
-import { createPassthroughCB, createMockFfmpegInstance } from "./mediaProcessor.test-helpers.js";
+import { createMockFfmpegInstance } from "./mediaProcessor.test-helpers.js";
 
-let InstagramMediaProcessor: any;
-let ffprobeMockFn: ReturnType<typeof mock.fn>;
+// ── Hoist mock state initialization before vi.mock() factories run ──
+const { ffprobeMockFn } = vi.hoisted(() => {
+  const ffprobeMockFn = vi.fn((_url: string, cb: (err: any, data: any) => void) => {
+    cb(null, {
+      streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
+      format: { duration: "45.5", bit_rate: "2500000", format_name: "mp4,mov" },
+    });
+  });
+  return { ffprobeMockFn };
+});
 
-describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
+// ── Hoist mock setup before module evaluation ──
+
+vi.mock("@adapters/external-apis", () => ({
+  createExternalApiCircuitBreaker: () => ({
+    call: async (_svc: string, _op: string, fn: (...a: any[]) => Promise<any>) => fn(),
+    getAllStatuses: () => ({}),
+  }),
+  resetExternalApiCircuitBreaker: async () => undefined,
+}));
+
+vi.mock("@adapters/storage-s3", () => ({
+  createS3StorageAdapter: () => ({
+    generateUploadSignature: async () => ({
+      ok: true as const,
+      value: {
+        url: "https://s3.amazonaws.com/bucket/",
+        fields: { key: "test-key" },
+      },
+    }),
+  }),
+}));
+
+vi.mock("prom-client", () => ({
+  default: {
+    Registry: class {
+      registerMetric() {}
+      removeSingleMetric() {}
+    },
+    Counter: class {
+      inc() {}
+      labels() {
+        return this;
+      }
+    },
+    Histogram: class {
+      observe() {}
+      labels() {
+        return this;
+      }
+      startTimer() {
+        return () => 0;
+      }
+    },
+    Gauge: class {
+      set() {}
+      inc() {}
+      dec() {}
+      labels() {
+        return this;
+      }
+    },
+  },
+}));
+
+vi.mock("fluent-ffmpeg", () => {
+  const ffmpegMock = Object.assign(
+    vi.fn(() => createMockFfmpegInstance()),
+    {
+      ffprobe: ffprobeMockFn,
+    }
+  );
+
+  return { default: ffmpegMock };
+});
+
+vi.mock("fs", () => ({
+  promises: {
+    readFile: async () => Buffer.from("fake-video-data"),
+    unlink: async () => undefined,
+  },
+  default: {
+    promises: {
+      readFile: async () => Buffer.from("fake-video-data"),
+      unlink: async () => undefined,
+    },
+  },
+}));
+
+// Static import after mocks are registered (Vitest hoists vi.mock calls before imports)
+import { InstagramMediaProcessor } from "../src/mediaProcessor.js";
+
+describe("InstagramMediaProcessor (validation)", { concurrent: false }, () => {
   let mediaProcessor: any;
 
-  before(async () => {
-    ffprobeMockFn = mock.fn((_url: string, cb: (err: any, data: any) => void) => {
-      cb(null, {
-        streams: [
-          {
-            codec_type: "video",
-            width: 1080,
-            height: 1920,
-            r_frame_rate: "30/1",
-          },
-        ],
-        format: {
-          duration: "45.5",
-          bit_rate: "2500000",
-          format_name: "mp4,mov",
-        },
-      });
-    });
-
-    const cbPassthrough = createPassthroughCB();
-
-    mock.module("@adapters/external-apis", {
-      namedExports: {
-        createExternalApiCircuitBreaker: () => cbPassthrough,
-        resetExternalApiCircuitBreaker: async () => undefined,
-      },
-    });
-
-    mock.module("@adapters/storage-s3", {
-      namedExports: {
-        createS3StorageAdapter: () => ({
-          generateUploadSignature: async () => ({
-            ok: true as const,
-            value: {
-              url: "https://s3.amazonaws.com/bucket/",
-              fields: { key: "test-key" },
-            },
-          }),
-        }),
-      },
-    });
-
-    mock.module("prom-client", {
-      defaultExport: {
-        Registry: class {
-          registerMetric() {}
-          removeSingleMetric() {}
-        },
-        Counter: class {
-          inc() {}
-          labels() {
-            return this;
-          }
-        },
-        Histogram: class {
-          observe() {}
-          labels() {
-            return this;
-          }
-          startTimer() {
-            return () => 0;
-          }
-        },
-        Gauge: class {
-          set() {}
-          inc() {}
-          dec() {}
-          labels() {
-            return this;
-          }
-        },
-      },
-    });
-
-    const ffmpegMock = Object.assign(
-      mock.fn(() => createMockFfmpegInstance()),
-      { ffprobe: ffprobeMockFn }
-    );
-
-    mock.module("fluent-ffmpeg", {
-      defaultExport: ffmpegMock,
-    });
-
-    mock.module("fs", {
-      namedExports: {
-        promises: {
-          readFile: async () => Buffer.from("fake-video-data"),
-          unlink: async () => undefined,
-        },
-      },
-      defaultExport: {
-        promises: {
-          readFile: async () => Buffer.from("fake-video-data"),
-          unlink: async () => undefined,
-        },
-      },
-    });
-
+  beforeAll(() => {
     process.env.AWS_REGION = "us-east-1";
     process.env.AWS_S3_BUCKET = "test-bucket";
-
-    const mod = await import("../src/mediaProcessor.js");
-    InstagramMediaProcessor = mod.InstagramMediaProcessor;
   });
 
   beforeEach(() => {
     mediaProcessor = new InstagramMediaProcessor("https://test-storage.com");
 
     // Reset ffprobe to default metadata
-    ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+    ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
       cb(null, {
         streams: [
           {
@@ -145,7 +134,7 @@ describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
     });
   });
 
-  after(() => {
+  afterAll(() => {
     delete process.env.AWS_REGION;
     delete process.env.AWS_S3_BUCKET;
   });
@@ -154,7 +143,7 @@ describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
   // validateVideo
   // =========================================================================
 
-  describe("validateVideo", { concurrency: 1 }, () => {
+  describe("validateVideo", { concurrent: false }, () => {
     it("should validate video for STORIES", async () => {
       const result = await mediaProcessor.validateVideo(
         "https://example.com/story-video.mp4",
@@ -167,7 +156,7 @@ describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
     });
 
     it("should detect duration issues for STORIES", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
           format: { duration: "120", bit_rate: "2500000", format_name: "mp4" },
@@ -185,7 +174,7 @@ describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
     });
 
     it("should detect duration issues for REELS", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
           format: { duration: "120", bit_rate: "2500000", format_name: "mp4" },
@@ -203,7 +192,7 @@ describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
     });
 
     it("should detect short Reel issues", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
           format: { duration: "3", bit_rate: "2500000", format_name: "mp4" },
@@ -222,7 +211,7 @@ describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
     });
 
     it("should validate FEED video duration", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
           format: { duration: "900", bit_rate: "2500000", format_name: "mp4" },
@@ -239,7 +228,7 @@ describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
     });
 
     it("should check aspect ratio for Stories and Reels", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1920, height: 1080, r_frame_rate: "30/1" }],
           format: { duration: "30", bit_rate: "2500000", format_name: "mp4" },
@@ -268,7 +257,7 @@ describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
     });
 
     it("should estimate file size and flag large files", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
           format: { duration: "60", bit_rate: "100000000", format_name: "mp4" },
@@ -286,7 +275,7 @@ describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
     });
 
     it("should pass validation for optimal videos", async () => {
-      ffprobeMockFn.mock.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
+      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
         cb(null, {
           streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
           format: { duration: "30", bit_rate: "2500000", format_name: "mp4" },
@@ -307,7 +296,7 @@ describe("InstagramMediaProcessor (validation)", { concurrency: 1 }, () => {
   // integration scenarios
   // =========================================================================
 
-  describe("integration scenarios", { concurrency: 1 }, () => {
+  describe("integration scenarios", { concurrent: false }, () => {
     it("should handle complete Stories workflow", async () => {
       // 1. Get metadata
       const metadata = await mediaProcessor.getVideoMetadata(

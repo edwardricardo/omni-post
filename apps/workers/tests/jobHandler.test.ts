@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
   createTestDeps,
@@ -24,6 +24,7 @@ describe("PublishHandler.handleJob", { concurrency: 1 }, () => {
   const CHANNEL_ID = "channel-x-001";
 
   beforeEach(() => {
+    vi.clearAllMocks();
     deps = createTestDeps();
     const p = deps.providerRegistry["x"];
     assert.ok(p, "x provider must exist in test registry");

@@ -2,10 +2,10 @@
  * Instagram Adapter - Stories and Reels Publishing Tests
  *
  * Tests the newly integrated Stories and Reels publishing functionality
- * Framework: Node.js native test (node:test)
+ * Framework: Vitest
  */
 
-import { describe, it, before } from "node:test";
+import { describe, it, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { InstagramAdapter } from "../src/InstagramAdapter.js";
 import type { PublishInput } from "@ports/core";
@@ -14,7 +14,7 @@ import type { RenderedPost } from "@shared/types";
 describe("InstagramAdapter - Stories and Reels Publishing", () => {
   let adapter: InstagramAdapter;
 
-  before(() => {
+  beforeAll(() => {
     adapter = new InstagramAdapter();
   });
 

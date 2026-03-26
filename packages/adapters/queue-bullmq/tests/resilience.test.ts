@@ -4,7 +4,7 @@
  * Tier 0: no Redis, no BullMQ — uses real opossum instances with simple async functions.
  */
 
-import { describe, it, after, beforeEach } from "node:test";
+import { describe, it, afterAll, beforeEach, expect } from "vitest";
 import assert from "node:assert/strict";
 
 import {
@@ -15,10 +15,10 @@ import {
   DEFAULT_RETRY_OPTIONS,
 } from "../src/resilience.js";
 
-// Track all circuit breakers so we can shut them down in after()
+// Track all circuit breakers so we can shut them down in afterAll()
 const breakers: Array<{ shutdown: () => void }> = [];
 
-after(() => {
+afterAll(() => {
   for (const b of breakers) {
     b.shutdown();
   }
@@ -31,41 +31,41 @@ after(() => {
 
 describe("DEFAULT_CIRCUIT_BREAKER_OPTIONS", { concurrency: 1 }, () => {
   it("has expected timeout", () => {
-    assert.strictEqual(DEFAULT_CIRCUIT_BREAKER_OPTIONS.timeout, 5000);
+    expect(DEFAULT_CIRCUIT_BREAKER_OPTIONS.timeout).toBe(5000);
   });
 
   it("has expected errorThresholdPercentage", () => {
-    assert.strictEqual(DEFAULT_CIRCUIT_BREAKER_OPTIONS.errorThresholdPercentage, 50);
+    expect(DEFAULT_CIRCUIT_BREAKER_OPTIONS.errorThresholdPercentage).toBe(50);
   });
 
   it("has expected resetTimeout", () => {
-    assert.strictEqual(DEFAULT_CIRCUIT_BREAKER_OPTIONS.resetTimeout, 30000);
+    expect(DEFAULT_CIRCUIT_BREAKER_OPTIONS.resetTimeout).toBe(30000);
   });
 
   it("has expected monitoringPeriod", () => {
-    assert.strictEqual(DEFAULT_CIRCUIT_BREAKER_OPTIONS.monitoringPeriod, 10000);
+    expect(DEFAULT_CIRCUIT_BREAKER_OPTIONS.monitoringPeriod).toBe(10000);
   });
 
   it("has expected halfOpenRetries", () => {
-    assert.strictEqual(DEFAULT_CIRCUIT_BREAKER_OPTIONS.halfOpenRetries, 3);
+    expect(DEFAULT_CIRCUIT_BREAKER_OPTIONS.halfOpenRetries).toBe(3);
   });
 });
 
 describe("DEFAULT_RETRY_OPTIONS", { concurrency: 1 }, () => {
   it("has expected maxRetries", () => {
-    assert.strictEqual(DEFAULT_RETRY_OPTIONS.maxRetries, 3);
+    expect(DEFAULT_RETRY_OPTIONS.maxRetries).toBe(3);
   });
 
   it("has expected baseDelay", () => {
-    assert.strictEqual(DEFAULT_RETRY_OPTIONS.baseDelay, 100);
+    expect(DEFAULT_RETRY_OPTIONS.baseDelay).toBe(100);
   });
 
   it("has expected maxDelay", () => {
-    assert.strictEqual(DEFAULT_RETRY_OPTIONS.maxDelay, 5000);
+    expect(DEFAULT_RETRY_OPTIONS.maxDelay).toBe(5000);
   });
 
   it("has expected backoffMultiplier", () => {
-    assert.strictEqual(DEFAULT_RETRY_OPTIONS.backoffMultiplier, 2);
+    expect(DEFAULT_RETRY_OPTIONS.backoffMultiplier).toBe(2);
   });
 });
 
@@ -84,7 +84,7 @@ describe("createCircuitBreaker()", { concurrency: 1 }, () => {
     breakers.push(breaker);
 
     const result = await breaker.fire(7);
-    assert.strictEqual(result, 21);
+    expect(result).toBe(21);
   });
 
   it("passes multiple arguments through to the wrapped function", async () => {
@@ -97,7 +97,7 @@ describe("createCircuitBreaker()", { concurrency: 1 }, () => {
     breakers.push(breaker);
 
     const result = await breaker.fire(10, 20);
-    assert.strictEqual(result, 30);
+    expect(result).toBe(30);
   });
 
   it("fires open event on state change after failures", async () => {
@@ -127,8 +127,8 @@ describe("createCircuitBreaker()", { concurrency: 1 }, () => {
       }
     }
 
-    assert.ok(openFired, "should have fired the 'open' event");
-    assert.ok(breaker.opened, "circuit should be open");
+    expect(openFired).toBeTruthy();
+    expect(breaker.opened).toBeTruthy();
   });
 
   it("rejects calls when circuit is open", async () => {
@@ -154,17 +154,13 @@ describe("createCircuitBreaker()", { concurrency: 1 }, () => {
       }
     }
 
-    assert.ok(breaker.opened, "should be open");
+    expect(breaker.opened).toBeTruthy();
 
-    await assert.rejects(
-      () => breaker.fire(),
-      (err: Error) => {
-        assert.ok(
-          err.message.includes("Breaker is open") || err.message.includes("breaker"),
-          `Expected circuit breaker rejection, got: ${err.message}`
-        );
-        return true;
-      }
+    const err = await breaker.fire().catch((e: Error) => e);
+    assert.ok(err instanceof Error);
+    assert.ok(
+      err.message.includes("Breaker is open") || err.message.includes("breaker"),
+      `Expected circuit breaker rejection, got: ${err.message}`
     );
   });
 
@@ -179,7 +175,7 @@ describe("createCircuitBreaker()", { concurrency: 1 }, () => {
 
     // Verify it works (options are applied internally by opossum)
     const result = await breaker.fire();
-    assert.strictEqual(result, "ok");
+    expect(result).toBe("ok");
   });
 });
 
@@ -198,8 +194,8 @@ describe("withExponentialBackoff()", { concurrency: 1 }, () => {
       { maxRetries: 3, baseDelay: 1, maxDelay: 5, backoffMultiplier: 1 }
     );
 
-    assert.strictEqual(result, "instant");
-    assert.strictEqual(callCount, 1);
+    expect(result).toBe("instant");
+    expect(callCount).toBe(1);
   });
 
   it("retries failed operations and eventually succeeds", async () => {
@@ -215,51 +211,42 @@ describe("withExponentialBackoff()", { concurrency: 1 }, () => {
       { maxRetries: 5, baseDelay: 1, maxDelay: 5, backoffMultiplier: 1 }
     );
 
-    assert.strictEqual(result, "recovered");
-    assert.strictEqual(callCount, 3);
+    expect(result).toBe("recovered");
+    expect(callCount).toBe(3);
   });
 
   it("throws after exceeding maxRetries", async () => {
     let callCount = 0;
-    await assert.rejects(
-      () =>
-        withExponentialBackoff(
-          async () => {
-            callCount++;
-            throw new Error("permanent failure");
-          },
-          { maxRetries: 2, baseDelay: 1, maxDelay: 5, backoffMultiplier: 1 }
-        ),
-      (err: Error) => {
-        assert.ok(err.message.includes("permanent failure"));
-        return true;
-      }
-    );
+    const err = await withExponentialBackoff(
+      async () => {
+        callCount++;
+        throw new Error("permanent failure");
+      },
+      { maxRetries: 2, baseDelay: 1, maxDelay: 5, backoffMultiplier: 1 }
+    ).catch((e: Error) => e);
+
+    assert.ok(err instanceof Error);
+    assert.ok(err.message.includes("permanent failure"));
 
     // maxRetries=2 means: 1 initial + 2 retries = 3 total calls
-    assert.strictEqual(callCount, 3);
+    expect(callCount).toBe(3);
   });
 
   it("wraps non-Error thrown values into Error objects", async () => {
-    await assert.rejects(
-      () =>
-        withExponentialBackoff(
-          async () => {
-            throw "string error";
-          },
-          { maxRetries: 0, baseDelay: 1, maxDelay: 5, backoffMultiplier: 1 }
-        ),
-      (err: Error) => {
-        assert.ok(err instanceof Error, "should be an Error instance");
-        assert.ok(err.message.includes("string error"));
-        return true;
-      }
-    );
+    const err = await withExponentialBackoff(
+      async () => {
+        throw "string error";
+      },
+      { maxRetries: 0, baseDelay: 1, maxDelay: 5, backoffMultiplier: 1 }
+    ).catch((e: Error) => e);
+
+    assert.ok(err instanceof Error, "should be an Error instance");
+    assert.ok(err.message.includes("string error"));
   });
 
   it("respects maxRetries=0 (no retries)", async () => {
     let callCount = 0;
-    await assert.rejects(() =>
+    await expect(
       withExponentialBackoff(
         async () => {
           callCount++;
@@ -267,16 +254,16 @@ describe("withExponentialBackoff()", { concurrency: 1 }, () => {
         },
         { maxRetries: 0, baseDelay: 1, maxDelay: 5, backoffMultiplier: 1 }
       )
-    );
+    ).rejects.toThrow();
 
-    assert.strictEqual(callCount, 1, "should call exactly once when maxRetries is 0");
+    expect(callCount).toBe(1);
   });
 
   it("applies backoff between retries (delay increases)", async () => {
     const timestamps: number[] = [];
     let callCount = 0;
 
-    await assert.rejects(() =>
+    await expect(
       withExponentialBackoff(
         async () => {
           timestamps.push(Date.now());
@@ -285,9 +272,9 @@ describe("withExponentialBackoff()", { concurrency: 1 }, () => {
         },
         { maxRetries: 2, baseDelay: 10, maxDelay: 500, backoffMultiplier: 2 }
       )
-    );
+    ).rejects.toThrow();
 
-    assert.strictEqual(callCount, 3);
+    expect(callCount).toBe(3);
 
     // Check that time between attempts generally increases
     // First gap: ~10ms (baseDelay * 2^0), second gap: ~20ms (baseDelay * 2^1)
@@ -304,7 +291,7 @@ describe("withExponentialBackoff()", { concurrency: 1 }, () => {
     const timestamps: number[] = [];
     let callCount = 0;
 
-    await assert.rejects(() =>
+    await expect(
       withExponentialBackoff(
         async () => {
           timestamps.push(Date.now());
@@ -318,9 +305,9 @@ describe("withExponentialBackoff()", { concurrency: 1 }, () => {
           backoffMultiplier: 100, // Very aggressive multiplier
         }
       )
-    );
+    ).rejects.toThrow();
 
-    assert.strictEqual(callCount, 4); // 1 initial + 3 retries
+    expect(callCount).toBe(4); // 1 initial + 3 retries
 
     // With maxDelay=10 and high multiplier, delays should be capped
     // No gap should be significantly larger than maxDelay + jitter
@@ -345,12 +332,12 @@ describe("MetricsCollector", { concurrency: 1 }, () => {
 
   it("initializes with zeroed metrics", () => {
     const m = collector.getMetrics();
-    assert.strictEqual(m.totalRequests, 0);
-    assert.strictEqual(m.successfulRequests, 0);
-    assert.strictEqual(m.failedRequests, 0);
-    assert.strictEqual(m.rejectedRequests, 0);
-    assert.strictEqual(m.averageResponseTime, 0);
-    assert.strictEqual(m.circuitBreakerState, "CLOSED");
+    expect(m.totalRequests).toBe(0);
+    expect(m.successfulRequests).toBe(0);
+    expect(m.failedRequests).toBe(0);
+    expect(m.rejectedRequests).toBe(0);
+    expect(m.averageResponseTime).toBe(0);
+    expect(m.circuitBreakerState).toBe("CLOSED");
   });
 
   it("tracks successful requests via circuit breaker events", async () => {
@@ -369,9 +356,9 @@ describe("MetricsCollector", { concurrency: 1 }, () => {
     await breaker.fire();
 
     const m = collector.getMetrics();
-    assert.strictEqual(m.totalRequests, 3);
-    assert.strictEqual(m.successfulRequests, 3);
-    assert.strictEqual(m.failedRequests, 0);
+    expect(m.totalRequests).toBe(3);
+    expect(m.successfulRequests).toBe(3);
+    expect(m.failedRequests).toBe(0);
   });
 
   it("tracks failed requests and records lastFailure", async () => {
@@ -396,9 +383,9 @@ describe("MetricsCollector", { concurrency: 1 }, () => {
     }
 
     const m = collector.getMetrics();
-    assert.strictEqual(m.totalRequests, 1);
-    assert.strictEqual(m.failedRequests, 1);
-    assert.ok(m.lastFailure, "lastFailure should be set");
+    expect(m.totalRequests).toBe(1);
+    expect(m.failedRequests).toBe(1);
+    expect(m.lastFailure).toBeTruthy();
     assert.ok(m.lastFailure!.timestamp instanceof Date);
     assert.ok(m.lastFailure!.error.includes("queue connection lost"));
   });
@@ -427,7 +414,7 @@ describe("MetricsCollector", { concurrency: 1 }, () => {
     }
 
     const m = collector.getMetrics();
-    assert.strictEqual(m.circuitBreakerState, "OPEN");
+    expect(m.circuitBreakerState).toBe("OPEN");
   });
 
   it("computes averageResponseTime from recorded latencies", async () => {
@@ -449,7 +436,7 @@ describe("MetricsCollector", { concurrency: 1 }, () => {
     const m = collector.getMetrics();
     // averageResponseTime should be >= 0 (actual latencies are very small in tests)
     assert.ok(m.averageResponseTime >= 0, "averageResponseTime should be non-negative");
-    assert.strictEqual(m.successfulRequests, 5);
+    expect(m.successfulRequests).toBe(5);
   });
 
   it("reset() clears all metrics", async () => {
@@ -465,22 +452,22 @@ describe("MetricsCollector", { concurrency: 1 }, () => {
     await breaker.fire();
 
     const before = collector.getMetrics();
-    assert.strictEqual(before.totalRequests, 1);
+    expect(before.totalRequests).toBe(1);
 
     collector.reset();
 
     const m = collector.getMetrics();
-    assert.strictEqual(m.totalRequests, 0);
-    assert.strictEqual(m.successfulRequests, 0);
-    assert.strictEqual(m.failedRequests, 0);
-    assert.strictEqual(m.rejectedRequests, 0);
-    assert.strictEqual(m.averageResponseTime, 0);
-    assert.strictEqual(m.circuitBreakerState, "CLOSED");
+    expect(m.totalRequests).toBe(0);
+    expect(m.successfulRequests).toBe(0);
+    expect(m.failedRequests).toBe(0);
+    expect(m.rejectedRequests).toBe(0);
+    expect(m.averageResponseTime).toBe(0);
+    expect(m.circuitBreakerState).toBe("CLOSED");
   });
 
   it("getMetrics() returns a copy (not a reference)", () => {
     const m1 = collector.getMetrics();
     const m2 = collector.getMetrics();
-    assert.notStrictEqual(m1, m2, "should return different object references");
+    expect(m1).not.toBe(m2);
   });
 });

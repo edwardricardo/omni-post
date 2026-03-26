@@ -2,13 +2,13 @@
  * @file Dead Letter Queue — unit tests
  *
  * Tier 0: No Redis, no BullMQ connectivity.
- * All external dependencies are mocked via mock.module() before importing
+ * All external dependencies are mocked via vi.mock() before importing
  * the source module.
  *
- * Framework: node:test + node:assert/strict
+ * Framework: vitest
  */
 
-import { describe, it, before, after, beforeEach, mock } from "node:test";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 
 // ── Mock infrastructure modules BEFORE importing the source ──────────────────
@@ -20,104 +20,98 @@ const redisStub = {
   disconnect: () => undefined,
 };
 
-mock.module("ioredis", {
-  defaultExport: class MockRedis {
+vi.mock("ioredis", () => ({
+  default: class MockRedis {
     constructor() {
-      return redisStub as any;
+      return redisStub as unknown as MockRedis;
     }
   },
-});
+}));
 
 // Stub bullmq — Queue, Worker, QueueEvents, Job
-const queueAddCalls: any[] = [];
+const queueAddCalls: unknown[] = [];
 
-mock.module("bullmq", {
-  namedExports: {
-    Queue: class MockQueue {
-      name: string;
-      constructor(name: string) {
-        this.name = name;
-      }
-      async add(_jobName: string, data: any, opts?: any) {
-        queueAddCalls.push({ jobName: _jobName, data, opts });
-        return { id: opts?.jobId ?? "mock-job-id", data };
-      }
-      async getWaiting() {
-        return [];
-      }
-      async getActive() {
-        return [];
-      }
-      async getCompleted() {
-        return [];
-      }
-      async getFailed() {
-        return [];
-      }
-      async getDelayed() {
-        return [];
-      }
-      async getJobs() {
-        return [];
-      }
-      async clean() {
-        return [];
-      }
-      async close() {
-        return undefined;
-      }
-    },
-    Worker: class MockWorker {
-      constructor() {
-        /* no-op */
-      }
-      on() {
-        return this;
-      }
-      async close() {
-        return undefined;
-      }
-    },
-    QueueEvents: class MockQueueEvents {
-      constructor() {
-        /* no-op */
-      }
-      on() {
-        return this;
-      }
-      async close() {
-        return undefined;
-      }
-    },
-    Job: class MockJob {},
+vi.mock("bullmq", () => ({
+  Queue: class MockQueue {
+    name: string;
+    constructor(name: string) {
+      this.name = name;
+    }
+    async add(_jobName: string, data: unknown, opts?: { jobId?: string; priority?: number }) {
+      queueAddCalls.push({ jobName: _jobName, data, opts });
+      return { id: opts?.jobId ?? "mock-job-id", data };
+    }
+    async getWaiting() {
+      return [];
+    }
+    async getActive() {
+      return [];
+    }
+    async getCompleted() {
+      return [];
+    }
+    async getFailed() {
+      return [];
+    }
+    async getDelayed() {
+      return [];
+    }
+    async getJobs() {
+      return [];
+    }
+    async clean() {
+      return [];
+    }
+    async close() {
+      return undefined;
+    }
   },
-});
+  Worker: class MockWorker {
+    constructor() {
+      /* no-op */
+    }
+    on() {
+      return this;
+    }
+    async close() {
+      return undefined;
+    }
+  },
+  QueueEvents: class MockQueueEvents {
+    constructor() {
+      /* no-op */
+    }
+    on() {
+      return this;
+    }
+    async close() {
+      return undefined;
+    }
+  },
+  Job: class MockJob {},
+}));
 
 // Stub @adapters/queue-bullmq (only QUEUE_NAMES is used)
-mock.module("@adapters/queue-bullmq", {
-  namedExports: {
-    QUEUE_NAMES: {
-      PUBLISH: "publish",
-      WEBHOOK_PROCESSING: "webhook-processing",
-      WEBHOOK_DEAD_LETTER: "webhook-dead-letter",
-      DEAD_LETTER_QUEUE: "dead-letter-queue",
-      INTEGRATION_EVENTS: "integration-events",
-      FAILED_OPERATIONS_DLQ: "failed-operations-dlq",
-    },
+vi.mock("@adapters/queue-bullmq", () => ({
+  QUEUE_NAMES: {
+    PUBLISH: "publish",
+    WEBHOOK_PROCESSING: "webhook-processing",
+    WEBHOOK_DEAD_LETTER: "webhook-dead-letter",
+    DEAD_LETTER_QUEUE: "dead-letter-queue",
+    INTEGRATION_EVENTS: "integration-events",
+    FAILED_OPERATIONS_DLQ: "failed-operations-dlq",
   },
-});
+}));
 
 // Stub uuid
 let uuidCounter = 0;
-mock.module("uuid", {
-  namedExports: {
-    v4: () => `mock-uuid-${++uuidCounter}`,
-  },
-});
+vi.mock("uuid", () => ({
+  v4: () => `mock-uuid-${++uuidCounter}`,
+}));
 
 // Stub pino
-mock.module("pino", {
-  defaultExport: () => ({
+vi.mock("pino", () => ({
+  default: () => ({
     info: () => undefined,
     warn: () => undefined,
     error: () => undefined,
@@ -129,7 +123,7 @@ mock.module("pino", {
       debug: () => undefined,
     }),
   }),
-});
+}));
 
 // ── Now import the source (mocks are in place) ──────────────────────────────
 
@@ -139,7 +133,7 @@ let resetDeadLetterQueue: typeof import("../src/index.js").resetDeadLetterQueue;
 let calculateRetryDelay: typeof import("../src/index.js").calculateRetryDelay;
 let DeadLetterQueueManager: typeof import("../src/index.js").DeadLetterQueueManager;
 
-before(async () => {
+beforeAll(async () => {
   const mod = await import("../src/index.js");
   createDeadLetterQueue = mod.createDeadLetterQueue;
   getDeadLetterQueue = mod.getDeadLetterQueue;
@@ -148,7 +142,7 @@ before(async () => {
   DeadLetterQueueManager = mod.DeadLetterQueueManager;
 });
 
-after(() => {
+afterAll(() => {
   // Ensure the singleton is cleared so other tests start clean
   resetDeadLetterQueue?.();
 });
@@ -157,70 +151,73 @@ after(() => {
 // Factory / Singleton tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createDeadLetterQueue()", { concurrency: 1 }, () => {
+describe("createDeadLetterQueue()", { concurrent: false }, () => {
   beforeEach(() => {
     resetDeadLetterQueue();
+    vi.clearAllMocks();
   });
 
-  after(() => {
+  afterAll(() => {
     resetDeadLetterQueue();
   });
 
   it("returns a DeadLetterQueueManager instance", () => {
     const dlq = createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
-    assert.ok(dlq instanceof DeadLetterQueueManager, "should return a DeadLetterQueueManager");
+    expect(dlq instanceof DeadLetterQueueManager).toBeTruthy();
   });
 
   it("is idempotent — returns the SAME instance on repeated calls", () => {
     const dlq1 = createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
     const dlq2 = createDeadLetterQueue({ redisUrl: "redis://other-host:6379" });
-    assert.strictEqual(dlq1, dlq2, "should return the same singleton instance");
+    expect(dlq1).toBe(dlq2);
   });
 });
 
-describe("getDeadLetterQueue()", { concurrency: 1 }, () => {
+describe("getDeadLetterQueue()", { concurrent: false }, () => {
   beforeEach(() => {
     resetDeadLetterQueue();
+    vi.clearAllMocks();
   });
 
-  after(() => {
+  afterAll(() => {
     resetDeadLetterQueue();
   });
 
   it("returns null when no manager has been created yet", () => {
-    assert.strictEqual(getDeadLetterQueue(), null);
+    expect(getDeadLetterQueue()).toBe(null);
   });
 
   it("returns the manager after createDeadLetterQueue() is called", () => {
     const created = createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
     const retrieved = getDeadLetterQueue();
-    assert.strictEqual(retrieved, created);
+    expect(retrieved).toBe(created);
   });
 });
 
-describe("resetDeadLetterQueue()", { concurrency: 1 }, () => {
+describe("resetDeadLetterQueue()", { concurrent: false }, () => {
   beforeEach(() => {
     resetDeadLetterQueue();
+    vi.clearAllMocks();
   });
 
   it("resets the singleton so getDeadLetterQueue() returns null", () => {
     createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
     assert.ok(getDeadLetterQueue() !== null, "should have a manager before reset");
     resetDeadLetterQueue();
-    assert.strictEqual(getDeadLetterQueue(), null);
+    expect(getDeadLetterQueue()).toBe(null);
   });
 
   it("allows a new instance to be created after reset", () => {
     const first = createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
     resetDeadLetterQueue();
     const second = createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
-    assert.notStrictEqual(first, second, "should create a fresh instance after reset");
+    expect(first).not.toBe(second);
   });
 
   it("is safe to call multiple times", () => {
     resetDeadLetterQueue();
     resetDeadLetterQueue();
-    assert.strictEqual(getDeadLetterQueue(), null);
+    expect(getDeadLetterQueue()).toBe(null);
   });
 });
 
@@ -228,7 +225,7 @@ describe("resetDeadLetterQueue()", { concurrency: 1 }, () => {
 // calculateRetryDelay — pure function tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("calculateRetryDelay()", { concurrency: 1 }, () => {
+describe("calculateRetryDelay()", { concurrent: false }, () => {
   const BASE_DELAY = 1000; // 1 second
   const MAX_DELAY = 60000; // 60 seconds
   const MULTIPLIER = 2;
@@ -236,13 +233,13 @@ describe("calculateRetryDelay()", { concurrency: 1 }, () => {
   it("returns deterministic values for the same inputs (jitter enabled)", () => {
     const delay1 = calculateRetryDelay(3, BASE_DELAY, MAX_DELAY, MULTIPLIER, true);
     const delay2 = calculateRetryDelay(3, BASE_DELAY, MAX_DELAY, MULTIPLIER, true);
-    assert.strictEqual(delay1, delay2, "same inputs must produce identical output");
+    expect(delay1).toBe(delay2);
   });
 
   it("returns different delays for different attempt numbers (jitter enabled)", () => {
     const delay0 = calculateRetryDelay(0, BASE_DELAY, MAX_DELAY, MULTIPLIER, true);
     const delay5 = calculateRetryDelay(5, BASE_DELAY, MAX_DELAY, MULTIPLIER, true);
-    assert.notStrictEqual(delay0, delay5, "different attempts should produce different delays");
+    expect(delay0).not.toBe(delay5);
   });
 
   it("applies exponential backoff correctly (jitter disabled)", () => {
@@ -253,19 +250,19 @@ describe("calculateRetryDelay()", { concurrency: 1 }, () => {
     const delay3 = calculateRetryDelay(3, BASE_DELAY, MAX_DELAY, MULTIPLIER, false);
 
     // attempt 0: 1000 * 2^0 = 1000
-    assert.strictEqual(delay0, 1000, "attempt 0 should be 1000ms");
+    expect(delay0).toBe(1000);
     // attempt 1: 1000 * 2^1 = 2000
-    assert.strictEqual(delay1, 2000, "attempt 1 should be 2000ms");
+    expect(delay1).toBe(2000);
     // attempt 2: 1000 * 2^2 = 4000
-    assert.strictEqual(delay2, 4000, "attempt 2 should be 4000ms");
+    expect(delay2).toBe(4000);
     // attempt 3: 1000 * 2^3 = 8000
-    assert.strictEqual(delay3, 8000, "attempt 3 should be 8000ms");
+    expect(delay3).toBe(8000);
   });
 
   it("caps delay at maxDelay (jitter disabled)", () => {
     // attempt 10: 1000 * 2^10 = 1024000, capped to 60000
     const delay = calculateRetryDelay(10, BASE_DELAY, MAX_DELAY, MULTIPLIER, false);
-    assert.strictEqual(delay, MAX_DELAY, "delay should be capped at maxDelay");
+    expect(delay).toBe(MAX_DELAY);
   });
 
   it("caps delay at maxDelay (jitter enabled)", () => {
@@ -273,25 +270,22 @@ describe("calculateRetryDelay()", { concurrency: 1 }, () => {
     // Jitter can reduce but never exceed 25% of the capped delay.
     // So the result should be <= maxDelay * 1.25 and > 0.
     const delay = calculateRetryDelay(10, BASE_DELAY, MAX_DELAY, MULTIPLIER, true);
-    assert.ok(delay > 0, "delay must be positive");
+    expect(delay > 0).toBeTruthy();
     // The deterministic jitter formula: exponentialDelay + (factor - 0.5) * 2 * (exponentialDelay * 0.25)
     // Max possible jitter: exponentialDelay + 1 * (exponentialDelay * 0.25) = 1.25 * exponentialDelay
-    assert.ok(
-      delay <= MAX_DELAY * 1.25,
-      `delay (${delay}) should not exceed maxDelay * 1.25 (${MAX_DELAY * 1.25})`
-    );
+    expect(delay <= MAX_DELAY * 1.25).toBeTruthy();
   });
 
   it("returns exactly baseDelay for attempt 0 with multiplier 2 (jitter disabled)", () => {
     const delay = calculateRetryDelay(0, 5000, 100000, 2, false);
-    assert.strictEqual(delay, 5000, "attempt 0 should equal baseDelay");
+    expect(delay).toBe(5000);
   });
 
   it("never returns a negative value (jitter enabled)", () => {
     // Test several attempts to ensure the Math.max(0, ...) guard works
     for (let attempt = 0; attempt < 20; attempt++) {
       const delay = calculateRetryDelay(attempt, BASE_DELAY, MAX_DELAY, MULTIPLIER, true);
-      assert.ok(delay >= 0, `attempt ${attempt}: delay (${delay}) must be non-negative`);
+      expect(delay >= 0).toBeTruthy();
     }
   });
 });
@@ -300,12 +294,13 @@ describe("calculateRetryDelay()", { concurrency: 1 }, () => {
 // Default configuration values
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("DeadLetterQueueManager — default config", { concurrency: 1 }, () => {
+describe("DeadLetterQueueManager — default config", { concurrent: false }, () => {
   beforeEach(() => {
     resetDeadLetterQueue();
+    vi.clearAllMocks();
   });
 
-  after(() => {
+  afterAll(() => {
     resetDeadLetterQueue();
   });
 
@@ -313,11 +308,11 @@ describe("DeadLetterQueueManager — default config", { concurrency: 1 }, () => 
     const dlq = createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
 
     // Access internal config via type assertion
-    const config = (dlq as any).config;
-    assert.strictEqual(config.queueName, "dead-letter-queue");
-    assert.strictEqual(config.maxRetentionDays, 30);
-    assert.strictEqual(config.batchSize, 10);
-    assert.strictEqual(config.processingConcurrency, 3);
+    const config = (dlq as unknown as { config: Record<string, unknown> }).config;
+    expect(config.queueName).toBe("dead-letter-queue");
+    expect(config.maxRetentionDays).toBe(30);
+    expect(config.batchSize).toBe(10);
+    expect(config.processingConcurrency).toBe(3);
   });
 
   it("allows overriding default values", () => {
@@ -329,11 +324,11 @@ describe("DeadLetterQueueManager — default config", { concurrency: 1 }, () => 
       processingConcurrency: 5,
     });
 
-    const config = (dlq as any).config;
-    assert.strictEqual(config.queueName, "custom-dlq");
-    assert.strictEqual(config.maxRetentionDays, 7);
-    assert.strictEqual(config.batchSize, 25);
-    assert.strictEqual(config.processingConcurrency, 5);
+    const config = (dlq as unknown as { config: Record<string, unknown> }).config;
+    expect(config.queueName).toBe("custom-dlq");
+    expect(config.maxRetentionDays).toBe(7);
+    expect(config.batchSize).toBe(25);
+    expect(config.processingConcurrency).toBe(5);
   });
 });
 
@@ -341,14 +336,15 @@ describe("DeadLetterQueueManager — default config", { concurrency: 1 }, () => 
 // Priority ordering
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("Priority ordering", { concurrency: 1 }, () => {
+describe("Priority ordering", { concurrent: false }, () => {
   beforeEach(() => {
     resetDeadLetterQueue();
     queueAddCalls.length = 0;
     uuidCounter = 0;
+    vi.clearAllMocks();
   });
 
-  after(() => {
+  afterAll(() => {
     resetDeadLetterQueue();
   });
 
@@ -372,13 +368,11 @@ describe("Priority ordering", { concurrency: 1 }, () => {
         metadata: { priority, source: "test" },
       });
 
-      assert.ok(queueAddCalls.length >= 1, `should have added a job for priority ${priority}`);
-      const addCall = queueAddCalls[queueAddCalls.length - 1]!;
-      assert.strictEqual(
-        addCall.opts.priority,
-        expectedScores[priority],
-        `priority score for "${priority}" should be ${expectedScores[priority]}`
-      );
+      expect(queueAddCalls.length >= 1).toBeTruthy();
+      const addCall = queueAddCalls[queueAddCalls.length - 1] as {
+        opts: { priority: number };
+      };
+      expect(addCall.opts.priority).toBe(expectedScores[priority]);
     }
   });
 
@@ -386,21 +380,23 @@ describe("Priority ordering", { concurrency: 1 }, () => {
     const dlq = createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
 
     // Access the private calculateInitialDelay method
-    const calcDelay = (dlq as any).calculateInitialDelay.bind(dlq);
+    const calcDelay = (
+      dlq as unknown as { calculateInitialDelay: (p: string) => number }
+    ).calculateInitialDelay.bind(dlq);
 
-    const criticalDelay = calcDelay("critical") as number;
-    const highDelay = calcDelay("high") as number;
-    const normalDelay = calcDelay("normal") as number;
-    const lowDelay = calcDelay("low") as number;
+    const criticalDelay = calcDelay("critical");
+    const highDelay = calcDelay("high");
+    const normalDelay = calcDelay("normal");
+    const lowDelay = calcDelay("low");
 
-    assert.strictEqual(criticalDelay, 0, "critical should have 0ms delay");
-    assert.strictEqual(highDelay, 30000, "high should have 30s delay");
-    assert.strictEqual(normalDelay, 300000, "normal should have 5min delay");
-    assert.strictEqual(lowDelay, 900000, "low should have 15min delay");
+    expect(criticalDelay).toBe(0);
+    expect(highDelay).toBe(30000);
+    expect(normalDelay).toBe(300000);
+    expect(lowDelay).toBe(900000);
 
-    assert.ok(criticalDelay < highDelay, "critical < high");
-    assert.ok(highDelay < normalDelay, "high < normal");
-    assert.ok(normalDelay < lowDelay, "normal < low");
+    expect(criticalDelay < highDelay).toBeTruthy();
+    expect(highDelay < normalDelay).toBeTruthy();
+    expect(normalDelay < lowDelay).toBeTruthy();
   });
 });
 
@@ -408,12 +404,13 @@ describe("Priority ordering", { concurrency: 1 }, () => {
 // Max retries (shouldRetryNow logic)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("Max retries enforcement", { concurrency: 1 }, () => {
+describe("Max retries enforcement", { concurrent: false }, () => {
   beforeEach(() => {
     resetDeadLetterQueue();
+    vi.clearAllMocks();
   });
 
-  after(() => {
+  afterAll(() => {
     resetDeadLetterQueue();
   });
 
@@ -445,14 +442,12 @@ describe("Max retries enforcement", { concurrency: 1 }, () => {
     const mockJob = { data: failedOp, id: "job-123" };
 
     // Call the private processFailedOperation method
-    await (dlq as any).processFailedOperation(mockJob);
+    await (
+      dlq as unknown as { processFailedOperation: (job: unknown) => Promise<void> }
+    ).processFailedOperation(mockJob);
 
     // The operation status should be set to "abandoned"
-    assert.strictEqual(
-      failedOp.status,
-      "abandoned",
-      "operation should be abandoned when retryCount >= maxRetries"
-    );
+    expect(failedOp.status).toBe("abandoned");
   });
 
   it("processFailedOperation abandons when no retry target is registered", async () => {
@@ -481,13 +476,11 @@ describe("Max retries enforcement", { concurrency: 1 }, () => {
 
     const mockJob = { data: failedOp, id: "job-456" };
 
-    await (dlq as any).processFailedOperation(mockJob);
+    await (
+      dlq as unknown as { processFailedOperation: (job: unknown) => Promise<void> }
+    ).processFailedOperation(mockJob);
 
-    assert.strictEqual(
-      failedOp.status,
-      "abandoned",
-      "operation should be abandoned when no retry target is registered"
-    );
+    expect(failedOp.status).toBe("abandoned");
   });
 
   it("processFailedOperation re-enqueues when retryCount < maxRetries and target is registered", async () => {
@@ -521,11 +514,13 @@ describe("Max retries enforcement", { concurrency: 1 }, () => {
 
     const mockJob = { data: failedOp, id: "job-789" };
 
-    await (dlq as any).processFailedOperation(mockJob);
+    await (
+      dlq as unknown as { processFailedOperation: (job: unknown) => Promise<void> }
+    ).processFailedOperation(mockJob);
 
-    assert.strictEqual(failedOp.status, "retrying", "status should be 'retrying'");
-    assert.strictEqual(failedOp.context.retryCount, 3, "retryCount should be incremented");
-    assert.ok(queueAddCalls.length >= 1, "should have re-enqueued the job");
+    expect(failedOp.status).toBe("retrying");
+    expect(failedOp.context.retryCount).toBe(3);
+    expect(queueAddCalls.length >= 1).toBeTruthy();
   });
 });
 
@@ -533,12 +528,13 @@ describe("Max retries enforcement", { concurrency: 1 }, () => {
 // registerRetryTarget
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("registerRetryTarget()", { concurrency: 1 }, () => {
+describe("registerRetryTarget()", { concurrent: false }, () => {
   beforeEach(() => {
     resetDeadLetterQueue();
+    vi.clearAllMocks();
   });
 
-  after(() => {
+  afterAll(() => {
     resetDeadLetterQueue();
   });
 
@@ -546,8 +542,8 @@ describe("registerRetryTarget()", { concurrency: 1 }, () => {
     const dlq = createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
     dlq.registerRetryTarget("publishing", "publish");
 
-    const targets = (dlq as any).retryTargets as Map<string, string>;
-    assert.strictEqual(targets.get("publishing"), "publish");
+    const targets = (dlq as unknown as { retryTargets: Map<string, string> }).retryTargets;
+    expect(targets.get("publishing")).toBe("publish");
   });
 
   it("overwrites an existing target for the same service", () => {
@@ -555,7 +551,7 @@ describe("registerRetryTarget()", { concurrency: 1 }, () => {
     dlq.registerRetryTarget("publishing", "publish-v1");
     dlq.registerRetryTarget("publishing", "publish-v2");
 
-    const targets = (dlq as any).retryTargets as Map<string, string>;
-    assert.strictEqual(targets.get("publishing"), "publish-v2");
+    const targets = (dlq as unknown as { retryTargets: Map<string, string> }).retryTargets;
+    expect(targets.get("publishing")).toBe("publish-v2");
   });
 });

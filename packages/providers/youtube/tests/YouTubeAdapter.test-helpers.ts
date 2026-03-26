@@ -10,7 +10,7 @@
  * validation without external dependencies.
  */
 
-import { mock } from "node:test";
+import { vi } from "vitest";
 import type { RenderedPost } from "@shared/types";
 
 type RenderedMedia = NonNullable<RenderedPost["media"]>[number];
@@ -20,14 +20,14 @@ type RenderedMedia = NonNullable<RenderedPost["media"]>[number];
  */
 export function createMockApiClient() {
   return {
-    uploadVideo: mock.fn(async (request: any) => ({
+    uploadVideo: vi.fn(async (request: any) => ({
       id: "video-123",
       title: request.title,
       description: request.description,
       publishedAt: new Date().toISOString(),
       channelId: "channel-123",
     })),
-    validateCredentials: mock.fn(async () => ({
+    validateCredentials: vi.fn(async () => ({
       id: "channel-123",
       title: "Test Channel",
       description: "Test Description",
@@ -43,7 +43,7 @@ export function createMockApiClient() {
  */
 export function createMockShortsService() {
   return {
-    uploadShort: mock.fn(async (request: any) => ({
+    uploadShort: vi.fn(async (request: any) => ({
       id: "short-123",
       title: request.title,
       description: request.description,
@@ -73,7 +73,7 @@ export function _createMockCommunityService() {
  */
 export function _createMockLiveStreamingService() {
   return {
-    createLiveStream: mock.fn(async (config: any) => ({
+    createLiveStream: vi.fn(async (config: any) => ({
       id: "live-123",
       title: config.title,
       description: config.description,

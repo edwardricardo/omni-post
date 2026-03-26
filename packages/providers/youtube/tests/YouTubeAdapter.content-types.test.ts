@@ -13,7 +13,7 @@
  * to focus on business logic validation without external dependencies.
  */
 
-import { describe, it, mock } from "node:test";
+import { describe, it, vi } from "vitest";
 import * as assert from "node:assert/strict";
 import type { RenderedPost } from "@shared/types";
 import { YouTubeAdapter } from "../src/YouTubeAdapter.js";
@@ -415,8 +415,8 @@ describe("YouTubeAdapter - YouTube Shorts Publishing", () => {
         clientSecret: "secret-123",
         refreshToken: "refresh-123",
       },
-      uploadVideo: mock.fn(),
-      validateCredentials: mock.fn(),
+      uploadVideo: vi.fn(),
+      validateCredentials: vi.fn(),
     };
 
     const post = createTestPost({

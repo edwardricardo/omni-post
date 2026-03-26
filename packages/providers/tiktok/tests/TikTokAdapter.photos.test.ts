@@ -5,7 +5,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { TikTokAdapter } from "../src/TikTokAdapter.js";
 import { createMockApiClient, MOCK_CREDENTIALS } from "./TikTokAdapter.test-helpers.js";
@@ -14,10 +14,11 @@ import { createMockApiClient, MOCK_CREDENTIALS } from "./TikTokAdapter.test-help
 // 1. Render Tests — Photo Posts
 // ============================================================================
 
-describe("TikTokAdapter - render photo posts", { concurrency: 1 }, () => {
+describe("TikTokAdapter - render photo posts", { concurrent: false }, () => {
   let adapter: TikTokAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new TikTokAdapter();
   });
 
@@ -89,32 +90,28 @@ describe("TikTokAdapter - render photo posts", { concurrency: 1 }, () => {
 // 2. Publish Tests — Photo Posts
 // ============================================================================
 
-describe("TikTokAdapter - publish photo posts", { concurrency: 1 }, () => {
+describe("TikTokAdapter - publish photo posts", { concurrent: false }, () => {
   let adapter: TikTokAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new TikTokAdapter();
   });
 
   it("publishes a photo post via publishPhotoPost API", async () => {
     const mockClient = {
       ...createMockApiClient(),
-      publishPhotoPost: mock.fn(async () => ({
+      publishPhotoPost: vi.fn(async () => ({
         shareId: "photo-post-001",
         shareUrl: "https://www.tiktok.com/@user/photo/photo-post-001",
         uniqueId: "photo-post-001",
       })),
     };
 
-    const getCredsMock = mock.method(adapter as never, "getCredentials" as never, async () => ({
-      ok: true,
-      value: MOCK_CREDENTIALS,
-    }));
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const getCredsSpy = vi
+      .spyOn(adapter as any, "getCredentials")
+      .mockResolvedValue({ ok: true, value: MOCK_CREDENTIALS });
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.publish({
       channelId: "channel-123",
@@ -134,32 +131,27 @@ describe("TikTokAdapter - publish photo posts", { concurrency: 1 }, () => {
 
     const call = mockClient.publishPhotoPost.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[0].imageUrls.length, 2);
-    assert.strictEqual(call.arguments[0].privacy, "PUBLIC_TO_EVERYONE");
+    assert.strictEqual(call[0].imageUrls.length, 2);
+    assert.strictEqual(call[0].privacy, "PUBLIC_TO_EVERYONE");
 
-    getCredsMock.mock.restore();
-    createClientMock.mock.restore();
+    getCredsSpy.mockRestore();
+    createClientSpy.mockRestore();
   });
 
   it("detects photo post from media types when no contentType meta", async () => {
     const mockClient = {
       ...createMockApiClient(),
-      publishPhotoPost: mock.fn(async () => ({
+      publishPhotoPost: vi.fn(async () => ({
         shareId: "photo-post-002",
         shareUrl: "",
         uniqueId: "photo-post-002",
       })),
     };
 
-    const getCredsMock = mock.method(adapter as never, "getCredentials" as never, async () => ({
-      ok: true,
-      value: MOCK_CREDENTIALS,
-    }));
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const getCredsSpy = vi
+      .spyOn(adapter as any, "getCredentials")
+      .mockResolvedValue({ ok: true, value: MOCK_CREDENTIALS });
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.publish({
       channelId: "channel-123",
@@ -172,31 +164,26 @@ describe("TikTokAdapter - publish photo posts", { concurrency: 1 }, () => {
     });
 
     assert.ok(result.ok);
-    assert.strictEqual(mockClient.publishPhotoPost.mock.callCount(), 1);
+    assert.strictEqual(mockClient.publishPhotoPost.mock.calls.length, 1);
 
-    getCredsMock.mock.restore();
-    createClientMock.mock.restore();
+    getCredsSpy.mockRestore();
+    createClientSpy.mockRestore();
   });
 
   it("uses SELF_ONLY privacy for private photo posts", async () => {
     const mockClient = {
       ...createMockApiClient(),
-      publishPhotoPost: mock.fn(async () => ({
+      publishPhotoPost: vi.fn(async () => ({
         shareId: "photo-post-003",
         shareUrl: "",
         uniqueId: "photo-post-003",
       })),
     };
 
-    const getCredsMock = mock.method(adapter as never, "getCredentials" as never, async () => ({
-      ok: true,
-      value: MOCK_CREDENTIALS,
-    }));
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const getCredsSpy = vi
+      .spyOn(adapter as any, "getCredentials")
+      .mockResolvedValue({ ok: true, value: MOCK_CREDENTIALS });
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.publish({
       channelId: "channel-123",
@@ -211,10 +198,10 @@ describe("TikTokAdapter - publish photo posts", { concurrency: 1 }, () => {
     assert.ok(result.ok);
     const call = mockClient.publishPhotoPost.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[0].privacy, "SELF_ONLY");
+    assert.strictEqual(call[0].privacy, "SELF_ONLY");
 
-    getCredsMock.mock.restore();
-    createClientMock.mock.restore();
+    getCredsSpy.mockRestore();
+    createClientSpy.mockRestore();
   });
 });
 
@@ -222,7 +209,7 @@ describe("TikTokAdapter - publish photo posts", { concurrency: 1 }, () => {
 // 3. Capabilities
 // ============================================================================
 
-describe("TikTokAdapter - capabilities with photos", { concurrency: 1 }, () => {
+describe("TikTokAdapter - capabilities with photos", { concurrent: false }, () => {
   it("allows image media", () => {
     const adapter = new TikTokAdapter();
     assert.ok(adapter.limits.allowedMedia?.includes("image"));

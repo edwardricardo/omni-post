@@ -5,10 +5,10 @@
  *              schedulingService.management.test.ts.
  *
  * NOTE: The source `schedulingService.ts` creates adapters at the module level.
- * Tests must use `mock.module()` BEFORE importing the service.
+ * Tests must use `vi.mock()` BEFORE importing the service.
  */
 
-import { mock } from "node:test";
+import { vi } from "vitest";
 import type { InstagramScheduleJob } from "../src/schedulingService.js";
 import type { InstagramCredentials } from "../src/apiClient.js";
 
@@ -16,10 +16,10 @@ import type { InstagramCredentials } from "../src/apiClient.js";
 
 export function createMockQueueAdapter() {
   return {
-    enqueue: mock.fn(async () => ({ ok: true as const, value: "queue-job-123" })),
-    close: mock.fn(async () => undefined),
-    remove: mock.fn(async () => ({ ok: true as const, value: true })),
-    health: mock.fn(async () => ({
+    enqueue: vi.fn(async () => ({ ok: true as const, value: "queue-job-123" })),
+    close: vi.fn(async () => undefined),
+    remove: vi.fn(async () => ({ ok: true as const, value: true })),
+    health: vi.fn(async () => ({
       ok: true as const,
       value: {
         connected: true,
@@ -29,7 +29,7 @@ export function createMockQueueAdapter() {
         failed: 3,
       },
     })),
-    getResilienceMetrics: mock.fn(() => ({})),
+    getResilienceMetrics: vi.fn(() => ({})),
   };
 }
 
@@ -42,13 +42,13 @@ export function createPassthroughCB() {
 
 export function createMockMediaProcessor() {
   return {
-    validateVideo: mock.fn(async () => ({
+    validateVideo: vi.fn(async () => ({
       valid: true,
       issues: [] as string[],
       recommendations: [] as string[],
     })),
-    optimizeForReels: mock.fn(async () => "https://optimized-url.com/reel.mp4"),
-    splitVideoForStories: mock.fn(async () => [
+    optimizeForReels: vi.fn(async () => "https://optimized-url.com/reel.mp4"),
+    splitVideoForStories: vi.fn(async () => [
       {
         id: "segment-1",
         url: "https://example.com/segment1.mp4",
@@ -66,8 +66,8 @@ export function createMockMediaProcessor() {
         endTime: 25,
       },
     ]),
-    createThumbnail: mock.fn(async () => "https://thumbnails.com/thumb.jpg"),
-    getVideoMetadata: mock.fn(async () => ({
+    createThumbnail: vi.fn(async () => "https://thumbnails.com/thumb.jpg"),
+    getVideoMetadata: vi.fn(async () => ({
       duration: 45.5,
       width: 1080,
       height: 1920,

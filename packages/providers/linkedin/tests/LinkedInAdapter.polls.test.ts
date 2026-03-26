@@ -6,7 +6,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { LinkedInAdapter } from "../src/LinkedInAdapter.js";
 import type { CanonicalPost, RenderedPost } from "@shared/types";
@@ -46,6 +46,7 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
   });
 
@@ -223,12 +224,13 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
 
 describe("LinkedInAdapter - Poll Publish", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
-  let mockCreatePost: ReturnType<typeof mock.fn>;
+  let mockCreatePost: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
 
-    mockCreatePost = mock.fn(async () => ({
+    mockCreatePost = vi.fn(async () => ({
       id: "urn:li:share:poll-12345",
       activity: "urn:li:activity:poll-12345",
     }));
@@ -237,7 +239,7 @@ describe("LinkedInAdapter - Poll Publish", { concurrency: 1 }, () => {
       createPost: mockCreatePost,
     });
 
-    (adapter as Record<string, unknown>).getCredentials = mock.fn(async () => ({
+    (adapter as Record<string, unknown>).getCredentials = vi.fn(async () => ({
       ok: true,
       value: {
         accessToken: "test-token",
@@ -268,7 +270,7 @@ describe("LinkedInAdapter - Poll Publish", { concurrency: 1 }, () => {
     assert.ok(result.ok, "Publish should succeed");
     assert.strictEqual(mockCreatePost.mock.calls.length, 1);
 
-    const payload = mockCreatePost.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
     const content = payload.content as {
       poll: {
         question: string;
@@ -305,7 +307,7 @@ describe("LinkedInAdapter - Poll Publish", { concurrency: 1 }, () => {
 
     await adapter.publish(input);
 
-    const payload = mockCreatePost.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
     const content = payload.content as Record<string, unknown>;
     assert.ok(content.poll, "Poll content should be set");
     assert.strictEqual(content.media, undefined, "Media should not be set when poll is present");

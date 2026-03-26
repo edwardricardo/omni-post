@@ -17,7 +17,7 @@
  * - SHORT_BODY / LONG_BODY      -- pre-built body strings for common tests
  */
 
-import { mock } from "node:test";
+import { vi } from "vitest";
 import type { PublishInput } from "@ports/core";
 import type {
   CanonicalPost,
@@ -78,20 +78,20 @@ let tweetCounter = 0;
 
 /**
  * Create a minimal mock X API Client for happy-path tests.
- * Supports call-count assertions via mock.fn.
+ * Supports call-count assertions via vi.fn.
  */
 export function createMockApiClient() {
   tweetCounter = 0;
 
   return {
-    validateCredentials: mock.fn(async () => ({
+    validateCredentials: vi.fn(async () => ({
       data: {
         id: "user-123",
         name: "Test User",
         username: "testuser",
       },
     })),
-    postTweet: mock.fn(async (_text: string, _mediaIds?: string[], _replyToTweetId?: string) => {
+    postTweet: vi.fn(async (_text: string, _mediaIds?: string[], _replyToTweetId?: string) => {
       tweetCounter++;
       const id = `tweet-${tweetCounter}`;
       return {
@@ -103,13 +103,13 @@ export function createMockApiClient() {
         },
       };
     }),
-    uploadMedia: mock.fn(async (_mediaUrl: string) => ({
+    uploadMedia: vi.fn(async (_mediaUrl: string) => ({
       media_id_string: `media-${Date.now()}`,
       media_id: Date.now(),
       size: 1024,
       media_key: `7_media-${Date.now()}`,
     })),
-    getTweetAnalytics: mock.fn(async (tweetIds: string[]) => ({
+    getTweetAnalytics: vi.fn(async (tweetIds: string[]) => ({
       data: tweetIds.map((id) => ({
         id,
         public_metrics: {
@@ -120,11 +120,11 @@ export function createMockApiClient() {
         },
       })),
     })),
-    deleteTweet: mock.fn(async (_tweetId: string) => ({
+    deleteTweet: vi.fn(async (_tweetId: string) => ({
       data: { deleted: true },
     })),
-    getCircuitBreakerStatus: mock.fn(() => ({})),
-    clearCache: mock.fn(() => undefined),
+    getCircuitBreakerStatus: vi.fn(() => ({})),
+    clearCache: vi.fn(() => undefined),
   };
 }
 
@@ -142,23 +142,23 @@ export function createFailingApiClient(errorMessage = "API error", statusCode?: 
   };
 
   return {
-    validateCredentials: mock.fn(async () => {
+    validateCredentials: vi.fn(async () => {
       throw makeError();
     }),
-    postTweet: mock.fn(async () => {
+    postTweet: vi.fn(async () => {
       throw makeError();
     }),
-    uploadMedia: mock.fn(async () => {
+    uploadMedia: vi.fn(async () => {
       throw makeError();
     }),
-    getTweetAnalytics: mock.fn(async () => {
+    getTweetAnalytics: vi.fn(async () => {
       throw makeError();
     }),
-    deleteTweet: mock.fn(async () => {
+    deleteTweet: vi.fn(async () => {
       throw makeError();
     }),
-    getCircuitBreakerStatus: mock.fn(() => ({})),
-    clearCache: mock.fn(() => undefined),
+    getCircuitBreakerStatus: vi.fn(() => ({})),
+    clearCache: vi.fn(() => undefined),
   };
 }
 

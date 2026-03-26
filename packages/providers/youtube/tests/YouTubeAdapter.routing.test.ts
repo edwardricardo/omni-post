@@ -14,7 +14,7 @@
  * to focus on business logic validation without external dependencies.
  */
 
-import { describe, it, mock } from "node:test";
+import { describe, it, vi } from "vitest";
 import * as assert from "node:assert/strict";
 import { YouTubeAdapter } from "../src/YouTubeAdapter.js";
 import {
@@ -299,7 +299,7 @@ describe("YouTubeAdapter - Publish Routing", () => {
     const _adapter = new YouTubeAdapter();
 
     // Mock failing credential retrieval
-    const _mockGetCredentials = mock.fn(async () => ({
+    const _mockGetCredentials = vi.fn(async () => ({
       ok: false,
       error: "AUTH",
     }));

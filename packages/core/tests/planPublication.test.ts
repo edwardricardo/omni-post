@@ -5,8 +5,7 @@
  * provider-specific rendered posts.
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect, vi } from "vitest";
 import { planPublication } from "../src/planPublication.js";
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderAdapter, RenderedPost, RenderResult } from "@ports/core";
@@ -87,7 +86,11 @@ class MockEmptyAdapter implements Partial<ProviderAdapter> {
 // TEST SUITE
 // ========================================
 
-describe("planPublication", { concurrency: 1 }, () => {
+describe("planPublication", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe("Basic Publication Planning", () => {
     it("should plan publication for single successful channel", () => {
       const post: CanonicalPost = {
@@ -107,24 +110,12 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed for valid channel");
-      assert.strictEqual(result.value.length, 1, "Should create one plan");
-      assert.strictEqual(
-        result.value[0]!.providerId,
-        "mock-success",
-        "Should have correct provider ID"
-      );
-      assert.strictEqual(result.value[0]!.channelId, "channel-1", "Should have correct channel ID");
-      assert.strictEqual(
-        result.value[0]!.dedupeKey,
-        "post-1:channel-1",
-        "Should have correct dedupe key"
-      );
-      assert.strictEqual(
-        result.value[0]!.rendered.text,
-        "Test post content",
-        "Should have rendered text"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value.length).toBe(1);
+      expect(result.value[0]!.providerId).toBe("mock-success");
+      expect(result.value[0]!.channelId).toBe("channel-1");
+      expect(result.value[0]!.dedupeKey).toBe("post-1:channel-1");
+      expect(result.value[0]!.rendered.text).toBe("Test post content");
     });
 
     it("should plan publication for multiple successful channels", () => {
@@ -144,15 +135,12 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed for all channels");
-      assert.strictEqual(result.value.length, 3, "Should create three plans");
-      assert.ok(
-        result.value.every((plan) => plan.providerId === "mock-success"),
-        "All plans should have correct provider ID"
-      );
-      assert.strictEqual(result.value[0]!.dedupeKey, "post-2:channel-1");
-      assert.strictEqual(result.value[1]!.dedupeKey, "post-2:channel-2");
-      assert.strictEqual(result.value[2]!.dedupeKey, "post-2:channel-3");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.length).toBe(3);
+      expect(result.value.every((plan) => plan.providerId === "mock-success")).toBeTruthy();
+      expect(result.value[0]!.dedupeKey).toBe("post-2:channel-1");
+      expect(result.value[1]!.dedupeKey).toBe("post-2:channel-2");
+      expect(result.value[2]!.dedupeKey).toBe("post-2:channel-3");
     });
 
     it("should handle empty channel list", () => {
@@ -168,8 +156,8 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed with empty channel list");
-      assert.strictEqual(result.value.length, 0, "Should create no plans");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.length).toBe(0);
     });
 
     it("should include media in rendered post", () => {
@@ -190,17 +178,13 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed with media");
+      expect(result.ok).toBeTruthy();
       const firstPlan = result.value[0];
-      assert.ok(firstPlan, "Should have at least one plan");
-      assert.strictEqual(firstPlan.rendered.media.length, 2, "Should include media");
-      const firstMedia = firstPlan.rendered.media[0];
-      assert.ok(firstMedia, "Should have first media item");
-      assert.strictEqual(
-        firstMedia.url,
-        "https://example.com/image1.jpg",
-        "Should preserve media URL"
-      );
+      expect(firstPlan).toBeTruthy();
+      expect(firstPlan!.rendered.media.length).toBe(2);
+      const firstMedia = firstPlan!.rendered.media[0];
+      expect(firstMedia).toBeTruthy();
+      expect(firstMedia!.url).toBe("https://example.com/image1.jpg");
     });
   });
 
@@ -220,8 +204,8 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(!result.ok, "Should fail when channel fails");
-      assert.strictEqual(result.error, "RENDER_ERRORS", "Should return RENDER_ERRORS");
+      expect(result.ok).toBeFalsy();
+      expect(result.error).toBe("RENDER_ERRORS");
     });
 
     it("should fail when any channel fails to render", () => {
@@ -241,8 +225,8 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(!result.ok, "Should fail when any channel fails");
-      assert.strictEqual(result.error, "RENDER_ERRORS", "Should return RENDER_ERRORS");
+      expect(result.ok).toBeFalsy();
+      expect(result.error).toBe("RENDER_ERRORS");
     });
 
     it("should fail when all channels fail to render", () => {
@@ -261,8 +245,8 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(!result.ok, "Should fail when all channels fail");
-      assert.strictEqual(result.error, "RENDER_ERRORS");
+      expect(result.ok).toBeFalsy();
+      expect(result.error).toBe("RENDER_ERRORS");
     });
   });
 
@@ -282,8 +266,8 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed (threads are skipped)");
-      assert.strictEqual(result.value.length, 0, "Should skip thread content");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.length).toBe(0);
     });
 
     it("should handle mix of single and thread providers", () => {
@@ -303,12 +287,9 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed");
-      assert.strictEqual(result.value.length, 2, "Should only include single posts");
-      assert.ok(
-        result.value.every((plan) => plan.providerId === "mock-success"),
-        "Should only include success adapters"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value.length).toBe(2);
+      expect(result.value.every((plan) => plan.providerId === "mock-success")).toBeTruthy();
     });
   });
 
@@ -329,11 +310,11 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed");
+      expect(result.ok).toBeTruthy();
       const dedupeKeys = result.value.map((plan) => plan.dedupeKey);
-      assert.notStrictEqual(dedupeKeys[0], dedupeKeys[1], "Dedupe keys should be different");
-      assert.strictEqual(dedupeKeys[0], "post-10:channel-1");
-      assert.strictEqual(dedupeKeys[1], "post-10:channel-2");
+      expect(dedupeKeys[0]).not.toBe(dedupeKeys[1]);
+      expect(dedupeKeys[0]).toBe("post-10:channel-1");
+      expect(dedupeKeys[1]).toBe("post-10:channel-2");
     });
 
     it("should use post ID and channel ID in dedupe key", () => {
@@ -351,12 +332,8 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed");
-      assert.strictEqual(
-        result.value[0]!.dedupeKey,
-        "unique-post-id:unique-channel-id",
-        "Dedupe key should follow post-id:channel-id format"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value[0]!.dedupeKey).toBe("unique-post-id:unique-channel-id");
     });
   });
 
@@ -376,9 +353,9 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed with empty body");
-      assert.strictEqual(result.value.length, 1, "Should create one plan");
-      assert.strictEqual(result.value[0]!.rendered.text, "", "Should preserve empty text");
+      expect(result.ok).toBeTruthy();
+      expect(result.value.length).toBe(1);
+      expect(result.value[0]!.rendered.text).toBe("");
     });
 
     it("should handle post with only media", () => {
@@ -396,10 +373,10 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed with media-only post");
+      expect(result.ok).toBeTruthy();
       const firstPlan = result.value[0];
-      assert.ok(firstPlan, "Should have at least one plan");
-      assert.strictEqual(firstPlan.rendered.media.length, 1, "Should include media");
+      expect(firstPlan).toBeTruthy();
+      expect(firstPlan!.rendered.media.length).toBe(1);
     });
 
     it("should handle very long channel IDs", () => {
@@ -418,17 +395,9 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed with long channel ID");
-      assert.strictEqual(
-        result.value[0]!.channelId,
-        longChannelId,
-        "Should preserve long channel ID"
-      );
-      assert.strictEqual(
-        result.value[0]!.dedupeKey,
-        `post-13:${longChannelId}`,
-        "Should include long channel ID in dedupe key"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value[0]!.channelId).toBe(longChannelId);
+      expect(result.value[0]!.dedupeKey).toBe(`post-13:${longChannelId}`);
     });
 
     it("should handle special characters in post ID and channel ID", () => {
@@ -449,11 +418,9 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed with special characters");
-      assert.strictEqual(
-        result.value[0]!.dedupeKey,
-        "post-with-special-chars-@#$:channel-with-special-chars-@#$",
-        "Should preserve special characters in dedupe key"
+      expect(result.ok).toBeTruthy();
+      expect(result.value[0]!.dedupeKey).toBe(
+        "post-with-special-chars-@#$:channel-with-special-chars-@#$"
       );
     });
 
@@ -472,12 +439,8 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed");
-      assert.strictEqual(
-        result.value[0]!.providerId,
-        "mock-success",
-        "Should preserve provider ID"
-      );
+      expect(result.ok).toBeTruthy();
+      expect(result.value[0]!.providerId).toBe("mock-success");
     });
 
     it("should handle multiple media items", () => {
@@ -500,13 +463,13 @@ describe("planPublication", { concurrency: 1 }, () => {
 
       const result = planPublication(post, channels);
 
-      assert.ok(result.ok, "Should succeed with multiple media");
+      expect(result.ok).toBeTruthy();
       const firstPlan = result.value[0];
-      assert.ok(firstPlan, "Should have at least one plan");
-      assert.strictEqual(firstPlan.rendered.media.length, 4, "Should include all media items");
-      const thirdMedia = firstPlan.rendered.media[2];
-      assert.ok(thirdMedia, "Should have third media item");
-      assert.strictEqual(thirdMedia.type, "video", "Should preserve media types");
+      expect(firstPlan).toBeTruthy();
+      expect(firstPlan!.rendered.media.length).toBe(4);
+      const thirdMedia = firstPlan!.rendered.media[2];
+      expect(thirdMedia).toBeTruthy();
+      expect(thirdMedia!.type).toBe("video");
     });
   });
 });

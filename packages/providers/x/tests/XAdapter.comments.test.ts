@@ -5,7 +5,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { XAdapter } from "../src/XAdapter.js";
 
@@ -15,7 +15,7 @@ import { XAdapter } from "../src/XAdapter.js";
 
 function makeMockApiClient() {
   return {
-    searchReplies: mock.fn(async () => ({
+    searchReplies: vi.fn(async () => ({
       data: [
         {
           id: "reply-001",
@@ -37,28 +37,28 @@ function makeMockApiClient() {
         next_token: "next-page-token",
       },
     })),
-    postTweet: mock.fn(async () => ({
+    postTweet: vi.fn(async () => ({
       data: {
         id: "reply-new-001",
         text: "Thanks for the reply!",
         created_at: "2026-03-10T12:00:00Z",
       },
     })),
-    validateCredentials: mock.fn(async () => ({
+    validateCredentials: vi.fn(async () => ({
       data: { id: "user-001", name: "Test", username: "test" },
     })),
-    uploadMedia: mock.fn(async () => ({
+    uploadMedia: vi.fn(async () => ({
       media_id_string: "media-001",
       media_id: 1,
       size: 1000,
       media_key: "7_media-001",
     })),
-    getTweetAnalytics: mock.fn(async () => ({ data: [] })),
-    deleteTweet: mock.fn(async () => ({ data: { deleted: true } })),
-    getCircuitBreakerStatus: mock.fn(() => ({})),
-    clearCache: mock.fn(),
-    forceCircuitBreakerOpen: mock.fn(() => true),
-    forceCircuitBreakerClose: mock.fn(() => true),
+    getTweetAnalytics: vi.fn(async () => ({ data: [] })),
+    deleteTweet: vi.fn(async () => ({ data: { deleted: true } })),
+    getCircuitBreakerStatus: vi.fn(() => ({})),
+    clearCache: vi.fn(),
+    forceCircuitBreakerOpen: vi.fn(() => true),
+    forceCircuitBreakerClose: vi.fn(() => true),
   };
 }
 
@@ -74,20 +74,17 @@ const TEST_CREDENTIALS = {
 // 1. getComments Tests
 // ============================================================================
 
-describe("XAdapter - getComments", { concurrency: 1 }, () => {
+describe("XAdapter - getComments", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
   it("returns replies for a tweet via conversation_id search", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -110,9 +107,9 @@ describe("XAdapter - getComments", { concurrency: 1 }, () => {
     assert.strictEqual(second.providerParentId, undefined);
 
     assert.strictEqual(result.value.nextCursor, "next-page-token");
-    assert.strictEqual(mockClient.searchReplies.mock.callCount(), 1);
+    assert.strictEqual(mockClient.searchReplies.mock.calls.length, 1);
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns empty comments when no postExternalId", async () => {
@@ -126,11 +123,7 @@ describe("XAdapter - getComments", { concurrency: 1 }, () => {
 
   it("passes cursor and limit to searchReplies", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -141,24 +134,20 @@ describe("XAdapter - getComments", { concurrency: 1 }, () => {
 
     const call = mockClient.searchReplies.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[0], "tweet-001");
-    assert.strictEqual(call.arguments[1], 50);
-    assert.strictEqual(call.arguments[2], "page-2-token");
+    assert.strictEqual(call[0], "tweet-001");
+    assert.strictEqual(call[1], 50);
+    assert.strictEqual(call[2], "page-2-token");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns AUTH error on 401/403", async () => {
     const mockClient = makeMockApiClient();
-    mockClient.searchReplies = mock.fn(async () => {
+    mockClient.searchReplies = vi.fn(async () => {
       throw new Error("Twitter API error: 403 Forbidden");
     });
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -168,20 +157,16 @@ describe("XAdapter - getComments", { concurrency: 1 }, () => {
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "AUTH");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns NETWORK error on general failure", async () => {
     const mockClient = makeMockApiClient();
-    mockClient.searchReplies = mock.fn(async () => {
+    mockClient.searchReplies = vi.fn(async () => {
       throw new Error("Connection timeout");
     });
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -191,7 +176,7 @@ describe("XAdapter - getComments", { concurrency: 1 }, () => {
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "NETWORK");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 });
 
@@ -199,20 +184,17 @@ describe("XAdapter - getComments", { concurrency: 1 }, () => {
 // 2. postReply Tests
 // ============================================================================
 
-describe("XAdapter - postReply", { concurrency: 1 }, () => {
+describe("XAdapter - postReply", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
   it("posts a reply using postTweet with replyToTweetId", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.postReply({
       channelCredentials: TEST_CREDENTIALS,
@@ -227,24 +209,20 @@ describe("XAdapter - postReply", { concurrency: 1 }, () => {
     // Verify postTweet was called with reply ID
     const call = mockClient.postTweet.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[0], "Thanks for sharing!");
-    assert.deepStrictEqual(call.arguments[1], []);
-    assert.strictEqual(call.arguments[2], "tweet-001");
+    assert.strictEqual(call[0], "Thanks for sharing!");
+    assert.deepStrictEqual(call[1], []);
+    assert.strictEqual(call[2], "tweet-001");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns RATE_LIMIT error on 429", async () => {
     const mockClient = makeMockApiClient();
-    mockClient.postTweet = mock.fn(async () => {
+    mockClient.postTweet = vi.fn(async () => {
       throw new Error("Twitter API error: 429 Too Many Requests");
     });
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.postReply({
       channelCredentials: TEST_CREDENTIALS,
@@ -255,20 +233,16 @@ describe("XAdapter - postReply", { concurrency: 1 }, () => {
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "RATE_LIMIT");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns AUTH error on 401", async () => {
     const mockClient = makeMockApiClient();
-    mockClient.postTweet = mock.fn(async () => {
+    mockClient.postTweet = vi.fn(async () => {
       throw new Error("Twitter API error: 401 Unauthorized");
     });
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.postReply({
       channelCredentials: TEST_CREDENTIALS,
@@ -279,6 +253,6 @@ describe("XAdapter - postReply", { concurrency: 1 }, () => {
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "AUTH");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 });

@@ -8,11 +8,25 @@
  * - Result type mapping
  */
 
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeEach, expect } from "vitest";
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, RouteContext } from "../src/BaseRouteHandler";
+import {
+  BaseRouteHandler,
+  RouteContext,
+  IdSchema,
+  PaginationQuerySchema,
+  IsoDateSchema,
+  OptionalIsoDateSchema,
+  EmailSchema,
+  NonEmptyStringSchema,
+  UrlSchema,
+  PositiveIntSchema,
+  ProviderSchema,
+  PostStatusSchema,
+  PasswordSchema,
+  UserRoleSchema,
+} from "../src/BaseRouteHandler";
 
 /**
  * Concrete implementation for testing
@@ -53,6 +67,26 @@ class TestRouteHandler extends BaseRouteHandler {
   public testMapServiceResult<_T>(result: any, successStatus?: number) {
     return this.mapServiceResult(result, successStatus);
   }
+
+  public testParsePagination(query: any) {
+    return this.parsePagination(query);
+  }
+
+  public testFormatPaginatedResponse<T>(data: T[], total: number, page: number, limit: number) {
+    return this.formatPaginatedResponse(data, total, page, limit);
+  }
+
+  public testLogInfo(ctx: RouteContext, message: string, meta?: Record<string, any>) {
+    return this.logInfo(ctx, message, meta);
+  }
+
+  public testLogError(ctx: RouteContext, message: string, meta?: Record<string, any>) {
+    return this.logError(ctx, message, meta);
+  }
+
+  public testGetUserContext(request: FastifyRequest) {
+    return this.getUserContext(request);
+  }
 }
 
 /**
@@ -91,12 +125,9 @@ describe("BaseRouteHandler - OAuth Error Handling", { concurrency: 1 }, () => {
       operation: "token_refresh",
     });
 
-    assert.strictEqual(result.statusCode, 401);
-    assert.ok(
-      result.error.includes("Token expired or revoked"),
-      "should contain 'Token expired or revoked'"
-    );
-    assert.strictEqual(result.retryable, false);
+    expect(result.statusCode).toBe(401);
+    expect(result.error).toContain("Token expired or revoked");
+    expect(result.retryable).toBe(false);
   });
 
   it("should map invalid_token to 401", () => {
@@ -106,8 +137,8 @@ describe("BaseRouteHandler - OAuth Error Handling", { concurrency: 1 }, () => {
       operation: "api_call",
     });
 
-    assert.strictEqual(result.statusCode, 401);
-    assert.strictEqual(result.retryable, false);
+    expect(result.statusCode).toBe(401);
+    expect(result.retryable).toBe(false);
   });
 
   it("should map insufficient_scope to 403", () => {
@@ -117,12 +148,9 @@ describe("BaseRouteHandler - OAuth Error Handling", { concurrency: 1 }, () => {
       operation: "post_create",
     });
 
-    assert.strictEqual(result.statusCode, 403);
-    assert.ok(
-      result.error.includes("Missing required OAuth scopes"),
-      "should contain 'Missing required OAuth scopes'"
-    );
-    assert.strictEqual(result.retryable, false);
+    expect(result.statusCode).toBe(403);
+    expect(result.error).toContain("Missing required OAuth scopes");
+    expect(result.retryable).toBe(false);
   });
 
   it("should map server_error to 503 (retryable)", () => {
@@ -132,8 +160,8 @@ describe("BaseRouteHandler - OAuth Error Handling", { concurrency: 1 }, () => {
       operation: "video_upload",
     });
 
-    assert.strictEqual(result.statusCode, 503);
-    assert.strictEqual(result.retryable, true);
+    expect(result.statusCode).toBe(503);
+    expect(result.retryable).toBe(true);
   });
 
   it("should map rate_limit_exceeded to 429 (retryable)", () => {
@@ -143,8 +171,8 @@ describe("BaseRouteHandler - OAuth Error Handling", { concurrency: 1 }, () => {
       operation: "post_publish",
     });
 
-    assert.strictEqual(result.statusCode, 429);
-    assert.strictEqual(result.retryable, true);
+    expect(result.statusCode).toBe(429);
+    expect(result.retryable).toBe(true);
   });
 
   it("should map invalid_code_verifier to 400", () => {
@@ -154,11 +182,8 @@ describe("BaseRouteHandler - OAuth Error Handling", { concurrency: 1 }, () => {
       operation: "oauth_callback",
     });
 
-    assert.strictEqual(result.statusCode, 400);
-    assert.ok(
-      result.error.includes("PKCE code verifier validation failed"),
-      "should contain 'PKCE code verifier validation failed'"
-    );
+    expect(result.statusCode).toBe(400);
+    expect(result.error).toContain("PKCE code verifier validation failed");
   });
 
   it("should map invalid_state to 400", () => {
@@ -168,11 +193,8 @@ describe("BaseRouteHandler - OAuth Error Handling", { concurrency: 1 }, () => {
       operation: "oauth_callback",
     });
 
-    assert.strictEqual(result.statusCode, 400);
-    assert.ok(
-      result.error.includes("OAuth state validation failed"),
-      "should contain 'OAuth state validation failed'"
-    );
+    expect(result.statusCode).toBe(400);
+    expect(result.error).toContain("OAuth state validation failed");
   });
 
   it("should include metadata in response", () => {
@@ -183,7 +205,7 @@ describe("BaseRouteHandler - OAuth Error Handling", { concurrency: 1 }, () => {
       accountId: "account-123",
     });
 
-    assert.deepStrictEqual(result.metadata, {
+    expect(result.metadata).toEqual({
       provider: "FACEBOOK",
       operation: "token_refresh",
       errorCode: "invalid_grant",
@@ -198,11 +220,8 @@ describe("BaseRouteHandler - OAuth Error Handling", { concurrency: 1 }, () => {
       operation: "unknown_op",
     });
 
-    assert.strictEqual(result.statusCode, 500);
-    assert.ok(
-      result.error.includes("OAuth operation failed"),
-      "should contain 'OAuth operation failed'"
-    );
+    expect(result.statusCode).toBe(500);
+    expect(result.error).toContain("OAuth operation failed");
   });
 
   it("should respect explicit retryable override", () => {
@@ -213,7 +232,7 @@ describe("BaseRouteHandler - OAuth Error Handling", { concurrency: 1 }, () => {
       retryable: true, // Override default non-retryable
     });
 
-    assert.strictEqual(result.retryable, true);
+    expect(result.retryable).toBe(true);
   });
 });
 
@@ -236,7 +255,7 @@ describe("BaseRouteHandler - Webhook Signature Verification", { concurrency: 1 }
     });
 
     // Note: This test uses a placeholder signature. In real tests, compute actual HMAC
-    assert.strictEqual(typeof result, "boolean");
+    expect(typeof result).toBe("boolean");
   });
 
   it("should verify valid HMAC-SHA256 signature (base64)", () => {
@@ -248,7 +267,7 @@ describe("BaseRouteHandler - Webhook Signature Verification", { concurrency: 1 }
       encoding: "base64",
     });
 
-    assert.strictEqual(typeof result, "boolean");
+    expect(typeof result).toBe("boolean");
   });
 
   it("should reject mismatched signatures", () => {
@@ -258,7 +277,7 @@ describe("BaseRouteHandler - Webhook Signature Verification", { concurrency: 1 }
 
     const result = handler.testVerifyWebhookSignature(payload, wrongSignature, secret);
 
-    assert.strictEqual(result, false);
+    expect(result).toBe(false);
   });
 
   it("should remove sha256= prefix when requested", () => {
@@ -270,7 +289,7 @@ describe("BaseRouteHandler - Webhook Signature Verification", { concurrency: 1 }
       removePrefix: true,
     });
 
-    assert.strictEqual(typeof result, "boolean");
+    expect(typeof result).toBe("boolean");
   });
 
   it("should use SHA-256 and hex by default", () => {
@@ -280,7 +299,7 @@ describe("BaseRouteHandler - Webhook Signature Verification", { concurrency: 1 }
 
     const result = handler.testVerifyWebhookSignature(payload, signature, secret);
 
-    assert.strictEqual(result, false); // Invalid signature
+    expect(result).toBe(false); // Invalid signature
   });
 });
 
@@ -293,27 +312,27 @@ describe("BaseRouteHandler - Constant Time Comparison", { concurrency: 1 }, () =
 
   it("should return true for identical strings", () => {
     const result = handler.testConstantTimeCompare("test123", "test123");
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
   });
 
   it("should return false for different strings", () => {
     const result = handler.testConstantTimeCompare("test123", "test456");
-    assert.strictEqual(result, false);
+    expect(result).toBe(false);
   });
 
   it("should return false for different lengths", () => {
     const result = handler.testConstantTimeCompare("short", "longer-string");
-    assert.strictEqual(result, false);
+    expect(result).toBe(false);
   });
 
   it("should handle empty strings", () => {
     const result = handler.testConstantTimeCompare("", "");
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
   });
 
   it("should handle unicode characters", () => {
     const result = handler.testConstantTimeCompare("hello🚀", "hello🚀");
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
   });
 
   it("should be timing-safe (constant time)", () => {
@@ -331,10 +350,7 @@ describe("BaseRouteHandler - Constant Time Comparison", { concurrency: 1 }, () =
     const time2 = Date.now() - start2;
 
     // Times should be similar (within 10ms) for constant-time comparison
-    assert.ok(
-      Math.abs(time1 - time2) < 10,
-      `timing delta should be < 10ms, got ${Math.abs(time1 - time2)}ms`
-    );
+    expect(Math.abs(time1 - time2)).toBeLessThan(10);
   });
 });
 
@@ -360,9 +376,9 @@ describe("BaseRouteHandler - Enhanced Validation", { concurrency: 1 }, () => {
 
       const result = await handler.testValidateBody(ctx, schema);
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.deepStrictEqual(result.value, { email: "user@example.com", age: 25 });
+        expect(result.value).toEqual({ email: "user@example.com", age: 25 });
       }
     });
 
@@ -379,9 +395,9 @@ describe("BaseRouteHandler - Enhanced Validation", { concurrency: 1 }, () => {
 
       const result = await handler.testValidateBody(ctx, schema);
 
-      assert.strictEqual(result.ok, false);
+      expect(result.ok).toBe(false);
       if (!result.ok) {
-        assert.strictEqual(result.error, "VALIDATION_ERROR");
+        expect(result.error).toBe("VALIDATION_ERROR");
       }
     });
   });
@@ -401,9 +417,9 @@ describe("BaseRouteHandler - Enhanced Validation", { concurrency: 1 }, () => {
 
       const result = await handler.testValidateQuery(ctx, schema);
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.deepStrictEqual(result.value, { page: 1, limit: 20 });
+        expect(result.value).toEqual({ page: 1, limit: 20 });
       }
     });
   });
@@ -422,7 +438,7 @@ describe("BaseRouteHandler - Enhanced Validation", { concurrency: 1 }, () => {
 
       const result = await handler.testValidateParams(ctx, schema);
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
     });
 
     it("should return error for invalid UUID", async () => {
@@ -438,7 +454,7 @@ describe("BaseRouteHandler - Enhanced Validation", { concurrency: 1 }, () => {
 
       const result = await handler.testValidateParams(ctx, schema);
 
-      assert.strictEqual(result.ok, false);
+      expect(result.ok).toBe(false);
     });
   });
 });
@@ -455,8 +471,8 @@ describe("BaseRouteHandler - Result Mapping", { concurrency: 1 }, () => {
 
     const mapped = handler.testMapServiceResult(result);
 
-    assert.strictEqual(mapped.status, 200);
-    assert.deepStrictEqual(mapped.body, {
+    expect(mapped.status).toBe(200);
+    expect(mapped.body).toEqual({
       ok: true,
       data: { id: "123", name: "Test" },
     });
@@ -467,7 +483,7 @@ describe("BaseRouteHandler - Result Mapping", { concurrency: 1 }, () => {
 
     const mapped = handler.testMapServiceResult(result, 201);
 
-    assert.strictEqual(mapped.status, 201);
+    expect(mapped.status).toBe(201);
   });
 
   it("should map VALIDATION_ERROR to 400", () => {
@@ -475,8 +491,8 @@ describe("BaseRouteHandler - Result Mapping", { concurrency: 1 }, () => {
 
     const mapped = handler.testMapServiceResult(result);
 
-    assert.strictEqual(mapped.status, 400);
-    assert.deepStrictEqual(mapped.body, {
+    expect(mapped.status).toBe(400);
+    expect(mapped.body).toEqual({
       ok: false,
       error: "VALIDATION_ERROR",
     });
@@ -487,7 +503,7 @@ describe("BaseRouteHandler - Result Mapping", { concurrency: 1 }, () => {
 
     const mapped = handler.testMapServiceResult(result);
 
-    assert.strictEqual(mapped.status, 404);
+    expect(mapped.status).toBe(404);
   });
 
   it("should map UNAUTHORIZED to 401", () => {
@@ -495,7 +511,7 @@ describe("BaseRouteHandler - Result Mapping", { concurrency: 1 }, () => {
 
     const mapped = handler.testMapServiceResult(result);
 
-    assert.strictEqual(mapped.status, 401);
+    expect(mapped.status).toBe(401);
   });
 
   it("should map FORBIDDEN to 403", () => {
@@ -503,7 +519,7 @@ describe("BaseRouteHandler - Result Mapping", { concurrency: 1 }, () => {
 
     const mapped = handler.testMapServiceResult(result);
 
-    assert.strictEqual(mapped.status, 403);
+    expect(mapped.status).toBe(403);
   });
 
   it("should map CONFLICT to 409", () => {
@@ -511,7 +527,7 @@ describe("BaseRouteHandler - Result Mapping", { concurrency: 1 }, () => {
 
     const mapped = handler.testMapServiceResult(result);
 
-    assert.strictEqual(mapped.status, 409);
+    expect(mapped.status).toBe(409);
   });
 
   it("should map RATE_LIMITED to 429", () => {
@@ -519,7 +535,7 @@ describe("BaseRouteHandler - Result Mapping", { concurrency: 1 }, () => {
 
     const mapped = handler.testMapServiceResult(result);
 
-    assert.strictEqual(mapped.status, 429);
+    expect(mapped.status).toBe(429);
   });
 
   it("should map SERVICE_UNAVAILABLE to 503", () => {
@@ -527,7 +543,7 @@ describe("BaseRouteHandler - Result Mapping", { concurrency: 1 }, () => {
 
     const mapped = handler.testMapServiceResult(result);
 
-    assert.strictEqual(mapped.status, 503);
+    expect(mapped.status).toBe(503);
   });
 
   it("should map unknown errors to 500", () => {
@@ -535,6 +551,560 @@ describe("BaseRouteHandler - Result Mapping", { concurrency: 1 }, () => {
 
     const mapped = handler.testMapServiceResult(result);
 
-    assert.strictEqual(mapped.status, 500);
+    expect(mapped.status).toBe(500);
+  });
+});
+
+// ============================================================================
+// Pagination
+// ============================================================================
+
+describe("BaseRouteHandler - parsePagination", { concurrency: 1 }, () => {
+  let handler: TestRouteHandler;
+
+  beforeEach(() => {
+    handler = new TestRouteHandler();
+  });
+
+  it("returns default page=1, limit=20 when no params", () => {
+    const result = handler.testParsePagination({});
+    expect(result.page).toBe(1);
+    expect(result.limit).toBe(20);
+    expect(result.offset).toBe(0);
+  });
+
+  it("parses page and limit from string query params", () => {
+    const result = handler.testParsePagination({ page: "3", limit: "50" });
+    expect(result.page).toBe(3);
+    expect(result.limit).toBe(50);
+    expect(result.offset).toBe(100); // (3-1) * 50
+  });
+
+  it("clamps page to minimum 1", () => {
+    const result = handler.testParsePagination({ page: "0" });
+    expect(result.page).toBe(1);
+    expect(result.offset).toBe(0);
+  });
+
+  it("clamps page to minimum 1 for negative values", () => {
+    const result = handler.testParsePagination({ page: "-5" });
+    expect(result.page).toBe(1);
+  });
+
+  it("clamps limit to maximum 100", () => {
+    const result = handler.testParsePagination({ limit: "200" });
+    expect(result.limit).toBe(100);
+  });
+
+  it("clamps limit to minimum 1", () => {
+    const result = handler.testParsePagination({ limit: "0" });
+    expect(result.limit).toBe(1);
+  });
+
+  it("clamps limit to minimum 1 for negative values", () => {
+    const result = handler.testParsePagination({ limit: "-10" });
+    expect(result.limit).toBe(1);
+  });
+
+  it("calculates correct offset for page 2 with limit 20", () => {
+    const result = handler.testParsePagination({ page: "2", limit: "20" });
+    expect(result.offset).toBe(20);
+  });
+
+  it("calculates correct offset for page 5 with limit 10", () => {
+    const result = handler.testParsePagination({ page: "5", limit: "10" });
+    expect(result.offset).toBe(40);
+  });
+
+  it("handles NaN page — parseInt returns NaN, Math.max(1, NaN) = NaN", () => {
+    const result = handler.testParsePagination({ page: "abc" });
+    // Math.max(1, NaN) = NaN in JavaScript — this is actual behavior
+    expect(Number.isNaN(result.page)).toBe(true);
+  });
+
+  it("handles NaN limit — parseInt returns NaN", () => {
+    const result = handler.testParsePagination({ limit: "xyz" });
+    // Math.min(100, Math.max(1, NaN)) = NaN in JavaScript
+    expect(Number.isNaN(result.limit)).toBe(true);
+  });
+
+  it("accepts exactly 100 as limit", () => {
+    const result = handler.testParsePagination({ limit: "100" });
+    expect(result.limit).toBe(100);
+  });
+
+  it("accepts exactly 1 as limit", () => {
+    const result = handler.testParsePagination({ limit: "1" });
+    expect(result.limit).toBe(1);
+  });
+});
+
+// ============================================================================
+// formatPaginatedResponse
+// ============================================================================
+
+describe("BaseRouteHandler - formatPaginatedResponse", { concurrency: 1 }, () => {
+  let handler: TestRouteHandler;
+
+  beforeEach(() => {
+    handler = new TestRouteHandler();
+  });
+
+  it("returns ok=true with data and pagination metadata", () => {
+    const result = handler.testFormatPaginatedResponse(["a", "b", "c"], 10, 1, 3);
+    expect(result.ok).toBe(true);
+    expect(result.data).toEqual(["a", "b", "c"]);
+    expect(result.pagination.page).toBe(1);
+    expect(result.pagination.limit).toBe(3);
+    expect(result.pagination.total).toBe(10);
+  });
+
+  it("calculates totalPages correctly", () => {
+    const result = handler.testFormatPaginatedResponse([], 25, 1, 10);
+    expect(result.pagination.totalPages).toBe(3); // ceil(25/10)
+  });
+
+  it("returns totalPages=1 when total <= limit", () => {
+    const result = handler.testFormatPaginatedResponse([], 5, 1, 10);
+    expect(result.pagination.totalPages).toBe(1);
+  });
+
+  it("returns hasMore=true when current page < totalPages", () => {
+    const result = handler.testFormatPaginatedResponse([], 30, 1, 10);
+    expect(result.pagination.hasMore).toBe(true);
+  });
+
+  it("returns hasMore=false when current page >= totalPages", () => {
+    const result = handler.testFormatPaginatedResponse([], 30, 3, 10);
+    expect(result.pagination.hasMore).toBe(false);
+  });
+
+  it("returns hasMore=false on last page", () => {
+    const result = handler.testFormatPaginatedResponse([], 20, 2, 10);
+    expect(result.pagination.hasMore).toBe(false);
+  });
+
+  it("handles empty data with total=0", () => {
+    const result = handler.testFormatPaginatedResponse([], 0, 1, 10);
+    expect(result.data).toEqual([]);
+    expect(result.pagination.totalPages).toBe(0);
+    expect(result.pagination.hasMore).toBe(false);
+  });
+
+  it("handles single item total", () => {
+    const result = handler.testFormatPaginatedResponse(["single"], 1, 1, 10);
+    expect(result.pagination.totalPages).toBe(1);
+    expect(result.pagination.hasMore).toBe(false);
+  });
+});
+
+// ============================================================================
+// getUserContext
+// ============================================================================
+
+describe("BaseRouteHandler - getUserContext", { concurrency: 1 }, () => {
+  let handler: TestRouteHandler;
+
+  beforeEach(() => {
+    handler = new TestRouteHandler();
+  });
+
+  it("extracts userId and tenantId from request.user", () => {
+    const request = {
+      user: { id: "user-123", tenantId: "tenant-456" },
+    } as unknown as FastifyRequest;
+
+    const result = handler.testGetUserContext(request);
+    expect(result.userId).toBe("user-123");
+    expect(result.tenantId).toBe("tenant-456");
+  });
+
+  it("returns undefined fields when request has no user", () => {
+    const request = {} as unknown as FastifyRequest;
+
+    const result = handler.testGetUserContext(request);
+    expect(result.userId).toBeUndefined();
+    expect(result.tenantId).toBeUndefined();
+  });
+
+  it("returns undefined tenantId when user has no tenantId", () => {
+    const request = {
+      user: { id: "user-789" },
+    } as unknown as FastifyRequest;
+
+    const result = handler.testGetUserContext(request);
+    expect(result.userId).toBe("user-789");
+    expect(result.tenantId).toBeUndefined();
+  });
+});
+
+// ============================================================================
+// Logging
+// ============================================================================
+
+describe("BaseRouteHandler - logging", { concurrency: 1 }, () => {
+  let handler: TestRouteHandler;
+  let ctx: RouteContext;
+
+  beforeEach(() => {
+    handler = new TestRouteHandler();
+    ctx = createMockContext();
+  });
+
+  it("logInfo does not throw", () => {
+    expect(() => handler.testLogInfo(ctx, "test message")).not.toThrow();
+  });
+
+  it("logInfo accepts optional meta object", () => {
+    expect(() => handler.testLogInfo(ctx, "with meta", { key: "value" })).not.toThrow();
+  });
+
+  it("logError does not throw", () => {
+    expect(() => handler.testLogError(ctx, "error message")).not.toThrow();
+  });
+
+  it("logError accepts optional meta object", () => {
+    expect(() => handler.testLogError(ctx, "with error meta", { code: 500 })).not.toThrow();
+  });
+});
+
+// ============================================================================
+// Zod Schema Validation Tests
+// ============================================================================
+
+describe("Zod Schemas — validation logic", { concurrency: 1 }, () => {
+  describe("IdSchema", () => {
+    it("accepts valid UUID", () => {
+      expect(IdSchema.safeParse("550e8400-e29b-41d4-a716-446655440000").success).toBe(true);
+    });
+
+    it("rejects non-UUID string", () => {
+      const result = IdSchema.safeParse("not-a-uuid");
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects empty string", () => {
+      expect(IdSchema.safeParse("").success).toBe(false);
+    });
+  });
+
+  describe("PaginationQuerySchema", () => {
+    it("accepts valid page and limit", () => {
+      const result = PaginationQuerySchema.safeParse({ page: "3", limit: "50" });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.page).toBe(3);
+        expect(result.data.limit).toBe(50);
+      }
+    });
+
+    it("defaults page to 1 when not provided", () => {
+      const result = PaginationQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.page).toBe(1);
+      }
+    });
+
+    it("defaults limit to 20 when not provided", () => {
+      const result = PaginationQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.limit).toBe(20);
+      }
+    });
+
+    it("rejects limit > 100", () => {
+      const result = PaginationQuerySchema.safeParse({ limit: "101" });
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts limit of exactly 100", () => {
+      const result = PaginationQuerySchema.safeParse({ limit: "100" });
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects non-positive page", () => {
+      const result = PaginationQuerySchema.safeParse({ page: "0" });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects non-positive limit", () => {
+      const result = PaginationQuerySchema.safeParse({ limit: "0" });
+      expect(result.success).toBe(false);
+    });
+
+    it("coerces string values to numbers", () => {
+      const result = PaginationQuerySchema.safeParse({ page: "5", limit: "25" });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(typeof result.data.page).toBe("number");
+        expect(typeof result.data.limit).toBe("number");
+      }
+    });
+  });
+
+  describe("IsoDateSchema", () => {
+    it("accepts valid ISO datetime", () => {
+      expect(IsoDateSchema.safeParse("2025-01-15T10:30:00Z").success).toBe(true);
+    });
+
+    it("rejects non-ISO date string", () => {
+      expect(IsoDateSchema.safeParse("January 15, 2025").success).toBe(false);
+    });
+
+    it("rejects empty string", () => {
+      expect(IsoDateSchema.safeParse("").success).toBe(false);
+    });
+  });
+
+  describe("OptionalIsoDateSchema", () => {
+    it("accepts undefined", () => {
+      expect(OptionalIsoDateSchema.safeParse(undefined).success).toBe(true);
+    });
+
+    it("accepts valid ISO datetime", () => {
+      expect(OptionalIsoDateSchema.safeParse("2025-01-15T10:30:00Z").success).toBe(true);
+    });
+  });
+
+  describe("EmailSchema", () => {
+    it("accepts valid email", () => {
+      expect(EmailSchema.safeParse("user@example.com").success).toBe(true);
+    });
+
+    it("rejects invalid email", () => {
+      expect(EmailSchema.safeParse("not-an-email").success).toBe(false);
+    });
+  });
+
+  describe("NonEmptyStringSchema", () => {
+    it("accepts non-empty string", () => {
+      expect(NonEmptyStringSchema.safeParse("hello").success).toBe(true);
+    });
+
+    it("rejects empty string", () => {
+      expect(NonEmptyStringSchema.safeParse("").success).toBe(false);
+    });
+  });
+
+  describe("UrlSchema", () => {
+    it("accepts valid URL", () => {
+      expect(UrlSchema.safeParse("https://example.com").success).toBe(true);
+    });
+
+    it("rejects non-URL string", () => {
+      expect(UrlSchema.safeParse("not-a-url").success).toBe(false);
+    });
+  });
+
+  describe("PositiveIntSchema", () => {
+    it("accepts positive integer", () => {
+      expect(PositiveIntSchema.safeParse(42).success).toBe(true);
+    });
+
+    it("rejects zero", () => {
+      expect(PositiveIntSchema.safeParse(0).success).toBe(false);
+    });
+
+    it("rejects negative integer", () => {
+      expect(PositiveIntSchema.safeParse(-1).success).toBe(false);
+    });
+
+    it("rejects float", () => {
+      expect(PositiveIntSchema.safeParse(1.5).success).toBe(false);
+    });
+  });
+
+  describe("ProviderSchema", () => {
+    it("accepts all valid provider values", () => {
+      for (const val of ["X", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "TIKTOK"]) {
+        expect(ProviderSchema.safeParse(val).success).toBe(true);
+      }
+    });
+
+    it("rejects invalid provider value", () => {
+      expect(ProviderSchema.safeParse("TWITTER").success).toBe(false);
+    });
+  });
+
+  describe("PostStatusSchema", () => {
+    it("accepts all valid status values", () => {
+      for (const val of ["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"]) {
+        expect(PostStatusSchema.safeParse(val).success).toBe(true);
+      }
+    });
+
+    it("rejects invalid status value", () => {
+      expect(PostStatusSchema.safeParse("PENDING").success).toBe(false);
+    });
+  });
+
+  describe("PasswordSchema", () => {
+    it("accepts valid password", () => {
+      expect(PasswordSchema.safeParse("Abc12345").success).toBe(true);
+    });
+
+    it("rejects password shorter than 8 chars", () => {
+      expect(PasswordSchema.safeParse("Ab1").success).toBe(false);
+    });
+
+    it("rejects password without uppercase", () => {
+      expect(PasswordSchema.safeParse("abcdefg1").success).toBe(false);
+    });
+
+    it("rejects password without number", () => {
+      expect(PasswordSchema.safeParse("Abcdefgh").success).toBe(false);
+    });
+  });
+
+  describe("UserRoleSchema", () => {
+    it("accepts all valid role values", () => {
+      for (const val of ["ADMIN", "USER", "MODERATOR"]) {
+        expect(UserRoleSchema.safeParse(val).success).toBe(true);
+      }
+    });
+
+    it("rejects invalid role value", () => {
+      expect(UserRoleSchema.safeParse("SUPERADMIN").success).toBe(false);
+    });
+  });
+});
+
+// ============================================================================
+// OAuth Error Handling — detailed assertions
+// ============================================================================
+
+describe("BaseRouteHandler - OAuth error mapping details", { concurrency: 1 }, () => {
+  let handler: TestRouteHandler;
+  let ctx: RouteContext;
+
+  beforeEach(() => {
+    handler = new TestRouteHandler();
+    ctx = createMockContext();
+  });
+
+  const oauthContext = { provider: "linkedin", operation: "token_refresh" };
+
+  it("invalid_grant → 401, non-retryable", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("invalid_grant"), oauthContext);
+    expect(result.statusCode).toBe(401);
+    expect(result.retryable).toBe(false);
+    expect(result.error).toContain("expired");
+  });
+
+  it("invalid_token → 401, non-retryable", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("invalid_token"), oauthContext);
+    expect(result.statusCode).toBe(401);
+    expect(result.retryable).toBe(false);
+  });
+
+  it("invalid_code_verifier → 400, non-retryable", () => {
+    const result = handler.testHandleOAuthError(
+      ctx,
+      new Error("invalid_code_verifier"),
+      oauthContext
+    );
+    expect(result.statusCode).toBe(400);
+    expect(result.error).toContain("PKCE");
+  });
+
+  it("insufficient_scope → 403, non-retryable", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("insufficient_scope"), oauthContext);
+    expect(result.statusCode).toBe(403);
+    expect(result.error).toContain("scope");
+  });
+
+  it("invalid_request → 400, non-retryable", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("invalid_request"), oauthContext);
+    expect(result.statusCode).toBe(400);
+  });
+
+  it("server_error → 503, retryable", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("server_error"), oauthContext);
+    expect(result.statusCode).toBe(503);
+    expect(result.retryable).toBe(true);
+  });
+
+  it("temporarily_unavailable → 503, retryable", () => {
+    const result = handler.testHandleOAuthError(
+      ctx,
+      new Error("temporarily_unavailable"),
+      oauthContext
+    );
+    expect(result.statusCode).toBe(503);
+    expect(result.retryable).toBe(true);
+  });
+
+  it("rate_limit_exceeded → 429, retryable", () => {
+    const result = handler.testHandleOAuthError(
+      ctx,
+      new Error("rate_limit_exceeded"),
+      oauthContext
+    );
+    expect(result.statusCode).toBe(429);
+    expect(result.retryable).toBe(true);
+    expect(result.error).toContain("Rate limit");
+  });
+
+  it("network_timeout → 504, retryable", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("network_timeout"), oauthContext);
+    expect(result.statusCode).toBe(504);
+    expect(result.retryable).toBe(true);
+  });
+
+  it("invalid_state → 400, non-retryable", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("invalid_state"), oauthContext);
+    expect(result.statusCode).toBe(400);
+    expect(result.error).toContain("CSRF");
+  });
+
+  it("includes provider in metadata", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("server_error"), {
+      provider: "facebook",
+      operation: "publish",
+    });
+    expect(result.metadata.provider).toBe("facebook");
+    expect(result.metadata.operation).toBe("publish");
+  });
+
+  it("includes accountId in metadata when provided", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("server_error"), {
+      provider: "x",
+      operation: "auth",
+      accountId: "acc-123",
+    });
+    expect(result.metadata.accountId).toBe("acc-123");
+  });
+
+  it("omits accountId from metadata when not provided", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("server_error"), {
+      provider: "x",
+      operation: "auth",
+    });
+    expect(Object.prototype.hasOwnProperty.call(result.metadata, "accountId")).toBe(false);
+  });
+
+  it("includes error details from original error message", () => {
+    const result = handler.testHandleOAuthError(
+      ctx,
+      new Error("invalid_grant: token expired at 2025-01-01"),
+      oauthContext
+    );
+    expect(result.details).toContain("invalid_grant");
+  });
+
+  it("handles non-Error objects", () => {
+    const result = handler.testHandleOAuthError(ctx, "string error", oauthContext);
+    expect(result.statusCode).toBe(500);
+  });
+
+  it("retryable override from context takes precedence", () => {
+    const result = handler.testHandleOAuthError(ctx, new Error("server_error"), {
+      ...oauthContext,
+      retryable: false,
+    });
+    // server_error is normally retryable, but context override says false
+    expect(result.retryable).toBe(false);
   });
 });

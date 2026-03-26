@@ -4,7 +4,7 @@
  * Tier 0: no DB, no Redis — uses real opossum instances with simple async functions.
  */
 
-import { describe, it, after, beforeEach } from "node:test";
+import { describe, it, afterAll, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 
 import {
@@ -16,14 +16,18 @@ import {
   DEFAULT_DATABASE_RETRY_OPTIONS,
 } from "../src/resilience.js";
 
-// Track all circuit breakers so we can shut them down in after()
+// Track all circuit breakers so we can shut them down in afterAll()
 const breakers: Array<{ shutdown: () => void }> = [];
 
-after(() => {
+afterAll(() => {
   for (const b of breakers) {
     b.shutdown();
   }
   breakers.length = 0;
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
 // ---------------------------------------------------------------------------

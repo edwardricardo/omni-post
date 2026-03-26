@@ -18,17 +18,21 @@
  * (but the CB is global, so the first-call constraint applies).
  */
 
-import { describe, it, before, after } from "node:test";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import client from "prom-client";
 import { createCloudinaryStorageAdapter, type CloudinaryConfig } from "../src/index.js";
 
-before(() => {
+beforeAll(() => {
   client.register.clear();
 });
 
-after(() => {
+afterAll(() => {
   client.register.clear();
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
 const TEST_CONFIG: CloudinaryConfig = {
@@ -47,51 +51,51 @@ const MINIMAL_CONFIG: CloudinaryConfig = {
 /* ──────────────────────────────────────────────────────────────────────
  * 1. Factory -- createCloudinaryStorageAdapter
  * ────────────────────────────────────────────────────────────────────── */
-describe("createCloudinaryStorageAdapter -- factory", { concurrency: 1 }, () => {
+describe("createCloudinaryStorageAdapter -- factory", { concurrent: false }, () => {
   it("creates an adapter instance with full config", () => {
     const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    assert.ok(adapter, "adapter should be truthy");
-    assert.strictEqual(typeof adapter.generateUploadSignature, "function");
-    assert.strictEqual(typeof adapter.getMediaMetadata, "function");
+    expect(adapter).toBeTruthy();
+    expect(typeof adapter.generateUploadSignature).toBe("function");
+    expect(typeof adapter.getMediaMetadata).toBe("function");
   });
 
   it("creates an adapter instance with minimal config (no folder)", () => {
     const adapter = createCloudinaryStorageAdapter(MINIMAL_CONFIG);
-    assert.ok(adapter, "adapter should be truthy");
-    assert.strictEqual(typeof adapter.generateUploadSignature, "function");
+    expect(adapter).toBeTruthy();
+    expect(typeof adapter.generateUploadSignature).toBe("function");
   });
 
   it("exposes getSignedUploadUrl compatibility method", () => {
     const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    assert.strictEqual(typeof adapter.getSignedUploadUrl, "function");
+    expect(typeof adapter.getSignedUploadUrl).toBe("function");
   });
 
   it("exposes getMetadata compatibility method", () => {
     const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    assert.strictEqual(typeof adapter.getMetadata, "function");
+    expect(typeof adapter.getMetadata).toBe("function");
   });
 
   it("exposes getCircuitBreakerStatus method", () => {
     const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    assert.strictEqual(typeof adapter.getCircuitBreakerStatus, "function");
+    expect(typeof adapter.getCircuitBreakerStatus).toBe("function");
   });
 
   it("exposes getMetricsRegistry method", () => {
     const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    assert.strictEqual(typeof adapter.getMetricsRegistry, "function");
+    expect(typeof adapter.getMetricsRegistry).toBe("function");
   });
 
   it("getCircuitBreakerStatus returns an object", () => {
     const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
     const status = adapter.getCircuitBreakerStatus();
-    assert.strictEqual(typeof status, "object");
-    assert.ok(status !== null, "status should not be null");
+    expect(typeof status).toBe("object");
+    expect(status !== null).toBeTruthy();
   });
 
   it("getMetricsRegistry returns a prom-client Registry", () => {
     const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
     const reg = adapter.getMetricsRegistry();
-    assert.ok(reg instanceof client.Registry, "should be a prom-client Registry");
+    expect(reg instanceof client.Registry).toBeTruthy();
   });
 });
 
@@ -101,7 +105,7 @@ describe("createCloudinaryStorageAdapter -- factory", { concurrency: 1 }, () => 
  * These tests exercise the validation gate BEFORE the circuit breaker
  * is invoked, so they are not affected by breaker caching.
  * ────────────────────────────────────────────────────────────────────── */
-describe("createCloudinaryStorageAdapter -- content type validation", { concurrency: 1 }, () => {
+describe("createCloudinaryStorageAdapter -- content type validation", { concurrent: false }, () => {
   const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
 
   const ALLOWED_TYPES = [
@@ -127,11 +131,7 @@ describe("createCloudinaryStorageAdapter -- content type validation", { concurre
         assert.ok(result.value.fields, "should have fields");
         assert.ok(result.value.expiresAt instanceof Date, "should have expiresAt Date");
       } else {
-        assert.strictEqual(
-          result.error,
-          "SERVICE_ERROR",
-          `${contentType} should not be rejected as INVALID_TYPE`
-        );
+        expect(result.error).toBe("SERVICE_ERROR");
       }
     });
   }
@@ -150,9 +150,9 @@ describe("createCloudinaryStorageAdapter -- content type validation", { concurre
     it(`rejects disallowed content type: ${contentType}`, async () => {
       const result = await adapter.generateUploadSignature("test-file.dat", contentType);
 
-      assert.strictEqual(result.ok, false, "should be an error");
+      expect(result.ok).toBe(false);
       if (!result.ok) {
-        assert.strictEqual(result.error, "INVALID_TYPE");
+        expect(result.error).toBe("INVALID_TYPE");
       }
     });
   }
@@ -161,11 +161,17 @@ describe("createCloudinaryStorageAdapter -- content type validation", { concurre
 /* ──────────────────────────────────────────────────────────────────────
  * 3. File size validation
  * ────────────────────────────────────────────────────────────────────── */
-describe("createCloudinaryStorageAdapter -- file size validation", { concurrency: 1 }, () => {
-  // Cast to any to access the 3-arg overload of generateUploadSignature
+describe("createCloudinaryStorageAdapter -- file size validation", { concurrent: false }, () => {
+  // Cast to access the 3-arg overload of generateUploadSignature
   // that accepts sizeBytes. The StoragePort interface only exposes 2 args,
   // but the Cloudinary implementation accepts an optional third parameter.
-  const adapter = createCloudinaryStorageAdapter(TEST_CONFIG) as any;
+  const adapter = createCloudinaryStorageAdapter(TEST_CONFIG) as unknown as {
+    generateUploadSignature: (
+      filename: string,
+      contentType: string,
+      sizeBytes?: number
+    ) => Promise<{ ok: boolean; error?: string }>;
+  };
 
   it("rejects files exceeding 100MB", async () => {
     const oversizeBytes = 101 * 1024 * 1024; // 101 MB
@@ -175,9 +181,9 @@ describe("createCloudinaryStorageAdapter -- file size validation", { concurrency
       oversizeBytes
     );
 
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "INVALID_TYPE");
+      expect(result.error).toBe("INVALID_TYPE");
     }
   });
 
@@ -191,11 +197,7 @@ describe("createCloudinaryStorageAdapter -- file size validation", { concurrency
 
     // Should NOT be INVALID_TYPE
     if (!result.ok) {
-      assert.strictEqual(
-        result.error,
-        "SERVICE_ERROR",
-        "100MB file should not be rejected as INVALID_TYPE"
-      );
+      expect(result.error).toBe("SERVICE_ERROR");
     }
   });
 
@@ -209,11 +211,7 @@ describe("createCloudinaryStorageAdapter -- file size validation", { concurrency
 
     // Should succeed or be SERVICE_ERROR, never INVALID_TYPE
     if (!result.ok) {
-      assert.strictEqual(
-        result.error,
-        "SERVICE_ERROR",
-        "small file should not be rejected as INVALID_TYPE"
-      );
+      expect(result.error).toBe("SERVICE_ERROR");
     }
   });
 });
@@ -229,7 +227,7 @@ describe("createCloudinaryStorageAdapter -- file size validation", { concurrency
  * tests in this describe block observe the result of the FIRST
  * closure registered via the first call.
  * ────────────────────────────────────────────────────────────────────── */
-describe("createCloudinaryStorageAdapter -- upload signature", { concurrency: 1 }, () => {
+describe("createCloudinaryStorageAdapter -- upload signature", { concurrent: false }, () => {
   const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
 
   it("generates a signed upload URL for image/jpeg", async () => {
@@ -317,16 +315,16 @@ describe("createCloudinaryStorageAdapter -- upload signature", { concurrency: 1 
 /* ──────────────────────────────────────────────────────────────────────
  * 5. getMediaMetadata -- URL parsing & validation
  * ────────────────────────────────────────────────────────────────────── */
-describe("createCloudinaryStorageAdapter -- getMediaMetadata", { concurrency: 1 }, () => {
+describe("createCloudinaryStorageAdapter -- getMediaMetadata", { concurrent: false }, () => {
   const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
 
   it("returns NOT_FOUND for URL without version path", async () => {
     // URL that doesn't match the /v{digits}/ pattern
     const result = await adapter.getMediaMetadata("https://example.com/no-version.jpg");
 
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 
@@ -335,9 +333,9 @@ describe("createCloudinaryStorageAdapter -- getMediaMetadata", { concurrency: 1 
       "https://res.cloudinary.com/test-cloud/image/upload/sample.jpg"
     );
 
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 
@@ -347,7 +345,7 @@ describe("createCloudinaryStorageAdapter -- getMediaMetadata", { concurrency: 1 
       "https://res.cloudinary.com/test-cloud/image/upload/v1234567890/sample.jpg"
     );
 
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
     // Could be NOT_FOUND or SERVICE_ERROR depending on how cloudinary SDK handles it
     if (!result.ok) {
       assert.ok(
@@ -361,7 +359,7 @@ describe("createCloudinaryStorageAdapter -- getMediaMetadata", { concurrency: 1 
 /* ──────────────────────────────────────────────────────────────────────
  * 6. API compatibility methods
  * ────────────────────────────────────────────────────────────────────── */
-describe("createCloudinaryStorageAdapter -- API compatibility", { concurrency: 1 }, () => {
+describe("createCloudinaryStorageAdapter -- API compatibility", { concurrent: false }, () => {
   const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
 
   it("getSignedUploadUrl delegates to generateUploadSignature", async () => {
@@ -371,9 +369,9 @@ describe("createCloudinaryStorageAdapter -- API compatibility", { concurrency: 1
       contentType: "application/pdf",
     });
 
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "INVALID_TYPE");
+      expect(result.error).toBe("INVALID_TYPE");
     }
   });
 
@@ -385,9 +383,9 @@ describe("createCloudinaryStorageAdapter -- API compatibility", { concurrency: 1
       sizeBytes: oversizeBytes,
     });
 
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "INVALID_TYPE");
+      expect(result.error).toBe("INVALID_TYPE");
     }
   });
 
@@ -396,9 +394,9 @@ describe("createCloudinaryStorageAdapter -- API compatibility", { concurrency: 1
       url: "https://example.com/no-version.jpg",
     });
 
-    assert.strictEqual(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.strictEqual(result.error, "NOT_FOUND");
+      expect(result.error).toBe("NOT_FOUND");
     }
   });
 });
@@ -406,7 +404,7 @@ describe("createCloudinaryStorageAdapter -- API compatibility", { concurrency: 1
 /* ──────────────────────────────────────────────────────────────────────
  * 7. CloudinaryConfig interface constraints
  * ────────────────────────────────────────────────────────────────────── */
-describe("createCloudinaryStorageAdapter -- config options", { concurrency: 1 }, () => {
+describe("createCloudinaryStorageAdapter -- config options", { concurrent: false }, () => {
   it("accepts config with folder option", () => {
     const adapter = createCloudinaryStorageAdapter({
       cloudName: "test",
@@ -414,7 +412,7 @@ describe("createCloudinaryStorageAdapter -- config options", { concurrency: 1 },
       apiSecret: "secret",
       folder: "my-uploads",
     });
-    assert.ok(adapter, "should create adapter with folder option");
+    expect(adapter).toBeTruthy();
   });
 
   it("accepts config with resourceType option", () => {
@@ -427,7 +425,7 @@ describe("createCloudinaryStorageAdapter -- config options", { concurrency: 1 },
         apiSecret: "secret",
         resourceType,
       });
-      assert.ok(adapter, `should create adapter with resourceType: ${resourceType}`);
+      expect(adapter).toBeTruthy();
     }
   });
 
@@ -435,8 +433,8 @@ describe("createCloudinaryStorageAdapter -- config options", { concurrency: 1 },
     const adapter1 = createCloudinaryStorageAdapter(TEST_CONFIG);
     const adapter2 = createCloudinaryStorageAdapter(MINIMAL_CONFIG);
 
-    assert.notStrictEqual(adapter1, adapter2, "should be different objects");
-    assert.strictEqual(typeof adapter1.generateUploadSignature, "function");
-    assert.strictEqual(typeof adapter2.generateUploadSignature, "function");
+    expect(adapter1).not.toBe(adapter2);
+    expect(typeof adapter1.generateUploadSignature).toBe("function");
+    expect(typeof adapter2.generateUploadSignature).toBe("function");
   });
 });

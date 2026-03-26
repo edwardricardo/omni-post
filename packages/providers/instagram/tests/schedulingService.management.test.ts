@@ -6,95 +6,95 @@
  *
  * Schedule creation and validation tests live in schedulingService.scheduling.test.ts.
  *
- * Framework: node:test + node:assert/strict
- * Mocking:   mock.module() for module-level adapter factories.
+ * Framework: vitest + node:assert/strict
+ * Mocking:   vi.mock() for module-level adapter factories.
  */
 
-import { describe, it, before, beforeEach, after, mock } from "node:test";
+import { describe, it, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
   createMockQueueAdapter,
   createMockMediaProcessor,
-  createPassthroughCB,
   defaultCredentials,
   baseJob,
   type MockQueueAdapter,
   type MockMediaProcessor,
 } from "./schedulingService.test-helpers.js";
 
-let InstagramSchedulingService: any;
+// ── Hoist vi.mock() calls before module evaluation ──
 
-describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
+vi.mock("@adapters/queue-bullmq", () => ({
+  createBullMQQueueAdapter: () => createMockQueueAdapter(),
+}));
+
+vi.mock("@adapters/external-apis", () => ({
+  createExternalApiCircuitBreaker: () => ({
+    call: async (_svc: string, _op: string, fn: (...a: any[]) => Promise<any>) => fn(),
+    getAllStatuses: () => ({}),
+  }),
+  resetExternalApiCircuitBreaker: async () => undefined,
+}));
+
+vi.mock("@adapters/storage-s3", () => ({
+  createS3StorageAdapter: () => ({
+    generateUploadSignature: async () => ({
+      ok: true as const,
+      value: { url: "https://s3.test/", fields: { key: "k" } },
+    }),
+  }),
+}));
+
+vi.mock("prom-client", () => ({
+  default: {
+    Registry: class {
+      registerMetric() {}
+      removeSingleMetric() {}
+    },
+    Counter: class {
+      inc() {}
+      labels() {
+        return this;
+      }
+    },
+    Histogram: class {
+      observe() {}
+      labels() {
+        return this;
+      }
+      startTimer() {
+        return () => 0;
+      }
+    },
+    Gauge: class {
+      set() {}
+      inc() {}
+      dec() {}
+      labels() {
+        return this;
+      }
+    },
+  },
+}));
+
+vi.mock("fluent-ffmpeg", () => ({
+  default: Object.assign(
+    vi.fn(() => ({})),
+    {
+      ffprobe: vi.fn(),
+    }
+  ),
+}));
+
+// Static import after mocks (Vitest hoists vi.mock before imports)
+import { InstagramSchedulingService } from "../src/schedulingService.js";
+
+describe("InstagramSchedulingService -- management", { concurrent: false }, () => {
   let service: any;
   let mockQueue: MockQueueAdapter;
   let mockMedia: MockMediaProcessor;
 
-  before(async () => {
-    const cbPassthrough = createPassthroughCB();
-
-    mock.module("@adapters/queue-bullmq", {
-      namedExports: {
-        createBullMQQueueAdapter: () => createMockQueueAdapter(),
-      },
-    });
-    mock.module("@adapters/external-apis", {
-      namedExports: {
-        createExternalApiCircuitBreaker: () => cbPassthrough,
-        resetExternalApiCircuitBreaker: async () => undefined,
-      },
-    });
-    mock.module("@adapters/storage-s3", {
-      namedExports: {
-        createS3StorageAdapter: () => ({
-          generateUploadSignature: async () => ({
-            ok: true as const,
-            value: { url: "https://s3.test/", fields: { key: "k" } },
-          }),
-        }),
-      },
-    });
-    mock.module("prom-client", {
-      defaultExport: {
-        Registry: class {
-          registerMetric() {}
-          removeSingleMetric() {}
-        },
-        Counter: class {
-          inc() {}
-          labels() {
-            return this;
-          }
-        },
-        Histogram: class {
-          observe() {}
-          labels() {
-            return this;
-          }
-          startTimer() {
-            return () => 0;
-          }
-        },
-        Gauge: class {
-          set() {}
-          inc() {}
-          dec() {}
-          labels() {
-            return this;
-          }
-        },
-      },
-    });
-    mock.module("fluent-ffmpeg", {
-      defaultExport: Object.assign(
-        mock.fn(() => ({})),
-        {
-          ffprobe: mock.fn(),
-        }
-      ),
-    });
-
-    const mod = await import("../src/schedulingService.js");
-    InstagramSchedulingService = mod.InstagramSchedulingService;
+  beforeAll(() => {
+    // No additional setup needed — mocks are registered at module level
   });
 
   beforeEach(() => {
@@ -106,7 +106,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
     (service as any).mediaProcessor = mockMedia;
   });
 
-  after(async () => {
+  afterAll(async () => {
     try {
       if (service) await service.close();
     } catch {
@@ -118,7 +118,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
   // cancelScheduledPost
   // =========================================================================
 
-  describe("cancelScheduledPost", { concurrency: 1 }, () => {
+  describe("cancelScheduledPost", { concurrent: false }, () => {
     it("should cancel a scheduled post successfully", async () => {
       const result = await service.cancelScheduledPost("queue-job-123");
 
@@ -130,11 +130,11 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
       assert.strictEqual(mockQueue.remove.mock.calls.length, 1);
       const removeCall0 = (mockQueue.remove.mock.calls as any[])[0];
       assert.ok(removeCall0);
-      assert.strictEqual(removeCall0.arguments[0], "queue-job-123");
+      assert.strictEqual(removeCall0[0], "queue-job-123");
     });
 
     it("should handle cancel errors gracefully", async () => {
-      (mockQueue.remove.mock as any).mockImplementation(async () => {
+      mockQueue.remove.mockImplementation(async () => {
         throw new Error("Redis connection lost");
       });
 
@@ -147,7 +147,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
     });
 
     it("should propagate adapter not-found errors", async () => {
-      (mockQueue.remove.mock as any).mockImplementation(async () => ({
+      mockQueue.remove.mockImplementation(async () => ({
         ok: false as const,
         error: "NOT_FOUND" as const,
       }));
@@ -162,7 +162,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
   // getSchedulingHealth
   // =========================================================================
 
-  describe("getSchedulingHealth", { concurrency: 1 }, () => {
+  describe("getSchedulingHealth", { concurrent: false }, () => {
     it("should return health status when queue is healthy", async () => {
       const result = await service.getSchedulingHealth();
 
@@ -179,7 +179,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
     });
 
     it("should return error when queue health check fails", async () => {
-      (mockQueue.health.mock as any).mockImplementation(async () => ({
+      mockQueue.health.mockImplementation(async () => ({
         ok: false as const,
         error: "Queue disconnected",
       }));
@@ -193,7 +193,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
     });
 
     it("should handle exceptions during health check", async () => {
-      mockQueue.health.mock.mockImplementation(async () => {
+      mockQueue.health.mockImplementation(async () => {
         throw new Error("Redis timeout");
       });
 
@@ -210,7 +210,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
   // scheduleStories -- video splitting
   // =========================================================================
 
-  describe("scheduleStories", { concurrency: 1 }, () => {
+  describe("scheduleStories", { concurrent: false }, () => {
     it("should schedule stories with video splitting", async () => {
       const storiesJob = baseJob({
         contentType: "STORIES",
@@ -291,7 +291,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
     });
 
     it("should handle video splitting errors", async () => {
-      mockMedia.splitVideoForStories.mock.mockImplementation(async () => {
+      mockMedia.splitVideoForStories.mockImplementation(async () => {
         throw new Error("FFmpeg processing error");
       });
 
@@ -315,7 +315,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
   // scheduleCarousel
   // =========================================================================
 
-  describe("scheduleCarousel", { concurrency: 1 }, () => {
+  describe("scheduleCarousel", { concurrent: false }, () => {
     it("should schedule a valid carousel", async () => {
       const carouselJob = baseJob({
         contentType: "CAROUSEL",
@@ -389,7 +389,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
   // close / cleanup
   // =========================================================================
 
-  describe("close", { concurrency: 1 }, () => {
+  describe("close", { concurrent: false }, () => {
     it("should close the queue adapter", async () => {
       await service.close();
 
@@ -397,7 +397,7 @@ describe("InstagramSchedulingService -- management", { concurrency: 1 }, () => {
     });
 
     it("should handle close errors gracefully", async () => {
-      mockQueue.close.mock.mockImplementation(async () => {
+      mockQueue.close.mockImplementation(async () => {
         throw new Error("Close failed");
       });
 

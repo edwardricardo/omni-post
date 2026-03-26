@@ -7,13 +7,11 @@
  * Integration/workflow tests (job processing, DB ops, retry backoff, env validation,
  * circuit breaker, complete workflows) live in publishingWorker.integration.test.ts.
  *
- * Framework: node:test + node:assert/strict
- * Mocking:   mock.module() for module-level adapter factories (the source
- *            constructor is parameterless and creates adapters at class-field
- *            initialisation time).
+ * Framework: vitest + node:assert/strict
+ * Mocking:   vi.mock() for module-level adapter factories.
  */
 
-import { describe, it, before, beforeEach, after, mock } from "node:test";
+import { describe, it, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
   createMockConsumerAdapter,
@@ -21,7 +19,6 @@ import {
   createMockRepoAdapter,
   createMockApiClient,
   createMockMediaProcessor,
-  createPassthroughCB,
   basePayload,
   type MockConsumerAdapter,
   type MockQueueAdapter,
@@ -30,86 +27,77 @@ import {
   type MockMediaProcessor,
 } from "./publishingWorker.test-helpers.js";
 
-// ── Module-level mocks (MUST be set up before dynamic import) ─────────────
+// ── Hoist vi.mock() calls before module evaluation ──
 
-let mockConsumer: MockConsumerAdapter;
-let mockQueue: MockQueueAdapter;
-let mockRepo: MockRepoAdapter;
-let mockApiClient: MockApiClient;
-let mockMediaProcessor: MockMediaProcessor;
+vi.mock("@adapters/queue-bullmq", () => ({
+  createBullMQConsumerAdapter: () => createMockConsumerAdapter(),
+  createBullMQQueueAdapter: () => createMockQueueAdapter(),
+}));
 
-// We capture references so the before() hook can wire them.
-const cbPassthrough = createPassthroughCB();
+vi.mock("@adapters/external-apis", () => ({
+  createExternalApiCircuitBreaker: () => ({
+    call: async (_svc: string, _op: string, fn: (...a: any[]) => Promise<any>) => fn(),
+    getAllStatuses: () => ({}),
+  }),
+  resetExternalApiCircuitBreaker: async () => undefined,
+}));
 
-let InstagramPublishingWorker: any;
+vi.mock("@adapters/db-prisma", () => ({
+  createPrismaRepoAdapter: () => createMockRepoAdapter(),
+}));
 
-describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
+vi.mock("prom-client", () => ({
+  default: {
+    Registry: class FakeRegistry {
+      registerMetric() {}
+      removeSingleMetric() {}
+    },
+    Counter: class FakeCounter {
+      inc() {}
+      labels() {
+        return this;
+      }
+    },
+    Histogram: class FakeHistogram {
+      observe() {}
+      labels() {
+        return this;
+      }
+      startTimer() {
+        return () => 0;
+      }
+    },
+    Gauge: class FakeGauge {
+      set() {}
+      inc() {}
+      dec() {}
+      labels() {
+        return this;
+      }
+    },
+  },
+}));
+
+// Static import after mocks (Vitest hoists vi.mock before imports)
+import { InstagramPublishingWorker } from "../src/publishingWorker.js";
+
+describe("InstagramPublishingWorker", { concurrent: false }, () => {
   let worker: any;
+  let mockConsumer: MockConsumerAdapter;
+  let mockQueue: MockQueueAdapter;
+  let mockRepo: MockRepoAdapter;
+  let mockApiClient: MockApiClient;
+  let mockMediaProcessor: MockMediaProcessor;
 
-  before(async () => {
-    // ── Mock external adapter modules ──
-    mock.module("@adapters/queue-bullmq", {
-      namedExports: {
-        createBullMQConsumerAdapter: () => createMockConsumerAdapter(),
-        createBullMQQueueAdapter: () => createMockQueueAdapter(),
-      },
-    });
-
-    mock.module("@adapters/external-apis", {
-      namedExports: {
-        createExternalApiCircuitBreaker: () => cbPassthrough,
-        resetExternalApiCircuitBreaker: async () => undefined,
-      },
-    });
-
-    mock.module("@adapters/db-prisma", {
-      namedExports: {
-        createPrismaRepoAdapter: () => createMockRepoAdapter(),
-      },
-    });
-
-    mock.module("prom-client", {
-      defaultExport: {
-        Registry: class FakeRegistry {
-          registerMetric() {}
-          removeSingleMetric() {}
-        },
-        Counter: class FakeCounter {
-          inc() {}
-          labels() {
-            return this;
-          }
-        },
-        Histogram: class FakeHistogram {
-          observe() {}
-          labels() {
-            return this;
-          }
-          startTimer() {
-            return () => 0;
-          }
-        },
-        Gauge: class FakeGauge {
-          set() {}
-          inc() {}
-          dec() {}
-          labels() {
-            return this;
-          }
-        },
-      },
-    });
-
+  beforeAll(() => {
     // Set required env vars before importing the worker (it calls validateEnvironment)
     process.env.AWS_REGION = "us-east-1";
     process.env.AWS_S3_BUCKET = "test-bucket";
-
-    // Dynamic import AFTER mocks are in place
-    const mod = await import("../src/publishingWorker.js");
-    InstagramPublishingWorker = mod.InstagramPublishingWorker;
   });
 
   beforeEach(() => {
+    vi.clearAllMocks();
+
     // Create fresh mock adapters for each test
     mockConsumer = createMockConsumerAdapter();
     mockQueue = createMockQueueAdapter();
@@ -126,45 +114,23 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
     (worker as any).queueAdapter = mockQueue;
     (worker as any).repoAdapter = mockRepo;
     (worker as any).mediaProcessor = mockMediaProcessor;
-
-    // Patch the internal API client factory so publishContent uses our mock
-    mock.method(
-      worker as any,
-      "publishContent",
-      undefined // keep original, we override below per-test or use apiClient directly
-    );
-
-    // Actually, we want the real publishContent to run but with a mocked API client.
-    // Override the internal InstagramApiClient constructor call:
-    // publishContent calls `new InstagramApiClient(payload.credentials)`.
-    // We cannot mock that via mock.module since apiClient.js is a local import.
-    // Instead, mock the individual method calls via the instance.
-    // The cleanest approach: since publishContent is private but testable via `(worker as any)`,
-    // we override the apiClient construction inline per test. But the source does
-    // `const apiClient = new InstagramApiClient(payload.credentials)` inside publishContent.
-    //
-    // Solution: restore the original publishContent and mock method at the class level.
-    // We need to get the apiClient mock injected. The simplest approach is to use
-    // mock.method on the worker's publishContent to call our custom version.
-
-    // Actually, let's just mock the worker's methods that call the API client.
-    // The source creates apiClient inside publishContent, so we need a different approach.
-    // Use mock.method to replace the private publish methods directly.
   });
 
-  after(async () => {
+  afterAll(async () => {
     try {
       if (worker) await worker.stop();
     } catch {
       // ignore cleanup errors
     }
+    delete process.env.AWS_REGION;
+    delete process.env.AWS_S3_BUCKET;
   });
 
   // =========================================================================
   // worker lifecycle
   // =========================================================================
 
-  describe("worker lifecycle", { concurrency: 1 }, () => {
+  describe("worker lifecycle", { concurrent: false }, () => {
     it("should start and stop successfully", async () => {
       assert.strictEqual(worker.getHealth().isRunning, false);
 
@@ -198,7 +164,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
   // FEED post publishing
   // =========================================================================
 
-  describe("FEED post publishing", { concurrency: 1 }, () => {
+  describe("FEED post publishing", { concurrent: false }, () => {
     it("should fail when no media is provided for Feed post", async () => {
       // publishFeedPost checks media before calling the API client
       const payload = basePayload({
@@ -236,10 +202,9 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
       assert.strictEqual(mockApiClient.createMediaContainer.mock.calls.length, 1);
       const containerCall = (mockApiClient.createMediaContainer.mock.calls as any[])[0];
       assert.ok(containerCall);
-      const containerArgs = containerCall.arguments;
-      assert.strictEqual(containerArgs[0], "https://example.com/image.jpg");
-      assert.strictEqual(containerArgs[1], "Test feed post with image #test");
-      assert.strictEqual(containerArgs[2], "IMAGE");
+      assert.strictEqual(containerCall[0], "https://example.com/image.jpg");
+      assert.strictEqual(containerCall[1], "Test feed post with image #test");
+      assert.strictEqual(containerCall[2], "IMAGE");
     });
 
     it("should map video media type correctly", async () => {
@@ -260,8 +225,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
 
       const videoContainerCall = (mockApiClient.createMediaContainer.mock.calls as any[])[0];
       assert.ok(videoContainerCall);
-      const containerArgs = videoContainerCall.arguments;
-      assert.strictEqual(containerArgs[2], "VIDEO");
+      assert.strictEqual(videoContainerCall[2], "VIDEO");
     });
   });
 
@@ -269,7 +233,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
   // STORIES publishing
   // =========================================================================
 
-  describe("STORIES publishing", { concurrency: 1 }, () => {
+  describe("STORIES publishing", { concurrent: false }, () => {
     it("should successfully publish a Story with image", async () => {
       const payload = basePayload({
         contentType: "STORIES",
@@ -290,9 +254,8 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
       assert.strictEqual(mockApiClient.createStoriesContainer.mock.calls.length, 1);
       const storyCall = (mockApiClient.createStoriesContainer.mock.calls as any[])[0];
       assert.ok(storyCall);
-      const storyArgs = storyCall.arguments;
-      assert.strictEqual(storyArgs[0], "https://example.com/story-image.jpg");
-      assert.strictEqual(storyArgs[1], "IMAGE");
+      assert.strictEqual(storyCall[0], "https://example.com/story-image.jpg");
+      assert.strictEqual(storyCall[1], "IMAGE");
     });
 
     it("should successfully publish a Story with video", async () => {
@@ -313,8 +276,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
       assert.strictEqual(result.success, true);
       const storyVideoCall = (mockApiClient.createStoriesContainer.mock.calls as any[])[0];
       assert.ok(storyVideoCall);
-      const storyArgs = storyVideoCall.arguments;
-      assert.strictEqual(storyArgs[1], "VIDEO");
+      assert.strictEqual(storyVideoCall[1], "VIDEO");
     });
 
     it("should fail when no media is provided for Stories", async () => {
@@ -334,7 +296,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
   // REELS publishing
   // =========================================================================
 
-  describe("REELS publishing", { concurrency: 1 }, () => {
+  describe("REELS publishing", { concurrent: false }, () => {
     it("should successfully publish a Reel", async () => {
       const payload = basePayload({
         contentType: "REELS",
@@ -358,10 +320,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
       assert.strictEqual(mockMediaProcessor.validateVideo.mock.calls.length, 1);
       const validateCall = (mockMediaProcessor.validateVideo.mock.calls as any[])[0];
       assert.ok(validateCall);
-      assert.deepStrictEqual(validateCall.arguments, [
-        "https://example.com/reel-video.mp4",
-        "REELS",
-      ]);
+      assert.deepStrictEqual(validateCall, ["https://example.com/reel-video.mp4", "REELS"]);
 
       // Verify video optimization was called
       assert.strictEqual(mockMediaProcessor.optimizeForReels.mock.calls.length, 1);
@@ -370,15 +329,14 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
       assert.strictEqual(mockApiClient.createReelsContainer.mock.calls.length, 1);
       const reelCall = (mockApiClient.createReelsContainer.mock.calls as any[])[0];
       assert.ok(reelCall);
-      const reelArgs = reelCall.arguments;
-      assert.strictEqual(reelArgs[0], "https://optimized-url.com/reel.mp4");
-      assert.strictEqual(reelArgs[1], "Amazing reel content! #reels #video");
-      assert.strictEqual(reelArgs[2], true); // shareToFeed
-      assert.strictEqual(reelArgs[3], false); // enableRemixing
+      assert.strictEqual(reelCall[0], "https://optimized-url.com/reel.mp4");
+      assert.strictEqual(reelCall[1], "Amazing reel content! #reels #video");
+      assert.strictEqual(reelCall[2], true); // shareToFeed
+      assert.strictEqual(reelCall[3], false); // enableRemixing
     });
 
     it("should fail when video validation fails for Reels", async () => {
-      mockMediaProcessor.validateVideo.mock.mockImplementation(async () => ({
+      mockMediaProcessor.validateVideo.mockImplementation(async () => ({
         valid: false,
         issues: ["Video is too long for Reels"],
         recommendations: ["Trim video to 90 seconds"],
@@ -429,7 +387,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
   // CAROUSEL publishing
   // =========================================================================
 
-  describe("CAROUSEL publishing", { concurrency: 1 }, () => {
+  describe("CAROUSEL publishing", { concurrent: false }, () => {
     it("should successfully publish a carousel", async () => {
       const payload = basePayload({
         contentType: "CAROUSEL",
@@ -449,13 +407,12 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
       assert.strictEqual(mockApiClient.createCarouselContainer.mock.calls.length, 1);
       const carouselCall = (mockApiClient.createCarouselContainer.mock.calls as any[])[0];
       assert.ok(carouselCall);
-      const carouselArgs = carouselCall.arguments;
-      assert.deepStrictEqual(carouselArgs[0], [
+      assert.deepStrictEqual(carouselCall[0], [
         { media_type: "IMAGE", media_url: "https://example.com/photo1.jpg" },
         { media_type: "IMAGE", media_url: "https://example.com/photo2.jpg" },
         { media_type: "VIDEO", media_url: "https://example.com/video1.mp4" },
       ]);
-      assert.strictEqual(carouselArgs[1], "Check out these photos! #carousel");
+      assert.strictEqual(carouselCall[1], "Check out these photos! #carousel");
     });
 
     it("should fail when carousel has too few items", async () => {
@@ -495,10 +452,10 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
   // container status handling
   // =========================================================================
 
-  describe("container status handling", { concurrency: 1 }, () => {
+  describe("container status handling", { concurrent: false }, () => {
     it("should wait for container to be ready before publishing", async () => {
       let statusCallCount = 0;
-      mockApiClient.getContainerStatus.mock.mockImplementation(async () => {
+      mockApiClient.getContainerStatus.mockImplementation(async () => {
         statusCallCount++;
         if (statusCallCount < 3) {
           return { id: "container-123", status: "IN_PROGRESS" };
@@ -513,7 +470,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
     });
 
     it("should fail when container processing fails", async () => {
-      mockApiClient.getContainerStatus.mock.mockImplementation(async () => ({
+      mockApiClient.getContainerStatus.mockImplementation(async () => ({
         id: "container-123",
         status: "ERROR",
         status_code: "MEDIA_ERROR",
@@ -529,7 +486,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
     });
 
     it("should timeout if container takes too long", async () => {
-      mockApiClient.getContainerStatus.mock.mockImplementation(async () => ({
+      mockApiClient.getContainerStatus.mockImplementation(async () => ({
         id: "container-123",
         status: "IN_PROGRESS",
       }));
@@ -549,7 +506,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
   // error handling
   // =========================================================================
 
-  describe("error handling", { concurrency: 1 }, () => {
+  describe("error handling", { concurrent: false }, () => {
     it("should identify retryable errors", () => {
       const w = worker as any;
 
@@ -570,16 +527,9 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
       // Call publishContent which uses a switch statement
       const payload = basePayload({ contentType: "IGTV" as any });
 
-      // publishContent wraps in circuitBreaker.call which was already mocked
-      // as a passthrough. It creates a new InstagramApiClient internally --
-      // but we're testing the switch default branch.
-      // We mock the individual publish methods to force reaching the default.
-      // Actually, publishContent creates apiClient internally and calls methods.
-      // The default branch simply returns the "Unsupported content type" error.
-      // Since the circuitBreaker is passthrough, let's just verify via the
-      // processJob flow.
-
-      const updateSpy = mock.method(worker as any, "updatePublishingQueue", async () => undefined);
+      const updateSpy = vi
+        .spyOn(worker as any, "updatePublishingQueue")
+        .mockResolvedValue(undefined);
 
       const mockJob = {
         payload: payload as unknown as Record<string, unknown>,
@@ -592,7 +542,7 @@ describe("InstagramPublishingWorker", { concurrency: 1 }, () => {
       // or from the API client constructor. Either way, updatePublishingQueue
       // should have been called.
       assert.ok(updateSpy.mock.calls.length > 0);
-      updateSpy.mock.restore();
+      updateSpy.mockRestore();
     });
   });
 

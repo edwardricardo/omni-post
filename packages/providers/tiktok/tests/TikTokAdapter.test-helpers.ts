@@ -9,17 +9,17 @@
  * - createMockApiClient()         — minimal TikTok upload/validate mock
  * - createMockResearchClient()    — TikTok Research API mock (pass shouldFail=true for error paths)
  * - createMockMarketingClient()   — TikTok Marketing API mock
- * - createMockResearchApiClient() — full mock.fn-based research client (for call-count assertions)
- * - createMockHashtagManager()    — full mock.fn-based hashtag manager
- * - createMockSoundManager()      — full mock.fn-based sound manager
- * - createMockMarketingApiClient()— full mock.fn-based marketing client
+ * - createMockResearchApiClient() — full vi.fn-based research client (for call-count assertions)
+ * - createMockHashtagManager()    — full vi.fn-based hashtag manager
+ * - createMockSoundManager()      — full vi.fn-based sound manager
+ * - createMockMarketingApiClient()— full vi.fn-based marketing client
  * - createTestPost()              — factory for RenderedPost
  * - createTestPublishInput()      — factory for PublishInput
  * - MOCK_CREDENTIALS              — standard valid mock credential object
  * - EMPTY_CREDENTIALS             — credentials with empty strings (simulate auth failure)
  */
 
-import { mock } from "node:test";
+import { vi } from "vitest";
 import type { PublishInput } from "@ports/core";
 import type { RenderedPost } from "@shared/types";
 
@@ -44,7 +44,7 @@ export const EMPTY_CREDENTIALS = {
 } as const;
 
 // ============================================================================
-// Minimal mock clients (simple async functions, no mock.fn call tracking)
+// Minimal mock clients (simple async functions, no vi.fn call tracking)
 // ============================================================================
 
 /**
@@ -53,12 +53,12 @@ export const EMPTY_CREDENTIALS = {
  */
 export function createMockApiClient() {
   return {
-    uploadVideo: mock.fn(async (_request: any) => ({
+    uploadVideo: vi.fn(async (_request: any) => ({
       shareId: "video-123",
       shareUrl: `https://www.tiktok.com/@testuser/video/video-123`,
       publishTime: new Date().toISOString(),
     })),
-    validateCredentials: mock.fn(async () => ({
+    validateCredentials: vi.fn(async () => ({
       openId: "user-123",
       displayName: "Test User",
       followerCount: 1000,
@@ -140,16 +140,16 @@ export function createMockMarketingClient(): any {
 }
 
 // ============================================================================
-// Full mock.fn-based clients (for tests that inspect call counts / arguments)
+// Full vi.fn-based clients (for tests that inspect call counts / arguments)
 // ============================================================================
 
 /**
- * Create a full mock.fn TikTok Research API Client.
+ * Create a full vi.fn TikTok Research API Client.
  * Returns richer hashtag and sound fixture data.
  */
 export function createMockResearchApiClient() {
   return {
-    getTrendingHashtags: mock.fn(async () => [
+    getTrendingHashtags: vi.fn(async () => [
       {
         hashtag: "viral",
         volume: 100000,
@@ -175,7 +175,7 @@ export function createMockResearchApiClient() {
         relatedHashtags: ["funny", "humor"],
       },
     ]),
-    getTrendingSounds: mock.fn(async () => [
+    getTrendingSounds: vi.fn(async () => [
       {
         soundId: "sound-123",
         title: "Trending Dance Track",
@@ -201,17 +201,17 @@ export function createMockResearchApiClient() {
         previewUrl: "https://example.com/sound-456.mp3",
       },
     ]),
-    getKeywordTrends: mock.fn(async () => []),
+    getKeywordTrends: vi.fn(async () => []),
   };
 }
 
 /**
- * Create a full mock.fn TikTok Hashtag Manager.
+ * Create a full vi.fn TikTok Hashtag Manager.
  * Returns a realistic HashtagStrategy shape.
  */
 export function createMockHashtagManager() {
   return {
-    generateHashtagStrategy: mock.fn(async (options: any) => ({
+    generateHashtagStrategy: vi.fn(async (options: any) => ({
       strategy: {
         primary: ["viral", "trending", "fyp"],
         trending: ["dance", "music", "choreography"],
@@ -227,7 +227,7 @@ export function createMockHashtagManager() {
       recommendations: ["Add more trending hashtags to increase visibility"],
       warnings: [],
     })),
-    analyzeHashtagPerformance: mock.fn(async (hashtag: string) => ({
+    analyzeHashtagPerformance: vi.fn(async (hashtag: string) => ({
       hashtag,
       usage: 100000,
       reach: 8500000,
@@ -243,12 +243,12 @@ export function createMockHashtagManager() {
 }
 
 /**
- * Create a full mock.fn TikTok Sound Manager.
+ * Create a full vi.fn TikTok Sound Manager.
  * Returns a SoundRecommendation array with scoring metadata.
  */
 export function createMockSoundManager() {
   return {
-    getSoundRecommendations: mock.fn(async (options: any) => [
+    getSoundRecommendations: vi.fn(async (options: any) => [
       {
         sound: {
           id: "sound-123",
@@ -283,11 +283,11 @@ export function createMockSoundManager() {
 }
 
 /**
- * Create a full mock.fn TikTok Marketing API Client.
+ * Create a full vi.fn TikTok Marketing API Client.
  */
 export function createMockMarketingApiClient() {
   return {
-    getAdAccount: mock.fn(async () => ({
+    getAdAccount: vi.fn(async () => ({
       advertiserId: "advertiser-123",
       advertiserName: "Test Advertiser",
       status: "active",
@@ -298,8 +298,8 @@ export function createMockMarketingApiClient() {
       language: "en",
       createdTime: new Date().toISOString(),
     })),
-    getCampaigns: mock.fn(async () => []),
-    getAdInsights: mock.fn(async () => []),
+    getCampaigns: vi.fn(async () => []),
+    getAdInsights: vi.fn(async () => []),
   };
 }
 

@@ -7,10 +7,10 @@
  * 3. validateContent() - Content validation (inherited from AbstractProviderAdapter)
  * 4. generatePreview() - Preview generation (inherited from AbstractProviderAdapter)
  *
- * Framework: node:test + node:assert/strict
+ * Framework: vitest + node:assert/strict
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { YouTubeAdapter } from "../src/YouTubeAdapter.js";
 import { ok } from "@shared/types";
@@ -59,18 +59,19 @@ function createCanonicalPost(overrides: Partial<CanonicalPost> = {}): CanonicalP
 // publish() - Basic Video Flow
 // ============================================================================
 
-describe("YouTubeAdapter - publish()", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - publish()", { concurrent: false }, () => {
   let adapter: YouTubeAdapter;
   let mockApiClient: ReturnType<typeof createMockApiClient>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new YouTubeAdapter();
     mockApiClient = createMockApiClient();
   });
 
   it("should publish regular video successfully", async () => {
-    mock.method(adapter as any, "getCredentials", async () => validCredentialsResult());
-    mock.method(adapter as any, "createApiClient", () => mockApiClient);
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(validCredentialsResult());
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockApiClient);
 
     const post = createTestPost({
       body: "My Great Video\nDescription of the video.",
@@ -90,14 +91,14 @@ describe("YouTubeAdapter - publish()", { concurrency: 1 }, () => {
       "URL should contain video ID"
     );
     assert.ok(result.value.publishedAt instanceof Date, "publishedAt should be a Date");
-    assert.strictEqual(mockApiClient.uploadVideo.mock.callCount(), 1);
+    assert.strictEqual(mockApiClient.uploadVideo.mock.calls.length, 1);
   });
 
   it("should return AUTH error when credentials fail", async () => {
-    mock.method(adapter as any, "getCredentials", async () => ({
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue({
       ok: false,
       error: "AUTH",
-    }));
+    });
 
     const post = createTestPost({
       body: "Test video",
@@ -117,8 +118,8 @@ describe("YouTubeAdapter - publish()", { concurrency: 1 }, () => {
   });
 
   it("should handle circuit breaker NETWORK error", async () => {
-    mock.method(adapter as any, "getCredentials", async () => validCredentialsResult());
-    mock.method(adapter as any, "createApiClient", () => {
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(validCredentialsResult());
+    vi.spyOn(adapter as any, "createApiClient").mockImplementation(() => {
       throw new Error("Circuit breaker is OPEN for youtube-api");
     });
 
@@ -140,8 +141,8 @@ describe("YouTubeAdapter - publish()", { concurrency: 1 }, () => {
   });
 
   it("should extract title from first line of body", async () => {
-    mock.method(adapter as any, "getCredentials", async () => validCredentialsResult());
-    mock.method(adapter as any, "createApiClient", () => mockApiClient);
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(validCredentialsResult());
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockApiClient);
 
     const post = createTestPost({
       body: "Custom Video Title\nSome description below the title.",
@@ -156,18 +157,15 @@ describe("YouTubeAdapter - publish()", { concurrency: 1 }, () => {
 
     const uploadCall = mockApiClient.uploadVideo.mock.calls[0];
     assert.ok(uploadCall, "uploadVideo should have been called");
-    const uploadArgs = uploadCall.arguments[0];
+    const uploadArgs = uploadCall[0];
     assert.strictEqual(uploadArgs.title, "Custom Video Title");
   });
 
   it("should return VALIDATION when publishVideo has no video media", async () => {
-    mock.method(adapter as any, "getCredentials", async () => validCredentialsResult());
-    mock.method(adapter as any, "createApiClient", () => mockApiClient);
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(validCredentialsResult());
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockApiClient);
 
-    // Create a post with no media that routes to VIDEO (not COMMUNITY_POST)
-    // Must have video in media array but empty so publishVideo rejects it
     // Force the publishVideo path to execute with empty media
-    // by calling publishVideo directly
     const result = await (adapter as any).publishVideo(mockApiClient, {
       body: "Test video",
       media: [],
@@ -180,14 +178,14 @@ describe("YouTubeAdapter - publish()", { concurrency: 1 }, () => {
   });
 
   it("should handle uploadVideo API failure", async () => {
-    mockApiClient.uploadVideo = mock.fn(async () => {
+    mockApiClient.uploadVideo = vi.fn(async () => {
       const error = new Error("Upload failed") as Error & { status: number };
       error.status = 500;
       throw error;
     });
 
-    mock.method(adapter as any, "getCredentials", async () => validCredentialsResult());
-    mock.method(adapter as any, "createApiClient", () => mockApiClient);
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(validCredentialsResult());
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockApiClient);
 
     const post = createTestPost({
       body: "Failing video",
@@ -211,15 +209,16 @@ describe("YouTubeAdapter - publish()", { concurrency: 1 }, () => {
 // fetchAnalytics() Tests
 // ============================================================================
 
-describe("YouTubeAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - fetchAnalytics()", { concurrent: false }, () => {
   let adapter: YouTubeAdapter;
   let mockApiClient: ReturnType<typeof createMockApiClient>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new YouTubeAdapter();
     mockApiClient = createMockApiClient();
     // Add getChannelAnalytics to the mock
-    (mockApiClient as any).getChannelAnalytics = mock.fn(async () => ({
+    (mockApiClient as any).getChannelAnalytics = vi.fn(async () => ({
       views: 15000,
       likes: 450,
       comments: 120,
@@ -231,8 +230,8 @@ describe("YouTubeAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
   });
 
   it("should return analytics with all metric fields", async () => {
-    mock.method(adapter as any, "getCredentials", async () => validCredentialsResult());
-    mock.method(adapter as any, "createApiClient", () => mockApiClient);
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(validCredentialsResult());
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockApiClient);
 
     const result = await adapter.fetchAnalytics({
       channelId: "channel-1",
@@ -254,10 +253,10 @@ describe("YouTubeAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
   });
 
   it("should return AUTH error when credentials fail", async () => {
-    mock.method(adapter as any, "getCredentials", async () => ({
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue({
       ok: false,
       error: "AUTH",
-    }));
+    });
 
     const result = await adapter.fetchAnalytics({
       channelId: "channel-1",
@@ -270,13 +269,11 @@ describe("YouTubeAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
   });
 
   it("should handle circuit breaker NETWORK error", async () => {
-    mock.method(adapter as any, "getCredentials", async () => validCredentialsResult());
-    mock.method(adapter as any, "createApiClient", () => {
-      return {
-        getChannelAnalytics: mock.fn(async () => {
-          throw new Error("Circuit breaker is OPEN for youtube-api");
-        }),
-      };
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(validCredentialsResult());
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue({
+      getChannelAnalytics: vi.fn(async () => {
+        throw new Error("Circuit breaker is OPEN for youtube-api");
+      }),
     });
 
     const result = await adapter.fetchAnalytics({
@@ -290,8 +287,8 @@ describe("YouTubeAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
   });
 
   it("should pass date range to API client", async () => {
-    mock.method(adapter as any, "getCredentials", async () => validCredentialsResult());
-    mock.method(adapter as any, "createApiClient", () => mockApiClient);
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(validCredentialsResult());
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockApiClient);
 
     const since = new Date("2025-01-01T00:00:00Z");
     const until = new Date("2025-01-31T23:59:59Z");
@@ -310,18 +307,16 @@ describe("YouTubeAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
     // Verify getChannelAnalytics was called with the date range
     const analyticsCall = (mockApiClient as any).getChannelAnalytics.mock.calls[0];
     assert.ok(analyticsCall, "getChannelAnalytics should have been called");
-    assert.deepStrictEqual(analyticsCall.arguments[0], since);
-    assert.deepStrictEqual(analyticsCall.arguments[1], until);
+    assert.deepStrictEqual(analyticsCall[0], since);
+    assert.deepStrictEqual(analyticsCall[1], until);
   });
 
   it("should handle generic network errors", async () => {
-    mock.method(adapter as any, "getCredentials", async () => validCredentialsResult());
-    mock.method(adapter as any, "createApiClient", () => {
-      return {
-        getChannelAnalytics: mock.fn(async () => {
-          throw new Error("Connection timeout");
-        }),
-      };
+    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(validCredentialsResult());
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue({
+      getChannelAnalytics: vi.fn(async () => {
+        throw new Error("Connection timeout");
+      }),
     });
 
     const result = await adapter.fetchAnalytics({
@@ -339,10 +334,11 @@ describe("YouTubeAdapter - fetchAnalytics()", { concurrency: 1 }, () => {
 // validateContent() Tests (inherited from AbstractProviderAdapter)
 // ============================================================================
 
-describe("YouTubeAdapter - validateContent()", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - validateContent()", { concurrent: false }, () => {
   let adapter: YouTubeAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new YouTubeAdapter();
   });
 
@@ -454,10 +450,11 @@ describe("YouTubeAdapter - validateContent()", { concurrency: 1 }, () => {
 // generatePreview() Tests (inherited from AbstractProviderAdapter)
 // ============================================================================
 
-describe("YouTubeAdapter - generatePreview()", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - generatePreview()", { concurrent: false }, () => {
   let adapter: YouTubeAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new YouTubeAdapter();
   });
 

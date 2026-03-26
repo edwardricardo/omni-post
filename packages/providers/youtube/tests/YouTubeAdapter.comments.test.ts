@@ -5,7 +5,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { YouTubeAdapter } from "../src/YouTubeAdapter.js";
 
@@ -15,7 +15,7 @@ import { YouTubeAdapter } from "../src/YouTubeAdapter.js";
 
 function makeMockApiClient() {
   return {
-    getVideoComments: mock.fn(async () => ({
+    getVideoComments: vi.fn(async () => ({
       items: [
         {
           id: "thread-001",
@@ -50,19 +50,19 @@ function makeMockApiClient() {
       ],
       nextPageToken: "page-token-next",
     })),
-    postComment: mock.fn(async () => ({
+    postComment: vi.fn(async () => ({
       id: "reply-yt-new-001",
       publishedAt: "2026-03-10T12:00:00Z",
     })),
-    uploadVideo: mock.fn(async () => ({
+    uploadVideo: vi.fn(async () => ({
       id: "video-123",
       publishedAt: new Date().toISOString(),
     })),
-    validateCredentials: mock.fn(async () => ({
+    validateCredentials: vi.fn(async () => ({
       id: "channel-123",
       title: "Test Channel",
     })),
-    getChannelAnalytics: mock.fn(async () => ({
+    getChannelAnalytics: vi.fn(async () => ({
       views: 100,
       likes: 50,
       comments: 10,
@@ -84,20 +84,17 @@ const TEST_CREDENTIALS = {
 // 1. getComments Tests
 // ============================================================================
 
-describe("YouTubeAdapter - getComments", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - getComments", { concurrent: false }, () => {
   let adapter: YouTubeAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new YouTubeAdapter();
   });
 
   it("returns comments with author info", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -124,7 +121,7 @@ describe("YouTubeAdapter - getComments", { concurrency: 1 }, () => {
 
     assert.strictEqual(result.value.nextCursor, "page-token-next");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns empty when no postExternalId", async () => {
@@ -138,11 +135,7 @@ describe("YouTubeAdapter - getComments", { concurrency: 1 }, () => {
 
   it("passes cursor and limit to API", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -153,24 +146,20 @@ describe("YouTubeAdapter - getComments", { concurrency: 1 }, () => {
 
     const call = mockClient.getVideoComments.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[0], "video-001");
-    assert.strictEqual(call.arguments[1], 50);
-    assert.strictEqual(call.arguments[2], "page-token-abc");
+    assert.strictEqual(call[0], "video-001");
+    assert.strictEqual(call[1], 50);
+    assert.strictEqual(call[2], "page-token-abc");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns NETWORK error on failure", async () => {
     const mockClient = makeMockApiClient();
-    mockClient.getVideoComments = mock.fn(async () => {
+    mockClient.getVideoComments = vi.fn(async () => {
       throw new Error("API error");
     });
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -180,7 +169,7 @@ describe("YouTubeAdapter - getComments", { concurrency: 1 }, () => {
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "NETWORK");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 });
 
@@ -188,20 +177,17 @@ describe("YouTubeAdapter - getComments", { concurrency: 1 }, () => {
 // 2. postReply Tests
 // ============================================================================
 
-describe("YouTubeAdapter - postReply", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - postReply", { concurrent: false }, () => {
   let adapter: YouTubeAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new YouTubeAdapter();
   });
 
   it("posts a reply to a comment", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.postReply({
       channelCredentials: TEST_CREDENTIALS,
@@ -216,24 +202,20 @@ describe("YouTubeAdapter - postReply", { concurrency: 1 }, () => {
 
     const call = mockClient.postComment.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[0], "video-001");
-    assert.strictEqual(call.arguments[1], "Thanks for watching!");
-    assert.strictEqual(call.arguments[2], "comment-yt-001");
+    assert.strictEqual(call[0], "video-001");
+    assert.strictEqual(call[1], "Thanks for watching!");
+    assert.strictEqual(call[2], "comment-yt-001");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 
   it("returns RATE_LIMIT on rate limit error", async () => {
     const mockClient = makeMockApiClient();
-    mockClient.postComment = mock.fn(async () => {
+    mockClient.postComment = vi.fn(async () => {
       throw new Error("429 Too Many Requests");
     });
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const result = await adapter.postReply({
       channelCredentials: TEST_CREDENTIALS,
@@ -245,7 +227,7 @@ describe("YouTubeAdapter - postReply", { concurrency: 1 }, () => {
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "RATE_LIMIT");
 
-    createClientMock.mock.restore();
+    createClientSpy.mockRestore();
   });
 });
 
@@ -253,7 +235,7 @@ describe("YouTubeAdapter - postReply", { concurrency: 1 }, () => {
 // 3. Capabilities Test
 // ============================================================================
 
-describe("YouTubeAdapter - Updated Capabilities", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - Updated Capabilities", { concurrent: false }, () => {
   it("reports replies as true", () => {
     const adapter = new YouTubeAdapter();
     assert.strictEqual(adapter.capabilities.replies, true);

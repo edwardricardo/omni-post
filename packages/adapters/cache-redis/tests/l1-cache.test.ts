@@ -4,7 +4,7 @@
  * Tier 0: tests pure in-memory logic.
  */
 
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, expect } from "vitest";
 import assert from "node:assert/strict";
 import { L1CacheManager } from "../src/l1-cache.js";
 import type { InternalCacheStats, CacheItem } from "../src/types.js";
@@ -55,31 +55,31 @@ describe("L1CacheManager — basic CRUD", { concurrency: 1 }, () => {
   });
 
   it("get() returns undefined on empty cache", () => {
-    assert.strictEqual(cache.get("missing"), undefined);
+    expect(cache.get("missing")).toBe(undefined);
   });
 
   it("set() and get() round-trip a value", () => {
     const item = makeItem({ name: "test" });
     cache.set("key1", item);
     const retrieved = cache.get("key1");
-    assert.deepStrictEqual(retrieved, item);
+    expect(retrieved).toEqual(item);
   });
 
   it("size() returns 0 on empty cache", () => {
-    assert.strictEqual(cache.size(), 0);
+    expect(cache.size()).toBe(0);
   });
 
   it("size() increments after set()", () => {
     cache.set("a", makeItem(1));
     cache.set("b", makeItem(2));
-    assert.strictEqual(cache.size(), 2);
+    expect(cache.size()).toBe(2);
   });
 
   it("delete() removes a key", () => {
     cache.set("k", makeItem("v"));
     cache.delete("k");
-    assert.strictEqual(cache.get("k"), undefined);
-    assert.strictEqual(cache.size(), 0);
+    expect(cache.get("k")).toBe(undefined);
+    expect(cache.size()).toBe(0);
   });
 
   it("delete() on non-existent key does not throw", () => {
@@ -90,16 +90,16 @@ describe("L1CacheManager — basic CRUD", { concurrency: 1 }, () => {
     cache.set("a", makeItem(1));
     cache.set("b", makeItem(2));
     cache.clear();
-    assert.strictEqual(cache.size(), 0);
-    assert.strictEqual(cache.get("a"), undefined);
-    assert.strictEqual(cache.get("b"), undefined);
+    expect(cache.size()).toBe(0);
+    expect(cache.get("a")).toBe(undefined);
+    expect(cache.get("b")).toBe(undefined);
   });
 
   it("set() overwrites an existing key", () => {
     cache.set("k", makeItem("old"));
     cache.set("k", makeItem("new"));
-    assert.strictEqual(cache.get("k")!.data, "new");
-    assert.strictEqual(cache.size(), 1);
+    expect(cache.get("k")!.data).toBe("new");
+    expect(cache.size()).toBe(1);
   });
 });
 
@@ -112,28 +112,28 @@ describe("L1CacheManager — TTL / validity", { concurrency: 1 }, () => {
 
   it("isValid() returns true for a fresh entry", () => {
     const item = makeItem("data", 10_000);
-    assert.strictEqual(cache.isValid(item), true);
+    expect(cache.isValid(item)).toBe(true);
   });
 
   it("isValid() returns false for an expired entry", () => {
     const item = makeExpiredItem("data");
-    assert.strictEqual(cache.isValid(item), false);
+    expect(cache.isValid(item)).toBe(false);
   });
 
   it("cleanupExpired() removes expired entries and keeps valid ones", () => {
     cache.set("fresh", makeItem("ok", 60_000));
     cache.set("expired", makeExpiredItem("stale"));
     cache.cleanupExpired();
-    assert.ok(cache.get("fresh") !== undefined, "fresh entry should survive");
-    assert.strictEqual(cache.get("expired"), undefined);
-    assert.strictEqual(cache.size(), 1);
+    expect(cache.get("fresh")).not.toBe(undefined);
+    expect(cache.get("expired")).toBe(undefined);
+    expect(cache.size()).toBe(1);
   });
 
   it("cleanupExpired() on all-valid cache changes nothing", () => {
     cache.set("a", makeItem(1, 60_000));
     cache.set("b", makeItem(2, 60_000));
     cache.cleanupExpired();
-    assert.strictEqual(cache.size(), 2);
+    expect(cache.size()).toBe(2);
   });
 
   it("cleanupExpired() on empty cache does not throw", () => {
@@ -150,19 +150,19 @@ describe("L1CacheManager — tag index", { concurrency: 1 }, () => {
 
   it("getKeysByTag() returns empty array when no entries have that tag", () => {
     const keys = cache.getKeysByTag("nonexistent");
-    assert.deepStrictEqual(keys, []);
+    expect(keys).toEqual([]);
   });
 
   it("set() with tags populates tag index", () => {
     cache.set("post:1", makeItem("data", 60_000, ["posts", "user:42"]));
     const postKeys = cache.getKeysByTag("posts");
-    assert.ok(postKeys.includes("post:1"), "tag index should include key");
+    expect(postKeys.includes("post:1")).toBe(true);
   });
 
   it("set() with multiple tags indexes under each tag", () => {
     cache.set("k", makeItem("v", 60_000, ["tag-a", "tag-b"]));
-    assert.ok(cache.getKeysByTag("tag-a").includes("k"));
-    assert.ok(cache.getKeysByTag("tag-b").includes("k"));
+    expect(cache.getKeysByTag("tag-a").includes("k")).toBe(true);
+    expect(cache.getKeysByTag("tag-b").includes("k")).toBe(true);
   });
 
   it("getKeysByTag() returns all keys with that tag", () => {
@@ -170,9 +170,9 @@ describe("L1CacheManager — tag index", { concurrency: 1 }, () => {
     cache.set("b", makeItem(2, 60_000, ["shared"]));
     cache.set("c", makeItem(3, 60_000, ["other"]));
     const keys = cache.getKeysByTag("shared");
-    assert.ok(keys.includes("a"));
-    assert.ok(keys.includes("b"));
-    assert.ok(!keys.includes("c"));
+    expect(keys.includes("a")).toBe(true);
+    expect(keys.includes("b")).toBe(true);
+    expect(keys.includes("c")).toBe(false);
   });
 
   it("deleteByTag() removes all keys with that tag", () => {
@@ -180,48 +180,48 @@ describe("L1CacheManager — tag index", { concurrency: 1 }, () => {
     cache.set("y", makeItem(2, 60_000, ["grp"]));
     cache.set("z", makeItem(3, 60_000, ["other"]));
     const deleted = cache.deleteByTag("grp");
-    assert.ok(deleted.includes("x"));
-    assert.ok(deleted.includes("y"));
-    assert.ok(!deleted.includes("z"));
-    assert.strictEqual(cache.get("x"), undefined);
-    assert.strictEqual(cache.get("y"), undefined);
-    assert.ok(cache.get("z") !== undefined, "unrelated key should survive");
+    expect(deleted.includes("x")).toBe(true);
+    expect(deleted.includes("y")).toBe(true);
+    expect(deleted.includes("z")).toBe(false);
+    expect(cache.get("x")).toBe(undefined);
+    expect(cache.get("y")).toBe(undefined);
+    expect(cache.get("z")).not.toBe(undefined);
   });
 
   it("deleteByTag() returns empty array when tag does not exist", () => {
     const deleted = cache.deleteByTag("ghost");
-    assert.deepStrictEqual(deleted, []);
+    expect(deleted).toEqual([]);
   });
 
   it("deleteByTag() clears the tag index entry", () => {
     cache.set("k", makeItem("v", 60_000, ["t"]));
     cache.deleteByTag("t");
-    assert.deepStrictEqual(cache.getKeysByTag("t"), []);
+    expect(cache.getKeysByTag("t")).toEqual([]);
   });
 
   it("delete() removes key from tag index", () => {
     cache.set("k", makeItem("v", 60_000, ["mytag"]));
     cache.delete("k");
-    assert.deepStrictEqual(cache.getKeysByTag("mytag"), []);
+    expect(cache.getKeysByTag("mytag")).toEqual([]);
   });
 
   it("clear() resets tag index", () => {
     cache.set("k", makeItem("v", 60_000, ["t"]));
     cache.clear();
-    assert.deepStrictEqual(cache.getKeysByTag("t"), []);
+    expect(cache.getKeysByTag("t")).toEqual([]);
   });
 });
 
 describe("L1CacheManager — memory / eviction", { concurrency: 1 }, () => {
   it("calculateMemoryUsage() returns 0 for empty cache", () => {
     const cache = new L1CacheManager(makeStats());
-    assert.strictEqual(cache.calculateMemoryUsage(), 0);
+    expect(cache.calculateMemoryUsage()).toBe(0);
   });
 
   it("calculateMemoryUsage() is positive after adding entries", () => {
     const cache = new L1CacheManager(makeStats());
     cache.set("key", makeItem("some value"));
-    assert.ok(cache.calculateMemoryUsage() > 0);
+    expect(cache.calculateMemoryUsage()).toBeGreaterThan(0);
   });
 
   it("calculateMemoryUsage() grows with more entries", () => {
@@ -230,7 +230,7 @@ describe("L1CacheManager — memory / eviction", { concurrency: 1 }, () => {
     const size1 = cache.calculateMemoryUsage();
     cache.set("b", makeItem("a".repeat(1000)));
     const size2 = cache.calculateMemoryUsage();
-    assert.ok(size2 > size1, "memory usage should grow after adding larger entry");
+    expect(size2).toBeGreaterThan(size1);
   });
 
   it("evicts an entry when maxL1Items is reached", () => {
@@ -258,7 +258,7 @@ describe("L1CacheManager — memory / eviction", { concurrency: 1 }, () => {
     for (const [k] of cache.entries()) {
       keys.push(k);
     }
-    assert.ok(keys.includes("a"));
-    assert.ok(keys.includes("b"));
+    expect(keys.includes("a")).toBe(true);
+    expect(keys.includes("b")).toBe(true);
   });
 });

@@ -4,7 +4,7 @@
  * No real Redis connection required. Tier 0.
  */
 
-import { describe, it, mock, after } from "node:test";
+import { describe, it, afterAll, expect, vi } from "vitest";
 import assert from "node:assert/strict";
 import { CacheInvalidationManager } from "../src/invalidation.js";
 import { L1CacheManager } from "../src/l1-cache.js";
@@ -129,8 +129,8 @@ const successDelFn = async (_key: string): Promise<Result<boolean, "CACHE_ERROR"
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-after(() => {
-  mock.restoreAll();
+afterAll(() => {
+  vi.restoreAllMocks();
 });
 
 describe("CacheInvalidationManager — dependency graph", { concurrency: 1 }, () => {
@@ -146,16 +146,16 @@ describe("CacheInvalidationManager — dependency graph", { concurrency: 1 }, ()
     };
 
     const result = await manager.invalidateByDependencies(["project:42"], captureDelFn);
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 1);
-    assert.strictEqual(deletedKey, "post:1");
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(1);
+    expect(deletedKey).toBe("post:1");
   });
 
   it("invalidateByDependencies() returns ok(0) when no keys depend on the target", async () => {
     const { manager } = makeDependencyTest();
     const result = await manager.invalidateByDependencies(["nonexistent"], successDelFn);
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 0);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(0);
   });
 
   it("invalidateByDependencies() handles multiple dependents", async () => {
@@ -171,11 +171,11 @@ describe("CacheInvalidationManager — dependency graph", { concurrency: 1 }, ()
     };
 
     const result = await manager.invalidateByDependencies(["project:1"], captureDel);
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 3);
-    assert.ok(deletedKeys.includes("post:1"));
-    assert.ok(deletedKeys.includes("post:2"));
-    assert.ok(deletedKeys.includes("post:3"));
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(3);
+    expect(deletedKeys.includes("post:1")).toBe(true);
+    expect(deletedKeys.includes("post:2")).toBe(true);
+    expect(deletedKeys.includes("post:3")).toBe(true);
   });
 
   it("removeDependency() removes key from all dependency sets", () => {
@@ -196,7 +196,7 @@ describe("CacheInvalidationManager — dependency graph", { concurrency: 1 }, ()
     manager.invalidateByDependencies(["proj:1"], trackDel);
     // Note: this is synchronous setup — the dependency was removed before invalidation
     // The assert verifies it was removed during setup
-    assert.strictEqual(seen, false);
+    expect(seen).toBe(false);
   });
 
   it("clearDependencies() empties the entire graph", async () => {
@@ -212,9 +212,9 @@ describe("CacheInvalidationManager — dependency graph", { concurrency: 1 }, ()
     };
 
     const result = await manager.invalidateByDependencies(["dep:1"], captureDel);
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 0);
-    assert.deepStrictEqual(deletedKeys, []);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(0);
+    expect(deletedKeys).toEqual([]);
   });
 });
 
@@ -227,11 +227,11 @@ describe("CacheInvalidationManager — invalidateByTag", { concurrency: 1 }, () 
     l1.set("post:2", makeItem("data2", ["posts"]));
 
     const result = await manager.invalidateByTag("posts");
-    assert.ok(result.ok);
+    expect(result.ok).toBe(true);
 
     // L1 entries should be gone
-    assert.strictEqual(l1.get("post:1"), undefined);
-    assert.strictEqual(l1.get("post:2"), undefined);
+    expect(l1.get("post:1")).toBe(undefined);
+    expect(l1.get("post:2")).toBe(undefined);
   });
 
   it("includes Redis tag members in deletion", async () => {
@@ -243,18 +243,18 @@ describe("CacheInvalidationManager — invalidateByTag", { concurrency: 1 }, () 
     await redis.set("post:99", "value");
 
     const result = await manager.invalidateByTag("posts");
-    assert.ok(result.ok);
+    expect(result.ok).toBe(true);
 
     // The tag set should be cleaned up
     const remaining = await redis.smembers("tag:posts");
     // "tag:posts" itself was deleted
-    assert.deepStrictEqual(remaining, []);
+    expect(remaining).toEqual([]);
   });
 
   it("returns ok(0) when tag has no associated keys", async () => {
     const { manager } = makeDependencyTest();
     const result = await manager.invalidateByTag("empty-tag");
-    assert.ok(result.ok);
+    expect(result.ok).toBe(true);
   });
 
   it("returns err(CACHE_ERROR) when Redis throws", async () => {
@@ -269,8 +269,8 @@ describe("CacheInvalidationManager — invalidateByTag", { concurrency: 1 }, () 
     const manager = new CacheInvalidationManager(redis as any, l1, tracker, "cache:");
 
     const result = await manager.invalidateByTag("any-tag");
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual((result as any).error, "CACHE_ERROR");
+    expect(result.ok).toBe(false);
+    expect((result as any).error).toBe("CACHE_ERROR");
   });
 });
 
@@ -282,14 +282,14 @@ describe("CacheInvalidationManager — invalidateByPattern", { concurrency: 1 },
     await redis.set("user:1", "u1");
 
     const result = await manager.invalidateByPattern("post:*");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 2);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(2);
 
     // post keys should be gone
-    assert.strictEqual(await redis.get("post:1"), null);
-    assert.strictEqual(await redis.get("post:2"), null);
+    expect(await redis.get("post:1")).toBe(null);
+    expect(await redis.get("post:2")).toBe(null);
     // user key should survive
-    assert.strictEqual(await redis.get("user:1"), "u1");
+    expect(await redis.get("user:1")).toBe("u1");
   });
 
   it("removes corresponding L1 entries for matched keys", async () => {
@@ -300,17 +300,17 @@ describe("CacheInvalidationManager — invalidateByPattern", { concurrency: 1 },
     l1.set("post:1", makeItem("data")); // L1 key without prefix
 
     const result = await manager.invalidateByPattern("cache:post:*");
-    assert.ok(result.ok);
+    expect(result.ok).toBe(true);
 
     // L1 should have "post:1" removed (key with prefix stripped: "cache:" removed)
-    assert.strictEqual(l1.get("post:1"), undefined);
+    expect(l1.get("post:1")).toBe(undefined);
   });
 
   it("returns ok(0) when no keys match pattern", async () => {
     const { manager } = makeDependencyTest();
     const result = await manager.invalidateByPattern("nonexistent:*");
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 0);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(0);
   });
 
   it("returns err(CACHE_ERROR) when Redis throws", async () => {
@@ -324,8 +324,8 @@ describe("CacheInvalidationManager — invalidateByPattern", { concurrency: 1 },
     const manager = new CacheInvalidationManager(redis as any, l1, tracker, "cache:");
 
     const result = await manager.invalidateByPattern("*");
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual((result as any).error, "CACHE_ERROR");
+    expect(result.ok).toBe(false);
+    expect((result as any).error).toBe("CACHE_ERROR");
   });
 });
 
@@ -339,11 +339,11 @@ describe("CacheInvalidationManager — invalidate() with strategies", { concurre
     };
 
     const result = await manager.invalidate(["k1", "k2", "k3"], "immediate", delFn);
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 3);
-    assert.ok(deleted.includes("k1"));
-    assert.ok(deleted.includes("k2"));
-    assert.ok(deleted.includes("k3"));
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(3);
+    expect(deleted.includes("k1")).toBe(true);
+    expect(deleted.includes("k2")).toBe(true);
+    expect(deleted.includes("k3")).toBe(true);
   });
 
   it("immediate strategy accepts single string key", async () => {
@@ -355,9 +355,9 @@ describe("CacheInvalidationManager — invalidate() with strategies", { concurre
     };
 
     const result = await manager.invalidate("single-key", "immediate", delFn);
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 1);
-    assert.deepStrictEqual(deleted, ["single-key"]);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(1);
+    expect(deleted).toEqual(["single-key"]);
   });
 
   it("lazy strategy removes from L1 immediately and sets Redis TTL to 1s", async () => {
@@ -365,20 +365,20 @@ describe("CacheInvalidationManager — invalidate() with strategies", { concurre
     l1.set("lazy-k", makeItem("data"));
 
     const result = await manager.invalidate(["lazy-k"], "lazy", successDelFn);
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 1);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(1);
 
     // L1 should be cleared immediately
-    assert.strictEqual(l1.get("lazy-k"), undefined);
+    expect(l1.get("lazy-k")).toBe(undefined);
     // Redis TTL should be set to 1 second
-    assert.strictEqual(redis._getTTL("lazy-k"), 1);
+    expect(redis._getTTL("lazy-k")).toBe(1);
   });
 
   it("scheduled strategy returns ok without blocking", async () => {
     const { manager } = makeDependencyTest();
     const result = await manager.invalidate(["k"], "scheduled", successDelFn);
-    assert.ok(result.ok);
-    assert.strictEqual(result.value, 1);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(1);
   });
 
   it("smart strategy uses immediate for cold keys", async () => {
@@ -391,9 +391,9 @@ describe("CacheInvalidationManager — invalidate() with strategies", { concurre
     };
 
     const result = await manager.invalidate(["cold-key"], "smart", delFn);
-    assert.ok(result.ok);
+    expect(result.ok).toBe(true);
     // Cold key should be immediately deleted
-    assert.ok(deleted.includes("cold-key"));
+    expect(deleted.includes("cold-key")).toBe(true);
   });
 
   it("smart strategy uses lazy invalidation for hot keys (high frequency + recent)", async () => {
@@ -414,11 +414,11 @@ describe("CacheInvalidationManager — invalidate() with strategies", { concurre
     };
 
     const result = await manager.invalidate(["hot-key"], "smart", delFn);
-    assert.ok(result.ok);
+    expect(result.ok).toBe(true);
     // Hot key should NOT be in immediatelyDeleted (uses lazy instead)
-    assert.ok(!immediatelyDeleted.includes("hot-key"), "hot key should use lazy, not immediate");
+    expect(immediatelyDeleted.includes("hot-key")).toBe(false);
     // L1 should be cleared
-    assert.strictEqual(l1.get("hot-key"), undefined);
+    expect(l1.get("hot-key")).toBe(undefined);
   });
 
   it("unknown strategy falls back to immediate", async () => {
@@ -430,7 +430,7 @@ describe("CacheInvalidationManager — invalidate() with strategies", { concurre
     };
 
     const result = await manager.invalidate(["k"], "unknown" as any, delFn);
-    assert.ok(result.ok);
-    assert.ok(deleted.includes("k"));
+    expect(result.ok).toBe(true);
+    expect(deleted.includes("k")).toBe(true);
   });
 });

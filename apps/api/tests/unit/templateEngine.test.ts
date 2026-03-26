@@ -11,7 +11,7 @@ describe("Template Engine Module - Re-exports", () => {
     const module = await import("../../src/lib/templates/templateEngine");
     expect(module.ServerTemplateEngine).toBeTruthy();
     expect(typeof module.ServerTemplateEngine).toBe("function");
-  });
+  }, 10_000);
 
   it("should export templateEngine singleton", async () => {
     const module = await import("../../src/lib/templates/templateEngine");

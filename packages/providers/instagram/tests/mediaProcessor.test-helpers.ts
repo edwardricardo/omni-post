@@ -4,11 +4,11 @@
  *              Provides a passthrough circuit breaker and a mock FFmpeg instance.
  *
  * NOTE: The source `mediaProcessor.ts` creates a circuit breaker at module scope.
- * Tests must use `mock.module("@adapters/external-apis", ...)` BEFORE importing
+ * Tests must use `vi.mock("@adapters/external-apis", ...)` BEFORE importing
  * the processor to intercept the module-level factory call.
  */
 
-import { mock } from "node:test";
+import { vi } from "vitest";
 
 /**
  * A circuit breaker that passes every call straight through (no circuit logic).
@@ -28,24 +28,24 @@ export function createPassthroughCB() {
  */
 export function createMockFfmpegInstance() {
   const instance: any = {
-    seekInput: mock.fn(() => instance),
-    duration: mock.fn(() => instance),
-    videoCodec: mock.fn(() => instance),
-    audioCodec: mock.fn(() => instance),
-    audioBitrate: mock.fn(() => instance),
-    addOption: mock.fn(() => instance),
-    videoFilters: mock.fn(() => instance),
-    output: mock.fn(() => instance),
-    frames: mock.fn(() => instance),
-    on: mock.fn((event: string, callback: Function) => {
+    seekInput: vi.fn(() => instance),
+    duration: vi.fn(() => instance),
+    videoCodec: vi.fn(() => instance),
+    audioCodec: vi.fn(() => instance),
+    audioBitrate: vi.fn(() => instance),
+    addOption: vi.fn(() => instance),
+    videoFilters: vi.fn(() => instance),
+    output: vi.fn(() => instance),
+    frames: vi.fn(() => instance),
+    on: vi.fn((event: string, callback: Function) => {
       if (event === "end") {
         // Use queueMicrotask instead of setTimeout+unref to avoid event loop
-        // draining before the callback fires (causes --test-force-exit issues)
+        // draining before the callback fires
         queueMicrotask(() => callback());
       }
       return instance;
     }),
-    run: mock.fn(),
+    run: vi.fn(),
   };
   return instance;
 }

@@ -4,7 +4,7 @@
  * Tier 0: tracks access frequency and response times in memory.
  */
 
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, expect } from "vitest";
 import assert from "node:assert/strict";
 import { AccessPatternTracker } from "../src/access-patterns.js";
 
@@ -16,17 +16,17 @@ describe("AccessPatternTracker — updatePattern", { concurrency: 1 }, () => {
   });
 
   it("getPattern() returns undefined for unknown key", () => {
-    assert.strictEqual(tracker.getPattern("missing"), undefined);
+    expect(tracker.getPattern("missing")).toBe(undefined);
   });
 
   it("updatePattern() creates a new entry on first access", () => {
     const now = Date.now();
     tracker.updatePattern("user:1", now);
     const pattern = tracker.getPattern("user:1");
-    assert.ok(pattern !== undefined, "pattern should exist");
-    assert.strictEqual(pattern.key, "user:1");
-    assert.strictEqual(pattern.frequency, 1);
-    assert.strictEqual(pattern.lastAccess, now);
+    expect(pattern).toBeTruthy();
+    expect(pattern!.key).toBe("user:1");
+    expect(pattern!.frequency).toBe(1);
+    expect(pattern!.lastAccess).toBe(now);
   });
 
   it("updatePattern() increments frequency on repeated access", () => {
@@ -35,7 +35,7 @@ describe("AccessPatternTracker — updatePattern", { concurrency: 1 }, () => {
     tracker.updatePattern("post:42", now + 100);
     tracker.updatePattern("post:42", now + 200);
     const pattern = tracker.getPattern("post:42");
-    assert.strictEqual(pattern!.frequency, 3);
+    expect(pattern!.frequency).toBe(3);
   });
 
   it("updatePattern() updates lastAccess to most recent call", () => {
@@ -43,7 +43,7 @@ describe("AccessPatternTracker — updatePattern", { concurrency: 1 }, () => {
     const t2 = t1 + 500;
     tracker.updatePattern("k", t1);
     tracker.updatePattern("k", t2);
-    assert.strictEqual(tracker.getPattern("k")!.lastAccess, t2);
+    expect(tracker.getPattern("k")!.lastAccess).toBe(t2);
   });
 
   it("getAllPatterns() returns all tracked keys", () => {
@@ -52,10 +52,10 @@ describe("AccessPatternTracker — updatePattern", { concurrency: 1 }, () => {
     tracker.updatePattern("b", now);
     tracker.updatePattern("c", now);
     const all = tracker.getAllPatterns();
-    assert.strictEqual(all.size, 3);
-    assert.ok(all.has("a"));
-    assert.ok(all.has("b"));
-    assert.ok(all.has("c"));
+    expect(all.size).toBe(3);
+    expect(all.has("a")).toBe(true);
+    expect(all.has("b")).toBe(true);
+    expect(all.has("c")).toBe(true);
   });
 });
 
@@ -67,7 +67,7 @@ describe("AccessPatternTracker — getHotKeys", { concurrency: 1 }, () => {
   });
 
   it("returns empty array when no patterns exist", () => {
-    assert.deepStrictEqual(tracker.getHotKeys(), []);
+    expect(tracker.getHotKeys()).toEqual([]);
   });
 
   it("returns keys sorted by frequency descending", () => {
@@ -78,9 +78,9 @@ describe("AccessPatternTracker — getHotKeys", { concurrency: 1 }, () => {
     tracker.updatePattern("cold", now);
 
     const hot = tracker.getHotKeys(3);
-    assert.strictEqual(hot[0]!.key, "hot");
-    assert.strictEqual(hot[1]!.key, "warm");
-    assert.strictEqual(hot[2]!.key, "cold");
+    expect(hot[0]!.key).toBe("hot");
+    expect(hot[1]!.key).toBe("warm");
+    expect(hot[2]!.key).toBe("cold");
   });
 
   it("respects the limit parameter", () => {
@@ -89,7 +89,7 @@ describe("AccessPatternTracker — getHotKeys", { concurrency: 1 }, () => {
       tracker.updatePattern(`key-${i}`, now + i * 10);
     }
     const hot = tracker.getHotKeys(2);
-    assert.strictEqual(hot.length, 2);
+    expect(hot.length).toBe(2);
   });
 
   it("hot key entry has key, hits, and frequency fields", () => {
@@ -97,10 +97,10 @@ describe("AccessPatternTracker — getHotKeys", { concurrency: 1 }, () => {
     tracker.updatePattern("mykey", now);
     tracker.updatePattern("mykey", now + 1);
     const hot = tracker.getHotKeys(1);
-    assert.strictEqual(hot.length, 1);
-    assert.strictEqual(hot[0]!.key, "mykey");
-    assert.strictEqual(hot[0]!.hits, 2);
-    assert.strictEqual(hot[0]!.frequency, 2);
+    expect(hot.length).toBe(1);
+    expect(hot[0]!.key).toBe("mykey");
+    expect(hot[0]!.hits).toBe(2);
+    expect(hot[0]!.frequency).toBe(2);
   });
 
   it("default limit is 10", () => {
@@ -108,7 +108,7 @@ describe("AccessPatternTracker — getHotKeys", { concurrency: 1 }, () => {
     for (let i = 0; i < 15; i++) {
       tracker.updatePattern(`k${i}`, now + i);
     }
-    assert.strictEqual(tracker.getHotKeys().length, 10);
+    expect(tracker.getHotKeys().length).toBe(10);
   });
 });
 
@@ -120,7 +120,7 @@ describe("AccessPatternTracker — response times", { concurrency: 1 }, () => {
   });
 
   it("getAverageResponseTime() returns 0 with no data", () => {
-    assert.strictEqual(tracker.getAverageResponseTime(), 0);
+    expect(tracker.getAverageResponseTime()).toBe(0);
   });
 
   it("recordResponseTime() adds a timing and affects average", () => {
@@ -157,8 +157,8 @@ describe("AccessPatternTracker — cleanup", { concurrency: 1 }, () => {
     tracker.updatePattern("a", now);
     tracker.recordResponseTime(now - 100);
     tracker.clear();
-    assert.strictEqual(tracker.getAllPatterns().size, 0);
-    assert.strictEqual(tracker.getAverageResponseTime(), 0);
+    expect(tracker.getAllPatterns().size).toBe(0);
+    expect(tracker.getAverageResponseTime()).toBe(0);
   });
 
   it("cleanupOldPatterns() removes entries older than cutoff", () => {
@@ -170,8 +170,8 @@ describe("AccessPatternTracker — cleanup", { concurrency: 1 }, () => {
     const cutoff = Date.now() - 1000; // everything older than 1 second
     tracker.cleanupOldPatterns(cutoff);
 
-    assert.strictEqual(tracker.getPattern("old-key"), undefined);
-    assert.ok(tracker.getPattern("new-key") !== undefined);
+    expect(tracker.getPattern("old-key")).toBe(undefined);
+    expect(tracker.getPattern("new-key")).not.toBe(undefined);
   });
 
   it("cleanupOldPatterns() with future cutoff removes all", () => {
@@ -179,7 +179,7 @@ describe("AccessPatternTracker — cleanup", { concurrency: 1 }, () => {
     tracker.updatePattern("a", now - 1000);
     tracker.updatePattern("b", now - 2000);
     tracker.cleanupOldPatterns(now + 1); // cutoff in the future
-    assert.strictEqual(tracker.getAllPatterns().size, 0);
+    expect(tracker.getAllPatterns().size).toBe(0);
   });
 
   it("cleanupOldPatterns() with past cutoff keeps all", () => {
@@ -187,6 +187,6 @@ describe("AccessPatternTracker — cleanup", { concurrency: 1 }, () => {
     tracker.updatePattern("a", now);
     tracker.updatePattern("b", now);
     tracker.cleanupOldPatterns(now - 10_000); // cutoff 10s ago
-    assert.strictEqual(tracker.getAllPatterns().size, 2);
+    expect(tracker.getAllPatterns().size).toBe(2);
   });
 });

@@ -6,7 +6,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { PinterestAdapter } from "../src/PinterestAdapter.js";
 
@@ -16,25 +16,25 @@ import { PinterestAdapter } from "../src/PinterestAdapter.js";
 
 function makeMockApiClient() {
   return {
-    createBoard: mock.fn(async () => ({
+    createBoard: vi.fn(async () => ({
       id: "board-123",
       name: "Test Board",
       description: "A test board",
       privacy: "PUBLIC" as const,
       owner: { username: "testuser" },
     })),
-    createBoardSection: mock.fn(async () => ({
+    createBoardSection: vi.fn(async () => ({
       id: "section-456",
       name: "Test Section",
     })),
-    getUserAccount: mock.fn(async () => ({
+    getUserAccount: vi.fn(async () => ({
       username: "testuser",
       account_type: "BUSINESS" as const,
       profile_image: "https://example.com/pic.jpg",
       pin_count: 42,
       board_count: 5,
     })),
-    getPinAnalytics: mock.fn(async () => ({
+    getPinAnalytics: vi.fn(async () => ({
       all: {
         lifetime_metrics: {
           IMPRESSION: 1500,
@@ -44,7 +44,7 @@ function makeMockApiClient() {
         },
       },
     })),
-    createPin: mock.fn(async () => ({
+    createPin: vi.fn(async () => ({
       id: "pin-789",
       title: "Test Pin",
       description: "desc",
@@ -53,12 +53,12 @@ function makeMockApiClient() {
       created_at: "2026-03-10T00:00:00Z",
       media: { media_type: "image" as const },
     })),
-    getPin: mock.fn(async () => ({})),
-    getBoards: mock.fn(async () => ({ items: [], bookmark: undefined })),
-    getCircuitBreakerStatus: mock.fn(() => ({})),
-    clearCache: mock.fn(),
-    forceCircuitBreakerOpen: mock.fn(() => true),
-    forceCircuitBreakerClose: mock.fn(() => true),
+    getPin: vi.fn(async () => ({})),
+    getBoards: vi.fn(async () => ({ items: [], bookmark: undefined })),
+    getCircuitBreakerStatus: vi.fn(() => ({})),
+    clearCache: vi.fn(),
+    forceCircuitBreakerOpen: vi.fn(() => true),
+    forceCircuitBreakerClose: vi.fn(() => true),
   };
 }
 
@@ -78,7 +78,7 @@ describe("PinterestApiClient - Board Creation", { concurrency: 1 }, () => {
 
     assert.strictEqual(result.id, "board-123");
     assert.strictEqual(result.name, "Test Board");
-    assert.strictEqual(mockClient.createBoard.mock.callCount(), 1);
+    assert.strictEqual(mockClient.createBoard.mock.calls.length, 1);
   });
 
   it("creates a board with privacy setting", async () => {
@@ -91,7 +91,7 @@ describe("PinterestApiClient - Board Creation", { concurrency: 1 }, () => {
 
     const call = mockClient.createBoard.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[0].privacy, "SECRET");
+    assert.strictEqual(call[0].privacy, "SECRET");
   });
 });
 
@@ -107,12 +107,12 @@ describe("PinterestApiClient - Board Sections", { concurrency: 1 }, () => {
 
     assert.strictEqual(result.id, "section-456");
     assert.strictEqual(result.name, "Test Section");
-    assert.strictEqual(mockClient.createBoardSection.mock.callCount(), 1);
+    assert.strictEqual(mockClient.createBoardSection.mock.calls.length, 1);
 
     const call = mockClient.createBoardSection.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[0], "board-123");
-    assert.strictEqual(call.arguments[1], "Summer Pins");
+    assert.strictEqual(call[0], "board-123");
+    assert.strictEqual(call[1], "Summer Pins");
   });
 });
 
@@ -124,23 +124,23 @@ describe("PinterestAdapter - Enhanced Analytics", { concurrency: 1 }, () => {
   let adapter: PinterestAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new PinterestAdapter();
   });
 
   it("returns pin-level metrics when providerPostId is provided", async () => {
     const mockClient = makeMockApiClient();
 
-    // Stub internal methods
-    const getCredsMock = mock.method(adapter as never, "getCredentials" as never, async () => ({
-      ok: true,
-      value: { accessToken: "tok", refreshToken: "ref", boardId: "b-1" },
-    }));
+    const getCredsMock = vi
+      .spyOn(adapter as never, "getCredentials" as never)
+      .mockImplementation(async () => ({
+        ok: true,
+        value: { accessToken: "tok", refreshToken: "ref", boardId: "b-1" },
+      }));
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientMock = vi
+      .spyOn(adapter as never, "createApiClient" as never)
+      .mockImplementation(() => mockClient as never);
 
     const result = await adapter.fetchAnalytics({
       channelId: "ch-001",
@@ -162,25 +162,25 @@ describe("PinterestAdapter - Enhanced Analytics", { concurrency: 1 }, () => {
     assert.strictEqual(pin.pinClicks, 120);
     assert.strictEqual(pin.outboundClicks, 45);
 
-    assert.strictEqual(mockClient.getPinAnalytics.mock.callCount(), 1);
+    assert.strictEqual(mockClient.getPinAnalytics.mock.calls.length, 1);
 
-    getCredsMock.mock.restore();
-    createClientMock.mock.restore();
+    getCredsMock.mockRestore();
+    createClientMock.mockRestore();
   });
 
   it("returns account-only metrics when no providerPostId", async () => {
     const mockClient = makeMockApiClient();
 
-    const getCredsMock = mock.method(adapter as never, "getCredentials" as never, async () => ({
-      ok: true,
-      value: { accessToken: "tok", refreshToken: "ref", boardId: "b-1" },
-    }));
+    const getCredsMock = vi
+      .spyOn(adapter as never, "getCredentials" as never)
+      .mockImplementation(async () => ({
+        ok: true,
+        value: { accessToken: "tok", refreshToken: "ref", boardId: "b-1" },
+      }));
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientMock = vi
+      .spyOn(adapter as never, "createApiClient" as never)
+      .mockImplementation(() => mockClient as never);
 
     const result = await adapter.fetchAnalytics({
       channelId: "ch-001",
@@ -195,28 +195,28 @@ describe("PinterestAdapter - Enhanced Analytics", { concurrency: 1 }, () => {
     assert.strictEqual(metrics.pin, undefined);
 
     // getPinAnalytics should not be called
-    assert.strictEqual(mockClient.getPinAnalytics.mock.callCount(), 0);
+    assert.strictEqual(mockClient.getPinAnalytics.mock.calls.length, 0);
 
-    getCredsMock.mock.restore();
-    createClientMock.mock.restore();
+    getCredsMock.mockRestore();
+    createClientMock.mockRestore();
   });
 
   it("returns account metrics even if pin analytics fails", async () => {
     const mockClient = makeMockApiClient();
-    mockClient.getPinAnalytics = mock.fn(async () => {
+    mockClient.getPinAnalytics = vi.fn(async () => {
       throw new Error("Pin analytics unavailable");
     });
 
-    const getCredsMock = mock.method(adapter as never, "getCredentials" as never, async () => ({
-      ok: true,
-      value: { accessToken: "tok", refreshToken: "ref", boardId: "b-1" },
-    }));
+    const getCredsMock = vi
+      .spyOn(adapter as never, "getCredentials" as never)
+      .mockImplementation(async () => ({
+        ok: true,
+        value: { accessToken: "tok", refreshToken: "ref", boardId: "b-1" },
+      }));
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientMock = vi
+      .spyOn(adapter as never, "createApiClient" as never)
+      .mockImplementation(() => mockClient as never);
 
     const result = await adapter.fetchAnalytics({
       channelId: "ch-001",
@@ -232,23 +232,23 @@ describe("PinterestAdapter - Enhanced Analytics", { concurrency: 1 }, () => {
     // Pin metrics should be absent due to failure
     assert.strictEqual(metrics.pin, undefined);
 
-    getCredsMock.mock.restore();
-    createClientMock.mock.restore();
+    getCredsMock.mockRestore();
+    createClientMock.mockRestore();
   });
 
   it("uses custom date range when provided", async () => {
     const mockClient = makeMockApiClient();
 
-    const getCredsMock = mock.method(adapter as never, "getCredentials" as never, async () => ({
-      ok: true,
-      value: { accessToken: "tok", refreshToken: "ref", boardId: "b-1" },
-    }));
+    const getCredsMock = vi
+      .spyOn(adapter as never, "getCredentials" as never)
+      .mockImplementation(async () => ({
+        ok: true,
+        value: { accessToken: "tok", refreshToken: "ref", boardId: "b-1" },
+      }));
 
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    const createClientMock = vi
+      .spyOn(adapter as never, "createApiClient" as never)
+      .mockImplementation(() => mockClient as never);
 
     const since = new Date("2026-01-01");
     const until = new Date("2026-02-01");
@@ -270,10 +270,10 @@ describe("PinterestAdapter - Enhanced Analytics", { concurrency: 1 }, () => {
     // Pin analytics should use those dates
     const call = mockClient.getPinAnalytics.mock.calls[0];
     assert.ok(call);
-    assert.strictEqual(call.arguments[1], "2026-01-01");
-    assert.strictEqual(call.arguments[2], "2026-02-01");
+    assert.strictEqual(call[1], "2026-01-01");
+    assert.strictEqual(call[2], "2026-02-01");
 
-    getCredsMock.mock.restore();
-    createClientMock.mock.restore();
+    getCredsMock.mockRestore();
+    createClientMock.mockRestore();
   });
 });

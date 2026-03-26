@@ -2,13 +2,12 @@
  * @file Fallback Strategies — unit tests
  *
  * Tier 0: No Redis connectivity.
- * ioredis is mocked via mock.module() before importing the source module.
+ * ioredis is mocked via vi.mock() before importing the source module.
  *
- * Framework: node:test + node:assert/strict
+ * Framework: Vitest
  */
 
-import { describe, it, before, after, beforeEach, mock } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 
 // ── Mock infrastructure modules BEFORE importing the source ──────────────────
 
@@ -48,16 +47,16 @@ const mockRedisInstance = {
   },
 };
 
-mock.module("ioredis", {
-  defaultExport: class MockRedis {
+vi.mock("ioredis", () => ({
+  default: class MockRedis {
     constructor() {
-      return mockRedisInstance as any;
+      return mockRedisInstance as unknown as MockRedis;
     }
   },
-});
+}));
 
-mock.module("pino", {
-  defaultExport: () => ({
+vi.mock("pino", () => ({
+  default: () => ({
     info: () => undefined,
     warn: () => undefined,
     error: () => undefined,
@@ -69,7 +68,7 @@ mock.module("pino", {
       debug: () => undefined,
     }),
   }),
-});
+}));
 
 // ── Now import the source (mocks are in place) ──────────────────────────────
 
@@ -79,7 +78,7 @@ let resetFallbackManager: typeof import("../src/index.js").resetFallbackManager;
 let FallbackManager: typeof import("../src/index.js").FallbackManager;
 let CommonFallbackStrategies: typeof import("../src/index.js").CommonFallbackStrategies;
 
-before(async () => {
+beforeAll(async () => {
   const mod = await import("../src/index.js");
   createFallbackManager = mod.createFallbackManager;
   getFallbackManager = mod.getFallbackManager;
@@ -88,7 +87,7 @@ before(async () => {
   CommonFallbackStrategies = mod.CommonFallbackStrategies;
 });
 
-after(() => {
+afterAll(() => {
   resetFallbackManager?.();
   redisStore.clear();
 });
@@ -97,75 +96,78 @@ after(() => {
 // Factory / Singleton tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createFallbackManager()", { concurrency: 1 }, () => {
+describe("createFallbackManager()", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     resetFallbackManager();
   });
 
-  after(() => {
+  afterAll(() => {
     resetFallbackManager();
   });
 
   it("creates a FallbackManager instance", () => {
     const mgr = createFallbackManager("redis://localhost:6379");
-    assert.ok(mgr instanceof FallbackManager, "should return a FallbackManager");
+    expect(mgr instanceof FallbackManager).toBeTruthy();
   });
 
   it("is idempotent — returns the SAME instance on repeated calls", () => {
     const mgr1 = createFallbackManager("redis://localhost:6379");
     const mgr2 = createFallbackManager("redis://other-host:6379");
-    assert.strictEqual(mgr1, mgr2, "should return the same singleton instance");
+    expect(mgr1).toBe(mgr2);
   });
 
   it("creates manager without redisUrl (no Redis fallback cache)", () => {
     const mgr = createFallbackManager();
-    assert.ok(mgr instanceof FallbackManager);
+    expect(mgr instanceof FallbackManager).toBeTruthy();
   });
 });
 
-describe("getFallbackManager()", { concurrency: 1 }, () => {
+describe("getFallbackManager()", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     resetFallbackManager();
   });
 
-  after(() => {
+  afterAll(() => {
     resetFallbackManager();
   });
 
   it("returns null when no manager has been created yet", () => {
-    assert.strictEqual(getFallbackManager(), null);
+    expect(getFallbackManager()).toBe(null);
   });
 
   it("returns the manager after createFallbackManager() is called", () => {
     const created = createFallbackManager("redis://localhost:6379");
     const retrieved = getFallbackManager();
-    assert.strictEqual(retrieved, created);
+    expect(retrieved).toBe(created);
   });
 });
 
-describe("resetFallbackManager()", { concurrency: 1 }, () => {
+describe("resetFallbackManager()", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     resetFallbackManager();
   });
 
   it("resets the singleton so getFallbackManager() returns null", () => {
     createFallbackManager("redis://localhost:6379");
-    assert.ok(getFallbackManager() !== null, "should have a manager before reset");
+    expect(getFallbackManager()).not.toBe(null);
     resetFallbackManager();
-    assert.strictEqual(getFallbackManager(), null);
+    expect(getFallbackManager()).toBe(null);
   });
 
   it("allows a new instance to be created after reset", () => {
     const first = createFallbackManager("redis://localhost:6379");
     resetFallbackManager();
     const second = createFallbackManager("redis://localhost:6379");
-    assert.notStrictEqual(first, second, "should create a fresh instance after reset");
+    expect(first).not.toBe(second);
   });
 
   it("is safe to call multiple times", () => {
     resetFallbackManager();
     resetFallbackManager();
-    assert.strictEqual(getFallbackManager(), null);
+    expect(getFallbackManager()).toBe(null);
   });
 });
 
@@ -173,10 +175,11 @@ describe("resetFallbackManager()", { concurrency: 1 }, () => {
 // executeFallback — strategy execution
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
+describe("FallbackManager.executeFallback()", () => {
   let mgr: InstanceType<typeof FallbackManager>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     resetFallbackManager();
     redisStore.clear();
     // Create a fresh manager with Redis for cache-based tests
@@ -190,7 +193,7 @@ describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
     attempt: 1,
   });
 
-  describe("STATIC_RESPONSE strategy", { concurrency: 1 }, () => {
+  describe("STATIC_RESPONSE strategy", () => {
     it("returns static response from config when primary fails", async () => {
       const staticData = { items: [], total: 0 };
       const result = await mgr.executeFallback(
@@ -198,9 +201,9 @@ describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
         baseContext()
       );
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.deepStrictEqual(result.value, staticData);
+        expect(result.value).toEqual(staticData);
       }
     });
 
@@ -210,9 +213,9 @@ describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
 
       const result = await mgr.executeFallback({ strategy: "STATIC_RESPONSE" }, baseContext());
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.deepStrictEqual(result.value, staticData);
+        expect(result.value).toEqual(staticData);
       }
     });
 
@@ -222,14 +225,14 @@ describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
         { ...baseContext(), service: "unknown", operation: "unknown" }
       );
 
-      assert.strictEqual(result.ok, false);
+      expect(result.ok).toBe(false);
       if (!result.ok) {
-        assert.strictEqual(result.error, "FALLBACK_FAILED");
+        expect(result.error).toBe("FALLBACK_FAILED");
       }
     });
   });
 
-  describe("CACHED_RESPONSE strategy", { concurrency: 1 }, () => {
+  describe("CACHED_RESPONSE strategy", () => {
     it("returns cached response when available", async () => {
       // Pre-populate the mock Redis with a cached response
       const cacheKey = "fallback:test-service:test-op";
@@ -246,18 +249,18 @@ describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
 
       const result = await mgr.executeFallback({ strategy: "CACHED_RESPONSE" }, baseContext());
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        assert.deepStrictEqual(result.value, { data: [1, 2, 3] });
+        expect(result.value).toEqual({ data: [1, 2, 3] });
       }
     });
 
     it("returns FALLBACK_FAILED when cache is empty", async () => {
       const result = await mgr.executeFallback({ strategy: "CACHED_RESPONSE" }, baseContext());
 
-      assert.strictEqual(result.ok, false);
+      expect(result.ok).toBe(false);
       if (!result.ok) {
-        assert.strictEqual(result.error, "FALLBACK_FAILED");
+        expect(result.error).toBe("FALLBACK_FAILED");
       }
     });
 
@@ -268,14 +271,14 @@ describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
         baseContext()
       );
 
-      assert.strictEqual(result.ok, false);
+      expect(result.ok).toBe(false);
       if (!result.ok) {
-        assert.strictEqual(result.error, "FALLBACK_FAILED");
+        expect(result.error).toBe("FALLBACK_FAILED");
       }
     });
   });
 
-  describe("DEGRADED_SERVICE strategy", { concurrency: 1 }, () => {
+  describe("DEGRADED_SERVICE strategy", () => {
     it("returns a degraded response for known service:operation", async () => {
       const result = await mgr.executeFallback(
         { strategy: "DEGRADED_SERVICE" },
@@ -286,27 +289,27 @@ describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
         }
       );
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        const value = result.value as any;
-        assert.strictEqual(value.degraded, true);
-        assert.ok(value.metrics !== undefined, "should have analytics metrics");
+        const value = result.value as { degraded: boolean; metrics: unknown };
+        expect(value.degraded).toBe(true);
+        expect(value.metrics !== undefined).toBeTruthy();
       }
     });
 
     it("returns a generic degraded response for unknown service:operation", async () => {
       const result = await mgr.executeFallback({ strategy: "DEGRADED_SERVICE" }, baseContext());
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        const value = result.value as any;
-        assert.strictEqual(value.degraded, true);
-        assert.strictEqual(value.success, false);
+        const value = result.value as { degraded: boolean; success: boolean };
+        expect(value.degraded).toBe(true);
+        expect(value.success).toBe(false);
       }
     });
   });
 
-  describe("FAIL_GRACEFULLY strategy", { concurrency: 1 }, () => {
+  describe("FAIL_GRACEFULLY strategy", () => {
     it("returns a graceful failure response with custom message", async () => {
       const result = await mgr.executeFallback(
         {
@@ -316,29 +319,29 @@ describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
         baseContext()
       );
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        const value = result.value as any;
-        assert.strictEqual(value.success, false);
-        assert.strictEqual(value.message, "Service is under maintenance");
-        assert.strictEqual(value.fallback, true);
+        const value = result.value as { success: boolean; message: string; fallback: boolean };
+        expect(value.success).toBe(false);
+        expect(value.message).toBe("Service is under maintenance");
+        expect(value.fallback).toBe(true);
       }
     });
 
     it("returns a graceful failure response with default message", async () => {
       const result = await mgr.executeFallback({ strategy: "FAIL_GRACEFULLY" }, baseContext());
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        const value = result.value as any;
-        assert.strictEqual(value.success, false);
-        assert.ok(value.message.includes("test-service"));
-        assert.strictEqual(value.fallback, true);
+        const value = result.value as { success: boolean; message: string; fallback: boolean };
+        expect(value.success).toBe(false);
+        expect(value.message).toContain("test-service");
+        expect(value.fallback).toBe(true);
       }
     });
   });
 
-  describe("RETRY_ALTERNATIVE strategy", { concurrency: 1 }, () => {
+  describe("RETRY_ALTERNATIVE strategy", () => {
     it("returns alternative response when endpoint is configured", async () => {
       const result = await mgr.executeFallback(
         {
@@ -348,19 +351,19 @@ describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
         baseContext()
       );
 
-      assert.strictEqual(result.ok, true);
+      expect(result.ok).toBe(true);
       if (result.ok) {
-        const value = result.value as any;
-        assert.strictEqual(value.source, "alternative");
+        const value = result.value as { source: string };
+        expect(value.source).toBe("alternative");
       }
     });
 
     it("returns FALLBACK_FAILED when no alternative endpoint is configured", async () => {
       const result = await mgr.executeFallback({ strategy: "RETRY_ALTERNATIVE" }, baseContext());
 
-      assert.strictEqual(result.ok, false);
+      expect(result.ok).toBe(false);
       if (!result.ok) {
-        assert.strictEqual(result.error, "FALLBACK_FAILED");
+        expect(result.error).toBe("FALLBACK_FAILED");
       }
     });
   });
@@ -370,10 +373,11 @@ describe("FallbackManager.executeFallback()", { concurrency: 1 }, () => {
 // Strategies run in order — execute primary -> cache -> default
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("Fallback strategy chain execution", { concurrency: 1 }, () => {
+describe("Fallback strategy chain execution", () => {
   let mgr: InstanceType<typeof FallbackManager>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     resetFallbackManager();
     redisStore.clear();
     mgr = new FallbackManager("redis://localhost:6379");
@@ -418,11 +422,7 @@ describe("Fallback strategy chain execution", { concurrency: 1 }, () => {
     );
     executionOrder.push(`graceful:${gracefulResult.ok}`);
 
-    assert.deepStrictEqual(
-      executionOrder,
-      ["cache:false", "static:false", "graceful:true"],
-      "strategies should execute in order, first two fail, last succeeds"
-    );
+    expect(executionOrder).toEqual(["cache:false", "static:false", "graceful:true"]);
   });
 
   it("all strategies failing propagates error correctly", async () => {
@@ -438,7 +438,7 @@ describe("Fallback strategy chain execution", { concurrency: 1 }, () => {
         attempt: 1,
       }
     );
-    assert.strictEqual(result1.ok, false, "CACHED_RESPONSE should fail without Redis");
+    expect(result1.ok).toBe(false);
 
     const result2 = await noRedisMgr.executeFallback(
       { strategy: "STATIC_RESPONSE" },
@@ -449,7 +449,7 @@ describe("Fallback strategy chain execution", { concurrency: 1 }, () => {
         attempt: 2,
       }
     );
-    assert.strictEqual(result2.ok, false, "STATIC_RESPONSE should fail without config");
+    expect(result2.ok).toBe(false);
 
     const result3 = await noRedisMgr.executeFallback(
       { strategy: "RETRY_ALTERNATIVE" },
@@ -460,12 +460,12 @@ describe("Fallback strategy chain execution", { concurrency: 1 }, () => {
         attempt: 3,
       }
     );
-    assert.strictEqual(result3.ok, false, "RETRY_ALTERNATIVE should fail without endpoint");
+    expect(result3.ok).toBe(false);
 
     // All three returned error — the error is properly propagated
-    if (!result1.ok) assert.strictEqual(result1.error, "FALLBACK_FAILED");
-    if (!result2.ok) assert.strictEqual(result2.error, "FALLBACK_FAILED");
-    if (!result3.ok) assert.strictEqual(result3.error, "FALLBACK_FAILED");
+    if (!result1.ok) expect(result1.error).toBe("FALLBACK_FAILED");
+    if (!result2.ok) expect(result2.error).toBe("FALLBACK_FAILED");
+    if (!result3.ok) expect(result3.error).toBe("FALLBACK_FAILED");
   });
 });
 
@@ -473,47 +473,42 @@ describe("Fallback strategy chain execution", { concurrency: 1 }, () => {
 // CommonFallbackStrategies pre-built configs
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("CommonFallbackStrategies", { concurrency: 1 }, () => {
+describe("CommonFallbackStrategies", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("has ANALYTICS_FALLBACK config", () => {
-    assert.ok(CommonFallbackStrategies.ANALYTICS_FALLBACK, "should exist");
-    assert.strictEqual(CommonFallbackStrategies.ANALYTICS_FALLBACK.strategy, "CACHED_RESPONSE");
-    assert.strictEqual(
-      CommonFallbackStrategies.ANALYTICS_FALLBACK.cacheTtl,
-      1800000, // 30 minutes
-      "cacheTtl should be 30 minutes"
-    );
+    expect(CommonFallbackStrategies.ANALYTICS_FALLBACK).toBeTruthy();
+    expect(CommonFallbackStrategies.ANALYTICS_FALLBACK.strategy).toBe("CACHED_RESPONSE");
+    expect(CommonFallbackStrategies.ANALYTICS_FALLBACK.cacheTtl).toBe(1800000); // 30 minutes
   });
 
   it("has UPLOAD_FALLBACK config", () => {
-    assert.ok(CommonFallbackStrategies.UPLOAD_FALLBACK, "should exist");
-    assert.strictEqual(CommonFallbackStrategies.UPLOAD_FALLBACK.strategy, "DEGRADED_SERVICE");
+    expect(CommonFallbackStrategies.UPLOAD_FALLBACK).toBeTruthy();
+    expect(CommonFallbackStrategies.UPLOAD_FALLBACK.strategy).toBe("DEGRADED_SERVICE");
   });
 
   it("has SOCIAL_POST_FALLBACK config", () => {
-    assert.ok(CommonFallbackStrategies.SOCIAL_POST_FALLBACK, "should exist");
-    assert.strictEqual(CommonFallbackStrategies.SOCIAL_POST_FALLBACK.strategy, "STATIC_RESPONSE");
-    assert.ok(
-      CommonFallbackStrategies.SOCIAL_POST_FALLBACK.staticResponse,
-      "should have a staticResponse"
-    );
-    const resp = CommonFallbackStrategies.SOCIAL_POST_FALLBACK.staticResponse as any;
-    assert.strictEqual(resp.queued, true, "static response should indicate queued");
+    expect(CommonFallbackStrategies.SOCIAL_POST_FALLBACK).toBeTruthy();
+    expect(CommonFallbackStrategies.SOCIAL_POST_FALLBACK.strategy).toBe("STATIC_RESPONSE");
+    expect(CommonFallbackStrategies.SOCIAL_POST_FALLBACK.staticResponse).toBeTruthy();
+    const resp = CommonFallbackStrategies.SOCIAL_POST_FALLBACK.staticResponse as {
+      queued: boolean;
+    };
+    expect(resp.queued).toBe(true);
   });
 
   it("has METADATA_FALLBACK config", () => {
-    assert.ok(CommonFallbackStrategies.METADATA_FALLBACK, "should exist");
-    assert.strictEqual(CommonFallbackStrategies.METADATA_FALLBACK.strategy, "CACHED_RESPONSE");
-    assert.strictEqual(
-      CommonFallbackStrategies.METADATA_FALLBACK.cacheTtl,
-      3600000, // 1 hour
-      "cacheTtl should be 1 hour"
-    );
+    expect(CommonFallbackStrategies.METADATA_FALLBACK).toBeTruthy();
+    expect(CommonFallbackStrategies.METADATA_FALLBACK.strategy).toBe("CACHED_RESPONSE");
+    expect(CommonFallbackStrategies.METADATA_FALLBACK.cacheTtl).toBe(3600000); // 1 hour
   });
 
   it("has exactly 4 pre-built strategies", () => {
     const keys = Object.keys(CommonFallbackStrategies);
-    assert.strictEqual(keys.length, 4, "should have 4 pre-built strategies");
-    assert.deepStrictEqual(keys.sort(), [
+    expect(keys.length).toBe(4);
+    expect(keys.sort()).toEqual([
       "ANALYTICS_FALLBACK",
       "METADATA_FALLBACK",
       "SOCIAL_POST_FALLBACK",
@@ -526,10 +521,11 @@ describe("CommonFallbackStrategies", { concurrency: 1 }, () => {
 // cacheSuccessfulResponse
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("FallbackManager.cacheSuccessfulResponse()", { concurrency: 1 }, () => {
+describe("FallbackManager.cacheSuccessfulResponse()", () => {
   let mgr: InstanceType<typeof FallbackManager>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     resetFallbackManager();
     redisStore.clear();
     mgr = new FallbackManager("redis://localhost:6379");
@@ -550,9 +546,9 @@ describe("FallbackManager.cacheSuccessfulResponse()", { concurrency: 1 }, () => 
       }
     );
 
-    assert.strictEqual(result.ok, true);
+    expect(result.ok).toBe(true);
     if (result.ok) {
-      assert.deepStrictEqual(result.value, { views: 100 });
+      expect(result.value).toEqual({ views: 100 });
     }
   });
 
@@ -560,6 +556,6 @@ describe("FallbackManager.cacheSuccessfulResponse()", { concurrency: 1 }, () => 
     const noRedisMgr = new FallbackManager();
     // Should not throw
     await noRedisMgr.cacheSuccessfulResponse("svc", "op", { data: 1 });
-    assert.ok(true, "should not throw");
+    expect(true).toBeTruthy();
   });
 });

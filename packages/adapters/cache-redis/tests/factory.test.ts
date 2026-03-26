@@ -5,7 +5,7 @@
  * Tier 0: no DB, no Redis connectivity.
  */
 
-import { describe, it, before, after, beforeEach } from "node:test";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import assert from "node:assert/strict";
 import client from "prom-client";
 import { createCacheManager, getCacheManager, resetCacheManager } from "../src/factory.js";
@@ -14,11 +14,11 @@ import { RedisCacheManager } from "../src/cache-manager.js";
 // Clear prom-client registry before module imports to avoid "Duplicated metrics" if any
 // other file has already loaded metrics.ts in this process. Since each test file runs
 // in its own process this is a safety measure only.
-before(() => {
+beforeAll(() => {
   client.register.clear();
 });
 
-after(async () => {
+afterAll(async () => {
   // Cleanup: close any manager created during tests and reset singleton
   const mgr = getCacheManager();
   if (mgr) {
@@ -40,13 +40,13 @@ describe("createCacheManager()", { concurrency: 1 }, () => {
 
   it("returns a RedisCacheManager instance", () => {
     const mgr = createCacheManager({ redisUrl: "redis://localhost:6379" });
-    assert.ok(mgr instanceof RedisCacheManager, "should return a RedisCacheManager");
+    expect(mgr instanceof RedisCacheManager).toBe(true);
   });
 
   it("is idempotent — returns the SAME instance on repeated calls", () => {
     const mgr1 = createCacheManager({ redisUrl: "redis://localhost:6379" });
     const mgr2 = createCacheManager({ redisUrl: "redis://different-host:6379" });
-    assert.strictEqual(mgr1, mgr2, "should return the same singleton instance");
+    expect(mgr1).toBe(mgr2);
   });
 
   it("creates manager with provided config values", () => {
@@ -55,7 +55,7 @@ describe("createCacheManager()", { concurrency: 1 }, () => {
       keyPrefix: "myapp:",
       defaultTtl: 900,
     });
-    assert.ok(mgr instanceof RedisCacheManager);
+    expect(mgr instanceof RedisCacheManager).toBe(true);
   });
 });
 
@@ -69,13 +69,13 @@ describe("getCacheManager()", { concurrency: 1 }, () => {
   });
 
   it("returns null when no manager has been created yet", () => {
-    assert.strictEqual(getCacheManager(), null);
+    expect(getCacheManager()).toBe(null);
   });
 
   it("returns the manager after createCacheManager() is called", () => {
     const created = createCacheManager({ redisUrl: "redis://localhost:6379" });
     const retrieved = getCacheManager();
-    assert.strictEqual(retrieved, created);
+    expect(retrieved).toBe(created);
   });
 });
 
@@ -90,13 +90,13 @@ describe("resetCacheManager()", { concurrency: 1 }, () => {
 
   it("resets the singleton so getCacheManager() returns null", async () => {
     createCacheManager({ redisUrl: "redis://localhost:6379" });
-    assert.ok(getCacheManager() !== null, "should have a manager before reset");
+    expect(getCacheManager()).not.toBe(null);
 
     const mgr = getCacheManager()!;
     await mgr.close();
     resetCacheManager();
 
-    assert.strictEqual(getCacheManager(), null);
+    expect(getCacheManager()).toBe(null);
   });
 
   it("allows a new instance to be created after reset", async () => {
@@ -105,20 +105,20 @@ describe("resetCacheManager()", { concurrency: 1 }, () => {
     resetCacheManager();
 
     const second = createCacheManager({ redisUrl: "redis://localhost:6379" });
-    assert.notStrictEqual(first, second, "should create a fresh instance after reset");
+    expect(first).not.toBe(second);
   });
 
   it("resetCacheManager() is safe to call multiple times", () => {
     resetCacheManager();
     resetCacheManager();
-    assert.strictEqual(getCacheManager(), null);
+    expect(getCacheManager()).toBe(null);
   });
 });
 
 describe("RedisCacheManager — lazyConnect (no actual Redis needed)", { concurrency: 1 }, () => {
   let mgr: RedisCacheManager;
 
-  before(async () => {
+  beforeAll(async () => {
     const existing = getCacheManager();
     if (existing) {
       await existing.close();
@@ -132,7 +132,7 @@ describe("RedisCacheManager — lazyConnect (no actual Redis needed)", { concurr
     });
   });
 
-  after(async () => {
+  afterAll(async () => {
     await mgr.close();
     resetCacheManager();
   });

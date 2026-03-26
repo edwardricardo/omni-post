@@ -10,10 +10,10 @@
  * 6. validateCredentials() - Credential structure validation and API test
  * 7. getCredentialsFromEnvironment() - Environment variable reading
  *
- * Framework: node:test + node:assert/strict
+ * Framework: vitest + node:assert/strict
  */
 
-import { describe, it, beforeEach, afterEach, mock } from "node:test";
+import { describe, it, beforeEach, afterEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { YouTubeAdapter } from "../src/YouTubeAdapter.js";
 import type { CanonicalPost } from "@shared/types";
@@ -44,10 +44,11 @@ function createCanonicalPost(overrides: Partial<CanonicalPost> = {}): CanonicalP
 // Metadata Tests
 // ============================================================================
 
-describe("YouTubeAdapter - Metadata", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - Metadata", { concurrent: false }, () => {
   let adapter: YouTubeAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new YouTubeAdapter();
   });
 
@@ -115,10 +116,11 @@ describe("YouTubeAdapter - Metadata", { concurrency: 1 }, () => {
 // render() Tests
 // ============================================================================
 
-describe("YouTubeAdapter - render()", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - render()", { concurrent: false }, () => {
   let adapter: YouTubeAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new YouTubeAdapter();
   });
 
@@ -272,10 +274,11 @@ describe("YouTubeAdapter - render()", { concurrency: 1 }, () => {
 // validateCredentials() Tests
 // ============================================================================
 
-describe("YouTubeAdapter - validateCredentials()", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - validateCredentials()", { concurrent: false }, () => {
   let adapter: YouTubeAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new YouTubeAdapter();
   });
 
@@ -305,8 +308,7 @@ describe("YouTubeAdapter - validateCredentials()", { concurrency: 1 }, () => {
   it("should succeed with valid credentials and mock API client", async () => {
     const mockApiClient = createMockApiClient();
 
-    // Mock createApiClient to return our mock
-    mock.method(adapter as any, "createApiClient", () => mockApiClient);
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockApiClient);
 
     const result = await adapter.validateCredentials({
       clientId: "test-client-id",
@@ -316,16 +318,16 @@ describe("YouTubeAdapter - validateCredentials()", { concurrency: 1 }, () => {
     });
 
     assert.ok(result.ok, "validateCredentials should succeed");
-    assert.strictEqual(mockApiClient.validateCredentials.mock.callCount(), 1);
+    assert.strictEqual(mockApiClient.validateCredentials.mock.calls.length, 1);
   });
 
   it("should return AUTH_INVALID on API error", async () => {
     const mockApiClient = createMockApiClient();
-    mockApiClient.validateCredentials = mock.fn(async () => {
+    mockApiClient.validateCredentials = vi.fn(async () => {
       throw new Error("API validation failed");
     });
 
-    mock.method(adapter as any, "createApiClient", () => mockApiClient);
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockApiClient);
 
     const result = await adapter.validateCredentials({
       clientId: "test-client-id",
@@ -342,13 +344,13 @@ describe("YouTubeAdapter - validateCredentials()", { concurrency: 1 }, () => {
 
   it("should return AUTH_EXPIRED on 401 error", async () => {
     const mockApiClient = createMockApiClient();
-    mockApiClient.validateCredentials = mock.fn(async () => {
+    mockApiClient.validateCredentials = vi.fn(async () => {
       const error = new Error("Unauthorized") as Error & { status: number };
       error.status = 401;
       throw error;
     });
 
-    mock.method(adapter as any, "createApiClient", () => mockApiClient);
+    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockApiClient);
 
     const result = await adapter.validateCredentials({
       clientId: "test-client-id",
@@ -368,11 +370,12 @@ describe("YouTubeAdapter - validateCredentials()", { concurrency: 1 }, () => {
 // getCredentialsFromEnvironment() Tests
 // ============================================================================
 
-describe("YouTubeAdapter - getCredentialsFromEnvironment()", { concurrency: 1 }, () => {
+describe("YouTubeAdapter - getCredentialsFromEnvironment()", { concurrent: false }, () => {
   let adapter: YouTubeAdapter;
   let savedEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new YouTubeAdapter();
     savedEnv = { ...process.env };
     // Clear YouTube env vars

@@ -2,19 +2,20 @@
  * @file index.test.ts
  * @description Tests for InstagramAdapter — metadata, render, planThread,
  *              validateCredentials, content optimization, error handling.
- * Framework: node:test + node:assert/strict
+ * Framework: Vitest
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { InstagramAdapter } from "../src/InstagramAdapter.js";
 import type { CanonicalPost, RenderedPost, ThreadPlan } from "@shared/types";
 
-describe("InstagramAdapter", { concurrency: 1 }, () => {
+describe("InstagramAdapter", () => {
   let adapter: InstagramAdapter;
   let samplePost: CanonicalPost;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new InstagramAdapter();
     samplePost = {
       id: "test-1",
@@ -260,7 +261,7 @@ describe("InstagramAdapter", { concurrency: 1 }, () => {
     it("should validate complete credentials with mocked API client", async () => {
       // Mock the createApiClient method to return a mock that resolves
       const mockApiClient = {
-        validateCredentials: mock.fn(async () => ({
+        validateCredentials: vi.fn(async () => ({
           id: "test-user-id",
           username: "testuser",
           name: "Test User",
@@ -268,7 +269,9 @@ describe("InstagramAdapter", { concurrency: 1 }, () => {
         })),
       };
 
-      mock.method(adapter as any, "createApiClient", () => mockApiClient);
+      const createClientSpy = vi
+        .spyOn(adapter as any, "createApiClient")
+        .mockImplementation(() => mockApiClient);
 
       const validCredentials = {
         accessToken: "valid-access-token",
@@ -282,17 +285,21 @@ describe("InstagramAdapter", { concurrency: 1 }, () => {
       // AbstractProviderAdapter.validateCredentials returns ok(undefined) on success
       assert.strictEqual(result.ok, true);
       // Verify the API client was called
-      assert.strictEqual(mockApiClient.validateCredentials.mock.callCount(), 1);
+      assert.strictEqual(mockApiClient.validateCredentials.mock.calls.length, 1);
+
+      createClientSpy.mockRestore();
     });
 
     it("should handle API client errors during validation", async () => {
       const mockApiClient = {
-        validateCredentials: mock.fn(async () => {
+        validateCredentials: vi.fn(async () => {
           throw new Error("Invalid access token");
         }),
       };
 
-      mock.method(adapter as any, "createApiClient", () => mockApiClient);
+      const createClientSpy = vi
+        .spyOn(adapter as any, "createApiClient")
+        .mockImplementation(() => mockApiClient);
 
       const invalidCredentials = {
         accessToken: "invalid-token",
@@ -306,6 +313,8 @@ describe("InstagramAdapter", { concurrency: 1 }, () => {
         // AbstractProviderAdapter maps generic errors to AUTH_INVALID
         assert.strictEqual(result.error, "AUTH_INVALID");
       }
+
+      createClientSpy.mockRestore();
     });
   });
 

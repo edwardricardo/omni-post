@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import client from "prom-client";
 import { WorkerMetrics } from "../src/metrics/workerMetrics.js";

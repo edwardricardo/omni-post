@@ -5,11 +5,11 @@
  *              environment validation, circuit breaker, and complete workflows.
  *              Unit/lifecycle/content-type tests live in publishingWorker.test.ts.
  *
- * Framework: node:test + node:assert/strict
- * Mocking:   mock.module() for module-level adapter factories.
+ * Framework: vitest + node:assert/strict
+ * Mocking:   vi.mock() for module-level adapter factories.
  */
 
-import { describe, it, before, beforeEach, afterEach, mock } from "node:test";
+import { describe, it, beforeAll, beforeEach, afterEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
   createMockConsumerAdapter,
@@ -17,7 +17,6 @@ import {
   createMockRepoAdapter,
   createMockApiClient,
   createMockMediaProcessor,
-  createPassthroughCB,
   basePayload,
   type MockConsumerAdapter,
   type MockQueueAdapter,
@@ -26,11 +25,61 @@ import {
   type MockMediaProcessor,
 } from "./publishingWorker.test-helpers.js";
 
-let InstagramPublishingWorker: any;
+// ── Hoist vi.mock() calls before module evaluation ──
 
-const cbPassthrough = createPassthroughCB();
+vi.mock("@adapters/queue-bullmq", () => ({
+  createBullMQConsumerAdapter: () => createMockConsumerAdapter(),
+  createBullMQQueueAdapter: () => createMockQueueAdapter(),
+}));
 
-describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
+vi.mock("@adapters/external-apis", () => ({
+  createExternalApiCircuitBreaker: () => ({
+    call: async (_svc: string, _op: string, fn: (...a: any[]) => Promise<any>) => fn(),
+    getAllStatuses: () => ({}),
+  }),
+  resetExternalApiCircuitBreaker: async () => undefined,
+}));
+
+vi.mock("@adapters/db-prisma", () => ({
+  createPrismaRepoAdapter: () => createMockRepoAdapter(),
+}));
+
+vi.mock("prom-client", () => ({
+  default: {
+    Registry: class {
+      registerMetric() {}
+      removeSingleMetric() {}
+    },
+    Counter: class {
+      inc() {}
+      labels() {
+        return this;
+      }
+    },
+    Histogram: class {
+      observe() {}
+      labels() {
+        return this;
+      }
+      startTimer() {
+        return () => 0;
+      }
+    },
+    Gauge: class {
+      set() {}
+      inc() {}
+      dec() {}
+      labels() {
+        return this;
+      }
+    },
+  },
+}));
+
+// Static import after mocks (Vitest hoists vi.mock before imports)
+import { InstagramPublishingWorker } from "../src/publishingWorker.js";
+
+describe("InstagramPublishingWorker -- integration", { concurrent: false }, () => {
   let worker: any;
   let mockConsumer: MockConsumerAdapter;
   let mockQueue: MockQueueAdapter;
@@ -38,64 +87,14 @@ describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
   let _mockApiClient: MockApiClient;
   let mockMediaProcessor: MockMediaProcessor;
 
-  before(async () => {
-    mock.module("@adapters/queue-bullmq", {
-      namedExports: {
-        createBullMQConsumerAdapter: () => createMockConsumerAdapter(),
-        createBullMQQueueAdapter: () => createMockQueueAdapter(),
-      },
-    });
-    mock.module("@adapters/external-apis", {
-      namedExports: {
-        createExternalApiCircuitBreaker: () => cbPassthrough,
-        resetExternalApiCircuitBreaker: async () => undefined,
-      },
-    });
-    mock.module("@adapters/db-prisma", {
-      namedExports: {
-        createPrismaRepoAdapter: () => createMockRepoAdapter(),
-      },
-    });
-    mock.module("prom-client", {
-      defaultExport: {
-        Registry: class {
-          registerMetric() {}
-          removeSingleMetric() {}
-        },
-        Counter: class {
-          inc() {}
-          labels() {
-            return this;
-          }
-        },
-        Histogram: class {
-          observe() {}
-          labels() {
-            return this;
-          }
-          startTimer() {
-            return () => 0;
-          }
-        },
-        Gauge: class {
-          set() {}
-          inc() {}
-          dec() {}
-          labels() {
-            return this;
-          }
-        },
-      },
-    });
-
+  beforeAll(() => {
     process.env.AWS_REGION = "us-east-1";
     process.env.AWS_S3_BUCKET = "test-bucket";
-
-    const mod = await import("../src/publishingWorker.js");
-    InstagramPublishingWorker = mod.InstagramPublishingWorker;
   });
 
   beforeEach(() => {
+    vi.clearAllMocks();
+
     mockConsumer = createMockConsumerAdapter();
     mockQueue = createMockQueueAdapter();
     mockRepo = createMockRepoAdapter();
@@ -119,15 +118,15 @@ describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
 
   // ── Job processing integration ──
 
-  describe("job processing integration", { concurrency: 1 }, () => {
+  describe("job processing integration", { concurrent: false }, () => {
     it("should handle complete job processing workflow", async () => {
       // Mock the internal publishContent to use our _mockApiClient
-      mock.method(worker as any, "publishContent", async () => ({
+      vi.spyOn(worker as any, "publishContent").mockResolvedValue({
         success: true,
         providerPostId: "media-456",
         url: "https://instagram.com/p/test123",
         publishedAt: new Date(),
-      }));
+      });
 
       const mockJob = {
         payload: basePayload() as unknown as Record<string, unknown>,
@@ -139,37 +138,39 @@ describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
       assert.ok(mockRepo.logPublish.mock.calls.length > 0);
       const logCall0 = (mockRepo.logPublish.mock.calls as any[])[0];
       assert.ok(logCall0);
-      const logCall = logCall0.arguments[0] as any;
+      const logCall = logCall0[0] as any;
       assert.strictEqual(logCall.provider, "instagram");
       assert.strictEqual(logCall.status, "OK");
     });
 
     it("should handle retry logic for failed jobs", async () => {
-      mock.method(worker as any, "publishContent", async () => ({
+      vi.spyOn(worker as any, "publishContent").mockResolvedValue({
         success: false,
         error: "temporary network failure",
         retryable: true,
-      }));
+      });
 
       const mockJob = {
         payload: basePayload({ retryCount: 1 }) as unknown as Record<string, unknown>,
         dedupeKey: "test-retry-job-123",
       };
 
-      const scheduleRetrySpy = mock.method(worker as any, "scheduleRetry", async () => undefined);
+      const scheduleRetrySpy = vi
+        .spyOn(worker as any, "scheduleRetry")
+        .mockResolvedValue(undefined);
 
       await (worker as any).processJob(mockJob);
 
       assert.ok(scheduleRetrySpy.mock.calls.length > 0);
-      scheduleRetrySpy.mock.restore();
+      scheduleRetrySpy.mockRestore();
     });
 
     it("should mark job as failed when max retries exceeded", async () => {
-      mock.method(worker as any, "publishContent", async () => ({
+      vi.spyOn(worker as any, "publishContent").mockResolvedValue({
         success: false,
         error: "temporary network failure",
         retryable: true,
-      }));
+      });
 
       const mockJob = {
         payload: basePayload({
@@ -185,14 +186,14 @@ describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
       assert.ok(mockRepo.logPublish.mock.calls.length > 0);
       const retryLogCall0 = (mockRepo.logPublish.mock.calls as any[])[0];
       assert.ok(retryLogCall0);
-      const logCall = retryLogCall0.arguments[0] as any;
+      const logCall = retryLogCall0[0] as any;
       assert.strictEqual(logCall.status, "ERR");
     });
   });
 
   // ── Database operations ──
 
-  describe("database operations", { concurrency: 1 }, () => {
+  describe("database operations", { concurrent: false }, () => {
     it("should update database with successful publish result", async () => {
       const queueId = "test-queue-123";
       const result = {
@@ -212,7 +213,7 @@ describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
       assert.ok(mockRepo.logPublish.mock.calls.length > 0);
       const logCallDb0 = (mockRepo.logPublish.mock.calls as any[])[0];
       assert.ok(logCallDb0);
-      const logCall = logCallDb0.arguments[0] as any;
+      const logCall = logCallDb0[0] as any;
       assert.strictEqual(logCall.postId, "post-123");
       assert.strictEqual(logCall.provider, "instagram");
       assert.strictEqual(logCall.channelId, "channel-456");
@@ -239,14 +240,14 @@ describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
       assert.ok(mockRepo.logPublish.mock.calls.length > 0);
       const failedLogCall0 = (mockRepo.logPublish.mock.calls as any[])[0];
       assert.ok(failedLogCall0);
-      const logCall = failedLogCall0.arguments[0] as any;
+      const logCall = failedLogCall0[0] as any;
       assert.strictEqual(logCall.status, "ERR");
       assert.strictEqual(logCall.payload.error, "API rate limit exceeded");
     });
 
     it("should handle database logging errors gracefully", async () => {
       // Replace logPublish with a failing mock
-      const failingLogPublish = mock.fn(async () => ({
+      const failingLogPublish = vi.fn(async () => ({
         ok: false as const,
         error: "Database connection failed",
       }));
@@ -275,7 +276,7 @@ describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
       assert.ok(mockRepo.logPublish.mock.calls.length > 0);
       const extractLogCall0 = (mockRepo.logPublish.mock.calls as any[])[0];
       assert.ok(extractLogCall0);
-      const logCall = extractLogCall0.arguments[0] as any;
+      const logCall = extractLogCall0[0] as any;
       assert.strictEqual(logCall.postId, "post-abc");
       assert.strictEqual(logCall.channelId, "channel-xyz");
     });
@@ -283,15 +284,15 @@ describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
 
   // ── Retry logic with exponential backoff ──
 
-  describe("retry logic with exponential backoff", { concurrency: 1 }, () => {
-    let dateNowSpy: ReturnType<typeof mock.method>;
+  describe("retry logic with exponential backoff", { concurrent: false }, () => {
+    let dateNowSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
-      dateNowSpy = mock.method(Date, "now", () => 1640995200000);
+      dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1640995200000);
     });
 
     afterEach(() => {
-      dateNowSpy.mock.restore();
+      dateNowSpy.mockRestore();
     });
 
     it("should calculate exponential backoff correctly", async () => {
@@ -308,7 +309,7 @@ describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
       assert.ok(mockQueue.enqueue.mock.calls.length > 0);
       const backoffEnqueueCall0 = (mockQueue.enqueue.mock.calls as any[])[0];
       assert.ok(backoffEnqueueCall0);
-      const enqueueCall = backoffEnqueueCall0.arguments[0] as any;
+      const enqueueCall = backoffEnqueueCall0[0] as any;
       assert.strictEqual(enqueueCall.payload.retryCount, 3);
       assert.strictEqual(enqueueCall.dedupeKey, "test-retry-queue_retry_3");
       assert.deepStrictEqual(enqueueCall.runAt, expectedRetryTime);
@@ -327,14 +328,14 @@ describe("InstagramPublishingWorker -- integration", { concurrency: 1 }, () => {
       assert.ok(mockQueue.enqueue.mock.calls.length > 0);
       const capEnqueueCall0 = (mockQueue.enqueue.mock.calls as any[])[0];
       assert.ok(capEnqueueCall0);
-      const enqueueCall = capEnqueueCall0.arguments[0] as any;
+      const enqueueCall = capEnqueueCall0[0] as any;
       assert.strictEqual(enqueueCall.payload.retryCount, 11);
       assert.deepStrictEqual(enqueueCall.runAt, expectedRetryTime);
     });
 
     it("should handle retry scheduling failures", async () => {
       // Replace enqueue with a failing mock
-      const failingEnqueue = mock.fn(async () => ({
+      const failingEnqueue = vi.fn(async () => ({
         ok: false as const,
         error: "Queue is full",
       }));

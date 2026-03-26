@@ -6,7 +6,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { XAdapter } from "../src/XAdapter.js";
 import type { CanonicalPost } from "@shared/types";
@@ -41,29 +41,29 @@ function makePublishInput(overrides?: Partial<PublishInput>): PublishInput {
 
 function makeMockApiClient() {
   return {
-    postTweet: mock.fn(async () => ({
+    postTweet: vi.fn(async () => ({
       data: {
         id: "tweet-poll-001",
         text: "What is your favorite color?",
         created_at: "2026-03-10T10:00:00Z",
       },
     })),
-    uploadMedia: mock.fn(async () => ({
+    uploadMedia: vi.fn(async () => ({
       media_id_string: "media-001",
       media_id: 1,
       size: 1000,
       media_key: "7_media-001",
     })),
-    validateCredentials: mock.fn(async () => ({
+    validateCredentials: vi.fn(async () => ({
       data: { id: "user-001", name: "Test", username: "test" },
     })),
-    getTweetAnalytics: mock.fn(async () => ({ data: [] })),
-    deleteTweet: mock.fn(async () => ({ data: { deleted: true } })),
-    searchReplies: mock.fn(async () => ({ data: [], meta: { result_count: 0 } })),
-    getCircuitBreakerStatus: mock.fn(() => ({})),
-    clearCache: mock.fn(),
-    forceCircuitBreakerOpen: mock.fn(() => true),
-    forceCircuitBreakerClose: mock.fn(() => true),
+    getTweetAnalytics: vi.fn(async () => ({ data: [] })),
+    deleteTweet: vi.fn(async () => ({ data: { deleted: true } })),
+    searchReplies: vi.fn(async () => ({ data: [], meta: { result_count: 0 } })),
+    getCircuitBreakerStatus: vi.fn(() => ({})),
+    clearCache: vi.fn(),
+    forceCircuitBreakerOpen: vi.fn(() => true),
+    forceCircuitBreakerClose: vi.fn(() => true),
   };
 }
 
@@ -71,10 +71,11 @@ function makeMockApiClient() {
 // 1. Poll Tag Parsing in render()
 // ============================================================================
 
-describe("XAdapter - Poll Rendering", { concurrency: 1 }, () => {
+describe("XAdapter - Poll Rendering", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
@@ -174,10 +175,11 @@ describe("XAdapter - Poll Rendering", { concurrency: 1 }, () => {
 // 2. Quote Tweet Tag Parsing
 // ============================================================================
 
-describe("XAdapter - Quote Tweet Rendering", { concurrency: 1 }, () => {
+describe("XAdapter - Quote Tweet Rendering", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
@@ -209,16 +211,17 @@ describe("XAdapter - Quote Tweet Rendering", { concurrency: 1 }, () => {
 // 3. Publish with Poll & Quote Tweet
 // ============================================================================
 
-describe("XAdapter - Publish with Poll/Quote", { concurrency: 1 }, () => {
+describe("XAdapter - Publish with Poll/Quote", { concurrent: false }, () => {
   let adapter: XAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new XAdapter();
   });
 
   it("passes poll config to postTweet when present in meta", async () => {
     const mockClient = makeMockApiClient();
-    const getCredsMock = mock.method(adapter as never, "getCredentials" as never, async () => ({
+    const getCredsSpy = vi.spyOn(adapter as any, "getCredentials").mockResolvedValue({
       ok: true,
       value: {
         apiKey: "k",
@@ -227,12 +230,8 @@ describe("XAdapter - Publish with Poll/Quote", { concurrency: 1 }, () => {
         accessTokenSecret: "as",
         bearerToken: "b",
       },
-    }));
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    });
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const input = makePublishInput({
       post: {
@@ -252,18 +251,18 @@ describe("XAdapter - Publish with Poll/Quote", { concurrency: 1 }, () => {
     const call = mockClient.postTweet.mock.calls[0];
     assert.ok(call);
     // 4th argument is poll
-    const pollArg = call.arguments[3] as { options: string[]; durationMinutes: number };
+    const pollArg = call[3] as { options: string[]; durationMinutes: number };
     assert.ok(pollArg);
     assert.deepStrictEqual(pollArg.options, ["Yes", "No"]);
     assert.strictEqual(pollArg.durationMinutes, 1440);
 
-    getCredsMock.mock.restore();
-    createClientMock.mock.restore();
+    getCredsSpy.mockRestore();
+    createClientSpy.mockRestore();
   });
 
   it("passes quote tweet ID to postTweet when present in meta", async () => {
     const mockClient = makeMockApiClient();
-    const getCredsMock = mock.method(adapter as never, "getCredentials" as never, async () => ({
+    const getCredsSpy = vi.spyOn(adapter as any, "getCredentials").mockResolvedValue({
       ok: true,
       value: {
         apiKey: "k",
@@ -272,12 +271,8 @@ describe("XAdapter - Publish with Poll/Quote", { concurrency: 1 }, () => {
         accessTokenSecret: "as",
         bearerToken: "b",
       },
-    }));
-    const createClientMock = mock.method(
-      adapter as never,
-      "createApiClient" as never,
-      () => mockClient
-    );
+    });
+    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
 
     const input = makePublishInput({
       post: {
@@ -294,9 +289,9 @@ describe("XAdapter - Publish with Poll/Quote", { concurrency: 1 }, () => {
     const call = mockClient.postTweet.mock.calls[0];
     assert.ok(call);
     // 5th argument is quoteTweetId
-    assert.strictEqual(call.arguments[4], "9876543210");
+    assert.strictEqual(call[4], "9876543210");
 
-    getCredsMock.mock.restore();
-    createClientMock.mock.restore();
+    getCredsSpy.mockRestore();
+    createClientSpy.mockRestore();
   });
 });

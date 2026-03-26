@@ -6,7 +6,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { PinterestAdapter } from "../src/PinterestAdapter.js";
 import type { CanonicalPost, RenderedPost } from "@shared/types";
@@ -56,6 +56,7 @@ describe("PinterestAdapter - Metadata", { concurrency: 1 }, () => {
   let adapter: PinterestAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new PinterestAdapter();
   });
 
@@ -120,6 +121,7 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
   let adapter: PinterestAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new PinterestAdapter();
   });
 
@@ -274,13 +276,14 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
 
 describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
   let adapter: PinterestAdapter;
-  let mockCreatePin: ReturnType<typeof mock.fn>;
-  let mockGetUserAccount: ReturnType<typeof mock.fn>;
+  let mockCreatePin: ReturnType<typeof vi.fn>;
+  let mockGetUserAccount: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new PinterestAdapter();
 
-    mockCreatePin = mock.fn(async () => ({
+    mockCreatePin = vi.fn(async () => ({
       id: "pin-12345",
       title: "Test Pin",
       description: "Test description",
@@ -290,7 +293,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
       media: { media_type: "image" as const },
     }));
 
-    mockGetUserAccount = mock.fn(async () => ({
+    mockGetUserAccount = vi.fn(async () => ({
       username: "testuser",
       account_type: "BUSINESS" as const,
       profile_image: "https://example.com/avatar.jpg",
@@ -305,7 +308,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
     });
 
     // Override getCredentials to return valid creds
-    (adapter as any).getCredentials = mock.fn(async () => ({
+    (adapter as any).getCredentials = vi.fn(async () => ({
       ok: true,
       value: {
         accessToken: "test-token",
@@ -332,7 +335,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
     await adapter.publish(input);
 
     assert.strictEqual(mockCreatePin.mock.calls.length, 1);
-    const callArgs = mockCreatePin.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const callArgs = mockCreatePin.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.strictEqual(callArgs.board_id, "board-001");
   });
 
@@ -348,7 +351,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
 
     await adapter.publish(input);
 
-    const callArgs = mockCreatePin.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const callArgs = mockCreatePin.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.strictEqual(callArgs.title, "My Pin Title");
   });
 
@@ -356,7 +359,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
     const input = makePublishInput();
     await adapter.publish(input);
 
-    const callArgs = mockCreatePin.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const callArgs = mockCreatePin.mock.calls[0]?.[0] as Record<string, unknown>;
     const mediaSource = callArgs.media_source as Record<string, unknown>;
     assert.strictEqual(mediaSource.source_type, "image_url");
     assert.strictEqual(mediaSource.url, "https://example.com/image.jpg");
@@ -374,7 +377,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
 
     await adapter.publish(input);
 
-    const callArgs = mockCreatePin.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const callArgs = mockCreatePin.mock.calls[0]?.[0] as Record<string, unknown>;
     const mediaSource = callArgs.media_source as Record<string, unknown>;
     assert.strictEqual(mediaSource.source_type, "video_id");
     assert.strictEqual(mediaSource.media_id, "video-media-id-123");
@@ -399,7 +402,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH error when credentials are invalid", async () => {
-    (adapter as any).getCredentials = mock.fn(async () => ({
+    (adapter as any).getCredentials = vi.fn(async () => ({
       ok: false,
       error: "AUTH",
     }));
@@ -414,7 +417,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("returns NETWORK error when circuit breaker is open", async () => {
-    mockCreatePin = mock.fn(async () => {
+    mockCreatePin = vi.fn(async () => {
       throw new Error("Circuit breaker is OPEN for pinterest-api");
     });
     (adapter as any).createApiClient = () => ({
@@ -433,7 +436,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
 
   it("returns RATE_LIMIT error on 429 status", async () => {
     const rateLimitError = Object.assign(new Error("Rate limited"), { status: 429 });
-    mockCreatePin = mock.fn(async () => {
+    mockCreatePin = vi.fn(async () => {
       throw rateLimitError;
     });
     (adapter as any).createApiClient = () => ({
@@ -452,7 +455,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
 
   it("returns mapped error for server errors (500+)", async () => {
     const serverError = Object.assign(new Error("Server Error"), { status: 500 });
-    mockCreatePin = mock.fn(async () => {
+    mockCreatePin = vi.fn(async () => {
       throw serverError;
     });
     (adapter as any).createApiClient = () => ({
@@ -476,12 +479,13 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
 
 describe("PinterestAdapter - ValidateCredentials", { concurrency: 1 }, () => {
   let adapter: PinterestAdapter;
-  let mockGetUserAccount: ReturnType<typeof mock.fn>;
+  let mockGetUserAccount: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new PinterestAdapter();
 
-    mockGetUserAccount = mock.fn(async () => ({
+    mockGetUserAccount = vi.fn(async () => ({
       username: "testuser",
       account_type: "BUSINESS" as const,
       profile_image: "https://example.com/avatar.jpg",
@@ -552,7 +556,7 @@ describe("PinterestAdapter - ValidateCredentials", { concurrency: 1 }, () => {
 
   it("returns AUTH_EXPIRED when API returns 401", async () => {
     const authError = Object.assign(new Error("Unauthorized"), { status: 401 });
-    mockGetUserAccount = mock.fn(async () => {
+    mockGetUserAccount = vi.fn(async () => {
       throw authError;
     });
     (adapter as any).createApiClient = () => ({
@@ -574,7 +578,7 @@ describe("PinterestAdapter - ValidateCredentials", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH_INVALID when API throws generic error", async () => {
-    mockGetUserAccount = mock.fn(async () => {
+    mockGetUserAccount = vi.fn(async () => {
       throw new Error("Connection failed");
     });
     (adapter as any).createApiClient = () => ({
@@ -602,12 +606,13 @@ describe("PinterestAdapter - ValidateCredentials", { concurrency: 1 }, () => {
 
 describe("PinterestAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   let adapter: PinterestAdapter;
-  let mockGetUserAccount: ReturnType<typeof mock.fn>;
+  let mockGetUserAccount: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new PinterestAdapter();
 
-    mockGetUserAccount = mock.fn(async () => ({
+    mockGetUserAccount = vi.fn(async () => ({
       username: "testuser",
       account_type: "BUSINESS" as const,
       profile_image: "https://example.com/avatar.jpg",
@@ -619,7 +624,7 @@ describe("PinterestAdapter - FetchAnalytics", { concurrency: 1 }, () => {
       getUserAccount: mockGetUserAccount,
     });
 
-    (adapter as any).getCredentials = mock.fn(async () => ({
+    (adapter as any).getCredentials = vi.fn(async () => ({
       ok: true,
       value: {
         accessToken: "test-token",
@@ -662,7 +667,7 @@ describe("PinterestAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH error when credentials are invalid", async () => {
-    (adapter as any).getCredentials = mock.fn(async () => ({
+    (adapter as any).getCredentials = vi.fn(async () => ({
       ok: false,
       error: "AUTH",
     }));
@@ -676,7 +681,7 @@ describe("PinterestAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   });
 
   it("returns NETWORK error when API call fails", async () => {
-    mockGetUserAccount = mock.fn(async () => {
+    mockGetUserAccount = vi.fn(async () => {
       throw new Error("API unavailable");
     });
     (adapter as any).createApiClient = () => ({
@@ -716,6 +721,7 @@ describe("PinterestAdapter - Threading", { concurrency: 1 }, () => {
   let adapter: PinterestAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new PinterestAdapter();
   });
 
@@ -758,6 +764,7 @@ describe("PinterestAdapter - GetCredentialsFromEnvironment", { concurrency: 1 },
   const _originalEnv = { ...process.env };
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new PinterestAdapter();
     // Clear relevant env vars
     delete process.env.PINTEREST_ACCESS_TOKEN;

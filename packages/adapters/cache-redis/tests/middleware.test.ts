@@ -9,18 +9,19 @@
  * Tier 0: no DB, no Redis, no network.
  */
 
-import { describe, it, beforeEach, mock, after } from "node:test";
+import { describe, it, beforeEach, afterAll, expect, vi } from "vitest";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import client from "prom-client";
 import type { RedisCacheManager } from "../src/cache-manager.js";
-import { CacheInvalidator, CacheKeys, CacheTTL } from "../src/middleware.js";
+import { CacheInvalidator } from "../src/middleware.js";
+import { CacheKeys, CacheTTL } from "../src/constants.js";
 
 // Clear registry once for this process
 client.register.clear();
 
-after(() => {
-  mock.restoreAll();
+afterAll(() => {
+  vi.restoreAllMocks();
   client.register.clear();
 });
 
@@ -29,17 +30,17 @@ after(() => {
 function makeMockManager() {
   const store = new Map<string, any>();
 
-  const invalidateByTag = mock.fn(async (_tag: string) => ({ ok: true as const, value: 0 }));
-  const invalidateByPattern = mock.fn(async (_p: string) => ({ ok: true as const, value: 0 }));
-  const invalidate = mock.fn(async (_keys: string | string[]) => ({
+  const invalidateByTag = vi.fn(async (_tag: string) => ({ ok: true as const, value: 0 }));
+  const invalidateByPattern = vi.fn(async (_p: string) => ({ ok: true as const, value: 0 }));
+  const invalidate = vi.fn(async (_keys: string | string[]) => ({
     ok: true as const,
     value: Array.isArray(_keys) ? _keys.length : 1,
   }));
-  const get = mock.fn(async (key: string) => ({
+  const get = vi.fn(async (key: string) => ({
     ok: true as const,
     value: store.get(key) ?? null,
   }));
-  const set = mock.fn(async (key: string, value: any) => {
+  const set = vi.fn(async (key: string, value: any) => {
     store.set(key, value);
     return { ok: true as const, value: undefined as void };
   });
@@ -53,11 +54,11 @@ function makeMockManager() {
     _store: store,
   } as unknown as RedisCacheManager & {
     _store: Map<string, any>;
-    invalidateByTag: ReturnType<typeof mock.fn>;
-    invalidateByPattern: ReturnType<typeof mock.fn>;
-    invalidate: ReturnType<typeof mock.fn>;
-    get: ReturnType<typeof mock.fn>;
-    set: ReturnType<typeof mock.fn>;
+    invalidateByTag: ReturnType<typeof vi.fn>;
+    invalidateByPattern: ReturnType<typeof vi.fn>;
+    invalidate: ReturnType<typeof vi.fn>;
+    get: ReturnType<typeof vi.fn>;
+    set: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -74,42 +75,40 @@ describe("CacheInvalidator", { concurrency: 1 }, () => {
 
   it("invalidateUser() calls invalidateByTag(`user:<id>`) and invalidateByPattern", async () => {
     await invalidator.invalidateUser("user-42");
-    assert.strictEqual(manager.invalidateByTag.mock.calls.length, 1);
-    assert.strictEqual(manager.invalidateByTag.mock.calls[0]!.arguments[0], "user:user-42");
-    assert.strictEqual(manager.invalidateByPattern.mock.calls.length, 1);
-    assert.ok(
-      (manager.invalidateByPattern.mock.calls[0]!.arguments[0] as string).includes("user-42")
+    expect(manager.invalidateByTag.mock.calls.length).toBe(1);
+    expect(manager.invalidateByTag.mock.calls[0]![0]).toBe("user:user-42");
+    expect(manager.invalidateByPattern.mock.calls.length).toBe(1);
+    expect((manager.invalidateByPattern.mock.calls[0]![0] as string).includes("user-42")).toBe(
+      true
     );
   });
 
   it("invalidatePost() calls invalidateByTag(`post:<id>`) and invalidateByPattern", async () => {
     await invalidator.invalidatePost("post-99");
-    assert.strictEqual(manager.invalidateByTag.mock.calls[0]!.arguments[0], "post:post-99");
-    assert.ok(
-      (manager.invalidateByPattern.mock.calls[0]!.arguments[0] as string).includes("post-99")
+    expect(manager.invalidateByTag.mock.calls[0]![0]).toBe("post:post-99");
+    expect((manager.invalidateByPattern.mock.calls[0]![0] as string).includes("post-99")).toBe(
+      true
     );
   });
 
   it("invalidateProject() calls invalidateByTag(`project:<id>`) and invalidateByPattern", async () => {
     await invalidator.invalidateProject("proj-7");
-    assert.strictEqual(manager.invalidateByTag.mock.calls[0]!.arguments[0], "project:proj-7");
-    assert.ok(
-      (manager.invalidateByPattern.mock.calls[0]!.arguments[0] as string).includes("proj-7")
-    );
+    expect(manager.invalidateByTag.mock.calls[0]![0]).toBe("project:proj-7");
+    expect((manager.invalidateByPattern.mock.calls[0]![0] as string).includes("proj-7")).toBe(true);
   });
 
   it("invalidateApiEndpoint() calls invalidateByPattern with api:* wrapper", async () => {
     await invalidator.invalidateApiEndpoint("/posts");
-    const pattern = manager.invalidateByPattern.mock.calls[0]!.arguments[0] as string;
-    assert.ok(pattern.startsWith("api:*"), `"${pattern}" should start with "api:*"`);
-    assert.ok(pattern.includes("/posts"));
+    const pattern = manager.invalidateByPattern.mock.calls[0]![0] as string;
+    expect(pattern.startsWith("api:*")).toBe(true);
+    expect(pattern.includes("/posts")).toBe(true);
   });
 
   it("invalidateAnalytics() calls invalidateByTag('analytics') and invalidateByPattern('analytics:*')", async () => {
     await invalidator.invalidateAnalytics();
-    assert.strictEqual(manager.invalidateByTag.mock.calls[0]!.arguments[0], "analytics");
-    assert.ok(
-      (manager.invalidateByPattern.mock.calls[0]!.arguments[0] as string).startsWith("analytics:")
+    expect(manager.invalidateByTag.mock.calls[0]![0]).toBe("analytics");
+    expect((manager.invalidateByPattern.mock.calls[0]![0] as string).startsWith("analytics:")).toBe(
+      true
     );
   });
 });
@@ -118,19 +117,19 @@ describe("CacheInvalidator", { concurrency: 1 }, () => {
 
 describe("middleware.ts re-exports", { concurrency: 1 }, () => {
   it("re-exports CacheKeys.user from constants", () => {
-    assert.strictEqual(CacheKeys.user("abc"), "user:abc");
+    expect(CacheKeys.user("abc")).toBe("user:abc");
   });
 
   it("re-exports CacheKeys.post from constants", () => {
-    assert.strictEqual(CacheKeys.post("p-1"), "post:p-1");
+    expect(CacheKeys.post("p-1")).toBe("post:p-1");
   });
 
   it("re-exports CacheTTL.SHORT === 300", () => {
-    assert.strictEqual(CacheTTL.SHORT, 300);
+    expect(CacheTTL.SHORT).toBe(300);
   });
 
   it("re-exports CacheTTL.MEDIUM === 1800", () => {
-    assert.strictEqual(CacheTTL.MEDIUM, 1800);
+    expect(CacheTTL.MEDIUM).toBe(1800);
   });
 });
 
@@ -146,7 +145,7 @@ describe("cache key generation logic", { concurrency: 1 }, () => {
     const method = "GET";
     const url = "/api/posts";
     const key = `api:${method}:${url}`;
-    assert.strictEqual(key, "api:GET:/api/posts");
+    expect(key).toBe("api:GET:/api/posts");
   });
 
   it("varyBy hash appended for unique user context", () => {
@@ -154,22 +153,22 @@ describe("cache key generation logic", { concurrency: 1 }, () => {
     const varyParts = ["user:42"];
     const hash = createHash("md5").update(varyParts.join("|")).digest("hex");
     const key = `${baseKey}:${hash}`;
-    assert.ok(key.startsWith("api:GET:/api/posts:"), "key should start with base");
-    assert.ok(key.length > "api:GET:/api/posts:".length, "key should have hash suffix");
+    expect(key.startsWith("api:GET:/api/posts:")).toBe(true);
+    expect(key.length).toBeGreaterThan("api:GET:/api/posts:".length);
   });
 
   it("same varyParts produce same hash (deterministic)", () => {
     const parts = ["user:1", "header:accept:application/json"];
     const h1 = createHash("md5").update(parts.join("|")).digest("hex");
     const h2 = createHash("md5").update(parts.join("|")).digest("hex");
-    assert.strictEqual(h1, h2);
+    expect(h1).toBe(h2);
   });
 
   it("different users produce different keys", () => {
     const base = "api:GET:/posts";
     const h1 = createHash("md5").update("user:1").digest("hex");
     const h2 = createHash("md5").update("user:2").digest("hex");
-    assert.notStrictEqual(`${base}:${h1}`, `${base}:${h2}`);
+    expect(`${base}:${h1}`).not.toBe(`${base}:${h2}`);
   });
 });
 
@@ -188,32 +187,32 @@ describe("shouldCacheRequest logic", { concurrency: 1 }, () => {
   it("returns false for non-GET methods", () => {
     // Emulate shouldCacheRequest logic
     const result = checkShouldCache("POST", 200, undefined, undefined);
-    assert.strictEqual(result, false);
+    expect(result).toBe(false);
   });
 
   it("returns false when route.enabled === false", () => {
     const result = checkShouldCache("GET", 200, undefined, false);
-    assert.strictEqual(result, false);
+    expect(result).toBe(false);
   });
 
   it("returns false for authorized GET without explicit route.enabled", () => {
     const result = checkShouldCache("GET", 200, "Bearer token", undefined);
-    assert.strictEqual(result, false);
+    expect(result).toBe(false);
   });
 
   it("returns true for unauthenticated GET with 200 status", () => {
     const result = checkShouldCache("GET", 200, undefined, undefined);
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
   });
 
   it("returns false for GET with 4xx status", () => {
-    assert.strictEqual(checkShouldCache("GET", 404, undefined, undefined), false);
-    assert.strictEqual(checkShouldCache("GET", 500, undefined, undefined), false);
+    expect(checkShouldCache("GET", 404, undefined, undefined)).toBe(false);
+    expect(checkShouldCache("GET", 500, undefined, undefined)).toBe(false);
   });
 
   it("returns true for unauthenticated GET with route.enabled explicitly true", () => {
     const result = checkShouldCache("GET", 200, undefined, true);
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
   });
 });
 
@@ -261,9 +260,9 @@ describe("cache middleware hooks — inline integration", { concurrency: 1 }, ()
     await app.ready();
 
     const res = await app.inject({ method: "GET", url: "/items" });
-    assert.strictEqual(res.statusCode, 200);
-    assert.strictEqual(res.headers["x-cache"], "HIT");
-    assert.ok(res.body.includes("cached"));
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["x-cache"]).toBe("HIT");
+    expect(res.body.includes("cached")).toBe(true);
 
     await app.close();
   });
@@ -293,12 +292,9 @@ describe("cache middleware hooks — inline integration", { concurrency: 1 }, ()
     await app.ready();
 
     const res = await app.inject({ method: "GET", url: "/public/data" });
-    assert.strictEqual(res.statusCode, 200);
-    assert.strictEqual(res.headers["x-cache"], "MISS");
-    assert.ok(
-      manager.set.mock.calls.length >= 1,
-      "set() should have been called to persist the response"
-    );
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["x-cache"]).toBe("MISS");
+    expect(manager.set.mock.calls.length).toBeGreaterThanOrEqual(1);
 
     await app.close();
   });
@@ -332,10 +328,10 @@ describe("cache middleware hooks — inline integration", { concurrency: 1 }, ()
     await app.ready();
 
     const r1 = await app.inject({ method: "GET", url: "/repeated" });
-    assert.strictEqual(r1.headers["x-cache"], "MISS", "first request should be a MISS");
+    expect(r1.headers["x-cache"]).toBe("MISS");
 
     const r2 = await app.inject({ method: "GET", url: "/repeated" });
-    assert.strictEqual(r2.headers["x-cache"], "HIT", "second request should be a HIT");
+    expect(r2.headers["x-cache"]).toBe("HIT");
 
     await app.close();
   });
@@ -362,10 +358,141 @@ describe("cache middleware hooks — inline integration", { concurrency: 1 }, ()
     await app.ready();
 
     const res = await app.inject({ method: "POST", url: "/items", payload: {} });
-    assert.strictEqual(res.statusCode, 200);
-    assert.strictEqual(res.headers["x-cache"], undefined, "POST should not get X-Cache header");
-    assert.strictEqual(manager.set.mock.calls.length, 0, "set() should not be called for POST");
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["x-cache"]).toBe(undefined);
+    expect(manager.set.mock.calls.length).toBe(0);
 
+    await app.close();
+  });
+});
+
+// ── cachePlugin Fastify integration — actual plugin registration ─────────────
+//
+// These tests register the ACTUAL cachePlugin export to exercise the real code
+// in middleware.ts, killing Stryker mutants in generateCacheKey and
+// shouldCacheRequest.
+
+describe("cachePlugin — actual plugin (fp() wrapped)", { concurrency: 1 }, () => {
+  it("decorates fastify instance with cache (available to parent scope)", async () => {
+    const Fastify = (await import("fastify")).default;
+    const { cachePlugin } = await import("../src/middleware.js");
+    const manager = makeMockManager();
+    const app = Fastify({ logger: false });
+
+    await app.register(cachePlugin, { cacheManager: manager as any });
+    await app.ready();
+
+    // With fp(), cache decorator is available on the parent instance
+    expect((app as any).cache).toBeDefined();
+    await app.close();
+  });
+
+  it("calls cacheManager.get on GET requests", async () => {
+    const Fastify = (await import("fastify")).default;
+    const { cachePlugin } = await import("../src/middleware.js");
+    const manager = makeMockManager();
+    const app = Fastify({ logger: false });
+
+    await app.register(cachePlugin, { cacheManager: manager as any });
+    app.get("/items", async () => ({ items: [] }));
+    await app.ready();
+
+    await app.inject({ method: "GET", url: "/items" });
+
+    expect(manager.get.mock.calls.length).toBeGreaterThanOrEqual(1);
+    await app.close();
+  });
+
+  it("does not call cacheManager.get for POST requests", async () => {
+    const Fastify = (await import("fastify")).default;
+    const { cachePlugin } = await import("../src/middleware.js");
+    const manager = makeMockManager();
+    const app = Fastify({ logger: false });
+
+    await app.register(cachePlugin, { cacheManager: manager as any });
+    app.post("/create", async () => ({ created: true }));
+    await app.ready();
+
+    await app.inject({ method: "POST", url: "/create", payload: {} });
+
+    expect(manager.get.mock.calls.length).toBe(0);
+    await app.close();
+  });
+
+  it("uses custom keyGenerator when provided", async () => {
+    const Fastify = (await import("fastify")).default;
+    const { cachePlugin } = await import("../src/middleware.js");
+    const manager = makeMockManager();
+    const customKeyGen = vi.fn((_req: any) => "custom:key:123");
+    const app = Fastify({ logger: false });
+
+    await app.register(cachePlugin, {
+      cacheManager: manager as any,
+      keyGenerator: customKeyGen,
+    });
+    app.get("/keyed", async () => ({ ok: true }));
+    await app.ready();
+
+    await app.inject({ method: "GET", url: "/keyed" });
+
+    expect(customKeyGen).toHaveBeenCalledTimes(1);
+    expect(manager.get).toHaveBeenCalledWith("custom:key:123");
+    await app.close();
+  });
+
+  it("continues to handler when cacheManager.get throws", async () => {
+    const Fastify = (await import("fastify")).default;
+    const { cachePlugin } = await import("../src/middleware.js");
+    const manager = makeMockManager();
+    manager.get.mockRejectedValueOnce(new Error("Redis connection refused"));
+    const app = Fastify({ logger: false });
+
+    await app.register(cachePlugin, { cacheManager: manager as any });
+    app.get("/resilient", async () => ({ fallback: true }));
+    await app.ready();
+
+    const res = await app.inject({ method: "GET", url: "/resilient" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ fallback: true });
+    await app.close();
+  });
+
+  it("stores response via cacheManager.set on cache miss", async () => {
+    const Fastify = (await import("fastify")).default;
+    const { cachePlugin } = await import("../src/middleware.js");
+    const manager = makeMockManager();
+    const app = Fastify({ logger: false });
+
+    await app.register(cachePlugin, { cacheManager: manager as any });
+    app.get("/store-test", async () => ({ stored: true }));
+    await app.ready();
+
+    await app.inject({ method: "GET", url: "/store-test" });
+
+    expect(manager.set.mock.calls.length).toBeGreaterThanOrEqual(1);
+    await app.close();
+  });
+
+  it("serves cached response when cacheManager.get returns a value", async () => {
+    const Fastify = (await import("fastify")).default;
+    const { cachePlugin } = await import("../src/middleware.js");
+    const manager = makeMockManager();
+    // Pre-populate cache
+    manager._store.set("api:GET:/cached-data", {
+      body: '{"cached":true}',
+      headers: {},
+      statusCode: 200,
+    });
+    const app = Fastify({ logger: false });
+
+    await app.register(cachePlugin, { cacheManager: manager as any });
+    app.get("/cached-data", async () => ({ fresh: true }));
+    await app.ready();
+
+    const res = await app.inject({ method: "GET", url: "/cached-data" });
+
+    // Should serve cached response, not fresh handler
+    expect(res.headers["x-cache"]).toBe("HIT");
     await app.close();
   });
 });

@@ -10,8 +10,7 @@
  * - Edge cases (empty data, special characters)
  */
 
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { exportToCSV, generateCSVFilename, type ColumnDefinition } from "../src/utils/csvExport";
 
 describe("CSV Export - Basic Functionality", { concurrency: 1 }, () => {
@@ -35,9 +34,9 @@ describe("CSV Export - Basic Functionality", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(testData, columns);
 
-    assert.ok(csv.includes("ID,Name,Email"), "should contain header row");
-    assert.ok(csv.includes("1,John Doe,john@example.com"), "should contain first data row");
-    assert.ok(csv.includes("2,Jane Smith,jane@example.com"), "should contain second data row");
+    expect(csv).toContain("ID,Name,Email");
+    expect(csv).toContain("1,John Doe,john@example.com");
+    expect(csv).toContain("2,Jane Smith,jane@example.com");
   });
 
   it("should generate CSV without header when disabled", () => {
@@ -48,8 +47,8 @@ describe("CSV Export - Basic Functionality", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(testData, columns, { includeHeader: false });
 
-    assert.ok(!csv.includes("ID,Name"), "should not contain header row");
-    assert.ok(csv.includes("1,John Doe"), "should contain data row");
+    expect(csv).not.toContain("ID,Name");
+    expect(csv).toContain("1,John Doe");
   });
 
   it("should use CRLF line endings by default (RFC 4180)", () => {
@@ -57,7 +56,7 @@ describe("CSV Export - Basic Functionality", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(testData, columns);
 
-    assert.ok(csv.includes("\r\n"), "should use CRLF line endings");
+    expect(csv).toContain("\r\n");
   });
 
   it("should use LF line endings when specified", () => {
@@ -65,8 +64,8 @@ describe("CSV Export - Basic Functionality", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(testData, columns, { lineEnding: "LF" });
 
-    assert.ok(!csv.includes("\r\n"), "should not contain CRLF");
-    assert.ok(csv.includes("\n"), "should contain LF");
+    expect(csv).not.toContain("\r\n");
+    expect(csv).toContain("\n");
   });
 });
 
@@ -81,7 +80,7 @@ describe("CSV Export - RFC 4180 Quoting", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes('"Smith, John"'), "should quote field containing comma");
+    expect(csv).toContain('"Smith, John"');
   });
 
   it("should quote fields containing double quotes", () => {
@@ -90,7 +89,7 @@ describe("CSV Export - RFC 4180 Quoting", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes('"He said ""Hello"""'), "should escape double quotes");
+    expect(csv).toContain('"He said ""Hello"""');
   });
 
   it("should quote fields containing line breaks", () => {
@@ -99,7 +98,7 @@ describe("CSV Export - RFC 4180 Quoting", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes('"Line 1\nLine 2"'), "should quote field containing newline");
+    expect(csv).toContain('"Line 1\nLine 2"');
   });
 
   it("should quote fields containing CR", () => {
@@ -108,7 +107,7 @@ describe("CSV Export - RFC 4180 Quoting", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.match(csv, /"Text\rWith\rCR"/);
+    expect(csv).toMatch(/"Text\rWith\rCR"/);
   });
 
   it("should quote all fields when quoteAll is enabled", () => {
@@ -117,8 +116,8 @@ describe("CSV Export - RFC 4180 Quoting", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns, { quoteAll: true });
 
-    assert.ok(csv.includes('"Text"'), "should quote header when quoteAll");
-    assert.ok(csv.includes('"simple"'), "should quote value when quoteAll");
+    expect(csv).toContain('"Text"');
+    expect(csv).toContain('"simple"');
   });
 
   it("should not quote simple fields by default", () => {
@@ -128,7 +127,7 @@ describe("CSV Export - RFC 4180 Quoting", { concurrency: 1 }, () => {
     const csv = exportToCSV(data, columns);
 
     const lines = csv.split("\r\n");
-    assert.strictEqual(lines[1], "simple"); // No quotes
+    expect(lines[1]).toBe("simple"); // No quotes
   });
 });
 
@@ -143,7 +142,7 @@ describe("CSV Export - CSV Injection Prevention", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes("'=1+1"), "should prefix dangerous = with apostrophe");
+    expect(csv).toContain("'=1+1");
   });
 
   it("should prevent formula injection with + prefix", () => {
@@ -152,7 +151,7 @@ describe("CSV Export - CSV Injection Prevention", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes("'+1234"), "should prefix dangerous + with apostrophe");
+    expect(csv).toContain("'+1234");
   });
 
   it("should prevent formula injection with - prefix", () => {
@@ -161,7 +160,7 @@ describe("CSV Export - CSV Injection Prevention", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes("'-5678"), "should prefix dangerous - with apostrophe");
+    expect(csv).toContain("'-5678");
   });
 
   it("should prevent formula injection with @ prefix", () => {
@@ -170,7 +169,7 @@ describe("CSV Export - CSV Injection Prevention", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes("'@SUM(A1:A10)"), "should prefix dangerous @ with apostrophe");
+    expect(csv).toContain("'@SUM(A1:A10)");
   });
 
   it("should prevent formula injection with tab prefix", () => {
@@ -179,7 +178,7 @@ describe("CSV Export - CSV Injection Prevention", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes("'\tformula"), "should prefix tab-prefixed value with apostrophe");
+    expect(csv).toContain("'\tformula");
   });
 
   it("should allow disabling injection prevention", () => {
@@ -188,8 +187,8 @@ describe("CSV Export - CSV Injection Prevention", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns, { preventInjection: false });
 
-    assert.ok(csv.includes("=1+1"), "should pass through = without prefix when disabled");
-    assert.ok(!csv.includes("'=1+1"), "should not prefix = when injection prevention disabled");
+    expect(csv).toContain("=1+1");
+    expect(csv).not.toContain("'=1+1");
   });
 
   it("should not affect normal strings starting with safe characters", () => {
@@ -198,8 +197,8 @@ describe("CSV Export - CSV Injection Prevention", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes("Hello World"), "should keep safe string unchanged");
-    assert.ok(!csv.includes("'Hello World"), "should not prefix safe string");
+    expect(csv).toContain("Hello World");
+    expect(csv).not.toContain("'Hello World");
   });
 });
 
@@ -234,8 +233,8 @@ describe("CSV Export - Nested Field Access", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(nestedData, columns);
 
-    assert.ok(csv.includes("123"), "should contain nested id");
-    assert.ok(csv.includes("user@example.com"), "should contain nested email");
+    expect(csv).toContain("123");
+    expect(csv).toContain("user@example.com");
   });
 
   it("should access deeply nested fields", () => {
@@ -243,7 +242,7 @@ describe("CSV Export - Nested Field Access", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(nestedData, columns);
 
-    assert.ok(csv.includes("John Doe"), "should contain deeply nested name");
+    expect(csv).toContain("John Doe");
   });
 
   it("should handle missing nested fields gracefully", () => {
@@ -253,7 +252,7 @@ describe("CSV Export - Nested Field Access", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(nestedData, columns);
 
-    assert.ok(csv.includes("undefined"), "should render undefined for missing path");
+    expect(csv).toContain("undefined");
   });
 });
 
@@ -283,7 +282,7 @@ describe("CSV Export - Custom Formatters", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(formatterData, columns);
 
-    assert.ok(csv.includes("2025-09-30"), "should apply date formatter");
+    expect(csv).toContain("2025-09-30");
   });
 
   it("should format numbers with custom formatter", () => {
@@ -297,7 +296,7 @@ describe("CSV Export - Custom Formatters", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(formatterData, columns);
 
-    assert.ok(csv.includes("$1234.56"), "should apply number formatter");
+    expect(csv).toContain("$1234.56");
   });
 
   it("should format enums with custom formatter", () => {
@@ -311,7 +310,7 @@ describe("CSV Export - Custom Formatters", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(formatterData, columns);
 
-    assert.ok(csv.includes("ACTIVE"), "should apply enum formatter");
+    expect(csv).toContain("ACTIVE");
   });
 
   it("should provide row context to formatter", () => {
@@ -325,7 +324,7 @@ describe("CSV Export - Custom Formatters", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(formatterData, columns);
 
-    assert.ok(csv.includes("active: $1234.56"), "should pass row context to formatter");
+    expect(csv).toContain("active: $1234.56");
   });
 });
 
@@ -340,7 +339,7 @@ describe("CSV Export - Edge Cases", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.strictEqual(csv, "Value"); // Only header
+    expect(csv).toBe("Value"); // Only header
   });
 
   it("should handle empty strings", () => {
@@ -350,7 +349,7 @@ describe("CSV Export - Edge Cases", { concurrency: 1 }, () => {
     const csv = exportToCSV(data, columns);
 
     const lines = csv.split("\r\n");
-    assert.strictEqual(lines[1], ""); // Empty value
+    expect(lines[1]).toBe(""); // Empty value
   });
 
   it("should handle null values", () => {
@@ -359,7 +358,7 @@ describe("CSV Export - Edge Cases", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes("null"), "should render null as string 'null'");
+    expect(csv).toContain("null");
   });
 
   it("should handle undefined values", () => {
@@ -368,7 +367,7 @@ describe("CSV Export - Edge Cases", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes("undefined"), "should render undefined as string 'undefined'");
+    expect(csv).toContain("undefined");
   });
 
   it("should handle unicode characters", () => {
@@ -377,7 +376,7 @@ describe("CSV Export - Edge Cases", { concurrency: 1 }, () => {
 
     const csv = exportToCSV(data, columns);
 
-    assert.ok(csv.includes("Hello 🚀 世界"), "should preserve unicode characters");
+    expect(csv).toContain("Hello 🚀 世界");
   });
 
   it("should handle large datasets efficiently", () => {
@@ -395,8 +394,8 @@ describe("CSV Export - Edge Cases", { concurrency: 1 }, () => {
     const csv = exportToCSV(largeData, columns);
     const duration = Date.now() - start;
 
-    assert.ok(csv.includes("9999,value-9999"), "should contain last row of large dataset");
-    assert.ok(duration < 1000, `should complete in under 1 second, took ${duration}ms`);
+    expect(csv).toContain("9999,value-9999");
+    expect(duration).toBeLessThan(1000);
   });
 });
 
@@ -404,19 +403,19 @@ describe("CSV Export - Filename Generation", { concurrency: 1 }, () => {
   it("should generate filename with timestamp", () => {
     const filename = generateCSVFilename("export");
 
-    assert.match(filename, /^export-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.csv$/);
+    expect(filename).toMatch(/^export-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.csv$/);
   });
 
   it("should support custom extension", () => {
     const filename = generateCSVFilename("report", "txt");
 
-    assert.match(filename, /\.txt$/);
+    expect(filename).toMatch(/\.txt$/);
   });
 
   it("should handle special characters in base name", () => {
     const filename = generateCSVFilename("audit-log-2025");
 
-    assert.ok(filename.includes("audit-log-2025"), "should preserve base name in filename");
+    expect(filename).toContain("audit-log-2025");
   });
 });
 
@@ -466,14 +465,11 @@ describe("CSV Export - Complex Real-World Scenarios", { concurrency: 1 }, () => 
 
     const csv = exportToCSV(subscriptions, columns);
 
-    assert.ok(csv.includes("sub-123"), "should contain subscription id");
-    assert.ok(
-      csv.includes('"Smith, John ""Jr."""'),
-      "should quote and escape name with comma and quotes"
-    );
-    assert.ok(csv.includes("'=PRO"), "should prevent formula injection in plan field");
-    assert.ok(csv.includes("$99.99"), "should format revenue");
-    assert.ok(csv.includes("2025-01-15T10:30:00.000Z"), "should format date");
-    assert.ok(csv.includes("web"), "should include nested metadata source");
+    expect(csv).toContain("sub-123");
+    expect(csv).toContain('"Smith, John ""Jr."""');
+    expect(csv).toContain("'=PRO");
+    expect(csv).toContain("$99.99");
+    expect(csv).toContain("2025-01-15T10:30:00.000Z");
+    expect(csv).toContain("web");
   });
 });

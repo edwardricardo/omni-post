@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { createTestDeps, createTestRenderedPost, createTestPublishReceipt } from "./setup.js";
 import { PublishHandler } from "../src/publishHandler.js";
@@ -16,6 +16,7 @@ describe("PublishHandler.publishSinglePost", { concurrency: 1 }, () => {
   const PROVIDER_NAME = "x";
 
   beforeEach(() => {
+    vi.clearAllMocks();
     deps = createTestDeps();
     const p = deps.providerRegistry["x"];
     assert.ok(p, "x provider must exist in test registry");

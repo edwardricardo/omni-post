@@ -12,7 +12,7 @@
  * All tests are Tier 0 (no network, no DB, no Redis).
  */
 
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import * as assert from "node:assert/strict";
 import { TikTokAdapter } from "../src/TikTokAdapter.js";
 import { createTestPublishInput } from "./TikTokAdapter.test-helpers.js";

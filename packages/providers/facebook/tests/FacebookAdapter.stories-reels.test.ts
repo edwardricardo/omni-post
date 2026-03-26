@@ -5,7 +5,7 @@
  * including content type detection, publishing workflows, and error handling.
  */
 
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { FacebookAdapter } from "../src/FacebookAdapter.js";
 import type { RenderedPost } from "@shared/types";

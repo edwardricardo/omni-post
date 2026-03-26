@@ -7,7 +7,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { LinkedInAdapter } from "../src/LinkedInAdapter.js";
 import type { CanonicalPost, RenderedPost } from "@shared/types";
@@ -55,6 +55,7 @@ describe("LinkedInAdapter - Metadata", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
   });
 
@@ -117,6 +118,7 @@ describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
   });
 
@@ -250,18 +252,19 @@ describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
 
 describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
-  let mockCreatePost: ReturnType<typeof mock.fn>;
-  let mockGetProfile: ReturnType<typeof mock.fn>;
+  let mockCreatePost: ReturnType<typeof vi.fn>;
+  let mockGetProfile: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
 
-    mockCreatePost = mock.fn(async () => ({
+    mockCreatePost = vi.fn(async () => ({
       id: "urn:li:share:12345",
       activity: "urn:li:activity:12345",
     }));
 
-    mockGetProfile = mock.fn(async () => ({
+    mockGetProfile = vi.fn(async () => ({
       sub: "abc123",
       name: "Test User",
     }));
@@ -269,11 +272,11 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
     (adapter as any).createApiClient = () => ({
       createPost: mockCreatePost,
       getProfile: mockGetProfile,
-      initializeImageUpload: mock.fn(),
-      uploadMediaBinary: mock.fn(),
+      initializeImageUpload: vi.fn(),
+      uploadMediaBinary: vi.fn(),
     });
 
-    (adapter as any).getCredentials = mock.fn(async () => ({
+    (adapter as any).getCredentials = vi.fn(async () => ({
       ok: true,
       value: {
         accessToken: "test-token",
@@ -300,14 +303,14 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
     await adapter.publish(input);
 
     assert.strictEqual(mockCreatePost.mock.calls.length, 1);
-    const payload = mockCreatePost.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.strictEqual(payload.author, "urn:li:person:abc123");
     assert.strictEqual(payload.visibility, "PUBLIC");
     assert.strictEqual(payload.lifecycleState, "PUBLISHED");
   });
 
   it("uses organizationUrn as author when available", async () => {
-    (adapter as any).getCredentials = mock.fn(async () => ({
+    (adapter as any).getCredentials = vi.fn(async () => ({
       ok: true,
       value: {
         accessToken: "test-token",
@@ -320,7 +323,7 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
     const input = makePublishInput();
     await adapter.publish(input);
 
-    const payload = mockCreatePost.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.strictEqual(payload.author, "urn:li:organization:org456");
   });
 
@@ -338,7 +341,7 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("uses raw postId in URL when activity ID cannot be extracted", async () => {
-    mockCreatePost = mock.fn(async () => ({
+    mockCreatePost = vi.fn(async () => ({
       id: "non-standard-id-format",
     }));
     (adapter as any).createApiClient = () => ({
@@ -359,7 +362,7 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH error when credentials are invalid", async () => {
-    (adapter as any).getCredentials = mock.fn(async () => ({
+    (adapter as any).getCredentials = vi.fn(async () => ({
       ok: false,
       error: "AUTH",
     }));
@@ -374,7 +377,7 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("returns NETWORK error when circuit breaker is open", async () => {
-    mockCreatePost = mock.fn(async () => {
+    mockCreatePost = vi.fn(async () => {
       throw new Error("Circuit breaker is OPEN for linkedin-api");
     });
     (adapter as any).createApiClient = () => ({
@@ -393,7 +396,7 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
 
   it("returns RATE_LIMIT error on 429 status", async () => {
     const rateLimitError = Object.assign(new Error("Rate limited"), { status: 429 });
-    mockCreatePost = mock.fn(async () => {
+    mockCreatePost = vi.fn(async () => {
       throw rateLimitError;
     });
     (adapter as any).createApiClient = () => ({
@@ -412,7 +415,7 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
 
   it("returns AUTH error on 401 status", async () => {
     const authError = Object.assign(new Error("Unauthorized"), { status: 401 });
-    mockCreatePost = mock.fn(async () => {
+    mockCreatePost = vi.fn(async () => {
       throw authError;
     });
     (adapter as any).createApiClient = () => ({
@@ -431,7 +434,7 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
 
   it("returns mapped error for server errors (500+)", async () => {
     const serverError = Object.assign(new Error("Server Error"), { status: 500 });
-    mockCreatePost = mock.fn(async () => {
+    mockCreatePost = vi.fn(async () => {
       throw serverError;
     });
     (adapter as any).createApiClient = () => ({
@@ -454,7 +457,7 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
     });
     await adapter.publish(input);
 
-    const payload = mockCreatePost.mock.calls[0]?.arguments[0] as Record<string, unknown>;
+    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.strictEqual(payload.commentary, "My commentary text");
   });
 });
@@ -465,12 +468,13 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
 
 describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
-  let mockGetProfile: ReturnType<typeof mock.fn>;
+  let mockGetProfile: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
 
-    mockGetProfile = mock.fn(async () => ({
+    mockGetProfile = vi.fn(async () => ({
       sub: "abc123",
       name: "Test User",
     }));
@@ -524,7 +528,7 @@ describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
   it("returns AUTH_EXPIRED when API returns 401", async () => {
     const authError = Object.assign(new Error("Unauthorized"), { status: 401 });
     (adapter as any).createApiClient = () => ({
-      validateCredentials: mock.fn(async () => {
+      validateCredentials: vi.fn(async () => {
         throw authError;
       }),
     });
@@ -540,7 +544,7 @@ describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
 
   it("returns AUTH_INVALID when API throws generic error", async () => {
     (adapter as any).createApiClient = () => ({
-      validateCredentials: mock.fn(async () => {
+      validateCredentials: vi.fn(async () => {
         throw new Error("Connection refused");
       }),
     });
@@ -561,12 +565,13 @@ describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
 
 describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
-  let mockGetPostAnalytics: ReturnType<typeof mock.fn>;
+  let mockGetPostAnalytics: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
 
-    mockGetPostAnalytics = mock.fn(async () => ({
+    mockGetPostAnalytics = vi.fn(async () => ({
       totalShareStatistics: {
         shareCount: 10,
         likeCount: 50,
@@ -582,7 +587,7 @@ describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
       getPostAnalytics: mockGetPostAnalytics,
     });
 
-    (adapter as any).getCredentials = mock.fn(async () => ({
+    (adapter as any).getCredentials = vi.fn(async () => ({
       ok: true,
       value: {
         accessToken: "test-token",
@@ -618,12 +623,12 @@ describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
     await adapter.fetchAnalytics({ channelId: "channel-001" });
 
     assert.strictEqual(mockGetPostAnalytics.mock.calls.length, 1);
-    const authorUrn = mockGetPostAnalytics.mock.calls[0]?.arguments[0] as string;
+    const authorUrn = mockGetPostAnalytics.mock.calls[0]?.[0] as string;
     assert.strictEqual(authorUrn, "urn:li:person:abc123");
   });
 
   it("uses organizationUrn as authorUrn when available", async () => {
-    (adapter as any).getCredentials = mock.fn(async () => ({
+    (adapter as any).getCredentials = vi.fn(async () => ({
       ok: true,
       value: {
         accessToken: "test-token",
@@ -635,12 +640,12 @@ describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
 
     await adapter.fetchAnalytics({ channelId: "channel-001" });
 
-    const authorUrn = mockGetPostAnalytics.mock.calls[0]?.arguments[0] as string;
+    const authorUrn = mockGetPostAnalytics.mock.calls[0]?.[0] as string;
     assert.strictEqual(authorUrn, "urn:li:organization:org456");
   });
 
   it("returns AUTH error when credentials are invalid", async () => {
-    (adapter as any).getCredentials = mock.fn(async () => ({
+    (adapter as any).getCredentials = vi.fn(async () => ({
       ok: false,
       error: "AUTH",
     }));
@@ -654,7 +659,7 @@ describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   });
 
   it("returns NETWORK error when API call fails", async () => {
-    mockGetPostAnalytics = mock.fn(async () => {
+    mockGetPostAnalytics = vi.fn(async () => {
       throw new Error("API unavailable");
     });
     (adapter as any).createApiClient = () => ({
@@ -694,12 +699,13 @@ describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
 
 describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
-  let mockGetComments: ReturnType<typeof mock.fn>;
+  let mockGetComments: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
 
-    mockGetComments = mock.fn(async () => ({
+    mockGetComments = vi.fn(async () => ({
       elements: [
         {
           id: "comment-001",
@@ -812,12 +818,13 @@ describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
 
 describe("LinkedInAdapter - PostReply", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
-  let _mockPostComment: ReturnType<typeof mock.fn>;
+  let _mockPostComment: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
 
-    _mockPostComment = mock.fn(async () => ({
+    _mockPostComment = vi.fn(async () => ({
       id: "reply-001",
       actor: "urn:li:person:abc123",
       message: { text: "Thank you!" },
@@ -900,6 +907,7 @@ describe("LinkedInAdapter - Threading", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
   });
 
@@ -941,6 +949,7 @@ describe("LinkedInAdapter - GetCredentialsFromEnvironment", { concurrency: 1 }, 
   let adapter: LinkedInAdapter;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     adapter = new LinkedInAdapter();
     delete process.env.LINKEDIN_ACCESS_TOKEN;
     delete process.env.LINKEDIN_REFRESH_TOKEN;

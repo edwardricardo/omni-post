@@ -6,7 +6,7 @@
  *   2. Provider error propagation → publishSinglePost throws, handleJob catches
  *   3. Multi-provider independence → one provider failure does not affect others
  */
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { createTestDeps, createTestPublishReceipt, createMockProvider } from "./setup.js";
 import { PublishHandler } from "../src/publishHandler.js";
@@ -17,6 +17,7 @@ describe("PublishHandler.handleJob edge cases", { concurrency: 1 }, () => {
   let handler: PublishHandler;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     deps = createTestDeps();
     handler = new PublishHandler(deps);
   });
