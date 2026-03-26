@@ -74,6 +74,14 @@ export {
   type ScheduledReportCreateProps,
 } from "./ScheduledReport.js";
 
+// Media Asset entity (Asset Library)
+export {
+  MediaAsset,
+  MediaAssetId,
+  type MediaAssetProps,
+  type MediaAssetCreateProps,
+} from "./MediaAsset.js";
+
 // Social Inbox entities (Phase 2: Social Inbox)
 export {
   SocialConversation,

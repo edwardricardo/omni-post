@@ -43,6 +43,9 @@ model Account {
   aiPromptTemplates      AIPromptTemplate[]
   usageMetrics           UsageMetric[]
   brandVoice             BrandVoice?
+  mediaAssets            MediaAsset[]
+  assetFolders           AssetFolder[]
+  assetTags              AssetTag[]
   // @@index([subscription]) - REMOVED: Low cardinality (only 3 values)
   // @@index([createdAt]) - REMOVED: Rarely queried alone
   // @@index([updatedAt]) - REMOVED: Rarely queried alone
@@ -412,6 +415,7 @@ model Project {
   externalNotificationConfigs ExternalNotificationConfig[]
   generatedImages        GeneratedImage[]
   recurringPosts         RecurringPost[]
+  mediaAssets            MediaAsset[]
 
   @@unique([accountId, name])
   @@index([accountId])
@@ -2199,4 +2203,78 @@ model BrandVoice {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
+}
+
+// ── Media Asset Library ─────────────────────────────────────────────────────
+
+model MediaAsset {
+  id          String    @id @default(uuid())
+  accountId   String
+  projectId   String?
+  name        String
+  description String?
+  url         String
+  storageKey  String
+  mimeType    String
+  sizeBytes   Int
+  width       Int?
+  height      Int?
+  duration    Int?
+  usageCount  Int       @default(0)
+  folderId    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  account Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project Project?     @relation(fields: [projectId], references: [id])
+  folder  AssetFolder? @relation(fields: [folderId], references: [id])
+  tags    AssetTagOnAsset[]
+
+  @@index([accountId])
+  @@index([projectId])
+  @@index([folderId])
+  @@index([mimeType])
+  @@index([deletedAt])
+}
+
+model AssetFolder {
+  id        String   @id @default(uuid())
+  accountId String
+  name      String
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account  Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  parent   AssetFolder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children AssetFolder[] @relation("FolderTree")
+  assets   MediaAsset[]
+
+  @@index([accountId])
+  @@index([parentId])
+}
+
+model AssetTag {
+  id        String   @id @default(uuid())
+  accountId String
+  name      String
+  color     String?  @default("#6366f1")
+  createdAt DateTime @default(now())
+
+  account Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  assets  AssetTagOnAsset[]
+
+  @@unique([accountId, name])
+  @@index([accountId])
+}
+
+model AssetTagOnAsset {
+  assetId String
+  tagId   String
+
+  asset MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  tag   AssetTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([assetId, tagId])
 }

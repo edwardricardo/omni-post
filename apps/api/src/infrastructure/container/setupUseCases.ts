@@ -20,6 +20,7 @@ import { setupRecurringPostUseCases } from "./setupRecurringPostUseCases.js";
 import { setupAIPromptTemplateUseCases } from "./setupAIPromptTemplateUseCases.js";
 import { setupUsageUseCases } from "./setupUsageUseCases.js";
 import { setupBrandVoiceUseCases } from "./setupBrandVoiceUseCases.js";
+import { setupAssetUseCases } from "./setupAssetUseCases.js";
 
 /**
  * @method setupUseCases
@@ -41,4 +42,5 @@ export function setupUseCases(container: Container): void {
   setupAIPromptTemplateUseCases(container);
   setupUsageUseCases(container);
   setupBrandVoiceUseCases(container);
+  setupAssetUseCases(container);
 }

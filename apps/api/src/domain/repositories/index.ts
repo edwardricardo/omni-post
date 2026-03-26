@@ -165,6 +165,19 @@ export {
 // UsageMetric repository port (Task 11.5: Usage Metering)
 export { type UsageMetricRepository, type UsageMetricData } from "./UsageMetricRepository.js";
 
+// MediaAsset repository port (Asset Library)
+export {
+  type MediaAssetRepository,
+  type MediaAssetFilters,
+  type MediaAssetPaginatedResult,
+} from "./MediaAssetRepository.js";
+
+// AssetTag repository port (Asset Library)
+export { type AssetTagRepository, type AssetTagDTO } from "./AssetTagRepository.js";
+
+// AssetFolder repository port (Asset Library)
+export { type AssetFolderRepository, type AssetFolderDTO } from "./AssetFolderRepository.js";
+
 // Plain domain DTOs — Prisma-free type mirrors for read-model ports
 export {
   type ProviderKind,

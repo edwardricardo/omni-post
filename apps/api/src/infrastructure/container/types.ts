@@ -278,6 +278,18 @@ export const TOKENS = {
   GetBrandVoiceQuery: Symbol.for("GetBrandVoiceQuery"),
   UpsertBrandVoiceUseCase: Symbol.for("UpsertBrandVoiceUseCase"),
   DeleteBrandVoiceUseCase: Symbol.for("DeleteBrandVoiceUseCase"),
+  // Asset Library (Phase 2: Asset Tags)
+  MediaAssetRepository: Symbol.for("MediaAssetRepository"),
+  AssetTagRepository: Symbol.for("AssetTagRepository"),
+  AssetFolderRepository: Symbol.for("AssetFolderRepository"),
+  CreateMediaAssetUseCase: Symbol.for("CreateMediaAssetUseCase"),
+  UpdateMediaAssetUseCase: Symbol.for("UpdateMediaAssetUseCase"),
+  DeleteMediaAssetUseCase: Symbol.for("DeleteMediaAssetUseCase"),
+  TagMediaAssetUseCase: Symbol.for("TagMediaAssetUseCase"),
+  GetMediaAssetsQuery: Symbol.for("GetMediaAssetsQuery"),
+  CreateAssetTagUseCase: Symbol.for("CreateAssetTagUseCase"),
+  ListAssetTagsQuery: Symbol.for("ListAssetTagsQuery"),
+  CreateAssetFolderUseCase: Symbol.for("CreateAssetFolderUseCase"),
 } as const;
 
 /**
