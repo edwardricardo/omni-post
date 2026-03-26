@@ -1,8 +1,8 @@
 /**
  * @file SendReplyUseCase.ts
  * @description Sends a reply to a social inbox message. Creates an outbound reply
- *   record, marks the message as replied (via aggregate state machine), and persists
- *   the changes. The actual provider API call will be wired in Step 7.
+ *   record, calls the provider API to post the reply, marks the message as replied
+ *   (via aggregate state machine), and persists the changes.
  * @layer application
  */
 
@@ -13,8 +13,18 @@ import {
   type SocialOutboundReplyRepository,
   OUTBOUND_REPLY_STATUSES,
 } from "../../domain/repositories/SocialOutboundReplyRepository.js";
+import { type ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
 import { type EventDispatcher } from "../../domain/events/DomainEvent.js";
 import { SocialMessageId } from "../../domain/value-objects/SocialMessageId.js";
+import { type ProviderAdapter } from "@ports/core";
+import { type ProviderType } from "../../domain/value-objects/Provider.js";
+
+/**
+ * Resolves a ProviderAdapter by provider type. Injected via DI.
+ */
+export interface ProviderAdapterResolver {
+  resolve(provider: ProviderType): ProviderAdapter | undefined;
+}
 
 // ---------------------------------------------------------------------------
 // Input / Output DTOs
@@ -43,15 +53,16 @@ export interface SendReplyOutput {
 
 /**
  * @class SendReplyUseCase
- * @description Creates an outbound reply for a social message. Currently saves the
- *   reply record and marks the original message as REPLIED. Provider integration
- *   for actually posting the reply via the platform API will be added in Step 7.
+ * @description Creates an outbound reply for a social message, posts the reply
+ *   via the provider API, and marks the original message as REPLIED.
  */
 export class SendReplyUseCase implements UseCase<SendReplyInput, SendReplyOutput, UseCaseError> {
   constructor(
     private readonly socialMessageRepository: SocialMessageRepository,
     private readonly outboundReplyRepository: SocialOutboundReplyRepository,
-    private readonly eventDispatcher: EventDispatcher
+    private readonly eventDispatcher: EventDispatcher,
+    private readonly channelRepository?: ChannelRepository,
+    private readonly providerAdapterResolver?: ProviderAdapterResolver
   ) {}
 
   /**
@@ -119,22 +130,94 @@ export class SendReplyUseCase implements UseCase<SendReplyInput, SendReplyOutput
 
     const reply = replyResult.value;
 
-    // 4. Mark reply as SENT (provider integration deferred to Step 7)
-    // TODO: Step 7 — call provider adapter to post reply via platform API,
-    //   then set providerReplyId from the response. For now, mark as SENT directly.
-    const statusResult = await this.outboundReplyRepository.updateStatus(
-      reply.id,
-      OUTBOUND_REPLY_STATUSES.SENT
-    );
+    // 4. Post reply via provider API (if adapter is available)
+    let providerReplyId: string | undefined;
 
-    if (!statusResult.ok) {
-      return err(
-        new UseCaseError(
-          "Failed to update reply status",
-          USE_CASE_ERRORS.INTERNAL_ERROR,
-          statusResult.error
-        )
+    if (this.channelRepository && this.providerAdapterResolver) {
+      const adapter = this.providerAdapterResolver.resolve(aggregate.provider);
+
+      if (!adapter || !adapter.capabilities.replies || !adapter.postReply) {
+        // Provider does not support replies — mark as FAILED and return error
+        await this.outboundReplyRepository.updateStatus(
+          reply.id,
+          OUTBOUND_REPLY_STATUSES.FAILED,
+          undefined,
+          `${aggregate.provider} does not support replies via API`
+        );
+        return err(
+          new UseCaseError(
+            `Direct replies via API are not supported for ${aggregate.provider}. Reply directly in the ${aggregate.provider} app.`,
+            USE_CASE_ERRORS.VALIDATION_FAILED
+          )
+        );
+      }
+
+      // Load channel to get credentials
+      const channelResult = await this.channelRepository.findById(aggregate.channelId);
+      if (!channelResult.ok) {
+        await this.outboundReplyRepository.updateStatus(
+          reply.id,
+          OUTBOUND_REPLY_STATUSES.FAILED,
+          undefined,
+          "Channel not found — cannot retrieve provider credentials"
+        );
+        return err(
+          new UseCaseError(
+            "Channel not found — cannot retrieve provider credentials",
+            USE_CASE_ERRORS.NOT_FOUND,
+            channelResult.error
+          )
+        );
+      }
+
+      const channel = channelResult.value;
+
+      // Call provider API
+      const providerResult = await adapter.postReply({
+        channelCredentials: channel.credentials,
+        inReplyToProviderMessageId: aggregate.providerMessageId,
+        body: input.body.trim(),
+      });
+
+      if (!providerResult.ok) {
+        await this.outboundReplyRepository.updateStatus(
+          reply.id,
+          OUTBOUND_REPLY_STATUSES.FAILED,
+          undefined,
+          `Provider API error: ${providerResult.error}`
+        );
+        return err(
+          new UseCaseError(
+            `Failed to post reply via ${aggregate.provider}: ${providerResult.error}`,
+            USE_CASE_ERRORS.INTERNAL_ERROR
+          )
+        );
+      }
+
+      providerReplyId = providerResult.value.providerReplyId;
+
+      // Mark as SENT with provider reply ID
+      await this.outboundReplyRepository.updateStatus(
+        reply.id,
+        OUTBOUND_REPLY_STATUSES.SENT,
+        providerReplyId
       );
+    } else {
+      // Fallback: no adapter resolver — mark as SENT directly (backward compatible)
+      const statusResult = await this.outboundReplyRepository.updateStatus(
+        reply.id,
+        OUTBOUND_REPLY_STATUSES.SENT
+      );
+
+      if (!statusResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to update reply status",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            statusResult.error
+          )
+        );
+      }
     }
 
     // 5. If message is UNREAD, transition to READ first, then to REPLIED
@@ -176,6 +259,9 @@ export class SendReplyUseCase implements UseCase<SendReplyInput, SendReplyOutput
       aggregate.clearDomainEvents();
     }
 
-    return ok({ replyId: reply.id });
+    return ok({
+      replyId: reply.id,
+      ...(providerReplyId !== undefined && { providerReplyId }),
+    });
   }
 }

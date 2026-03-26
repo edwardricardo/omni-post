@@ -1,4 +1,5 @@
 import type { FastifyRequest, FastifyReply, FastifyPluginAsync } from "fastify";
+import fp from "fastify-plugin";
 import { RedisCacheManager } from "./cache-manager.js";
 import type { CacheOptions } from "./types.js";
 import { CacheTTL } from "./constants.js";
@@ -132,9 +133,11 @@ function shouldCacheRequest(
 }
 
 /**
- * Fastify plugin for response caching
+ * Fastify plugin for response caching.
+ * Wrapped with fastify-plugin to remove encapsulation scope — hooks and
+ * decorators are available to the parent Fastify instance and all routes.
  */
-export const cachePlugin: FastifyPluginAsync<CacheMiddlewareOptions> = async (fastify, options) => {
+const cachePluginImpl: FastifyPluginAsync<CacheMiddlewareOptions> = async (fastify, options) => {
   const { cacheManager } = options;
 
   // Add cache manager to fastify instance
@@ -237,6 +240,12 @@ export const cachePlugin: FastifyPluginAsync<CacheMiddlewareOptions> = async (fa
     return payload;
   });
 };
+
+// fp() removes encapsulation — hooks become available to parent scope
+export const cachePlugin = fp(cachePluginImpl, {
+  name: "omnipost-cache",
+  fastify: "5.x",
+});
 
 /**
  * Cache invalidation helpers

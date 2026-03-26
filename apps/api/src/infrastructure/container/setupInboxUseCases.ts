@@ -31,6 +31,7 @@ import {
   GetUnreadInboxCountQuery,
 } from "../../application/inbox/index.js";
 import { InboxEventHandlers } from "../../application/inbox/handlers/InboxEventHandlers.js";
+import type { ProviderRegistryService } from "../../providers/providerRegistry.js";
 
 /**
  * Register social inbox commands, queries, and event handlers
@@ -76,12 +77,16 @@ export function setupInboxUseCases(container: Container): void {
   );
   container.register<SendReplyUseCase>(
     TOKENS.SendReplyUseCase,
-    () =>
-      new SendReplyUseCase(
+    () => {
+      const registry = container.resolve<ProviderRegistryService>(TOKENS.ProviderRegistry);
+      return new SendReplyUseCase(
         container.resolve<SocialMessageRepository>(TOKENS.SocialMessageRepository),
         container.resolve<SocialOutboundReplyRepository>(TOKENS.SocialOutboundReplyRepository),
-        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
-      ),
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
+        { resolve: (provider) => registry.getAdapter(provider) }
+      );
+    },
     true
   );
   container.register<ResolveConversationUseCase>(
