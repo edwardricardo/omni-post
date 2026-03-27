@@ -12,7 +12,10 @@ import * as client from "prom-client";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("provider:tiktok:video-processor");
-import ffmpeg from "fluent-ffmpeg";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as crypto from "crypto";
@@ -59,46 +62,61 @@ export class TikTokVideoProcessor {
    */
   async analyzeVideo(filePath: string): Promise<TikTokVideoAnalysis> {
     const apiCall = async (): Promise<TikTokVideoAnalysis> => {
-      return new Promise((resolve, reject) => {
-        ffmpeg.ffprobe(filePath, (err: any, metadata: any) => {
-          if (err) {
-            reject(new Error(`Video analysis failed: ${err.message}`));
-            return;
-          }
+      let probeResult: { stdout: string };
+      try {
+        probeResult = await execFileAsync("ffprobe", [
+          "-v",
+          "quiet",
+          "-print_format",
+          "json",
+          "-show_streams",
+          "-show_format",
+          filePath,
+        ]);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(`Video analysis failed: ${message}`);
+      }
 
-          const videoStream = metadata.streams.find((s: any) => s.codec_type === "video");
-          const audioStream = metadata.streams.find((s: any) => s.codec_type === "audio");
+      const metadata = JSON.parse(probeResult.stdout) as {
+        streams: Array<Record<string, unknown>>;
+        format: Record<string, unknown>;
+      };
 
-          if (!videoStream) {
-            reject(new Error("No video stream found"));
-            return;
-          }
+      const videoStream = metadata.streams.find((s) => s.codec_type === "video");
+      const audioStream = metadata.streams.find((s) => s.codec_type === "audio");
 
-          const analysis: TikTokVideoAnalysis = {
-            fileName: path.basename(filePath),
-            format: metadata.format.format_name || "unknown",
-            duration: parseFloat(String(metadata.format.duration || "0")),
-            fileSize: parseInt(String(metadata.format.size || "0")),
-            resolution: { width: videoStream.width || 0, height: videoStream.height || 0 },
-            aspectRatio: calculateAspectRatio(videoStream.width || 0, videoStream.height || 0),
-            frameRate: parseFrameRate(videoStream.r_frame_rate || "0/1"),
-            bitRate: parseInt(String(videoStream.bit_rate || metadata.format.bit_rate || "0")),
-            codec: videoStream.codec_name || "unknown",
-            audioCodec: audioStream?.codec_name || "none",
-            audioChannels: audioStream?.channels || 0,
-            audioSampleRate: audioStream?.sample_rate
-              ? parseInt(String(audioStream.sample_rate))
-              : 0,
-            audioBitRate: audioStream?.bit_rate ? parseInt(String(audioStream.bit_rate)) : 0,
-            isCompliant: false,
-            issues: [],
-            recommendations: [],
-          };
+      if (!videoStream) {
+        throw new Error("No video stream found");
+      }
 
-          validateCompliance(analysis);
-          resolve(analysis);
-        });
-      });
+      const analysis: TikTokVideoAnalysis = {
+        fileName: path.basename(filePath),
+        format: (metadata.format.format_name as string) || "unknown",
+        duration: parseFloat(String(metadata.format.duration || "0")),
+        fileSize: parseInt(String(metadata.format.size || "0")),
+        resolution: {
+          width: (videoStream.width as number) || 0,
+          height: (videoStream.height as number) || 0,
+        },
+        aspectRatio: calculateAspectRatio(
+          (videoStream.width as number) || 0,
+          (videoStream.height as number) || 0
+        ),
+        frameRate: parseFrameRate((videoStream.r_frame_rate as string) || "0/1"),
+        bitRate: parseInt(String(videoStream.bit_rate || metadata.format.bit_rate || "0")),
+        codec: (videoStream.codec_name as string) || "unknown",
+        audioCodec: (audioStream?.codec_name as string) || "none",
+        audioChannels: (audioStream?.channels as number) || 0,
+        audioSampleRate: audioStream?.sample_rate ? parseInt(String(audioStream.sample_rate)) : 0,
+        audioBitRate: audioStream?.bit_rate ? parseInt(String(audioStream.bit_rate)) : 0,
+        isCompliant: false,
+        issues: [],
+        recommendations: [],
+      };
+
+      validateCompliance(analysis);
+      return analysis;
     };
 
     return circuitBreaker.call("tiktok-video-processor", "analyze-video", apiCall, [], {
@@ -137,7 +155,7 @@ export class TikTokVideoProcessor {
       const processingParams = calculateProcessingParameters(analysis, options);
 
       await this.executeVideoProcessing(inputPath, outputPath, processingParams);
-      await this.generateThumbnail(outputPath, thumbnailPath);
+      await this.generateThumbnail(outputPath, thumbnailPath, analysis.duration);
       await this.generatePreviewGif(outputPath, previewGifPath);
 
       const processedAnalysis = await this.analyzeVideo(outputPath);
@@ -345,57 +363,78 @@ export class TikTokVideoProcessor {
   private async executeVideoProcessing(
     inputPath: string,
     outputPath: string,
-    params: any
+    params: Record<string, unknown>
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      let command = ffmpeg(inputPath);
+    const args = ["-i", inputPath];
+    args.push("-c:v", String(params.codec));
+    args.push("-f", String(params.format));
 
-      command = command
-        .videoCodec(params.codec)
-        .outputFormat(params.format)
-        .size(`${params.resolution.width}x${params.resolution.height}`)
-        .aspect(params.aspectRatio);
+    const resolution = params.resolution as { width: number; height: number };
+    args.push("-s", `${resolution.width}x${resolution.height}`);
+    args.push("-aspect", String(params.aspectRatio));
 
-      if (params.optimizations.includes("compress")) {
-        command = command.videoBitrate("2000k");
-      }
-      if (params.optimizations.includes("enhance-audio")) {
-        command = command.audioCodec("aac").audioBitrate("128k");
-      }
+    const optimizations = params.optimizations as string[];
+    if (optimizations.includes("compress")) {
+      args.push("-b:v", "2000k");
+    }
+    if (optimizations.includes("enhance-audio")) {
+      args.push("-c:a", "aac", "-b:a", "128k");
+    }
 
-      command
-        .on("end", () => resolve())
-        .on("error", (err: any) => reject(new Error(`Video processing failed: ${err.message}`)))
-        .save(outputPath);
-    });
+    args.push("-y", outputPath);
+
+    try {
+      await execFileAsync("ffmpeg", args);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Video processing failed: ${message}`);
+    }
   }
 
-  private async generateThumbnail(videoPath: string, thumbnailPath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      ffmpeg(videoPath)
-        .screenshots({
-          timestamps: ["10%"],
-          filename: path.basename(thumbnailPath),
-          folder: path.dirname(thumbnailPath),
-          size: "720x1280",
-        })
-        .on("end", () => resolve())
-        .on("error", (err: any) =>
-          reject(new Error(`Thumbnail generation failed: ${err.message}`))
-        );
-    });
+  private async generateThumbnail(
+    videoPath: string,
+    thumbnailPath: string,
+    duration: number
+  ): Promise<void> {
+    const timestamp = String(duration * 0.1);
+    try {
+      await execFileAsync("ffmpeg", [
+        "-i",
+        videoPath,
+        "-ss",
+        timestamp,
+        "-vframes",
+        "1",
+        "-s",
+        "720x1280",
+        "-y",
+        thumbnailPath,
+      ]);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Thumbnail generation failed: ${message}`);
+    }
   }
 
   private async generatePreviewGif(videoPath: string, gifPath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      ffmpeg(videoPath)
-        .inputOptions(["-t 3"])
-        .outputOptions(["-vf scale=320:-1", "-r 10", "-f gif"])
-        .on("end", () => resolve())
-        .on("error", (err: any) =>
-          reject(new Error(`Preview GIF generation failed: ${err.message}`))
-        )
-        .save(gifPath);
-    });
+    try {
+      await execFileAsync("ffmpeg", [
+        "-i",
+        videoPath,
+        "-t",
+        "3",
+        "-vf",
+        "scale=320:-1",
+        "-r",
+        "10",
+        "-f",
+        "gif",
+        "-y",
+        gifPath,
+      ]);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Preview GIF generation failed: ${message}`);
+    }
   }
 }

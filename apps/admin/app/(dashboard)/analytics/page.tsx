@@ -289,7 +289,11 @@ function AnalyticsPageContent() {
                       year: "numeric",
                     })
                   }
-                  formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]}
+                  formatter={(value) =>
+                    typeof value === "number"
+                      ? [`$${value.toLocaleString()}`, "Revenue"]
+                      : [String(value), "Revenue"]
+                  }
                 />
                 <Legend />
                 <Bar dataKey="amount" fill="#10B981" name="Revenue" />

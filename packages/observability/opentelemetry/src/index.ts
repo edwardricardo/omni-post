@@ -3,7 +3,7 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { PrometheusExporter } from "@opentelemetry/exporter-prometheus";
-import { Resource } from "@opentelemetry/resources";
+import { resourceFromAttributes } from "@opentelemetry/resources";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { FastifyInstrumentation } from "@opentelemetry/instrumentation-fastify";
@@ -47,7 +47,7 @@ export class SocialMediaTelemetry {
 
   private initializeSDK() {
     // Create resource with service information
-    const resource = new Resource({
+    const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: this.config.serviceName,
       [ATTR_SERVICE_VERSION]: this.config.serviceVersion,
       environment: this.config.environment,

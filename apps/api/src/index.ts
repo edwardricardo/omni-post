@@ -154,9 +154,7 @@ async function createApp(): Promise<FastifyInstance> {
     routePrefix: "/docs",
     configuration: {
       theme: "kepler",
-      spec: {
-        url: "/docs/json",
-      },
+      url: "/docs/json",
     },
   });
 

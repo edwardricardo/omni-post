@@ -1,10 +1,14 @@
+import { execFile } from "node:child_process";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { promisify } from "node:util";
+
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { isOk as _isOk, isErr, unwrap, AppError, type Result as _Result } from "@shared/types";
 import client from "prom-client";
-import ffmpeg, { FfmpegCommand, FfprobeData } from "fluent-ffmpeg";
-import fs from "fs";
-import path from "path";
-import os from "os";
+
+const execFileAsync = promisify(execFile);
 
 export interface VideoSegment {
   id: string;
@@ -45,40 +49,41 @@ export class InstagramMediaProcessor {
   }
 
   /**
-   * Get video metadata using FFprobe
+   * Get video metadata using FFprobe via child_process
    */
   async getVideoMetadata(videoUrl: string): Promise<VideoMetadata> {
     const metadataCall = async (): Promise<VideoMetadata> => {
-      return new Promise((resolve, reject) => {
-        ffmpeg.ffprobe(videoUrl, (err: any, metadata: FfprobeData) => {
-          if (err) {
-            reject(new Error(`FFprobe error: ${err.message}`));
-            return;
-          }
+      const { stdout } = await execFileAsync("ffprobe", [
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
+        "-show_streams",
+        "-show_format",
+        videoUrl,
+      ]);
 
-          const videoStream = metadata.streams.find((stream) => stream.codec_type === "video");
-          if (!videoStream) {
-            reject(new Error("No video stream found"));
-            return;
-          }
+      const probeData = JSON.parse(stdout);
+      const videoStream = (probeData.streams as any[]).find((s: any) => s.codec_type === "video");
+      if (!videoStream) {
+        throw new Error("No video stream found");
+      }
 
-          const duration = parseFloat(String(metadata.format.duration || "0"));
-          const bitrate = parseInt(String(metadata.format.bit_rate || "0"), 10);
-          const width = videoStream.width || 0;
-          const height = videoStream.height || 0;
-          const frameRate = this.parseFrameRate(videoStream.r_frame_rate || "0/1");
-          const format = metadata.format.format_name?.split(",")[0] || "unknown";
+      const duration = parseFloat(String(probeData.format.duration || "0"));
+      const bitrate = parseInt(String(probeData.format.bit_rate || "0"), 10);
+      const width = videoStream.width || 0;
+      const height = videoStream.height || 0;
+      const frameRate = this.parseFrameRate(videoStream.r_frame_rate || "0/1");
+      const format = (probeData.format.format_name as string)?.split(",")[0] || "unknown";
 
-          resolve({
-            duration,
-            width,
-            height,
-            format,
-            bitrate,
-            frameRate,
-          });
-        });
-      });
+      return {
+        duration,
+        width,
+        height,
+        format,
+        bitrate,
+        frameRate,
+      };
     };
 
     return circuitBreaker.call("media-analysis", "get-metadata", metadataCall, [], {
@@ -182,122 +187,108 @@ export class InstagramMediaProcessor {
       const tempDir = os.tmpdir();
       const outputPath = path.join(tempDir, `segment_${segmentId}.mp4`);
 
-      return new Promise((resolve, reject) => {
-        try {
-          let command: FfmpegCommand = ffmpeg(originalVideoUrl)
-            .seekInput(startTime)
-            .duration(duration)
-            .videoCodec("libx264")
-            .audioCodec("aac")
-            .audioBitrate("128k")
-            .addOption("-preset", "fast")
-            .addOption("-movflags", "+faststart");
+      const crf = options.quality === "low" ? "28" : options.quality === "high" ? "18" : "23";
 
-          // Set quality based on options
-          const crf = options.quality === "low" ? "28" : options.quality === "high" ? "18" : "23";
-          command = command.addOption("-crf", crf);
+      const filterParts: string[] = [];
+      if (options.aspectRatio === "9:16") {
+        filterParts.push("scale=1080:1920:force_original_aspect_ratio=increase", "crop=1080:1920");
+      } else if (options.aspectRatio === "1:1") {
+        filterParts.push("scale=1080:1080:force_original_aspect_ratio=increase", "crop=1080:1080");
+      }
+      if (options.addTransitions && startTime > 0) {
+        filterParts.push("fade=in:0:15");
+      }
 
-          // Apply aspect ratio scaling if specified
-          if (options.aspectRatio === "9:16") {
-            command = command.videoFilters([
-              "scale=1080:1920:force_original_aspect_ratio=increase",
-              "crop=1080:1920",
-            ]);
-          } else if (options.aspectRatio === "1:1") {
-            command = command.videoFilters([
-              "scale=1080:1080:force_original_aspect_ratio=increase",
-              "crop=1080:1080",
-            ]);
-          }
+      const args: string[] = [
+        "-ss",
+        String(startTime),
+        "-i",
+        originalVideoUrl,
+        "-t",
+        String(duration),
+        "-c:v",
+        "libx264",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        "-preset",
+        "fast",
+        "-movflags",
+        "+faststart",
+        "-crf",
+        crf,
+      ];
 
-          // Add fade-in transition if requested and not first segment
-          if (options.addTransitions && startTime > 0) {
-            command = command.videoFilters(["fade=in:0:15"]); // 15 frame fade-in
-          }
+      if (filterParts.length > 0) {
+        args.push("-vf", filterParts.join(","));
+      }
 
-          command
-            .output(outputPath)
-            .on("end", () => {
-              // Handle upload in separate async function
-              (async () => {
-                try {
-                  // Upload processed segment to storage
-                  const { createS3StorageAdapter } = await import("@adapters/storage-s3");
+      args.push("-y", outputPath);
 
-                  if (!process.env.AWS_REGION || !process.env.AWS_S3_BUCKET) {
-                    throw AppError.configuration(
-                      "AWS_REGION and AWS_S3_BUCKET environment variables are required"
-                    );
-                  }
+      await execFileAsync("ffmpeg", args);
 
-                  const s3Config = {
-                    region: process.env.AWS_REGION,
-                    bucket: process.env.AWS_S3_BUCKET,
-                    ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-                      ? {
-                          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                        }
-                      : {}),
-                    ...(process.env.AWS_ENDPOINT ? { endpoint: process.env.AWS_ENDPOINT } : {}),
-                  };
+      // Upload processed segment to storage
+      const { createS3StorageAdapter } = await import("@adapters/storage-s3");
 
-                  const storageAdapter = createS3StorageAdapter(s3Config);
-                  const fileBuffer = await fs.promises.readFile(outputPath);
-                  const filename = `segments/${segmentId}.mp4`;
+      if (!process.env.AWS_REGION || !process.env.AWS_S3_BUCKET) {
+        throw AppError.configuration(
+          "AWS_REGION and AWS_S3_BUCKET environment variables are required"
+        );
+      }
 
-                  const signatureResult = await storageAdapter.generateUploadSignature(
-                    filename,
-                    "video/mp4"
-                  );
+      const s3Config = {
+        region: process.env.AWS_REGION,
+        bucket: process.env.AWS_S3_BUCKET,
+        ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+          ? {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+            }
+          : {}),
+        ...(process.env.AWS_ENDPOINT ? { endpoint: process.env.AWS_ENDPOINT } : {}),
+      };
 
-                  if (isErr(signatureResult)) {
-                    throw AppError.externalService(
-                      "s3",
-                      `Failed to generate upload signature: ${signatureResult.error}`
-                    );
-                  }
+      const storageAdapter = createS3StorageAdapter(s3Config);
+      const fileBuffer = await fs.promises.readFile(outputPath);
+      const filename = `segments/${segmentId}.mp4`;
 
-                  const signature = unwrap(signatureResult);
-                  const formData = new FormData();
+      const signatureResult = await storageAdapter.generateUploadSignature(filename, "video/mp4");
 
-                  Object.entries(signature.fields).forEach(([key, value]) => {
-                    formData.append(key, value);
-                  });
+      if (isErr(signatureResult)) {
+        throw AppError.externalService(
+          "s3",
+          `Failed to generate upload signature: ${signatureResult.error}`
+        );
+      }
 
-                  const fileBlob = new Blob([new Uint8Array(fileBuffer)], { type: "video/mp4" });
-                  formData.append("file", fileBlob);
+      const signature = unwrap(signatureResult);
+      const formData = new FormData();
 
-                  const uploadResponse = await fetch(signature.url, {
-                    method: "POST",
-                    body: formData,
-                  });
-
-                  if (!uploadResponse.ok) {
-                    throw AppError.externalService(
-                      "s3",
-                      `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`
-                    );
-                  }
-
-                  // Clean up temporary file
-                  await fs.promises.unlink(outputPath).catch(() => {});
-
-                  const mediaUrl = `${signature.url}${signature.fields.key}`;
-                  resolve(mediaUrl);
-                } catch (uploadError) {
-                  reject(uploadError);
-                }
-              })();
-            })
-            .on("error", (err: any) => {
-              reject(AppError.externalService("ffmpeg", `FFmpeg processing error: ${err.message}`));
-            })
-            .run();
-        } catch (error) {
-          reject(error);
-        }
+      Object.entries(signature.fields).forEach(([key, value]) => {
+        formData.append(key, value);
       });
+
+      const fileBlob = new Blob([new Uint8Array(fileBuffer)], { type: "video/mp4" });
+      formData.append("file", fileBlob);
+
+      const uploadResponse = await fetch(signature.url, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw AppError.externalService(
+          "s3",
+          `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`
+        );
+      }
+
+      // Clean up temporary file
+      await fs.promises.unlink(outputPath).catch(() => {});
+
+      const mediaUrl = `${signature.url}${signature.fields.key}`;
+      return mediaUrl;
     };
 
     return circuitBreaker.call("segment-processing", "process-segment", processCall, [], {
@@ -329,101 +320,92 @@ export class InstagramMediaProcessor {
       const optimizedId = `reel_${Date.now()}`;
       const outputPath = path.join(tempDir, `${optimizedId}.mp4`);
 
-      return new Promise((resolve, reject) => {
-        try {
-          ffmpeg(videoUrl)
-            .duration(Math.min(90, metadata.duration)) // Limit to 90 seconds
-            .videoCodec("libx264")
-            .audioCodec("aac")
-            .audioBitrate("128k")
-            .addOption("-preset", "fast")
-            .addOption("-crf", "23")
-            .addOption("-movflags", "+faststart")
-            .videoFilters([
-              "scale=1080:1920:force_original_aspect_ratio=increase",
-              "crop=1080:1920",
-            ])
-            .output(outputPath)
-            .on("end", async () => {
-              try {
-                // Upload optimized video to storage
-                const { createS3StorageAdapter } = await import("@adapters/storage-s3");
+      const args: string[] = [
+        "-i",
+        videoUrl,
+        "-t",
+        String(Math.min(90, metadata.duration)),
+        "-c:v",
+        "libx264",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
+        "-movflags",
+        "+faststart",
+        "-vf",
+        "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
+        "-y",
+        outputPath,
+      ];
 
-                if (!process.env.AWS_REGION || !process.env.AWS_S3_BUCKET) {
-                  throw AppError.configuration(
-                    "AWS_REGION and AWS_S3_BUCKET environment variables are required"
-                  );
-                }
+      await execFileAsync("ffmpeg", args);
 
-                const s3Config = {
-                  region: process.env.AWS_REGION,
-                  bucket: process.env.AWS_S3_BUCKET,
-                  ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-                    ? {
-                        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                      }
-                    : {}),
-                  ...(process.env.AWS_ENDPOINT ? { endpoint: process.env.AWS_ENDPOINT } : {}),
-                };
+      // Upload optimized video to storage
+      const { createS3StorageAdapter } = await import("@adapters/storage-s3");
 
-                const storageAdapter = createS3StorageAdapter(s3Config);
-                const fileBuffer = await fs.promises.readFile(outputPath);
-                const filename = `reels/${optimizedId}.mp4`;
+      if (!process.env.AWS_REGION || !process.env.AWS_S3_BUCKET) {
+        throw AppError.configuration(
+          "AWS_REGION and AWS_S3_BUCKET environment variables are required"
+        );
+      }
 
-                const signatureResult = await storageAdapter.generateUploadSignature(
-                  filename,
-                  "video/mp4"
-                );
+      const s3Config = {
+        region: process.env.AWS_REGION,
+        bucket: process.env.AWS_S3_BUCKET,
+        ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+          ? {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+            }
+          : {}),
+        ...(process.env.AWS_ENDPOINT ? { endpoint: process.env.AWS_ENDPOINT } : {}),
+      };
 
-                if (isErr(signatureResult)) {
-                  throw AppError.externalService(
-                    "s3",
-                    `Failed to generate upload signature: ${signatureResult.error}`
-                  );
-                }
+      const storageAdapter = createS3StorageAdapter(s3Config);
+      const fileBuffer = await fs.promises.readFile(outputPath);
+      const filename = `reels/${optimizedId}.mp4`;
 
-                const signature = unwrap(signatureResult);
-                const formData = new FormData();
+      const signatureResult = await storageAdapter.generateUploadSignature(filename, "video/mp4");
 
-                Object.entries(signature.fields).forEach(([key, value]) => {
-                  formData.append(key, value);
-                });
+      if (isErr(signatureResult)) {
+        throw AppError.externalService(
+          "s3",
+          `Failed to generate upload signature: ${signatureResult.error}`
+        );
+      }
 
-                const fileBlob = new Blob([new Uint8Array(fileBuffer)], { type: "video/mp4" });
-                formData.append("file", fileBlob);
+      const signature = unwrap(signatureResult);
+      const formData = new FormData();
 
-                const uploadResponse = await fetch(signature.url, {
-                  method: "POST",
-                  body: formData,
-                });
-
-                if (!uploadResponse.ok) {
-                  throw AppError.externalService(
-                    "s3",
-                    `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`
-                  );
-                }
-
-                // Clean up temporary file
-                await fs.promises.unlink(outputPath).catch(() => {});
-
-                const mediaUrl = `${signature.url}${signature.fields.key}`;
-                resolve(mediaUrl);
-              } catch (uploadError) {
-                reject(uploadError);
-              }
-            })
-            .on("error", (err: any) => {
-              reject(
-                AppError.externalService("ffmpeg", `FFmpeg optimization error: ${err.message}`)
-              );
-            })
-            .run();
-        } catch (error) {
-          reject(error);
-        }
+      Object.entries(signature.fields).forEach(([key, value]) => {
+        formData.append(key, value);
       });
+
+      const fileBlob = new Blob([new Uint8Array(fileBuffer)], { type: "video/mp4" });
+      formData.append("file", fileBlob);
+
+      const uploadResponse = await fetch(signature.url, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw AppError.externalService(
+          "s3",
+          `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`
+        );
+      }
+
+      // Clean up temporary file
+      await fs.promises.unlink(outputPath).catch(() => {});
+
+      const mediaUrl = `${signature.url}${signature.fields.key}`;
+      return mediaUrl;
     };
 
     return circuitBreaker.call("reel-optimization", "optimize-reel", optimizeCall, [], {
@@ -443,91 +425,82 @@ export class InstagramMediaProcessor {
       const thumbnailId = `thumb_${Date.now()}`;
       const outputPath = path.join(tempDir, `${thumbnailId}.jpg`);
 
-      return new Promise((resolve, reject) => {
-        try {
-          ffmpeg(videoUrl)
-            .seekInput(timeOffset)
-            .frames(1) // Extract only 1 frame
-            .addOption("-q:v", "2") // High quality JPEG
-            .output(outputPath)
-            .on("end", async () => {
-              try {
-                // Upload thumbnail to storage
-                const { createS3StorageAdapter } = await import("@adapters/storage-s3");
+      const args: string[] = [
+        "-ss",
+        String(timeOffset),
+        "-i",
+        videoUrl,
+        "-frames:v",
+        "1",
+        "-q:v",
+        "2",
+        "-y",
+        outputPath,
+      ];
 
-                if (!process.env.AWS_REGION || !process.env.AWS_S3_BUCKET) {
-                  throw AppError.configuration(
-                    "AWS_REGION and AWS_S3_BUCKET environment variables are required"
-                  );
-                }
+      await execFileAsync("ffmpeg", args);
 
-                const s3Config = {
-                  region: process.env.AWS_REGION,
-                  bucket: process.env.AWS_S3_BUCKET,
-                  ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-                    ? {
-                        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                      }
-                    : {}),
-                  ...(process.env.AWS_ENDPOINT ? { endpoint: process.env.AWS_ENDPOINT } : {}),
-                };
+      // Upload thumbnail to storage
+      const { createS3StorageAdapter } = await import("@adapters/storage-s3");
 
-                const storageAdapter = createS3StorageAdapter(s3Config);
-                const fileBuffer = await fs.promises.readFile(outputPath);
-                const filename = `thumbnails/${thumbnailId}.jpg`;
+      if (!process.env.AWS_REGION || !process.env.AWS_S3_BUCKET) {
+        throw AppError.configuration(
+          "AWS_REGION and AWS_S3_BUCKET environment variables are required"
+        );
+      }
 
-                const signatureResult = await storageAdapter.generateUploadSignature(
-                  filename,
-                  "image/jpeg"
-                );
+      const s3Config = {
+        region: process.env.AWS_REGION,
+        bucket: process.env.AWS_S3_BUCKET,
+        ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+          ? {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+            }
+          : {}),
+        ...(process.env.AWS_ENDPOINT ? { endpoint: process.env.AWS_ENDPOINT } : {}),
+      };
 
-                if (isErr(signatureResult)) {
-                  throw AppError.externalService(
-                    "s3",
-                    `Failed to generate upload signature: ${signatureResult.error}`
-                  );
-                }
+      const storageAdapter = createS3StorageAdapter(s3Config);
+      const fileBuffer = await fs.promises.readFile(outputPath);
+      const filename = `thumbnails/${thumbnailId}.jpg`;
 
-                const signature = unwrap(signatureResult);
-                const formData = new FormData();
+      const signatureResult = await storageAdapter.generateUploadSignature(filename, "image/jpeg");
 
-                Object.entries(signature.fields).forEach(([key, value]) => {
-                  formData.append(key, value);
-                });
+      if (isErr(signatureResult)) {
+        throw AppError.externalService(
+          "s3",
+          `Failed to generate upload signature: ${signatureResult.error}`
+        );
+      }
 
-                const fileBlob = new Blob([new Uint8Array(fileBuffer)], { type: "image/jpeg" });
-                formData.append("file", fileBlob);
+      const signature = unwrap(signatureResult);
+      const formData = new FormData();
 
-                const uploadResponse = await fetch(signature.url, {
-                  method: "POST",
-                  body: formData,
-                });
-
-                if (!uploadResponse.ok) {
-                  throw AppError.externalService(
-                    "s3",
-                    `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`
-                  );
-                }
-
-                // Clean up temporary file
-                await fs.promises.unlink(outputPath).catch(() => {});
-
-                const mediaUrl = `${signature.url}${signature.fields.key}`;
-                resolve(mediaUrl);
-              } catch (uploadError) {
-                reject(uploadError);
-              }
-            })
-            .on("error", (err: any) => {
-              reject(new Error(`FFmpeg thumbnail error: ${err.message}`));
-            })
-            .run();
-        } catch (error) {
-          reject(error);
-        }
+      Object.entries(signature.fields).forEach(([key, value]) => {
+        formData.append(key, value);
       });
+
+      const fileBlob = new Blob([new Uint8Array(fileBuffer)], { type: "image/jpeg" });
+      formData.append("file", fileBlob);
+
+      const uploadResponse = await fetch(signature.url, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw AppError.externalService(
+          "s3",
+          `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`
+        );
+      }
+
+      // Clean up temporary file
+      await fs.promises.unlink(outputPath).catch(() => {});
+
+      const mediaUrl = `${signature.url}${signature.fields.key}`;
+      return mediaUrl;
     };
 
     return circuitBreaker.call("thumbnail-creation", "create-thumbnail", thumbnailCall, [], {
