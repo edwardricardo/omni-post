@@ -34,8 +34,8 @@ on:
           - low
 
 env:
-  NODE_VERSION: "20"
-  PNPM_VERSION: "10.16.0"
+  NODE_VERSION: "24"
+  PNPM_VERSION: "10.33.0"
   SECURITY_SCAN_TIMEOUT: "30m"
 
 concurrency:

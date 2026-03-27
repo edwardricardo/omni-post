@@ -9,7 +9,7 @@
 # ==============================================================================
 # Stage 1: Base with Development Tools
 # ==============================================================================
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 
 # Install development and debugging tools
 RUN apk update && apk upgrade && apk add --no-cache \

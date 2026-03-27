@@ -6,7 +6,7 @@
 # ==============================================================================
 # Shared Base Stage - Node.js with pnpm
 # ==============================================================================
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 RUN corepack enable
 WORKDIR /app
 
@@ -53,7 +53,7 @@ RUN pnpm --filter @apps/admin build
 # ==============================================================================
 # Production Runtime
 # ==============================================================================
-FROM gcr.io/distroless/nodejs20-debian12 AS production
+FROM gcr.io/distroless/nodejs24-debian12 AS production
 
 WORKDIR /app
 
