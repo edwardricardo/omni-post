@@ -7,7 +7,6 @@
  */
 
 import { describe, it, beforeEach, afterAll, afterEach, expect } from "vitest";
-import assert from "node:assert/strict";
 import client from "prom-client";
 import { RedisCacheManager } from "../src/cache-manager.js";
 

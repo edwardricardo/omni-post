@@ -18,14 +18,14 @@ import {
 // ============================================================================
 
 describe("DatabaseIntegration - Initialization", () => {
-  it("should initialize with required dependencies", async (t) => {
+  it("should initialize with required dependencies", async (_t) => {
     const config = createConfig();
     const integration = new DatabaseIntegration(config);
 
     expect(integration).toBeTruthy();
   });
 
-  it("should initialize connection manager with environment config", async (t) => {
+  it("should initialize connection manager with environment config", async (_t) => {
     process.env.DATABASE_URL = "postgresql://localhost:5432/test";
     process.env.DB_POOL_SIZE = "15";
 
@@ -35,7 +35,7 @@ describe("DatabaseIntegration - Initialization", () => {
     expect(integration).toBeTruthy();
   });
 
-  it("should register database management routes on initialization", async (t) => {
+  it("should register database management routes on initialization", async (_t) => {
     const mockFastify = createMockFastify();
     const config = {
       fastify: mockFastify as any,
@@ -51,7 +51,7 @@ describe("DatabaseIntegration - Initialization", () => {
     expect(mockFastify.get.mock.calls.length > 0).toBeTruthy();
   });
 
-  it("should setup auto-scaling on initialization", async (t) => {
+  it("should setup auto-scaling on initialization", async (_t) => {
     const config = createConfig();
     const integration = new DatabaseIntegration(config);
     await integration.initialize();
@@ -65,7 +65,7 @@ describe("DatabaseIntegration - Initialization", () => {
 // ============================================================================
 
 describe("DatabaseIntegration - Route Registration", () => {
-  it("should register health check route", async (t) => {
+  it("should register health check route", async (_t) => {
     const mockFastify = createMockFastify();
     const config = {
       fastify: mockFastify as any,
@@ -85,7 +85,7 @@ describe("DatabaseIntegration - Route Registration", () => {
     await integration.shutdown();
   });
 
-  it("should register statistics route", async (t) => {
+  it("should register statistics route", async (_t) => {
     const mockFastify = createMockFastify();
     const config = {
       fastify: mockFastify as any,
@@ -105,7 +105,7 @@ describe("DatabaseIntegration - Route Registration", () => {
     await integration.shutdown();
   });
 
-  it("should register connection scaling route", async (t) => {
+  it("should register connection scaling route", async (_t) => {
     const mockFastify = createMockFastify();
     const config = {
       fastify: mockFastify as any,
@@ -125,7 +125,7 @@ describe("DatabaseIntegration - Route Registration", () => {
     await integration.shutdown();
   });
 
-  it("should register replica management routes", async (t) => {
+  it("should register replica management routes", async (_t) => {
     const mockFastify = createMockFastify();
     const config = {
       fastify: mockFastify as any,
@@ -151,7 +151,7 @@ describe("DatabaseIntegration - Route Registration", () => {
     await integration.shutdown();
   });
 
-  it("should register analytics route", async (t) => {
+  it("should register analytics route", async (_t) => {
     const mockFastify = createMockFastify();
     const config = {
       fastify: mockFastify as any,
@@ -173,7 +173,7 @@ describe("DatabaseIntegration - Route Registration", () => {
     await integration.shutdown();
   });
 
-  it("should add database integration to request context", async (t) => {
+  it("should add database integration to request context", async (_t) => {
     const mockFastify = createMockFastify();
     const config = {
       fastify: mockFastify as any,

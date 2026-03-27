@@ -60,7 +60,7 @@ describe("OutboxRelay", () => {
     relay.stop();
   });
 
-  it("should poll and dispatch unpublished events", async (t) => {
+  it("should poll and dispatch unpublished events", async (_t) => {
     const now = new Date();
     mockPrisma.outboxEvent.findMany = vi.fn(async () => [
       {
@@ -103,7 +103,7 @@ describe("OutboxRelay", () => {
     expect(mockPrisma.outboxEvent.update.mock.calls.length).toBe(0);
   });
 
-  it("should retry with exponential backoff on dispatch failure", async (t) => {
+  it("should retry with exponential backoff on dispatch failure", async (_t) => {
     const now = new Date();
     mockPrisma.outboxEvent.findMany = vi.fn(async () => [
       {
@@ -149,7 +149,7 @@ describe("OutboxRelay", () => {
     expect(mockDispatcher.dispatch.mock.calls.length).toBe(0);
   });
 
-  it("should dispatch multiple events in order", async (t) => {
+  it("should dispatch multiple events in order", async (_t) => {
     const now = new Date();
     const events = [
       {

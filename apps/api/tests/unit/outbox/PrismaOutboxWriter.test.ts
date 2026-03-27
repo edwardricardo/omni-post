@@ -106,7 +106,7 @@ describe("PrismaOutboxWriter", () => {
     expect(row.payload).toEqual({ metadata: { source: "test" } });
   });
 
-  it("should propagate errors from createMany without catching them", async (t) => {
+  it("should propagate errors from createMany without catching them", async (_t) => {
     const failingTx = {
       outboxEvent: {
         createMany: vi.fn(async () => {

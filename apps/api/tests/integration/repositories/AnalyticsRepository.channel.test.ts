@@ -31,7 +31,7 @@ describe("AnalyticsRepository - getLatestForPosts", () => {
       }
     });
 
-    postIdCounts.forEach((count, postId) => {
+    postIdCounts.forEach((count, _postId) => {
       expect(count).toBe(1);
     });
   });

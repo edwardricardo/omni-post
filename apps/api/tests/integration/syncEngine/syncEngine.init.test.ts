@@ -66,7 +66,7 @@ beforeEach(async () => {
 // ============================================================================
 
 describe("SyncEngine - Initialization", () => {
-  it("should initialize with empty channel map", async (t) => {
+  it("should initialize with empty channel map", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const engine = new SyncEngine({
       prisma: mockPrisma,
@@ -83,7 +83,7 @@ describe("SyncEngine - Initialization", () => {
     await engine.shutdown();
   });
 
-  it("should setup Redis streams on initialization", async (t) => {
+  it("should setup Redis streams on initialization", async (_t) => {
     if (skipIfUnavailable(t)) return;
     await syncEngine.initialize();
 
@@ -95,7 +95,7 @@ describe("SyncEngine - Initialization", () => {
     }
   });
 
-  it("should not re-initialize when called multiple times", async (t) => {
+  it("should not re-initialize when called multiple times", async (_t) => {
     if (skipIfUnavailable(t)) return;
     await syncEngine.initialize();
     await syncEngine.initialize();
@@ -105,7 +105,7 @@ describe("SyncEngine - Initialization", () => {
     assert.ok(metrics);
   });
 
-  it("should load existing sync channels from Redis", async (t) => {
+  it("should load existing sync channels from Redis", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const channelData = {
       id: "test-channel-1",
@@ -164,7 +164,7 @@ describe("SyncEngine - Sync Channel Management", () => {
     await syncEngine.initialize();
   });
 
-  it("should create unidirectional sync channel", async (t) => {
+  it("should create unidirectional sync channel", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.createSyncChannel(
       "Twitter to Instagram",
@@ -193,7 +193,7 @@ describe("SyncEngine - Sync Channel Management", () => {
     }
   });
 
-  it("should create bidirectional sync channel", async (t) => {
+  it("should create bidirectional sync channel", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.createSyncChannel(
       "Twitter - Instagram",
@@ -217,7 +217,7 @@ describe("SyncEngine - Sync Channel Management", () => {
     }
   });
 
-  it("should reject channel with same source and target", async (t) => {
+  it("should reject channel with same source and target", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.createSyncChannel(
       "Invalid Channel",
@@ -241,7 +241,7 @@ describe("SyncEngine - Sync Channel Management", () => {
     }
   });
 
-  it("should reject duplicate channel creation", async (t) => {
+  it("should reject duplicate channel creation", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const config: SyncConfiguration = {
       mode: "ON_DEMAND",
@@ -274,7 +274,7 @@ describe("SyncEngine - Sync Channel Management", () => {
     }
   });
 
-  it("should store channel configuration in Redis", async (t) => {
+  it("should store channel configuration in Redis", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.createSyncChannel(
       "Test Redis Storage",
@@ -303,7 +303,7 @@ describe("SyncEngine - Sync Channel Management", () => {
     }
   });
 
-  it("should initialize channel with healthy status", async (t) => {
+  it("should initialize channel with healthy status", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.createSyncChannel(
       "Health Check Channel",

@@ -60,7 +60,7 @@ describe("OutboxCleaner", () => {
     expect(args.where.publishedAt).toEqual({ not: null });
   });
 
-  it("should return 0 when no events to clean", async (t) => {
+  it("should return 0 when no events to clean", async (_t) => {
     mockPrisma.outboxEvent.deleteMany = vi.fn(async () => ({ count: 0 }));
     const count = await cleaner.clean();
     expect(count).toBe(0);

@@ -102,7 +102,7 @@ function cacheHit<T>(cacheManager: MockCacheManager, data: T): void {
 
 describe("PostsService", () => {
   describe("getOptimizedPosts", () => {
-    it("should return cached results on cache hit", async (t) => {
+    it("should return cached results on cache hit", async (_t) => {
       const { cacheManager, service } = createMocks();
 
       const cachedData = {
@@ -142,7 +142,7 @@ describe("PostsService", () => {
       expect(result.data[0].id).toBe("cached-1");
     });
 
-    it("should fetch from database on cache miss", async (t) => {
+    it("should fetch from database on cache miss", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -161,7 +161,7 @@ describe("PostsService", () => {
       expect(result.limit).toBe(20);
     });
 
-    it("should store results in cache after database fetch", async (t) => {
+    it("should store results in cache after database fetch", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -182,7 +182,7 @@ describe("PostsService", () => {
       expect(setCall[0].includes("dashboard:posts")).toBeTruthy();
     });
 
-    it("should use correct cache key format", async (t) => {
+    it("should use correct cache key format", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -205,7 +205,7 @@ describe("PostsService", () => {
       expect(getCall[0]).toBe(`dashboard:posts:${accountId}:${page}:${limit}`);
     });
 
-    it("should calculate pagination correctly", async (t) => {
+    it("should calculate pagination correctly", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -220,7 +220,7 @@ describe("PostsService", () => {
       expect(result.totalPages).toBe(1);
     });
 
-    it("should transform database results to API schema", async (t) => {
+    it("should transform database results to API schema", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -251,7 +251,7 @@ describe("PostsService", () => {
       expect(post.totalViews).toBe(1000);
     });
 
-    it("should record performance metrics on cache hit", async (t) => {
+    it("should record performance metrics on cache hit", async (_t) => {
       const { dbOptimizer, cacheManager, service } = createMocks();
 
       const cachedData = {
@@ -282,7 +282,7 @@ describe("PostsService", () => {
       expect(metricCall[3].cached).toBe(true);
     });
 
-    it("should record performance metrics on cache miss", async (t) => {
+    it("should record performance metrics on cache miss", async (_t) => {
       const { dbOptimizer, cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -301,7 +301,7 @@ describe("PostsService", () => {
       expect(metricCall[3].cached).toBe(false);
     });
 
-    it("should handle multi-tenant isolation correctly", async (t) => {
+    it("should handle multi-tenant isolation correctly", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -336,7 +336,7 @@ describe("PostsService", () => {
       expect(key1[0]).not.toBe(key2[0]);
     });
 
-    it("should cache total count separately", async (t) => {
+    it("should cache total count separately", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -357,7 +357,7 @@ describe("PostsService", () => {
   });
 
   describe("getDashboardStats", () => {
-    it("should return cached stats on cache hit", async (t) => {
+    it("should return cached stats on cache hit", async (_t) => {
       const { cacheManager, service } = createMocks();
 
       const cachedStats = {
@@ -382,7 +382,7 @@ describe("PostsService", () => {
       expect(result.publishedPosts).toBe(10);
     });
 
-    it("should fetch from materialized view on cache miss", async (t) => {
+    it("should fetch from materialized view on cache miss", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -394,7 +394,7 @@ describe("PostsService", () => {
       expect(result.publishedPosts).toBe(5);
     });
 
-    it("should return fallback stats when materialized view has no data", async (t) => {
+    it("should return fallback stats when materialized view has no data", async (_t) => {
       const { dbOptimizer, cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -410,7 +410,7 @@ describe("PostsService", () => {
       expect(result.cacheLevel).toBe("fallback");
     });
 
-    it("should cache fallback stats", async (t) => {
+    it("should cache fallback stats", async (_t) => {
       const { dbOptimizer, cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -427,7 +427,7 @@ describe("PostsService", () => {
       expect(fallbackSetCall[2].ttl).toBe(300); // 5 minutes for fallback
     });
 
-    it("should use correct cache key for stats", async (t) => {
+    it("should use correct cache key for stats", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -442,7 +442,7 @@ describe("PostsService", () => {
       expect(getCall[0]).toBe(`tenant:stats:${accountId}`);
     });
 
-    it("should record performance metrics", async (t) => {
+    it("should record performance metrics", async (_t) => {
       const { dbOptimizer, cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -455,7 +455,7 @@ describe("PostsService", () => {
       expect(metricCall).toBeTruthy();
     });
 
-    it("should transform lastActivity to ISO string", async (t) => {
+    it("should transform lastActivity to ISO string", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -469,7 +469,7 @@ describe("PostsService", () => {
       }
     });
 
-    it("should include all required stats fields", async (t) => {
+    it("should include all required stats fields", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -486,7 +486,7 @@ describe("PostsService", () => {
       expect("cacheLevel" in result).toBeTruthy();
     });
 
-    it("should cache stats with correct TTL", async (t) => {
+    it("should cache stats with correct TTL", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -500,7 +500,7 @@ describe("PostsService", () => {
       expect(statsSetCall[2].ttl).toBe(600); // 10 minutes
     });
 
-    it("should tag cache entries correctly", async (t) => {
+    it("should tag cache entries correctly", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -519,7 +519,7 @@ describe("PostsService", () => {
   });
 
   describe("warmCache", () => {
-    it("should successfully warm cache", async (t) => {
+    it("should successfully warm cache", async (_t) => {
       const { service } = createMocks();
 
       const result = await service.warmCache(TEST_ACCOUNT_ID);
@@ -529,7 +529,7 @@ describe("PostsService", () => {
       expect(result.accountId).toBe(TEST_ACCOUNT_ID);
     });
 
-    it("should call cache manager warmCache method", async (t) => {
+    it("should call cache manager warmCache method", async (_t) => {
       const { cacheManager, service } = createMocks();
 
       await service.warmCache(TEST_ACCOUNT_ID);
@@ -539,7 +539,7 @@ describe("PostsService", () => {
       expect(warmCacheCalls[0][0]).toBe(Number(TEST_ACCOUNT_ID));
     });
 
-    it("should handle string accountId conversion to number", async (t) => {
+    it("should handle string accountId conversion to number", async (_t) => {
       const { cacheManager, service } = createMocks();
       const stringAccountId = "12345";
 
@@ -552,7 +552,7 @@ describe("PostsService", () => {
   });
 
   describe("BaseService integration", () => {
-    it("should log operations with context", async (t) => {
+    it("should log operations with context", async (_t) => {
       const { cacheManager, service } = createMocks();
       cacheMiss(cacheManager);
 
@@ -571,7 +571,7 @@ describe("PostsService", () => {
       expect("page" in result).toBeTruthy();
     });
 
-    it("should handle errors gracefully", async (t) => {
+    it("should handle errors gracefully", async (_t) => {
       const { cacheManager, service } = createMocks();
 
       vi.spyOn(cacheManager, "get").mockImplementation(async () => {

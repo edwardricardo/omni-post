@@ -5,7 +5,7 @@
  * @layer test
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { BillingService } from "../../src/billing/subscription/BillingService.js";
 
@@ -84,7 +84,7 @@ describe("BillingService", () => {
     it("uses current date when fromDate is not provided", () => {
       const before = new Date();
       const result = service.calculateNextBillingDate("monthly");
-      const after = new Date();
+      const _after = new Date();
 
       // Result should be roughly 1 month from now
       assert.ok(result.getTime() > before.getTime());

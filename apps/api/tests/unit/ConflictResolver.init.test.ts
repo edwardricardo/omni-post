@@ -59,7 +59,7 @@ describe("ConflictResolver - Pattern Detection", () => {
   let mockRedis: MockRedis;
   let mockEventService: MockEventService;
 
-  beforeEach(async (t) => {
+  beforeEach(async (_t) => {
     const mockPrisma = new MockPrismaClient();
     mockRedis = new MockRedis();
     mockEventService = new MockEventService();
@@ -164,7 +164,7 @@ describe("ConflictResolver - Conflict Resolution", () => {
   let resolver: ConflictResolver;
   let mockEventService: MockEventService;
 
-  beforeEach(async (t) => {
+  beforeEach(async (_t) => {
     const mockPrisma = new MockPrismaClient();
     const mockRedis = new MockRedis();
     mockEventService = new MockEventService();

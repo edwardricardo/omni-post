@@ -106,7 +106,7 @@ describe("EnhancedOAuthService - Token Encryption", () => {
     delete process.env.OAUTH_ENCRYPTION_KEY;
   });
 
-  it("should encrypt tokens before storage", async (t) => {
+  it("should encrypt tokens before storage", async (_t) => {
     const provider = createMockProvider();
     const stateData = {
       state: "valid-state",
@@ -155,7 +155,7 @@ describe("EnhancedOAuthService - Token Encryption", () => {
     global.fetch = mocks.globalFetch;
   });
 
-  it("should decrypt tokens when retrieving", async (t) => {
+  it("should decrypt tokens when retrieving", async (_t) => {
     const encryptedToken = "iv:authTag:encryptedData";
 
     mocks.mockPrisma.providerConnection.findUnique = vi.fn(async () => ({

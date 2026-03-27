@@ -7,7 +7,7 @@
  * @layer test
  */
 
-import { describe, it, beforeAll, beforeEach, afterAll, expect, vi } from "vitest";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // 1. Hoisted mock setup — runs before any imports

@@ -19,7 +19,7 @@ import {
 // ============================================================================
 
 describe("DatabaseIntegration - Auto-Scaling", () => {
-  it("should initialize auto-scaling mechanism", async (t) => {
+  it("should initialize auto-scaling mechanism", async (_t) => {
     const config = createConfig();
     const integration = new DatabaseIntegration(config);
     await integration.initialize();
@@ -29,7 +29,7 @@ describe("DatabaseIntegration - Auto-Scaling", () => {
     await integration.shutdown();
   });
 
-  it("should provide connection manager access", (t) => {
+  it("should provide connection manager access", (_t) => {
     const config = createConfig();
     const integration = new DatabaseIntegration(config);
     const manager = integration.getConnectionManager();
@@ -118,7 +118,7 @@ describe("DatabaseIntegration - Query Analytics", () => {
 // ============================================================================
 
 describe("DatabaseIntegration - Configuration", () => {
-  it("should parse replica configuration from environment", (t) => {
+  it("should parse replica configuration from environment", (_t) => {
     process.env.DATABASE_REPLICA_URLS =
       "postgresql://replica1:5432/db,postgresql://replica2:5432/db";
 
@@ -130,7 +130,7 @@ describe("DatabaseIntegration - Configuration", () => {
     delete process.env.DATABASE_REPLICA_URLS;
   });
 
-  it("should use default values when environment variables missing", (t) => {
+  it("should use default values when environment variables missing", (_t) => {
     delete process.env.DB_POOL_SIZE;
     delete process.env.DB_CONNECTION_TIMEOUT;
 
@@ -140,7 +140,7 @@ describe("DatabaseIntegration - Configuration", () => {
     expect(integration).toBeTruthy();
   });
 
-  it("should enable monitoring in production environment", (t) => {
+  it("should enable monitoring in production environment", (_t) => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
 
@@ -158,7 +158,7 @@ describe("DatabaseIntegration - Configuration", () => {
 // ============================================================================
 
 describe("DatabaseIntegration - Graceful Shutdown", () => {
-  it("should shutdown connection manager", async (t) => {
+  it("should shutdown connection manager", async (_t) => {
     const config = createConfig();
     const integration = new DatabaseIntegration(config);
     await integration.shutdown();
@@ -166,7 +166,7 @@ describe("DatabaseIntegration - Graceful Shutdown", () => {
     expect(true).toBeTruthy();
   });
 
-  it("should clean up resources on shutdown", async (t) => {
+  it("should clean up resources on shutdown", async (_t) => {
     const config = createConfig();
     const integration = new DatabaseIntegration(config);
     await integration.initialize();

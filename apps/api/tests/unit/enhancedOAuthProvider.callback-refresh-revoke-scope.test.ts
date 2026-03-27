@@ -46,7 +46,7 @@ describe("EnhancedOAuthService - Callback Handling", () => {
     expect((mocks.mockMetrics.metrics.securityThreats.inc as any).mock.calls.length).toBe(1);
   });
 
-  it("should validate provider matches state", async (t) => {
+  it("should validate provider matches state", async (_t) => {
     const provider = createMockProvider({ id: "instagram" as ProviderId });
     const stateData = {
       state: "valid-state",
@@ -71,7 +71,7 @@ describe("EnhancedOAuthService - Callback Handling", () => {
     );
   });
 
-  it("should create new connection if none exists", async (t) => {
+  it("should create new connection if none exists", async (_t) => {
     const provider = createMockProvider();
     const stateData = {
       state: "valid-state",
@@ -115,7 +115,7 @@ describe("EnhancedOAuthService - Callback Handling", () => {
     global.fetch = mocks.globalFetch;
   });
 
-  it("should update existing connection if found", async (t) => {
+  it("should update existing connection if found", async (_t) => {
     const provider = createMockProvider();
     const stateData = {
       state: "valid-state",
@@ -179,7 +179,7 @@ describe("EnhancedOAuthService - Token Refresh", () => {
     );
   });
 
-  it("should refresh tokens successfully", async (t) => {
+  it("should refresh tokens successfully", async (_t) => {
     const provider = createMockProvider();
 
     mocks.mockPrisma.providerConnection.findUnique = vi.fn(async () => ({
@@ -196,7 +196,7 @@ describe("EnhancedOAuthService - Token Refresh", () => {
     expect((mocks.mockPrisma.providerConnection.update as any).mock.calls.length).toBe(1);
   });
 
-  it("should throw error if connection not found", async (t) => {
+  it("should throw error if connection not found", async (_t) => {
     const provider = createMockProvider();
     mocks.mockPrisma.providerConnection.findUnique = vi.fn(async () => null);
 
@@ -205,7 +205,7 @@ describe("EnhancedOAuthService - Token Refresh", () => {
     );
   });
 
-  it("should throw error if refresh token not available", async (t) => {
+  it("should throw error if refresh token not available", async (_t) => {
     const provider = createMockProvider();
     mocks.mockPrisma.providerConnection.findUnique = vi.fn(async () => ({
       id: "conn-123",
@@ -218,7 +218,7 @@ describe("EnhancedOAuthService - Token Refresh", () => {
     );
   });
 
-  it("should update expiration date with new tokens", async (t) => {
+  it("should update expiration date with new tokens", async (_t) => {
     const provider = createMockProvider();
 
     mocks.mockPrisma.providerConnection.findUnique = vi.fn(async () => ({
@@ -254,7 +254,7 @@ describe("EnhancedOAuthService - Connection Revocation", () => {
     );
   });
 
-  it("should revoke connection successfully", async (t) => {
+  it("should revoke connection successfully", async (_t) => {
     const provider = createMockProvider();
 
     mocks.mockPrisma.providerConnection.findUnique = vi.fn(async () => ({
@@ -270,7 +270,7 @@ describe("EnhancedOAuthService - Connection Revocation", () => {
     expect((mocks.mockPrisma.providerConnection.delete as any).mock.calls.length).toBe(1);
   });
 
-  it("should throw error if connection not found", async (t) => {
+  it("should throw error if connection not found", async (_t) => {
     const provider = createMockProvider();
     mocks.mockPrisma.providerConnection.findUnique = vi.fn(async () => null);
 
@@ -279,7 +279,7 @@ describe("EnhancedOAuthService - Connection Revocation", () => {
     );
   });
 
-  it("should enforce account ownership during revocation", async (t) => {
+  it("should enforce account ownership during revocation", async (_t) => {
     const provider = createMockProvider();
 
     mocks.mockPrisma.providerConnection.findUnique = vi.fn(async (args: any) => {

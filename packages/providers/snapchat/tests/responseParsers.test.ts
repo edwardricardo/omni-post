@@ -6,7 +6,7 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, vi, expect } from "vitest";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
   EMPTY_ANALYTICS,

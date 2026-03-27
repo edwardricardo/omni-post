@@ -4,7 +4,7 @@
  * text limits, media handling, credential handling, publish flow, and error mapping.
  */
 
-import { describe, it, beforeAll, beforeEach, expect, vi } from "vitest";
+import { describe, it, beforeAll, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { BlueskyAdapter } from "../src/BlueskyAdapter.js";
 
@@ -24,7 +24,7 @@ function makeInput(body: string, channelId = "chan-001") {
   };
 }
 
-function makeMediaInput(
+function _makeMediaInput(
   body: string,
   media: Array<{ url: string; type: "image" | "video" | "gif"; alt?: string }>,
   channelId = "chan-001"

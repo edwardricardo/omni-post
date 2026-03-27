@@ -5,7 +5,6 @@
  */
 
 import { describe, it, afterAll, expect, vi } from "vitest";
-import assert from "node:assert/strict";
 import { CacheInvalidationManager } from "../src/invalidation.js";
 import { L1CacheManager } from "../src/l1-cache.js";
 import { AccessPatternTracker } from "../src/access-patterns.js";

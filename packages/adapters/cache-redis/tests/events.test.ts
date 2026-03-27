@@ -7,7 +7,6 @@
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
-import assert from "node:assert/strict";
 import client from "prom-client";
 import {
   CacheEventManager,

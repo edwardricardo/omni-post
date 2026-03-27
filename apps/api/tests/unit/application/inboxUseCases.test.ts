@@ -9,7 +9,6 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { IngestSocialMessageUseCase } from "../../../src/application/inbox/IngestSocialMessageUseCase.js";
 import { MarkMessageReadUseCase } from "../../../src/application/inbox/MarkMessageReadUseCase.js";
-import { AssignMessageUseCase } from "../../../src/application/inbox/AssignMessageUseCase.js";
 import { AccountId, ProjectId, ChannelId } from "../../../src/domain/value-objects/EntityId.js";
 import { SocialMessageAggregate } from "../../../src/domain/aggregates/SocialMessageAggregate.js";
 import { SocialMessageType } from "../../../src/domain/value-objects/SocialMessageType.js";
@@ -298,7 +297,7 @@ describe("IngestSocialMessageUseCase", () => {
 
   it("does not dispatch events when no events produced", async () => {
     // Mock aggregate that has no domain events
-    const r = await uc.execute(makeIngestInput());
+    const _r = await uc.execute(makeIngestInput());
     // Events are dispatched (PostCreated always fires), so at least one call
     expect(dispatcher.dispatchAll).toHaveBeenCalled();
   });

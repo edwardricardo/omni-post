@@ -54,7 +54,7 @@ const { dashboardRoutes } = await import("../../src/admin/dashboardRoutes.js");
 const { authRoutes } = await import("../../src/auth/authRoutes.js");
 const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
-const { generateAdminToken } = await import("./admin/adminTestHelper.js");
+await import("./admin/adminTestHelper.js");
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
 const { MfaService } = await import("../../src/auth/mfaService.js");
 const { PrismaAdminUserRepository } = await import(

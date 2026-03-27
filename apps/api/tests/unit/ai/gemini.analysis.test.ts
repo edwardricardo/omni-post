@@ -9,7 +9,7 @@ describe("GeminiProvider - Content Analysis", () => {
     provider = new GeminiProvider(mockConfig);
   });
 
-  it("should analyze sentiment correctly", async (t) => {
+  it("should analyze sentiment correctly", async (_t) => {
     const mockResponse = JSON.stringify({
       score: 0.8,
       label: "positive",
@@ -27,7 +27,7 @@ describe("GeminiProvider - Content Analysis", () => {
     expect(result.confidence).toBe(0.95);
   });
 
-  it("should analyze tone correctly", async (t) => {
+  it("should analyze tone correctly", async (_t) => {
     const mockResponse = JSON.stringify({
       detected: "professional",
       confidence: 0.9,
@@ -46,7 +46,7 @@ describe("GeminiProvider - Content Analysis", () => {
     expect(result.suggestions?.length).toBe(2);
   });
 
-  it("should analyze readability correctly", async (t) => {
+  it("should analyze readability correctly", async (_t) => {
     const mockResponse = JSON.stringify({
       score: 75,
       level: "High School",
@@ -64,7 +64,7 @@ describe("GeminiProvider - Content Analysis", () => {
     expect(Array.isArray(result.suggestions)).toBeTruthy();
   });
 
-  it("should analyze engagement correctly", async (t) => {
+  it("should analyze engagement correctly", async (_t) => {
     const mockResponse = JSON.stringify({
       score: 85,
       factors: [
@@ -84,7 +84,7 @@ describe("GeminiProvider - Content Analysis", () => {
     expect(result.factors?.length).toBe(2);
   });
 
-  it("should extract JSON from markdown-wrapped response", async (t) => {
+  it("should extract JSON from markdown-wrapped response", async (_t) => {
     const mockResponse = '```json\n{"score": 0.7, "label": "positive", "confidence": 0.85}\n```';
 
     const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
@@ -97,7 +97,7 @@ describe("GeminiProvider - Content Analysis", () => {
     expect(result.label).toBe("positive");
   });
 
-  it("should throw error on malformed JSON response", async (t) => {
+  it("should throw error on malformed JSON response", async (_t) => {
     const generateContentFn = vi.fn(async () => ({ text: "Not JSON at all" }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore
@@ -116,7 +116,7 @@ describe("GeminiProvider - Content Optimization", () => {
     provider = new GeminiProvider(mockConfig);
   });
 
-  it("should optimize content for platform", async (t) => {
+  it("should optimize content for platform", async (_t) => {
     const mockResponse = JSON.stringify({
       optimizedText: "Optimized tweet with emojis! 🚀",
       changes: [
@@ -151,7 +151,7 @@ describe("GeminiProvider - Content Optimization", () => {
     expect(result.hashtags.length).toBe(2);
   });
 
-  it("should include brand voice in optimization", async (t) => {
+  it("should include brand voice in optimization", async (_t) => {
     const mockResponse = JSON.stringify({
       optimizedText: "Professional content here",
       changes: [],
@@ -173,7 +173,7 @@ describe("GeminiProvider - Content Optimization", () => {
     expect(generateContentFn.mock.calls.length).toBe(1);
   });
 
-  it("should throw error on optimization failure", async (t) => {
+  it("should throw error on optimization failure", async (_t) => {
     const generateContentFn = vi.fn(async () => {
       throw new Error("API Error");
     });

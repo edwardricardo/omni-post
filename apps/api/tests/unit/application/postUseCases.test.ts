@@ -12,8 +12,6 @@ import {
   PostId,
   ChannelId,
   PUBLISH_STATUS,
-  PublishStatus,
-  Content,
 } from "../../../src/domain/index.js";
 import { EntityNotFoundError } from "../../../src/domain/errors/index.js";
 import { CreatePostUseCase } from "../../../src/application/posts/CreatePostUseCase.js";

@@ -55,7 +55,7 @@ describe("PerplexityProvider - Availability Checks", () => {
     provider = new PerplexityProvider(mockConfig);
   });
 
-  it("should return true when Perplexity API is available", async (t) => {
+  it("should return true when Perplexity API is available", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: true,
       status: 200,
@@ -66,7 +66,7 @@ describe("PerplexityProvider - Availability Checks", () => {
     expect(result).toBe(true);
   });
 
-  it("should return false when Perplexity API fails", async (t) => {
+  it("should return false when Perplexity API fails", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: false,
       status: 500,
@@ -76,7 +76,7 @@ describe("PerplexityProvider - Availability Checks", () => {
     expect(result).toBe(false);
   });
 
-  it("should handle network errors gracefully", async (t) => {
+  it("should handle network errors gracefully", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw new Error("Network error");
     });
@@ -85,7 +85,7 @@ describe("PerplexityProvider - Availability Checks", () => {
     expect(result).toBe(false);
   });
 
-  it("should send correct request format for availability check", async (t) => {
+  it("should send correct request format for availability check", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       expect(body.model).toBe("llama-3.1-sonar-small-128k-online");
@@ -105,7 +105,7 @@ describe("PerplexityProvider - Text Generation", () => {
     provider = new PerplexityProvider(mockConfig);
   });
 
-  it("should generate text with default options", async (t) => {
+  it("should generate text with default options", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: true,
       status: 200,
@@ -120,7 +120,7 @@ describe("PerplexityProvider - Text Generation", () => {
     expect(result).toBe("Hello! How can I help you?");
   });
 
-  it("should use custom model from options", async (t) => {
+  it("should use custom model from options", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       expect(body.model).toBe("llama-3.1-sonar-large-128k-online");
@@ -133,7 +133,7 @@ describe("PerplexityProvider - Text Generation", () => {
     await provider.generateText(messages, options);
   });
 
-  it("should use custom maxTokens from options", async (t) => {
+  it("should use custom maxTokens from options", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       expect(body.max_tokens).toBe(500);
@@ -146,7 +146,7 @@ describe("PerplexityProvider - Text Generation", () => {
     await provider.generateText(messages, options);
   });
 
-  it("should use custom temperature from options", async (t) => {
+  it("should use custom temperature from options", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       expect(body.temperature).toBe(0.9);
@@ -159,7 +159,7 @@ describe("PerplexityProvider - Text Generation", () => {
     await provider.generateText(messages, options);
   });
 
-  it("should use custom topP from options", async (t) => {
+  it("should use custom topP from options", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       expect(body.top_p).toBe(0.95);
@@ -172,7 +172,7 @@ describe("PerplexityProvider - Text Generation", () => {
     await provider.generateText(messages, options);
   });
 
-  it("should use frequency penalty from options", async (t) => {
+  it("should use frequency penalty from options", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       expect(body.frequency_penalty).toBe(0.5);
@@ -185,7 +185,7 @@ describe("PerplexityProvider - Text Generation", () => {
     await provider.generateText(messages, options);
   });
 
-  it("should use presence penalty from options", async (t) => {
+  it("should use presence penalty from options", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       expect(body.presence_penalty).toBe(0.3);
@@ -198,7 +198,7 @@ describe("PerplexityProvider - Text Generation", () => {
     await provider.generateText(messages, options);
   });
 
-  it("should properly map message roles", async (t) => {
+  it("should properly map message roles", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       expect(body.messages.length).toBe(3);
@@ -217,7 +217,7 @@ describe("PerplexityProvider - Text Generation", () => {
     await provider.generateText(messages);
   });
 
-  it("should include authorization header", async (t) => {
+  it("should include authorization header", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       expect(options.headers.Authorization).toBe("Bearer test-perplexity-api-key");
       return { ok: true, json: async () => ({ choices: [{ message: { content: "Response" } }] }) };
@@ -227,7 +227,7 @@ describe("PerplexityProvider - Text Generation", () => {
     await provider.generateText(messages);
   });
 
-  it("should disable streaming by default", async (t) => {
+  it("should disable streaming by default", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url: string, options: any) => {
       const body = JSON.parse(options.body);
       expect(body.stream).toBe(false);
@@ -238,7 +238,7 @@ describe("PerplexityProvider - Text Generation", () => {
     await provider.generateText(messages);
   });
 
-  it("should return empty string when response has no content", async (t) => {
+  it("should return empty string when response has no content", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: true,
       json: async () => ({ choices: [{ message: {} }] }),
@@ -250,7 +250,7 @@ describe("PerplexityProvider - Text Generation", () => {
     expect(result).toBe("");
   });
 
-  it("should throw error on API failure with status code", async (t) => {
+  it("should throw error on API failure with status code", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => ({
       ok: false,
       status: 500,
@@ -262,7 +262,7 @@ describe("PerplexityProvider - Text Generation", () => {
     await expect(provider.generateText(messages)).rejects.toThrow(/Perplexity API error: 500/);
   });
 
-  it("should throw error on network failure", async (t) => {
+  it("should throw error on network failure", async (_t) => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw new Error("Network error");
     });

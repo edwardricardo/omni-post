@@ -234,7 +234,7 @@ describe("UpdateMediaAssetUseCase", () => {
   });
 
   it("returns NOT_FOUND when asset does not exist", async () => {
-    const r = await uc.execute({
+    const _r = await uc.execute({
       id: "nonexistent",
       accountId: ACCOUNT_ID,
       name: "new-name.png",

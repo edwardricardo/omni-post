@@ -45,7 +45,7 @@ function createMockLogger() {
 // ============================================================================
 
 describe("DatabaseOptimizer - Initialization", () => {
-  it("should initialize with prisma client and logger", (t) => {
+  it("should initialize with prisma client and logger", (_t) => {
     const prisma = createMockPrismaClient();
     const logger = createMockLogger();
 
@@ -77,7 +77,7 @@ describe("DatabaseOptimizer - Materialized View Refresh", () => {
     expect(mockLogger.info.mock.calls.length).toBe(2);
   });
 
-  it("should log error on materialized view refresh failure", async (t) => {
+  it("should log error on materialized view refresh failure", async (_t) => {
     mockPrisma.$executeRaw = vi.fn(async () => {
       throw new Error("Refresh failed");
     });
@@ -191,7 +191,7 @@ describe("DatabaseOptimizer - Database Health Report", () => {
     expect(health.overall).toBe("healthy");
   });
 
-  it("should report warning status with high utilization", async (t) => {
+  it("should report warning status with high utilization", async (_t) => {
     mockPrisma.$queryRaw = vi.fn(async (query: any) => {
       const queryStr = query?.sql || String(query);
 
@@ -214,7 +214,7 @@ describe("DatabaseOptimizer - Database Health Report", () => {
     expect(health.overall).toBe("warning");
   });
 
-  it("should report critical status with very high utilization", async (t) => {
+  it("should report critical status with very high utilization", async (_t) => {
     mockPrisma.$queryRaw = vi.fn(async (query: any) => {
       const queryStr = query?.sql || String(query);
 
@@ -237,7 +237,7 @@ describe("DatabaseOptimizer - Database Health Report", () => {
     expect(health.overall).toBe("critical");
   });
 
-  it("should handle health check errors gracefully", async (t) => {
+  it("should handle health check errors gracefully", async (_t) => {
     mockPrisma.$queryRaw = vi.fn(async () => {
       throw new Error("Health check failed");
     });
@@ -302,7 +302,7 @@ describe("DatabaseOptimizer - Dashboard Posts", () => {
     expect(mockPrisma.$queryRaw.mock.calls.length).toBe(1);
   });
 
-  it("should handle empty results", async (t) => {
+  it("should handle empty results", async (_t) => {
     mockPrisma.$queryRaw = vi.fn(async () => []);
 
     const posts = await optimizer.getDashboardPosts("account-123");
@@ -310,7 +310,7 @@ describe("DatabaseOptimizer - Dashboard Posts", () => {
     expect(posts.length).toBe(0);
   });
 
-  it("should log error on query failure", async (t) => {
+  it("should log error on query failure", async (_t) => {
     mockPrisma.$queryRaw = vi.fn(async () => {
       throw new Error("Query failed");
     });
@@ -366,7 +366,7 @@ describe("DatabaseOptimizer - Tenant Dashboard Stats", () => {
     expect(typeof stats?.avgPostViews).toBe("number");
   });
 
-  it("should return null when no stats found", async (t) => {
+  it("should return null when no stats found", async (_t) => {
     mockPrisma.$queryRaw = vi.fn(async () => []);
 
     const stats = await optimizer.getTenantDashboardStats("account-123");
@@ -374,7 +374,7 @@ describe("DatabaseOptimizer - Tenant Dashboard Stats", () => {
     expect(stats).toBe(null);
   });
 
-  it("should handle query errors", async (t) => {
+  it("should handle query errors", async (_t) => {
     mockPrisma.$queryRaw = vi.fn(async () => {
       throw new Error("Stats query failed");
     });
@@ -445,7 +445,7 @@ describe("DatabaseOptimizer - Hourly Analytics Summary", () => {
     expect(mockPrisma.$queryRaw.mock.calls.length).toBe(1);
   });
 
-  it("should handle empty analytics", async (t) => {
+  it("should handle empty analytics", async (_t) => {
     mockPrisma.$queryRaw = vi.fn(async () => []);
 
     const summary = await optimizer.getHourlyAnalyticsSummary("channel-123");
@@ -453,7 +453,7 @@ describe("DatabaseOptimizer - Hourly Analytics Summary", () => {
     expect(summary.length).toBe(0);
   });
 
-  it("should log error on query failure", async (t) => {
+  it("should log error on query failure", async (_t) => {
     mockPrisma.$queryRaw = vi.fn(async () => {
       throw new Error("Analytics query failed");
     });
@@ -487,7 +487,7 @@ describe("DatabaseOptimizer - Performance Metrics", () => {
     expect(mockPrisma.$executeRaw.mock.calls.length).toBe(1);
   });
 
-  it("should handle metric recording errors", async (t) => {
+  it("should handle metric recording errors", async (_t) => {
     mockPrisma.$executeRaw = vi.fn(async () => {
       throw new Error("Metric recording failed");
     });
@@ -549,7 +549,7 @@ describe("DatabaseOptimizer - Performance Baselines", () => {
     expect(degraded.status).toBe("degraded");
   });
 
-  it("should handle baseline query errors", async (t) => {
+  it("should handle baseline query errors", async (_t) => {
     mockPrisma.$queryRaw = vi.fn(async () => {
       throw new Error("Baseline query failed");
     });
@@ -582,7 +582,7 @@ describe("DatabaseOptimizer - Table Optimization", () => {
     expect(mockLogger.info.mock.calls.length).toBe(2);
   });
 
-  it("should handle optimization errors", async (t) => {
+  it("should handle optimization errors", async (_t) => {
     mockPrisma.$executeRaw = vi.fn(async () => {
       throw new Error("Optimization failed");
     });

@@ -9,7 +9,7 @@ describe("GeminiProvider - Performance Prediction", () => {
     provider = new GeminiProvider(mockConfig);
   });
 
-  it("should predict performance metrics", async (t) => {
+  it("should predict performance metrics", async (_t) => {
     const mockResponse = JSON.stringify({
       platform: "twitter",
       metrics: {
@@ -37,7 +37,7 @@ describe("GeminiProvider - Performance Prediction", () => {
     expect(result.optimalTiming.hour).toBe(14);
   });
 
-  it("should include historical data in prediction", async (t) => {
+  it("should include historical data in prediction", async (_t) => {
     const historicalData = [
       { engagement: 200, reach: 5000 },
       { engagement: 150, reach: 4500 },
@@ -67,7 +67,7 @@ describe("GeminiProvider - Performance Prediction", () => {
     expect(generateContentFn.mock.calls.length).toBe(1);
   });
 
-  it("should throw error on prediction failure", async (t) => {
+  it("should throw error on prediction failure", async (_t) => {
     const generateContentFn = vi.fn(async () => {
       throw new Error("API Error");
     });
@@ -88,7 +88,7 @@ describe("GeminiProvider - Content Variations", () => {
     provider = new GeminiProvider(mockConfig);
   });
 
-  it("should generate tone variations", async (t) => {
+  it("should generate tone variations", async (_t) => {
     const mockResponse = JSON.stringify([
       "Professional tone variation",
       "Casual tone variation",
@@ -105,7 +105,7 @@ describe("GeminiProvider - Content Variations", () => {
     expect(result.length).toBe(3);
   });
 
-  it("should generate length variations", async (t) => {
+  it("should generate length variations", async (_t) => {
     const mockResponse = JSON.stringify([
       "Short version",
       "Medium length version here",
@@ -122,7 +122,7 @@ describe("GeminiProvider - Content Variations", () => {
     expect(result.length).toBe(3);
   });
 
-  it("should generate audience variations", async (t) => {
+  it("should generate audience variations", async (_t) => {
     const mockResponse = JSON.stringify(["For executives", "For marketers", "For consumers"]);
 
     const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
@@ -135,7 +135,7 @@ describe("GeminiProvider - Content Variations", () => {
     expect(result.length).toBe(3);
   });
 
-  it("should extract JSON array from markdown-wrapped response", async (t) => {
+  it("should extract JSON array from markdown-wrapped response", async (_t) => {
     const mockResponse = '```json\n["Variation 1", "Variation 2"]\n```';
 
     const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
@@ -148,7 +148,7 @@ describe("GeminiProvider - Content Variations", () => {
     expect(result.length).toBe(2);
   });
 
-  it("should throw error on variation generation failure", async (t) => {
+  it("should throw error on variation generation failure", async (_t) => {
     const generateContentFn = vi.fn(async () => {
       throw new Error("API Error");
     });
@@ -169,7 +169,7 @@ describe("GeminiProvider - Error Handling", () => {
     provider = new GeminiProvider(mockConfig);
   });
 
-  it("should handle rate limit errors", async (t) => {
+  it("should handle rate limit errors", async (_t) => {
     const generateContentFn = vi.fn(async () => {
       const error: any = new Error("Rate limit exceeded");
       error.status = 429;
@@ -184,7 +184,7 @@ describe("GeminiProvider - Error Handling", () => {
     );
   });
 
-  it("should handle authentication errors", async (t) => {
+  it("should handle authentication errors", async (_t) => {
     const generateContentFn = vi.fn(async () => {
       const error: any = new Error("Invalid API key");
       error.status = 401;
@@ -199,7 +199,7 @@ describe("GeminiProvider - Error Handling", () => {
     );
   });
 
-  it("should handle server errors", async (t) => {
+  it("should handle server errors", async (_t) => {
     const generateContentFn = vi.fn(async () => {
       const error: any = new Error("Internal server error");
       error.status = 500;
@@ -214,7 +214,7 @@ describe("GeminiProvider - Error Handling", () => {
     );
   });
 
-  it("should handle malformed API responses", async (t) => {
+  it("should handle malformed API responses", async (_t) => {
     const generateContentFn = vi.fn(async () => ({}));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore

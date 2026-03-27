@@ -96,7 +96,7 @@ describe("EnhancedOAuthService - State Management", () => {
     expect(ttl > 0).toBeTruthy();
   });
 
-  it("should include account ID and provider in stored state", async (t) => {
+  it("should include account ID and provider in stored state", async (_t) => {
     const provider = createMockProvider();
     let storedState: any;
 
@@ -111,7 +111,7 @@ describe("EnhancedOAuthService - State Management", () => {
     expect(storedState.provider).toBe("x");
   });
 
-  it("should include PKCE challenge in stored state", async (t) => {
+  it("should include PKCE challenge in stored state", async (_t) => {
     const provider = createMockProvider();
     let storedState: any;
 
@@ -127,7 +127,7 @@ describe("EnhancedOAuthService - State Management", () => {
     expect(storedState.pkce.codeChallenge).toBeTruthy();
   });
 
-  it("should validate state exists in Redis during callback", async (t) => {
+  it("should validate state exists in Redis during callback", async (_t) => {
     const provider = createMockProvider();
     mocks.mockRedis.get = vi.fn(async () => null);
 
@@ -136,7 +136,7 @@ describe("EnhancedOAuthService - State Management", () => {
     );
   });
 
-  it("should delete state after successful callback", async (t) => {
+  it("should delete state after successful callback", async (_t) => {
     const provider = createMockProvider();
     const stateData = {
       state: "valid-state",

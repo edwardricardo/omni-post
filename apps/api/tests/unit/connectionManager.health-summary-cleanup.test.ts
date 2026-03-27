@@ -25,7 +25,7 @@ describe("ConnectionManager - Health Check", () => {
     manager.stopHealthMonitoring();
   });
 
-  it("should perform health check on active connection", async (t) => {
+  it("should perform health check on active connection", async (_t) => {
     const mockConnection = createMockConnection();
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
@@ -42,7 +42,7 @@ describe("ConnectionManager - Health Check", () => {
     expect(Array.isArray(health.warnings)).toBeTruthy();
   });
 
-  it("should report unhealthy for ERROR status", async (t) => {
+  it("should report unhealthy for ERROR status", async (_t) => {
     const mockConnection = createMockConnection({ status: "ERROR" as any });
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
@@ -56,7 +56,7 @@ describe("ConnectionManager - Health Check", () => {
     expect(health.errors.length > 0).toBeTruthy();
   });
 
-  it("should report unhealthy for EXPIRED status", async (t) => {
+  it("should report unhealthy for EXPIRED status", async (_t) => {
     const mockConnection = createMockConnection({ status: "EXPIRED" as any });
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
@@ -70,7 +70,7 @@ describe("ConnectionManager - Health Check", () => {
     expect(health.errors.some((e) => e.includes("EXPIRED"))).toBeTruthy();
   });
 
-  it("should detect expired access token", async (t) => {
+  it("should detect expired access token", async (_t) => {
     const mockConnection = createMockConnection({
       expiresAt: new Date(Date.now() - 3600000), // 1 hour ago
     });
@@ -86,7 +86,7 @@ describe("ConnectionManager - Health Check", () => {
     expect(health.errors.some((e) => e.includes("expired"))).toBeTruthy();
   });
 
-  it("should warn about soon-to-expire tokens", async (t) => {
+  it("should warn about soon-to-expire tokens", async (_t) => {
     const mockConnection = createMockConnection({
       expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours from now
     });
@@ -102,7 +102,7 @@ describe("ConnectionManager - Health Check", () => {
     expect(health.recommendations.length > 0).toBeTruthy();
   });
 
-  it("should warn about high error count", async (t) => {
+  it("should warn about high error count", async (_t) => {
     const mockConnection = createMockConnection({ errorCount: 15 });
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
@@ -115,7 +115,7 @@ describe("ConnectionManager - Health Check", () => {
     expect(health.warnings.some((w) => w.includes("error count"))).toBeTruthy();
   });
 
-  it("should recommend disconnecting unused connections", async (t) => {
+  it("should recommend disconnecting unused connections", async (_t) => {
     const mockConnection = createMockConnection({
       lastUsedAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000), // 40 days ago
     });
@@ -131,7 +131,7 @@ describe("ConnectionManager - Health Check", () => {
     expect(health.recommendations.some((r) => r.includes("disconnecting"))).toBeTruthy();
   });
 
-  it("should cache health check results", async (t) => {
+  it("should cache health check results", async (_t) => {
     const mockConnection = createMockConnection();
     const findUniqueMock = vi.fn(async () => mockConnection);
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = findUniqueMock;
@@ -175,7 +175,7 @@ describe("ConnectionManager - Connection Summary", () => {
     manager.stopHealthMonitoring();
   });
 
-  it("should generate summary for account connections", async (t) => {
+  it("should generate summary for account connections", async (_t) => {
     const mockConnections = [
       createMockConnection({ providerId: "X" as any, status: "CONNECTED" as any }),
       createMockConnection({ providerId: "INSTAGRAM" as any, status: "CONNECTED" as any }),
@@ -192,7 +192,7 @@ describe("ConnectionManager - Connection Summary", () => {
     expect(summary.connected).toBe(2);
   });
 
-  it("should count connections by status", async (t) => {
+  it("should count connections by status", async (_t) => {
     const mockConnections = [
       createMockConnection({ status: "CONNECTED" as any }),
       createMockConnection({ status: "ERROR" as any }),
@@ -211,7 +211,7 @@ describe("ConnectionManager - Connection Summary", () => {
     expect(summary.expired).toBe(1);
   });
 
-  it("should count connections by provider", async (t) => {
+  it("should count connections by provider", async (_t) => {
     const mockConnections = [
       createMockConnection({ providerId: "X" as any }),
       createMockConnection({ providerId: "X" as any }),
@@ -229,7 +229,7 @@ describe("ConnectionManager - Connection Summary", () => {
     expect(summary.byProvider["instagram"]).toBe(1);
   });
 
-  it("should calculate average health score", async (t) => {
+  it("should calculate average health score", async (_t) => {
     const mockConnections = [
       createMockConnection({ healthScore: 100 }),
       createMockConnection({ healthScore: 80 }),
@@ -273,7 +273,7 @@ describe("ConnectionManager - Cleanup Operations", () => {
     manager.stopHealthMonitoring();
   });
 
-  it("should cleanup expired connections", async (t) => {
+  it("should cleanup expired connections", async (_t) => {
     let capturedArgs: any = null;
     (mockDb.providerConnection.updateMany as ReturnType<typeof vi.fn>) = vi.fn(
       async (args: any) => {
@@ -293,7 +293,7 @@ describe("ConnectionManager - Cleanup Operations", () => {
     expect(capturedArgs.data.isActive).toBe(false);
   });
 
-  it("should only update active connections that are not already expired", async (t) => {
+  it("should only update active connections that are not already expired", async (_t) => {
     let capturedArgs: any = null;
     (mockDb.providerConnection.updateMany as ReturnType<typeof vi.fn>) = vi.fn(
       async (args: any) => {

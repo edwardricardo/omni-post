@@ -7,7 +7,7 @@
  * @layer test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AdvancedRateLimit, RateLimitConfigs } from "../../src/security/advancedRateLimit.js";
 import type { FastifyRequest } from "fastify";
 

@@ -1,4 +1,4 @@
-import { vi, expect } from "vitest";
+import { vi } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { templateRoutes } from "../../src/templates/templateRoutes.js";
 import { templateService } from "../../src/templates/templateService.js";

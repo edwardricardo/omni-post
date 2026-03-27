@@ -31,7 +31,7 @@ describe("ConflictResolver - Content Adaptation", () => {
     originalGetAdapter = providerRegistry.getAdapter.bind(providerRegistry);
   });
 
-  beforeEach(async (t) => {
+  beforeEach(async (_t) => {
     const mockPrisma = new MockPrismaClient();
     const mockRedis = new MockRedis();
     const mockEventService = new MockEventService();
@@ -186,7 +186,7 @@ describe("ConflictResolver - Alternative Timing", () => {
     originalGetAdapter = providerRegistry.getAdapter.bind(providerRegistry);
   });
 
-  beforeEach(async (t) => {
+  beforeEach(async (_t) => {
     const mockPrisma = new MockPrismaClient();
     const mockRedis = new MockRedis();
     const mockEventService = new MockEventService();
@@ -242,7 +242,7 @@ describe("ConflictResolver - Alternative Timing", () => {
     }
   });
 
-  it("should fallback to random delay when getOptimalTimes unavailable", async (t) => {
+  it("should fallback to random delay when getOptimalTimes unavailable", async (_t) => {
     // Override the adapter mock to return one without getOptimalTimes
     providerRegistry.getAdapter = vi.fn((() => ({
       id: "twitter",

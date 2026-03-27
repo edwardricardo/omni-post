@@ -26,7 +26,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
     manager.stopHealthMonitoring();
   });
 
-  it("should retrieve connection by ID", async (t) => {
+  it("should retrieve connection by ID", async (_t) => {
     const mockConnection = createMockConnection();
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
@@ -46,7 +46,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
     expect(result).toBe(null);
   });
 
-  it("should retrieve connections by account ID", async (t) => {
+  it("should retrieve connections by account ID", async (_t) => {
     const mockConnections = [
       createMockConnection({ id: "conn-1" }),
       createMockConnection({ id: "conn-2" }),
@@ -63,7 +63,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
     expect(result.length).toBe(2);
   });
 
-  it("should filter connections by provider ID (uppercased)", async (t) => {
+  it("should filter connections by provider ID (uppercased)", async (_t) => {
     let capturedArgs: any = null;
     (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(async (args: any) => {
       capturedArgs = args;
@@ -78,7 +78,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
     expect(capturedArgs.where.providerId).toBe("X");
   });
 
-  it("should filter connections by project ID", async (t) => {
+  it("should filter connections by project ID", async (_t) => {
     let capturedArgs: any = null;
     (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(async (args: any) => {
       capturedArgs = args;
@@ -93,7 +93,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
     expect(capturedArgs.where.projectId).toBe("proj-123");
   });
 
-  it("should order connections by status, last used, and creation date", async (t) => {
+  it("should order connections by status, last used, and creation date", async (_t) => {
     let capturedArgs: any = null;
     (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(async (args: any) => {
       capturedArgs = args;
@@ -129,7 +129,7 @@ describe("ConnectionManager - Connection Configuration", () => {
     manager.stopHealthMonitoring();
   });
 
-  it("should build connection config with all available credentials", async (t) => {
+  it("should build connection config with all available credentials", async (_t) => {
     const mockConnection = createMockConnection({
       accessToken: "access-123",
       refreshToken: "refresh-123",
@@ -155,7 +155,7 @@ describe("ConnectionManager - Connection Configuration", () => {
     expect((config as any).apiKey).toBe("api-key-123");
   });
 
-  it("should return null for inactive connection", async (t) => {
+  it("should return null for inactive connection", async (_t) => {
     const mockConnection = createMockConnection({ isActive: false });
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
@@ -174,7 +174,7 @@ describe("ConnectionManager - Connection Configuration", () => {
     expect(config).toBe(null);
   });
 
-  it("should include connection metadata in config", async (t) => {
+  it("should include connection metadata in config", async (_t) => {
     const connectedAt = new Date("2024-01-01");
     const expiresAt = new Date("2025-12-31");
     const mockConnection = createMockConnection({ connectedAt, expiresAt });

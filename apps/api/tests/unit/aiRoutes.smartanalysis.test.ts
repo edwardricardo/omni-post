@@ -136,7 +136,7 @@ describe("aiRoutes - DELETE /ai/cache", () => {
     expect(body.data.message).toBe("Cache cleared successfully");
   });
 
-  it("should handle cache clear errors", async (t) => {
+  it("should handle cache clear errors", async (_t) => {
     vi.spyOn(aiService, "clearCache").mockImplementation(async () => {
       throw new Error("Cache clear failed");
     });
@@ -163,7 +163,7 @@ describe("aiRoutes - Error Handling", () => {
     await app.close();
   });
 
-  it("should return 500 for unexpected service errors", async (t) => {
+  it("should return 500 for unexpected service errors", async (_t) => {
     vi.spyOn(aiService, "generateContent").mockImplementation(async () => {
       throw new Error("Unexpected error");
     });

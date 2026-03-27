@@ -51,7 +51,7 @@ describe("GeminiProvider - Availability Checks", () => {
     provider = new GeminiProvider(mockConfig);
   });
 
-  it("should return true when Gemini API is available", async (t) => {
+  it("should return true when Gemini API is available", async (_t) => {
     const generateContentFn = vi.fn(async () => ({ text: "Hi there!" }));
     const mockClient = makeMockClient(generateContentFn);
     // @ts-ignore - accessing private property for testing
@@ -62,7 +62,7 @@ describe("GeminiProvider - Availability Checks", () => {
     expect(generateContentFn.mock.calls.length).toBe(1);
   });
 
-  it("should return false when Gemini API fails", async (t) => {
+  it("should return false when Gemini API fails", async (_t) => {
     const generateContentFn = vi.fn(async () => {
       throw new Error("API Error");
     });
@@ -74,7 +74,7 @@ describe("GeminiProvider - Availability Checks", () => {
     expect(result).toBe(false);
   });
 
-  it("should handle network timeouts gracefully", async (t) => {
+  it("should handle network timeouts gracefully", async (_t) => {
     const generateContentFn = vi.fn(async () => {
       throw new Error("ETIMEDOUT");
     });

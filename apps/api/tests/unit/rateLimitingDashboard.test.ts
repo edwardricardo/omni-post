@@ -72,7 +72,7 @@ describe("rateLimitingDashboard - Unit Tests", () => {
   let mockMetrics: MockApiMetrics;
   let dashboard: RateLimitingDashboard;
 
-  beforeEach(async (t) => {
+  beforeEach(async (_t) => {
     mockRedis = createMockRedis();
     mockMetrics = createMockApiMetrics();
 
@@ -449,7 +449,7 @@ describe("rateLimitingDashboard - Unit Tests", () => {
   });
 
   describe("RateLimitingDashboard - checkAlerts", () => {
-    it("should not trigger alerts when disabled", async (t) => {
+    it("should not trigger alerts when disabled", async (_t) => {
       const disabledConfig: AlertConfig = {
         ...DEFAULT_ALERT_CONFIG,
         enabled: false,

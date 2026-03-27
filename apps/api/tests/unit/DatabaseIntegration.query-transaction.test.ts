@@ -117,7 +117,7 @@ describe("DatabaseIntegration - Optimized Query Execution", () => {
     expect(true).toBeTruthy();
   });
 
-  it("should publish error event on query failure", async (t) => {
+  it("should publish error event on query failure", async (_t) => {
     const mockEventService = createMockEventService();
     const failingConnectionManager = {
       ...createMockConnectionManager(),
@@ -235,7 +235,7 @@ describe("DatabaseIntegration - Optimized Transaction", () => {
     expect(mockCache.invalidateByTag.mock.calls.length).toBe(2);
   });
 
-  it("should publish error event on transaction failure", async (t) => {
+  it("should publish error event on transaction failure", async (_t) => {
     const mockEventService = createMockEventService();
     const failingConnectionManager = {
       ...createMockConnectionManager(),

@@ -5,14 +5,14 @@
  * @layer test
  */
 
-import { describe, it, beforeAll, afterAll, beforeEach, expect, vi } from "vitest";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup — must come BEFORE any SUT imports
 // ---------------------------------------------------------------------------
 
-const { mockPrisma, stores } = createMockPrismaModule();
+const { mockPrisma } = createMockPrismaModule();
 
 // Add adminUserPermission model (used by cleanup helper but not in default stores)
 (mockPrisma.prisma as Record<string, unknown>).adminUserPermission = {

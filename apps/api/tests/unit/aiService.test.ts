@@ -138,7 +138,7 @@ beforeAll(async () => {
 // ============================================================================
 
 describe("AIService - Content Generation", () => {
-  it("should generate content with default options", async (t) => {
+  it("should generate content with default options", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("generateContent", async () => ({
       ok: true,
@@ -157,7 +157,7 @@ describe("AIService - Content Generation", () => {
     expect(result.metadata.tokensUsed > 0).toBeTruthy();
   });
 
-  it("should generate content with custom model options", async (t) => {
+  it("should generate content with custom model options", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("generateContent", async () => ({
       ok: true,
@@ -176,7 +176,7 @@ describe("AIService - Content Generation", () => {
     expect(result.content).toBeTruthy();
   });
 
-  it("should throw when orchestrator returns rate-limit error", async (t) => {
+  it("should throw when orchestrator returns rate-limit error", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("generateContent", async () => ({
       ok: false,
@@ -189,7 +189,7 @@ describe("AIService - Content Generation", () => {
     ).rejects.toThrow(/rate limit|failed/);
   });
 
-  it("should handle string error from orchestrator", async (t) => {
+  it("should handle string error from orchestrator", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("generateContent", async () => ({
       ok: false,
@@ -208,7 +208,7 @@ describe("AIService - Content Generation", () => {
 // ============================================================================
 
 describe("AIService - Content Analysis", () => {
-  it("should analyze sentiment successfully", async (t) => {
+  it("should analyze sentiment successfully", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("analyzeContent", async () => ({
       ok: true,
@@ -224,7 +224,7 @@ describe("AIService - Content Analysis", () => {
     expect(result.analysis.sentiment.confidence > 0.5).toBeTruthy();
   });
 
-  it("should analyze tone successfully", async (t) => {
+  it("should analyze tone successfully", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("analyzeContent", async () => ({
       ok: true,
@@ -240,7 +240,7 @@ describe("AIService - Content Analysis", () => {
     expect(Array.isArray(result.analysis.tone.suggestions)).toBeTruthy();
   });
 
-  it("should analyze readability successfully", async (t) => {
+  it("should analyze readability successfully", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("analyzeContent", async () => ({
       ok: true,
@@ -255,7 +255,7 @@ describe("AIService - Content Analysis", () => {
     expect(result.analysis.readability.level).toBeTruthy();
   });
 
-  it("should analyze engagement potential", async (t) => {
+  it("should analyze engagement potential", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("analyzeContent", async () => ({
       ok: true,
@@ -270,7 +270,7 @@ describe("AIService - Content Analysis", () => {
     expect(Array.isArray(result.analysis.engagement.factors)).toBeTruthy();
   });
 
-  it("should throw when analysis fails", async (t) => {
+  it("should throw when analysis fails", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("analyzeContent", async () => ({
       ok: false,
@@ -287,7 +287,7 @@ describe("AIService - Content Analysis", () => {
 // ============================================================================
 
 describe("AIService - Content Optimization", () => {
-  it("should optimize content for Twitter", async (t) => {
+  it("should optimize content for Twitter", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("optimizeContent", async () => ({
       ok: true,
@@ -303,7 +303,7 @@ describe("AIService - Content Optimization", () => {
     expect(result.optimization.platformSpecific).toBeTruthy();
   });
 
-  it("should optimize with brand voice", async (t) => {
+  it("should optimize with brand voice", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("optimizeContent", async () => ({
       ok: true,
@@ -321,7 +321,7 @@ describe("AIService - Content Optimization", () => {
     expect(result.optimization.optimizedText).toBeTruthy();
   });
 
-  it("should include media suggestions for Instagram", async (t) => {
+  it("should include media suggestions for Instagram", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("optimizeContent", async () => ({
       ok: true,
@@ -335,7 +335,7 @@ describe("AIService - Content Optimization", () => {
     expect(result.optimization.mediasuggestions).toBeTruthy();
   });
 
-  it("should throw when optimization fails", async (t) => {
+  it("should throw when optimization fails", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("optimizeContent", async () => ({
       ok: false,
@@ -352,7 +352,7 @@ describe("AIService - Content Optimization", () => {
 // ============================================================================
 
 describe("AIService - Performance Prediction", () => {
-  it("should predict performance without historical data", async (t) => {
+  it("should predict performance without historical data", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("predictPerformance", async () => ({
       ok: true,
@@ -368,7 +368,7 @@ describe("AIService - Performance Prediction", () => {
     expect(result.prediction.optimalTiming).toBeTruthy();
   });
 
-  it("should predict performance with historical data", async (t) => {
+  it("should predict performance with historical data", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("predictPerformance", async () => ({
       ok: true,
@@ -387,7 +387,7 @@ describe("AIService - Performance Prediction", () => {
     expect(result.prediction.metrics.expectedEngagement.confidence > 0).toBeTruthy();
   });
 
-  it("should throw when prediction fails", async (t) => {
+  it("should throw when prediction fails", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("predictPerformance", async () => ({
       ok: false,
@@ -404,7 +404,7 @@ describe("AIService - Performance Prediction", () => {
 // ============================================================================
 
 describe("AIService - Content Variations", () => {
-  it("should generate tone variations", async (t) => {
+  it("should generate tone variations", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("generateVariations", async () => ({
       ok: true,
@@ -419,7 +419,7 @@ describe("AIService - Content Variations", () => {
     expect(result.variations.length).toBe(3);
   });
 
-  it("should generate length variations", async (t) => {
+  it("should generate length variations", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("generateVariations", async () => ({
       ok: true,
@@ -433,7 +433,7 @@ describe("AIService - Content Variations", () => {
     expect(Array.isArray(result.variations)).toBeTruthy();
   });
 
-  it("should generate audience variations", async (t) => {
+  it("should generate audience variations", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("generateVariations", async () => ({
       ok: true,
@@ -449,7 +449,7 @@ describe("AIService - Content Variations", () => {
     expect(Array.isArray(result.variations)).toBeTruthy();
   });
 
-  it("should throw when variation generation fails", async (t) => {
+  it("should throw when variation generation fails", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("generateVariations", async () => ({
       ok: false,
@@ -466,7 +466,7 @@ describe("AIService - Content Variations", () => {
 // ============================================================================
 
 describe("AIService - Smart Analysis", () => {
-  it("should perform smart analysis with all features enabled", async (t) => {
+  it("should perform smart analysis with all features enabled", async (_t) => {
     const aiService = new AIService();
 
     stubOrchestrator("analyzeContent", makeAnalyzeContentStub());
@@ -506,7 +506,7 @@ describe("AIService - Smart Analysis", () => {
     expect(result.metadata?.timestamp).toBeTruthy();
   });
 
-  it("should omit optional features when disabled", async (t) => {
+  it("should omit optional features when disabled", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("analyzeContent", makeAnalyzeContentStub());
 
@@ -524,7 +524,7 @@ describe("AIService - Smart Analysis", () => {
     expect(result.variations).toBe(undefined);
   });
 
-  it("should default platform to twitter and enable optimization/prediction", async (t) => {
+  it("should default platform to twitter and enable optimization/prediction", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("analyzeContent", makeAnalyzeContentStub());
     stubOrchestrator("optimizeContent", async () => ({
@@ -545,7 +545,7 @@ describe("AIService - Smart Analysis", () => {
     expect(result.prediction).toBeTruthy();
   });
 
-  it("should handle partial analysis failures gracefully", async (t) => {
+  it("should handle partial analysis failures gracefully", async (_t) => {
     const aiService = new AIService();
     stubOrchestrator("analyzeContent", async (_content: string, type: string) => {
       if (type === "sentiment") {
@@ -570,7 +570,7 @@ describe("AIService - Smart Analysis", () => {
 // ============================================================================
 
 describe("AIService - Metrics", () => {
-  it("should retrieve usage metrics from orchestrator", async (t) => {
+  it("should retrieve usage metrics from orchestrator", async (_t) => {
     const aiService = new AIService();
 
     const metricsMap = new Map([
@@ -599,7 +599,7 @@ describe("AIService - Metrics", () => {
     expect(result.timestamp).toBeTruthy();
   });
 
-  it("should expose per-provider metrics", async (t) => {
+  it("should expose per-provider metrics", async (_t) => {
     const aiService = new AIService();
 
     const metricsMap = new Map([
@@ -647,7 +647,7 @@ describe("AIService - Metrics", () => {
 // ============================================================================
 
 describe("AIService - Cache Management", () => {
-  it("should clear cache via orchestrator", async (t) => {
+  it("should clear cache via orchestrator", async (_t) => {
     const aiService = new AIService();
     let clearCalled = false;
 

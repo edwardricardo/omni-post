@@ -239,7 +239,7 @@ describe("AIOrchestrator — Providers", () => {
 
       const metrics = orchestrator.getUsageMetrics();
 
-      for (const [provider, metric] of metrics) {
+      for (const [_provider, metric] of metrics) {
         if (metric.requestCount > 0) {
           expect(metric.cost >= 0).toBeTruthy();
         }

@@ -13,7 +13,7 @@ describe("OpenAIProvider - Content Optimization", () => {
     provider = new OpenAIProvider(mockConfig);
   });
 
-  it("should optimize content for platform", async (t) => {
+  it("should optimize content for platform", async (_t) => {
     const mockResponse = JSON.stringify({
       optimizedText: "Optimized tweet! 🚀",
       changes: [{ type: "added", original: ".", optimized: "! 🚀", reason: "Added excitement" }],
@@ -42,7 +42,7 @@ describe("OpenAIProvider - Content Optimization", () => {
     expect(result.hashtags.length).toBe(2);
   });
 
-  it("should include brand voice in optimization", async (t) => {
+  it("should include brand voice in optimization", async (_t) => {
     const mockResponse = JSON.stringify({
       optimizedText: "Professional content",
       changes: [],
@@ -64,7 +64,7 @@ describe("OpenAIProvider - Content Optimization", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should include system message for JSON response", async (t) => {
+  it("should include system message for JSON response", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.messages.length).toBe(2);
       expect(params.messages[0].role).toBe("system");
@@ -94,7 +94,7 @@ describe("OpenAIProvider - Content Optimization", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should throw error on optimization failure", async (t) => {
+  it("should throw error on optimization failure", async (_t) => {
     const createFn = vi.fn(async () => {
       throw new Error("API Error");
     });
@@ -115,7 +115,7 @@ describe("OpenAIProvider - Performance Prediction", () => {
     provider = new OpenAIProvider(mockConfig);
   });
 
-  it("should predict performance metrics", async (t) => {
+  it("should predict performance metrics", async (_t) => {
     const mockResponse = JSON.stringify({
       platform: "twitter",
       metrics: {
@@ -145,7 +145,7 @@ describe("OpenAIProvider - Performance Prediction", () => {
     expect(result.optimalTiming.hour).toBe(14);
   });
 
-  it("should include historical data in prediction", async (t) => {
+  it("should include historical data in prediction", async (_t) => {
     const historicalData = [
       { engagement: 200, reach: 5000 },
       { engagement: 150, reach: 4500 },
@@ -175,7 +175,7 @@ describe("OpenAIProvider - Performance Prediction", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should throw error on prediction failure", async (t) => {
+  it("should throw error on prediction failure", async (_t) => {
     const createFn = vi.fn(async () => {
       throw new Error("API Error");
     });
@@ -196,7 +196,7 @@ describe("OpenAIProvider - Content Variations", () => {
     provider = new OpenAIProvider(mockConfig);
   });
 
-  it("should generate tone variations", async (t) => {
+  it("should generate tone variations", async (_t) => {
     const mockResponse = JSON.stringify([
       "Professional tone variation",
       "Casual tone variation",
@@ -215,7 +215,7 @@ describe("OpenAIProvider - Content Variations", () => {
     expect(result.length).toBe(3);
   });
 
-  it("should generate length variations", async (t) => {
+  it("should generate length variations", async (_t) => {
     const mockResponse = JSON.stringify(["Short", "Medium length", "Long detailed version"]);
 
     const createFn = vi.fn(async () => ({
@@ -230,7 +230,7 @@ describe("OpenAIProvider - Content Variations", () => {
     expect(result.length).toBe(3);
   });
 
-  it("should generate audience variations", async (t) => {
+  it("should generate audience variations", async (_t) => {
     const mockResponse = JSON.stringify(["For executives", "For marketers", "For consumers"]);
 
     const createFn = vi.fn(async () => ({
@@ -245,7 +245,7 @@ describe("OpenAIProvider - Content Variations", () => {
     expect(result.length).toBe(3);
   });
 
-  it("should include system message for JSON array response", async (t) => {
+  it("should include system message for JSON array response", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.messages.length).toBe(2);
       expect(params.messages[0].role).toBe("system");
@@ -260,7 +260,7 @@ describe("OpenAIProvider - Content Variations", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should throw error on variation generation failure", async (t) => {
+  it("should throw error on variation generation failure", async (_t) => {
     const createFn = vi.fn(async () => {
       throw new Error("API Error");
     });
@@ -281,7 +281,7 @@ describe("OpenAIProvider - Error Handling", () => {
     provider = new OpenAIProvider(mockConfig);
   });
 
-  it("should handle rate limit errors", async (t) => {
+  it("should handle rate limit errors", async (_t) => {
     const createFn = vi.fn(async () => {
       const error: any = new Error("Rate limit exceeded");
       error.status = 429;
@@ -296,7 +296,7 @@ describe("OpenAIProvider - Error Handling", () => {
     );
   });
 
-  it("should handle authentication errors", async (t) => {
+  it("should handle authentication errors", async (_t) => {
     const createFn = vi.fn(async () => {
       const error: any = new Error("Invalid API key");
       error.status = 401;
@@ -311,7 +311,7 @@ describe("OpenAIProvider - Error Handling", () => {
     );
   });
 
-  it("should handle server errors", async (t) => {
+  it("should handle server errors", async (_t) => {
     const createFn = vi.fn(async () => {
       const error: any = new Error("Internal server error");
       error.status = 500;
@@ -326,7 +326,7 @@ describe("OpenAIProvider - Error Handling", () => {
     );
   });
 
-  it("should handle content filter errors", async (t) => {
+  it("should handle content filter errors", async (_t) => {
     const createFn = vi.fn(async () => {
       const error: any = new Error("Content filtered");
       error.status = 400;
@@ -341,7 +341,7 @@ describe("OpenAIProvider - Error Handling", () => {
     );
   });
 
-  it("should handle malformed API responses", async (t) => {
+  it("should handle malformed API responses", async (_t) => {
     const createFn = vi.fn(async () => ({ choices: [] }));
     const mockClient = makeOpenAIMockClient(createFn);
     // @ts-ignore

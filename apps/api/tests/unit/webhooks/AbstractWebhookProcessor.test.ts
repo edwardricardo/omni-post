@@ -215,7 +215,7 @@ describe("AbstractWebhookProcessor with base64 encoding", () => {
 });
 
 describe("AbstractWebhookProcessor with broadcaster", () => {
-  it("should accept broadcaster in constructor", (t) => {
+  it("should accept broadcaster in constructor", (_t) => {
     const mockBroadcaster = {
       broadcastPostStatusChange: vi.fn(),
       broadcastEngagementUpdate: vi.fn(),

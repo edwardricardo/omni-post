@@ -114,7 +114,7 @@ describe("AuditLogger Tests", () => {
   afterAll(async () => {
     try {
       await auditLogger.cleanup();
-    } catch (err) {
+    } catch (_err) {
       // Expected in test environment
     }
 
@@ -130,7 +130,7 @@ describe("AuditLogger Tests", () => {
       if (apiKeys.length > 0) await redis.del(...apiKeys);
 
       await redis.quit();
-    } catch (err) {
+    } catch (_err) {
       // Expected in test environment
     }
   });

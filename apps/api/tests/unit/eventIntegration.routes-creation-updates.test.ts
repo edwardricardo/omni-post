@@ -49,7 +49,7 @@ describe("EventIntegration - Post Creation with Events", () => {
     await integration.registerRoutes();
   });
 
-  it("should create post and emit POST_CREATED event", async (t) => {
+  it("should create post and emit POST_CREATED event", async (_t) => {
     const request: any = {
       body: {
         title: "Test Post",
@@ -77,7 +77,7 @@ describe("EventIntegration - Post Creation with Events", () => {
     expect(postCreatedEvents.length >= 1).toBe(true);
   });
 
-  it("should emit USER_ACTION event for post creation", async (t) => {
+  it("should emit USER_ACTION event for post creation", async (_t) => {
     const request: any = {
       body: {
         title: "Test Post",
@@ -102,7 +102,7 @@ describe("EventIntegration - Post Creation with Events", () => {
     expect(userActionEvents.length >= 1).toBe(true);
   });
 
-  it("should emit POST_SCHEDULED event for scheduled posts", async (t) => {
+  it("should emit POST_SCHEDULED event for scheduled posts", async (_t) => {
     const scheduledAt = new Date("2025-12-01T10:00:00Z");
     const request: any = {
       body: {
@@ -131,7 +131,7 @@ describe("EventIntegration - Post Creation with Events", () => {
     expect(scheduledEvents.length >= 1).toBe(true);
   });
 
-  it("should handle post creation failures", async (t) => {
+  it("should handle post creation failures", async (_t) => {
     mockEventService.setFailPublish(true);
 
     const request: any = {
@@ -169,7 +169,7 @@ describe("EventIntegration - Post Updates with Events", () => {
     await integration.registerRoutes();
   });
 
-  it("should update post and emit POST_UPDATED event", async (t) => {
+  it("should update post and emit POST_UPDATED event", async (_t) => {
     const request: any = {
       params: { postId: "post-123" },
       body: {
@@ -195,7 +195,7 @@ describe("EventIntegration - Post Updates with Events", () => {
     expect(updatedEvents.length >= 1).toBe(true);
   });
 
-  it("should track changes in POST_UPDATED event", async (t) => {
+  it("should track changes in POST_UPDATED event", async (_t) => {
     const request: any = {
       params: { postId: "post-123" },
       body: {
@@ -217,7 +217,7 @@ describe("EventIntegration - Post Updates with Events", () => {
     expect(Array.isArray(result.changes)).toBeTruthy();
   });
 
-  it("should emit USER_ACTION event for post update", async (t) => {
+  it("should emit USER_ACTION event for post update", async (_t) => {
     const request: any = {
       params: { postId: "post-123" },
       body: {
@@ -241,7 +241,7 @@ describe("EventIntegration - Post Updates with Events", () => {
     expect(userActionEvents.length >= 1).toBe(true);
   });
 
-  it("should handle post not found", async (t) => {
+  it("should handle post not found", async (_t) => {
     mockFastify.prisma.post.findUnique = vi.fn(async () => null);
 
     const request: any = {

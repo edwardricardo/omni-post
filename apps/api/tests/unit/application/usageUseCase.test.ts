@@ -4,7 +4,7 @@
  * @layer test
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
 import { GetUsageUseCase } from "../../../src/application/usage/GetUsageUseCase.js";
 

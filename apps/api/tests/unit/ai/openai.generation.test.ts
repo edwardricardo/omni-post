@@ -14,7 +14,7 @@ describe("OpenAIProvider - Text Generation", () => {
     provider = new OpenAIProvider(mockConfig);
   });
 
-  it("should generate text with default options", async (t) => {
+  it("should generate text with default options", async (_t) => {
     const createFn = vi.fn(async () => ({
       choices: [{ message: { content: "Hello! How can I help you today?" } }],
     }));
@@ -27,7 +27,7 @@ describe("OpenAIProvider - Text Generation", () => {
     expect(result).toBe("Hello! How can I help you today?");
   });
 
-  it("should use custom model from options", async (t) => {
+  it("should use custom model from options", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.model).toBe("gpt-4-turbo");
       return { choices: [{ message: { content: "Response" } }] };
@@ -42,7 +42,7 @@ describe("OpenAIProvider - Text Generation", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should use custom maxTokens from options", async (t) => {
+  it("should use custom maxTokens from options", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.max_tokens).toBe(500);
       return { choices: [{ message: { content: "Response" } }] };
@@ -57,7 +57,7 @@ describe("OpenAIProvider - Text Generation", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should use custom temperature from options", async (t) => {
+  it("should use custom temperature from options", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.temperature).toBe(0.9);
       return { choices: [{ message: { content: "Response" } }] };
@@ -72,7 +72,7 @@ describe("OpenAIProvider - Text Generation", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should use custom topP from options", async (t) => {
+  it("should use custom topP from options", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.top_p).toBe(0.95);
       return { choices: [{ message: { content: "Response" } }] };
@@ -87,7 +87,7 @@ describe("OpenAIProvider - Text Generation", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should use custom frequency penalty from options", async (t) => {
+  it("should use custom frequency penalty from options", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.frequency_penalty).toBe(0.5);
       return { choices: [{ message: { content: "Response" } }] };
@@ -102,7 +102,7 @@ describe("OpenAIProvider - Text Generation", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should use custom presence penalty from options", async (t) => {
+  it("should use custom presence penalty from options", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.presence_penalty).toBe(0.3);
       return { choices: [{ message: { content: "Response" } }] };
@@ -117,7 +117,7 @@ describe("OpenAIProvider - Text Generation", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should properly map message roles", async (t) => {
+  it("should properly map message roles", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.messages.length).toBe(3);
       expect(params.messages[0].role).toBe("system");
@@ -138,7 +138,7 @@ describe("OpenAIProvider - Text Generation", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should return empty string when response has no content", async (t) => {
+  it("should return empty string when response has no content", async (_t) => {
     const createFn = vi.fn(async () => ({ choices: [{ message: {} }] }));
     const mockClient = makeOpenAIMockClient(createFn);
     // @ts-ignore
@@ -149,7 +149,7 @@ describe("OpenAIProvider - Text Generation", () => {
     expect(result).toBe("");
   });
 
-  it("should throw error on API failure", async (t) => {
+  it("should throw error on API failure", async (_t) => {
     const createFn = vi.fn(async () => {
       throw new Error("API Error");
     });
@@ -161,7 +161,7 @@ describe("OpenAIProvider - Text Generation", () => {
     await expect(provider.generateText(messages)).rejects.toThrow(/OpenAI generation failed/);
   });
 
-  it("should disable streaming by default", async (t) => {
+  it("should disable streaming by default", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.stream).toBe(false);
       return { choices: [{ message: { content: "Response" } }] };
@@ -183,7 +183,7 @@ describe("OpenAIProvider - Content Analysis", () => {
     provider = new OpenAIProvider(mockConfig);
   });
 
-  it("should analyze sentiment correctly", async (t) => {
+  it("should analyze sentiment correctly", async (_t) => {
     const mockResponse = JSON.stringify({
       score: 0.8,
       label: "positive",
@@ -203,7 +203,7 @@ describe("OpenAIProvider - Content Analysis", () => {
     expect(result.confidence).toBe(0.95);
   });
 
-  it("should analyze tone correctly", async (t) => {
+  it("should analyze tone correctly", async (_t) => {
     const mockResponse = JSON.stringify({
       detected: "professional",
       confidence: 0.9,
@@ -223,7 +223,7 @@ describe("OpenAIProvider - Content Analysis", () => {
     expect(Array.isArray(result.suggestions)).toBeTruthy();
   });
 
-  it("should analyze readability correctly", async (t) => {
+  it("should analyze readability correctly", async (_t) => {
     const mockResponse = JSON.stringify({
       score: 75,
       level: "High School",
@@ -242,7 +242,7 @@ describe("OpenAIProvider - Content Analysis", () => {
     expect(result.level).toBe("High School");
   });
 
-  it("should analyze engagement correctly", async (t) => {
+  it("should analyze engagement correctly", async (_t) => {
     const mockResponse = JSON.stringify({
       score: 85,
       factors: [
@@ -263,7 +263,7 @@ describe("OpenAIProvider - Content Analysis", () => {
     expect(Array.isArray(result.factors)).toBeTruthy();
   });
 
-  it("should include system message for JSON response", async (t) => {
+  it("should include system message for JSON response", async (_t) => {
     const createFn = vi.fn(async (params: any) => {
       expect(params.messages.length).toBe(2);
       expect(params.messages[0].role).toBe("system");
@@ -282,7 +282,7 @@ describe("OpenAIProvider - Content Analysis", () => {
     expect(createFn.mock.calls.length).toBe(1);
   });
 
-  it("should throw error on malformed JSON response", async (t) => {
+  it("should throw error on malformed JSON response", async (_t) => {
     const createFn = vi.fn(async () => ({
       choices: [{ message: { content: "Not JSON at all" } }],
     }));

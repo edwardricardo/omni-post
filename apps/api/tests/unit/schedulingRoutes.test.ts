@@ -22,7 +22,7 @@ import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/m
 // Mock setup
 // ---------------------------------------------------------------------------
 
-const { mockPrisma, stores } = createMockPrismaModule();
+const { mockPrisma } = createMockPrismaModule();
 
 // Scheduling handlers use post, channel, analytics, publishLog, schedulingRule, postContent.
 // Post defaults include empty relation arrays so include: { publishLogs, contents } works.

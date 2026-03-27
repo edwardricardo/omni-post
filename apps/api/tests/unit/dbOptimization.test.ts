@@ -63,14 +63,14 @@ function createMockApiMetrics(): ApiMetrics {
 // ============================================================================
 
 describe("DatabaseOptimizer - Initialization", () => {
-  it("should initialize with metrics", (t) => {
+  it("should initialize with metrics", (_t) => {
     const metrics = createMockApiMetrics();
     const optimizer = new DatabaseOptimizer(metrics);
 
     expect(optimizer).toBeTruthy();
   });
 
-  it("should use default slow query threshold", (t) => {
+  it("should use default slow query threshold", (_t) => {
     const metrics = createMockApiMetrics();
     const optimizer = new DatabaseOptimizer(metrics);
 
@@ -188,7 +188,7 @@ describe("DatabaseOptimizer - Database Statistics", () => {
     expect(stats.tableStats.length > 0).toBeTruthy();
   });
 
-  it("should handle stats errors gracefully", async (t) => {
+  it("should handle stats errors gracefully", async (_t) => {
     const errorMetrics = createMockApiMetrics();
     const errorOptimizer = new DatabaseOptimizer(errorMetrics);
 
@@ -377,7 +377,7 @@ describe("DatabaseOptimizer - Prisma Middleware", () => {
     expect(typeof middleware).toBe("function");
   });
 
-  it("should track query through middleware", async (t) => {
+  it("should track query through middleware", async (_t) => {
     const middleware = optimizer.createPrismaMiddleware();
 
     const mockParams = {
@@ -393,7 +393,7 @@ describe("DatabaseOptimizer - Prisma Middleware", () => {
     expect(mockNext.mock.calls.length).toBe(1);
   });
 
-  it("should measure query duration in middleware", async (t) => {
+  it("should measure query duration in middleware", async (_t) => {
     const middleware = optimizer.createPrismaMiddleware();
 
     const mockParams = {

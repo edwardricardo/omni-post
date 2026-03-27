@@ -60,7 +60,7 @@ describe("SagaManager - Saga Execution", () => {
     expect(sagaInstance.status).toBe("COMPLETED");
     expect(sagaInstance.stepResults.length).toBe(definition.steps.length);
 
-    sagaInstance.stepResults.forEach((result, index) => {
+    sagaInstance.stepResults.forEach((result, _index) => {
       expect(result.success).toBe(true);
     });
   });

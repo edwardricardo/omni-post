@@ -10,7 +10,6 @@
  */
 
 import { describe, it, beforeEach, afterAll, expect, vi } from "vitest";
-import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import client from "prom-client";
 import type { RedisCacheManager } from "../src/cache-manager.js";

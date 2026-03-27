@@ -77,7 +77,7 @@ describe("SyncEngine - Metrics Collection", () => {
     await syncEngine.initialize();
   });
 
-  it("should return default metrics structure", async (t) => {
+  it("should return default metrics structure", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const metrics = await syncEngine.getSyncMetrics();
 
@@ -92,7 +92,7 @@ describe("SyncEngine - Metrics Collection", () => {
     assert.strictEqual(typeof metrics.lastSyncDuration, "number");
   });
 
-  it("should return global metrics when no channel specified", async (t) => {
+  it("should return global metrics when no channel specified", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const metrics = await syncEngine.getSyncMetrics();
 
@@ -100,7 +100,7 @@ describe("SyncEngine - Metrics Collection", () => {
     assert.ok(metrics.totalTransactions >= 0);
   });
 
-  it("should return channel-specific metrics", async (t) => {
+  it("should return channel-specific metrics", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Metrics Channel",
@@ -126,7 +126,7 @@ describe("SyncEngine - Metrics Collection", () => {
     }
   });
 
-  it("should track metrics after sync operations", async (t) => {
+  it("should track metrics after sync operations", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Sync Metrics Tracking",
@@ -155,7 +155,7 @@ describe("SyncEngine - Metrics Collection", () => {
     }
   });
 
-  it("should initialize all metric fields to zero", async (t) => {
+  it("should initialize all metric fields to zero", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const metrics = await syncEngine.getSyncMetrics();
 
@@ -180,7 +180,7 @@ describe("SyncEngine - Error Handling", () => {
     await syncEngine.initialize();
   });
 
-  it("should handle Redis connection errors gracefully", async (t) => {
+  it("should handle Redis connection errors gracefully", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const badRedis = new Redis({
       host: "invalid-host",
@@ -217,7 +217,7 @@ describe("SyncEngine - Error Handling", () => {
     }
   });
 
-  it("should return error result for system failures", async (t) => {
+  it("should return error result for system failures", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Error Test",
@@ -252,7 +252,7 @@ describe("SyncEngine - Error Handling", () => {
     }
   });
 
-  it("should handle content change errors without crashing", async (t) => {
+  it("should handle content change errors without crashing", async (_t) => {
     if (skipIfUnavailable(t)) return;
     await syncEngine.initialize();
 
@@ -272,7 +272,7 @@ describe("SyncEngine - Content Change Monitoring", () => {
     await syncEngine.initialize();
   });
 
-  it("should handle content changes for posts without subscriptions", async (t) => {
+  it("should handle content changes for posts without subscriptions", async (_t) => {
     if (skipIfUnavailable(t)) return;
 
     // Should not throw when no sync channels are subscribed to this post
@@ -280,7 +280,7 @@ describe("SyncEngine - Content Change Monitoring", () => {
     assert.ok(true, "handleContentChange should not throw");
   });
 
-  it("should process content changes for subscribed channels", async (t) => {
+  it("should process content changes for subscribed channels", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Change Monitor",
@@ -318,7 +318,7 @@ describe("SyncEngine - Content Change Monitoring", () => {
     }
   });
 
-  it("should filter changes by provider involvement", async (t) => {
+  it("should filter changes by provider involvement", async (_t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Provider Filter",

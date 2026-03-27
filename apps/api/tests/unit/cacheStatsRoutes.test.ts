@@ -90,7 +90,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
   let app: FastifyInstance;
   let mockCacheManager: MockCacheManager;
 
-  beforeEach(async (t) => {
+  beforeEach(async (_t) => {
     mockCacheManager = createMockCacheManager();
 
     app = Fastify({ logger: false });
@@ -188,7 +188,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       await appWithoutCache.close();
     });
 
-    it("should handle cache manager errors gracefully", async (t) => {
+    it("should handle cache manager errors gracefully", async (_t) => {
       const appWithFailingCache = Fastify({ logger: false });
       const failingCache = createMockCacheManager({ statsSuccess: false });
       appWithFailingCache.decorate("cache", failingCache as RedisCacheManager);
@@ -251,7 +251,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       await appWithoutCache.close();
     });
 
-    it("should handle health check failures", async (t) => {
+    it("should handle health check failures", async (_t) => {
       const appWithUnhealthyCache = Fastify({ logger: false });
       const unhealthyCache = createMockCacheManager({ healthy: false });
       appWithUnhealthyCache.decorate("cache", unhealthyCache as RedisCacheManager);
@@ -298,7 +298,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       await appWithoutCache.close();
     });
 
-    it("should handle flush failures", async (t) => {
+    it("should handle flush failures", async (_t) => {
       const appWithFailingFlush = Fastify({ logger: false });
       const failingCache = createMockCacheManager({ flushSuccess: false });
       appWithFailingFlush.decorate("cache", failingCache);
@@ -494,7 +494,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       await appWithoutCache.close();
     });
 
-    it("should handle warming failures", async (t) => {
+    it("should handle warming failures", async (_t) => {
       const appWithFailingWarm = Fastify({ logger: false });
       const failingCache = createMockCacheManager({ warmSuccess: false });
       appWithFailingWarm.decorate("cache", failingCache as RedisCacheManager);

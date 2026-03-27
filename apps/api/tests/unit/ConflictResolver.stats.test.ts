@@ -22,7 +22,7 @@ import {
 describe("ConflictResolver - Statistics", () => {
   let resolver: ConflictResolver;
 
-  beforeEach(async (t) => {
+  beforeEach(async (_t) => {
     const mockPrisma = new MockPrismaClient();
     const mockRedis = new MockRedis();
     const mockEventService = new MockEventService();
@@ -70,7 +70,7 @@ describe("ConflictResolver - Statistics", () => {
 describe("ConflictResolver - Built-in Patterns", () => {
   let resolver: ConflictResolver;
 
-  beforeEach(async (t) => {
+  beforeEach(async (_t) => {
     const mockPrisma = new MockPrismaClient();
     const mockRedis = new MockRedis();
     const mockEventService = new MockEventService();
@@ -148,7 +148,7 @@ describe("ConflictResolver - Edge Cases", () => {
     originalGetAdapter = providerRegistry.getAdapter.bind(providerRegistry);
   });
 
-  beforeEach(async (t) => {
+  beforeEach(async (_t) => {
     const mockPrisma = new MockPrismaClient();
     const mockRedis = new MockRedis();
     const mockEventService = new MockEventService();
@@ -187,7 +187,7 @@ describe("ConflictResolver - Edge Cases", () => {
     expect(conflicts.length).toBe(0);
   });
 
-  it("should handle adaptation with empty validation errors", async (t) => {
+  it("should handle adaptation with empty validation errors", async (_t) => {
     providerRegistry.getAdapter = vi.fn((() => ({
       id: "twitter",
       limits: { maxChars: 280, maxMediaPerPost: 4, allowedMedia: ["image"] },

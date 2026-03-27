@@ -10,7 +10,7 @@
  * @layer integration
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it } from "vitest";
 
 describe.todo("TelegramApiClient — integration", () => {
   // Requires: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID env vars

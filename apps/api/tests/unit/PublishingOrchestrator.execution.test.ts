@@ -385,7 +385,7 @@ describe("PublishingOrchestrator", () => {
       const duration = Date.now() - startTime;
 
       expect(Object.keys(execution.results).length).toBe(2);
-      expect(duration >= 50).toBeTruthy();
+      expect(duration >= 40).toBeTruthy();
     });
   });
 

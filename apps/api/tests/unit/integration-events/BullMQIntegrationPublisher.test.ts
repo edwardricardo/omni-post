@@ -140,7 +140,7 @@ describe("BullMQIntegrationPublisher", () => {
     expect(mockQueue.close.mock.calls.length).toBe(1);
   });
 
-  it("publish() propagates errors thrown by queue.add()", async (t) => {
+  it("publish() propagates errors thrown by queue.add()", async (_t) => {
     const queueError = new Error("Redis connection refused");
     mockQueue.add = vi.fn(async () => {
       throw queueError;

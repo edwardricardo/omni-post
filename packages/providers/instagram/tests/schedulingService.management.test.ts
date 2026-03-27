@@ -76,11 +76,14 @@ vi.mock("prom-client", () => ({
   },
 }));
 
-vi.mock("fluent-ffmpeg", () => ({
-  default: Object.assign(
-    vi.fn(() => ({})),
-    {
-      ffprobe: vi.fn(),
+vi.mock("node:child_process", () => ({
+  execFile: vi.fn(
+    (
+      _cmd: string,
+      _args: string[],
+      cb: (err: Error | null, result: { stdout: string; stderr: string }) => void
+    ) => {
+      cb(null, { stdout: "{}", stderr: "" });
     }
   ),
 }));

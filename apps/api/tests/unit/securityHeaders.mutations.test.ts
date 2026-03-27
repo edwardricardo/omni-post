@@ -421,7 +421,7 @@ describe("SecurityManager — mutation-killing boundaries", () => {
 
     it("calculates X-Response-Time using startTime", async () => {
       const mgr = new SecurityManager();
-      const middleware = mgr.createSecurityMiddleware();
+      const _middleware = mgr.createSecurityMiddleware();
       const req = createMockRequest();
       (req as any).startTime = Date.now() - 50;
       const reply = createMockReply();

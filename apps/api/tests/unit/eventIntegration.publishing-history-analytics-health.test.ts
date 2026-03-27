@@ -18,7 +18,7 @@ describe("EventIntegration - Post Publishing with Events", () => {
     await integration.registerRoutes();
   });
 
-  it("should publish post and emit POST_PUBLISHED events", async (t) => {
+  it("should publish post and emit POST_PUBLISHED events", async (_t) => {
     const request: any = {
       params: { postId: "post-123" },
       user: {
@@ -43,7 +43,7 @@ describe("EventIntegration - Post Publishing with Events", () => {
     expect(result.publishedTo >= 1).toBe(true);
   });
 
-  it("should emit USER_ACTION event for publishing", async (t) => {
+  it("should emit USER_ACTION event for publishing", async (_t) => {
     const request: any = {
       params: { postId: "post-123" },
       user: {
@@ -64,7 +64,7 @@ describe("EventIntegration - Post Publishing with Events", () => {
     expect(userActionEvents.length >= 1).toBe(true);
   });
 
-  it("should handle post not found during publishing", async (t) => {
+  it("should handle post not found during publishing", async (_t) => {
     mockFastify.prisma.post.findUnique = vi.fn(async () => null);
 
     const request: any = {
@@ -103,7 +103,7 @@ describe("EventIntegration - Event History Retrieval", () => {
     await integration.registerRoutes();
   });
 
-  it("should get event history for post", async (t) => {
+  it("should get event history for post", async (_t) => {
     const request: any = {
       params: { postId: "post-123" },
     };
@@ -119,7 +119,7 @@ describe("EventIntegration - Event History Retrieval", () => {
     expect(Array.isArray(result.events)).toBeTruthy();
   });
 
-  it("should include event count in response", async (t) => {
+  it("should include event count in response", async (_t) => {
     const request: any = {
       params: { postId: "post-123" },
     };
@@ -147,7 +147,7 @@ describe("EventIntegration - Analytics Events", () => {
     await integration.registerRoutes();
   });
 
-  it("should get analytics events", async (t) => {
+  it("should get analytics events", async (_t) => {
     const request: any = {
       query: {},
     };
@@ -163,7 +163,7 @@ describe("EventIntegration - Analytics Events", () => {
     expect(Array.isArray(result.events)).toBeTruthy();
   });
 
-  it("should support date filtering for analytics", async (t) => {
+  it("should support date filtering for analytics", async (_t) => {
     const request: any = {
       query: {
         from: "2024-01-01T00:00:00Z",
@@ -194,7 +194,7 @@ describe("EventIntegration - Health Check", () => {
     await integration.registerRoutes();
   });
 
-  it("should get event service health status", async (t) => {
+  it("should get event service health status", async (_t) => {
     const request: any = {};
     const reply: any = {
       status: vi.fn(() => reply),
@@ -207,7 +207,7 @@ describe("EventIntegration - Health Check", () => {
     expect(result.statistics).toBeTruthy();
   });
 
-  it("should include timestamp in health check", async (t) => {
+  it("should include timestamp in health check", async (_t) => {
     const request: any = {};
     const reply: any = {
       status: vi.fn(() => reply),

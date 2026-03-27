@@ -139,7 +139,7 @@ describe("VideoUploadPipeline - Webhook Notifications", () => {
     pipeline = new VideoUploadPipeline(0);
   });
 
-  it("should support webhook configuration", async (t) => {
+  it("should support webhook configuration", async (_t) => {
     const filePath = "/test/webhook.mp4";
     const fileData = Buffer.alloc(1 * 1024 * 1024);
     mockFsData.files.set(filePath, fileData);

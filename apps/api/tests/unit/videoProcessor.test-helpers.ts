@@ -106,7 +106,7 @@ export function setStatSizeOverride(value: number | null): void {
  * Sets up fs mocks scoped to the current test via vi.spyOn().
  * Automatically restored after each test completes.
  */
-export function setupFsMocks(t: import("vitest").TestContext): void {
+export function setupFsMocks(_t: import("vitest").TestContext): void {
   vi.spyOn(fs, "access").mockImplementation(async (path: string) => {
     if (!mockFsData.files.has(path as string)) {
       throw new Error(`ENOENT: no such file or directory, access '${path}'`);

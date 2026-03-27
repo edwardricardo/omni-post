@@ -101,7 +101,7 @@ describe("aiRoutes - POST /ai/generate", () => {
     expect(response.statusCode).toBe(400);
   });
 
-  it("should handle service errors gracefully", async (t) => {
+  it("should handle service errors gracefully", async (_t) => {
     vi.spyOn(aiService, "generateContent").mockImplementation(async () => {
       throw new Error("Service unavailable");
     });

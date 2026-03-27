@@ -7,7 +7,7 @@
  *                       node stryker-batch.mjs    (runs all batches sequentially)
  */
 import { execSync } from 'node:child_process'
-import { writeFileSync, existsSync, readFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 
 const BATCHES = {
   1: {

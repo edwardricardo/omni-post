@@ -324,7 +324,7 @@ describe(
         "video/webm",
         "video/quicktime",
       ];
-      for (const type of types) {
+      for (const _type of types) {
         // These will return SERVICE_ERROR (not INVALID_TYPE) since the type is allowed
         allowedResults.push(true); // Just track that we tested all 7
       }

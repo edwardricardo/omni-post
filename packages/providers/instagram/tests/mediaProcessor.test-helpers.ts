@@ -1,7 +1,7 @@
 /**
  * @file mediaProcessor.test-helpers.ts
  * @description Shared test helpers for InstagramMediaProcessor test suites.
- *              Provides a passthrough circuit breaker and a mock FFmpeg instance.
+ *              Provides a passthrough circuit breaker and mock execFileAsync for ffprobe/ffmpeg.
  *
  * NOTE: The source `mediaProcessor.ts` creates a circuit breaker at module scope.
  * Tests must use `vi.mock("@adapters/external-apis", ...)` BEFORE importing
@@ -22,30 +22,36 @@ export function createPassthroughCB() {
 }
 
 /**
- * A mock FFmpeg command instance with all chainable methods.
- * The `on("end", cb)` handler fires the callback after 5 ms so that
- * code paths that await the "end" event resolve immediately.
+ * Default ffprobe JSON output used by mock execFileAsync.
  */
-export function createMockFfmpegInstance() {
-  const instance: any = {
-    seekInput: vi.fn(() => instance),
-    duration: vi.fn(() => instance),
-    videoCodec: vi.fn(() => instance),
-    audioCodec: vi.fn(() => instance),
-    audioBitrate: vi.fn(() => instance),
-    addOption: vi.fn(() => instance),
-    videoFilters: vi.fn(() => instance),
-    output: vi.fn(() => instance),
-    frames: vi.fn(() => instance),
-    on: vi.fn((event: string, callback: Function) => {
-      if (event === "end") {
-        // Use queueMicrotask instead of setTimeout+unref to avoid event loop
-        // draining before the callback fires
-        queueMicrotask(() => callback());
+export const DEFAULT_PROBE_DATA = {
+  streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
+  format: { duration: "45.5", bit_rate: "2500000", format_name: "mp4,mov" },
+};
+
+/**
+ * Creates the mock for node:child_process that intercepts execFile.
+ * Returns the mock function so tests can override behavior per-test.
+ */
+export function createExecFileMock(probeDataFn: () => any = () => DEFAULT_PROBE_DATA) {
+  const execFileMockFn = vi.fn(
+    (
+      cmd: string,
+      _args: string[],
+      callback: (error: Error | null, result: { stdout: string; stderr: string }) => void
+    ) => {
+      if (cmd === "ffprobe") {
+        const data = probeDataFn();
+        if (data instanceof Error) {
+          callback(data, { stdout: "", stderr: data.message });
+        } else {
+          callback(null, { stdout: JSON.stringify(data), stderr: "" });
+        }
+      } else {
+        // ffmpeg command -- just succeed
+        callback(null, { stdout: "", stderr: "" });
       }
-      return instance;
-    }),
-    run: vi.fn(),
-  };
-  return instance;
+    }
+  );
+  return execFileMockFn;
 }

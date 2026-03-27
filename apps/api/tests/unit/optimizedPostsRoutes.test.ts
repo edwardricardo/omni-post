@@ -80,7 +80,7 @@ function createMockPostsService(): MockPostsService {
 let app: FastifyInstance;
 
 describe("optimizedPostsRoutes Unit Tests", () => {
-  beforeEach(async (t) => {
+  beforeEach(async (_t) => {
     const mockPostsService = createMockPostsService();
 
     app = Fastify({ logger: false });

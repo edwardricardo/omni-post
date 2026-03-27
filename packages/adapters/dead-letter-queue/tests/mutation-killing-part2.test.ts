@@ -122,13 +122,12 @@ vi.mock("pino", () => ({
 
 let createDeadLetterQueue: typeof import("../src/index.js").createDeadLetterQueue;
 let resetDeadLetterQueue: typeof import("../src/index.js").resetDeadLetterQueue;
-let DeadLetterQueueManager: typeof import("../src/index.js").DeadLetterQueueManager;
+type DeadLetterQueueManagerType = import("../src/index.js").DeadLetterQueueManager;
 
 beforeAll(async () => {
   const mod = await import("../src/index.js");
   createDeadLetterQueue = mod.createDeadLetterQueue;
   resetDeadLetterQueue = mod.resetDeadLetterQueue;
-  DeadLetterQueueManager = mod.DeadLetterQueueManager;
 });
 
 afterAll(() => {
@@ -141,7 +140,7 @@ function makeDlq() {
   return createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
 }
 
-function callProcess(dlq: InstanceType<typeof DeadLetterQueueManager>, job: unknown) {
+function callProcess(dlq: DeadLetterQueueManagerType, job: unknown) {
   return (
     dlq as unknown as { processFailedOperation: (j: unknown) => Promise<void> }
   ).processFailedOperation(job);

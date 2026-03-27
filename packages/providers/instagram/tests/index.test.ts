@@ -5,7 +5,7 @@
  * Framework: Vitest
  */
 
-import { describe, it, beforeEach, vi, expect } from "vitest";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { InstagramAdapter } from "../src/InstagramAdapter.js";
 import type { CanonicalPost, RenderedPost, ThreadPlan } from "@shared/types";

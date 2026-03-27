@@ -1,4 +1,4 @@
-import { vi, expect } from "vitest";
+import { vi } from "vitest";
 
 export type MockedMethod = ReturnType<typeof vi.fn>;
 

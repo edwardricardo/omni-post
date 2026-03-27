@@ -62,7 +62,7 @@ describe("ComposedEventDispatcher", () => {
   });
 
   describe("register()", () => {
-    it("delegates to inMemory.register()", (t) => {
+    it("delegates to inMemory.register()", (_t) => {
       const handler: DomainEventHandler<DomainEvent> = { handle: vi.fn(async () => {}) };
 
       dispatcher.register("PostCreated", handler);
@@ -132,7 +132,7 @@ describe("ComposedEventDispatcher", () => {
       expect(published.source).toBe("omnipost-api");
     });
 
-    it("succeeds even when publisher.publish() throws — error isolation", async (t) => {
+    it("succeeds even when publisher.publish() throws — error isolation", async (_t) => {
       const throwingPublisher: IntegrationEventPublisher = {
         publish: vi.fn(async () => {
           throw new Error("BullMQ connection refused");
@@ -151,7 +151,7 @@ describe("ComposedEventDispatcher", () => {
       expect(dispatchMock.mock.calls.length).toBe(1);
     });
 
-    it("calls inMemory.dispatch() before publisher.publish() (in-process first)", async (t) => {
+    it("calls inMemory.dispatch() before publisher.publish() (in-process first)", async (_t) => {
       const callOrder: string[] = [];
 
       const orderedInMemory: EventDispatcher = {
@@ -178,7 +178,7 @@ describe("ComposedEventDispatcher", () => {
   });
 
   describe("dispatchAll()", () => {
-    it("calls inMemory.dispatch() for each event sequentially", async (t) => {
+    it("calls inMemory.dispatch() for each event sequentially", async (_t) => {
       const dispatchOrder: string[] = [];
       const sequentialInMemory: EventDispatcher = {
         dispatch: vi.fn(async (event: DomainEvent) => {
@@ -226,7 +226,7 @@ describe("ComposedEventDispatcher", () => {
       expect(capturedPublishEvents[1]?.eventId).toBe("evt-batch-2");
     });
 
-    it("succeeds even when publisher.publishBatch() throws — error isolation", async (t) => {
+    it("succeeds even when publisher.publishBatch() throws — error isolation", async (_t) => {
       const throwingPublisher: IntegrationEventPublisher = {
         publish: vi.fn(async () => {}),
         publishBatch: vi.fn(async () => {

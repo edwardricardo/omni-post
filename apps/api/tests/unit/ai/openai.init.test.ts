@@ -56,7 +56,7 @@ describe("OpenAIProvider - Availability Checks", () => {
     provider = new OpenAIProvider(mockConfig);
   });
 
-  it("should return true when OpenAI API is available", async (t) => {
+  it("should return true when OpenAI API is available", async (_t) => {
     const listFn = vi.fn(async () => ({ data: [] }));
     const mockClient = { models: { list: listFn } };
     // @ts-ignore
@@ -67,7 +67,7 @@ describe("OpenAIProvider - Availability Checks", () => {
     expect(listFn.mock.calls.length).toBe(1);
   });
 
-  it("should return false when OpenAI API fails", async (t) => {
+  it("should return false when OpenAI API fails", async (_t) => {
     const listFn = vi.fn(async () => {
       throw new Error("API Error");
     });
@@ -79,7 +79,7 @@ describe("OpenAIProvider - Availability Checks", () => {
     expect(result).toBe(false);
   });
 
-  it("should handle network timeouts gracefully", async (t) => {
+  it("should handle network timeouts gracefully", async (_t) => {
     const listFn = vi.fn(async () => {
       throw new Error("ETIMEDOUT");
     });
@@ -91,7 +91,7 @@ describe("OpenAIProvider - Availability Checks", () => {
     expect(result).toBe(false);
   });
 
-  it("should handle authentication errors", async (t) => {
+  it("should handle authentication errors", async (_t) => {
     const listFn = vi.fn(async () => {
       const error: any = new Error("Invalid API key");
       error.status = 401;

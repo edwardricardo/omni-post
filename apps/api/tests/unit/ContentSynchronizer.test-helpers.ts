@@ -2,7 +2,7 @@ console.log = () => {};
 console.error = () => {};
 console.warn = () => {};
 
-import { vi, expect } from "vitest";
+import { vi } from "vitest";
 import { ContentSynchronizer } from "../../src/orchestration/ContentSynchronizer.js";
 import type { SyncContentRequest, OrchestrationResult, SyncResponse } from "@shared/orchestration";
 import type { CanonicalPost } from "@shared/types";

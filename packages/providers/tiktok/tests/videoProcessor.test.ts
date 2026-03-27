@@ -5,88 +5,27 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Hoisted mocks — must exist before vi.mock factories execute
-const {
-  mockCall,
-  mockFfprobe,
-  mockFfmpeg,
-  mockMkdir,
-  mockUnlink,
-  mockLogger,
-  mockCbInstance,
-  mockVideoCodec,
-  mockOutputFormat,
-  mockSize,
-  mockAspect,
-  mockVideoBitrate,
-  mockAudioCodec,
-  mockAudioBitrate,
-  mockInputOptions,
-  mockOutputOptions,
-  mockScreenshots,
-  mockSave,
-  mockOn,
-} = vi.hoisted(() => {
-  const on = vi.fn();
-  const chain = () => ({ mockReturnThis: vi.fn().mockReturnThis });
-  const vc = vi.fn().mockReturnThis(),
-    of = vi.fn().mockReturnThis();
-  const sz = vi.fn().mockReturnThis(),
-    asp = vi.fn().mockReturnThis();
-  const vb = vi.fn().mockReturnThis(),
-    ac = vi.fn().mockReturnThis();
-  const ab = vi.fn().mockReturnThis(),
-    io = vi.fn().mockReturnThis();
-  const oo = vi.fn().mockReturnThis(),
-    ss = vi.fn().mockReturnThis();
-  const sv = vi.fn().mockReturnThis();
-  const cmd = {
-    videoCodec: vc,
-    outputFormat: of,
-    size: sz,
-    aspect: asp,
-    videoBitrate: vb,
-    audioCodec: ac,
-    audioBitrate: ab,
-    inputOptions: io,
-    outputOptions: oo,
-    screenshots: ss,
-    on,
-    save: sv,
-  };
-  const ff = vi.fn(() => cmd) as unknown as Record<string, unknown>;
-  const probe = vi.fn();
-  ff.ffprobe = probe;
-  const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
-  const cb = {
-    call: vi.fn(),
-    getAllStatuses: vi.fn(() => ({ status: "closed" })),
-    clearCache: vi.fn(),
-    forceOpen: vi.fn(() => true),
-    forceClose: vi.fn(() => true),
-  };
-  return {
-    mockCall: cb.call,
-    mockLogger: logger,
-    mockCbInstance: cb,
-    mockFfprobe: probe,
-    mockFfmpeg: ff,
-    mockMkdir: vi.fn().mockResolvedValue(undefined),
-    mockUnlink: vi.fn().mockResolvedValue(undefined),
-    mockVideoCodec: vc,
-    mockOutputFormat: of,
-    mockSize: sz,
-    mockAspect: asp,
-    mockVideoBitrate: vb,
-    mockAudioCodec: ac,
-    mockAudioBitrate: ab,
-    mockInputOptions: io,
-    mockOutputOptions: oo,
-    mockScreenshots: ss,
-    mockSave: sv,
-    mockOn: on,
-  };
-});
+// Hoisted mocks
+const { mockCall, mockExecFile, mockMkdir, mockUnlink, mockLogger, mockCbInstance } = vi.hoisted(
+  () => {
+    const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    const cb = {
+      call: vi.fn(),
+      getAllStatuses: vi.fn(() => ({ status: "closed" })),
+      clearCache: vi.fn(),
+      forceOpen: vi.fn(() => true),
+      forceClose: vi.fn(() => true),
+    };
+    return {
+      mockCall: cb.call,
+      mockLogger: logger,
+      mockCbInstance: cb,
+      mockExecFile: vi.fn(),
+      mockMkdir: vi.fn().mockResolvedValue(undefined),
+      mockUnlink: vi.fn().mockResolvedValue(undefined),
+    };
+  }
+);
 
 vi.mock("@adapters/external-apis", () => ({
   createExternalApiCircuitBreaker: vi.fn(() => mockCbInstance),
@@ -103,7 +42,12 @@ vi.mock("@providers/shared", () => ({
 }));
 vi.mock("prom-client", () => ({ Registry: class R {} }));
 vi.mock("@observability/logger", () => ({ createLogger: vi.fn(() => mockLogger) }));
-vi.mock("fluent-ffmpeg", () => ({ default: mockFfmpeg }));
+vi.mock("node:child_process", () => ({
+  execFile: mockExecFile,
+}));
+vi.mock("node:util", () => ({
+  promisify: () => mockExecFile,
+}));
 vi.mock("fs/promises", () => ({
   mkdir: (...a: unknown[]) => mockMkdir(...a),
   unlink: (...a: unknown[]) => mockUnlink(...a),
@@ -168,22 +112,35 @@ const makeProbeMetadata = (fmtOverrides: Record<string, unknown> = {}) => ({
 });
 
 function setupProbe(metadata?: ReturnType<typeof makeProbeMetadata>) {
-  mockFfprobe.mockImplementation((_p: string, cb: (e: unknown, d: unknown) => void) =>
-    cb(null, metadata ?? makeProbeMetadata())
-  );
+  mockExecFile.mockImplementation((cmd: string) => {
+    if (cmd === "ffprobe") {
+      return Promise.resolve({ stdout: JSON.stringify(metadata ?? makeProbeMetadata()) });
+    }
+    // ffmpeg calls resolve with empty stdout
+    return Promise.resolve({ stdout: "", stderr: "" });
+  });
 }
+
 function setupProbeError(msg: string) {
-  mockFfprobe.mockImplementation((_p: string, cb: (e: unknown, d: unknown) => void) =>
-    cb(new Error(msg), null)
-  );
+  mockExecFile.mockImplementation((cmd: string) => {
+    if (cmd === "ffprobe") {
+      return Promise.reject(new Error(msg));
+    }
+    return Promise.resolve({ stdout: "", stderr: "" });
+  });
 }
+
 function setupProbeStreams(streams: unknown[], fmt: Record<string, unknown> = {}) {
-  mockFfprobe.mockImplementation((_p: string, cb: Function) =>
-    cb(null, {
-      streams,
-      format: { format_name: "mp4", duration: "10", size: "100", bit_rate: "500", ...fmt },
-    })
-  );
+  const data = {
+    streams,
+    format: { format_name: "mp4", duration: "10", size: "100", bit_rate: "500", ...fmt },
+  };
+  mockExecFile.mockImplementation((cmd: string) => {
+    if (cmd === "ffprobe") {
+      return Promise.resolve({ stdout: JSON.stringify(data) });
+    }
+    return Promise.resolve({ stdout: "", stderr: "" });
+  });
 }
 
 describe("TikTokVideoProcessor", () => {
@@ -191,24 +148,7 @@ describe("TikTokVideoProcessor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCall.mockImplementation((_s: string, _o: string, fn: () => unknown) => fn());
-    mockOn.mockImplementation(function (this: unknown, ev: string, cb: () => void) {
-      if (ev === "end") setTimeout(cb, 0);
-      return this;
-    });
-    for (const m of [
-      mockVideoCodec,
-      mockOutputFormat,
-      mockSize,
-      mockAspect,
-      mockVideoBitrate,
-      mockAudioCodec,
-      mockAudioBitrate,
-      mockInputOptions,
-      mockOutputOptions,
-      mockScreenshots,
-      mockSave,
-    ])
-      m.mockReturnThis();
+    mockExecFile.mockResolvedValue({ stdout: "", stderr: "" });
     mockMkdir.mockResolvedValue(undefined);
     mockUnlink.mockResolvedValue(undefined);
     proc = new TikTokVideoProcessor("/tmp/test-tiktok");
@@ -301,6 +241,19 @@ describe("TikTokVideoProcessor", () => {
         audioSampleRate: 44100,
         audioBitRate: 128000,
       });
+    });
+    it("calls ffprobe with correct arguments", async () => {
+      setupProbe();
+      await proc.analyzeVideo("/path/to/video.mp4");
+      expect(mockExecFile).toHaveBeenCalledWith("ffprobe", [
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
+        "-show_streams",
+        "-show_format",
+        "/path/to/video.mp4",
+      ]);
     });
     it("extracts fileName via path.basename", async () => {
       setupProbe();
@@ -459,29 +412,67 @@ describe("TikTokVideoProcessor", () => {
     it("omits effects from metadata when addEffects not provided", async () => {
       expect((await proc.processVideo("/i/v.mp4", {})).metadata.effects).toBeUndefined();
     });
-    it("applies compress and enhance-audio optimizations via ffmpeg", async () => {
+    it("calls ffmpeg with compress and enhance-audio args", async () => {
       await proc.processVideo("/i/v.mp4");
-      expect(mockVideoBitrate).toHaveBeenCalledWith("2000k");
-      expect(mockAudioCodec).toHaveBeenCalledWith("aac");
-      expect(mockAudioBitrate).toHaveBeenCalledWith("128k");
+      // Find the ffmpeg call for video processing (not thumbnail or gif)
+      const ffmpegCalls = mockExecFile.mock.calls.filter((c: unknown[]) => c[0] === "ffmpeg");
+      const processingCall = ffmpegCalls.find((c: unknown[]) => {
+        const args = c[1] as string[];
+        return args.includes("-c:v");
+      });
+      expect(processingCall).toBeDefined();
+      const args = processingCall![1] as string[];
+      expect(args).toContain("-b:v");
+      expect(args[args.indexOf("-b:v") + 1]).toBe("2000k");
+      expect(args).toContain("-c:a");
+      expect(args[args.indexOf("-c:a") + 1]).toBe("aac");
+      expect(args).toContain("-b:a");
+      expect(args[args.indexOf("-b:a") + 1]).toBe("128k");
     });
     it("sets correct codec, format, size, aspect on ffmpeg command", async () => {
       await proc.processVideo("/i/v.mp4");
-      expect(mockVideoCodec).toHaveBeenCalledWith("h264");
-      expect(mockOutputFormat).toHaveBeenCalledWith("mp4");
-      expect(mockSize).toHaveBeenCalledWith("1080x1920");
-      expect(mockAspect).toHaveBeenCalledWith("9:16");
+      const ffmpegCalls = mockExecFile.mock.calls.filter((c: unknown[]) => c[0] === "ffmpeg");
+      const processingCall = ffmpegCalls.find((c: unknown[]) => {
+        const args = c[1] as string[];
+        return args.includes("-c:v");
+      });
+      expect(processingCall).toBeDefined();
+      const args = processingCall![1] as string[];
+      expect(args[args.indexOf("-c:v") + 1]).toBe("h264");
+      expect(args[args.indexOf("-f") + 1]).toBe("mp4");
+      expect(args[args.indexOf("-s") + 1]).toBe("1080x1920");
+      expect(args[args.indexOf("-aspect") + 1]).toBe("9:16");
     });
-    it("generates thumbnail with correct settings", async () => {
+    it("generates thumbnail with correct ffmpeg args", async () => {
       await proc.processVideo("/i/v.mp4");
-      expect(mockScreenshots).toHaveBeenCalledWith(
-        expect.objectContaining({ timestamps: ["10%"], size: "720x1280" })
-      );
+      const ffmpegCalls = mockExecFile.mock.calls.filter((c: unknown[]) => c[0] === "ffmpeg");
+      const thumbnailCall = ffmpegCalls.find((c: unknown[]) => {
+        const args = c[1] as string[];
+        return args.includes("-vframes");
+      });
+      expect(thumbnailCall).toBeDefined();
+      const args = thumbnailCall![1] as string[];
+      expect(args).toContain("-ss");
+      expect(args).toContain("-vframes");
+      expect(args[args.indexOf("-vframes") + 1]).toBe("1");
+      expect(args).toContain("-s");
+      expect(args[args.indexOf("-s") + 1]).toBe("720x1280");
     });
-    it("generates preview GIF with correct options", async () => {
+    it("generates preview GIF with correct ffmpeg args", async () => {
       await proc.processVideo("/i/v.mp4");
-      expect(mockInputOptions).toHaveBeenCalledWith(["-t 3"]);
-      expect(mockOutputOptions).toHaveBeenCalledWith(["-vf scale=320:-1", "-r 10", "-f gif"]);
+      const ffmpegCalls = mockExecFile.mock.calls.filter((c: unknown[]) => c[0] === "ffmpeg");
+      const gifCall = ffmpegCalls.find((c: unknown[]) => {
+        const args = c[1] as string[];
+        return args.includes("-f") && args[args.indexOf("-f") + 1] === "gif";
+      });
+      expect(gifCall).toBeDefined();
+      const args = gifCall![1] as string[];
+      expect(args).toContain("-t");
+      expect(args[args.indexOf("-t") + 1]).toBe("3");
+      expect(args).toContain("-vf");
+      expect(args[args.indexOf("-vf") + 1]).toBe("scale=320:-1");
+      expect(args).toContain("-r");
+      expect(args[args.indexOf("-r") + 1]).toBe("10");
     });
     it("passes correct circuit breaker options", async () => {
       await proc.processVideo("/i/v.mp4");
@@ -499,10 +490,12 @@ describe("TikTokVideoProcessor", () => {
         })
       );
     });
-    it("rejects when ffmpeg emits error event", async () => {
-      mockOn.mockImplementation(function (this: unknown, ev: string, cb: (e?: Error) => void) {
-        if (ev === "error") setTimeout(() => cb(new Error("Encoding failed")), 0);
-        return this;
+    it("rejects when ffmpeg process fails", async () => {
+      mockExecFile.mockImplementation((cmd: string) => {
+        if (cmd === "ffprobe") {
+          return Promise.resolve({ stdout: JSON.stringify(makeProbeMetadata()) });
+        }
+        return Promise.reject(new Error("Encoding failed"));
       });
       await expect(proc.processVideo("/i/v.mp4")).rejects.toThrow(
         "Video processing failed: Encoding failed"

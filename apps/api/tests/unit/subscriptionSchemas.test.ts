@@ -5,7 +5,7 @@
  * @layer test
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
   SubscriptionChangeSchema,

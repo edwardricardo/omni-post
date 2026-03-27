@@ -16,7 +16,7 @@
  * All tests are Tier 0 (no network, no DB, no Redis).
  */
 
-import { describe, it, beforeEach, vi, expect } from "vitest";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { XAdapter } from "../src/XAdapter.js";
 import {

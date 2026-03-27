@@ -158,7 +158,7 @@ import { authenticator } from "otplib";
 const inMemoryRepo = new InMemoryAdminUserRepository();
 
 // Override the prisma.adminUser.update mock to also sync InMemoryAdminUserRepository
-const originalPrismaUpdate = mockModule.prisma.adminUser.update;
+const _originalPrismaUpdate = mockModule.prisma.adminUser.update;
 mockModule.prisma.adminUser.update.mockImplementation(
   async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
     // 1) Update the prisma store
@@ -177,8 +177,8 @@ mockModule.prisma.adminUser.update.mockImplementation(
 let testUserId: string;
 let mfaSecret: string;
 let backupCodes: string[];
-let inactiveUserId: string;
-let invalidJsonUserId: string;
+let _inactiveUserId: string;
+let _invalidJsonUserId: string;
 
 const timestamp = Date.now();
 const testEmail = `test-mfa-${timestamp}@example.com`;
@@ -251,7 +251,7 @@ describe("MfaService Tests", () => {
         isActive: false,
       });
 
-      inactiveUserId = inactiveUser.id;
+      _inactiveUserId = inactiveUser.id;
 
       // Add to both stores
       inMemoryRepo.add(inactiveUser);
@@ -313,7 +313,7 @@ describe("MfaService Tests", () => {
         passwordResetToken: "invalid-json-data",
       });
 
-      invalidJsonUserId = invalidJsonUser.id;
+      _invalidJsonUserId = invalidJsonUser.id;
 
       // Add to both stores
       inMemoryRepo.add(invalidJsonUser);

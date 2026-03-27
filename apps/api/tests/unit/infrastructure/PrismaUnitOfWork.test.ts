@@ -46,7 +46,7 @@ describe("PrismaUnitOfWork", () => {
   // ── executeInTransaction ──────────────────────────────────────────────────
 
   describe("executeInTransaction", () => {
-    it("ejecuta el callback dentro de una transacción Prisma", async (t) => {
+    it("ejecuta el callback dentro de una transacción Prisma", async (_t) => {
       const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
@@ -62,7 +62,7 @@ describe("PrismaUnitOfWork", () => {
       expect(client.$transaction.mock.calls.length).toBe(1);
     });
 
-    it("devuelve el valor retornado por el callback", async (t) => {
+    it("devuelve el valor retornado por el callback", async (_t) => {
       const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
@@ -74,7 +74,7 @@ describe("PrismaUnitOfWork", () => {
       expect(result).toBe(42);
     });
 
-    it("propaga errores lanzados dentro del callback", async (t) => {
+    it("propaga errores lanzados dentro del callback", async (_t) => {
       const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
@@ -88,7 +88,7 @@ describe("PrismaUnitOfWork", () => {
       ).rejects.toThrow("error de prueba");
     });
 
-    it("pasa las opciones de transacción a Prisma", async (t) => {
+    it("pasa las opciones de transacción a Prisma", async (_t) => {
       const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
@@ -103,7 +103,7 @@ describe("PrismaUnitOfWork", () => {
       expect((callArgs[1] as Record<string, unknown> | undefined)?.maxWait).toBe(2_000);
     });
 
-    it("combina opciones por defecto con opciones por llamada", async (t) => {
+    it("combina opciones por defecto con opciones por llamada", async (_t) => {
       const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
@@ -121,7 +121,7 @@ describe("PrismaUnitOfWork", () => {
       expect(opts?.maxWait).toBe(1_000);
     });
 
-    it("no incluye opciones undefined en el objeto pasado a Prisma", async (t) => {
+    it("no incluye opciones undefined en el objeto pasado a Prisma", async (_t) => {
       const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
@@ -151,7 +151,7 @@ describe("PrismaUnitOfWork", () => {
       expect(result).toBe(undefined);
     });
 
-    it("devuelve el cliente tx cuando se está dentro de una transacción", async (t) => {
+    it("devuelve el cliente tx cuando se está dentro de una transacción", async (_t) => {
       const { client, tx } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
@@ -167,7 +167,7 @@ describe("PrismaUnitOfWork", () => {
       expect(capturedClient).toBe(tx);
     });
 
-    it("devuelve undefined después de que la transacción termina", async (t) => {
+    it("devuelve undefined después de que la transacción termina", async (_t) => {
       const { client } = createMockPrismaClient();
       const { PrismaUnitOfWork } = await import(
         "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
@@ -180,7 +180,7 @@ describe("PrismaUnitOfWork", () => {
       expect(result).toBe(undefined);
     });
 
-    it("aísla clientes tx entre contextos async concurrentes", async (t) => {
+    it("aísla clientes tx entre contextos async concurrentes", async (_t) => {
       // Dos transacciones UoW concurrentes no deben ver el cliente tx del otro
       const mock1 = createMockPrismaClient();
       const mock2 = createMockPrismaClient();
@@ -221,7 +221,7 @@ describe("PrismaUnitOfWork", () => {
       concurrency: 1,
     },
     () => {
-      it("el código interno accede al cliente tx del UoW activo", async (t) => {
+      it("el código interno accede al cliente tx del UoW activo", async (_t) => {
         const { client, tx } = createMockPrismaClient();
         const { PrismaUnitOfWork } = await import(
           "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"
@@ -237,7 +237,7 @@ describe("PrismaUnitOfWork", () => {
         expect(innerClient).toBe(tx);
       });
 
-      it("múltiples operaciones dentro de executeInTransaction comparten el mismo tx", async (t) => {
+      it("múltiples operaciones dentro de executeInTransaction comparten el mismo tx", async (_t) => {
         const { client, tx } = createMockPrismaClient();
         const { PrismaUnitOfWork } = await import(
           "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js"

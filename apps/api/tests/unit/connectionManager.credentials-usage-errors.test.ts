@@ -25,7 +25,7 @@ describe("ConnectionManager - Credential Updates", () => {
     manager.stopHealthMonitoring();
   });
 
-  it("should update access token successfully", async (t) => {
+  it("should update access token successfully", async (_t) => {
     let capturedArgs: any = null;
     const updatedConnection = createMockConnection({ accessToken: "new-access-token" });
     (mockDb.providerConnection.update as ReturnType<typeof vi.fn>) = vi.fn(async (args: any) => {
@@ -44,7 +44,7 @@ describe("ConnectionManager - Credential Updates", () => {
     expect(capturedArgs.data.accessToken).toBe("new-access-token");
   });
 
-  it("should update refresh token successfully", async (t) => {
+  it("should update refresh token successfully", async (_t) => {
     let capturedArgs: any = null;
     const updatedConnection = createMockConnection({ refreshToken: "new-refresh-token" });
     (mockDb.providerConnection.update as ReturnType<typeof vi.fn>) = vi.fn(async (args: any) => {
@@ -62,7 +62,7 @@ describe("ConnectionManager - Credential Updates", () => {
     expect(capturedArgs.data.refreshToken).toBe("new-refresh-token");
   });
 
-  it("should update expiration date", async (t) => {
+  it("should update expiration date", async (_t) => {
     const expiresAt = new Date("2025-12-31");
     let capturedArgs: any = null;
     const updatedConnection = createMockConnection({ expiresAt });
@@ -79,7 +79,7 @@ describe("ConnectionManager - Credential Updates", () => {
     expect(capturedArgs.data.expiresAt instanceof Date).toBeTruthy();
   });
 
-  it("should update lastUsedAt timestamp on credential update", async (t) => {
+  it("should update lastUsedAt timestamp on credential update", async (_t) => {
     let capturedArgs: any = null;
     (mockDb.providerConnection.update as ReturnType<typeof vi.fn>) = vi.fn(async (args: any) => {
       capturedArgs = args;
@@ -94,7 +94,7 @@ describe("ConnectionManager - Credential Updates", () => {
     expect(capturedArgs.data.lastUsedAt instanceof Date).toBeTruthy();
   });
 
-  it("should update multiple credentials atomically", async (t) => {
+  it("should update multiple credentials atomically", async (_t) => {
     const expiresAt = new Date("2025-12-31");
     let capturedArgs: any = null;
     (mockDb.providerConnection.update as ReturnType<typeof vi.fn>) = vi.fn(async (args: any) => {
@@ -135,7 +135,7 @@ describe("ConnectionManager - Usage Tracking", () => {
     manager.stopHealthMonitoring();
   });
 
-  it("should record successful connection usage", async (t) => {
+  it("should record successful connection usage", async (_t) => {
     const mockConnection = createMockConnection({ healthScore: 95 });
     let updateArgs: any = null;
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
@@ -155,7 +155,7 @@ describe("ConnectionManager - Usage Tracking", () => {
     expect(updateArgs.data.healthScore >= 95).toBeTruthy();
   });
 
-  it("should increment health score on successful usage", async (t) => {
+  it("should increment health score on successful usage", async (_t) => {
     const mockConnection = createMockConnection({ healthScore: 50 });
     let updateArgs: any = null;
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
@@ -174,7 +174,7 @@ describe("ConnectionManager - Usage Tracking", () => {
     expect(updateArgs.data.healthScore > 50).toBeTruthy();
   });
 
-  it("should cap health score at 100", async (t) => {
+  it("should cap health score at 100", async (_t) => {
     const mockConnection = createMockConnection({ healthScore: 100 });
     let updateArgs: any = null;
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
@@ -212,7 +212,7 @@ describe("ConnectionManager - Error Recording", () => {
     manager.stopHealthMonitoring();
   });
 
-  it("should record connection error and increment error count", async (t) => {
+  it("should record connection error and increment error count", async (_t) => {
     const mockConnection = createMockConnection({ errorCount: 5, healthScore: 100 });
     let updateArgs: any = null;
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
@@ -233,7 +233,7 @@ describe("ConnectionManager - Error Recording", () => {
     expect(updateArgs.data.lastErrorAt instanceof Date).toBeTruthy();
   });
 
-  it("should decrease health score on error", async (t) => {
+  it("should decrease health score on error", async (_t) => {
     const mockConnection = createMockConnection({ errorCount: 0, healthScore: 100 });
     let updateArgs: any = null;
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
@@ -252,7 +252,7 @@ describe("ConnectionManager - Error Recording", () => {
     expect(updateArgs.data.healthScore < 100).toBeTruthy();
   });
 
-  it("should set status to ERROR when health score drops below 20", async (t) => {
+  it("should set status to ERROR when health score drops below 20", async (_t) => {
     const mockConnection = createMockConnection({ errorCount: 8, healthScore: 25 });
     let updateArgs: any = null;
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
@@ -273,7 +273,7 @@ describe("ConnectionManager - Error Recording", () => {
     }
   });
 
-  it("should not reduce health score below 0", async (t) => {
+  it("should not reduce health score below 0", async (_t) => {
     const mockConnection = createMockConnection({ errorCount: 20, healthScore: 5 });
     let updateArgs: any = null;
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(

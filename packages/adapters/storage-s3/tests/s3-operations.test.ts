@@ -6,10 +6,10 @@
  * @layer test
  */
 
-import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
+import { describe, it, beforeEach, expect, vi } from "vitest";
 import assert from "node:assert/strict";
 import { mockClient } from "aws-sdk-client-mock";
-import { S3Client, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
 import client from "prom-client";
 
 // Mock createPresignedPost at module level

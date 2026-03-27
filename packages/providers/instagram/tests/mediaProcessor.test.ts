@@ -9,28 +9,43 @@
  * live in mediaProcessor.validation.test.ts.
  *
  * Mocking: vi.mock() intercepts module-level dependencies
- * (fluent-ffmpeg, @adapters/external-apis, @adapters/storage-s3, prom-client)
+ * (node:child_process, @adapters/external-apis, @adapters/storage-s3, prom-client)
  * so that the processor can be instantiated without real Redis/FFmpeg/S3.
  */
 
 import { describe, it, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import assert from "node:assert/strict";
-import { createMockFfmpegInstance } from "./mediaProcessor.test-helpers.js";
 
 // ── Hoist mock state initialization before vi.mock() factories run ──
-const { ffprobeMockFn, ffmpegMockFn } = vi.hoisted(() => {
-  const ffprobeMockFn = vi.fn((url: string, cb: (err: any, data: any) => void) => {
-    if (url.includes("non-existent")) {
-      cb(new Error("File not found"), null);
-      return;
-    }
-    cb(null, {
+const { execFileMockFn, probeDataRef } = vi.hoisted(() => {
+  const probeDataRef: { current: any } = {
+    current: {
       streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
       format: { duration: "45.5", bit_rate: "2500000", format_name: "mp4,mov" },
-    });
-  });
-  const ffmpegMockFn = vi.fn();
-  return { ffprobeMockFn, ffmpegMockFn };
+    },
+  };
+
+  const execFileMockFn = vi.fn(
+    (
+      cmd: string,
+      _args: string[],
+      callback: (error: Error | null, result: { stdout: string; stderr: string }) => void
+    ) => {
+      if (cmd === "ffprobe") {
+        const data = probeDataRef.current;
+        if (data instanceof Error) {
+          callback(data, { stdout: "", stderr: data.message });
+        } else {
+          callback(null, { stdout: JSON.stringify(data), stderr: "" });
+        }
+      } else {
+        // ffmpeg -- succeed
+        callback(null, { stdout: "", stderr: "" });
+      }
+    }
+  );
+
+  return { execFileMockFn, probeDataRef };
 });
 
 // ── Hoist mock setup before module evaluation ──
@@ -87,16 +102,9 @@ vi.mock("prom-client", () => ({
   },
 }));
 
-vi.mock("fluent-ffmpeg", () => {
-  // ffmpegMockFn default implementation is set here and overridden per-test in beforeEach
-  ffmpegMockFn.mockImplementation(() => createMockFfmpegInstance());
-
-  const mockFfmpeg = Object.assign(ffmpegMockFn, {
-    ffprobe: ffprobeMockFn,
-  });
-
-  return { default: mockFfmpeg };
-});
+vi.mock("node:child_process", () => ({
+  execFile: execFileMockFn,
+}));
 
 vi.mock("fs", () => ({
   promises: {
@@ -137,30 +145,42 @@ describe("InstagramMediaProcessor", { concurrent: false }, () => {
   beforeEach(() => {
     mediaProcessor = new InstagramMediaProcessor("https://test-storage.com");
 
-    // Reset mock implementations to defaults for each test
-    ffprobeMockFn.mockImplementation((url: string, cb: (err: any, data: any) => void) => {
-      if (url.includes("non-existent")) {
-        cb(new Error("File not found"), null);
-        return;
-      }
-      cb(null, {
-        streams: [
-          {
-            codec_type: "video",
-            width: 1080,
-            height: 1920,
-            r_frame_rate: "30/1",
-          },
-        ],
-        format: {
-          duration: "45.5",
-          bit_rate: "2500000",
-          format_name: "mp4,mov",
+    // Reset probe data to defaults for each test
+    probeDataRef.current = {
+      streams: [
+        {
+          codec_type: "video",
+          width: 1080,
+          height: 1920,
+          r_frame_rate: "30/1",
         },
-      });
-    });
+      ],
+      format: {
+        duration: "45.5",
+        bit_rate: "2500000",
+        format_name: "mp4,mov",
+      },
+    };
 
-    ffmpegMockFn.mockImplementation(() => createMockFfmpegInstance());
+    // Reset the execFile mock implementation to default
+    execFileMockFn.mockImplementation(
+      (
+        cmd: string,
+        _args: string[],
+        callback: (error: Error | null, result: { stdout: string; stderr: string }) => void
+      ) => {
+        if (cmd === "ffprobe") {
+          const data = probeDataRef.current;
+          if (data instanceof Error) {
+            callback(data, { stdout: "", stderr: data.message });
+          } else {
+            callback(null, { stdout: JSON.stringify(data), stderr: "" });
+          }
+        } else {
+          callback(null, { stdout: "", stderr: "" });
+        }
+      }
+    );
   });
 
   afterAll(() => {
@@ -187,6 +207,20 @@ describe("InstagramMediaProcessor", { concurrent: false }, () => {
     });
 
     it("should handle FFprobe errors gracefully", async () => {
+      execFileMockFn.mockImplementation(
+        (
+          cmd: string,
+          _args: string[],
+          callback: (error: Error | null, result: { stdout: string; stderr: string }) => void
+        ) => {
+          if (cmd === "ffprobe") {
+            callback(new Error("File not found"), { stdout: "", stderr: "File not found" });
+          } else {
+            callback(null, { stdout: "", stderr: "" });
+          }
+        }
+      );
+
       await assert.rejects(
         async () => mediaProcessor.getVideoMetadata("https://example.com/non-existent-video.mp4"),
         (err: any) => {
@@ -197,12 +231,10 @@ describe("InstagramMediaProcessor", { concurrent: false }, () => {
     });
 
     it("should handle videos without video stream", async () => {
-      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
-        cb(null, {
-          streams: [{ codec_type: "audio" }],
-          format: { duration: "30.0", bit_rate: "128000" },
-        });
-      });
+      probeDataRef.current = {
+        streams: [{ codec_type: "audio" }],
+        format: { duration: "30.0", bit_rate: "128000" },
+      };
 
       await assert.rejects(
         async () => mediaProcessor.getVideoMetadata("https://example.com/audio-only.mp3"),
@@ -224,23 +256,21 @@ describe("InstagramMediaProcessor", { concurrent: false }, () => {
       ];
 
       for (const testCase of testCases) {
-        ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
-          cb(null, {
-            streams: [
-              {
-                codec_type: "video",
-                width: 1080,
-                height: 1920,
-                r_frame_rate: testCase.frameRate,
-              },
-            ],
-            format: {
-              duration: "30.0",
-              bit_rate: "2500000",
-              format_name: "mp4",
+        probeDataRef.current = {
+          streams: [
+            {
+              codec_type: "video",
+              width: 1080,
+              height: 1920,
+              r_frame_rate: testCase.frameRate,
             },
-          });
-        });
+          ],
+          format: {
+            duration: "30.0",
+            bit_rate: "2500000",
+            format_name: "mp4",
+          },
+        };
 
         const result = await mediaProcessor.getVideoMetadata("https://example.com/test.mp4");
         const diff = Math.abs(result.frameRate - testCase.expected);
@@ -269,12 +299,10 @@ describe("InstagramMediaProcessor", { concurrent: false }, () => {
     });
 
     it("should detect duration issues for STORIES", async () => {
-      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
-        cb(null, {
-          streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
-          format: { duration: "120", bit_rate: "2500000", format_name: "mp4" },
-        });
-      });
+      probeDataRef.current = {
+        streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
+        format: { duration: "120", bit_rate: "2500000", format_name: "mp4" },
+      };
 
       const result = await mediaProcessor.validateVideo(
         "https://example.com/long-story.mp4",
@@ -286,12 +314,10 @@ describe("InstagramMediaProcessor", { concurrent: false }, () => {
     });
 
     it("should detect duration issues for REELS", async () => {
-      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
-        cb(null, {
-          streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
-          format: { duration: "120", bit_rate: "2500000", format_name: "mp4" },
-        });
-      });
+      probeDataRef.current = {
+        streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
+        format: { duration: "120", bit_rate: "2500000", format_name: "mp4" },
+      };
 
       const result = await mediaProcessor.validateVideo(
         "https://example.com/long-reel.mp4",
@@ -303,12 +329,10 @@ describe("InstagramMediaProcessor", { concurrent: false }, () => {
     });
 
     it("should pass validation for optimal videos", async () => {
-      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
-        cb(null, {
-          streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
-          format: { duration: "30", bit_rate: "2500000", format_name: "mp4" },
-        });
-      });
+      probeDataRef.current = {
+        streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],
+        format: { duration: "30", bit_rate: "2500000", format_name: "mp4" },
+      };
 
       const result = await mediaProcessor.validateVideo(
         "https://example.com/optimal-video.mp4",
@@ -334,12 +358,10 @@ describe("InstagramMediaProcessor", { concurrent: false }, () => {
     });
 
     it("should optimize videos exceeding 90-second limit", async () => {
-      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
-        cb(null, {
-          streams: [{ codec_type: "video", width: 1920, height: 1080, r_frame_rate: "30/1" }],
-          format: { duration: "150", bit_rate: "2500000", format_name: "mp4" },
-        });
-      });
+      probeDataRef.current = {
+        streams: [{ codec_type: "video", width: 1920, height: 1080, r_frame_rate: "30/1" }],
+        format: { duration: "150", bit_rate: "2500000", format_name: "mp4" },
+      };
 
       const videoUrl = "https://example.com/very-long-video.mp4";
       const optimizedUrl = await mediaProcessor.optimizeForReels(videoUrl);
@@ -348,12 +370,10 @@ describe("InstagramMediaProcessor", { concurrent: false }, () => {
     });
 
     it("should optimize landscape aspect ratio", async () => {
-      ffprobeMockFn.mockImplementation((_url: string, cb: (err: any, data: any) => void) => {
-        cb(null, {
-          streams: [{ codec_type: "video", width: 1920, height: 1080, r_frame_rate: "30/1" }],
-          format: { duration: "30", bit_rate: "2500000", format_name: "mp4" },
-        });
-      });
+      probeDataRef.current = {
+        streams: [{ codec_type: "video", width: 1920, height: 1080, r_frame_rate: "30/1" }],
+        format: { duration: "30", bit_rate: "2500000", format_name: "mp4" },
+      };
 
       const videoUrl = "https://example.com/landscape.mp4";
       const optimizedUrl = await mediaProcessor.optimizeForReels(videoUrl);
