@@ -14,20 +14,20 @@
   "dependencies": {
     "@packages/ui": "workspace:*",
     "@providers/instagram": "workspace:*",
-    "@radix-ui/react-popover": "^1.1.15",
-    "@radix-ui/react-scroll-area": "^1.2.10",
+    "@radix-ui/react-popover": "1.1.15",
+    "@radix-ui/react-scroll-area": "1.2.10",
     "@shared/types": "workspace:*",
     "@tanstack/react-query": "5.90.2",
-    "@types/papaparse": "^5.5.2",
-    "cronstrue": "^3.13.0",
+    "@types/papaparse": "5.5.2",
+    "cronstrue": "3.13.0",
     "date-fns": "4.1.0",
     "lucide-react": "0.544.0",
     "next": "16.1.6",
-    "papaparse": "^5.5.3",
+    "papaparse": "5.5.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "2.15.0",
-    "zustand": "^5.0.11"
+    "zustand": "5.0.11"
   },
   "devDependencies": {
     "@storybook/react": "10.2.13",
@@ -43,7 +43,7 @@
     "@vitejs/plugin-react": "5.1.4",
     "@vitest/coverage-v8": "4.0.18",
     "jsdom": "25.0.1",
-    "typescript": "5.9.2",
+    "typescript": "6.0.2",
     "vite-tsconfig-paths": "6.1.1",
     "vitest": "4.0.18"
   }

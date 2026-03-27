@@ -10,11 +10,11 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "@shared/types": "workspace:*",
-    "@ports/core": "workspace:*",
     "@adapters/external-apis": "workspace:*",
     "@adapters/fallback-strategies": "workspace:*",
     "@observability/logger": "workspace:*",
+    "@ports/core": "workspace:*",
+    "@shared/types": "workspace:*",
     "prom-client": "15.1.3"
   },
   "scripts": {
@@ -23,7 +23,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "5.9.2",
+    "@types/node": "24.5.2",
+    "typescript": "6.0.2",
     "vitest": "4.0.18"
   }
 }

@@ -58,7 +58,7 @@
     "check:circular": "madge --circular --extensions ts,tsx --exclude 'generated|node_modules|dist' apps/api/src/ packages/"
   },
   "devDependencies": {
-    "@ast-grep/cli": "^0.41.0",
+    "@ast-grep/cli": "0.41.0",
     "@eslint/js": "9.36.0",
     "@stryker-mutator/core": "9.6.0",
     "@stryker-mutator/tap-runner": "9.6.0",
@@ -79,17 +79,17 @@
     "fastify-type-provider-zod": "6.1.0",
     "husky": "9.1.7",
     "jq": "1.7.2",
-    "jscpd": "^4.0.8",
-    "knip": "^5.85.0",
+    "jscpd": "4.0.8",
+    "knip": "5.85.0",
     "license-checker": "25.0.1",
     "lint-staged": "16.2.0",
     "loadtest": "8.0.9",
-    "madge": "^8.0.0",
+    "madge": "8.0.0",
     "prettier": "3.6.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tsx": "4.20.5",
-    "turbo": "^2.8.14",
+    "turbo": "2.8.20",
     "zod": "4.3.6"
   },
   "pnpm": {

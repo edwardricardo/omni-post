@@ -10,17 +10,18 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "@shared/types": "workspace:*",
     "@ports/core": "workspace:*",
-    "pino": "10.3.1",
-    "ioredis": "5.7.0"
+    "@shared/types": "workspace:*",
+    "ioredis": "5.7.0",
+    "pino": "10.3.1"
   },
   "scripts": {
     "test": "vitest run",
     "test:unit": "vitest run"
   },
   "devDependencies": {
-    "typescript": "5.9.2",
+    "@types/node": "24.5.2",
+    "typescript": "6.0.2",
     "vitest": "4.0.18"
   }
 }

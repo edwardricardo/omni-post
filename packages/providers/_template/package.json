@@ -10,12 +10,12 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "@shared/types": "workspace:*",
-    "@ports/core": "workspace:*",
     "@adapters/external-apis": "workspace:*",
+    "@ports/core": "workspace:*",
+    "@shared/types": "workspace:*",
     "prom-client": "15.1.3"
   },
   "devDependencies": {
-    "typescript": "5.9.2"
+    "typescript": "6.0.2"
   }
 }

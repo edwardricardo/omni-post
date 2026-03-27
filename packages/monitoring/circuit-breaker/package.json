@@ -19,7 +19,8 @@
     "test:unit": "vitest run"
   },
   "devDependencies": {
-    "typescript": "5.9.2",
+    "@types/node": "24.5.2",
+    "typescript": "6.0.2",
     "vitest": "4.0.18"
   }
 }

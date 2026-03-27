@@ -15,16 +15,17 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@shared/types": "workspace:*",
-    "@ports/core": "workspace:*",
     "@infra/prisma": "workspace:*",
     "@observability/logger": "workspace:*",
+    "@ports/core": "workspace:*",
     "@prisma/client": "7.4.1",
-    "opossum": "9.0.0",
-    "ioredis": "5.7.0"
+    "@shared/types": "workspace:*",
+    "ioredis": "5.7.0",
+    "opossum": "9.0.0"
   },
   "devDependencies": {
-    "typescript": "5.9.2",
-    "vitest": "^3.2.4"
+    "@types/node": "24.5.2",
+    "typescript": "6.0.2",
+    "vitest": "4.0.18"
   }
 }

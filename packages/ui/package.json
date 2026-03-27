@@ -9,12 +9,11 @@
     "./components/*": "./src/components/*"
   },
   "scripts": {
-    "build": "tsc --build",
-    "clean": "tsc --build --clean",
+    "build": "tsc --noEmit",
+    "clean": "rm -rf .tsbuildinfo",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "radix-ui": "1.4.3",
     "@tiptap/core": "3.6.1",
     "@tiptap/extension-character-count": "3.6.1",
     "@tiptap/extension-placeholder": "3.6.1",
@@ -25,14 +24,16 @@
     "clsx": "2.1.1",
     "date-fns": "4.1.0",
     "lucide-react": "0.544.0",
+    "radix-ui": "1.4.3",
     "react": "19.2.4",
     "tailwind-merge": "2.6.0"
   },
   "devDependencies": {
+    "@types/node": "24.5.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "react-dom": "19.2.4",
-    "typescript": "5.9.2"
+    "typescript": "6.0.2"
   },
   "peerDependencies": {
     "react": "19.2.4"
