@@ -22,6 +22,7 @@
     "@adapters/storage-s3": "workspace:*",
     "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
+    "@providers/shared": "workspace:*",
     "@shared/types": "workspace:*",
     "prom-client": "15.1.3"
   },

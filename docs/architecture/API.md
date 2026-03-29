@@ -2,7 +2,7 @@
 
 ## Overview
 
-The API is built with **Fastify 5.6.1** and **TypeScript 5.9.2**, featuring a comprehensive multi-tenant social media management platform with production-ready monitoring, authentication, and provider integrations.
+The API is built with **Fastify 5.8.4** and **TypeScript 6.0.2**, featuring a comprehensive multi-tenant social media management platform with production-ready monitoring, authentication, and provider integrations.
 
 **Base URL**: `http://localhost:3000` (configurable via `PORT` environment variable)
 
@@ -10,10 +10,10 @@ The API is built with **Fastify 5.6.1** and **TypeScript 5.9.2**, featuring a co
 
 ### Technology Stack
 
-- **Framework**: Fastify 5.6.1 with ZodTypeProvider for type safety
+- **Framework**: Fastify 5.8.4 with ZodTypeProvider for type safety
 - **Authentication**: JWT with refresh tokens, MFA (TOTP), RBAC
-- **Database**: PostgreSQL with Prisma 7.4.1 ORM (centralized via `@infra/prisma` with `prisma.config.ts`)
-- **Queue System**: BullMQ 5.58.9 with Redis (ioredis 5.7.0)
+- **Database**: PostgreSQL with Prisma 7.5.0 ORM (centralized via `@infra/prisma` with `prisma.config.ts`)
+- **Queue System**: BullMQ 5.71.1 with Redis (ioredis 5.7.0)
 - **Monitoring**: Prometheus metrics, Pino 10.3.1 structured logging
 - **Circuit Breakers**: Opossum with fallback strategies
 - **Rate Limiting**: Sliding window with tenant isolation
@@ -723,5 +723,5 @@ ws://localhost:3000/admin/dashboard/live
 
 **API Version**: 1.0
 **Last Updated**: March 8, 2026
-**Fastify Version**: 5.6.1
+**Fastify Version**: 5.8.4
 **Total Endpoints**: 85+

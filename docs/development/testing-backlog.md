@@ -1,6 +1,6 @@
 # OmniPost Testing Backlog
 
-Last updated: 2026-03-25
+Last updated: 2026-03-28 (A5 audit remediation)
 
 This document tracks all testing work that is known, planned, or deferred.
 Single source of truth for testing debt.
@@ -53,6 +53,13 @@ Single source of truth for testing debt.
 | **Total exempt**                                 | **~181** |                          |
 
 ---
+
+## Skip/Todo Pattern Audit (A5 — 2026-03-28)
+
+115 total patterns found. 37 CLASS D (conditional, correct). 73 CLASS C (pending features). 5 CLASS B (moved to integration).
+
+- 4 providerRegistry DB tests → moved to `tests/integration/providerRegistry.db.test.ts`
+- 1 SSE webhook test → removed skip, documented as architectural limitation
 
 ## Integration Test .todo() Files
 

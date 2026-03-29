@@ -20,9 +20,7 @@ export default {
     '!src/**/*.test.ts',
     '!src/**/index.ts',
     '!src/**/*.d.ts',
-    // Exclude BullMQ plumbing + direct Prisma workers (need integration tests)
-    '!src/analyticsAggregationWorker.ts',
-    '!src/reportGenerationWorker.ts',
+    // Exclude BullMQ plumbing (needs integration tests)
     '!src/publishWorker.ts',
     '!src/telemetry/**',
   ],

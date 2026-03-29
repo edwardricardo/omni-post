@@ -20,18 +20,76 @@
 - Content creators
 - Agencies managing multiple clients
 
-## Quick Links
+## Documentation Index
 
-| Document                                   | Description                                 |
-| ------------------------------------------ | ------------------------------------------- |
-| [ARCHITECTURE.md](./ARCHITECTURE.md)       | Clean + Hexagonal architecture patterns     |
-| [GETTING_STARTED.md](./GETTING_STARTED.md) | Development environment setup               |
-| [API.md](./API.md)                         | REST API endpoint documentation             |
-| [DATABASE.md](./DATABASE.md)               | Prisma schema and data models               |
-| [PROVIDERS.md](./PROVIDERS.md)             | Social media provider integrations          |
-| [SECURITY.md](./SECURITY.md)               | Authentication, authorization, and security |
-| [DEPLOYMENT.md](./DEPLOYMENT.md)           | Docker and Kubernetes deployment            |
-| [CONTRIBUTING.md](./CONTRIBUTING.md)       | Code standards and contribution guidelines  |
+### Getting Started
+
+| Document                                          | Description                           |
+| ------------------------------------------------- | ------------------------------------- |
+| [Getting Started](development/getting-started.md) | Setup, Docker, environment, first run |
+| [Contributing](development/contributing.md)       | Code standards, git workflow, testing |
+| [Turborepo](development/turborepo.md)             | Build cache, CI integration           |
+
+### Architecture
+
+| Document                                        | Description                                 |
+| ----------------------------------------------- | ------------------------------------------- |
+| [Architecture Overview](architecture/README.md) | Hexagonal, DDD, CQRS, event-driven patterns |
+| [API Reference](architecture/api.md)            | Fastify REST API, endpoints, auth           |
+| [Database](architecture/database.md)            | Prisma schema, migrations, indexes          |
+| [Security](architecture/security.md)            | JWT, MFA, RBAC, audit logging               |
+| [Providers](architecture/providers.md)          | 10 social platform adapters                 |
+| [Testing](architecture/testing.md)              | Vitest, node:test, Playwright strategy      |
+| [Observability](architecture/observability.md)  | OpenTelemetry, Prometheus, Pino logging     |
+| [Client App](architecture/client-app.md)        | Next.js, React 19, TanStack Query           |
+
+### API
+
+| Document                          | Description                             |
+| --------------------------------- | --------------------------------------- |
+| [API Overview](api/README.md)     | Health checks, response format, metrics |
+| [CQRS Guide](api/cqrs.md)         | Commands, queries, bus patterns         |
+| [Saga Orchestration](api/saga.md) | Distributed transactions, UoW, outbox   |
+| [Caching](api/caching.md)         | Redis L1/L2, auto-cache middleware      |
+
+### Apps
+
+| Document                                 | Description                      |
+| ---------------------------------------- | -------------------------------- |
+| [Admin Dashboard](admin/README.md)       | Admin app overview               |
+| [Admin Auth](admin/auth.md)              | Server Actions, httpOnly cookies |
+| [Admin E2E Tests](admin/e2e/README.md)   | Playwright test suite            |
+| [Client App](client/react-19.md)         | React 19 concurrent features     |
+| [Content Editor](client/editor.md)       | TipTap, platform previews        |
+| [Client E2E Tests](client/e2e/README.md) | Playwright test suite            |
+
+### Features
+
+| Document                                                   | Description                       |
+| ---------------------------------------------------------- | --------------------------------- |
+| [Provider Capabilities](features/provider-capabilities.md) | 10-provider matrix                |
+| [Team Workflows](features/team-workflows.md)               | Roles, approvals, notifications   |
+| [Social Inbox](features/social-inbox.md)                   | Message aggregation, replies      |
+| [Analytics](features/analytics.md)                         | Cross-platform metrics, reporting |
+| [Templates](features/templates.md)                         | A/B testing, versioning           |
+
+### Security
+
+| Document                                  | Description                   |
+| ----------------------------------------- | ----------------------------- |
+| [Security Overview](security/overview.md) | JWT, MFA, password, audit     |
+| [Auth Architecture](security/auth.md)     | Cookie auth, dual-app pattern |
+
+### Reports (Historical)
+
+| Directory                       | Content                                  |
+| ------------------------------- | ---------------------------------------- |
+| [Audits](reports/audits/)       | Deep audits, remediation reports         |
+| [Sessions](reports/sessions/)   | Development session reports              |
+| [Mutations](reports/mutations/) | Stryker mutation testing reports         |
+| [Updates](reports/updates/)     | Dependency update session reports        |
+| [Testing](reports/testing/)     | Testing audit and infrastructure reports |
+| [Planning](reports/planning/)   | Master plan, sprint backlogs             |
 
 ## Technology Stack
 
@@ -40,18 +98,18 @@
 | Technology | Version | Purpose          |
 | ---------- | ------- | ---------------- |
 | Node.js    | ES2022  | Runtime          |
-| TypeScript | 5.9.2   | Language         |
-| Fastify    | 5.6.1   | Web framework    |
-| Prisma     | 7.4.1   | Database ORM     |
+| TypeScript | 6.0.2   | Language         |
+| Fastify    | 5.8.4   | Web framework    |
+| Prisma     | 7.5.0   | Database ORM     |
 | PostgreSQL | 16      | Primary database |
 | Redis      | 7       | Caching & queues |
-| BullMQ     | 5.58.9  | Job processing   |
+| BullMQ     | 5.71.1  | Job processing   |
 
 ### Frontend
 
 | Technology   | Version                    | Purpose               |
 | ------------ | -------------------------- | --------------------- |
-| Next.js      | 16.1.6                     | React framework       |
+| Next.js      | 16.2.1                     | React framework       |
 | React        | 19.2.4                     | UI library            |
 | Tailwind CSS | 4.2.1                      | Styling               |
 | Radix UI     | 1.4.3 (unified `radix-ui`) | Component primitives  |
@@ -197,4 +255,4 @@ Proprietary - All rights reserved.
 
 ---
 
-_Last updated: February 2026_
+_Last updated: March 2026_

@@ -10,14 +10,11 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "@adapters/external-apis": "workspace:*",
-    "@adapters/fallback-strategies": "workspace:*",
     "@atproto/api": "0.13.28",
-    "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
+    "@providers/shared": "workspace:*",
     "@shared/types": "workspace:*",
-    "image-size": "2.0.2",
-    "prom-client": "15.1.3"
+    "image-size": "2.0.2"
   },
   "scripts": {
     "test": "vitest run",

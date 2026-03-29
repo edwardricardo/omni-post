@@ -1,6 +1,6 @@
 # Database Schema
 
-OmniPost uses **PostgreSQL 16** with **Prisma 7.4.1** ORM.
+OmniPost uses **PostgreSQL 16** with **Prisma 7.5.0** ORM.
 
 ## Schema Location
 
@@ -429,4 +429,4 @@ Applied migrations (in order):
 
 ---
 
-_Last updated: February 2026_
+_Last updated: March 2026_

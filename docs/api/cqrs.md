@@ -140,9 +140,10 @@ const result = await queryBus.execute({
 Query handlers access optimized read models:
 
 ```typescript
-export class GetPostsByProjectQueryHandler
-  implements QueryHandler<GetPostsByProjectQuery, PostSummary[]>
-{
+export class GetPostsByProjectQueryHandler implements QueryHandler<
+  GetPostsByProjectQuery,
+  PostSummary[]
+> {
   constructor(
     private readModelRepository: ReadModelRepository,
     private cache: IntelligentCache,
