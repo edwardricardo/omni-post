@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type CommandUseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { PostId, type PostRepository } from "../../domain/index.js";
 import { incrementPostDeleted } from "../../metrics/businessMetrics.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for deleting a post
@@ -28,7 +29,10 @@ export interface DeletePostInput {
  * const result = await useCase.execute({ postId: 'post-123' });
  */
 export class DeletePostUseCase implements CommandUseCase<DeletePostInput, UseCaseError> {
-  constructor(private readonly postRepository: PostRepository) {}
+  constructor(
+    private readonly postRepository: PostRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   async execute(input: DeletePostInput): Promise<Result<void, UseCaseError>> {
     // Validate post ID
@@ -63,21 +67,42 @@ export class DeletePostUseCase implements CommandUseCase<DeletePostInput, UseCas
       );
     }
 
-    // Delete the post
-    const deleteResult = await this.postRepository.delete(postIdResult.value);
-    if (!deleteResult.ok) {
+    // Delete the post (atomically via UoW when available)
+    const doDelete = async (): Promise<Result<void, UseCaseError>> => {
+      const deleteResult = await this.postRepository.delete(postIdResult.value);
+      if (!deleteResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to delete post",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            deleteResult.error
+          )
+        );
+      }
+
+      // Business metric: post successfully deleted
+      incrementPostDeleted();
+
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doDelete();
+        });
+        return result;
+      }
+      return await doDelete();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to delete post",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          deleteResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    // Business metric: post successfully deleted
-    incrementPostDeleted();
-
-    return ok(undefined);
   }
 }

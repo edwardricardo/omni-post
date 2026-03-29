@@ -7,13 +7,17 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type BrandVoiceRepository } from "../../domain/repositories/BrandVoiceRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 export interface DeleteBrandVoiceInput {
   accountId: string;
 }
 
 export class DeleteBrandVoiceUseCase implements UseCase<DeleteBrandVoiceInput, void, UseCaseError> {
-  constructor(private readonly repository: BrandVoiceRepository) {}
+  constructor(
+    private readonly repository: BrandVoiceRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -24,7 +28,28 @@ export class DeleteBrandVoiceUseCase implements UseCase<DeleteBrandVoiceInput, v
       return err(new UseCaseError("accountId is required", USE_CASE_ERRORS.VALIDATION_FAILED));
     }
 
-    await this.repository.deleteByAccountId(input.accountId);
-    return ok(undefined);
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      await this.repository.deleteByAccountId(input.accountId);
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
+      return err(
+        new UseCaseError(
+          "Failed to delete brand voice",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
   }
 }

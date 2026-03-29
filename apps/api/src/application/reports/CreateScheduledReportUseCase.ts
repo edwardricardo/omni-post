@@ -8,6 +8,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type ScheduledReportRepository } from "../../domain/repositories/ScheduledReportRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { ScheduledReport } from "../../domain/entities/ScheduledReport.js";
 import { ProjectId } from "../../domain/value-objects/EntityId.js";
 import { type CreateScheduledReportInput, type CreateScheduledReportOutput } from "./types.js";
@@ -17,10 +18,15 @@ import { type CreateScheduledReportInput, type CreateScheduledReportOutput } fro
  * @description Orchestrates scheduled report creation: validates input,
  *   constructs the entity via its factory, and persists it.
  */
-export class CreateScheduledReportUseCase
-  implements UseCase<CreateScheduledReportInput, CreateScheduledReportOutput, UseCaseError>
-{
-  constructor(private readonly reportRepository: ScheduledReportRepository) {}
+export class CreateScheduledReportUseCase implements UseCase<
+  CreateScheduledReportInput,
+  CreateScheduledReportOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly reportRepository: ScheduledReportRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -63,17 +69,38 @@ export class CreateScheduledReportUseCase
 
     const report = reportResult.value;
 
-    const saveResult = await this.reportRepository.save(report);
-    if (!saveResult.ok) {
+    const doWork = async (): Promise<Result<CreateScheduledReportOutput, UseCaseError>> => {
+      const saveResult = await this.reportRepository.save(report);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save scheduled report",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      return ok({ id: report.id.value });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<CreateScheduledReportOutput, UseCaseError> = ok({ id: "" });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
-          "Failed to save scheduled report",
+          "Failed to create scheduled report",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok({ id: report.id.value });
   }
 }

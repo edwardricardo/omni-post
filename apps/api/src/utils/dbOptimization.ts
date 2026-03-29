@@ -6,7 +6,7 @@ export interface QueryAnalysis {
   query: string;
   duration: number;
   timestamp: Date;
-  params?: any[];
+  params?: unknown[];
   stackTrace?: string;
   affectedRows?: number;
 }
@@ -46,7 +46,7 @@ export class DatabaseOptimizer {
   /**
    * Monitor query performance
    */
-  async trackQuery(query: string, duration: number, params?: any[]): Promise<void> {
+  async trackQuery(query: string, duration: number, params?: unknown[]): Promise<void> {
     // Record metrics (use generic metrics)
     // Note: recordDatabaseQuery method doesn't exist, using alternative
     this.metrics.metrics.dbOperations.inc({
@@ -315,7 +315,7 @@ export class DatabaseOptimizer {
   /**
    * Sanitize parameters for logging
    */
-  private sanitizeParams(params?: any[]): any[] {
+  private sanitizeParams(params?: unknown[]): unknown[] {
     if (!params) return [];
 
     return params.map((param) => {
@@ -376,13 +376,20 @@ export class DatabaseOptimizer {
    * Query performance middleware for Prisma
    */
   createPrismaMiddleware() {
-    return async (params: any, next: any) => {
+    return async (
+      params: Record<string, unknown>,
+      next: (params: Record<string, unknown>) => Promise<unknown>
+    ) => {
       const start = Date.now();
       const result = await next(params);
       const duration = Date.now() - start;
 
       // Track the query
-      await this.trackQuery(`${params.model}.${params.action}`, duration, params.args);
+      await this.trackQuery(
+        `${String(params.model)}.${String(params.action)}`,
+        duration,
+        params.args as unknown[] | undefined
+      );
 
       return result;
     };
@@ -424,7 +431,7 @@ export class OptimizedQueries {
   static async getAnalyticsAggregated(postId: string, provider?: string) {
     const where = {
       postId,
-      ...(provider ? { provider: provider as any } : {}),
+      ...(provider ? { provider: provider as unknown as import("@infra/prisma").Provider } : {}),
     };
 
     return prisma.analytics.aggregate({
@@ -452,7 +459,7 @@ export class OptimizedQueries {
     return prisma.publishLog.findMany({
       where: {
         postId,
-        ...(status ? { status: status as any } : {}),
+        ...(status ? { status: status as unknown as import("@infra/prisma").LogStatus } : {}),
       },
       orderBy: { createdAt: "desc" },
       take: 10,

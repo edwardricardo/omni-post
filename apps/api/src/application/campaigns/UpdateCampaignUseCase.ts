@@ -10,6 +10,7 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
 import { CampaignId } from "../../domain/value-objects/EntityId.js";
 import { type UpdateCampaignInput } from "./types.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * @class UpdateCampaignUseCase
@@ -17,7 +18,10 @@ import { type UpdateCampaignInput } from "./types.js";
  *   method, and persists the updated aggregate.
  */
 export class UpdateCampaignUseCase implements UseCase<UpdateCampaignInput, void, UseCaseError> {
-  constructor(private readonly campaignRepository: CampaignRepository) {}
+  constructor(
+    private readonly campaignRepository: CampaignRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -68,18 +72,38 @@ export class UpdateCampaignUseCase implements UseCase<UpdateCampaignInput, void,
       );
     }
 
-    // 4. Persist
-    const saveResult = await this.campaignRepository.save(campaign);
-    if (!saveResult.ok) {
+    // 4. Persist (atomically via UoW when available)
+    const persist = async (): Promise<Result<void, UseCaseError>> => {
+      const saveResult = await this.campaignRepository.save(campaign);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save campaign",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await persist();
+        });
+        return result;
+      }
+      return await persist();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save campaign",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(undefined);
   }
 }

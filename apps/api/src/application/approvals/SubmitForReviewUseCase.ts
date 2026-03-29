@@ -2,15 +2,18 @@
  * @file SubmitForReviewUseCase.ts
  * @description Application use case for submitting a post for content approval review.
  *   Creates a new ApprovalRequestAggregate and persists it.
+ *   Supports optional multi-level workflow assignment.
  * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
+import type { ApprovalWorkflowRepository } from "../../domain/repositories/ApprovalWorkflowRepository.js";
 import { ApprovalRequestAggregate } from "../../domain/aggregates/ApprovalRequestAggregate.js";
 import type { PostRepository } from "../../domain/repositories/PostRepository.js";
 import { PostId } from "../../domain/value-objects/EntityId.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for submitting a post for review
@@ -18,7 +21,9 @@ import { PostId } from "../../domain/value-objects/EntityId.js";
 export interface SubmitForReviewCommand {
   postId: string;
   submitterId: string;
+  accountId?: string;
   comment?: string;
+  workflowId?: string;
 }
 
 /**
@@ -31,18 +36,26 @@ export interface SubmitForReviewResult {
 /**
  * @class SubmitForReviewUseCase
  * @description Creates a new approval request for a post after verifying the post exists.
+ *   If a workflowId is provided, loads the workflow and assigns multi-level metadata.
+ *   If no workflowId but an accountId is given, looks for the account default workflow.
+ *   Falls back to single-level (backward-compatible) when no workflow is found.
  */
-export class SubmitForReviewUseCase
-  implements UseCase<SubmitForReviewCommand, SubmitForReviewResult, UseCaseError>
-{
+export class SubmitForReviewUseCase implements UseCase<
+  SubmitForReviewCommand,
+  SubmitForReviewResult,
+  UseCaseError
+> {
   constructor(
     private readonly approvalRepo: ApprovalRequestRepository,
-    private readonly postRepo: PostRepository
+    private readonly postRepo: PostRepository,
+    private readonly unitOfWork?: UnitOfWork,
+    private readonly workflowRepo?: ApprovalWorkflowRepository
   ) {}
 
   /**
    * @method execute
-   * @description Validates the post exists, creates an ApprovalRequestAggregate, and persists it.
+   * @description Validates the post exists, resolves workflow, creates an
+   *   ApprovalRequestAggregate, and persists it.
    * @param command - The submission parameters
    * @returns Result<SubmitForReviewResult> with the new request ID on success
    */
@@ -66,11 +79,39 @@ export class SubmitForReviewUseCase
       );
     }
 
+    // Resolve workflow for multi-level support
+    let workflowId: string | undefined;
+    let totalLevels = 1;
+
+    if (this.workflowRepo) {
+      if (command.workflowId) {
+        // Explicit workflow requested
+        const wfResult = await this.workflowRepo.findById(command.workflowId);
+        if (wfResult.ok) {
+          const workflow = wfResult.value;
+          if (workflow.isActive) {
+            workflowId = workflow.id;
+            totalLevels = workflow.getLevelCount();
+          }
+        }
+      } else if (command.accountId) {
+        // Look for account default workflow
+        const defaultWf = await this.workflowRepo.findDefaultByAccountId(command.accountId);
+        if (defaultWf && defaultWf.isActive) {
+          workflowId = defaultWf.id;
+          totalLevels = defaultWf.getLevelCount();
+        }
+      }
+    }
+
     // Create the approval request aggregate
     const createResult = ApprovalRequestAggregate.create({
       postId: command.postId,
       submitterId: command.submitterId,
       ...(command.comment !== undefined && { comment: command.comment }),
+      ...(workflowId !== undefined && { workflowId }),
+      currentLevel: 1,
+      totalLevels,
     });
 
     if (!createResult.ok) {
@@ -85,18 +126,41 @@ export class SubmitForReviewUseCase
 
     const aggregate = createResult.value;
 
-    // Persist
-    const saveResult = await this.approvalRepo.save(aggregate);
-    if (!saveResult.ok) {
+    // Persist (atomically via UoW when available)
+    const doWork = async (): Promise<Result<SubmitForReviewResult, UseCaseError>> => {
+      const saveResult = await this.approvalRepo.save(aggregate);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save approval request",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      return ok({ requestId: aggregate.id.value });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<SubmitForReviewResult, UseCaseError> = ok({
+          requestId: aggregate.id.value,
+        });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save approval request",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok({ requestId: aggregate.id.value });
   }
 }

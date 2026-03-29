@@ -10,6 +10,7 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { RecurringPostRepository } from "../../domain/repositories/RecurringPostRepository.js";
 import { RecurringPost, CronExpression } from "../../domain/entities/RecurringPost.js";
 import { RecurringPostId, ProjectId } from "../../domain/value-objects/EntityId.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for updating a recurring post
@@ -47,10 +48,15 @@ export interface UpdateRecurringPostOutput {
  *   Reconstitutes the domain entity, applies updates through domain methods,
  *   and re-persists the result.
  */
-export class UpdateRecurringPostUseCase
-  implements UseCase<UpdateRecurringPostCommand, UpdateRecurringPostOutput, UseCaseError>
-{
-  constructor(private readonly recurringPostRepo: RecurringPostRepository) {}
+export class UpdateRecurringPostUseCase implements UseCase<
+  UpdateRecurringPostCommand,
+  UpdateRecurringPostOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly recurringPostRepo: RecurringPostRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -124,44 +130,71 @@ export class UpdateRecurringPostUseCase
       return err(new UseCaseError(updateResult.error.message, USE_CASE_ERRORS.VALIDATION_FAILED));
     }
 
-    // Re-persist
-    const saveResult = await this.recurringPostRepo.save({
-      id: entity.id.value,
-      projectId: entity.projectId.value,
-      templatePostId: entity.templatePostId,
-      name: entity.name,
-      cronExpression: entity.cronExpression.value,
-      timezone: entity.timezone,
-      startDate: entity.startDate,
-      ...(entity.endDate !== undefined && { endDate: entity.endDate }),
-      ...(entity.maxOccurrences !== undefined && { maxOccurrences: entity.maxOccurrences }),
-      occurrenceCount: entity.occurrenceCount,
-      isActive: entity.isActive,
-      ...(entity.lastScheduledAt !== undefined && { lastScheduledAt: entity.lastScheduledAt }),
-      ...(entity.nextScheduledAt !== undefined && { nextScheduledAt: entity.nextScheduledAt }),
-      channels: entity.channels,
-      contentVariation: entity.contentVariation,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-    });
+    // Re-persist (atomically via UoW when available)
+    const doWork = async (): Promise<Result<UpdateRecurringPostOutput, UseCaseError>> => {
+      const saveResult = await this.recurringPostRepo.save({
+        id: entity.id.value,
+        projectId: entity.projectId.value,
+        templatePostId: entity.templatePostId,
+        name: entity.name,
+        cronExpression: entity.cronExpression.value,
+        timezone: entity.timezone,
+        startDate: entity.startDate,
+        ...(entity.endDate !== undefined && { endDate: entity.endDate }),
+        ...(entity.maxOccurrences !== undefined && { maxOccurrences: entity.maxOccurrences }),
+        occurrenceCount: entity.occurrenceCount,
+        isActive: entity.isActive,
+        ...(entity.lastScheduledAt !== undefined && { lastScheduledAt: entity.lastScheduledAt }),
+        ...(entity.nextScheduledAt !== undefined && { nextScheduledAt: entity.nextScheduledAt }),
+        channels: entity.channels,
+        contentVariation: entity.contentVariation,
+        createdAt: entity.createdAt,
+        updatedAt: entity.updatedAt,
+      });
 
-    if (!saveResult.ok) {
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            saveResult.error.message,
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      const saved = saveResult.value;
+      return ok({
+        id: saved.id,
+        name: saved.name,
+        cronExpression: saved.cronExpression,
+        timezone: saved.timezone,
+        isActive: saved.isActive,
+        occurrenceCount: saved.occurrenceCount,
+        channels: saved.channels,
+        contentVariation: saved.contentVariation,
+        updatedAt: saved.updatedAt.toISOString(),
+      });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<UpdateRecurringPostOutput, UseCaseError> = err(
+          new UseCaseError("Transaction not completed", USE_CASE_ERRORS.INTERNAL_ERROR)
+        );
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
-        new UseCaseError(saveResult.error.message, USE_CASE_ERRORS.INTERNAL_ERROR, saveResult.error)
+        new UseCaseError(
+          "Failed to update recurring post",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
       );
     }
-
-    const saved = saveResult.value;
-    return ok({
-      id: saved.id,
-      name: saved.name,
-      cronExpression: saved.cronExpression,
-      timezone: saved.timezone,
-      isActive: saved.isActive,
-      occurrenceCount: saved.occurrenceCount,
-      channels: saved.channels,
-      contentVariation: saved.contentVariation,
-      updatedAt: saved.updatedAt.toISOString(),
-    });
   }
 }

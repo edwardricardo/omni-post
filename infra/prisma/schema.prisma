@@ -43,6 +43,19 @@ model Account {
   aiPromptTemplates      AIPromptTemplate[]
   usageMetrics           UsageMetric[]
   brandVoice             BrandVoice?
+  brandKit               BrandKit?
+  integrationApiKeys     IntegrationApiKey[]
+  approvalWorkflows      ApprovalWorkflow[]
+  tasks                  Task[]
+  integrationSubscriptions IntegrationSubscription[]
+  samlConfiguration      SamlConfiguration?
+  oidcConfiguration      OidcConfiguration?
+  ssoEnabled             Boolean            @default(false)
+  ssoProvider            SsoProvider        @default(NONE)
+  customReports          CustomReport[]
+  crmConnections         CrmConnection[]
+  crmContacts            CrmContact[]
+  crmActivities          CrmActivity[]
   mediaAssets            MediaAsset[]
   assetFolders           AssetFolder[]
   assetTags              AssetTag[]
@@ -215,6 +228,9 @@ model TeamMember {
   assignedMessages   SocialMessage[]     @relation("MessageAssignee")
   outboundReplies    SocialOutboundReply[]
   resolvedConversations SocialConversation[] @relation("ConversationResolver")
+  conversationNotes     ConversationNote[]   @relation("NoteAuthor")
+  assignedTasks         Task[]               @relation("TaskAssignee")
+  createdTasks          Task[]               @relation("TaskCreator")
 
   @@unique([accountId, email])
   @@index([accountId, isActive])
@@ -285,21 +301,59 @@ enum NotificationType {
   INBOX_MENTION_RECEIVED
 }
 
-model ApprovalRequest {
-  id          String         @id @default(uuid())
-  postId      String
-  submitterId String
-  status      ApprovalStatus @default(PENDING)
-  comment     String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+model ApprovalWorkflow {
+  id          String   @id @default(cuid())
+  accountId   String
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  post      Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
-  submitter TeamMember       @relation("ApprovalSubmitter", fields: [submitterId], references: [id])
+  levels   ApprovalWorkflowLevel[]
+  requests ApprovalRequest[]
+  account  Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, name])
+  @@index([accountId])
+}
+
+model ApprovalWorkflowLevel {
+  id         String  @id @default(cuid())
+  workflowId String
+  order      Int
+  role       String?
+  assigneeId String?
+  requireAll Boolean @default(false)
+  createdAt  DateTime @default(now())
+
+  workflow ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, order])
+  @@index([workflowId])
+}
+
+model ApprovalRequest {
+  id           String         @id @default(uuid())
+  postId       String
+  submitterId  String
+  workflowId   String?
+  currentLevel Int            @default(1)
+  totalLevels  Int            @default(1)
+  status       ApprovalStatus @default(PENDING)
+  comment      String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  submitter TeamMember        @relation("ApprovalSubmitter", fields: [submitterId], references: [id])
+  workflow  ApprovalWorkflow?  @relation(fields: [workflowId], references: [id])
   reviews   ApprovalReview[]
 
   @@index([postId, status])
   @@index([submitterId, createdAt])
+  @@index([workflowId])
 }
 
 model ApprovalReview {
@@ -308,6 +362,7 @@ model ApprovalReview {
   reviewerId String
   decision   ReviewDecision
   comment    String?
+  level      Int            @default(1)
   reviewedAt DateTime       @default(now())
 
   request  ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
@@ -315,6 +370,48 @@ model ApprovalReview {
 
   @@index([requestId])
   @@index([reviewerId])
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  accountId   String
+  projectId   String?
+  title       String
+  description String?      @db.Text
+  status      TaskStatus   @default(OPEN)
+  priority    TaskPriority @default(MEDIUM)
+  assigneeId  String?
+  createdById String
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+  postId      String?
+
+  account   Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project   Project?    @relation(fields: [projectId], references: [id])
+  assignee  TeamMember? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdBy TeamMember  @relation("TaskCreator", fields: [createdById], references: [id])
+
+  @@index([accountId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([createdById])
 }
 
 model PostComment {
@@ -416,6 +513,8 @@ model Project {
   generatedImages        GeneratedImage[]
   recurringPosts         RecurringPost[]
   mediaAssets            MediaAsset[]
+  tasks                  Task[]
+  customReports          CustomReport[]  @relation("CustomReportProject")
 
   @@unique([accountId, name])
   @@index([accountId])
@@ -1949,11 +2048,28 @@ model SocialConversation {
   project    Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   channel    Channel         @relation(fields: [channelId], references: [id])
   messages   SocialMessage[]
+  notes      ConversationNote[]
   resolvedBy TeamMember?     @relation("ConversationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@index([accountId, projectId, isResolved])
   @@index([channelId, provider])
   @@index([lastMessageAt])
+}
+
+model ConversationNote {
+  id             String    @id @default(cuid())
+  conversationId String
+  authorId       String
+  body           String    @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  conversation   SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author         TeamMember         @relation("NoteAuthor", fields: [authorId], references: [id])
+
+  @@index([conversationId])
+  @@index([authorId])
 }
 
 model SocialOutboundReply {
@@ -2152,6 +2268,9 @@ model RecurringPost {
 enum ReportFormat {
   CSV
   JSON
+  PDF
+  XLSX
+  XML
 }
 
 model AIPromptTemplate {
@@ -2203,6 +2322,269 @@ model BrandVoice {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
+}
+
+model BrandKit {
+  id             String   @id @default(cuid())
+  accountId      String   @unique
+  primaryColor   String?
+  secondaryColor String?
+  accentColor    String?
+  logoUrl        String?
+  logoStorageKey String?
+  fontPrimary    String?
+  fontSecondary  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+// ── Integration Platform (Zapier, Make, N8N, etc.) ──────────────────────────
+
+enum IntegrationPlatform {
+  ZAPIER
+  MAKE
+}
+
+model IntegrationApiKey {
+  id         String              @id @default(cuid())
+  accountId  String
+  platform   IntegrationPlatform @default(ZAPIER)
+  keyHash    String              @unique
+  keyPrefix  String
+  label      String?
+  lastUsedAt DateTime?
+  createdAt  DateTime            @default(now())
+  revokedAt  DateTime?
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([platform])
+}
+
+model IntegrationSubscription {
+  id        String              @id @default(cuid())
+  accountId String
+  platform  IntegrationPlatform @default(ZAPIER)
+  event     String
+  targetUrl String
+  active    Boolean             @default(true)
+  createdAt DateTime            @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([event])
+  @@index([platform])
+}
+
+enum SsoProvider {
+  NONE
+  SAML
+  OIDC
+}
+
+// ── SSO / SAML + OIDC ──────────────────────────────────────────────────────
+
+model SamlConfiguration {
+  id               String   @id @default(cuid())
+  accountId        String   @unique
+  entityId         String
+  idpEntityId      String
+  idpSsoUrl        String
+  idpCertificate   String   @db.Text
+  attributeMapping Json
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model SamlSession {
+  id         String   @id @default(cuid())
+  accountId  String
+  relayState String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([relayState])
+  @@index([expiresAt])
+}
+
+model OidcConfiguration {
+  id               String   @id @default(cuid())
+  accountId        String   @unique
+  issuerUrl        String
+  clientId         String
+  clientSecret     String
+  scopes           String[] @default(["openid", "email", "profile"])
+  attributeMapping Json
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+// ── Custom Reports ──────────────────────────────────────────────────────────
+
+enum ReportChartType {
+  LINE
+  BAR
+  AREA
+  PIE
+  TABLE
+}
+
+model CustomReport {
+  id             String          @id @default(cuid())
+  accountId      String
+  projectId      String?
+  name           String
+  description    String?
+  metrics        String[]
+  dimensions     String[]
+  dateRange      String          @default("LAST_30_DAYS")
+  dateRangeStart DateTime?
+  dateRangeEnd   DateTime?
+  chartType      ReportChartType @default(LINE)
+  filters        Json?
+  isShared       Boolean         @default(false)
+  createdById    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  schedules ReportSchedule[]
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project   Project? @relation("CustomReportProject", fields: [projectId], references: [id])
+
+  @@index([accountId])
+  @@index([createdById])
+}
+
+model ReportSchedule {
+  id             String       @id @default(cuid())
+  reportId       String
+  cronExpression String
+  timezone       String       @default("UTC")
+  format         ReportFormat @default(PDF)
+  recipients     String[]
+  isActive       Boolean      @default(true)
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  report CustomReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([nextRunAt])
+}
+
+// ── CRM Integration ─────────────────────────────────────────────────────────
+
+enum CrmPlatform {
+  HUBSPOT
+  SALESFORCE
+}
+
+enum CrmActivityType {
+  POST_PUBLISHED
+  POST_SCHEDULED
+  CAMPAIGN_CREATED
+  CAMPAIGN_COMPLETED
+  APPROVAL_APPROVED
+}
+
+enum SyncStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+model CrmConnection {
+  id             String      @id @default(cuid())
+  accountId      String
+  platform       CrmPlatform
+  isActive       Boolean     @default(true)
+  accessToken    String      @db.Text
+  refreshToken   String?     @db.Text
+  tokenExpiresAt DateTime?
+  portalId       String?
+  instanceUrl    String?
+  sandboxMode    Boolean     @default(false)
+  syncContacts   Boolean     @default(true)
+  syncActivities Boolean     @default(true)
+  lastSyncAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  account  Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  syncLogs CrmSyncLog[]
+
+  @@unique([accountId, platform])
+  @@index([accountId])
+}
+
+model CrmContact {
+  id         String      @id @default(cuid())
+  accountId  String
+  platform   CrmPlatform
+  externalId String
+  email      String
+  firstName  String?
+  lastName   String?
+  company    String?
+  title      String?
+  phone      String?
+  syncedAt   DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, platform, externalId])
+  @@index([accountId])
+  @@index([email])
+}
+
+model CrmActivity {
+  id           String          @id @default(cuid())
+  accountId    String
+  platform     CrmPlatform
+  externalId   String?
+  type         CrmActivityType
+  title        String
+  description  String?         @db.Text
+  occurredAt   DateTime
+  contactEmail String?
+  postId       String?
+  campaignId   String?
+  syncedAt     DateTime?
+  syncError    String?
+  createdAt    DateTime        @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, syncedAt])
+  @@index([contactEmail])
+}
+
+model CrmSyncLog {
+  id               String     @id @default(cuid())
+  connectionId     String
+  startedAt        DateTime   @default(now())
+  completedAt      DateTime?
+  contactsSynced   Int        @default(0)
+  activitiesSynced Int        @default(0)
+  errors           Json?
+  status           SyncStatus @default(RUNNING)
+
+  connection CrmConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
 }
 
 // ── Media Asset Library ─────────────────────────────────────────────────────

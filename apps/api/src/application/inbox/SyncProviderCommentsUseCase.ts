@@ -12,6 +12,7 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
 import { ChannelId } from "../../domain/value-objects/index.js";
 import { type IngestSocialMessageUseCase } from "./IngestSocialMessageUseCase.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 // ---------------------------------------------------------------------------
 // Input / Output DTOs
@@ -47,12 +48,15 @@ export interface SyncProviderCommentsOutput {
  *   NOTE: The provider adapter call is deferred to Step 7. This skeleton validates
  *   the channel and returns a zero-count result.
  */
-export class SyncProviderCommentsUseCase
-  implements UseCase<SyncProviderCommentsInput, SyncProviderCommentsOutput, UseCaseError>
-{
+export class SyncProviderCommentsUseCase implements UseCase<
+  SyncProviderCommentsInput,
+  SyncProviderCommentsOutput,
+  UseCaseError
+> {
   constructor(
     private readonly channelRepository: ChannelRepository,
-    private readonly _ingestUseCase: IngestSocialMessageUseCase
+    private readonly _ingestUseCase: IngestSocialMessageUseCase,
+    private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
@@ -65,49 +69,73 @@ export class SyncProviderCommentsUseCase
   async execute(
     input: SyncProviderCommentsInput
   ): Promise<Result<SyncProviderCommentsOutput, UseCaseError>> {
-    // 1. Validate channel ID
-    const channelIdResult = ChannelId.fromString(input.channelId);
-    if (!channelIdResult.ok) {
+    const doWork = async (): Promise<Result<SyncProviderCommentsOutput, UseCaseError>> => {
+      // 1. Validate channel ID
+      const channelIdResult = ChannelId.fromString(input.channelId);
+      if (!channelIdResult.ok) {
+        return err(
+          new UseCaseError(
+            `Invalid channelId: ${input.channelId}`,
+            USE_CASE_ERRORS.VALIDATION_FAILED,
+            channelIdResult.error
+          )
+        );
+      }
+
+      // 2. Verify channel exists
+      const channelResult = await this.channelRepository.findById(channelIdResult.value);
+      if (!channelResult.ok) {
+        return err(
+          new UseCaseError(
+            `Channel not found: ${input.channelId}`,
+            USE_CASE_ERRORS.NOT_FOUND,
+            channelResult.error
+          )
+        );
+      }
+
+      // TODO: Step 7 — Wire provider adapter integration:
+      //   1. Get provider adapter from ProviderAdapterFactory using channel.provider
+      //   2. Fetch comments via adapter.fetchComments({ since, limit })
+      //   3. For each comment, call this._ingestUseCase.execute() with mapped data
+      //   4. Count synced (isNew=true) vs skipped (isNew=false) from results
+      //
+      // const channel = channelResult.value;
+      // const adapter = ProviderAdapterFactory.create(channel.provider);
+      // const comments = await adapter.fetchComments({ since: input.since, limit: input.limit });
+      // let synced = 0;
+      // let skipped = 0;
+      // for (const comment of comments) {
+      //   const result = await this._ingestUseCase.execute({ ...mappedComment });
+      //   if (result.ok) {
+      //     if (result.value.isNew) synced++; else skipped++;
+      //   }
+      // }
+      // return ok({ synced, skipped });
+
+      return ok({ synced: 0, skipped: 0 });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<SyncProviderCommentsOutput, UseCaseError> = ok({
+          synced: 0,
+          skipped: 0,
+        }) as Result<SyncProviderCommentsOutput, UseCaseError>;
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
-          `Invalid channelId: ${input.channelId}`,
-          USE_CASE_ERRORS.VALIDATION_FAILED,
-          channelIdResult.error
+          "Failed to sync provider comments",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    // 2. Verify channel exists
-    const channelResult = await this.channelRepository.findById(channelIdResult.value);
-    if (!channelResult.ok) {
-      return err(
-        new UseCaseError(
-          `Channel not found: ${input.channelId}`,
-          USE_CASE_ERRORS.NOT_FOUND,
-          channelResult.error
-        )
-      );
-    }
-
-    // TODO: Step 7 — Wire provider adapter integration:
-    //   1. Get provider adapter from ProviderAdapterFactory using channel.provider
-    //   2. Fetch comments via adapter.fetchComments({ since, limit })
-    //   3. For each comment, call this._ingestUseCase.execute() with mapped data
-    //   4. Count synced (isNew=true) vs skipped (isNew=false) from results
-    //
-    // const channel = channelResult.value;
-    // const adapter = ProviderAdapterFactory.create(channel.provider);
-    // const comments = await adapter.fetchComments({ since: input.since, limit: input.limit });
-    // let synced = 0;
-    // let skipped = 0;
-    // for (const comment of comments) {
-    //   const result = await this._ingestUseCase.execute({ ...mappedComment });
-    //   if (result.ok) {
-    //     if (result.value.isNew) synced++; else skipped++;
-    //   }
-    // }
-    // return ok({ synced, skipped });
-
-    return ok({ synced: 0, skipped: 0 });
   }
 }

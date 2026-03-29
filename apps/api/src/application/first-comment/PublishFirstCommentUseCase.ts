@@ -9,6 +9,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { FirstCommentRepository } from "../../domain/repositories/FirstCommentRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Provider adapter interface for posting replies.
@@ -49,10 +50,15 @@ export interface PublishFirstCommentOutput {
  *   Looks up the pending first comment, calls the provider to post the reply,
  *   then updates the status accordingly.
  */
-export class PublishFirstCommentUseCase
-  implements UseCase<PublishFirstCommentCommand, PublishFirstCommentOutput, UseCaseError>
-{
-  constructor(private readonly firstCommentRepo: FirstCommentRepository) {}
+export class PublishFirstCommentUseCase implements UseCase<
+  PublishFirstCommentCommand,
+  PublishFirstCommentOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly firstCommentRepo: FirstCommentRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -63,63 +69,95 @@ export class PublishFirstCommentUseCase
   async execute(
     command: PublishFirstCommentCommand
   ): Promise<Result<PublishFirstCommentOutput, UseCaseError>> {
-    // Fetch the pending first comment
-    const findResult = await this.firstCommentRepo.findByPostId(command.postId);
+    const doWork = async (): Promise<Result<PublishFirstCommentOutput, UseCaseError>> => {
+      // Fetch the pending first comment
+      const findResult = await this.firstCommentRepo.findByPostId(command.postId);
 
-    if (!findResult.ok) {
-      return err(
-        new UseCaseError(findResult.error.message, USE_CASE_ERRORS.INTERNAL_ERROR, findResult.error)
+      if (!findResult.ok) {
+        return err(
+          new UseCaseError(
+            findResult.error.message,
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            findResult.error
+          )
+        );
+      }
+
+      const firstComment = findResult.value;
+      if (!firstComment) {
+        return err(
+          new UseCaseError(
+            `No first comment found for post ${command.postId}`,
+            USE_CASE_ERRORS.NOT_FOUND
+          )
+        );
+      }
+
+      if (firstComment.status === "PUBLISHED") {
+        return err(
+          new UseCaseError(
+            `First comment for post ${command.postId} is already published`,
+            USE_CASE_ERRORS.CONFLICT
+          )
+        );
+      }
+
+      // Call the provider to post the reply
+      const replyResult = await command.provider.postReply(
+        command.platformPostId,
+        firstComment.body
       );
-    }
 
-    const firstComment = findResult.value;
-    if (!firstComment) {
-      return err(
-        new UseCaseError(
-          `No first comment found for post ${command.postId}`,
-          USE_CASE_ERRORS.NOT_FOUND
-        )
-      );
-    }
+      if (!replyResult.ok) {
+        // Update status to FAILED with error message
+        await this.firstCommentRepo.updateStatus(command.postId, "FAILED", {
+          error: replyResult.error.message,
+        });
 
-    if (firstComment.status === "PUBLISHED") {
-      return err(
-        new UseCaseError(
-          `First comment for post ${command.postId} is already published`,
-          USE_CASE_ERRORS.CONFLICT
-        )
-      );
-    }
+        return err(
+          new UseCaseError(
+            `Failed to publish first comment: ${replyResult.error.message}`,
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            replyResult.error
+          )
+        );
+      }
 
-    // Call the provider to post the reply
-    const replyResult = await command.provider.postReply(command.platformPostId, firstComment.body);
+      const providerCommentId = replyResult.value;
 
-    if (!replyResult.ok) {
-      // Update status to FAILED with error message
-      await this.firstCommentRepo.updateStatus(command.postId, "FAILED", {
-        error: replyResult.error.message,
+      // Update status to PUBLISHED
+      await this.firstCommentRepo.updateStatus(command.postId, "PUBLISHED", {
+        providerCommentId,
       });
 
+      return ok({
+        postId: command.postId,
+        providerCommentId,
+        status: "PUBLISHED",
+      });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<PublishFirstCommentOutput, UseCaseError> = ok({
+          postId: "",
+          providerCommentId: "",
+          status: "",
+        }) as Result<PublishFirstCommentOutput, UseCaseError>;
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
-          `Failed to publish first comment: ${replyResult.error.message}`,
+          "Failed to publish first comment",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          replyResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    const providerCommentId = replyResult.value;
-
-    // Update status to PUBLISHED
-    await this.firstCommentRepo.updateStatus(command.postId, "PUBLISHED", {
-      providerCommentId,
-    });
-
-    return ok({
-      postId: command.postId,
-      providerCommentId,
-      status: "PUBLISHED",
-    });
   }
 }

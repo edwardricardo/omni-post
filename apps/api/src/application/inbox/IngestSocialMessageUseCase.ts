@@ -15,6 +15,7 @@ import { SocialMessageAggregate } from "../../domain/aggregates/SocialMessageAgg
 import { SocialMessageType } from "../../domain/value-objects/SocialMessageType.js";
 import { AccountId, ProjectId, ChannelId } from "../../domain/value-objects/index.js";
 import { type ProviderType } from "../../domain/value-objects/Provider.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 // ---------------------------------------------------------------------------
 // Input / Output DTOs
@@ -60,13 +61,16 @@ export interface IngestSocialMessageOutput {
  *   creates the aggregate, links to a conversation thread when applicable, and dispatches
  *   domain events.
  */
-export class IngestSocialMessageUseCase
-  implements UseCase<IngestSocialMessageInput, IngestSocialMessageOutput, UseCaseError>
-{
+export class IngestSocialMessageUseCase implements UseCase<
+  IngestSocialMessageInput,
+  IngestSocialMessageOutput,
+  UseCaseError
+> {
   constructor(
     private readonly socialMessageRepository: SocialMessageRepository,
     private readonly socialConversationRepository: SocialConversationRepository,
-    private readonly eventDispatcher: EventDispatcher
+    private readonly eventDispatcher: EventDispatcher,
+    private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
@@ -166,48 +170,73 @@ export class IngestSocialMessageUseCase
 
     const aggregate = aggregateResult.value;
 
-    // 5. Link to conversation if providerParentId is present
-    if (input.providerParentId !== undefined) {
-      const conversationResult = await this.socialConversationRepository.findOrCreateByRoot(
-        input.provider,
-        input.providerParentId,
-        {
-          accountId: input.accountId,
-          projectId: input.projectId,
-          channelId: input.channelId,
-          lastMessageAt: input.providerCreatedAt,
+    // 5-7. Link conversation + persist + dispatch (atomically via UoW when available)
+    const persistAll = async (): Promise<Result<IngestSocialMessageOutput, UseCaseError>> => {
+      // 5. Link to conversation if providerParentId is present
+      if (input.providerParentId !== undefined) {
+        const conversationResult = await this.socialConversationRepository.findOrCreateByRoot(
+          input.provider,
+          input.providerParentId,
+          {
+            accountId: input.accountId,
+            projectId: input.projectId,
+            channelId: input.channelId,
+            lastMessageAt: input.providerCreatedAt,
+          }
+        );
+
+        if (conversationResult.ok) {
+          const conversation = conversationResult.value;
+          aggregate.setConversationId(conversation.id);
+
+          // Update conversation counters
+          conversation.incrementMessageCount(input.providerCreatedAt);
+          await this.socialConversationRepository.save(conversation);
         }
-      );
-
-      if (conversationResult.ok) {
-        const conversation = conversationResult.value;
-        aggregate.setConversationId(conversation.id);
-
-        // Update conversation counters
-        conversation.incrementMessageCount(input.providerCreatedAt);
-        await this.socialConversationRepository.save(conversation);
       }
-    }
 
-    // 6. Persist aggregate
-    const saveResult = await this.socialMessageRepository.save(aggregate);
-    if (!saveResult.ok) {
+      // 6. Persist aggregate
+      const saveResult = await this.socialMessageRepository.save(aggregate);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save social message",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      // 7. Dispatch domain events
+      const events = aggregate.domainEvents;
+      if (events.length > 0) {
+        await this.eventDispatcher.dispatchAll([...events]);
+        aggregate.clearDomainEvents();
+      }
+
+      return ok({ id: aggregate.id.value, isNew: true });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<IngestSocialMessageOutput, UseCaseError> = ok({
+          id: aggregate.id.value,
+          isNew: true,
+        });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await persistAll();
+        });
+        return result;
+      }
+      return await persistAll();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
-          "Failed to save social message",
+          "Failed to persist social message",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    // 7. Dispatch domain events
-    const events = aggregate.domainEvents;
-    if (events.length > 0) {
-      await this.eventDispatcher.dispatchAll([...events]);
-      aggregate.clearDomainEvents();
-    }
-
-    return ok({ id: aggregate.id.value, isNew: true });
   }
 }

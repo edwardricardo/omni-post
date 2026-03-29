@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
 import { PostCommentAggregate } from "../../domain/aggregates/PostCommentAggregate.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for creating a comment
@@ -33,10 +34,15 @@ export interface CreateCommentOutput {
  * @description Creates a new post comment, persists it via the repository,
  *   and returns the comment ID along with extracted mentions.
  */
-export class CreateCommentUseCase
-  implements UseCase<CreateCommentCommand, CreateCommentOutput, UseCaseError>
-{
-  constructor(private readonly commentRepo: PostCommentRepository) {}
+export class CreateCommentUseCase implements UseCase<
+  CreateCommentCommand,
+  CreateCommentOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly commentRepo: PostCommentRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -65,12 +71,36 @@ export class CreateCommentUseCase
 
     const comment = createResult.value;
 
-    // Persist
-    await this.commentRepo.save(comment);
+    // Persist (atomically via UoW when available)
+    const doWork = async (): Promise<Result<CreateCommentOutput, UseCaseError>> => {
+      await this.commentRepo.save(comment);
 
-    return ok({
-      id: comment.id.value,
-      mentions: [...comment.mentions],
-    });
+      return ok({
+        id: comment.id.value,
+        mentions: [...comment.mentions],
+      });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<CreateCommentOutput, UseCaseError> = ok({
+          id: comment.id.value,
+          mentions: [...comment.mentions],
+        });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
+      return err(
+        new UseCaseError(
+          "Failed to save comment",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
   }
 }

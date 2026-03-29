@@ -10,6 +10,7 @@ import { type CommandUseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.j
 import type { RecurringPostRepository } from "../../domain/repositories/RecurringPostRepository.js";
 import { RecurringPost, CronExpression } from "../../domain/entities/RecurringPost.js";
 import { RecurringPostId, ProjectId } from "../../domain/value-objects/EntityId.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for deactivating a recurring post
@@ -23,10 +24,14 @@ export interface DeactivateRecurringPostCommand {
  * @description Deactivates a recurring post schedule. Loads the entity,
  *   calls the domain deactivation method, and re-persists.
  */
-export class DeactivateRecurringPostUseCase
-  implements CommandUseCase<DeactivateRecurringPostCommand, UseCaseError>
-{
-  constructor(private readonly recurringPostRepo: RecurringPostRepository) {}
+export class DeactivateRecurringPostUseCase implements CommandUseCase<
+  DeactivateRecurringPostCommand,
+  UseCaseError
+> {
+  constructor(
+    private readonly recurringPostRepo: RecurringPostRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -72,33 +77,58 @@ export class DeactivateRecurringPostUseCase
     // Domain deactivation
     entity.deactivate();
 
-    // Re-persist
-    const saveResult = await this.recurringPostRepo.save({
-      id: entity.id.value,
-      projectId: entity.projectId.value,
-      templatePostId: entity.templatePostId,
-      name: entity.name,
-      cronExpression: entity.cronExpression.value,
-      timezone: entity.timezone,
-      startDate: entity.startDate,
-      ...(entity.endDate !== undefined && { endDate: entity.endDate }),
-      ...(entity.maxOccurrences !== undefined && { maxOccurrences: entity.maxOccurrences }),
-      occurrenceCount: entity.occurrenceCount,
-      isActive: entity.isActive,
-      ...(entity.lastScheduledAt !== undefined && { lastScheduledAt: entity.lastScheduledAt }),
-      ...(entity.nextScheduledAt !== undefined && { nextScheduledAt: entity.nextScheduledAt }),
-      channels: entity.channels,
-      contentVariation: entity.contentVariation,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-    });
+    // Re-persist (atomically via UoW when available)
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      const saveResult = await this.recurringPostRepo.save({
+        id: entity.id.value,
+        projectId: entity.projectId.value,
+        templatePostId: entity.templatePostId,
+        name: entity.name,
+        cronExpression: entity.cronExpression.value,
+        timezone: entity.timezone,
+        startDate: entity.startDate,
+        ...(entity.endDate !== undefined && { endDate: entity.endDate }),
+        ...(entity.maxOccurrences !== undefined && { maxOccurrences: entity.maxOccurrences }),
+        occurrenceCount: entity.occurrenceCount,
+        isActive: entity.isActive,
+        ...(entity.lastScheduledAt !== undefined && { lastScheduledAt: entity.lastScheduledAt }),
+        ...(entity.nextScheduledAt !== undefined && { nextScheduledAt: entity.nextScheduledAt }),
+        channels: entity.channels,
+        contentVariation: entity.contentVariation,
+        createdAt: entity.createdAt,
+        updatedAt: entity.updatedAt,
+      });
 
-    if (!saveResult.ok) {
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            saveResult.error.message,
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
-        new UseCaseError(saveResult.error.message, USE_CASE_ERRORS.INTERNAL_ERROR, saveResult.error)
+        new UseCaseError(
+          "Failed to deactivate recurring post",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
       );
     }
-
-    return ok(undefined);
   }
 }

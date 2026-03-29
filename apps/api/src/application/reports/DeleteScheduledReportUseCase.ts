@@ -7,6 +7,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type ScheduledReportRepository } from "../../domain/repositories/ScheduledReportRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { ScheduledReportId } from "../../domain/value-objects/EntityId.js";
 import { type DeleteScheduledReportInput } from "./types.js";
 
@@ -14,10 +15,15 @@ import { type DeleteScheduledReportInput } from "./types.js";
  * @class DeleteScheduledReportUseCase
  * @description Deletes a scheduled report via the repository.
  */
-export class DeleteScheduledReportUseCase
-  implements UseCase<DeleteScheduledReportInput, void, UseCaseError>
-{
-  constructor(private readonly reportRepository: ScheduledReportRepository) {}
+export class DeleteScheduledReportUseCase implements UseCase<
+  DeleteScheduledReportInput,
+  void,
+  UseCaseError
+> {
+  constructor(
+    private readonly reportRepository: ScheduledReportRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -37,17 +43,38 @@ export class DeleteScheduledReportUseCase
       );
     }
 
-    const deleteResult = await this.reportRepository.delete(idResult.value);
-    if (!deleteResult.ok) {
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      const deleteResult = await this.reportRepository.delete(idResult.value);
+      if (!deleteResult.ok) {
+        return err(
+          new UseCaseError(
+            "Scheduled report not found",
+            USE_CASE_ERRORS.NOT_FOUND,
+            deleteResult.error
+          )
+        );
+      }
+
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
-          "Scheduled report not found",
-          USE_CASE_ERRORS.NOT_FOUND,
-          deleteResult.error
+          "Failed to delete scheduled report",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(undefined);
   }
 }

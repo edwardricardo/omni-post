@@ -8,6 +8,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for editing a comment
@@ -24,7 +25,10 @@ export interface EditCommentCommand {
  *   and persists the updated state.
  */
 export class EditCommentUseCase implements UseCase<EditCommentCommand, void, UseCaseError> {
-  constructor(private readonly commentRepo: PostCommentRepository) {}
+  constructor(
+    private readonly commentRepo: PostCommentRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -57,9 +61,29 @@ export class EditCommentUseCase implements UseCase<EditCommentCommand, void, Use
       );
     }
 
-    // Persist updated state
-    await this.commentRepo.save(comment);
+    // Persist updated state (atomically via UoW when available)
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      await this.commentRepo.save(comment);
+      return ok(undefined);
+    };
 
-    return ok(undefined);
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
+      return err(
+        new UseCaseError(
+          "Failed to save comment",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
   }
 }

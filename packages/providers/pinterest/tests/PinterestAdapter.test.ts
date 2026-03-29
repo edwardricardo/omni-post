@@ -772,7 +772,10 @@ describe("PinterestAdapter - GetCredentialsFromEnvironment", { concurrency: 1 },
     delete process.env.PINTEREST_BOARD_ID;
   });
 
-  // Restore env after each test
+  afterEach(() => {
+    process.env = { ..._originalEnv };
+  });
+
   it("returns AUTH error when env vars are placeholders", () => {
     const result = (adapter as any).getCredentialsFromEnvironment();
 

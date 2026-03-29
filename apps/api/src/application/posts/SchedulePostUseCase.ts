@@ -19,6 +19,7 @@ import {
   type EventDispatcher,
   type ChannelRepository,
 } from "../../domain/index.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { incrementPostPublished } from "../../metrics/businessMetrics.js";
 
 /**
@@ -84,13 +85,16 @@ export interface SchedulePostOutput {
  *   console.log(result.value.status); // "SCHEDULED"
  * }
  */
-export class SchedulePostUseCase
-  implements UseCase<SchedulePostInput, SchedulePostOutput, UseCaseError>
-{
+export class SchedulePostUseCase implements UseCase<
+  SchedulePostInput,
+  SchedulePostOutput,
+  UseCaseError
+> {
   constructor(
     private readonly postRepository: PostRepository,
     private readonly eventDispatcher: EventDispatcher,
-    private readonly channelRepository: ChannelRepository
+    private readonly channelRepository: ChannelRepository,
+    private readonly unitOfWork?: UnitOfWork
   ) {}
 
   async execute(input: SchedulePostInput): Promise<Result<SchedulePostOutput, UseCaseError>> {
@@ -169,34 +173,56 @@ export class SchedulePostUseCase
       );
     }
 
-    // 7. Persist the aggregate
-    const saveResult = await this.postRepository.save(post);
-    if (!saveResult.ok) {
+    // 7. Persist the aggregate and dispatch domain events
+    const doWork = async (): Promise<Result<SchedulePostOutput, UseCaseError>> => {
+      const saveResult = await this.postRepository.save(post);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save scheduled post",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      // Dispatch domain events (PostScheduled)
+      const events = post.domainEvents;
+      if (events.length > 0) {
+        await this.eventDispatcher.dispatchAll([...events]);
+        post.clearDomainEvents();
+      }
+
+      // Business metric: post scheduled successfully
+      incrementPostPublished();
+
+      return ok({
+        id: post.id.value,
+        status: post.status.value,
+        scheduledFor: input.scheduledFor,
+        channelIds: input.channelIds,
+      });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<SchedulePostOutput, UseCaseError> = err(
+          new UseCaseError("Transaction did not complete", USE_CASE_ERRORS.INTERNAL_ERROR)
+        );
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save scheduled post",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    // 8. Dispatch domain events (PostScheduled)
-    const events = post.domainEvents;
-    if (events.length > 0) {
-      await this.eventDispatcher.dispatchAll([...events]);
-      post.clearDomainEvents();
-    }
-
-    // 9. Business metric: post scheduled successfully
-    incrementPostPublished();
-
-    // 10. Return output DTO
-    return ok({
-      id: post.id.value,
-      status: post.status.value,
-      scheduledFor: input.scheduledFor,
-      channelIds: input.channelIds,
-    });
   }
 }

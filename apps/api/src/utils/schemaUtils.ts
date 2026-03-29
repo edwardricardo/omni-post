@@ -26,7 +26,7 @@ export function createFastifySchema(schemas: {
  * Legacy function for backwards compatibility
  * No longer needed with fastify-type-provider-zod
  */
-export function toJsonSchema<T extends ZodSchema>(zodSchema: T): any {
+export function toJsonSchema<T extends ZodSchema>(zodSchema: T): T {
   // This function is no longer needed, but kept for backwards compatibility
   // The Fastify Zod type provider handles all conversions automatically
   return zodSchema;

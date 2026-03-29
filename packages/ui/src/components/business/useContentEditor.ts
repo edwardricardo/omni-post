@@ -78,6 +78,8 @@ export interface UseContentEditorReturn {
   handleDragOver: (e: React.DragEvent) => void;
   handleDrop: (e: React.DragEvent) => void;
   triggerMediaUpload: () => void;
+  insertTextAtCursor: (text: string) => void;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
 /**
@@ -121,6 +123,7 @@ export function useContentEditor(options: UseContentEditorOptions): UseContentEd
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounter = useRef(0);
 
   // Get active providers
@@ -427,6 +430,28 @@ export function useContentEditor(options: UseContentEditorOptions): UseContentEd
     // We only want to react to external initialContent changes, not internal state updates.
   }, [initialContent]);
 
+  const insertTextAtCursor = useCallback(
+    (text: string) => {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const newContent = content.substring(0, start) + text + content.substring(end);
+        handleContentChange(newContent);
+        // Restore cursor position after the inserted text
+        requestAnimationFrame(() => {
+          textarea.selectionStart = start + text.length;
+          textarea.selectionEnd = start + text.length;
+          textarea.focus();
+        });
+      } else {
+        // Fallback: append at end
+        handleContentChange(content + text);
+      }
+    },
+    [content, handleContentChange]
+  );
+
   return {
     // State
     content,
@@ -461,5 +486,7 @@ export function useContentEditor(options: UseContentEditorOptions): UseContentEd
     handleDragOver,
     handleDrop,
     triggerMediaUpload,
+    insertTextAtCursor,
+    textareaRef,
   };
 }

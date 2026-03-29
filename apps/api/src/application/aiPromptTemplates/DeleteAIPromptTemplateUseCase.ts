@@ -8,16 +8,22 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { AIPromptTemplateRepository } from "../../domain/repositories/AIPromptTemplateRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { type DeleteAIPromptTemplateInput } from "./types.js";
 
 /**
  * @class DeleteAIPromptTemplateUseCase
  * @description Removes a user-defined template. Rejects deletion of system templates.
  */
-export class DeleteAIPromptTemplateUseCase
-  implements UseCase<DeleteAIPromptTemplateInput, void, UseCaseError>
-{
-  constructor(private readonly repository: AIPromptTemplateRepository) {}
+export class DeleteAIPromptTemplateUseCase implements UseCase<
+  DeleteAIPromptTemplateInput,
+  void,
+  UseCaseError
+> {
+  constructor(
+    private readonly repository: AIPromptTemplateRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -38,8 +44,28 @@ export class DeleteAIPromptTemplateUseCase
       return err(new UseCaseError("You do not own this template", USE_CASE_ERRORS.FORBIDDEN));
     }
 
-    await this.repository.delete(input.templateId);
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      await this.repository.delete(input.templateId);
+      return ok(undefined);
+    };
 
-    return ok(undefined);
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
+      return err(
+        new UseCaseError(
+          "Failed to delete AI prompt template",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
   }
 }

@@ -11,6 +11,7 @@ import { type CampaignRepository } from "../../domain/repositories/CampaignRepos
 import { Campaign } from "../../domain/entities/Campaign.js";
 import { ProjectId } from "../../domain/value-objects/EntityId.js";
 import { type CreateCampaignInput } from "./types.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Output DTO for a successfully created campaign.
@@ -24,10 +25,15 @@ export interface CreateCampaignOutput {
  * @description Orchestrates campaign creation: validates input, constructs the
  *   Campaign entity via its factory method, and persists it through the repository.
  */
-export class CreateCampaignUseCase
-  implements UseCase<CreateCampaignInput, CreateCampaignOutput, UseCaseError>
-{
-  constructor(private readonly campaignRepository: CampaignRepository) {}
+export class CreateCampaignUseCase implements UseCase<
+  CreateCampaignInput,
+  CreateCampaignOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly campaignRepository: CampaignRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -71,18 +77,38 @@ export class CreateCampaignUseCase
 
     const campaign = campaignResult.value;
 
-    // 3. Persist via repository
-    const saveResult = await this.campaignRepository.save(campaign);
-    if (!saveResult.ok) {
+    // 3. Persist via repository (atomically via UoW when available)
+    const persist = async (): Promise<Result<CreateCampaignOutput, UseCaseError>> => {
+      const saveResult = await this.campaignRepository.save(campaign);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save campaign",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+      return ok({ id: campaign.id.value });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<CreateCampaignOutput, UseCaseError> = ok({ id: campaign.id.value });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await persist();
+        });
+        return result;
+      }
+      return await persist();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save campaign",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok({ id: campaign.id.value });
   }
 }

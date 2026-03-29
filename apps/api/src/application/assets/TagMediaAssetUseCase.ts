@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type MediaAssetRepository } from "../../domain/repositories/MediaAssetRepository.js";
 import { type AssetTagRepository } from "../../domain/repositories/AssetTagRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for tagging a media asset.
@@ -27,7 +28,8 @@ export interface TagMediaAssetInput {
 export class TagMediaAssetUseCase implements UseCase<TagMediaAssetInput, void, UseCaseError> {
   constructor(
     private readonly mediaAssetRepository: MediaAssetRepository,
-    private readonly assetTagRepository: AssetTagRepository
+    private readonly assetTagRepository: AssetTagRepository,
+    private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
@@ -37,6 +39,7 @@ export class TagMediaAssetUseCase implements UseCase<TagMediaAssetInput, void, U
    * @returns Result<void> on success, UseCaseError on failure
    */
   async execute(input: TagMediaAssetInput): Promise<Result<void, UseCaseError>> {
+    // 1. Verify asset existence and ownership
     const asset = await this.mediaAssetRepository.findById(input.assetId, input.accountId);
 
     if (!asset) {
@@ -45,6 +48,7 @@ export class TagMediaAssetUseCase implements UseCase<TagMediaAssetInput, void, U
       );
     }
 
+    // 2. Validate all tag IDs belong to the account
     if (input.tagIds.length > 0) {
       const foundTags = await this.assetTagRepository.findByIds(input.tagIds, input.accountId);
       const foundIds = new Set(foundTags.map((t) => t.id));
@@ -60,17 +64,39 @@ export class TagMediaAssetUseCase implements UseCase<TagMediaAssetInput, void, U
       }
     }
 
-    const updateResult = await this.mediaAssetRepository.updateTags(input.assetId, input.tagIds);
-    if (!updateResult.ok) {
+    // 3. Update tags (atomically via UoW when available)
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      const updateResult = await this.mediaAssetRepository.updateTags(input.assetId, input.tagIds);
+      if (!updateResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to update asset tags",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            updateResult.error
+          )
+        );
+      }
+
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to update asset tags",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          updateResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(undefined);
   }
 }

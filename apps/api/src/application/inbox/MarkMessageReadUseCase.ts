@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type SocialMessageRepository } from "../../domain/repositories/SocialMessageRepository.js";
 import { type EventDispatcher } from "../../domain/events/DomainEvent.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { SocialMessageId } from "../../domain/value-objects/SocialMessageId.js";
 
 // ---------------------------------------------------------------------------
@@ -33,7 +34,8 @@ export interface MarkMessageReadInput {
 export class MarkMessageReadUseCase implements UseCase<MarkMessageReadInput, void, UseCaseError> {
   constructor(
     private readonly socialMessageRepository: SocialMessageRepository,
-    private readonly eventDispatcher: EventDispatcher
+    private readonly eventDispatcher: EventDispatcher,
+    private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
@@ -77,21 +79,45 @@ export class MarkMessageReadUseCase implements UseCase<MarkMessageReadInput, voi
       );
     }
 
-    // 4. Persist
-    const saveResult = await this.socialMessageRepository.save(aggregate);
-    if (!saveResult.ok) {
+    // 4. Persist and dispatch events
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      const saveResult = await this.socialMessageRepository.save(aggregate);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save message",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      const events = aggregate.domainEvents;
+      if (events.length > 0) {
+        await this.eventDispatcher.dispatchAll([...events]);
+        aggregate.clearDomainEvents();
+      }
+
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
-        new UseCaseError("Failed to save message", USE_CASE_ERRORS.INTERNAL_ERROR, saveResult.error)
+        new UseCaseError(
+          "Failed to save message",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
       );
     }
-
-    // 5. Dispatch events
-    const events = aggregate.domainEvents;
-    if (events.length > 0) {
-      await this.eventDispatcher.dispatchAll([...events]);
-      aggregate.clearDomainEvents();
-    }
-
-    return ok(undefined);
   }
 }

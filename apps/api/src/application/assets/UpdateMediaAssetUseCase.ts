@@ -8,6 +8,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type MediaAssetRepository } from "../../domain/repositories/MediaAssetRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for updating a media asset.
@@ -33,10 +34,15 @@ export interface UpdateMediaAssetOutput {
  * @description Finds a media asset by id+accountId, applies mutations via entity
  *   methods, and persists changes via the repository.
  */
-export class UpdateMediaAssetUseCase
-  implements UseCase<UpdateMediaAssetInput, UpdateMediaAssetOutput, UseCaseError>
-{
-  constructor(private readonly mediaAssetRepository: MediaAssetRepository) {}
+export class UpdateMediaAssetUseCase implements UseCase<
+  UpdateMediaAssetInput,
+  UpdateMediaAssetOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly mediaAssetRepository: MediaAssetRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -47,12 +53,14 @@ export class UpdateMediaAssetUseCase
   async execute(
     input: UpdateMediaAssetInput
   ): Promise<Result<UpdateMediaAssetOutput, UseCaseError>> {
+    // 1. Find asset and verify ownership
     const asset = await this.mediaAssetRepository.findById(input.id, input.accountId);
 
     if (!asset) {
       return err(new UseCaseError(`Media asset not found: ${input.id}`, USE_CASE_ERRORS.NOT_FOUND));
     }
 
+    // 2. Apply mutations via entity methods
     if (input.name !== undefined) {
       const nameResult = asset.updateName(input.name);
       if (!nameResult.ok) {
@@ -74,20 +82,45 @@ export class UpdateMediaAssetUseCase
       asset.moveTo(input.folderId ?? undefined);
     }
 
-    const saveResult = await this.mediaAssetRepository.save(asset);
-    if (!saveResult.ok) {
+    // 3. Persist via repository (atomically via UoW when available)
+    const doWork = async (): Promise<Result<UpdateMediaAssetOutput, UseCaseError>> => {
+      const saveResult = await this.mediaAssetRepository.save(asset);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save media asset",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      return ok({
+        id: asset.id.value,
+        name: asset.name,
+      });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<UpdateMediaAssetOutput, UseCaseError> = ok({
+          id: asset.id.value,
+          name: asset.name,
+        });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save media asset",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok({
-      id: asset.id.value,
-      name: asset.name,
-    });
   }
 }

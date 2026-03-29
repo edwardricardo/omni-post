@@ -11,6 +11,7 @@ import type { NotificationRepository } from "../../domain/repositories/Notificat
 import type { NotificationPreferenceRepository } from "../../domain/repositories/NotificationRepository.js";
 import { NotificationEntity } from "../../domain/entities/Notification.js";
 import type { NotificationTypeValue } from "../../domain/value-objects/NotificationType.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for creating a notification
@@ -39,12 +40,15 @@ export interface CreateNotificationOutput {
  * @description Creates a new notification after checking recipient preferences.
  *   If the recipient has disabled this notification type, the notification is silently skipped.
  */
-export class CreateNotificationUseCase
-  implements UseCase<CreateNotificationInput, CreateNotificationOutput, UseCaseError>
-{
+export class CreateNotificationUseCase implements UseCase<
+  CreateNotificationInput,
+  CreateNotificationOutput,
+  UseCaseError
+> {
   constructor(
     private readonly notificationRepo: NotificationRepository,
-    private readonly preferenceRepo: NotificationPreferenceRepository
+    private readonly preferenceRepo: NotificationPreferenceRepository,
+    private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
@@ -56,43 +60,67 @@ export class CreateNotificationUseCase
   async execute(
     input: CreateNotificationInput
   ): Promise<Result<CreateNotificationOutput, UseCaseError>> {
-    // Check if recipient has disabled this notification type
-    const preferences = await this.preferenceRepo.findByMember(input.recipientId);
-    const preference = preferences.find((p) => p.type === input.type);
+    const doWork = async (): Promise<Result<CreateNotificationOutput, UseCaseError>> => {
+      // Check if recipient has disabled this notification type
+      const preferences = await this.preferenceRepo.findByMember(input.recipientId);
+      const preference = preferences.find((p) => p.type === input.type);
 
-    if (preference && !preference.enabled) {
-      // Notification type disabled by recipient -- silently skip
-      return ok({ id: "" });
-    }
+      if (preference && !preference.enabled) {
+        // Notification type disabled by recipient -- silently skip
+        return ok({ id: "" });
+      }
 
-    // Create domain entity
-    const createResult = NotificationEntity.create({
-      recipientId: input.recipientId,
-      type: input.type,
-      title: input.title,
-      body: input.body,
-      ...(input.resourceType !== undefined && { resourceType: input.resourceType }),
-      ...(input.resourceId !== undefined && { resourceId: input.resourceId }),
-      ...(input.actorId !== undefined && { actorId: input.actorId }),
-      ...(input.actorName !== undefined && { actorName: input.actorName }),
-      ...(input.metadata !== undefined && { metadata: input.metadata }),
-    });
+      // Create domain entity
+      const createResult = NotificationEntity.create({
+        recipientId: input.recipientId,
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        ...(input.resourceType !== undefined && { resourceType: input.resourceType }),
+        ...(input.resourceId !== undefined && { resourceId: input.resourceId }),
+        ...(input.actorId !== undefined && { actorId: input.actorId }),
+        ...(input.actorName !== undefined && { actorName: input.actorName }),
+        ...(input.metadata !== undefined && { metadata: input.metadata }),
+      });
 
-    if (!createResult.ok) {
+      if (!createResult.ok) {
+        return err(
+          new UseCaseError(
+            createResult.error.message,
+            USE_CASE_ERRORS.VALIDATION_FAILED,
+            createResult.error
+          )
+        );
+      }
+
+      const notification = createResult.value;
+
+      // Persist
+      await this.notificationRepo.save(notification);
+
+      return ok({ id: notification.id.value });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<CreateNotificationOutput, UseCaseError> = ok({ id: "" }) as Result<
+          CreateNotificationOutput,
+          UseCaseError
+        >;
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
-          createResult.error.message,
-          USE_CASE_ERRORS.VALIDATION_FAILED,
-          createResult.error
+          "Failed to create notification",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    const notification = createResult.value;
-
-    // Persist
-    await this.notificationRepo.save(notification);
-
-    return ok({ id: notification.id.value });
   }
 }

@@ -25,3 +25,26 @@ export {
   GetPendingApprovalsQuery,
   type GetPendingApprovalsInput,
 } from "./GetPendingApprovalsQuery.js";
+
+export {
+  CreateApprovalWorkflowUseCase,
+  type CreateApprovalWorkflowCommand,
+  type CreateApprovalWorkflowResult,
+} from "./CreateApprovalWorkflowUseCase.js";
+
+export {
+  UpdateApprovalWorkflowUseCase,
+  type UpdateApprovalWorkflowCommand,
+} from "./UpdateApprovalWorkflowUseCase.js";
+
+export {
+  DeleteApprovalWorkflowUseCase,
+  type DeleteApprovalWorkflowCommand,
+} from "./DeleteApprovalWorkflowUseCase.js";
+
+export {
+  ListApprovalWorkflowsQuery,
+  type ListApprovalWorkflowsInput,
+  type ApprovalWorkflowDTO,
+  type WorkflowLevelDTO,
+} from "./ListApprovalWorkflowsQuery.js";

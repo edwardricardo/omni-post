@@ -8,6 +8,7 @@ import type {
   ContentEditorCoreFeatures,
 } from "./contentEditorTypes";
 import { useContentEditor } from "./useContentEditor";
+import { EmojiPickerButton } from "./EmojiPickerButton";
 
 // Re-export all types and utilities from contentEditorTypes for backward compatibility.
 // Consumers importing from "./ContentEditorCore" will continue to work unchanged.
@@ -148,16 +149,24 @@ export function ContentEditorCore({
 
         {/* Toolbar */}
         {enabledFeatures.toolbar && renderToolbar && (
-          <div className="border-b p-2">
+          <div className="border-b p-2 flex items-center gap-1">
             {renderToolbar({
               onMediaUpload: editor.triggerMediaUpload,
             })}
+            <EmojiPickerButton onEmojiSelect={editor.insertTextAtCursor} />
+          </div>
+        )}
+        {/* Emoji picker when no custom toolbar */}
+        {!renderToolbar && (
+          <div className="border-b p-2 flex items-center">
+            <EmojiPickerButton onEmojiSelect={editor.insertTextAtCursor} />
           </div>
         )}
 
         {/* Content Textarea */}
         <div className="relative p-4">
           <textarea
+            ref={editor.textareaRef}
             value={editor.content}
             onChange={(e) => editor.handleContentChange(e.target.value)}
             placeholder={placeholder}

@@ -11,6 +11,7 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
 import { TeamMemberId } from "../../domain/value-objects/TeamMemberId.js";
 import { TeamRole } from "../../domain/value-objects/TeamRole.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for updating a team member's role
@@ -25,10 +26,15 @@ export interface UpdateTeamMemberRoleInput {
  * @class UpdateTeamMemberRoleUseCase
  * @description Changes a team member's role after validating hierarchy constraints.
  */
-export class UpdateTeamMemberRoleUseCase
-  implements UseCase<UpdateTeamMemberRoleInput, void, UseCaseError>
-{
-  constructor(private readonly repository: TeamMemberRepository) {}
+export class UpdateTeamMemberRoleUseCase implements UseCase<
+  UpdateTeamMemberRoleInput,
+  void,
+  UseCaseError
+> {
+  constructor(
+    private readonly repository: TeamMemberRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -92,18 +98,38 @@ export class UpdateTeamMemberRoleUseCase
       return err(new UseCaseError(updateResult.error.message, USE_CASE_ERRORS.FORBIDDEN));
     }
 
-    // Persist
-    const saveResult = await this.repository.save(memberResult.value);
-    if (!saveResult.ok) {
+    // Persist (atomically via UoW when available)
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      const saveResult = await this.repository.save(memberResult.value);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save updated member",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save updated member",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(undefined);
   }
 }

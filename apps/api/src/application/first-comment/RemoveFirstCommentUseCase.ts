@@ -7,6 +7,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type CommandUseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { FirstCommentRepository } from "../../domain/repositories/FirstCommentRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for removing a first comment
@@ -20,10 +21,14 @@ export interface RemoveFirstCommentCommand {
  * @description Removes the first comment associated with a post.
  *   Returns NOT_FOUND error if no first comment exists for the given post.
  */
-export class RemoveFirstCommentUseCase
-  implements CommandUseCase<RemoveFirstCommentCommand, UseCaseError>
-{
-  constructor(private readonly firstCommentRepo: FirstCommentRepository) {}
+export class RemoveFirstCommentUseCase implements CommandUseCase<
+  RemoveFirstCommentCommand,
+  UseCaseError
+> {
+  constructor(
+    private readonly firstCommentRepo: FirstCommentRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -32,18 +37,39 @@ export class RemoveFirstCommentUseCase
    * @returns Result<void> on success, UseCaseError on failure
    */
   async execute(command: RemoveFirstCommentCommand): Promise<Result<void, UseCaseError>> {
-    const deleteResult = await this.firstCommentRepo.delete(command.postId);
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      const deleteResult = await this.firstCommentRepo.delete(command.postId);
 
-    if (!deleteResult.ok) {
+      if (!deleteResult.ok) {
+        return err(
+          new UseCaseError(
+            `First comment not found for post ${command.postId}`,
+            USE_CASE_ERRORS.NOT_FOUND,
+            deleteResult.error
+          )
+        );
+      }
+
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined) as Result<void, UseCaseError>;
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
-          `First comment not found for post ${command.postId}`,
-          USE_CASE_ERRORS.NOT_FOUND,
-          deleteResult.error
+          "Failed to remove first comment",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(undefined);
   }
 }

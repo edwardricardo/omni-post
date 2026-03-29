@@ -10,6 +10,7 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
 import { TeamMemberEntity } from "../../domain/entities/TeamMember.js";
 import type { TeamRoleValue } from "../../domain/value-objects/TeamRole.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for inviting a team member
@@ -26,10 +27,15 @@ export interface InviteTeamMemberInput {
  * @class InviteTeamMemberUseCase
  * @description Creates a new team member within an account after checking for duplicates.
  */
-export class InviteTeamMemberUseCase
-  implements UseCase<InviteTeamMemberInput, string, UseCaseError>
-{
-  constructor(private readonly repository: TeamMemberRepository) {}
+export class InviteTeamMemberUseCase implements UseCase<
+  InviteTeamMemberInput,
+  string,
+  UseCaseError
+> {
+  constructor(
+    private readonly repository: TeamMemberRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -74,18 +80,38 @@ export class InviteTeamMemberUseCase
 
     const member = createResult.value;
 
-    // Persist
-    const saveResult = await this.repository.save(member);
-    if (!saveResult.ok) {
+    // Persist (atomically via UoW when available)
+    const doWork = async (): Promise<Result<string, UseCaseError>> => {
+      const saveResult = await this.repository.save(member);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save team member",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+      return ok(member.id.value);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<string, UseCaseError> = ok(member.id.value);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save team member",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(member.id.value);
   }
 }

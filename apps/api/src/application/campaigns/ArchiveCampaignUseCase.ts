@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
 import { CampaignId } from "../../domain/value-objects/EntityId.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for archiving a campaign.
@@ -23,7 +24,10 @@ export interface ArchiveCampaignInput {
  *   state machine and persists the change.
  */
 export class ArchiveCampaignUseCase implements UseCase<ArchiveCampaignInput, void, UseCaseError> {
-  constructor(private readonly campaignRepository: CampaignRepository) {}
+  constructor(
+    private readonly campaignRepository: CampaignRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -63,17 +67,38 @@ export class ArchiveCampaignUseCase implements UseCase<ArchiveCampaignInput, voi
       );
     }
 
-    const saveResult = await this.campaignRepository.save(campaign);
-    if (!saveResult.ok) {
+    // Persist (atomically via UoW when available)
+    const persist = async (): Promise<Result<void, UseCaseError>> => {
+      const saveResult = await this.campaignRepository.save(campaign);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save campaign",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await persist();
+        });
+        return result;
+      }
+      return await persist();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save campaign",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(undefined);
   }
 }

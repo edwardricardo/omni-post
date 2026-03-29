@@ -12,6 +12,7 @@ import {
   type ExternalNotificationConfigData,
   type NotificationChannel,
 } from "../../domain/repositories/ExternalNotificationConfigRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { randomUUID } from "node:crypto";
 
 /**
@@ -46,11 +47,15 @@ export interface ExternalNotificationConfigOutput {
  * @class ConfigureExternalNotificationUseCase
  * @description Creates or updates an external notification configuration.
  */
-export class ConfigureExternalNotificationUseCase
-  implements
-    UseCase<ConfigureExternalNotificationInput, ExternalNotificationConfigOutput, UseCaseError>
-{
-  constructor(private readonly repository: ExternalNotificationConfigRepository) {}
+export class ConfigureExternalNotificationUseCase implements UseCase<
+  ConfigureExternalNotificationInput,
+  ExternalNotificationConfigOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly repository: ExternalNotificationConfigRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -71,35 +76,66 @@ export class ConfigureExternalNotificationUseCase
       );
     }
 
-    const now = new Date();
-    const configData: ExternalNotificationConfigData = {
-      id: input.id ?? randomUUID(),
-      projectId: input.projectId,
-      channel: input.channel,
-      webhookUrl: input.webhookUrl,
-      label: input.label,
-      events: input.events,
-      isActive: input.isActive ?? true,
-      createdAt: now,
-      updatedAt: now,
+    const doWork = async (): Promise<Result<ExternalNotificationConfigOutput, UseCaseError>> => {
+      const now = new Date();
+      const configData: ExternalNotificationConfigData = {
+        id: input.id ?? randomUUID(),
+        projectId: input.projectId,
+        channel: input.channel,
+        webhookUrl: input.webhookUrl,
+        label: input.label,
+        events: input.events,
+        isActive: input.isActive ?? true,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      const result = await this.repository.save(configData);
+
+      if (!result.ok) {
+        return err(new UseCaseError(result.error.message, USE_CASE_ERRORS.INTERNAL_ERROR));
+      }
+
+      return ok({
+        id: result.value.id,
+        projectId: result.value.projectId,
+        channel: result.value.channel,
+        webhookUrl: result.value.webhookUrl,
+        label: result.value.label,
+        events: result.value.events,
+        isActive: result.value.isActive,
+        createdAt: result.value.createdAt,
+        updatedAt: result.value.updatedAt,
+      });
     };
 
-    const result = await this.repository.save(configData);
-
-    if (!result.ok) {
-      return err(new UseCaseError(result.error.message, USE_CASE_ERRORS.INTERNAL_ERROR));
+    try {
+      if (this.unitOfWork) {
+        let result: Result<ExternalNotificationConfigOutput, UseCaseError> = ok({
+          id: "",
+          projectId: "",
+          channel: "slack" as NotificationChannel,
+          webhookUrl: "",
+          label: "",
+          events: [],
+          isActive: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }) as Result<ExternalNotificationConfigOutput, UseCaseError>;
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
+      return err(
+        new UseCaseError(
+          "Failed to configure external notification",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
     }
-
-    return ok({
-      id: result.value.id,
-      projectId: result.value.projectId,
-      channel: result.value.channel,
-      webhookUrl: result.value.webhookUrl,
-      label: result.value.label,
-      events: result.value.events,
-      isActive: result.value.isActive,
-      createdAt: result.value.createdAt,
-      updatedAt: result.value.updatedAt,
-    });
   }
 }

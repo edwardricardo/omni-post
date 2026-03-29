@@ -11,6 +11,7 @@ import {
   type AssetFolderRepository,
   type AssetFolderDTO,
 } from "../../domain/repositories/AssetFolderRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for creating an asset folder.
@@ -26,10 +27,15 @@ export interface CreateAssetFolderInput {
  * @description Validates folder name, verifies parent folder ownership if applicable,
  *   and delegates persistence to the repository.
  */
-export class CreateAssetFolderUseCase
-  implements UseCase<CreateAssetFolderInput, AssetFolderDTO, UseCaseError>
-{
-  constructor(private readonly assetFolderRepository: AssetFolderRepository) {}
+export class CreateAssetFolderUseCase implements UseCase<
+  CreateAssetFolderInput,
+  AssetFolderDTO,
+  UseCaseError
+> {
+  constructor(
+    private readonly assetFolderRepository: AssetFolderRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -38,12 +44,14 @@ export class CreateAssetFolderUseCase
    * @returns Result<AssetFolderDTO> on success, UseCaseError on failure
    */
   async execute(input: CreateAssetFolderInput): Promise<Result<AssetFolderDTO, UseCaseError>> {
+    // 1. Validate folder name
     if (!input.name || input.name.trim().length === 0) {
       return err(
         new UseCaseError("Folder name must not be empty", USE_CASE_ERRORS.VALIDATION_FAILED)
       );
     }
 
+    // 2. Verify parent folder ownership if applicable
     if (input.parentId !== undefined) {
       const parent = await this.assetFolderRepository.findById(input.parentId, input.accountId);
       if (!parent) {
@@ -53,22 +61,50 @@ export class CreateAssetFolderUseCase
       }
     }
 
-    const saveResult = await this.assetFolderRepository.save({
-      accountId: input.accountId,
-      name: input.name.trim(),
-      ...(input.parentId !== undefined && { parentId: input.parentId }),
-    });
+    // 3. Persist via repository (atomically via UoW when available)
+    const doWork = async (): Promise<Result<AssetFolderDTO, UseCaseError>> => {
+      const saveResult = await this.assetFolderRepository.save({
+        accountId: input.accountId,
+        name: input.name.trim(),
+        ...(input.parentId !== undefined && { parentId: input.parentId }),
+      });
 
-    if (!saveResult.ok) {
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to create asset folder",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      return ok(saveResult.value);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<AssetFolderDTO, UseCaseError> = ok({
+          id: "",
+          accountId: input.accountId,
+          name: input.name.trim(),
+          parentId: input.parentId ?? null,
+          createdAt: new Date(),
+        });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to create asset folder",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(saveResult.value);
   }
 }

@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
 import { ReviewDecision } from "../../domain/value-objects/ReviewDecision.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for approving a post
@@ -24,7 +25,10 @@ export interface ApprovePostCommand {
  * @description Adds an APPROVED review to an existing approval request.
  */
 export class ApprovePostUseCase implements UseCase<ApprovePostCommand, void, UseCaseError> {
-  constructor(private readonly approvalRepo: ApprovalRequestRepository) {}
+  constructor(
+    private readonly approvalRepo: ApprovalRequestRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -64,18 +68,39 @@ export class ApprovePostUseCase implements UseCase<ApprovePostCommand, void, Use
       );
     }
 
-    // Persist
-    const saveResult = await this.approvalRepo.save(aggregate);
-    if (!saveResult.ok) {
+    // Persist (atomically via UoW when available)
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      const saveResult = await this.approvalRepo.save(aggregate);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save approval request",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save approval request",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(undefined);
   }
 }

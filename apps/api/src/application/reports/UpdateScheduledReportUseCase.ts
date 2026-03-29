@@ -8,6 +8,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type ScheduledReportRepository } from "../../domain/repositories/ScheduledReportRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { ScheduledReportId } from "../../domain/value-objects/EntityId.js";
 import { type UpdateScheduledReportInput } from "./types.js";
 
@@ -15,10 +16,15 @@ import { type UpdateScheduledReportInput } from "./types.js";
  * @class UpdateScheduledReportUseCase
  * @description Loads a scheduled report, applies updates via entity methods, and saves.
  */
-export class UpdateScheduledReportUseCase
-  implements UseCase<UpdateScheduledReportInput, void, UseCaseError>
-{
-  constructor(private readonly reportRepository: ScheduledReportRepository) {}
+export class UpdateScheduledReportUseCase implements UseCase<
+  UpdateScheduledReportInput,
+  void,
+  UseCaseError
+> {
+  constructor(
+    private readonly reportRepository: ScheduledReportRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -61,17 +67,38 @@ export class UpdateScheduledReportUseCase
       }
     }
 
-    const saveResult = await this.reportRepository.save(report);
-    if (!saveResult.ok) {
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      const saveResult = await this.reportRepository.save(report);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save scheduled report",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
-          "Failed to save scheduled report",
+          "Failed to update scheduled report",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(undefined);
   }
 }

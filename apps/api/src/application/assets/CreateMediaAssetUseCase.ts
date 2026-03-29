@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type MediaAssetRepository } from "../../domain/repositories/MediaAssetRepository.js";
 import { MediaAsset } from "../../domain/entities/MediaAsset.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for creating a media asset.
@@ -43,10 +44,15 @@ export interface CreateMediaAssetOutput {
  * @class CreateMediaAssetUseCase
  * @description Creates a new media asset entity and persists it via the repository.
  */
-export class CreateMediaAssetUseCase
-  implements UseCase<CreateMediaAssetInput, CreateMediaAssetOutput, UseCaseError>
-{
-  constructor(private readonly mediaAssetRepository: MediaAssetRepository) {}
+export class CreateMediaAssetUseCase implements UseCase<
+  CreateMediaAssetInput,
+  CreateMediaAssetOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly mediaAssetRepository: MediaAssetRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -57,6 +63,7 @@ export class CreateMediaAssetUseCase
   async execute(
     input: CreateMediaAssetInput
   ): Promise<Result<CreateMediaAssetOutput, UseCaseError>> {
+    // 1. Create MediaAsset entity via domain factory
     const createResult = MediaAsset.create({
       accountId: input.accountId,
       ...(input.projectId !== undefined && { projectId: input.projectId }),
@@ -84,23 +91,51 @@ export class CreateMediaAssetUseCase
 
     const asset = createResult.value;
 
-    const saveResult = await this.mediaAssetRepository.save(asset);
-    if (!saveResult.ok) {
+    // 2. Persist via repository (atomically via UoW when available)
+    const doWork = async (): Promise<Result<CreateMediaAssetOutput, UseCaseError>> => {
+      const saveResult = await this.mediaAssetRepository.save(asset);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save media asset",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      return ok({
+        id: asset.id.value,
+        name: asset.name,
+        url: asset.url,
+        mimeType: asset.mimeType,
+        sizeBytes: asset.sizeBytes,
+      });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<CreateMediaAssetOutput, UseCaseError> = ok({
+          id: asset.id.value,
+          name: asset.name,
+          url: asset.url,
+          mimeType: asset.mimeType,
+          sizeBytes: asset.sizeBytes,
+        });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save media asset",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok({
-      id: asset.id.value,
-      name: asset.name,
-      url: asset.url,
-      mimeType: asset.mimeType,
-      sizeBytes: asset.sizeBytes,
-    });
   }
 }

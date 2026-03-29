@@ -18,6 +18,7 @@ import { type EventDispatcher } from "../../domain/events/DomainEvent.js";
 import { SocialMessageId } from "../../domain/value-objects/SocialMessageId.js";
 import { type ProviderAdapter } from "@ports/core";
 import { type ProviderType } from "../../domain/value-objects/Provider.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Resolves a ProviderAdapter by provider type. Injected via DI.
@@ -62,7 +63,8 @@ export class SendReplyUseCase implements UseCase<SendReplyInput, SendReplyOutput
     private readonly outboundReplyRepository: SocialOutboundReplyRepository,
     private readonly eventDispatcher: EventDispatcher,
     private readonly channelRepository?: ChannelRepository,
-    private readonly providerAdapterResolver?: ProviderAdapterResolver
+    private readonly providerAdapterResolver?: ProviderAdapterResolver,
+    private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
@@ -244,24 +246,51 @@ export class SendReplyUseCase implements UseCase<SendReplyInput, SendReplyOutput
       }
     }
 
-    // 7. Persist aggregate
-    const saveResult = await this.socialMessageRepository.save(aggregate);
-    if (!saveResult.ok) {
+    // 7. Persist aggregate + dispatch events (atomically via UoW when available)
+    const persistAndDispatch = async (): Promise<Result<SendReplyOutput, UseCaseError>> => {
+      const saveResult = await this.socialMessageRepository.save(aggregate);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save message",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      const events = aggregate.domainEvents;
+      if (events.length > 0) {
+        await this.eventDispatcher.dispatchAll([...events]);
+        aggregate.clearDomainEvents();
+      }
+
+      return ok({
+        replyId: reply.id,
+        ...(providerReplyId !== undefined && { providerReplyId }),
+      });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<SendReplyOutput, UseCaseError> = ok({
+          replyId: reply.id,
+          ...(providerReplyId !== undefined && { providerReplyId }),
+        });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await persistAndDispatch();
+        });
+        return result;
+      }
+      return await persistAndDispatch();
+    } catch (error: unknown) {
       return err(
-        new UseCaseError("Failed to save message", USE_CASE_ERRORS.INTERNAL_ERROR, saveResult.error)
+        new UseCaseError(
+          "Failed to persist reply changes",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
       );
     }
-
-    // 8. Dispatch events
-    const events = aggregate.domainEvents;
-    if (events.length > 0) {
-      await this.eventDispatcher.dispatchAll([...events]);
-      aggregate.clearDomainEvents();
-    }
-
-    return ok({
-      replyId: reply.id,
-      ...(providerReplyId !== undefined && { providerReplyId }),
-    });
   }
 }

@@ -18,3 +18,9 @@ export {
 } from "./UpdateTeamMemberRoleUseCase.js";
 
 export { RemoveTeamMemberUseCase, type RemoveTeamMemberInput } from "./RemoveTeamMemberUseCase.js";
+
+export {
+  SearchTeamMembersQuery,
+  type SearchTeamMembersInput,
+  type TeamMemberSearchResult,
+} from "./SearchTeamMembersQuery.js";

@@ -11,6 +11,7 @@ import {
   type BrandVoiceRepository,
   type BrandVoiceData,
 } from "../../domain/repositories/BrandVoiceRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 export interface UpsertBrandVoiceInput {
   accountId: string;
@@ -21,13 +22,18 @@ export interface UpsertBrandVoiceInput {
   isActive?: boolean;
 }
 
-export class UpsertBrandVoiceUseCase
-  implements UseCase<UpsertBrandVoiceInput, BrandVoiceData, UseCaseError>
-{
+export class UpsertBrandVoiceUseCase implements UseCase<
+  UpsertBrandVoiceInput,
+  BrandVoiceData,
+  UseCaseError
+> {
   private static readonly MAX_SYSTEM_PROMPT_LENGTH = 2000;
   private static readonly MAX_NAME_LENGTH = 100;
 
-  constructor(private readonly repository: BrandVoiceRepository) {}
+  constructor(
+    private readonly repository: BrandVoiceRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -39,16 +45,39 @@ export class UpsertBrandVoiceUseCase
       return err(validationError);
     }
 
-    const data = await this.repository.upsert({
-      accountId: input.accountId,
-      name: input.name.trim(),
-      systemPrompt: input.systemPrompt.trim(),
-      tone: input.tone ?? [],
-      examples: input.examples ?? [],
-      isActive: input.isActive ?? true,
-    });
+    const doWork = async (): Promise<Result<BrandVoiceData, UseCaseError>> => {
+      const data = await this.repository.upsert({
+        accountId: input.accountId,
+        name: input.name.trim(),
+        systemPrompt: input.systemPrompt.trim(),
+        tone: input.tone ?? [],
+        examples: input.examples ?? [],
+        isActive: input.isActive ?? true,
+      });
 
-    return ok(data);
+      return ok(data);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<BrandVoiceData, UseCaseError> = err(
+          new UseCaseError("Transaction not executed", USE_CASE_ERRORS.INTERNAL_ERROR)
+        );
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
+      return err(
+        new UseCaseError(
+          "Failed to upsert brand voice",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
   }
 
   private validate(input: UpsertBrandVoiceInput): UseCaseError | null {

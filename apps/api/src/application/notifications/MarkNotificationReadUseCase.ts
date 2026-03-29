@@ -8,6 +8,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { NotificationRepository } from "../../domain/repositories/NotificationRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for marking a single notification as read
@@ -27,10 +28,15 @@ export interface MarkAllNotificationsReadInput {
  * @class MarkNotificationReadUseCase
  * @description Marks a single notification as read by ID.
  */
-export class MarkNotificationReadUseCase
-  implements UseCase<MarkNotificationReadInput, void, UseCaseError>
-{
-  constructor(private readonly repository: NotificationRepository) {}
+export class MarkNotificationReadUseCase implements UseCase<
+  MarkNotificationReadInput,
+  void,
+  UseCaseError
+> {
+  constructor(
+    private readonly repository: NotificationRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -39,19 +45,40 @@ export class MarkNotificationReadUseCase
    * @returns Result<void> on success, NOT_FOUND error if notification does not exist
    */
   async execute(input: MarkNotificationReadInput): Promise<Result<void, UseCaseError>> {
-    const result = await this.repository.markAsRead(input.notificationId);
+    const doWork = async (): Promise<Result<void, UseCaseError>> => {
+      const result = await this.repository.markAsRead(input.notificationId);
 
-    if (!result.ok) {
+      if (!result.ok) {
+        return err(
+          new UseCaseError(
+            `Notification not found: ${input.notificationId}`,
+            USE_CASE_ERRORS.NOT_FOUND,
+            result.error
+          )
+        );
+      }
+
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined) as Result<void, UseCaseError>;
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
-          `Notification not found: ${input.notificationId}`,
-          USE_CASE_ERRORS.NOT_FOUND,
-          result.error
+          "Failed to mark notification as read",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(undefined);
   }
 }
 
@@ -59,9 +86,11 @@ export class MarkNotificationReadUseCase
  * @class MarkAllNotificationsReadUseCase
  * @description Marks all notifications for a recipient as read.
  */
-export class MarkAllNotificationsReadUseCase
-  implements UseCase<MarkAllNotificationsReadInput, { count: number }, UseCaseError>
-{
+export class MarkAllNotificationsReadUseCase implements UseCase<
+  MarkAllNotificationsReadInput,
+  { count: number },
+  UseCaseError
+> {
   constructor(private readonly repository: NotificationRepository) {}
 
   /**

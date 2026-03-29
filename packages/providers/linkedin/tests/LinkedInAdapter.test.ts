@@ -700,10 +700,12 @@ describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
 describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
   let mockGetComments: ReturnType<typeof vi.fn>;
+  let _originalGetComments: typeof adapter.getComments;
 
   beforeEach(() => {
     vi.clearAllMocks();
     adapter = new LinkedInAdapter();
+    _originalGetComments = adapter.getComments.bind(adapter);
 
     mockGetComments = vi.fn(async () => ({
       elements: [
@@ -727,11 +729,16 @@ describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
     }));
   });
 
+  afterEach(() => {
+    if (_originalGetComments) {
+      adapter.getComments = _originalGetComments;
+    }
+  });
+
   it("returns comments list with correct mapping", async () => {
     // We need to mock LinkedInApiClient constructor
     // Since getComments creates its own apiClient via `new LinkedInApiClient(creds)`,
     // we override the method to inject our mock
-    const _originalGetComments = adapter.getComments.bind(adapter);
     adapter.getComments = async (params) => {
       // Temporarily replace LinkedInApiClient behavior
       (adapter as any).createApiClient = () => ({ getComments: mockGetComments });
@@ -819,10 +826,12 @@ describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
 describe("LinkedInAdapter - PostReply", { concurrency: 1 }, () => {
   let adapter: LinkedInAdapter;
   let _mockPostComment: ReturnType<typeof vi.fn>;
+  let _originalPostReply: typeof adapter.postReply;
 
   beforeEach(() => {
     vi.clearAllMocks();
     adapter = new LinkedInAdapter();
+    _originalPostReply = adapter.postReply.bind(adapter);
 
     _mockPostComment = vi.fn(async () => ({
       id: "reply-001",
@@ -859,9 +868,14 @@ describe("LinkedInAdapter - PostReply", { concurrency: 1 }, () => {
     }
   });
 
+  afterEach(() => {
+    if (_originalPostReply) {
+      adapter.postReply = _originalPostReply;
+    }
+  });
+
   it("returns RATE_LIMIT error on 429 status", async () => {
     // Override postReply to simulate the error path
-    const _originalPostReply = adapter.postReply.bind(adapter);
     adapter.postReply = async (params) => {
       const creds = params.channelCredentials as Record<string, string>;
       if (!creds.accessToken || !creds.personUrn) {

@@ -30,6 +30,7 @@ export * from "./components/VirtualScrollList";
 // Business Components
 export * from "./components/business/ContentVersioning";
 export * from "./components/business/ContentEditorCore";
+export { EmojiPickerButton } from "./components/business/EmojiPickerButton";
 export * from "./components/business/TipTapContentEditor";
 export * from "./components/business/ValidationContentEditor";
 

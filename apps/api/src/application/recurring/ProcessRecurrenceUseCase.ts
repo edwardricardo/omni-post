@@ -11,6 +11,7 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { RecurringPostRepository } from "../../domain/repositories/RecurringPostRepository.js";
 import { RecurringPost, CronExpression } from "../../domain/entities/RecurringPost.js";
 import { RecurringPostId, ProjectId } from "../../domain/value-objects/EntityId.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for processing recurrences
@@ -48,10 +49,15 @@ export interface ProcessRecurrenceOutput {
  *   entity, and re-persists the updated state. Returns info needed to create
  *   actual posts from templates (delegated to the caller or a worker).
  */
-export class ProcessRecurrenceUseCase
-  implements UseCase<ProcessRecurrenceCommand, ProcessRecurrenceOutput, UseCaseError>
-{
-  constructor(private readonly recurringPostRepo: RecurringPostRepository) {}
+export class ProcessRecurrenceUseCase implements UseCase<
+  ProcessRecurrenceCommand,
+  ProcessRecurrenceOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly recurringPostRepo: RecurringPostRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -73,77 +79,103 @@ export class ProcessRecurrenceUseCase
     }
 
     const dueRecurrences = findResult.value;
-    const processed: ProcessedRecurrence[] = [];
 
-    for (const data of dueRecurrences) {
-      // Reconstitute domain entity
-      const entity = RecurringPost.fromPersistence({
-        id: RecurringPostId.fromStringUnsafe(data.id),
-        projectId: ProjectId.fromStringUnsafe(data.projectId),
-        templatePostId: data.templatePostId,
-        name: data.name,
-        cronExpression: CronExpression.fromStringUnsafe(data.cronExpression),
-        timezone: data.timezone,
-        startDate: data.startDate,
-        ...(data.endDate !== undefined && { endDate: data.endDate }),
-        ...(data.maxOccurrences !== undefined && { maxOccurrences: data.maxOccurrences }),
-        occurrenceCount: data.occurrenceCount,
-        isActive: data.isActive,
-        ...(data.lastScheduledAt !== undefined && { lastScheduledAt: data.lastScheduledAt }),
-        ...(data.nextScheduledAt !== undefined && { nextScheduledAt: data.nextScheduledAt }),
-        channels: data.channels,
-        contentVariation: data.contentVariation as "EXACT" | "ROTATED" | "AI_GENERATED",
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-      });
+    // Process all due recurrences (atomically via UoW when available)
+    const doWork = async (): Promise<Result<ProcessRecurrenceOutput, UseCaseError>> => {
+      const processed: ProcessedRecurrence[] = [];
 
-      // Record the occurrence through the domain entity
-      entity.recordOccurrence();
+      for (const data of dueRecurrences) {
+        // Reconstitute domain entity
+        const entity = RecurringPost.fromPersistence({
+          id: RecurringPostId.fromStringUnsafe(data.id),
+          projectId: ProjectId.fromStringUnsafe(data.projectId),
+          templatePostId: data.templatePostId,
+          name: data.name,
+          cronExpression: CronExpression.fromStringUnsafe(data.cronExpression),
+          timezone: data.timezone,
+          startDate: data.startDate,
+          ...(data.endDate !== undefined && { endDate: data.endDate }),
+          ...(data.maxOccurrences !== undefined && { maxOccurrences: data.maxOccurrences }),
+          occurrenceCount: data.occurrenceCount,
+          isActive: data.isActive,
+          ...(data.lastScheduledAt !== undefined && { lastScheduledAt: data.lastScheduledAt }),
+          ...(data.nextScheduledAt !== undefined && { nextScheduledAt: data.nextScheduledAt }),
+          channels: data.channels,
+          contentVariation: data.contentVariation as "EXACT" | "ROTATED" | "AI_GENERATED",
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+        });
 
-      // Re-persist the updated entity
-      const saveResult = await this.recurringPostRepo.save({
-        id: entity.id.value,
-        projectId: entity.projectId.value,
-        templatePostId: entity.templatePostId,
-        name: entity.name,
-        cronExpression: entity.cronExpression.value,
-        timezone: entity.timezone,
-        startDate: entity.startDate,
-        ...(entity.endDate !== undefined && { endDate: entity.endDate }),
-        ...(entity.maxOccurrences !== undefined && { maxOccurrences: entity.maxOccurrences }),
-        occurrenceCount: entity.occurrenceCount,
-        isActive: entity.isActive,
-        ...(entity.lastScheduledAt !== undefined && {
-          lastScheduledAt: entity.lastScheduledAt,
-        }),
-        ...(entity.nextScheduledAt !== undefined && {
-          nextScheduledAt: entity.nextScheduledAt,
-        }),
-        channels: entity.channels,
-        contentVariation: entity.contentVariation,
-        createdAt: entity.createdAt,
-        updatedAt: entity.updatedAt,
-      });
+        // Record the occurrence through the domain entity
+        entity.recordOccurrence();
 
-      if (!saveResult.ok) {
-        // Log but continue processing others
-        continue;
+        // Re-persist the updated entity
+        const saveResult = await this.recurringPostRepo.save({
+          id: entity.id.value,
+          projectId: entity.projectId.value,
+          templatePostId: entity.templatePostId,
+          name: entity.name,
+          cronExpression: entity.cronExpression.value,
+          timezone: entity.timezone,
+          startDate: entity.startDate,
+          ...(entity.endDate !== undefined && { endDate: entity.endDate }),
+          ...(entity.maxOccurrences !== undefined && { maxOccurrences: entity.maxOccurrences }),
+          occurrenceCount: entity.occurrenceCount,
+          isActive: entity.isActive,
+          ...(entity.lastScheduledAt !== undefined && {
+            lastScheduledAt: entity.lastScheduledAt,
+          }),
+          ...(entity.nextScheduledAt !== undefined && {
+            nextScheduledAt: entity.nextScheduledAt,
+          }),
+          channels: entity.channels,
+          contentVariation: entity.contentVariation,
+          createdAt: entity.createdAt,
+          updatedAt: entity.updatedAt,
+        });
+
+        if (!saveResult.ok) {
+          // Log but continue processing others
+          continue;
+        }
+
+        processed.push({
+          recurringPostId: entity.id.value,
+          templatePostId: entity.templatePostId,
+          projectId: entity.projectId.value,
+          channels: entity.channels,
+          contentVariation: entity.contentVariation,
+          newOccurrenceCount: entity.occurrenceCount,
+          deactivated: !entity.isActive,
+        });
       }
 
-      processed.push({
-        recurringPostId: entity.id.value,
-        templatePostId: entity.templatePostId,
-        projectId: entity.projectId.value,
-        channels: entity.channels,
-        contentVariation: entity.contentVariation,
-        newOccurrenceCount: entity.occurrenceCount,
-        deactivated: !entity.isActive,
+      return ok({
+        processed,
+        totalProcessed: processed.length,
       });
-    }
+    };
 
-    return ok({
-      processed,
-      totalProcessed: processed.length,
-    });
+    try {
+      if (this.unitOfWork) {
+        let result: Result<ProcessRecurrenceOutput, UseCaseError> = ok({
+          processed: [],
+          totalProcessed: 0,
+        });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
+      return err(
+        new UseCaseError(
+          "Failed to process recurrences",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
   }
 }

@@ -1,27 +1,38 @@
 /**
- * Application Layer - Create Tracked Link Use Case
- *
- * Part of Sprint 19: Link Tracking Feature
- * Handles creation of new tracked links.
+ * @file CreateTrackedLinkUseCase.ts
+ * @description Orchestrates tracked link creation: validates input, checks vanity slug
+ *   availability, constructs the TrackedLink entity, and persists it through the repository.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { TrackedLink, ProjectId, type TrackedLinkRepository } from "../../domain/index.js";
 import { type CreateTrackedLinkInput, type TrackedLinkOutput } from "./types.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
- * Create Tracked Link Use Case
- *
- * Creates a new shortened/tracked URL for analytics.
+ * @class CreateTrackedLinkUseCase
+ * @description Creates a new shortened/tracked URL for analytics.
  */
-export class CreateTrackedLinkUseCase
-  implements UseCase<CreateTrackedLinkInput, TrackedLinkOutput, UseCaseError>
-{
-  constructor(private readonly repository: TrackedLinkRepository) {}
+export class CreateTrackedLinkUseCase implements UseCase<
+  CreateTrackedLinkInput,
+  TrackedLinkOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly repository: TrackedLinkRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
+  /**
+   * @method execute
+   * @description Validates input, creates a TrackedLink entity, and persists it.
+   * @param input - Validated creation parameters
+   * @returns Result<TrackedLinkOutput> on success, UseCaseError on failure
+   */
   async execute(input: CreateTrackedLinkInput): Promise<Result<TrackedLinkOutput, UseCaseError>> {
-    // Validate project ID
+    // 1. Validate project ID
     const projectIdResult = ProjectId.fromString(input.projectId);
     if (!projectIdResult.ok) {
       return err(
@@ -32,7 +43,7 @@ export class CreateTrackedLinkUseCase
       );
     }
 
-    // Check vanity slug availability if provided
+    // 2. Check vanity slug availability if provided
     if (input.vanitySlug) {
       const isAvailable = await this.repository.isShortCodeAvailable(input.vanitySlug);
       if (!isAvailable) {
@@ -45,7 +56,7 @@ export class CreateTrackedLinkUseCase
       }
     }
 
-    // Create the tracked link
+    // 3. Create the tracked link entity
     const createResult = TrackedLink.create({
       projectId: projectIdResult.value,
       originalUrl: input.originalUrl,
@@ -64,28 +75,57 @@ export class CreateTrackedLinkUseCase
 
     const link = createResult.value;
 
-    // Persist the link
-    const saveResult = await this.repository.save(link);
-    if (!saveResult.ok) {
+    // 4. Persist via repository (atomically via UoW when available)
+    const doWork = async (): Promise<Result<TrackedLinkOutput, UseCaseError>> => {
+      const saveResult = await this.repository.save(link);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save tracked link",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      return ok({
+        id: link.id.value,
+        projectId: link.projectId.value,
+        originalUrl: link.originalUrl,
+        shortCode: link.shortCode.value,
+        ...(link.vanitySlug && { vanitySlug: link.vanitySlug }),
+        clicks: link.clicks,
+        isActive: link.isActive,
+        createdAt: link.createdAt,
+      });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<TrackedLinkOutput, UseCaseError> = ok({
+          id: link.id.value,
+          projectId: link.projectId.value,
+          originalUrl: link.originalUrl,
+          shortCode: link.shortCode.value,
+          ...(link.vanitySlug && { vanitySlug: link.vanitySlug }),
+          clicks: link.clicks,
+          isActive: link.isActive,
+          createdAt: link.createdAt,
+        });
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to save tracked link",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    // Return output DTO
-    return ok({
-      id: link.id.value,
-      projectId: link.projectId.value,
-      originalUrl: link.originalUrl,
-      shortCode: link.shortCode.value,
-      ...(link.vanitySlug && { vanitySlug: link.vanitySlug }),
-      clicks: link.clicks,
-      isActive: link.isActive,
-      createdAt: link.createdAt,
-    });
   }
 }

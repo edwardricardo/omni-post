@@ -10,6 +10,7 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
 import { CampaignId } from "../../domain/value-objects/EntityId.js";
 import { type CampaignPostInput } from "./types.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * @class TagPostWithCampaignUseCase
@@ -17,7 +18,10 @@ import { type CampaignPostInput } from "./types.js";
  *   verifies the campaign exists, and persists the association.
  */
 export class TagPostWithCampaignUseCase implements UseCase<CampaignPostInput, void, UseCaseError> {
-  constructor(private readonly campaignRepository: CampaignRepository) {}
+  constructor(
+    private readonly campaignRepository: CampaignRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -51,21 +55,41 @@ export class TagPostWithCampaignUseCase implements UseCase<CampaignPostInput, vo
       );
     }
 
-    // 4. Add post association
-    const addResult = await this.campaignRepository.addPost(
-      campaignIdResult.value,
-      input.postId.trim()
-    );
-    if (!addResult.ok) {
+    // 4. Add post association (atomically via UoW when available)
+    const persist = async (): Promise<Result<void, UseCaseError>> => {
+      const addResult = await this.campaignRepository.addPost(
+        campaignIdResult.value,
+        input.postId.trim()
+      );
+      if (!addResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to tag post with campaign",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            addResult.error
+          )
+        );
+      }
+      return ok(undefined);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<void, UseCaseError> = ok(undefined);
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await persist();
+        });
+        return result;
+      }
+      return await persist();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
           "Failed to tag post with campaign",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          addResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok(undefined);
   }
 }

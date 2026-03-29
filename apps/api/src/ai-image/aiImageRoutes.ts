@@ -148,14 +148,20 @@ export const aiImageRoutes: FastifyPluginAsync = async (app) => {
   // Generate an AI image from a prompt
   app.post(
     "/api/ai/generate-image",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["AI Images"], summary: "Generate AI image from prompt" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.generateImage(request, reply)
   );
 
   // List generated images for a project
   app.get(
     "/api/ai/generated-images",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["AI Images"], summary: "List generated images" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.listGeneratedImages(request, reply)
   );
 };

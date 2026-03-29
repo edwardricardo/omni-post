@@ -68,3 +68,25 @@ export {
   GetUnreadInboxCountQuery,
   type GetUnreadInboxCountInput,
 } from "./GetUnreadInboxCountQuery.js";
+
+// ── Conversation Notes ──────────────────────────────────────────────────
+
+// AddConversationNote
+export {
+  AddConversationNoteUseCase,
+  type AddConversationNoteInput,
+  type AddConversationNoteOutput,
+} from "./AddConversationNoteUseCase.js";
+
+// DeleteConversationNote
+export {
+  DeleteConversationNoteUseCase,
+  type DeleteConversationNoteInput,
+} from "./DeleteConversationNoteUseCase.js";
+
+// ListConversationNotes
+export {
+  ListConversationNotesQuery,
+  type ListConversationNotesInput,
+  type ConversationNoteDTO,
+} from "./ListConversationNotesQuery.js";
