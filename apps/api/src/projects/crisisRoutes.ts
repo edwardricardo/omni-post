@@ -14,6 +14,7 @@ import { TOKENS } from "../infrastructure/container/types.js";
 import type { EnterCrisisModeUseCase } from "../application/crisis/EnterCrisisModeUseCase.js";
 import type { ExitCrisisModeUseCase } from "../application/crisis/ExitCrisisModeUseCase.js";
 import type { GetCrisisStatusUseCase } from "../application/crisis/GetCrisisStatusUseCase.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 
 // Zod Schemas
 const ProjectParamsSchema = z.object({
@@ -151,7 +152,28 @@ export const crisisRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   // Crisis mode endpoints
-  fastify.post("/projects/:projectId/crisis", handler.enterCrisisMode.bind(handler));
-  fastify.delete("/projects/:projectId/crisis", handler.exitCrisisMode.bind(handler));
-  fastify.get("/projects/:projectId/crisis", handler.getCrisisStatus.bind(handler));
+  fastify.post(
+    "/projects/:projectId/crisis",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Crisis"], summary: "Enter crisis mode for a project" },
+    },
+    handler.enterCrisisMode.bind(handler)
+  );
+  fastify.delete(
+    "/projects/:projectId/crisis",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Crisis"], summary: "Exit crisis mode for a project" },
+    },
+    handler.exitCrisisMode.bind(handler)
+  );
+  fastify.get(
+    "/projects/:projectId/crisis",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Crisis"], summary: "Get crisis status for a project" },
+    },
+    handler.getCrisisStatus.bind(handler)
+  );
 };

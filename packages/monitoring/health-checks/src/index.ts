@@ -58,7 +58,7 @@ export class HealthCheckManager {
   private results = new Map<string, DependencyHealth>();
   private alerts: HealthAlert[] = [];
   private isRunning = false;
-  private intervalId?: NodeJS.Timeout;
+  private intervalId: NodeJS.Timeout | undefined = undefined;
 
   constructor(
     private globalConfig: HealthCheckConfig = {
@@ -119,7 +119,7 @@ export class HealthCheckManager {
 
     try {
       const result = await this.executeHealthCheck(name, entry.checker, entry.config);
-      timer({ check_type: "individual", dependency: name, status: result.status });
+      timer({ status: result.status });
 
       // Update metrics
       dependencyStatus.set(
@@ -129,9 +129,9 @@ export class HealthCheckManager {
 
       this.results.set(name, result);
       return ok(result);
-    } catch (error: any) {
-      timer({ check_type: "individual", dependency: name, status: "error" });
-      logger.error(`Health check failed for ${name}:`, error);
+    } catch (error: unknown) {
+      timer({ status: "error" });
+      logger.error({ err: error }, `Health check failed for ${name}`);
       return err("CHECK_FAILED");
     }
   }
@@ -159,15 +159,16 @@ export class HealthCheckManager {
         );
 
         return result;
-      } catch (error: any) {
-        logger.error(`Health check failed for ${name}:`, error);
+      } catch (error: unknown) {
+        logger.error({ err: error }, `Health check failed for ${name}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         const failedResult: DependencyHealth = {
           name,
           type: entry.config.type,
           status: "unhealthy",
           latency: -1,
-          message: `Health check failed: ${error.message}`,
-          details: { error: error.message },
+          message: `Health check failed: ${errorMessage}`,
+          details: { error: errorMessage },
           lastChecked: new Date(),
           critical: entry.config.critical,
         };
@@ -203,7 +204,7 @@ export class HealthCheckManager {
       alerts: this.getActiveAlerts(),
     };
 
-    timer({ check_type: "all", dependency: "system", status: overall });
+    timer({ status: overall });
     logger.info(
       `System health check completed in ${duration}ms: ${overall} (score: ${score.toFixed(2)})`
     );
@@ -244,7 +245,7 @@ export class HealthCheckManager {
     this.isRunning = false;
     if (this.intervalId) {
       clearInterval(this.intervalId);
-      delete (this as any).intervalId;
+      this.intervalId = undefined;
     }
 
     logger.info("Health check manager stopped");
@@ -337,8 +338,8 @@ export class HealthCheckManager {
           lastChecked: new Date(),
           critical: config.critical,
         };
-      } catch (error: any) {
-        lastError = error;
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
         if (attempt < config.retries) {
           await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
         }
@@ -484,7 +485,17 @@ let globalHealthManager: HealthCheckManager | null = null;
 
 export function createHealthCheckManager(config?: Partial<HealthCheckConfig>): HealthCheckManager {
   if (!globalHealthManager) {
-    globalHealthManager = new HealthCheckManager(config as HealthCheckConfig);
+    const fullConfig: HealthCheckConfig = {
+      timeout: config?.timeout ?? 5000,
+      interval: config?.interval ?? 30000,
+      retries: config?.retries ?? 3,
+      alertThresholds: {
+        degradedLatency: config?.alertThresholds?.degradedLatency ?? 1000,
+        unhealthyLatency: config?.alertThresholds?.unhealthyLatency ?? 5000,
+        criticalFailureCount: config?.alertThresholds?.criticalFailureCount ?? 3,
+      },
+    };
+    globalHealthManager = new HealthCheckManager(fullConfig);
   }
   return globalHealthManager;
 }

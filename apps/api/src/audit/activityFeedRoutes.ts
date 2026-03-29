@@ -75,7 +75,10 @@ export const activityFeedRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     "/activity-feed",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Audit"], summary: "Get activity feed" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getFeed(request, reply)
   );
 };

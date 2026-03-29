@@ -65,7 +65,7 @@ export class FacebookCommunityApi {
 
     const data = await response.json();
 
-    const comments = (data.data || []).map((comment: any) => ({
+    const comments = (data.data || []).map((comment) => ({
       id: comment.id,
       message: comment.message || "",
       from: {
@@ -120,7 +120,7 @@ export class FacebookCommunityApi {
 
     const data = await response.json();
 
-    return (data.data || []).map((reply: any) => ({
+    return (data.data || []).map((reply) => ({
       id: reply.id,
       message: reply.message || "",
       from: {
@@ -318,9 +318,9 @@ export class FacebookCommunityApi {
 
     const data = await response.json();
 
-    const conversations = (data.data || []).map((conv: any) => ({
+    const conversations = (data.data || []).map((conv) => ({
       id: conv.id,
-      participants: conv.participants.data.map((p: any) => ({
+      participants: conv.participants.data.map((p) => ({
         id: p.id,
         name: p.name,
         email: p.email,
@@ -383,7 +383,7 @@ export class FacebookCommunityApi {
 
     const data = await response.json();
 
-    const messages = (data.data || []).map((msg: any) => ({
+    const messages = (data.data || []).map((msg) => ({
       id: msg.id,
       message: msg.message,
       from: {
@@ -422,17 +422,14 @@ export class FacebookCommunityApi {
       template?: Record<string, unknown>;
     }
   ): Promise<FacebookMessage> {
-    const messageData: Record<string, unknown> = {
-      recipient: { id: recipientId },
-      message: {},
-    };
+    const message: Record<string, unknown> = {};
 
     if (content.text) {
-      messageData.message.text = content.text;
+      message.text = content.text;
     }
 
     if (content.attachmentUrl) {
-      messageData.message.attachment = {
+      message.attachment = {
         type: "image", // Determine type from URL
         payload: {
           url: content.attachmentUrl,
@@ -442,15 +439,20 @@ export class FacebookCommunityApi {
     }
 
     if (content.quickReplies?.length) {
-      messageData.message.quick_replies = content.quickReplies;
+      message.quick_replies = content.quickReplies;
     }
 
     if (content.template) {
-      messageData.message.attachment = {
+      message.attachment = {
         type: "template",
         payload: content.template,
       };
     }
+
+    const messageData: Record<string, unknown> = {
+      recipient: { id: recipientId },
+      message,
+    };
 
     const response = await this.apiClient.makeApiRequest(
       `/${this.apiClient.credentials.pageId}/messages`,
@@ -609,7 +611,7 @@ export class FacebookCommunityApi {
 
     const data = await response.json();
 
-    return (data.data || []).map((roleData: any) => ({
+    return (data.data || []).map((roleData) => ({
       userId: roleData.user.id,
       name: roleData.user.name,
       role: roleData.role,

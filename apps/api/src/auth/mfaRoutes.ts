@@ -393,54 +393,74 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
   // ✅ Get MFA status for current user
   fastify.get(
     "/auth/mfa/status",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["MFA"], summary: "Get MFA status for current user" },
+    },
     async (request, reply) => handler.getMfaStatus(request, reply)
   );
 
   // ✅ Setup MFA for current user
   fastify.post(
     "/auth/mfa/setup",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["MFA"], summary: "Setup MFA for current user" },
+    },
     async (request, reply) => handler.setupMfa(request, reply)
   );
 
   // ✅ Verify MFA setup
   fastify.post(
     "/auth/mfa/verify-setup",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["MFA"], summary: "Verify MFA setup" },
+    },
     async (request, reply) => handler.verifyMfaSetup(request, reply)
   );
 
   // ✅ Verify MFA token (used during login flow)
-  fastify.post("/auth/mfa/verify", async (request, reply) =>
-    handler.verifyMfaToken(request, reply)
+  fastify.post(
+    "/auth/mfa/verify",
+    { schema: { tags: ["MFA"], summary: "Verify MFA token during login" } },
+    async (request, reply) => handler.verifyMfaToken(request, reply)
   );
 
   // ✅ Disable MFA
   fastify.post(
     "/auth/mfa/disable",
-    { preHandler: [authenticateMiddleware] },
+    { preHandler: [authenticateMiddleware], schema: { tags: ["MFA"], summary: "Disable MFA" } },
     async (request, reply) => handler.disableMfa(request, reply)
   );
 
   // ✅ Regenerate backup codes
   fastify.post(
     "/auth/mfa/regenerate-backup-codes",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["MFA"], summary: "Regenerate backup codes" },
+    },
     async (request, reply) => handler.regenerateBackupCodes(request, reply)
   );
 
   // ✅ Admin: Get MFA status for any user
   fastify.get(
     "/admin/users/:userId/mfa/status",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireAdmin],
+      schema: { tags: ["MFA"], summary: "Admin: Get MFA status for a user" },
+    },
     async (request, reply) => handler.getAdminMfaStatus(request, reply)
   );
 
   // ✅ Admin: Force disable MFA for a user (emergency use)
   fastify.post(
     "/admin/users/:userId/mfa/force-disable",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireAdmin],
+      schema: { tags: ["MFA"], summary: "Admin: Force disable MFA for a user" },
+    },
     async (request, reply) => handler.adminForceDisableMfa(request, reply)
   );
 };

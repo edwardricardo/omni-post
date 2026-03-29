@@ -13,7 +13,7 @@ export interface HealthCheckResult {
   status: HealthStatus;
   latency: number;
   message?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   error?: string;
 }
 
@@ -23,7 +23,7 @@ export interface DependencyHealth {
   status: HealthStatus;
   latency: number;
   message: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   lastChecked: Date;
   critical: boolean;
 }

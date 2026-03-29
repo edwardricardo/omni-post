@@ -9,7 +9,7 @@ export interface AuditableRequest extends FastifyRequest {
     action?: string;
     resource?: string;
     resourceId?: string;
-    details?: any;
+    details?: Record<string, unknown>;
     success?: boolean;
     error?: string;
   };
@@ -37,7 +37,9 @@ export async function auditMiddleware(request: AuditableRequest, reply: FastifyR
   const originalEnd = reply.send;
   reply.send = function (payload) {
     try {
-      const user = (request as any).user;
+      const user = (request as unknown as Record<string, unknown>).user as
+        | { id?: string }
+        | undefined;
       const auditInfo = request.auditLog || {};
 
       // Determine action based on method and route if not explicitly set
@@ -163,7 +165,7 @@ export function setAuditInfo(
     action?: string;
     resource?: string;
     resourceId?: string;
-    details?: any;
+    details?: Record<string, unknown>;
     success?: boolean;
     error?: string;
   }
@@ -178,6 +180,7 @@ export function setAuditInfo(
  * Helper function to extract resource ID from URL parameters
  */
 export function extractResourceId(request: FastifyRequest, paramName = "id"): string | undefined {
-  const params = request.params as any;
-  return params?.[paramName];
+  const params = request.params as Record<string, unknown>;
+  const value = params?.[paramName];
+  return typeof value === "string" ? value : undefined;
 }

@@ -542,91 +542,130 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   // ✅ Create new admin account (Super Admin only)
   fastify.post(
     "/admin/accounts",
-    { preHandler: [requireAdminAuth, requireSuperAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireSuperAdmin],
+      schema: { tags: ["Admin"], summary: "Create admin account" },
+    },
     async (request, reply) => handler.createAccount(request, reply)
   );
 
   // ✅ List accounts with filtering and pagination
   fastify.get(
     "/admin/accounts",
-    { preHandler: [requireAdminAuth, requireAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "List accounts with filters" },
+    },
     async (request, reply) => handler.listAccounts(request, reply)
   );
 
   // ✅ Get account statistics (must be before /:accountId to avoid route collision)
   fastify.get(
     "/admin/accounts/stats",
-    { preHandler: [requireAdminAuth, requireAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Get account statistics" },
+    },
     async (request, reply) => handler.getAccountStats(request, reply)
   );
 
   // ✅ Get account by ID
   fastify.get(
     "/admin/accounts/:accountId",
-    { preHandler: [requireAdminAuth, requireAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Get account by ID" },
+    },
     async (request, reply) => handler.getAccount(request, reply)
   );
 
   // ✅ Update account
   fastify.put(
     "/admin/accounts/:accountId",
-    { preHandler: [requireAdminAuth, requireAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Update account" },
+    },
     async (request, reply) => handler.updateAccount(request, reply)
   );
 
   // ✅ Suspend account
   fastify.post(
     "/admin/accounts/:accountId/suspend",
-    { preHandler: [requireAdminAuth, requireAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Suspend account" },
+    },
     async (request, reply) => handler.suspendAccount(request, reply)
   );
 
   // ✅ Reactivate account
   fastify.post(
     "/admin/accounts/:accountId/reactivate",
-    { preHandler: [requireAdminAuth, requireAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Reactivate account" },
+    },
     async (request, reply) => handler.reactivateAccount(request, reply)
   );
 
   // ✅ Reset account password (Admin action)
   fastify.post(
     "/admin/accounts/:accountId/reset-password",
-    { preHandler: [requireAdminAuth, requireAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Reset account password" },
+    },
     async (request, reply) => handler.resetPassword(request, reply)
   );
 
   // ✅ Delete account (Super Admin only)
   fastify.delete(
     "/admin/accounts/:accountId",
-    { preHandler: [requireAdminAuth, requireSuperAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireSuperAdmin],
+      schema: { tags: ["Admin"], summary: "Delete account" },
+    },
     async (request, reply) => handler.deleteAccount(request, reply)
   );
 
   // ✅ Get account sessions
   fastify.get(
     "/admin/accounts/:accountId/sessions",
-    { preHandler: [requireAdminAuth, requireAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Get account sessions" },
+    },
     async (request, reply) => handler.getAccountSessions(request, reply)
   );
 
   // ✅ Revoke all sessions for an account
   fastify.post(
     "/admin/accounts/:accountId/revoke-sessions",
-    { preHandler: [requireAdminAuth, requireAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Revoke all account sessions" },
+    },
     async (request, reply) => handler.revokeAllSessions(request, reply)
   );
 
   // ✅ Bulk suspend accounts
   fastify.post(
     "/admin/accounts/bulk/suspend",
-    { preHandler: [requireAdminAuth, requireSuperAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireSuperAdmin],
+      schema: { tags: ["Admin"], summary: "Bulk suspend accounts" },
+    },
     async (request, reply) => handler.bulkSuspend(request, reply)
   );
 
   // ✅ Bulk reactivate accounts
   fastify.post(
     "/admin/accounts/bulk/reactivate",
-    { preHandler: [requireAdminAuth, requireSuperAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireSuperAdmin],
+      schema: { tags: ["Admin"], summary: "Bulk reactivate accounts" },
+    },
     async (request, reply) => handler.bulkReactivate(request, reply)
   );
 };

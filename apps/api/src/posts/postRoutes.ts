@@ -30,6 +30,7 @@ import { USE_CASE_ERRORS } from "../application/UseCase.js";
 import { ProjectId, type ContentLocale, type ProjectRepository } from "../domain/index.js";
 import type { PublishStatusValue } from "../domain/value-objects/PublishStatus.js";
 import type { IncrementUsageUseCase } from "../application/usage/IncrementUsageUseCase.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 
 // ---------------------------------------------------------------------------
 // Zod Schemas for Validation with security enhancement
@@ -523,22 +524,53 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   // List posts
-  fastify.get("/posts", async (request, reply) => handler.listPosts(request, reply));
+  fastify.get(
+    "/posts",
+    { preHandler: [authenticateMiddleware], schema: { tags: ["Posts"], summary: "List posts" } },
+    async (request, reply) => handler.listPosts(request, reply)
+  );
 
   // Create post
-  fastify.post("/posts", async (request, reply) => handler.createPost(request, reply));
+  fastify.post(
+    "/posts",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Posts"], summary: "Create a new post" },
+    },
+    async (request, reply) => handler.createPost(request, reply)
+  );
 
   // Get post by ID
-  fastify.get("/posts/:id", async (request, reply) => handler.getPost(request, reply));
+  fastify.get(
+    "/posts/:id",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Posts"], summary: "Get post by ID" },
+    },
+    async (request, reply) => handler.getPost(request, reply)
+  );
 
   // Update post
-  fastify.patch("/posts/:id", async (request, reply) => handler.updatePost(request, reply));
+  fastify.patch(
+    "/posts/:id",
+    { preHandler: [authenticateMiddleware], schema: { tags: ["Posts"], summary: "Update post" } },
+    async (request, reply) => handler.updatePost(request, reply)
+  );
 
   // Schedule post
-  fastify.post("/posts/:id/schedule", async (request, reply) =>
-    handler.schedulePost(request, reply)
+  fastify.post(
+    "/posts/:id/schedule",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Posts"], summary: "Schedule post for publishing" },
+    },
+    async (request, reply) => handler.schedulePost(request, reply)
   );
 
   // Delete post
-  fastify.delete("/posts/:id", async (request, reply) => handler.deletePost(request, reply));
+  fastify.delete(
+    "/posts/:id",
+    { preHandler: [authenticateMiddleware], schema: { tags: ["Posts"], summary: "Delete post" } },
+    async (request, reply) => handler.deletePost(request, reply)
+  );
 };

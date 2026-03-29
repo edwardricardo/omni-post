@@ -32,6 +32,7 @@ import {
 } from "../../application/campaigns/index.js";
 import { GetHistoricalAnalyticsQuery } from "../../application/analytics/GetHistoricalAnalyticsQuery.js";
 import { GenerateUTMLinksUseCase } from "../../application/utm/index.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Register all analytics, ML, campaign, historical analytics, and UTM use cases in the container
@@ -103,26 +104,36 @@ export function setupAnalyticsUseCases(container: Container): void {
   container.register<CreateCampaignUseCase>(
     TOKENS.CreateCampaignUseCase,
     () =>
-      new CreateCampaignUseCase(container.resolve<CampaignRepository>(TOKENS.CampaignRepository)),
+      new CreateCampaignUseCase(
+        container.resolve<CampaignRepository>(TOKENS.CampaignRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
     true
   );
   container.register<UpdateCampaignUseCase>(
     TOKENS.UpdateCampaignUseCase,
     () =>
-      new UpdateCampaignUseCase(container.resolve<CampaignRepository>(TOKENS.CampaignRepository)),
+      new UpdateCampaignUseCase(
+        container.resolve<CampaignRepository>(TOKENS.CampaignRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
     true
   );
   container.register<ArchiveCampaignUseCase>(
     TOKENS.ArchiveCampaignUseCase,
     () =>
-      new ArchiveCampaignUseCase(container.resolve<CampaignRepository>(TOKENS.CampaignRepository)),
+      new ArchiveCampaignUseCase(
+        container.resolve<CampaignRepository>(TOKENS.CampaignRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
     true
   );
   container.register<TagPostWithCampaignUseCase>(
     TOKENS.TagPostWithCampaignUseCase,
     () =>
       new TagPostWithCampaignUseCase(
-        container.resolve<CampaignRepository>(TOKENS.CampaignRepository)
+        container.resolve<CampaignRepository>(TOKENS.CampaignRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -130,7 +141,8 @@ export function setupAnalyticsUseCases(container: Container): void {
     TOKENS.UntagPostFromCampaignUseCase,
     () =>
       new UntagPostFromCampaignUseCase(
-        container.resolve<CampaignRepository>(TOKENS.CampaignRepository)
+        container.resolve<CampaignRepository>(TOKENS.CampaignRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );

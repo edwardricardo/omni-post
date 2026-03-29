@@ -391,17 +391,42 @@ export const channelRoutes: FastifyPluginAsync = async (fastify) => {
 
   const handler = new ChannelRouteHandler(channelRepo, projectRepo, prismaClient);
 
-  fastify.post("/channels", (req, reply) => handler.createChannel(req, reply));
-  fastify.post("/channels/bluesky/connect", (req, reply) => handler.connectBluesky(req, reply));
-  fastify.get("/channels/:channelId", (req, reply) => handler.getChannel(req, reply));
-  fastify.get("/projects/:projectId/channels", (req, reply) =>
-    handler.listChannelsByProject(req, reply)
+  fastify.post(
+    "/channels",
+    { schema: { tags: ["Channels"], summary: "Create a new channel" } },
+    (req, reply) => handler.createChannel(req, reply)
   );
-  fastify.put("/channels/:channelId", (req, reply) => handler.updateChannel(req, reply));
-  fastify.delete("/channels/:channelId", (req, reply) => handler.deleteChannel(req, reply));
+  fastify.post(
+    "/channels/bluesky/connect",
+    { schema: { tags: ["Channels"], summary: "Connect a Bluesky account" } },
+    (req, reply) => handler.connectBluesky(req, reply)
+  );
+  fastify.get(
+    "/channels/:channelId",
+    { schema: { tags: ["Channels"], summary: "Get channel by ID" } },
+    (req, reply) => handler.getChannel(req, reply)
+  );
+  fastify.get(
+    "/projects/:projectId/channels",
+    { schema: { tags: ["Channels"], summary: "List channels by project" } },
+    (req, reply) => handler.listChannelsByProject(req, reply)
+  );
+  fastify.put(
+    "/channels/:channelId",
+    { schema: { tags: ["Channels"], summary: "Update a channel" } },
+    (req, reply) => handler.updateChannel(req, reply)
+  );
+  fastify.delete(
+    "/channels/:channelId",
+    { schema: { tags: ["Channels"], summary: "Soft-delete a channel" } },
+    (req, reply) => handler.deleteChannel(req, reply)
+  );
   fastify.delete(
     "/channels/:channelId/hard",
-    { preHandler: [authenticateMiddleware, requireSuperAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireSuperAdmin],
+      schema: { tags: ["Channels"], summary: "Hard-delete a channel permanently" },
+    },
     (req, reply) => handler.hardDeleteChannel(req, reply)
   );
 };

@@ -362,7 +362,11 @@ class AuditRouteHandler extends BaseRouteHandler {
     if (format === "csv") {
       // ✅ Use RFC 4180 compliant CSV export utility
       const columns: ColumnDefinition<(typeof logs)[0]>[] = [
-        { key: "createdAt", header: "Timestamp", format: (date) => date.toISOString() },
+        {
+          key: "createdAt",
+          header: "Timestamp",
+          format: (date) => (date instanceof Date ? date.toISOString() : String(date)),
+        },
         { key: "user.email", header: "User Email" },
         { key: "action", header: "Action" },
         { key: "resource", header: "Resource" },

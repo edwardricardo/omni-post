@@ -150,7 +150,14 @@ export function validateCompliance(analysis: TikTokVideoAnalysis): void {
 export function calculateProcessingParameters(
   _analysis: TikTokVideoAnalysis,
   options: TikTokVideoProcessingOptions
-): any {
+): {
+  format: string;
+  codec: string;
+  resolution: { width: number; height: number };
+  aspectRatio: string;
+  quality: string;
+  optimizations: unknown;
+} {
   // Determine target resolution based on options
   let targetResolution = { width: 1080, height: 1920 }; // Default 9:16 1080p
 

@@ -352,56 +352,80 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   // ✅ Get current user's permissions
   fastify.get(
     "/auth/permissions",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["RBAC"], summary: "Get current user permissions" },
+    },
     async (request, reply) => handler.getCurrentUserPermissions(request, reply)
   );
 
   // ✅ Get all available roles and permissions
   fastify.get(
     "/admin/rbac/roles",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireAdmin],
+      schema: { tags: ["RBAC"], summary: "Get all available roles and permissions" },
+    },
     async (request, reply) => handler.getAllRoles(request, reply)
   );
 
   // ✅ Get specific role information
   fastify.get(
     "/admin/rbac/roles/:role",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireAdmin],
+      schema: { tags: ["RBAC"], summary: "Get specific role information" },
+    },
     async (request, reply) => handler.getRoleInfo(request, reply)
   );
 
   // ✅ Get users by role
   fastify.get(
     "/admin/rbac/roles/:role/users",
-    { preHandler: [authenticateMiddleware, requirePermission(Permission.USER_READ)] },
+    {
+      preHandler: [authenticateMiddleware, requirePermission(Permission.USER_READ)],
+      schema: { tags: ["RBAC"], summary: "Get users by role" },
+    },
     async (request, reply) => handler.getUsersByRole(request, reply)
   );
 
   // ✅ Update user role
   fastify.put(
     "/admin/rbac/users/:userId/role",
-    { preHandler: [authenticateMiddleware, requireSuperAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireSuperAdmin],
+      schema: { tags: ["RBAC"], summary: "Update user role" },
+    },
     async (request, reply) => handler.updateUserRole(request, reply)
   );
 
   // ✅ Check specific permission for current user
   fastify.post(
     "/auth/permissions/check",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["RBAC"], summary: "Check specific permissions for current user" },
+    },
     async (request, reply) => handler.checkPermissions(request, reply)
   );
 
   // ✅ Get permission hierarchy and role comparison
   fastify.get(
     "/admin/rbac/hierarchy",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireAdmin],
+      schema: { tags: ["RBAC"], summary: "Get permission hierarchy and role comparison" },
+    },
     async (request, reply) => handler.getHierarchy(request, reply)
   );
 
   // ✅ Get RBAC system status and statistics
   fastify.get(
     "/admin/rbac/status",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireAdmin],
+      schema: { tags: ["RBAC"], summary: "Get RBAC system status and statistics" },
+    },
     async (request, reply) => handler.getStatus(request, reply)
   );
 };

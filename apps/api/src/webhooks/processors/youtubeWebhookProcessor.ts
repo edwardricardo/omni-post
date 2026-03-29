@@ -34,9 +34,9 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse YouTube webhook payload and normalize data
    */
-  override async parse(payload: Record<string, any>): Promise<{
+  override async parse(payload: Record<string, unknown>): Promise<{
     eventType: WebhookEventType;
-    normalizedData: Record<string, any>;
+    normalizedData: Record<string, unknown>;
     relatedEntities: {
       accountId?: string;
       projectId?: string;
@@ -45,11 +45,10 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
     };
   }> {
     let eventType: WebhookEventType;
-    let normalizedData: Record<string, any> = {};
-    let relatedEntities: any = {};
+    let normalizedData: Record<string, unknown> = {};
 
     // YouTube webhooks come as Atom/XML format for video events, or JSON for other events
-    let parsedPayload: any;
+    let parsedPayload: Record<string, unknown>;
 
     // If payload is already parsed JSON (from XML to JSON), or is a JSON event type, use it directly
     if (
@@ -63,7 +62,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
     } else if (typeof payload === "string") {
       // Parse XML if we received raw XML string (for video feed notifications)
       try {
-        parsedPayload = await parseStringPromise(payload);
+        parsedPayload = (await parseStringPromise(payload)) as Record<string, unknown>;
       } catch (error) {
         throw AppError.badRequest(
           `Failed to parse YouTube webhook XML: ${error instanceof Error ? error.message : String(error)}`
@@ -75,32 +74,42 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
     }
 
     // Handle different YouTube webhook event types
-    if (parsedPayload.feed?.entry) {
-      // Video published/updated notification
-      const entry = Array.isArray(parsedPayload.feed.entry)
-        ? parsedPayload.feed.entry[0]
-        : parsedPayload.feed.entry;
+    const feed = parsedPayload.feed as Record<string, unknown> | undefined;
+    const entry = parsedPayload.entry as Record<string, unknown> | undefined;
 
+    if (feed?.entry) {
+      // Video published/updated notification
+      const feedEntry = Array.isArray(feed.entry)
+        ? ((feed.entry as Record<string, unknown>[])[0] ?? {})
+        : (feed.entry as Record<string, unknown>);
+      const feedEntryObj = feedEntry as Record<string, unknown>;
+
+      const isNew = feedEntryObj["yt:videoId"] && !feedEntryObj.updated;
+      eventType = isNew ? "POST_PUBLISHED" : "POST_UPDATED";
+      normalizedData = await this.parseVideoFeedEntry(feedEntryObj);
+    } else if (entry) {
+      // Single entry notification
       const isNew = entry["yt:videoId"] && !entry.updated;
       eventType = isNew ? "POST_PUBLISHED" : "POST_UPDATED";
       normalizedData = await this.parseVideoFeedEntry(entry);
-    } else if (parsedPayload.entry) {
-      // Single entry notification
-      const isNew = parsedPayload.entry["yt:videoId"] && !parsedPayload.entry.updated;
-      eventType = isNew ? "POST_PUBLISHED" : "POST_UPDATED";
-      normalizedData = await this.parseVideoFeedEntry(parsedPayload.entry);
     } else if (parsedPayload.comment) {
       // Comment notification (if enabled via YouTube API)
       eventType = "COMMENT_RECEIVED";
-      normalizedData = await this.parseCommentEvent(parsedPayload.comment);
+      normalizedData = await this.parseCommentEvent(
+        parsedPayload.comment as Record<string, unknown>
+      );
     } else if (parsedPayload.channelUpdate) {
       // Channel update notification
       eventType = "ACCOUNT_CONNECTED";
-      normalizedData = await this.parseChannelUpdateEvent(parsedPayload.channelUpdate);
+      normalizedData = await this.parseChannelUpdateEvent(
+        parsedPayload.channelUpdate as Record<string, unknown>
+      );
     } else if (parsedPayload.analytics) {
       // Analytics update (custom implementation)
       eventType = "POST_ENGAGEMENT_UPDATE";
-      normalizedData = await this.parseAnalyticsEvent(parsedPayload.analytics);
+      normalizedData = await this.parseAnalyticsEvent(
+        parsedPayload.analytics as Record<string, unknown>
+      );
     } else {
       throw AppError.badRequest(
         `Unsupported YouTube webhook event type: ${JSON.stringify(Object.keys(parsedPayload))}`
@@ -108,7 +117,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
     }
 
     // Find related entities based on YouTube channel ID or video ID
-    relatedEntities = await this.findRelatedEntities(parsedPayload, normalizedData);
+    const relatedEntities = await this.findRelatedEntities(parsedPayload, normalizedData);
 
     return {
       eventType,
@@ -120,7 +129,10 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Process the normalized webhook event
    */
-  override async process(normalizedData: Record<string, any>, relatedEntities: any): Promise<void> {
+  override async process(
+    normalizedData: Record<string, unknown>,
+    relatedEntities: Record<string, unknown>
+  ): Promise<void> {
     const { accountId, projectId, postId: _postId, channelId: _channelId } = relatedEntities;
 
     if (!accountId && !projectId) {
@@ -163,24 +175,42 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse video feed entry from PubSubHubbub notification
    */
-  private async parseVideoFeedEntry(entry: any): Promise<Record<string, any>> {
+  private async parseVideoFeedEntry(
+    entry: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
     // Extract video ID from yt:videoId tag
-    const videoId = entry["yt:videoId"]?.[0] || entry["yt:videoId"];
-    const channelId = entry["yt:channelId"]?.[0] || entry["yt:channelId"];
+    const ytVideoIdRaw = entry["yt:videoId"];
+    const videoId = Array.isArray(ytVideoIdRaw) ? ytVideoIdRaw[0] : ytVideoIdRaw;
+    const ytChannelIdRaw = entry["yt:channelId"];
+    const channelId = Array.isArray(ytChannelIdRaw) ? ytChannelIdRaw[0] : ytChannelIdRaw;
 
     // Extract other metadata
-    const title = entry.title?.[0] || entry.title;
-    const link = entry.link?.[0]?.$?.href || entry.link?.$.href;
-    const author = entry.author?.[0]?.name?.[0] || entry.author?.name;
-    const published = entry.published?.[0] || entry.published;
-    const updated = entry.updated?.[0] || entry.updated;
+    const titleRaw = entry.title;
+    const title = Array.isArray(titleRaw) ? titleRaw[0] : titleRaw;
+    const linkRaw = entry.link as Record<string, unknown> | Record<string, unknown>[] | undefined;
+    const linkEntry = Array.isArray(linkRaw) ? (linkRaw[0] as Record<string, unknown>) : linkRaw;
+    const linkAttrs = linkEntry?.$ as Record<string, unknown> | undefined;
+    const link = linkAttrs?.href;
+    const authorRaw = entry.author as
+      | Record<string, unknown>
+      | Record<string, unknown>[]
+      | undefined;
+    const authorEntry = Array.isArray(authorRaw)
+      ? (authorRaw[0] as Record<string, unknown>)
+      : authorRaw;
+    const nameRaw = authorEntry?.name;
+    const author = Array.isArray(nameRaw) ? nameRaw[0] : nameRaw;
+    const publishedRaw = entry.published;
+    const published = Array.isArray(publishedRaw) ? publishedRaw[0] : publishedRaw;
+    const updatedRaw = entry.updated;
+    const updated = Array.isArray(updatedRaw) ? updatedRaw[0] : updatedRaw;
 
     return {
       eventType: updated ? "video_updated" : "video_published",
       videoId,
       channelId,
       title,
-      link: link || `https://www.youtube.com/watch?v=${videoId}`,
+      link: link || `https://www.youtube.com/watch?v=${String(videoId ?? "")}`,
       author,
       publishedAt: published,
       updatedAt: updated,
@@ -190,7 +220,9 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse comment events
    */
-  private async parseCommentEvent(comment: any): Promise<Record<string, any>> {
+  private async parseCommentEvent(
+    comment: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
     return {
       eventType: "comment_received",
       commentId: comment.id || comment.commentId,
@@ -210,7 +242,9 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse channel update events
    */
-  private async parseChannelUpdateEvent(channelUpdate: any): Promise<Record<string, any>> {
+  private async parseChannelUpdateEvent(
+    channelUpdate: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
     return {
       eventType: "channel_updated",
       channelId: channelUpdate.channelId,
@@ -226,7 +260,9 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse analytics update events
    */
-  private async parseAnalyticsEvent(analytics: any): Promise<Record<string, any>> {
+  private async parseAnalyticsEvent(
+    analytics: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
     return {
       eventType: "analytics_update",
       videoId: analytics.videoId,
@@ -246,19 +282,26 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Find related database entities based on YouTube channel ID or video ID
    */
-  private async findRelatedEntities(payload: any, normalizedData: Record<string, any>) {
+  private async findRelatedEntities(
+    payload: Record<string, unknown>,
+    normalizedData: Record<string, unknown>
+  ) {
     // Extract channel ID from various sources
     let youtubeChannelId: string | undefined;
     let videoId: string | undefined;
 
     if (normalizedData.channelId) {
-      youtubeChannelId = normalizedData.channelId;
-    } else if (payload.feed?.["yt:channelId"]) {
-      youtubeChannelId = payload.feed["yt:channelId"][0] || payload.feed["yt:channelId"];
+      youtubeChannelId = normalizedData.channelId as string;
+    } else {
+      const feed = payload.feed as Record<string, unknown> | undefined;
+      if (feed?.["yt:channelId"]) {
+        const raw = feed["yt:channelId"];
+        youtubeChannelId = (Array.isArray(raw) ? raw[0] : raw) as string;
+      }
     }
 
     if (normalizedData.videoId) {
-      videoId = normalizedData.videoId;
+      videoId = normalizedData.videoId as string;
     }
 
     // Find channel by YouTube channel ID
@@ -333,8 +376,12 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle video published event
    */
-  private async handleVideoPublished(data: Record<string, any>, entities: any): Promise<void> {
-    const { postId, channelId } = entities;
+  private async handleVideoPublished(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const postId = entities.postId as string | undefined;
+    const channelId = entities.channelId as string | undefined;
 
     if (postId && channelId) {
       // Update publish log with YouTube video ID
@@ -347,10 +394,10 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
         data: {
           status: "OK",
           payload: {
-            video_id: data.videoId,
-            title: data.title,
-            link: data.link,
-            published_at: data.publishedAt,
+            video_id: String(data.videoId ?? ""),
+            title: String(data.title ?? ""),
+            link: String(data.link ?? ""),
+            published_at: String(data.publishedAt ?? ""),
             webhook_received_at: new Date().toISOString(),
           },
         },
@@ -383,7 +430,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
           likes: 0,
           comments: 0,
           shares: 0,
-          capturedAt: new Date(data.publishedAt || Date.now()),
+          capturedAt: new Date((data.publishedAt ?? Date.now()) as string | number),
         },
       });
     }
@@ -392,8 +439,12 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle video updated event
    */
-  private async handleVideoUpdated(data: Record<string, any>, entities: any): Promise<void> {
-    const { postId, channelId } = entities;
+  private async handleVideoUpdated(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const postId = entities.postId as string | undefined;
+    const channelId = entities.channelId as string | undefined;
 
     if (postId && channelId) {
       // Update publish log with latest video metadata
@@ -404,15 +455,15 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
           provider: "YOUTUBE",
           payload: {
             path: ["video_id"],
-            equals: data.videoId,
+            equals: data.videoId as string,
           },
         },
         data: {
           payload: {
-            video_id: data.videoId,
-            title: data.title,
-            link: data.link,
-            updated_at: data.updatedAt,
+            video_id: String(data.videoId ?? ""),
+            title: String(data.title ?? ""),
+            link: String(data.link ?? ""),
+            updated_at: String(data.updatedAt ?? ""),
             webhook_received_at: new Date().toISOString(),
           },
         },
@@ -432,15 +483,21 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle comment received event
    */
-  private async handleCommentReceived(data: Record<string, any>, entities: any): Promise<void> {
+  private async handleCommentReceived(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const entityChannelId = entities.channelId as string | undefined;
+    const entityPostId = entities.postId as string | undefined;
+
     // Create analytics entry for comment engagement
-    if (entities.accountId && entities.projectId && data.videoId && entities.channelId) {
+    if (entities.accountId && entities.projectId && data.videoId && entityChannelId) {
       // Find existing analytics record and increment comments
       const existing = await prisma.analytics.findFirst({
         where: {
-          channelId: entities.channelId,
+          channelId: entityChannelId,
           provider: "YOUTUBE",
-          postId: entities.postId || null,
+          postId: entityPostId || null,
         },
       });
 
@@ -454,9 +511,9 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
         });
 
         // Broadcast real-time engagement update
-        if (this.broadcaster && entities.postId) {
+        if (this.broadcaster && entityPostId) {
           await this.broadcaster.broadcastEngagementUpdate(
-            entities.postId,
+            entityPostId,
             "YOUTUBE",
             { comments: (existing.comments || 0) + 1 },
             { comments: 1 }
@@ -471,21 +528,28 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle channel updated event
    */
-  private async handleChannelUpdated(data: Record<string, any>, entities: any): Promise<void> {
-    if (entities.channelId) {
+  private async handleChannelUpdated(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const entityChannelId = entities.channelId as string | undefined;
+
+    if (entityChannelId) {
       // Update channel metadata in database
+      const existingChannel = await prisma.channel.findUnique({ where: { id: entityChannelId } });
+      const existingCreds = (existingChannel?.credentials ?? {}) as Record<string, unknown>;
+
       await prisma.channel.update({
-        where: { id: entities.channelId },
+        where: { id: entityChannelId },
         data: {
           credentials: {
-            ...((await prisma.channel.findUnique({ where: { id: entities.channelId } }))
-              ?.credentials as Record<string, unknown>),
-            title: data.title,
-            description: data.description,
-            subscriber_count: data.subscriberCount,
-            video_count: data.videoCount,
-            view_count: data.viewCount,
-            updated_at: data.updatedAt,
+            ...existingCreds,
+            title: String(data.title ?? ""),
+            description: String(data.description ?? ""),
+            subscriber_count: String(data.subscriberCount ?? ""),
+            video_count: String(data.videoCount ?? ""),
+            view_count: String(data.viewCount ?? ""),
+            updated_at: String(data.updatedAt ?? ""),
           },
         },
       });
@@ -497,14 +561,24 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle analytics update event
    */
-  private async handleAnalyticsUpdate(data: Record<string, any>, entities: any): Promise<void> {
-    if (entities.accountId && entities.projectId && data.videoId && entities.channelId) {
+  private async handleAnalyticsUpdate(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const entityChannelId = entities.channelId as string | undefined;
+    const entityPostId = entities.postId as string | undefined;
+    const views = Number(data.views ?? 0);
+    const likes = Number(data.likes ?? 0);
+    const comments = Number(data.comments ?? 0);
+    const shares = Number(data.shares ?? 0);
+
+    if (entities.accountId && entities.projectId && data.videoId && entityChannelId) {
       // Update or create analytics record
       const existing = await prisma.analytics.findFirst({
         where: {
-          channelId: entities.channelId,
+          channelId: entityChannelId,
           provider: "YOUTUBE",
-          postId: entities.postId || null,
+          postId: entityPostId || null,
         },
       });
 
@@ -512,39 +586,34 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
         await prisma.analytics.update({
           where: { id: existing.id },
           data: {
-            views: data.views,
-            likes: data.likes,
-            comments: data.comments,
-            shares: data.shares,
-            capturedAt: new Date(data.timestamp),
+            views,
+            likes,
+            comments,
+            shares,
+            capturedAt: new Date(data.timestamp as string | number),
           },
         });
 
         // Broadcast real-time analytics update
-        if (this.broadcaster && entities.postId) {
+        if (this.broadcaster && entityPostId) {
           await this.broadcaster.broadcastEngagementUpdate(
-            entities.postId,
+            entityPostId,
             "YOUTUBE",
-            {
-              views: data.views,
-              likes: data.likes,
-              comments: data.comments,
-              shares: data.shares,
-            },
+            { views, likes, comments, shares },
             {} // No incremental changes, just totals
           );
         }
       } else {
         await prisma.analytics.create({
           data: {
-            channelId: entities.channelId,
+            channelId: entityChannelId,
             provider: "YOUTUBE",
-            postId: entities.postId || null,
-            views: data.views,
-            likes: data.likes,
-            comments: data.comments,
-            shares: data.shares,
-            capturedAt: new Date(data.timestamp),
+            postId: entityPostId || null,
+            views,
+            likes,
+            comments,
+            shares,
+            capturedAt: new Date(data.timestamp as string | number),
           },
         });
       }

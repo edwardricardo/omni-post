@@ -6,6 +6,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { FirstCommentRepository } from "../../domain/repositories/FirstCommentRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { SetFirstCommentUseCase } from "../../application/first-comment/SetFirstCommentUseCase.js";
 import { RemoveFirstCommentUseCase } from "../../application/first-comment/RemoveFirstCommentUseCase.js";
 import { GetFirstCommentQuery } from "../../application/first-comment/GetFirstCommentQuery.js";
@@ -17,12 +18,17 @@ import { PublishFirstCommentUseCase } from "../../application/first-comment/Publ
  */
 export function setupFirstCommentUseCases(container: Container): void {
   const repo = () => container.resolve<FirstCommentRepository>(TOKENS.FirstCommentRepository);
+  const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
 
-  container.register(TOKENS.SetFirstCommentUseCase, () => new SetFirstCommentUseCase(repo()), true);
+  container.register(
+    TOKENS.SetFirstCommentUseCase,
+    () => new SetFirstCommentUseCase(repo(), uow()),
+    true
+  );
 
   container.register(
     TOKENS.RemoveFirstCommentUseCase,
-    () => new RemoveFirstCommentUseCase(repo()),
+    () => new RemoveFirstCommentUseCase(repo(), uow()),
     true
   );
 
@@ -30,7 +36,7 @@ export function setupFirstCommentUseCases(container: Container): void {
 
   container.register(
     TOKENS.PublishFirstCommentUseCase,
-    () => new PublishFirstCommentUseCase(repo()),
+    () => new PublishFirstCommentUseCase(repo(), uow()),
     true
   );
 }

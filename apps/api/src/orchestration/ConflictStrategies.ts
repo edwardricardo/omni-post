@@ -15,6 +15,7 @@ import type {
   ConflictResolutionRule,
   ResolutionResult,
 } from "./conflictResolverTypes.js";
+import type { AdaptationRule } from "@shared/orchestration";
 import { mapPatternToConflictType } from "./ConflictPatterns.js";
 import { createLogger } from "../lib/logger.js";
 
@@ -96,16 +97,20 @@ async function applyResolutionStrategy(
   getCurrentContent: GetCurrentContentFn
 ): Promise<ResolutionResult> {
   switch (rule.strategy) {
-    case "retry":
+    case "retry": {
+      const delayMs = typeof rule.parameters.delayMs === "number" ? rule.parameters.delayMs : 5000;
+      const maxAttempts =
+        typeof rule.parameters.maxAttempts === "number" ? rule.parameters.maxAttempts : 3;
       return {
         action: "resolved",
         strategy: "retry",
-        nextAttemptIn: rule.parameters.delayMs || 5000,
+        nextAttemptIn: delayMs,
         metadata: {
-          maxAttempts: rule.parameters.maxAttempts || 3,
-          delayMs: rule.parameters.delayMs || 5000,
+          maxAttempts,
+          delayMs,
         },
       };
+    }
 
     case "adapt_content":
       return await applyContentAdaptationStrategy(rule, context, adaptContentFn, getCurrentContent);
@@ -118,7 +123,10 @@ async function applyResolutionStrategy(
         action: "resolved",
         strategy: "skip",
         metadata: {
-          reason: rule.parameters.reason || "conflict_unresolvable",
+          reason:
+            typeof rule.parameters.reason === "string"
+              ? rule.parameters.reason
+              : "conflict_unresolvable",
         },
       };
 
@@ -153,7 +161,7 @@ async function applyContentAdaptationStrategy(
     const adaptation = await adaptContentFn(
       content,
       context.providerId,
-      [rule.parameters.action] // Convert action to validation error
+      [String(rule.parameters.action)] // Convert action to validation error
     );
 
     if (adaptation.ok) {
@@ -182,7 +190,8 @@ async function applyContentAdaptationStrategy(
 async function applyRescheduleStrategy(rule: ConflictResolutionRule): Promise<ResolutionResult> {
   try {
     const currentTime = new Date();
-    const addMinutes = rule.parameters.addMinutes || 15;
+    const addMinutes =
+      typeof rule.parameters.addMinutes === "number" ? rule.parameters.addMinutes : 15;
     const newTime = new Date(currentTime.getTime() + addMinutes * 60000);
 
     return {
@@ -246,9 +255,14 @@ export async function applyContentAdaptation(
   content: CanonicalPost,
   error: string,
   adapter: ProviderAdapter
-): Promise<OrchestrationResult<{ content: CanonicalPost; rule: any }>> {
+): Promise<OrchestrationResult<{ content: CanonicalPost; rule: AdaptationRule }>> {
   let adaptedContent = { ...content };
-  let rule: any = {};
+  let rule: AdaptationRule = {
+    ruleId: "noop",
+    type: "custom",
+    description: "No adaptation applied",
+    applied: false,
+  };
 
   // Apply specific adaptations based on error type
   if (error.includes("truncate") || error === "TEXT_TOO_LONG") {
@@ -281,7 +295,7 @@ export async function applyContentAdaptation(
  * Calculate how confident we are that the set of applied adaptations resolves
  * all validation errors, penalising for warnings.
  */
-export function calculateAdaptationConfidence(appliedRules: any[], warnings: string[]): number {
+export function calculateAdaptationConfidence(appliedRules: unknown[], warnings: string[]): number {
   if (warnings.length > appliedRules.length) return 0.3;
   if (warnings.length > 0) return 0.7;
   return appliedRules.length > 0 ? 0.9 : 1.0;

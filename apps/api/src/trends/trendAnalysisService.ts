@@ -82,121 +82,8 @@ export class TrendAnalysisService extends BaseService {
       },
       async () => {
         const apiCall = async (): Promise<TrendingContent[]> => {
-          // Mock implementation - would integrate with multiple TikTok APIs.
-          // Returns raw (unfiltered) data. Filtering is applied after the circuit breaker
-          // so that per-request parameters do not pollute the shared cache.
-          const mockTrends: TrendingContent[] = [
-            {
-              id: "trend_dance_2024",
-              type: "hashtag",
-              title: "#DanceChallenge2024",
-              description: "Latest dance trend taking over TikTok",
-              creator: {
-                id: "creator_123",
-                username: "@dancemaster",
-                displayName: "Dance Master",
-                verified: true,
-                followerCount: 2500000,
-              },
-              metrics: {
-                views: 125000000,
-                likes: 8500000,
-                shares: 450000,
-                comments: 320000,
-                usageCount: 89000,
-                growthRate: 340,
-                viralScore: 95,
-                trendingDuration: 12,
-              },
-              trend: {
-                phase: "peak",
-                momentum: 92,
-                sustainability: 78,
-                peakDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-                estimatedLifespan: 21,
-              },
-              demographics: {
-                primaryAge: "16-24",
-                primaryGender: "female",
-                topRegions: ["US", "UK", "AU", "CA"],
-                deviceTypes: { mobile: 95, desktop: 5 },
-              },
-              characteristics: {
-                category: "dance",
-                mood: "energetic",
-                tempo: "fast",
-                visualStyle: ["vertical", "bright_colors", "fast_cuts"],
-                audioFeatures: ["upbeat", "electronic", "drop"],
-                hashtags: ["#dance", "#viral", "#fyp", "#trending"],
-                sounds: ["trending_beat_2024", "dance_remix_v2"],
-              },
-              viralFactors: {
-                hooks: ["instant_recognition", "easy_to_learn", "catchy_music"],
-                timing: ["peak_usage_hours", "weekend_surge", "school_break"],
-                format: ["short_form", "tutorial_friendly", "duet_compatible"],
-                participation: ["low_barrier", "mass_appeal", "celebrity_adoption"],
-                algorithmic: ["high_completion", "strong_engagement", "share_velocity"],
-              },
-              opportunity: {
-                entryDifficulty: "medium",
-                saturationLevel: 75,
-                remainingPotential: 25,
-                bestEntryTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
-                recommendedApproach: ["unique_variation", "tutorial_content", "behind_scenes"],
-              },
-            },
-            {
-              id: "trend_education_2024",
-              type: "hashtag",
-              title: "#LearnOnTikTok",
-              description: "Educational content revolution",
-              metrics: {
-                views: 89000000,
-                likes: 5200000,
-                shares: 890000,
-                comments: 410000,
-                usageCount: 67000,
-                growthRate: 220,
-                viralScore: 88,
-                trendingDuration: 25,
-              },
-              trend: {
-                phase: "growing",
-                momentum: 85,
-                sustainability: 92,
-                estimatedLifespan: 45,
-              },
-              demographics: {
-                primaryAge: "18-34",
-                primaryGender: "mixed",
-                topRegions: ["US", "IN", "BR", "GB"],
-                deviceTypes: { mobile: 88, desktop: 12 },
-              },
-              characteristics: {
-                category: "education",
-                mood: "informative",
-                visualStyle: ["clean", "text_overlay", "step_by_step"],
-                hashtags: ["#education", "#learn", "#knowledge", "#skills"],
-                sounds: ["calm_background", "educational_intro"],
-              },
-              viralFactors: {
-                hooks: ["valuable_information", "quick_tips", "practical_application"],
-                timing: ["weekday_evenings", "back_to_school", "skill_building"],
-                format: ["bite_sized", "actionable", "save_worthy"],
-                participation: ["knowledge_sharing", "comment_engagement", "duet_responses"],
-                algorithmic: ["high_saves", "long_watch_time", "return_viewers"],
-              },
-              opportunity: {
-                entryDifficulty: "low",
-                saturationLevel: 45,
-                remainingPotential: 55,
-                bestEntryTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-                recommendedApproach: ["niche_expertise", "series_content", "interactive_learning"],
-              },
-            },
-          ];
-
-          return mockTrends;
+          // TODO: Integrate with real TikTok APIs. Returns empty until real provider is connected.
+          return [];
         };
 
         const rawTrends = await circuitBreaker.call(
@@ -262,69 +149,8 @@ export class TrendAnalysisService extends BaseService {
       },
       async () => {
         const apiCall = async (): Promise<TrendPrediction[]> => {
-          // Mock predictions — rule-based heuristic data (no ML models involved)
-          const mockPredictions: TrendPrediction[] = [
-            {
-              trendId: "pred_winter_fashion_2024",
-              type: "hashtag",
-              title: "#WinterFashion2024",
-              description: "Winter fashion trends predicted to emerge",
-              prediction: {
-                probability: 0.82,
-                confidence: 0.75,
-                timeframe: "5-7 days",
-                peakProbability: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-                estimatedDuration: 28,
-              },
-              earlySignals: [
-                {
-                  signal: "Fashion week mentions increasing",
-                  strength: 78,
-                  source: "social_listening",
-                  detectedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-                },
-                {
-                  signal: "Weather pattern correlation",
-                  strength: 65,
-                  source: "seasonal_analysis",
-                  detectedAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
-                },
-              ],
-              riskFactors: [
-                {
-                  factor: "Economic uncertainty affecting fashion spending",
-                  impact: "medium",
-                  probability: 0.3,
-                },
-                {
-                  factor: "Competing seasonal trends",
-                  impact: "low",
-                  probability: 0.4,
-                },
-              ],
-              actionItems: [
-                {
-                  action: "Prepare winter fashion content",
-                  priority: "high",
-                  deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-                  expectedImpact: "First mover advantage in emerging trend",
-                },
-                {
-                  action: "Research sustainable fashion angles",
-                  priority: "medium",
-                  deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-                  expectedImpact: "Differentiation from mainstream content",
-                },
-              ],
-              competitiveIntel: {
-                earlyAdopters: ["@fashionista", "@styleinfluencer"],
-                marketGaps: ["sustainable_fashion", "budget_friendly", "plus_size"],
-                contentOpportunities: ["styling_tips", "diy_fashion", "trend_predictions"],
-              },
-            },
-          ];
-
-          return mockPredictions;
+          // TODO: Integrate with real prediction service. Returns empty until real provider is connected.
+          return [];
         };
 
         return circuitBreaker.call(
@@ -594,7 +420,11 @@ export class TrendAnalysisService extends BaseService {
         // Gather all data needed for the report (region/category-independent calls go
         // through the circuit breaker so they benefit from resiliency; per-request
         // filtering is applied afterwards to avoid polluting the shared breaker state).
-        const trendingOptions: any = { timeframe: "7d" as const };
+        const trendingOptions: {
+          timeframe: "1d" | "7d" | "30d";
+          region?: string;
+          category?: string;
+        } = { timeframe: "7d" as const };
         if (options.region !== undefined) trendingOptions.region = options.region;
         if (options.category !== undefined) trendingOptions.category = options.category;
         const trendingContentResult = await this.getTrendingContent(trendingOptions);
@@ -603,7 +433,7 @@ export class TrendAnalysisService extends BaseService {
         }
         const trendingContent = trendingContentResult.value;
 
-        const predictionOptions: any = {};
+        const predictionOptions: { region?: string; category?: string } = {};
         if (options.region !== undefined) predictionOptions.region = options.region;
         if (options.category !== undefined) predictionOptions.category = options.category;
         const predictionsResult = await this.generateTrendPredictions(predictionOptions);
@@ -612,7 +442,7 @@ export class TrendAnalysisService extends BaseService {
         }
         const predictions = predictionsResult.value;
 
-        const opportunityOptions: any = {};
+        const opportunityOptions: { region?: string; category?: string } = {};
         if (options.region !== undefined) opportunityOptions.region = options.region;
         if (options.category !== undefined) opportunityOptions.category = options.category;
         const opportunitiesResult = await this.discoverContentOpportunities(opportunityOptions);
@@ -686,7 +516,7 @@ export class TrendAnalysisService extends BaseService {
   /**
    * Get circuit breaker status
    */
-  getCircuitBreakerStatus(): Record<string, any> {
+  getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }
 

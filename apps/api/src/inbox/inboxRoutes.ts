@@ -598,7 +598,6 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   const syncProviderCommentsUseCase = app.container.resolve<SyncProviderCommentsUseCase>(
     TOKENS.SyncProviderCommentsUseCase
   );
-
   const handler = new InboxRouteHandler(
     getInboxQuery,
     getUnreadInboxCountQuery,
@@ -618,31 +617,43 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     "/api/inbox",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "List inbox messages" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.listInbox(request, reply)
   );
 
   app.get(
     "/api/inbox/unread-count",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "Get unread message count" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getUnreadCount(request, reply)
   );
 
   app.get(
     "/api/inbox/mentions",
-    { preHandler: [authenticateMiddleware] },
+    { preHandler: [authenticateMiddleware], schema: { tags: ["Inbox"], summary: "List mentions" } },
     (request: FastifyRequest, reply: FastifyReply) => handler.listMentions(request, reply)
   );
 
   app.get(
     "/api/inbox/conversations/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "Get conversation by ID" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getConversation(request, reply)
   );
 
   app.get(
     "/api/inbox/conversations/:id/messages",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "Get conversation messages" },
+    },
     (request: FastifyRequest, reply: FastifyReply) =>
       handler.getConversationMessages(request, reply)
   );
@@ -651,25 +662,37 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
 
   app.patch(
     "/api/inbox/messages/:id/read",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "Mark message as read" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.markRead(request, reply)
   );
 
   app.patch(
     "/api/inbox/messages/:id/archive",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "Archive message" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.markArchived(request, reply)
   );
 
   app.patch(
     "/api/inbox/messages/:id/assign",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "Assign message to team member" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.assignMessage(request, reply)
   );
 
   app.post(
     "/api/inbox/messages/:id/reply",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "Send reply to message" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.sendReply(request, reply)
   );
 
@@ -677,13 +700,19 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
 
   app.patch(
     "/api/inbox/conversations/:id/resolve",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "Resolve conversation" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.resolveConversation(request, reply)
   );
 
   app.patch(
     "/api/inbox/conversations/:id/reopen",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "Reopen conversation" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.reopenConversation(request, reply)
   );
 
@@ -691,7 +720,10 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/api/inbox/sync/:channelId",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Inbox"], summary: "Sync provider comments" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.syncProviderComments(request, reply)
   );
 };

@@ -131,18 +131,20 @@ export function useProviderConstraints(
           if (!response.ok) throw new Error("Failed to fetch providers");
 
           const data = await response.json();
-          const providerConstraints: ProviderConstraints[] = data.connections.map((conn: any) => ({
-            id: conn.providerId.toLowerCase(),
-            name: conn.providerId.toLowerCase(),
-            displayName: conn.providerName,
-            maxChars: getProviderMaxChars(conn.providerId),
-            maxMediaFiles: getProviderMaxMedia(conn.providerId),
-            allowedMediaTypes: getProviderAllowedMedia(conn.providerId),
-            supportsThreading: hasThreadingCapability(conn.providerId),
-            supportsScheduling: hasSchedulingCapability(conn.providerId),
-            supportsHashtags: true, // Most providers support hashtags
-            isConnected: conn.status === "CONNECTED",
-          }));
+          const providerConstraints: ProviderConstraints[] = data.connections.map(
+            (conn: { providerId: string; providerName: string; status: string }) => ({
+              id: conn.providerId.toLowerCase(),
+              name: conn.providerId.toLowerCase(),
+              displayName: conn.providerName,
+              maxChars: getProviderMaxChars(conn.providerId),
+              maxMediaFiles: getProviderMaxMedia(conn.providerId),
+              allowedMediaTypes: getProviderAllowedMedia(conn.providerId),
+              supportsThreading: hasThreadingCapability(conn.providerId),
+              supportsScheduling: hasSchedulingCapability(conn.providerId),
+              supportsHashtags: true, // Most providers support hashtags
+              isConnected: conn.status === "CONNECTED",
+            })
+          );
 
           setProviders(providerConstraints);
         } catch (err) {

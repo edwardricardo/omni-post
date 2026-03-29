@@ -427,31 +427,46 @@ const campaignRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/api/campaigns",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Campaigns"], summary: "Create campaign" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.createCampaign(request, reply)
   );
 
   app.patch(
     "/api/campaigns/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Campaigns"], summary: "Update campaign" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.updateCampaign(request, reply)
   );
 
   app.post(
     "/api/campaigns/:id/archive",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Campaigns"], summary: "Archive campaign" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.archiveCampaign(request, reply)
   );
 
   app.post(
     "/api/campaigns/:id/posts/:postId",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Campaigns"], summary: "Tag post with campaign" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.tagPost(request, reply)
   );
 
   app.delete(
     "/api/campaigns/:id/posts/:postId",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Campaigns"], summary: "Remove post from campaign" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.untagPost(request, reply)
   );
 
@@ -459,19 +474,28 @@ const campaignRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     "/api/campaigns",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Campaigns"], summary: "List campaigns" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.listCampaigns(request, reply)
   );
 
   app.get(
     "/api/campaigns/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Campaigns"], summary: "Get campaign by ID" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getCampaign(request, reply)
   );
 
   app.get(
     "/api/campaigns/:id/analytics",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Campaigns"], summary: "Get campaign analytics" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getCampaignAnalytics(request, reply)
   );
 };

@@ -41,7 +41,7 @@ export interface ColumnDefinition<T> {
   /** Column header text */
   header: string;
   /** Optional custom formatter for complex data types */
-  format?: (value: any, row: T) => string;
+  format?: (value: unknown, row: T) => string;
 }
 
 /**
@@ -178,20 +178,20 @@ function escapeCSVField(field: string, quoteAll: boolean, preventInjection: bool
  * @param path - Field path (supports dot notation)
  * @returns Field value or undefined
  */
-function extractFieldValue(obj: any, path: string): any {
+function extractFieldValue(obj: unknown, path: string): unknown {
   if (!path || !obj) {
     return undefined;
   }
 
   // Handle nested paths like 'user.email'
   const keys = path.split(".");
-  let current = obj;
+  let current: unknown = obj;
 
   for (const key of keys) {
     if (current === null || current === undefined) {
       return undefined;
     }
-    current = current[key];
+    current = (current as Record<string, unknown>)[key];
   }
 
   return current;

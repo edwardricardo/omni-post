@@ -161,12 +161,12 @@ export class SubscriptionAnalyticsHandler extends BaseRouteHandler {
         {
           key: "createdAt",
           header: "Created At",
-          format: (date) => date.toISOString(),
+          format: (date) => (date instanceof Date ? date.toISOString() : String(date)),
         },
         {
           key: "updatedAt",
           header: "Updated At",
-          format: (date) => date.toISOString(),
+          format: (date) => (date instanceof Date ? date.toISOString() : String(date)),
         },
       ];
 

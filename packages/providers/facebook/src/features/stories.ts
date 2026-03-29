@@ -250,17 +250,19 @@ export class FacebookStoriesApi {
 
     const data = await response.json();
 
-    return (data.data || []).map((story: any) => {
-      const createdTime = new Date(story.created_time);
-      const expiresAt = new Date(createdTime.getTime() + 24 * 60 * 60 * 1000);
+    return (data.data || []).map(
+      (story: { id: string; created_time: string; permalink_url?: string }) => {
+        const createdTime = new Date(story.created_time);
+        const expiresAt = new Date(createdTime.getTime() + 24 * 60 * 60 * 1000);
 
-      return {
-        id: story.id,
-        createdTime: story.created_time,
-        expiresAt: expiresAt.toISOString(),
-        permalink: story.permalink_url,
-      };
-    });
+        return {
+          id: story.id,
+          createdTime: story.created_time,
+          expiresAt: expiresAt.toISOString(),
+          ...(story.permalink_url ? { permalink: story.permalink_url } : {}),
+        };
+      }
+    );
   }
 
   /**
@@ -381,11 +383,13 @@ export class FacebookStoriesApi {
 
       const data = await response.json();
 
-      return (data.data || []).map((viewer: any) => ({
-        id: viewer.id,
-        name: viewer.name,
-        profilePicture: viewer.picture?.data?.url,
-      }));
+      return (data.data || []).map(
+        (viewer: { id: string; name: string; picture?: { data?: { url?: string } } }) => ({
+          id: viewer.id,
+          name: viewer.name,
+          ...(viewer.picture?.data?.url ? { profilePicture: viewer.picture.data.url } : {}),
+        })
+      );
     } catch (error) {
       logger.warn(
         { err: error },

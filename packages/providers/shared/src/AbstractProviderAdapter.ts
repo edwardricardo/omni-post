@@ -82,7 +82,7 @@ export abstract class AbstractProviderAdapter<TCredentials extends ProviderCrede
   // ============================================================
 
   protected abstract getCredentialsFromEnvironment(): Result<TCredentials, "AUTH">;
-  protected abstract createApiClient(credentials: TCredentials): any;
+  protected abstract createApiClient(credentials: TCredentials): unknown;
   abstract render(canonical: CanonicalPost): Result<RenderedContent, RenderError>;
   abstract publish(input: PublishInput): Promise<Result<PublishReceipt, PublishError>>;
 
@@ -130,9 +130,14 @@ export abstract class AbstractProviderAdapter<TCredentials extends ProviderCrede
     }
   }
 
-  protected async testCredentials(apiClient: any): Promise<void> {
-    if (apiClient.validateCredentials) {
-      await apiClient.validateCredentials();
+  protected async testCredentials(apiClient: unknown): Promise<void> {
+    if (
+      apiClient &&
+      typeof apiClient === "object" &&
+      "validateCredentials" in apiClient &&
+      typeof (apiClient as Record<string, unknown>).validateCredentials === "function"
+    ) {
+      await (apiClient as { validateCredentials: () => Promise<void> }).validateCredentials();
     }
   }
 
@@ -268,7 +273,11 @@ export abstract class AbstractProviderAdapter<TCredentials extends ProviderCrede
     return "NETWORK";
   }
 
-  protected logError(operation: string, error: unknown, context: Record<string, any> = {}): void {
+  protected logError(
+    operation: string,
+    error: unknown,
+    context: Record<string, unknown> = {}
+  ): void {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error({
       provider: this.id,
@@ -286,7 +295,7 @@ export abstract class AbstractProviderAdapter<TCredentials extends ProviderCrede
       return err("INVALID_RESPONSE");
     }
 
-    const obj = response as Record<string, any>;
+    const obj = response as Record<string, unknown>;
 
     for (const field of requiredFields) {
       if (!(field in obj)) {

@@ -275,26 +275,54 @@ export const queueRoutes: FastifyPluginAsync = async (fastify) => {
 
   const handler = new QueueRouteHandler(queue);
 
-  // All queue management routes require admin authentication
-  const authOptions = { preHandler: [requireAdminAuth, requireAdmin] };
-
   // Stats overview
-  fastify.get("/admin/queue/stats", authOptions, (req, rep) => handler.getStats(req, rep));
+  fastify.get(
+    "/admin/queue/stats",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin Queues"], summary: "Get queue statistics" },
+    },
+    (req, rep) => handler.getStats(req, rep)
+  );
 
   // List jobs (with optional type filter + pagination)
-  fastify.get("/admin/queue/jobs", authOptions, (req, rep) => handler.listJobs(req, rep));
+  fastify.get(
+    "/admin/queue/jobs",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin Queues"], summary: "List queue jobs" },
+    },
+    (req, rep) => handler.listJobs(req, rep)
+  );
 
   // Get single job by BullMQ job ID
-  fastify.get("/admin/queue/jobs/:id", authOptions, (req, rep) => handler.getJob(req, rep));
+  fastify.get(
+    "/admin/queue/jobs/:id",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin Queues"], summary: "Get job by ID" },
+    },
+    (req, rep) => handler.getJob(req, rep)
+  );
 
   // Retry a failed job
-  fastify.post("/admin/queue/jobs/:id/retry", authOptions, (req, rep) =>
-    handler.retryJob(req, rep)
+  fastify.post(
+    "/admin/queue/jobs/:id/retry",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin Queues"], summary: "Retry failed job" },
+    },
+    (req, rep) => handler.retryJob(req, rep)
   );
 
   // Remove a job from the queue
-  fastify.post("/admin/queue/jobs/:id/remove", authOptions, (req, rep) =>
-    handler.removeJob(req, rep)
+  fastify.post(
+    "/admin/queue/jobs/:id/remove",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin Queues"], summary: "Remove job from queue" },
+    },
+    (req, rep) => handler.removeJob(req, rep)
   );
 
   // Gracefully close the dedicated queue connection on server shutdown

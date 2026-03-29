@@ -5,6 +5,7 @@ import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-com
 import type { PrismaClient, SubscriptionTier } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 
 // Zod Schemas for Validation with security enhancement
 const CreateAccountBodySchema = z.object({
@@ -360,21 +361,52 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   const handler = new AccountRouteHandler(prisma);
 
   // Create account
-  fastify.post("/accounts", async (request, reply) => handler.createAccount(request, reply));
+  fastify.post(
+    "/accounts",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Accounts"], summary: "Create a new account" },
+    },
+    async (request, reply) => handler.createAccount(request, reply)
+  );
 
   // Get account by ID
-  fastify.get("/accounts/:accountId", async (request, reply) => handler.getAccount(request, reply));
+  fastify.get(
+    "/accounts/:accountId",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Accounts"], summary: "Get account by ID" },
+    },
+    async (request, reply) => handler.getAccount(request, reply)
+  );
 
   // List all accounts
-  fastify.get("/accounts", async (request, reply) => handler.listAccounts(request, reply));
+  fastify.get(
+    "/accounts",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Accounts"], summary: "List all accounts" },
+    },
+    async (request, reply) => handler.listAccounts(request, reply)
+  );
 
   // Update account
-  fastify.put("/accounts/:accountId", async (request, reply) =>
-    handler.updateAccount(request, reply)
+  fastify.put(
+    "/accounts/:accountId",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Accounts"], summary: "Update account" },
+    },
+    async (request, reply) => handler.updateAccount(request, reply)
   );
 
   // Delete account
-  fastify.delete("/accounts/:accountId", async (request, reply) =>
-    handler.deleteAccount(request, reply)
+  fastify.delete(
+    "/accounts/:accountId",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Accounts"], summary: "Delete account" },
+    },
+    async (request, reply) => handler.deleteAccount(request, reply)
   );
 };

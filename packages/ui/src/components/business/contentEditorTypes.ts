@@ -259,7 +259,7 @@ export const getMinMediaLimit = (providers: ProviderConstraints[]): number => {
 /**
  * Utility: Debounce function
  */
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: never[]) => void>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {

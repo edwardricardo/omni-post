@@ -8,6 +8,7 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { PrismaAIPromptTemplateRepository } from "../repositories/PrismaAIPromptTemplateRepository.js";
 import type { AIPromptTemplateRepository } from "../../domain/repositories/AIPromptTemplateRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { ListAIPromptTemplatesQuery } from "../../application/aiPromptTemplates/ListAIPromptTemplatesQuery.js";
 import { CreateAIPromptTemplateUseCase } from "../../application/aiPromptTemplates/CreateAIPromptTemplateUseCase.js";
 import { UpdateAIPromptTemplateUseCase } from "../../application/aiPromptTemplates/UpdateAIPromptTemplateUseCase.js";
@@ -27,6 +28,7 @@ export function setupAIPromptTemplateUseCases(container: Container): void {
 
   const repo = () =>
     container.resolve<AIPromptTemplateRepository>(TOKENS.AIPromptTemplateRepository);
+  const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
 
   container.register(
     TOKENS.ListAIPromptTemplatesQuery,
@@ -36,19 +38,19 @@ export function setupAIPromptTemplateUseCases(container: Container): void {
 
   container.register(
     TOKENS.CreateAIPromptTemplateUseCase,
-    () => new CreateAIPromptTemplateUseCase(repo()),
+    () => new CreateAIPromptTemplateUseCase(repo(), uow()),
     true
   );
 
   container.register(
     TOKENS.UpdateAIPromptTemplateUseCase,
-    () => new UpdateAIPromptTemplateUseCase(repo()),
+    () => new UpdateAIPromptTemplateUseCase(repo(), uow()),
     true
   );
 
   container.register(
     TOKENS.DeleteAIPromptTemplateUseCase,
-    () => new DeleteAIPromptTemplateUseCase(repo()),
+    () => new DeleteAIPromptTemplateUseCase(repo(), uow()),
     true
   );
 }

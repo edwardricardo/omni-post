@@ -84,15 +84,15 @@ export class ProviderHealthChecker implements HealthChecker {
           ),
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latency = Date.now() - startTime;
       return {
         status: "unhealthy",
         latency,
         message: "Provider health check failed",
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         details: {
-          errorType: error.constructor.name,
+          errorType: error instanceof Error ? error.constructor.name : "Unknown",
           responseTime: latency,
         },
       };

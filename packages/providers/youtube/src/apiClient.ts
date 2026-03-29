@@ -72,9 +72,16 @@ export class YouTubeApiClient {
       ...(credentials.accessToken && { access_token: credentials.accessToken }),
     });
 
-    this.youtube = (google as any).youtube({ version: "v3", auth: this.oauth2Client });
+    const googleApi = google as unknown as {
+      youtube: (opts: { version: string; auth: OAuth2Client }) => youtube_v3.Youtube;
+      youtubeAnalytics: (opts: {
+        version: string;
+        auth: OAuth2Client;
+      }) => youtubeAnalytics_v2.Youtubeanalytics;
+    };
+    this.youtube = googleApi.youtube({ version: "v3", auth: this.oauth2Client });
 
-    this.youtubeAnalytics = (google as any).youtubeAnalytics({
+    this.youtubeAnalytics = googleApi.youtubeAnalytics({
       version: "v2",
       auth: this.oauth2Client,
     });
@@ -146,7 +153,9 @@ export class YouTubeApiClient {
       const videoBuffer = await videoResponse.arrayBuffer();
       const videoStream = Readable.from(Buffer.from(videoBuffer));
 
-      const response = (await (this.youtube as any).videos.insert({
+      const response = (await (
+        this.youtube.videos as unknown as { insert: (opts: unknown) => Promise<unknown> }
+      ).insert({
         part: ["snippet", "status"],
         requestBody: {
           snippet: {
@@ -336,7 +345,9 @@ export class YouTubeApiClient {
     const apiCall = async () => {
       await this.refreshTokenIfNeeded();
 
-      const response = (await (this.youtube as any).search.list({
+      const response = (await (
+        this.youtube.search as unknown as { list: (opts: unknown) => Promise<unknown> }
+      ).list({
         part: ["snippet"],
         q: query,
         type: [options?.type || "video"],
@@ -403,7 +414,9 @@ export class YouTubeApiClient {
       if (!current.snippet || !current.status)
         throw ProviderError.notFound("youtube", "Video snippet or status");
 
-      const response = (await (this.youtube as any).videos.update({
+      const response = (await (
+        this.youtube.videos as unknown as { update: (opts: unknown) => Promise<unknown> }
+      ).update({
         part: ["snippet", "status"],
         requestBody: {
           id: videoId,

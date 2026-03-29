@@ -1,6 +1,14 @@
 #!/usr/bin/env tsx
 import "./templateRoutes.env-setup.js";
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+
+vi.mock("../../src/auth/authMiddleware.js", () => ({
+  authenticateMiddleware: async () => {},
+  requireAdmin: async () => {},
+  requireSuperAdmin: async () => {},
+  requireRole: () => async () => {},
+  optionalAuth: async () => {},
+}));
 import { FastifyInstance } from "fastify";
 import {
   createTestApp,

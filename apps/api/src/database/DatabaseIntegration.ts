@@ -10,11 +10,15 @@
  */
 
 import { FastifyInstance } from "fastify";
+import type { PrismaClient } from "@infra/prisma";
 import { EventService } from "../events/EventService";
 import { RedisCacheManager } from "@adapters/cache-redis";
 import { createDomainEvent } from "@shared/events";
 import Redis from "ioredis";
 import { dbLogger } from "../lib/logger.js";
+
+/** Opaque database client type used in query/transaction callbacks */
+type DatabaseClient = PrismaClient;
 
 /**
  * Minimal interface for the connection manager used by DatabaseIntegration.
@@ -24,18 +28,28 @@ import { dbLogger } from "../lib/logger.js";
  */
 interface IConnectionManager {
   executeQuery<T>(
-    query: (client: any) => Promise<T>,
+    query: (client: DatabaseClient) => Promise<T>,
     options?: { readOnly?: boolean; maxRetries?: number; timeout?: number }
   ): Promise<T>;
   executeTransaction<T>(
-    transaction: (client: any) => Promise<T>,
+    transaction: (client: DatabaseClient) => Promise<T>,
     options?: { timeout?: number }
   ): Promise<T>;
   healthCheck(): Promise<{
     status: "healthy" | "degraded" | "unhealthy";
     primary: boolean;
     replicas: { url: string; healthy: boolean; latency: number }[];
-    metrics: any;
+    metrics: {
+      totalConnections: number;
+      activeConnections: number;
+      idleConnections: number;
+      queuedRequests: number;
+      averageQueryTime: number;
+      slowQueries: number;
+      failedConnections: number;
+      connectionErrors: number;
+      replicaHealth: Map<string, boolean>;
+    };
     lastCheck: Date;
   }>;
   getConnectionStats(): {
@@ -156,7 +170,7 @@ export class DatabaseIntegration {
    */
   async executeOptimizedQuery<T>(
     queryKey: string,
-    query: (client: any) => Promise<T>,
+    query: (client: DatabaseClient) => Promise<T>,
     options?: {
       readOnly?: boolean;
       cacheTtl?: number;
@@ -249,7 +263,7 @@ export class DatabaseIntegration {
    */
   async executeOptimizedTransaction<T>(
     transactionKey: string,
-    transaction: (client: any) => Promise<T>,
+    transaction: (client: DatabaseClient) => Promise<T>,
     options?: { timeout?: number; cacheTags?: string[] }
   ): Promise<T> {
     const { timeout = 60000, cacheTags = [] } = options || {};
@@ -497,7 +511,7 @@ export class DatabaseIntegration {
 
     // Add database integration to request context
     fastify.addHook("onRequest", async (request, _reply) => {
-      (request as any).database = {
+      (request as unknown as Record<string, unknown>).database = {
         executeOptimizedQuery: this.executeOptimizedQuery.bind(this),
         executeOptimizedTransaction: this.executeOptimizedTransaction.bind(this),
         connectionManager: this.connectionManager,

@@ -6,6 +6,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { RecurringPostRepository } from "../../domain/repositories/RecurringPostRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { CreateRecurringPostUseCase } from "../../application/recurring/CreateRecurringPostUseCase.js";
 import { UpdateRecurringPostUseCase } from "../../application/recurring/UpdateRecurringPostUseCase.js";
 import { DeactivateRecurringPostUseCase } from "../../application/recurring/DeactivateRecurringPostUseCase.js";
@@ -19,22 +20,23 @@ import { ProcessRecurrenceUseCase } from "../../application/recurring/ProcessRec
  */
 export function setupRecurringPostUseCases(container: Container): void {
   const repo = () => container.resolve<RecurringPostRepository>(TOKENS.RecurringPostRepository);
+  const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
 
   container.register(
     TOKENS.CreateRecurringPostUseCase,
-    () => new CreateRecurringPostUseCase(repo()),
+    () => new CreateRecurringPostUseCase(repo(), uow()),
     true
   );
 
   container.register(
     TOKENS.UpdateRecurringPostUseCase,
-    () => new UpdateRecurringPostUseCase(repo()),
+    () => new UpdateRecurringPostUseCase(repo(), uow()),
     true
   );
 
   container.register(
     TOKENS.DeactivateRecurringPostUseCase,
-    () => new DeactivateRecurringPostUseCase(repo()),
+    () => new DeactivateRecurringPostUseCase(repo(), uow()),
     true
   );
 
@@ -48,7 +50,7 @@ export function setupRecurringPostUseCases(container: Container): void {
 
   container.register(
     TOKENS.ProcessRecurrenceUseCase,
-    () => new ProcessRecurrenceUseCase(repo()),
+    () => new ProcessRecurrenceUseCase(repo(), uow()),
     true
   );
 }

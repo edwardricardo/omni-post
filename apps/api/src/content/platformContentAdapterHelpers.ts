@@ -216,7 +216,11 @@ export async function evaluateCondition(
     case "eq":
       return fieldValue === condition.value;
     case "contains":
-      return typeof fieldValue === "string" && fieldValue.includes(condition.value);
+      return (
+        typeof fieldValue === "string" &&
+        typeof condition.value === "string" &&
+        fieldValue.includes(condition.value)
+      );
     case "exists":
       return fieldValue !== undefined && fieldValue !== null;
     default:
@@ -251,16 +255,17 @@ export function buildBuiltInTransformers(): Map<string, ContentTransformer> {
     id: "text_truncate",
     name: "Text Truncation",
     type: "text",
-    transform: async (content: string, params: Record<string, any>) => {
-      const maxLength = params.maxLength || 280;
-      if (content.length <= maxLength) return content;
-      const truncated = content.substring(0, maxLength - 3);
+    transform: async (content: unknown, params: Record<string, unknown>) => {
+      const text = typeof content === "string" ? content : String(content);
+      const maxLength = typeof params.maxLength === "number" ? params.maxLength : 280;
+      if (text.length <= maxLength) return text;
+      const truncated = text.substring(0, maxLength - 3);
       const lastSpace = truncated.lastIndexOf(" ");
       return lastSpace > maxLength * 0.8
         ? truncated.substring(0, lastSpace) + "..."
         : truncated + "...";
     },
-    validate: (input: any) => typeof input === "string",
+    validate: (input: unknown) => typeof input === "string",
     reversible: false,
   });
 
@@ -268,16 +273,16 @@ export function buildBuiltInTransformers(): Map<string, ContentTransformer> {
     id: "hashtag_optimize",
     name: "Hashtag Optimization",
     type: "text",
-    transform: async (tags: string[], params: Record<string, any>) => {
-      const maxTags = params.maxTags || 10;
-      const style = params.style || "inline";
-      if (!Array.isArray(tags)) return tags;
+    transform: async (content: unknown, params: Record<string, unknown>) => {
+      const tags = Array.isArray(content) ? (content as string[]) : [];
+      const maxTags = typeof params.maxTags === "number" ? params.maxTags : 10;
+      const style = typeof params.style === "string" ? params.style : "inline";
       const optimizedTags = tags.slice(0, maxTags);
       if (style === "grouped") return optimizedTags;
       if (style === "minimal") return optimizedTags.slice(0, 3);
       return optimizedTags;
     },
-    validate: (input: any) => Array.isArray(input),
+    validate: (input: unknown) => Array.isArray(input),
     reversible: true,
   });
 
@@ -285,16 +290,17 @@ export function buildBuiltInTransformers(): Map<string, ContentTransformer> {
     id: "media_optimize",
     name: "Media Optimization",
     type: "media",
-    transform: async (media: Media[], params: Record<string, any>) => {
-      const maxCount = params.maxCount || 4;
-      const targetFormat = params.targetFormat;
-      const maxSize = params.maxSize;
-      if (!Array.isArray(media)) return media;
+    transform: async (content: unknown, params: Record<string, unknown>) => {
+      const media = Array.isArray(content) ? (content as Media[]) : [];
+      const maxCount = typeof params.maxCount === "number" ? params.maxCount : 4;
+      const targetFormat =
+        typeof params.targetFormat === "string" ? params.targetFormat : undefined;
+      const maxSize = typeof params.maxSize === "number" ? params.maxSize : undefined;
       let optimizedMedia = media.slice(0, maxCount);
       if (targetFormat) {
         optimizedMedia = optimizedMedia.map((m) => ({
           ...m,
-          type: targetFormat,
+          type: targetFormat as Media["type"],
           url: convertMediaUrl(m.url, targetFormat),
         }));
       }
@@ -306,7 +312,7 @@ export function buildBuiltInTransformers(): Map<string, ContentTransformer> {
       }
       return optimizedMedia;
     },
-    validate: (input: any) => Array.isArray(input),
+    validate: (input: unknown) => Array.isArray(input),
     reversible: false,
   });
 
@@ -314,16 +320,17 @@ export function buildBuiltInTransformers(): Map<string, ContentTransformer> {
     id: "content_enhance",
     name: "Content Enhancement",
     type: "text",
-    transform: async (content: string, params: Record<string, any>) => {
-      const enhancementType = params.type || "engagement";
+    transform: async (content: unknown, params: Record<string, unknown>) => {
+      const text = typeof content === "string" ? content : String(content);
+      const enhancementType = typeof params.type === "string" ? params.type : "engagement";
       if (enhancementType === "engagement") {
-        return addEngagementElements(content, params);
+        return addEngagementElements(text, params);
       } else if (enhancementType === "accessibility") {
-        return addAccessibilityFeatures(content, params);
+        return addAccessibilityFeatures(text, params);
       }
-      return content;
+      return text;
     },
-    validate: (input: any) => typeof input === "string",
+    validate: (input: unknown) => typeof input === "string",
     reversible: true,
   });
 

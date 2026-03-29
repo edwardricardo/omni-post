@@ -77,8 +77,10 @@ import { linkRoutes } from "./links/linkRoutes.js";
 import { teamRoutes } from "./team/teamRoutes.js";
 import { notificationRoutes } from "./notifications/notificationRoutes.js";
 import { approvalRoutes } from "./approvals/approvalRoutes.js";
+import { approvalWorkflowRoutes } from "./approvals/approvalWorkflowRoutes.js";
 import { commentRoutes } from "./comments/commentRoutes.js";
 import { inboxRoutes } from "./inbox/inboxRoutes.js";
+import { conversationNoteRoutes } from "./inbox/conversationNoteRoutes.js";
 import { campaignRoutes } from "./campaigns/campaignRoutes.js";
 import { utmRoutes } from "./utm/utmRoutes.js";
 import { reportRoutes } from "./reports/reportRoutes.js";
@@ -89,7 +91,15 @@ import { recurringPostRoutes } from "./recurring/recurringPostRoutes.js";
 import { promptTemplateRoutes } from "./ai/promptTemplateRoutes.js";
 import { usageRoutes } from "./usage/usageRoutes.js";
 import { brandVoiceRoutes } from "./brand-voice/brandVoiceRoutes.js";
+import { brandKitRoutes } from "./brand-kit/brandKitRoutes.js";
 import { assetRoutes } from "./assets/assetRoutes.js";
+import { zapierRoutes } from "./integrations/zapierRoutes.js";
+import { makeRoutes } from "./integrations/makeRoutes.js";
+import { taskRoutes } from "./tasks/taskRoutes.js";
+import { samlRoutes } from "./auth/samlRoutes.js";
+import { oidcRoutes } from "./auth/oidcRoutes.js";
+import { customReportRoutes } from "./custom-reports/customReportRoutes.js";
+import { crmRoutes } from "./crm/crmRoutes.js";
 
 // Phase 3 imports
 import { DatabaseOptimizer } from "./utils/dbOptimization.js";
@@ -406,8 +416,10 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(teamRoutes);
   await typedApp.register(notificationRoutes);
   await typedApp.register(approvalRoutes);
+  await typedApp.register(approvalWorkflowRoutes);
   await typedApp.register(commentRoutes);
   await typedApp.register(inboxRoutes);
+  await typedApp.register(conversationNoteRoutes);
   await typedApp.register(campaignRoutes);
   await typedApp.register(utmRoutes);
   await typedApp.register(reportRoutes);
@@ -418,7 +430,14 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(promptTemplateRoutes);
   await typedApp.register(usageRoutes);
   await typedApp.register(brandVoiceRoutes);
+  await typedApp.register(brandKitRoutes);
   await typedApp.register(assetRoutes);
+  await typedApp.register(zapierRoutes);
+  await typedApp.register(makeRoutes);
+  await typedApp.register(taskRoutes);
+  await typedApp.register(samlRoutes);
+  await typedApp.register(oidcRoutes);
+  await typedApp.register(customReportRoutes);
 
   // Register provider routes
   const { providerRoutes } = await import("./providers/providerRoutes.js");
@@ -442,6 +461,9 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Register OAuth routes
   await registerOAuthRoutes(typedApp);
+
+  // Register CRM routes
+  await typedApp.register(crmRoutes);
 
   // Initialize Saga Integration (orchestrates multi-step publishing workflows
   // with real BullMQ job enqueuing and Redis pub/sub worker notifications)
@@ -546,7 +568,7 @@ async function start() {
       outboxCleaner.stop();
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
-      const saga = (app as any).sagaIntegration as
+      const saga = (app as unknown as Record<string, unknown>).sagaIntegration as
         | import("./saga/SagaIntegration.js").SagaIntegration
         | undefined;
       if (saga) {

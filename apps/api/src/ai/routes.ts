@@ -6,13 +6,14 @@ import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { AIService } from "./aiService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GetBrandVoiceQuery } from "../application/brand-voice/GetBrandVoiceQuery.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 
 // ============================================================================
 // Zod Validation Schemas
 // ============================================================================
 
 const MessageSchema = z.object({
-  role: z.string(),
+  role: z.enum(["system", "user", "assistant"]),
   content: z.string(),
 });
 
@@ -136,9 +137,12 @@ class AiRouteHandler extends BaseRouteHandler {
       const brandVoicePrompt = await this.resolveBrandVoicePrompt(accountId);
       const effectiveMessages =
         brandVoicePrompt && !messages.some((m) => m.role === "system")
-          ? [{ role: "system", content: brandVoicePrompt }, ...messages]
+          ? [{ role: "system" as const, content: brandVoicePrompt }, ...messages]
           : messages;
-      const result = await this.aiService.generateContent(effectiveMessages, options);
+      const result = await this.aiService.generateContent(
+        effectiveMessages,
+        options as import("./types.js").GenerationOptions | undefined
+      );
 
       this.sendSuccess(ctx, result, 200);
     } catch (error: unknown) {
@@ -339,21 +343,64 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Health check removed - use main /health endpoint instead
 
-  fastify.post("/generate", async (request, reply) => handler.generateContent(request, reply));
+  fastify.post(
+    "/generate",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["AI"], summary: "Generate content with AI" },
+    },
+    async (request, reply) => handler.generateContent(request, reply)
+  );
 
-  fastify.post("/analyze", async (request, reply) => handler.analyzeContent(request, reply));
+  fastify.post(
+    "/analyze",
+    { preHandler: [authenticateMiddleware], schema: { tags: ["AI"], summary: "Analyze content" } },
+    async (request, reply) => handler.analyzeContent(request, reply)
+  );
 
-  fastify.post("/optimize", async (request, reply) => handler.optimizeContent(request, reply));
+  fastify.post(
+    "/optimize",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["AI"], summary: "Optimize content for platform" },
+    },
+    async (request, reply) => handler.optimizeContent(request, reply)
+  );
 
-  fastify.post("/predict", async (request, reply) => handler.predictPerformance(request, reply));
+  fastify.post(
+    "/predict",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["AI"], summary: "Estimate content performance" },
+    },
+    async (request, reply) => handler.predictPerformance(request, reply)
+  );
 
-  fastify.post("/variations", async (request, reply) => handler.generateVariations(request, reply));
+  fastify.post(
+    "/variations",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["AI"], summary: "Generate content variations" },
+    },
+    async (request, reply) => handler.generateVariations(request, reply)
+  );
 
-  fastify.post("/smart-analysis", async (request, reply) => handler.smartAnalysis(request, reply));
+  fastify.post(
+    "/smart-analysis",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["AI"], summary: "Combined content analysis" },
+    },
+    async (request, reply) => handler.smartAnalysis(request, reply)
+  );
 
   // Metrics endpoint removed - use main /metrics endpoint instead
 
-  fastify.delete("/cache", async (request, reply) => handler.clearCache(request, reply));
+  fastify.delete(
+    "/cache",
+    { preHandler: [authenticateMiddleware], schema: { tags: ["AI"], summary: "Clear AI cache" } },
+    async (request, reply) => handler.clearCache(request, reply)
+  );
 };
 
 export default aiRoutes;

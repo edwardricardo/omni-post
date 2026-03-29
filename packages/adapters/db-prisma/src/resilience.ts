@@ -48,7 +48,7 @@ export const DEFAULT_DATABASE_RETRY_OPTIONS: DatabaseRetryOptions = {
   ],
 };
 
-export function createDatabaseCircuitBreaker<T extends any[], R>(
+export function createDatabaseCircuitBreaker<T extends unknown[], R>(
   operation: (...args: T) => Promise<R>,
   options: Partial<DatabaseResilienceOptions> = {}
 ): CircuitBreaker<T, R> {
@@ -186,8 +186,8 @@ export class DatabaseMetricsCollector {
   private responseTimes: number[] = [];
   private maxResponseTimeHistory = 200;
 
-  setupCircuitBreakerMetrics(breaker: CircuitBreaker<any, any>): void {
-    breaker.on("success", (result: any, latencyTime: number) => {
+  setupCircuitBreakerMetrics(breaker: CircuitBreaker<unknown[], unknown>): void {
+    breaker.on("success", (_result: unknown, latencyTime: number) => {
       this.metrics.totalOperations++;
       this.metrics.successfulOperations++;
       this.recordResponseTime(latencyTime);
@@ -198,7 +198,7 @@ export class DatabaseMetricsCollector {
       }
     });
 
-    breaker.on("failure", (error: any, latencyTime: number) => {
+    breaker.on("failure", (error: unknown, latencyTime: number) => {
       this.metrics.totalOperations++;
       this.metrics.failedOperations++;
       this.metrics.connectionHealth.errors++;
@@ -207,11 +207,11 @@ export class DatabaseMetricsCollector {
         this.recordResponseTime(latencyTime);
 
         // Check for timeout errors
-        if (
-          error.code === "P1008" ||
-          error.code === "P2024" ||
-          error.message?.includes("timeout")
-        ) {
+        const errObj =
+          error && typeof error === "object" ? (error as Record<string, unknown>) : null;
+        const code = errObj ? String(errObj.code ?? "") : "";
+        const message = errObj ? String(errObj.message ?? "") : "";
+        if (code === "P1008" || code === "P2024" || message.includes("timeout")) {
           this.metrics.performanceMetrics.queryTimeouts++;
         }
       }
@@ -295,7 +295,9 @@ export class DatabaseMetricsCollector {
 }
 
 // Database connection monitoring
-export async function checkDatabaseConnection(prisma: any): Promise<boolean> {
+export async function checkDatabaseConnection(prisma: {
+  $queryRaw: (query: TemplateStringsArray) => Promise<unknown>;
+}): Promise<boolean> {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return true;

@@ -77,9 +77,13 @@ export class PlatformContentAdapter {
   async optimizeForEngagement(
     content: CanonicalPost,
     providerId: ProviderId,
-    audienceData?: any
+    audienceData?: unknown
   ): Promise<OrchestrationResult<PlatformAdaptation>> {
-    return this.core.optimizeForEngagement(content, providerId, audienceData);
+    return this.core.optimizeForEngagement(
+      content,
+      providerId,
+      audienceData as Record<string, unknown> | undefined
+    );
   }
 
   async reverseAdaptation(

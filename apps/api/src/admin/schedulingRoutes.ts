@@ -28,46 +28,83 @@ export const schedulingRoutes: FastifyPluginAsync = async (fastify) => {
   const postHandler = new SchedulingPostRouteHandler(prisma);
   const slotHandler = new SchedulingSlotRouteHandler(prisma);
 
-  // All routes require authentication
-  const authOptions = { preHandler: [requireAdminAuth] };
-
   // GET /admin/posts/scheduled - Fetch scheduled posts with filters
-  fastify.get("/admin/posts/scheduled", authOptions, async (request, reply) =>
-    postHandler.getScheduledPosts(request, reply)
+  fastify.get(
+    "/admin/posts/scheduled",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Scheduling"], summary: "Get scheduled posts" },
+    },
+    async (request, reply) => postHandler.getScheduledPosts(request, reply)
   );
 
   // POST /admin/posts/:id/cancel - Cancel a scheduled post
-  fastify.post("/admin/posts/:id/cancel", authOptions, async (request, reply) =>
-    postHandler.cancelScheduledPost(request, reply)
+  fastify.post(
+    "/admin/posts/:id/cancel",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Scheduling"], summary: "Cancel scheduled post" },
+    },
+    async (request, reply) => postHandler.cancelScheduledPost(request, reply)
   );
 
   // POST /admin/posts/:id/reschedule - Reschedule a post to new time
-  fastify.post("/admin/posts/:id/reschedule", authOptions, async (request, reply) =>
-    postHandler.reschedulePost(request, reply)
+  fastify.post(
+    "/admin/posts/:id/reschedule",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Scheduling"], summary: "Reschedule post" },
+    },
+    async (request, reply) => postHandler.reschedulePost(request, reply)
   );
 
   // GET /api/scheduling/slots - Get available schedule slots
-  fastify.get("/api/scheduling/slots", authOptions, async (request, reply) =>
-    slotHandler.getSchedulingSlots(request, reply)
+  fastify.get(
+    "/api/scheduling/slots",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Scheduling"], summary: "Get scheduling slots" },
+    },
+    async (request, reply) => slotHandler.getSchedulingSlots(request, reply)
   );
 
   // GET /api/analytics/optimal-times - Get optimal posting times
-  fastify.get("/api/analytics/optimal-times", authOptions, async (request, reply) =>
-    slotHandler.getOptimalPostingTimes(request, reply)
+  fastify.get(
+    "/api/analytics/optimal-times",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Scheduling"], summary: "Get optimal posting times" },
+    },
+    async (request, reply) => slotHandler.getOptimalPostingTimes(request, reply)
   );
 
   // GET /api/scheduling/rules - Get scheduling rules/constraints
-  fastify.get("/api/scheduling/rules", authOptions, async (request, reply) =>
-    slotHandler.getSchedulingRules(request, reply)
+  fastify.get(
+    "/api/scheduling/rules",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Scheduling"], summary: "Get scheduling rules" },
+    },
+    async (request, reply) => slotHandler.getSchedulingRules(request, reply)
   );
 
   // POST /api/scheduling/slots - Create a new schedule slot
-  fastify.post("/api/scheduling/slots", authOptions, async (request, reply) =>
-    slotHandler.createScheduleSlot(request, reply)
+  fastify.post(
+    "/api/scheduling/slots",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Scheduling"], summary: "Create schedule slot" },
+    },
+    async (request, reply) => slotHandler.createScheduleSlot(request, reply)
   );
 
   // POST /api/scheduling/slots/bulk - Bulk create schedule slots
-  fastify.post("/api/scheduling/slots/bulk", authOptions, async (request, reply) =>
-    slotHandler.bulkCreateScheduleSlots(request, reply)
+  fastify.post(
+    "/api/scheduling/slots/bulk",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Scheduling"], summary: "Bulk create schedule slots" },
+    },
+    async (request, reply) => slotHandler.bulkCreateScheduleSlots(request, reply)
   );
 };

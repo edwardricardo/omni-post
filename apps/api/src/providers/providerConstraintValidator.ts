@@ -23,8 +23,8 @@ export interface ValidationResult {
 export interface LocalContentAdaptation {
   type: "truncate" | "split" | "compress" | "format" | "remove";
   field: string;
-  from: any;
-  to: any;
+  from: unknown;
+  to: unknown;
   reason: string;
 }
 

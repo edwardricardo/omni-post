@@ -14,7 +14,7 @@ import type {
   AdaptationRule,
   OrchestrationResult,
 } from "@shared/orchestration";
-import type { CanonicalPost } from "@shared/types";
+import type { CanonicalPost, ProviderMetadata } from "@shared/types";
 import type { ProviderId, ProviderAdapter } from "../providers/providerAdapter.interface";
 import type { EventService } from "../events/EventService";
 import { providerRegistry } from "../providers/providerRegistry";
@@ -97,7 +97,7 @@ export class PlatformContentAdapterStrategy {
   buildAdaptationContext(
     content: CanonicalPost,
     providerId: ProviderId,
-    provider: any,
+    provider: ProviderMetadata,
     adapter: ProviderAdapter,
     userPreferences?: UserAdaptationPreferences
   ): AdaptationContext {
@@ -297,13 +297,17 @@ export class PlatformContentAdapterStrategy {
   // Private: Goal Generation & Scoring
   // ---------------------------------------------------------------------------
 
-  private generateAdaptationGoals(content: CanonicalPost, provider: any): AdaptationGoal[] {
+  private generateAdaptationGoals(
+    content: CanonicalPost,
+    provider: ProviderMetadata
+  ): AdaptationGoal[] {
     const goals: AdaptationGoal[] = [
       { type: "meet_limits", priority: 1 },
       { type: "preserve_meaning", priority: 2 },
     ];
 
-    if (provider.capabilities?.analytics) {
+    const capabilities = provider.capabilities as unknown as Record<string, unknown> | undefined;
+    if (capabilities?.analytics) {
       goals.push({ type: "maximize_engagement", priority: 3 });
     }
 
@@ -338,10 +342,10 @@ export class PlatformContentAdapterStrategy {
     content: CanonicalPost,
     rule: AdaptationRule,
     context: AdaptationContext
-  ): Promise<OrchestrationResult<{ content: CanonicalPost; transformedValue?: any }>> {
+  ): Promise<OrchestrationResult<{ content: CanonicalPost; transformedValue?: unknown }>> {
     try {
       let transformedContent = { ...content };
-      let transformedValue: any;
+      let transformedValue: unknown;
 
       switch (rule.type) {
         case "text_length": {
@@ -350,7 +354,7 @@ export class PlatformContentAdapterStrategy {
             transformedValue = await textTransformer.transform(content.body, {
               maxLength: context.constraints.maxChars,
             });
-            transformedContent.body = transformedValue;
+            transformedContent.body = transformedValue as string;
           }
           break;
         }
@@ -362,7 +366,7 @@ export class PlatformContentAdapterStrategy {
               maxCount: context.constraints.maxMediaPerPost,
               allowedFormats: context.constraints.allowedMedia,
             });
-            transformedContent.media = transformedValue;
+            transformedContent.media = transformedValue as typeof content.media;
           }
           break;
         }
@@ -373,7 +377,7 @@ export class PlatformContentAdapterStrategy {
             transformedValue = await hashtagTransformer.transform(content.tags, {
               maxTags: context.constraints.maxHashtags || 10,
             });
-            transformedContent.tags = transformedValue;
+            transformedContent.tags = transformedValue as string[];
           }
           break;
         }

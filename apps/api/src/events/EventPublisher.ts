@@ -348,7 +348,12 @@ export class RedisEventPublisher implements IEventPublisher {
       metrics: EventMetrics;
     };
   }> {
-    const details: any = {
+    const details: {
+      redis: boolean;
+      subscriberRedis: boolean;
+      activeSubscriptions: number;
+      metrics: EventMetrics;
+    } = {
       redis: false,
       subscriberRedis: false,
       activeSubscriptions: this.handlers.size,

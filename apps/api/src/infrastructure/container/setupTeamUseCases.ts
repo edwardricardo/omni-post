@@ -8,21 +8,30 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { PostRepository } from "../../domain/index.js";
 import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
+import type { ApprovalWorkflowRepository } from "../../domain/repositories/ApprovalWorkflowRepository.js";
 import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
 import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import {
   SubmitForReviewUseCase,
   ApprovePostUseCase,
   RejectPostUseCase,
   GetApprovalHistoryQuery,
   GetPendingApprovalsQuery,
+  CreateApprovalWorkflowUseCase,
+  UpdateApprovalWorkflowUseCase,
+  DeleteApprovalWorkflowUseCase,
+  ListApprovalWorkflowsQuery,
 } from "../../application/approvals/index.js";
 import {
   InviteTeamMemberUseCase,
   GetTeamMembersQuery,
   UpdateTeamMemberRoleUseCase,
   RemoveTeamMemberUseCase,
+  SearchTeamMembersQuery,
 } from "../../application/team/index.js";
+import { NotifyMentionedUsersService } from "../../application/mentions/index.js";
+import type { CreateNotificationUseCase } from "../../application/notifications/index.js";
 import {
   CreateCommentUseCase,
   EditCommentUseCase,
@@ -40,7 +49,9 @@ export function setupTeamUseCases(container: Container): void {
     () =>
       new SubmitForReviewUseCase(
         container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository),
-        container.resolve<PostRepository>(TOKENS.PostRepository)
+        container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
+        container.resolve<ApprovalWorkflowRepository>(TOKENS.ApprovalWorkflowRepository)
       ),
     true
   );
@@ -48,7 +59,8 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.ApprovePostUseCase,
     () =>
       new ApprovePostUseCase(
-        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository)
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -56,7 +68,8 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.RejectPostUseCase,
     () =>
       new RejectPostUseCase(
-        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository)
+        container.resolve<ApprovalRequestRepository>(TOKENS.ApprovalRequestRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -77,12 +90,50 @@ export function setupTeamUseCases(container: Container): void {
     true
   );
 
+  // Register Multi-Level Approval Workflow Use Cases
+  container.register<CreateApprovalWorkflowUseCase>(
+    TOKENS.CreateApprovalWorkflowUseCase,
+    () =>
+      new CreateApprovalWorkflowUseCase(
+        container.resolve<ApprovalWorkflowRepository>(TOKENS.ApprovalWorkflowRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<UpdateApprovalWorkflowUseCase>(
+    TOKENS.UpdateApprovalWorkflowUseCase,
+    () =>
+      new UpdateApprovalWorkflowUseCase(
+        container.resolve<ApprovalWorkflowRepository>(TOKENS.ApprovalWorkflowRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<DeleteApprovalWorkflowUseCase>(
+    TOKENS.DeleteApprovalWorkflowUseCase,
+    () =>
+      new DeleteApprovalWorkflowUseCase(
+        container.resolve<ApprovalWorkflowRepository>(TOKENS.ApprovalWorkflowRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<ListApprovalWorkflowsQuery>(
+    TOKENS.ListApprovalWorkflowsQuery,
+    () =>
+      new ListApprovalWorkflowsQuery(
+        container.resolve<ApprovalWorkflowRepository>(TOKENS.ApprovalWorkflowRepository)
+      ),
+    true
+  );
+
   // Register Team Member Use Cases (Phase 1.1)
   container.register<InviteTeamMemberUseCase>(
     TOKENS.InviteTeamMemberUseCase,
     () =>
       new InviteTeamMemberUseCase(
-        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
+        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -96,7 +147,8 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.UpdateTeamMemberRoleUseCase,
     () =>
       new UpdateTeamMemberRoleUseCase(
-        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
+        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -104,7 +156,26 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.RemoveTeamMemberUseCase,
     () =>
       new RemoveTeamMemberUseCase(
+        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<SearchTeamMembersQuery>(
+    TOKENS.SearchTeamMembersQuery,
+    () =>
+      new SearchTeamMembersQuery(
         container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
+      ),
+    true
+  );
+
+  // @Mention notification service
+  container.register<NotifyMentionedUsersService>(
+    TOKENS.NotifyMentionedUsersService,
+    () =>
+      new NotifyMentionedUsersService(
+        container.resolve<CreateNotificationUseCase>(TOKENS.CreateNotificationUseCase)
       ),
     true
   );
@@ -114,7 +185,8 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.CreateCommentUseCase,
     () =>
       new CreateCommentUseCase(
-        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -122,7 +194,8 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.EditCommentUseCase,
     () =>
       new EditCommentUseCase(
-        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -130,7 +203,8 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.DeleteCommentUseCase,
     () =>
       new DeleteCommentUseCase(
-        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository)
+        container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );

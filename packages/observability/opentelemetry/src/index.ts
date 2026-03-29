@@ -116,21 +116,24 @@ export class SocialMediaTelemetry {
       // Fastify-specific instrumentation for API server
       new FastifyInstrumentation({
         enabled: true,
-        requestHook: (span: any, request: any) => {
+        requestHook: (span, request) => {
           // Add custom attributes for social media context
-          if (request.headers["x-tenant-id"]) {
+          const headers = (
+            request as unknown as { headers: Record<string, string | string[] | undefined> }
+          ).headers;
+          if (headers["x-tenant-id"]) {
             span.setAttributes({
-              "tenant.id": request.headers["x-tenant-id"] as string,
+              "tenant.id": headers["x-tenant-id"] as string,
             });
           }
-          if (request.headers["x-project-id"]) {
+          if (headers["x-project-id"]) {
             span.setAttributes({
-              "project.id": request.headers["x-project-id"] as string,
+              "project.id": headers["x-project-id"] as string,
             });
           }
-          if (request.headers["x-provider"]) {
+          if (headers["x-provider"]) {
             span.setAttributes({
-              "social.provider": request.headers["x-provider"] as string,
+              "social.provider": headers["x-provider"] as string,
             });
           }
         },
@@ -139,14 +142,14 @@ export class SocialMediaTelemetry {
       // HTTP instrumentation for provider API calls
       new HttpInstrumentation({
         enabled: true,
-        ignoreOutgoingRequestHook: (req: any) => {
+        ignoreOutgoingRequestHook: (req) => {
           // Don't trace internal health checks
-          const url = req.path || "";
+          const url = (req as unknown as { path?: string }).path || "";
           return url.includes("/health") || url.includes("/metrics");
         },
-        requestHook: (span: any, request: any) => {
+        requestHook: (span, request) => {
           // Add social media provider context
-          const url = request.path || "";
+          const url = (request as unknown as { path?: string }).path || "";
           if (url.includes("api.twitter.com") || url.includes("api.x.com")) {
             span.setAttributes({
               "social.provider": "x",
@@ -164,7 +167,7 @@ export class SocialMediaTelemetry {
       // Redis instrumentation for cache and queues
       new RedisInstrumentation({
         enabled: true,
-        dbStatementSerializer: (cmdName: any, cmdArgs: any) => {
+        dbStatementSerializer: (cmdName, cmdArgs) => {
           // Sanitize sensitive data in Redis commands
           if (cmdName.toLowerCase().includes("auth") || cmdName.toLowerCase().includes("set")) {
             return `${cmdName} [REDACTED]`;

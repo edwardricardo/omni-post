@@ -618,14 +618,23 @@ export class FacebookReelsApi {
 
     const data = await response.json();
 
-    return (data.data || []).map((comment: any) => ({
-      id: comment.id,
-      message: comment.message,
-      from: comment.from,
-      createdTime: comment.created_time,
-      likeCount: comment.like_count || 0,
-      replyCount: comment.comment_count || 0,
-    }));
+    return (data.data || []).map(
+      (comment: {
+        id: string;
+        message: string;
+        from: unknown;
+        created_time: string;
+        like_count?: number;
+        comment_count?: number;
+      }) => ({
+        id: comment.id,
+        message: comment.message,
+        from: comment.from,
+        createdTime: comment.created_time,
+        likeCount: comment.like_count || 0,
+        replyCount: comment.comment_count || 0,
+      })
+    );
   }
 
   /**

@@ -53,7 +53,7 @@ export class FacebookMarketingApi {
 
     const data = await response.json();
 
-    return (data.data || []).map((account: any) => ({
+    return (data.data || []).map((account) => ({
       id: account.id,
       name: account.name,
       accountId: account.account_id,
@@ -77,7 +77,7 @@ export class FacebookMarketingApi {
 
     const data = await response.json();
 
-    return (data.data || []).map((campaign: any) => ({
+    return (data.data || []).map((campaign) => ({
       id: campaign.id,
       name: campaign.name,
       status: campaign.status,
@@ -103,7 +103,7 @@ export class FacebookMarketingApi {
 
     const data = await response.json();
 
-    return (data.data || []).map((adSet: any) => ({
+    return (data.data || []).map((adSet) => ({
       id: adSet.id,
       name: adSet.name,
       campaignId: adSet.campaign_id,
@@ -132,7 +132,7 @@ export class FacebookMarketingApi {
 
     const data = await response.json();
 
-    return (data.data || []).map((ad: any) => ({
+    return (data.data || []).map((ad) => ({
       id: ad.id,
       name: ad.name,
       adSetId: ad.adset_id,
@@ -233,7 +233,7 @@ export class FacebookMarketingApi {
     const response = await this.apiClient.makeApiRequest(`/${objectId}/insights?${params}`);
 
     const data = await response.json();
-    return (data.data || []).map((insight: any) => processInsights(insight));
+    return (data.data || []).map((insight) => processInsights(insight));
   }
 
   async getAudienceInsights(_targeting: Record<string, unknown>): Promise<FacebookAudienceInsight> {
@@ -313,7 +313,7 @@ export class FacebookMarketingApi {
     const response = await this.apiClient.makeApiRequest(`/${pixelId}/stats?${params}`);
     const data = await response.json();
 
-    return (data.data || []).map((event: any) => ({
+    return (data.data || []).map((event) => ({
       eventName: event.name,
       eventDescription: event.description,
       eventType: event.custom_conversions ? "CUSTOM" : "STANDARD",
@@ -388,9 +388,16 @@ export class FacebookMarketingApi {
   }> {
     const adAccounts = await this.getAdAccounts();
 
+    interface ObjectiveEntry {
+      objective: string;
+      spend: number;
+      conversions: number;
+      roas: number;
+    }
+
     let totalSpend = 0;
     let totalConversions = 0;
-    const objectivePerformance: Record<string, unknown> = {};
+    const objectivePerformance: Record<string, ObjectiveEntry> = {};
 
     for (const account of adAccounts) {
       try {
@@ -415,12 +422,10 @@ export class FacebookMarketingApi {
               };
             }
 
-            objectivePerformance[campaign.objective].spend += insight.spend;
-            objectivePerformance[campaign.objective].conversions += insight.conversions;
-            objectivePerformance[campaign.objective].roas =
-              objectivePerformance[campaign.objective].spend > 0
-                ? insight.conversionValue / objectivePerformance[campaign.objective].spend
-                : 0;
+            const entry = objectivePerformance[campaign.objective]!;
+            entry.spend += insight.spend;
+            entry.conversions += insight.conversions;
+            entry.roas = entry.spend > 0 ? insight.conversionValue / entry.spend : 0;
           }
         }
       } catch (error) {
@@ -436,7 +441,7 @@ export class FacebookMarketingApi {
       totalConversions,
       avgROAS,
       topPerformingObjectives: Object.values(objectivePerformance)
-        .sort((a, b) => (b as { roas: number }).roas - (a as { roas: number }).roas)
+        .sort((a, b) => b.roas - a.roas)
         .slice(0, 5),
       monthlyTrends: [],
     };

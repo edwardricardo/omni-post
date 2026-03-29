@@ -361,7 +361,7 @@ export function isFullProviderAdapter(adapter: unknown): adapter is ProviderAdap
   );
 }
 
-export function upgradeAdapter(adapter: LegacyProviderAdapter): any {
+export function upgradeAdapter(adapter: LegacyProviderAdapter): ProviderAdapter {
   // Upgrade legacy adapter to universal adapter with default implementations
   return {
     ...adapter,
@@ -443,7 +443,19 @@ export function upgradeAdapter(adapter: LegacyProviderAdapter): any {
       };
     },
 
-    async getAccountInfo(): Promise<Result<Record<string, unknown>, "AUTH" | "NETWORK">> {
+    async getAccountInfo(): Promise<
+      Result<
+        {
+          id: string;
+          name: string;
+          username?: string;
+          profileImage?: string;
+          verified?: boolean;
+          followers?: number;
+        },
+        "AUTH" | "NETWORK"
+      >
+    > {
       return { ok: false, error: "AUTH" };
     },
 
@@ -452,5 +464,5 @@ export function upgradeAdapter(adapter: LegacyProviderAdapter): any {
     > {
       return { ok: true, value: { healthy: true } };
     },
-  };
+  } as unknown as ProviderAdapter;
 }

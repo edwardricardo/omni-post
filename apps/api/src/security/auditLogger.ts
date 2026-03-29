@@ -7,7 +7,7 @@ interface AuditEvent {
   action: string;
   resource?: string;
   resourceId?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   userId?: string;
   ipAddress?: string;
   userAgent?: string;
@@ -68,18 +68,20 @@ export class AuditLogger {
       const sanitizedEvent = this.sanitizeEvent(enrichedEvent);
 
       // Store in database
+      const createData: Record<string, unknown> = {
+        action: sanitizedEvent.action,
+        success: sanitizedEvent.success ?? true,
+      };
+      if (sanitizedEvent.resource) createData.resource = sanitizedEvent.resource;
+      if (sanitizedEvent.resourceId) createData.resourceId = sanitizedEvent.resourceId;
+      if (sanitizedEvent.details) createData.details = sanitizedEvent.details;
+      if (sanitizedEvent.userId) createData.userId = sanitizedEvent.userId;
+      if (sanitizedEvent.ipAddress) createData.ipAddress = sanitizedEvent.ipAddress;
+      if (sanitizedEvent.userAgent) createData.userAgent = sanitizedEvent.userAgent;
+      if (sanitizedEvent.error) createData.error = sanitizedEvent.error;
+
       const _auditRecord = await prisma.auditLog.create({
-        data: {
-          action: sanitizedEvent.action,
-          ...(sanitizedEvent.resource ? { resource: sanitizedEvent.resource } : {}),
-          ...(sanitizedEvent.resourceId ? { resourceId: sanitizedEvent.resourceId } : {}),
-          ...(sanitizedEvent.details ? { details: sanitizedEvent.details } : {}),
-          ...(sanitizedEvent.userId ? { userId: sanitizedEvent.userId } : {}),
-          ...(sanitizedEvent.ipAddress ? { ipAddress: sanitizedEvent.ipAddress } : {}),
-          ...(sanitizedEvent.userAgent ? { userAgent: sanitizedEvent.userAgent } : {}),
-          success: sanitizedEvent.success ?? true,
-          ...(sanitizedEvent.error ? { error: sanitizedEvent.error } : {}),
-        },
+        data: createData as Parameters<typeof prisma.auditLog.create>[0]["data"],
       });
 
       // Cache recent events in Redis for real-time monitoring
@@ -121,7 +123,7 @@ export class AuditLogger {
   // Authentication-specific logging
   async logAuth(
     action: "LOGIN" | "LOGOUT" | "LOGIN_FAILED" | "PASSWORD_RESET" | "MFA_ENABLED" | "MFA_DISABLED",
-    details: Record<string, any>,
+    details: Record<string, unknown>,
     req?: FastifyRequest
   ): Promise<void> {
     await this.log(
@@ -141,7 +143,7 @@ export class AuditLogger {
     action: "CREATE" | "UPDATE" | "DELETE",
     resource: string,
     resourceId: string,
-    changes: Record<string, any>,
+    changes: Record<string, unknown>,
     req?: FastifyRequest
   ): Promise<void> {
     await this.log(
@@ -160,7 +162,7 @@ export class AuditLogger {
   // Security event logging
   async logSecurity(
     action: string,
-    details: Record<string, any>,
+    details: Record<string, unknown>,
     severity: "low" | "medium" | "high" | "critical" = "medium",
     req?: FastifyRequest
   ): Promise<void> {
@@ -180,7 +182,7 @@ export class AuditLogger {
     action: string,
     resource: string,
     resourceId: string,
-    details: Record<string, any>,
+    details: Record<string, unknown>,
     req?: FastifyRequest
   ): Promise<void> {
     await this.log(
@@ -199,7 +201,7 @@ export class AuditLogger {
   // System event logging
   async logSystem(
     action: string,
-    details: Record<string, any>,
+    details: Record<string, unknown>,
     severity: "low" | "medium" | "high" = "low"
   ): Promise<void> {
     await this.log({
@@ -214,7 +216,7 @@ export class AuditLogger {
   async logBilling(
     action: string,
     accountId: string,
-    details: Record<string, any>,
+    details: Record<string, unknown>,
     req?: FastifyRequest
   ): Promise<void> {
     await this.log(
@@ -242,9 +244,9 @@ export class AuditLogger {
     success?: boolean;
     limit?: number;
     offset?: number;
-  }): Promise<any[]> {
+  }): Promise<Record<string, unknown>[]> {
     try {
-      const where: any = {};
+      const where: Record<string, unknown> = {};
 
       if (filters.userId) where.userId = filters.userId;
       if (filters.action) where.action = { contains: filters.action, mode: "insensitive" };
@@ -252,9 +254,10 @@ export class AuditLogger {
       if (filters.success !== undefined) where.success = filters.success;
 
       if (filters.startDate || filters.endDate) {
-        where.createdAt = {};
-        if (filters.startDate) where.createdAt.gte = filters.startDate;
-        if (filters.endDate) where.createdAt.lte = filters.endDate;
+        const createdAtFilter: { gte?: Date; lte?: Date } = {};
+        if (filters.startDate) createdAtFilter.gte = filters.startDate;
+        if (filters.endDate) createdAtFilter.lte = filters.endDate;
+        where.createdAt = createdAtFilter;
       }
 
       // Filter by category and severity via details JSON field
@@ -435,12 +438,12 @@ export class AuditLogger {
     return sanitized;
   }
 
-  private sanitizeObject(obj: any): any {
+  private sanitizeObject(obj: unknown): Record<string, unknown> {
     if (typeof obj !== "object" || obj === null) {
-      return obj;
+      return {};
     }
 
-    const sanitized: any = Array.isArray(obj) ? [] : {};
+    const sanitized: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(obj)) {
       const lowerKey = key.toLowerCase();
@@ -549,7 +552,7 @@ export class AuditLogger {
     }
   }
 
-  private async triggerAlert(alertType: string, details: Record<string, any>): Promise<void> {
+  private async triggerAlert(alertType: string, details: Record<string, unknown>): Promise<void> {
     try {
       const alert = {
         type: alertType,

@@ -65,15 +65,15 @@ export class RedisHealthChecker implements HealthChecker {
           version: this.parseRedisInfo(info, "server")["redis_version"] || "unknown",
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latency = Date.now() - startTime;
       return {
         status: "unhealthy",
         latency,
         message: "Redis connection failed",
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         details: {
-          errorType: error.constructor.name,
+          errorType: error instanceof Error ? error.constructor.name : "Unknown",
         },
       };
     }
@@ -146,13 +146,13 @@ export class CacheHealthChecker implements HealthChecker {
             : null,
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latency = Date.now() - startTime;
       return {
         status: "unhealthy",
         latency,
         message: "Cache health check failed",
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -236,13 +236,13 @@ export class QueueHealthChecker implements HealthChecker {
           connected: queueData.connected,
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latency = Date.now() - startTime;
       return {
         status: "unhealthy",
         latency,
         message: "Queue health check failed",
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }

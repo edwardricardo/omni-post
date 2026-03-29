@@ -26,17 +26,17 @@ export interface CacheableOptions extends CacheOptions {
   /**
    * Custom condition to determine if response should be cached
    */
-  shouldCache?: (request: FastifyRequest, reply: FastifyReply, data: any) => boolean;
+  shouldCache?: (request: FastifyRequest, reply: FastifyReply, data: unknown) => boolean;
 
   /**
    * Transform data before caching
    */
-  transformBeforeCache?: (data: any) => any;
+  transformBeforeCache?: (data: unknown) => unknown;
 
   /**
    * Transform data after retrieving from cache
    */
-  transformAfterCache?: (data: any) => any;
+  transformAfterCache?: (data: unknown) => unknown;
 }
 
 /**
@@ -84,7 +84,7 @@ export function withCache<T = any>(
           ? options.transformAfterCache(cached.value)
           : cached.value;
 
-        return data;
+        return data as T;
       }
 
       // Cache miss - execute handler
@@ -219,8 +219,8 @@ export function withCacheAndInvalidation<T = any>(
 export function generateDefaultCacheKey(request: FastifyRequest): string {
   const method = request.method;
   const route = request.routeOptions.url || request.url;
-  const params = request.params as Record<string, any>;
-  const query = request.query as Record<string, any>;
+  const params = request.params as Record<string, unknown>;
+  const query = request.query as Record<string, unknown>;
   const headers = request.headers as Record<string, string>;
   const userId = request.user?.id;
 
@@ -317,7 +317,7 @@ export async function warmCache(
   cacheManager: RedisCacheManager,
   warmupFunctions: Array<{
     key: string;
-    factory: () => Promise<any>;
+    factory: () => Promise<unknown>;
     options?: CacheOptions;
   }>
 ): Promise<{ warmedCount: number; failedCount: number }> {
@@ -397,7 +397,7 @@ export function createInvalidationMiddleware() {
 
     // Override send to invalidate cache after successful response
 
-    (reply as any).send = function (payload: unknown) {
+    (reply as unknown as Record<string, unknown>).send = function (payload: unknown) {
       // Only invalidate on successful responses (2xx)
       if (reply.statusCode >= 200 && reply.statusCode < 300) {
         const method = request.method;

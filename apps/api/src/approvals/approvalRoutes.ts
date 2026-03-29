@@ -28,7 +28,9 @@ const ApprovalIdParamsSchema = z.object({
 
 const SubmitForReviewBodySchema = z.object({
   submitterId: z.string().uuid(),
+  accountId: z.string().min(1).optional(),
   comment: z.string().max(2000).optional(),
+  workflowId: z.string().min(1).optional(),
 });
 
 const ApproveBodySchema = z.object({
@@ -92,7 +94,9 @@ class ApprovalRouteHandler extends BaseRouteHandler {
     const result = await this.submitUseCase.execute({
       postId,
       submitterId: body.submitterId,
+      ...(body.accountId !== undefined && { accountId: body.accountId }),
       ...(body.comment !== undefined && { comment: body.comment }),
+      ...(body.workflowId !== undefined && { workflowId: body.workflowId }),
     });
 
     if (!result.ok) {
@@ -276,35 +280,50 @@ export const approvalRoutes: FastifyPluginAsync = async (app) => {
   // Submit a post for content review
   app.post(
     "/posts/:postId/submit-for-review",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Approvals"], summary: "Submit post for review" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.submitForReview(request, reply)
   );
 
   // Approve an approval request
   app.post(
     "/approvals/:id/approve",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Approvals"], summary: "Approve an approval request" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.approve(request, reply)
   );
 
   // Reject an approval request
   app.post(
     "/approvals/:id/reject",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Approvals"], summary: "Reject an approval request" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.reject(request, reply)
   );
 
   // Get approval history for a post
   app.get(
     "/posts/:postId/approvals",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Approvals"], summary: "Get approval history for a post" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getHistory(request, reply)
   );
 
   // Get pending approvals for a reviewer
   app.get(
     "/approvals/pending",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Approvals"], summary: "Get pending approvals" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getPending(request, reply)
   );
 };

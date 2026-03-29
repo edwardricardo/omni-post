@@ -26,10 +26,10 @@ interface ConnectionUsage {
 // Minimal interface for the Prisma operations used by ConnectionManager
 export interface ConnectionManagerPrisma {
   providerConnection: {
-    findUnique: (args: any) => Promise<ProviderConnection | null>;
-    findMany: (args: any) => Promise<ProviderConnection[]>;
-    update: (args: any) => Promise<ProviderConnection>;
-    updateMany: (args: any) => Promise<{ count: number }>;
+    findUnique: (args: Record<string, unknown>) => Promise<ProviderConnection | null>;
+    findMany: (args: Record<string, unknown>) => Promise<ProviderConnection[]>;
+    update: (args: Record<string, unknown>) => Promise<ProviderConnection>;
+    updateMany: (args: Record<string, unknown>) => Promise<{ count: number }>;
   };
 }
 
@@ -63,7 +63,7 @@ export class ConnectionManager {
     projectId?: string,
     providerId?: ProviderId
   ): Promise<ProviderConnection[]> {
-    const where: any = { accountId, isActive: true };
+    const where: Record<string, unknown> = { accountId, isActive: true };
 
     if (projectId) where.projectId = projectId;
     if (providerId) where.providerId = providerId.toUpperCase();

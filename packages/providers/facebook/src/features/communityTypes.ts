@@ -43,7 +43,7 @@ export interface FacebookMessage {
     payload?: {
       url?: string;
       templateType?: string;
-      elements?: any[];
+      elements?: unknown[];
     };
   }>;
   isRead: boolean;
@@ -174,7 +174,7 @@ export interface FacebookMessageTemplate {
     payload: {
       url?: string;
       templateType?: "generic" | "button" | "receipt" | "list";
-      elements?: any[];
+      elements?: unknown[];
     };
   }>;
   tags?: string[];

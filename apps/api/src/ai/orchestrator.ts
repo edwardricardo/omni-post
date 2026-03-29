@@ -4,6 +4,8 @@ import {
   AIResponse,
   AITaskConfig,
   AIUsageMetrics,
+  AIMessage,
+  GenerationOptions,
   ContentAnalysis,
   ContentOptimization,
   PerformancePrediction,
@@ -36,7 +38,7 @@ interface CacheHitStats {
  */
 export class AIOrchestrator {
   private providers: Map<string, AIProvider> = new Map();
-  private cache: Map<string, CacheEntry<any>> = new Map();
+  private cache: Map<string, CacheEntry<unknown>> = new Map();
   private cacheHitStats: CacheHitStats = { hits: 0, misses: 0 };
   private usageMetrics: Map<string, AIUsageMetrics> = new Map();
   private rateLimits: Map<string, { requests: number; tokens: number; resetTime: number }> =
@@ -174,7 +176,7 @@ export class AIOrchestrator {
       return null;
     }
 
-    return entry.data;
+    return entry.data as T | null;
   }
 
   private setCachedResult<T>(cacheKey: string, data: T, ttl: number = 300000): void {
@@ -327,7 +329,9 @@ export class AIOrchestrator {
               break;
 
             default:
-              throw AppError.badRequest(`Unknown task type: ${(task as any).type}`);
+              throw AppError.badRequest(
+                `Unknown task type: ${(task as Record<string, unknown>).type}`
+              );
           }
 
           const latency = Date.now() - taskStartTime;
@@ -392,10 +396,13 @@ export class AIOrchestrator {
   }
 
   // Convenience methods for specific tasks
-  async generateContent(messages: any[], options?: any): Promise<AIResponse<string>> {
+  async generateContent(
+    messages: AIMessage[],
+    options?: GenerationOptions
+  ): Promise<AIResponse<string>> {
     return this.executeTask<string>({
       type: "generate",
-      data: { messages, options },
+      data: { messages, ...(options !== undefined && { options }) },
     });
   }
 
@@ -427,7 +434,7 @@ export class AIOrchestrator {
   async predictPerformance(
     content: string,
     platform: string,
-    historicalData?: any[]
+    historicalData?: Record<string, unknown>[]
   ): Promise<AIResponse<PerformancePrediction>> {
     return this.executeTask<PerformancePrediction>({
       type: "predict",

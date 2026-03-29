@@ -43,16 +43,16 @@ export class DatabaseHealthChecker implements HealthChecker {
           version: "unknown", // Not accessible through RepoPort
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latency = Date.now() - startTime;
       return {
         status: "unhealthy",
         latency,
         message: "Database connection failed",
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         details: {
-          errorType: error.constructor.name,
-          code: error.code,
+          errorType: error instanceof Error ? error.constructor.name : "Unknown",
+          code: (error as Record<string, unknown>)["code"],
         },
       };
     }
@@ -110,13 +110,13 @@ export class DatabaseConnectionPoolHealthChecker implements HealthChecker {
           utilizationPercent: Math.round(utilization * 100),
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latency = Date.now() - startTime;
       return {
         status: "unhealthy",
         latency,
         message: "Failed to check connection pool",
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }

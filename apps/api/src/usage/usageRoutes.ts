@@ -9,6 +9,7 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GetUsageUseCase } from "../application/usage/GetUsageUseCase.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 
 // ============================================================================
 // Schemas
@@ -72,7 +73,12 @@ export const usageRoutes: FastifyPluginAsync = async (app) => {
     app.container.resolve<GetUsageUseCase>(TOKENS.GetUsageUseCase)
   );
 
-  app.get("/api/accounts/:accountId/usage", (request: FastifyRequest, reply: FastifyReply) =>
-    handler.getUsage(request, reply)
+  app.get(
+    "/api/accounts/:accountId/usage",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Usage"], summary: "Get usage metering for an account" },
+    },
+    (request: FastifyRequest, reply: FastifyReply) => handler.getUsage(request, reply)
   );
 };

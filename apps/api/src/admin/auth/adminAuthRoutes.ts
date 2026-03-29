@@ -486,13 +486,16 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
     "/admin/auth/login",
     {
       preHandler: [rateLimit(loginRateMax, 60000)], // 15 req/min production, 100 in test
+      schema: { tags: ["Admin Auth"], summary: "Admin login" },
     },
     async (request, reply) => handler.login(request, reply)
   );
 
   // Refresh token
-  fastify.post("/admin/auth/refresh", async (request, reply) =>
-    handler.refreshToken(request, reply)
+  fastify.post(
+    "/admin/auth/refresh",
+    { schema: { tags: ["Admin Auth"], summary: "Refresh access token" } },
+    async (request, reply) => handler.refreshToken(request, reply)
   );
 
   // Password reset request (with rate limiting)
@@ -500,18 +503,23 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
     "/admin/auth/password/reset",
     {
       preHandler: [rateLimit(3, 300000)], // 3 requests per 5 minutes
+      schema: { tags: ["Admin Auth"], summary: "Request password reset" },
     },
     async (request, reply) => handler.resetPasswordRequest(request, reply)
   );
 
   // Password reset confirmation
-  fastify.post("/admin/auth/password/reset/confirm", async (request, reply) =>
-    handler.resetPasswordConfirm(request, reply)
+  fastify.post(
+    "/admin/auth/password/reset/confirm",
+    { schema: { tags: ["Admin Auth"], summary: "Confirm password reset" } },
+    async (request, reply) => handler.resetPasswordConfirm(request, reply)
   );
 
   // Password strength validation (public helper)
-  fastify.post("/admin/auth/password/validate", async (request, reply) =>
-    handler.validatePassword(request, reply)
+  fastify.post(
+    "/admin/auth/password/validate",
+    { schema: { tags: ["Admin Auth"], summary: "Validate password strength" } },
+    async (request, reply) => handler.validatePassword(request, reply)
   );
 
   // ==========================================================================
@@ -519,19 +527,29 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   // ==========================================================================
 
   // Get current user
-  fastify.get("/admin/auth/me", { preHandler: [requireAdminAuth] }, async (request, reply) =>
-    handler.getCurrentUser(request, reply)
+  fastify.get(
+    "/admin/auth/me",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Auth"], summary: "Get current admin user" },
+    },
+    async (request, reply) => handler.getCurrentUser(request, reply)
   );
 
   // Logout
-  fastify.post("/admin/auth/logout", { preHandler: [requireAdminAuth] }, async (request, reply) =>
-    handler.logout(request, reply)
+  fastify.post(
+    "/admin/auth/logout",
+    { preHandler: [requireAdminAuth], schema: { tags: ["Admin Auth"], summary: "Admin logout" } },
+    async (request, reply) => handler.logout(request, reply)
   );
 
   // Change password
   fastify.post(
     "/admin/auth/password/change",
-    { preHandler: [requireAdminAuth] },
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Auth"], summary: "Change admin password" },
+    },
     async (request, reply) => handler.changePassword(request, reply)
   );
 
@@ -542,28 +560,31 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   // Setup MFA
   fastify.post(
     "/admin/auth/mfa/setup",
-    { preHandler: [requireAdminAuth] },
+    { preHandler: [requireAdminAuth], schema: { tags: ["Admin Auth"], summary: "Setup MFA" } },
     async (request, reply) => handler.mfaSetup(request, reply)
   );
 
   // Verify and enable MFA
   fastify.post(
     "/admin/auth/mfa/verify",
-    { preHandler: [requireAdminAuth] },
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Auth"], summary: "Verify and enable MFA" },
+    },
     async (request, reply) => handler.mfaVerify(request, reply)
   );
 
   // Disable MFA
   fastify.post(
     "/admin/auth/mfa/disable",
-    { preHandler: [requireAdminAuth] },
+    { preHandler: [requireAdminAuth], schema: { tags: ["Admin Auth"], summary: "Disable MFA" } },
     async (request, reply) => handler.mfaDisable(request, reply)
   );
 
   // Get MFA status
   fastify.get(
     "/admin/auth/mfa/status",
-    { preHandler: [requireAdminAuth] },
+    { preHandler: [requireAdminAuth], schema: { tags: ["Admin Auth"], summary: "Get MFA status" } },
     async (request, reply) => handler.mfaStatus(request, reply)
   );
 
@@ -572,21 +593,29 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   // ==========================================================================
 
   // List active sessions
-  fastify.get("/admin/auth/sessions", { preHandler: [requireAdminAuth] }, async (request, reply) =>
-    handler.listSessions(request, reply)
+  fastify.get(
+    "/admin/auth/sessions",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Auth"], summary: "List active sessions" },
+    },
+    async (request, reply) => handler.listSessions(request, reply)
   );
 
   // Revoke session
   fastify.post(
     "/admin/auth/sessions/revoke",
-    { preHandler: [requireAdminAuth] },
+    { preHandler: [requireAdminAuth], schema: { tags: ["Admin Auth"], summary: "Revoke session" } },
     async (request, reply) => handler.revokeSession(request, reply)
   );
 
   // Revoke all sessions except current (super admin only)
   fastify.post(
     "/admin/auth/sessions/revoke-all",
-    { preHandler: [requireAdminAuth, requireSuperAdmin] },
+    {
+      preHandler: [requireAdminAuth, requireSuperAdmin],
+      schema: { tags: ["Admin Auth"], summary: "Revoke all sessions" },
+    },
     async (request, reply) => handler.revokeSession(request, reply)
   );
 };

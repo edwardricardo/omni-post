@@ -6,10 +6,72 @@
 
 import type { FacebookAdInsights, FacebookAdRecommendation } from "./marketingTypes.js";
 
+/** Raw targeting data from Facebook Marketing API. */
+interface RawTargeting {
+  geo_locations?: unknown;
+  age_min?: number;
+  age_max?: number;
+  genders?: unknown;
+  interests?: Array<{ id: string; name: string }>;
+  behaviors?: Array<{ id: string; name: string }>;
+  custom_audiences?: Array<{ id: string }>;
+  lookalike_audiences?: Array<{ id: string }>;
+}
+
+/** Normalized targeting structure. */
+interface ProcessedTargeting {
+  geoLocations: unknown;
+  ageMin: number | undefined;
+  ageMax: number | undefined;
+  genders: unknown;
+  interests: Array<{ id: string; name: string }> | undefined;
+  behaviors: Array<{ id: string; name: string }> | undefined;
+  customAudiences: string[] | undefined;
+  lookalikAudiences: string[] | undefined;
+}
+
+/** Raw insight record from Facebook API. */
+interface RawInsight {
+  ad_id?: string;
+  adset_id?: string;
+  campaign_id?: string;
+  account_id?: string;
+  date_start?: string;
+  date_stop?: string;
+  impressions?: string;
+  reach?: string;
+  frequency?: string;
+  clicks?: string;
+  unique_clicks?: string;
+  ctr?: string;
+  unique_ctr?: string;
+  spend?: string;
+  cpm?: string;
+  cpc?: string;
+  cpp?: string;
+  cost_per_unique_click?: string;
+  cost_per_conversion?: string;
+  purchase_roas?: string;
+  video_avg_time_watched_actions?: Array<{ value: string }>;
+  actions?: Array<{ action_type: string; value: string }>;
+  action_values?: Array<{ action_type: string; value: string }>;
+}
+
+/** Demographic breakdown result structure. */
+interface DemographicBreakdowns {
+  ageGroups: Record<string, unknown>;
+  genders: Record<string, unknown>;
+  countries: Record<string, unknown>;
+  devices: Record<string, unknown>;
+  placements: Record<string, unknown>;
+}
+
 /**
  * Process raw targeting data from the Facebook API into a normalized structure.
  */
-export function processTargeting(targeting: any): any {
+export function processTargeting(
+  targeting: RawTargeting | undefined
+): ProcessedTargeting | undefined {
   if (!targeting) return undefined;
 
   return {
@@ -17,30 +79,30 @@ export function processTargeting(targeting: any): any {
     ageMin: targeting.age_min,
     ageMax: targeting.age_max,
     genders: targeting.genders,
-    interests: targeting.interests?.map((interest: any) => ({
+    interests: targeting.interests?.map((interest) => ({
       id: interest.id,
       name: interest.name,
     })),
-    behaviors: targeting.behaviors?.map((behavior: any) => ({
+    behaviors: targeting.behaviors?.map((behavior) => ({
       id: behavior.id,
       name: behavior.name,
     })),
-    customAudiences: targeting.custom_audiences?.map((audience: any) => audience.id),
-    lookalikAudiences: targeting.lookalike_audiences?.map((audience: any) => audience.id),
+    customAudiences: targeting.custom_audiences?.map((audience) => audience.id),
+    lookalikAudiences: targeting.lookalike_audiences?.map((audience) => audience.id),
   };
 }
 
 /**
  * Process raw insights data from the Facebook API into a typed FacebookAdInsights object.
  */
-export function processInsights(insight: any): FacebookAdInsights {
+export function processInsights(insight: RawInsight): FacebookAdInsights {
   const actions = insight.actions || [];
   const actionValues = insight.action_values || [];
 
   // Helper function to get action value
   const getActionValue = (actionType: string, isValue = false) => {
     const actionArray = isValue ? actionValues : actions;
-    const action = actionArray.find((a: any) => a.action_type === actionType);
+    const action = actionArray.find((a) => a.action_type === actionType);
     return action ? parseFloat(action.value) : 0;
   };
 
@@ -95,7 +157,7 @@ export function processInsights(insight: any): FacebookAdInsights {
 /**
  * Process demographic breakdowns from raw insight data.
  */
-export function processDemographicBreakdowns(_insight: any): any {
+export function processDemographicBreakdowns(_insight: RawInsight): DemographicBreakdowns {
   // This would process breakdown data if requested
   // For now, return empty structure
   return {

@@ -16,7 +16,10 @@ import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:account");
 
-export function createAccountRepository(readBreaker: any, writeBreaker: any) {
+export function createAccountRepository(
+  readBreaker: { fire: (fn: () => Promise<unknown>) => Promise<unknown> },
+  writeBreaker: { fire: (fn: () => Promise<unknown>) => Promise<unknown> }
+) {
   return {
     async createAccount(
       input: CreateAccountInput
@@ -36,14 +39,23 @@ export function createAccountRepository(readBreaker: any, writeBreaker: any) {
           });
         });
 
+        const dbResult = result as {
+          id: string;
+          email: string;
+          name: string;
+          subscription: Parameters<typeof mapSubscriptionTierFromDB>[0];
+          maxProjects: number;
+          createdAt: Date;
+          updatedAt: Date;
+        };
         const account: Account = {
-          id: result.id,
-          email: result.email,
-          name: result.name,
-          subscription: mapSubscriptionTierFromDB(result.subscription),
-          maxProjects: result.maxProjects,
-          createdAt: result.createdAt,
-          updatedAt: result.updatedAt,
+          id: dbResult.id,
+          email: dbResult.email,
+          name: dbResult.name,
+          subscription: mapSubscriptionTierFromDB(dbResult.subscription),
+          maxProjects: dbResult.maxProjects,
+          createdAt: dbResult.createdAt,
+          updatedAt: dbResult.updatedAt,
         };
 
         return ok(account);
@@ -78,14 +90,23 @@ export function createAccountRepository(readBreaker: any, writeBreaker: any) {
           return err("NOT_FOUND");
         }
 
+        const dbResult = result as {
+          id: string;
+          email: string;
+          name: string;
+          subscription: Parameters<typeof mapSubscriptionTierFromDB>[0];
+          maxProjects: number;
+          createdAt: Date;
+          updatedAt: Date;
+        };
         const account: Account = {
-          id: result.id,
-          email: result.email,
-          name: result.name,
-          subscription: mapSubscriptionTierFromDB(result.subscription),
-          maxProjects: result.maxProjects,
-          createdAt: result.createdAt,
-          updatedAt: result.updatedAt,
+          id: dbResult.id,
+          email: dbResult.email,
+          name: dbResult.name,
+          subscription: mapSubscriptionTierFromDB(dbResult.subscription),
+          maxProjects: dbResult.maxProjects,
+          createdAt: dbResult.createdAt,
+          updatedAt: dbResult.updatedAt,
         };
 
         return ok(account);
@@ -129,7 +150,7 @@ export function createAccountRepository(readBreaker: any, writeBreaker: any) {
       input: UpdateAccountInput
     ): Promise<Result<Account, "NOT_FOUND" | "DATABASE_ERROR">> {
       try {
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
         if (input.name !== undefined) updateData.name = input.name;
         if (input.subscription !== undefined) {
           updateData.subscription = mapSubscriptionTierToDB(input.subscription);

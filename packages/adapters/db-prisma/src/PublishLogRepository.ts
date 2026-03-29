@@ -76,7 +76,7 @@ export function createPublishLogRepository() {
 
     async listLogs(query: ListLogsQuery): Promise<Result<PublishLog[], "DATABASE_ERROR">> {
       try {
-        const where: any = {};
+        const where: Record<string, unknown> = {};
 
         if (query.postId) where.postId = query.postId;
         if (query.channelId) where.channelId = query.channelId;

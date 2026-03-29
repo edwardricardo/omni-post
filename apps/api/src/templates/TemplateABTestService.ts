@@ -17,18 +17,30 @@ import { AppError } from "../lib/errors/AppError.js";
 /**
  * Maps a database A/B test record to the ABTest interface.
  */
-function mapToABTest(dbTest: any): ABTest {
+function mapToABTest(dbTest: Record<string, unknown>): ABTest {
+  const t = dbTest as {
+    id: string;
+    name: string;
+    description: string;
+    templateId: string;
+    config: ABTest["config"];
+    status: ABTest["status"];
+    startDate: Date;
+    endDate: Date;
+    createdAt: Date;
+    updatedAt: Date;
+  };
   return {
-    id: dbTest.id,
-    name: dbTest.name,
-    description: dbTest.description,
-    templateId: dbTest.templateId,
-    config: dbTest.config,
-    status: dbTest.status,
-    startDate: dbTest.startDate,
-    endDate: dbTest.endDate,
-    createdAt: dbTest.createdAt,
-    updatedAt: dbTest.updatedAt,
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    templateId: t.templateId,
+    config: t.config,
+    status: t.status,
+    startDate: t.startDate,
+    endDate: t.endDate,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
   };
 }
 

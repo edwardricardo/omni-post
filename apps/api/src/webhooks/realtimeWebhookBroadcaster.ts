@@ -475,7 +475,7 @@ export class RealtimeWebhookBroadcaster {
   /**
    * Handle incoming WebSocket messages
    */
-  private handleWebSocketMessage(connectionId: string, message: any): void {
+  private handleWebSocketMessage(connectionId: string, message: Record<string, unknown>): void {
     const subscription = this.connections.get(connectionId);
     if (!subscription) return;
 
@@ -492,15 +492,18 @@ export class RealtimeWebhookBroadcaster {
         break;
 
       case "subscribe_projects":
-        this.updateProjectSubscriptions(connectionId, message.projectIds || []);
+        this.updateProjectSubscriptions(connectionId, (message.projectIds as string[]) || []);
         break;
 
       case "subscribe_events":
-        this.updateEventSubscriptions(connectionId, message.eventTypes || []);
+        this.updateEventSubscriptions(
+          connectionId,
+          (message.eventTypes as WebhookEventType[]) || []
+        );
         break;
 
       case "subscribe_providers":
-        this.updateProviderSubscriptions(connectionId, message.providers || []);
+        this.updateProviderSubscriptions(connectionId, (message.providers as Provider[]) || []);
         break;
 
       default:

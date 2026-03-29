@@ -1,0 +1,87 @@
+/**
+ * @file setupSamlUseCases.ts
+ * @description DI registrations for SAML 2.0 and OIDC SSO features.
+ *              Registers repository adapters and all use cases as singletons.
+ * @layer infrastructure
+ */
+
+import type { Container } from "./Container.js";
+import { TOKENS } from "./types.js";
+import { prisma } from "@infra/prisma";
+import { PrismaSamlConfigurationRepository } from "../repositories/PrismaSamlConfigurationRepository.js";
+import { PrismaOidcConfigurationRepository } from "../repositories/PrismaOidcConfigurationRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { AccountQueryRepositoryPort } from "../../domain/repositories/AccountQueryRepository.js";
+import { ConfigureSamlUseCase } from "../../application/auth/ConfigureSamlUseCase.js";
+import { EnableSsoUseCase } from "../../application/auth/EnableSsoUseCase.js";
+import { DisableSsoUseCase } from "../../application/auth/DisableSsoUseCase.js";
+import { GetSamlConfigurationQuery } from "../../application/auth/GetSamlConfigurationQuery.js";
+import { ConfigureOidcUseCase } from "../../application/auth/ConfigureOidcUseCase.js";
+import { EnableOidcSsoUseCase } from "../../application/auth/EnableOidcSsoUseCase.js";
+import { DisableOidcSsoUseCase } from "../../application/auth/DisableOidcSsoUseCase.js";
+import { GetOidcConfigurationQuery } from "../../application/auth/GetOidcConfigurationQuery.js";
+
+/**
+ * @function setupSamlUseCases
+ * @description Registers SAML + OIDC repositories and use cases into the DI container.
+ * @param container - The application DI container
+ */
+export function setupSamlUseCases(container: Container): void {
+  const resolveUoW = (): UnitOfWork => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
+  const resolveAccountQueryRepo = (): AccountQueryRepositoryPort =>
+    container.resolve<AccountQueryRepositoryPort>(TOKENS.AccountQueryRepository);
+
+  // ── SAML ──────────────────────────────────────────────────────────────────
+
+  const samlRepo = new PrismaSamlConfigurationRepository(prisma);
+  container.registerInstance(TOKENS.SamlConfigurationRepository, samlRepo);
+
+  container.registerInstance(
+    TOKENS.ConfigureSamlUseCase,
+    new ConfigureSamlUseCase(samlRepo, resolveUoW())
+  );
+
+  container.register(
+    TOKENS.EnableSsoUseCase,
+    () => new EnableSsoUseCase(samlRepo, resolveAccountQueryRepo()),
+    true
+  );
+
+  container.register(
+    TOKENS.DisableSsoUseCase,
+    () => new DisableSsoUseCase(resolveAccountQueryRepo()),
+    true
+  );
+
+  container.registerInstance(
+    TOKENS.GetSamlConfigurationQuery,
+    new GetSamlConfigurationQuery(samlRepo)
+  );
+
+  // ── OIDC ──────────────────────────────────────────────────────────────────
+
+  const oidcRepo = new PrismaOidcConfigurationRepository(prisma);
+  container.registerInstance(TOKENS.OidcConfigurationRepository, oidcRepo);
+
+  container.registerInstance(
+    TOKENS.ConfigureOidcUseCase,
+    new ConfigureOidcUseCase(oidcRepo, resolveUoW())
+  );
+
+  container.register(
+    TOKENS.EnableOidcSsoUseCase,
+    () => new EnableOidcSsoUseCase(oidcRepo, resolveAccountQueryRepo()),
+    true
+  );
+
+  container.register(
+    TOKENS.DisableOidcSsoUseCase,
+    () => new DisableOidcSsoUseCase(resolveAccountQueryRepo()),
+    true
+  );
+
+  container.registerInstance(
+    TOKENS.GetOidcConfigurationQuery,
+    new GetOidcConfigurationQuery(oidcRepo)
+  );
+}

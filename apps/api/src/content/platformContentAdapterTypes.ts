@@ -26,7 +26,7 @@ export interface AdaptationStrategy {
 export interface AdaptationCondition {
   field: string;
   operator: "gt" | "lt" | "eq" | "contains" | "matches" | "exists";
-  value: any;
+  value: unknown;
   weight: number;
 }
 
@@ -34,8 +34,8 @@ export interface ContentTransformer {
   id: string;
   name: string;
   type: "text" | "media" | "metadata" | "structure";
-  transform: (content: any, parameters: Record<string, any>) => Promise<any>;
-  validate: (input: any) => boolean;
+  transform: (content: unknown, parameters: Record<string, unknown>) => Promise<unknown>;
+  validate: (input: unknown) => boolean;
   reversible: boolean;
 }
 
@@ -56,7 +56,7 @@ export interface AdaptationGoal {
     | "optimize_media"
     | "enhance_accessibility";
   priority: number;
-  parameters?: Record<string, any>;
+  parameters?: Record<string, unknown>;
 }
 
 export interface UserAdaptationPreferences {

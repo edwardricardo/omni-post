@@ -11,6 +11,7 @@ import { type FastifyPluginAsync, type FastifyRequest, type FastifyReply } from 
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 import type { CreateTrackedLinkUseCase } from "../application/links/CreateTrackedLinkUseCase.js";
 import type { GetTrackedLinkUseCase } from "../application/links/GetTrackedLinkUseCase.js";
 import type { RedirectAndTrackClickUseCase } from "../application/links/RedirectAndTrackClickUseCase.js";
@@ -229,11 +230,43 @@ export const linkRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   // Protected endpoints (require auth)
-  fastify.post("/links", handler.createLink.bind(handler));
-  fastify.get("/links/:id", handler.getLink.bind(handler));
-  fastify.get("/links/:id/stats", handler.getLinkStats.bind(handler));
-  fastify.delete("/links/:id", handler.deleteLink.bind(handler));
+  fastify.post(
+    "/links",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Links"], summary: "Create tracked link" },
+    },
+    handler.createLink.bind(handler)
+  );
+  fastify.get(
+    "/links/:id",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Links"], summary: "Get tracked link by ID" },
+    },
+    handler.getLink.bind(handler)
+  );
+  fastify.get(
+    "/links/:id/stats",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Links"], summary: "Get link statistics" },
+    },
+    handler.getLinkStats.bind(handler)
+  );
+  fastify.delete(
+    "/links/:id",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Links"], summary: "Delete tracked link" },
+    },
+    handler.deleteLink.bind(handler)
+  );
 
   // Public redirect endpoint
-  fastify.get("/r/:shortCode", handler.redirect.bind(handler));
+  fastify.get(
+    "/r/:shortCode",
+    { schema: { tags: ["Links"], summary: "Redirect and track click" } },
+    handler.redirect.bind(handler)
+  );
 };

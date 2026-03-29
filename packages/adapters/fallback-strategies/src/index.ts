@@ -18,7 +18,7 @@ export interface FallbackConfig {
   strategy: FallbackStrategy;
   cacheKey?: string;
   cacheTtl?: number; // milliseconds
-  staticResponse?: any;
+  staticResponse?: unknown;
   alternativeEndpoint?: string;
   gracefulMessage?: string;
 }
@@ -28,12 +28,12 @@ export interface FallbackContext {
   operation: string;
   originalError: Error;
   attempt: number;
-  lastSuccessfulResponse?: any;
+  lastSuccessfulResponse?: unknown;
 }
 
 export class FallbackManager {
   private redis: Redis | null = null;
-  private staticResponses: Map<string, any> = new Map();
+  private staticResponses: Map<string, unknown> = new Map();
 
   constructor(redisUrl?: string) {
     if (redisUrl) {
@@ -56,7 +56,7 @@ export class FallbackManager {
   /**
    * Register a static fallback response for a specific operation
    */
-  registerStaticFallback(service: string, operation: string, response: any): void {
+  registerStaticFallback(service: string, operation: string, response: unknown): void {
     const key = `${service}:${operation}`;
     this.staticResponses.set(key, response);
     logger.info(`Registered static fallback for ${key}`);
@@ -112,7 +112,7 @@ export class FallbackManager {
   async cacheSuccessfulResponse(
     service: string,
     operation: string,
-    response: any,
+    response: unknown,
     ttl: number = 300000 // 5 minutes default
   ): Promise<void> {
     if (!this.redis) return;
@@ -243,7 +243,7 @@ export class FallbackManager {
     }
   }
 
-  private createDegradedResponse(context: FallbackContext): any {
+  private createDegradedResponse(context: FallbackContext): unknown {
     const { service, operation } = context;
 
     // Create operation-specific degraded responses

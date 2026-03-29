@@ -115,17 +115,29 @@ export class PostsService extends BaseService {
         }
 
         // Transform database result to match API schema
-        const transformedPosts: PostListItem[] = posts.map((post: any) => ({
-          id: post.id,
-          title: post.title || null,
-          body: null, // We don't need full body content in list view
-          status: post.status as "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED",
-          createdAt: post.createdAt.toISOString(),
-          scheduledAt: post.scheduledAt?.toISOString() || null,
-          tags: [], // Post tags not yet in schema; return empty array for API contract
-          channelCount: post.channelCount,
-          totalViews: post.totalViews,
-        }));
+        const transformedPosts: PostListItem[] = posts.map(
+          (
+            post: Record<string, unknown> & {
+              id: string;
+              status: string;
+              createdAt: Date;
+              scheduledAt?: Date | null;
+              channelCount: number;
+              totalViews: number;
+              title?: string | null;
+            }
+          ) => ({
+            id: post.id,
+            title: post.title || null,
+            body: null, // We don't need full body content in list view
+            status: post.status as "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED",
+            createdAt: post.createdAt.toISOString(),
+            scheduledAt: post.scheduledAt?.toISOString() || null,
+            tags: [], // Post tags not yet in schema; return empty array for API contract
+            channelCount: post.channelCount,
+            totalViews: post.totalViews,
+          })
+        );
 
         const totalPages = Math.ceil(total / limit);
 

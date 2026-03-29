@@ -75,27 +75,27 @@ export function getMaxProjectsForTier(tier: SubscriptionTier): number {
 /**
  * Maps database thread strategy to application type
  */
-export function mapThreadStrategyFromDB(strategy: any): any {
+export function mapThreadStrategyFromDB<T extends string>(strategy: T): T {
   return strategy;
 }
 
 /**
  * Maps application thread strategy to database type
  */
-export function mapThreadStrategyToDB(strategy: any): any {
+export function mapThreadStrategyToDB<T extends string>(strategy: T): T {
   return strategy;
 }
 
 /**
  * Maps database tweet status to application type
  */
-export function mapTweetStatusFromDB(status: any): any {
+export function mapTweetStatusFromDB<T extends string>(status: T): T {
   return status;
 }
 
 /**
  * Maps application tweet status to database type
  */
-export function mapTweetStatusToDB(status: any): any {
+export function mapTweetStatusToDB<T extends string>(status: T): T {
   return status;
 }

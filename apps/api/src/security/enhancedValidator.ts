@@ -1,7 +1,16 @@
 import DOMPurify from "isomorphic-dompurify";
 import validator from "validator";
-import type { FastifyRequest, FastifyReply } from "fastify";
+import type { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
 import { logger } from "../lib/logger.js";
+
+type RiskLevel = "low" | "medium" | "high" | "critical";
+
+interface ValidationResult {
+  isValid: boolean;
+  sanitized?: unknown;
+  threats: string[];
+  risk: RiskLevel;
+}
 
 // Enhanced security patterns for common attack vectors
 const SECURITY_PATTERNS = {
@@ -105,44 +114,28 @@ export class EnhancedValidator {
   }
 
   // Main validation function for request data
-  validateInput(
-    input: any,
-    context: string = "general"
-  ): {
-    isValid: boolean;
-    sanitized?: any;
-    threats: string[];
-    risk: "low" | "medium" | "high" | "critical";
-  } {
+  validateInput(input: unknown, context: string = "general"): ValidationResult {
     const threats: string[] = [];
-    let risk: "low" | "medium" | "high" | "critical" = "low";
+    const risk: RiskLevel = "low";
 
     if (typeof input === "string") {
       return this.validateString(input, context);
-    }
-
-    if (typeof input === "object" && input !== null) {
-      return this.validateObject(input, context);
     }
 
     if (Array.isArray(input)) {
       return this.validateArray(input, context);
     }
 
+    if (typeof input === "object" && input !== null) {
+      return this.validateObject(input as Record<string, unknown>, context);
+    }
+
     return { isValid: true, sanitized: input, threats, risk };
   }
 
-  private validateString(
-    input: string,
-    context: string
-  ): {
-    isValid: boolean;
-    sanitized?: string;
-    threats: string[];
-    risk: "low" | "medium" | "high" | "critical";
-  } {
+  private validateString(input: string, context: string): ValidationResult {
     const threats: string[] = [];
-    let risk: "low" | "medium" | "high" | "critical" = "low";
+    let risk: RiskLevel = "low";
 
     // Length validation
     if (input.length > this.config.maxStringLength) {
@@ -154,6 +147,7 @@ export class EnhancedValidator {
     // SQL Injection detection
     if (this.config.enableSQLInjectionProtection) {
       for (const pattern of SECURITY_PATTERNS.SQL_INJECTION) {
+        pattern.lastIndex = 0;
         if (pattern.test(input)) {
           threats.push("SQL_INJECTION");
           risk = "critical";
@@ -164,6 +158,7 @@ export class EnhancedValidator {
     // XSS detection
     if (this.config.enableXSSProtection) {
       for (const pattern of SECURITY_PATTERNS.XSS) {
+        pattern.lastIndex = 0;
         if (pattern.test(input)) {
           threats.push("XSS_ATTEMPT");
           risk = "high";
@@ -174,6 +169,7 @@ export class EnhancedValidator {
     // NoSQL Injection detection
     if (this.config.enableNoSQLInjectionProtection) {
       for (const pattern of SECURITY_PATTERNS.NOSQL_INJECTION) {
+        pattern.lastIndex = 0;
         if (pattern.test(input)) {
           threats.push("NOSQL_INJECTION");
           risk = "high";
@@ -184,6 +180,7 @@ export class EnhancedValidator {
     // Command Injection detection
     if (this.config.enableCommandInjectionProtection) {
       for (const pattern of SECURITY_PATTERNS.COMMAND_INJECTION) {
+        pattern.lastIndex = 0;
         if (pattern.test(input)) {
           threats.push("COMMAND_INJECTION");
           risk = "critical";
@@ -194,6 +191,7 @@ export class EnhancedValidator {
     // Path Traversal detection
     if (this.config.enablePathTraversalProtection) {
       for (const pattern of SECURITY_PATTERNS.PATH_TRAVERSAL) {
+        pattern.lastIndex = 0;
         if (pattern.test(input)) {
           threats.push("PATH_TRAVERSAL");
           risk = "high";
@@ -204,6 +202,7 @@ export class EnhancedValidator {
     // LDAP Injection detection
     if (this.config.enableLDAPInjectionProtection) {
       for (const pattern of SECURITY_PATTERNS.LDAP_INJECTION) {
+        pattern.lastIndex = 0;
         if (pattern.test(input)) {
           threats.push("LDAP_INJECTION");
           risk = "high";
@@ -230,18 +229,10 @@ export class EnhancedValidator {
     return { isValid: true, sanitized, threats, risk };
   }
 
-  private validateObject(
-    obj: any,
-    context: string
-  ): {
-    isValid: boolean;
-    sanitized?: any;
-    threats: string[];
-    risk: "low" | "medium" | "high" | "critical";
-  } {
+  private validateObject(obj: Record<string, unknown>, context: string): ValidationResult {
     const threats: string[] = [];
-    let maxRisk: "low" | "medium" | "high" | "critical" = "low";
-    const sanitized: any = {};
+    let maxRisk: RiskLevel = "low";
+    const sanitized: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(obj)) {
       // Validate the key itself
@@ -260,7 +251,8 @@ export class EnhancedValidator {
         continue;
       }
 
-      sanitized[keyValidation.sanitized || key] = valueValidation.sanitized;
+      const sanitizedKey = (keyValidation.sanitized as string) || key;
+      sanitized[sanitizedKey] = valueValidation.sanitized;
     }
 
     return {
@@ -271,18 +263,10 @@ export class EnhancedValidator {
     };
   }
 
-  private validateArray(
-    arr: any[],
-    context: string
-  ): {
-    isValid: boolean;
-    sanitized?: any[];
-    threats: string[];
-    risk: "low" | "medium" | "high" | "critical";
-  } {
+  private validateArray(arr: unknown[], context: string): ValidationResult {
     const threats: string[] = [];
-    let maxRisk: "low" | "medium" | "high" | "critical" = "low";
-    const sanitized: any[] = [];
+    let maxRisk: RiskLevel = "low";
+    const sanitized: unknown[] = [];
 
     for (const item of arr) {
       const itemValidation = this.validateInput(item, context);
@@ -532,7 +516,7 @@ export class EnhancedValidator {
   // Fastify plugin
   getPlugin() {
     const self = this;
-    return async function enhancedValidatorPlugin(fastify: any) {
+    return async function enhancedValidatorPlugin(fastify: FastifyInstance) {
       fastify.addHook("preHandler", async (request: FastifyRequest, reply: FastifyReply) => {
         // Validate the request itself
         const requestValidation = self.validateRequest(request);

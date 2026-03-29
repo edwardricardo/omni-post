@@ -10,7 +10,7 @@ export interface WebhookJobData {
   eventId: string;
   provider: Provider;
   eventType: WebhookEventType;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   headers: Record<string, string>;
   signature: string;
   accountId?: string;
@@ -23,7 +23,7 @@ export interface WebhookJobResult {
   success: boolean;
   processedAt: string;
   processingTimeMs: number;
-  normalizedData?: Record<string, any>;
+  normalizedData?: Record<string, unknown>;
   error?: string;
 }
 
@@ -212,15 +212,12 @@ export class WebhookJobProcessor {
 
       await job.updateProgress(100);
 
-      const returnValue: any = {
+      return {
         success: true,
         processedAt: new Date().toISOString(),
         processingTimeMs: Date.now() - startTime,
+        ...(result.normalizedData !== undefined ? { normalizedData: result.normalizedData } : {}),
       };
-      if (result.normalizedData !== undefined) {
-        returnValue.normalizedData = result.normalizedData;
-      }
-      return returnValue;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -290,8 +287,8 @@ export class WebhookJobProcessor {
         originalEventId: jobData.eventId,
         provider: jobData.provider,
         eventType: jobData.eventType,
-        payload: jobData.payload,
-        headers: jobData.headers,
+        payload: jobData.payload as Record<string, string | number | boolean | null>,
+        headers: jobData.headers as Record<string, string>,
         failureReason: error,
         finalError: error,
         retryCount: jobData.retryCount,
@@ -315,17 +312,27 @@ export class WebhookJobProcessor {
     result: WebhookJobResult
   ): Promise<void> {
     try {
+      const updateData: Record<string, unknown> = {
+        status,
+        processed: result.success,
+        processingTime: result.processingTimeMs,
+      };
+      if (result.success && result.processedAt) {
+        updateData.processedAt = new Date(result.processedAt);
+      }
+      if (result.normalizedData) {
+        updateData.normalizedData = result.normalizedData as Record<
+          string,
+          string | number | boolean | null
+        >;
+      }
+      if (result.error) {
+        updateData.lastError = result.error;
+      }
+
       await prisma.webhookEvent.update({
         where: { id: eventId },
-        data: {
-          status,
-          processed: result.success,
-          ...(result.success &&
-            result.processedAt && { processedAt: new Date(result.processedAt) }),
-          processingTime: result.processingTimeMs,
-          ...(result.normalizedData && { normalizedData: result.normalizedData }),
-          ...(result.error && { lastError: result.error }),
-        },
+        data: updateData,
       });
     } catch (error) {
       webhookLogger.error({ err: error }, "Failed to update webhook event status");

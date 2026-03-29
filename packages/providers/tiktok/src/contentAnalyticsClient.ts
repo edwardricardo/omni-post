@@ -210,6 +210,14 @@ const circuitBreaker = createExternalApiCircuitBreaker(registry, process.env.RED
 
 const TIKTOK_ANALYTICS_BASE_URL = "https://analytics-api.tiktok.com/v2";
 
+/**
+ * Deeply nested API response accessor.
+ * Each property access returns another DeepRecord, enabling chained optional access.
+ */
+interface DeepRecord {
+  [key: string]: DeepRecord & { toString(): string } & number;
+}
+
 export class TikTokContentAnalyticsClient {
   private credentials: TikTokContentAnalyticsCredentials;
 
@@ -482,7 +490,7 @@ export class TikTokContentAnalyticsClient {
         );
       }
 
-      return response.data.data.map((competitor: any) => ({
+      return response.data.data.map((competitor: DeepRecord) => ({
         competitorId: competitor.competitor_id,
         username: competitor.username,
         metrics: {
@@ -573,7 +581,7 @@ export class TikTokContentAnalyticsClient {
         );
       }
 
-      return response.data.data.map((hashtag: any) => ({
+      return response.data.data.map((hashtag: DeepRecord) => ({
         hashtag: hashtag.hashtag,
         metrics: {
           totalPosts: hashtag.metrics?.total_posts || 0,
@@ -630,7 +638,7 @@ export class TikTokContentAnalyticsClient {
   /**
    * Get circuit breaker status for TikTok Analytics API operations
    */
-  getCircuitBreakerStatus(): Record<string, any> {
+  getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }
 

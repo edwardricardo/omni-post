@@ -4,6 +4,7 @@ import type { ProviderRegistryService } from "./providerRegistry.js";
 import type { ProviderService } from "./providerService.js";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 
 // Provider-specific schemas
 const ProviderCapabilitySchema = z.enum([
@@ -241,35 +242,75 @@ const providerRoutes: FastifyPluginAsync = async (fastify) => {
   const handler = new ProviderRouteHandler(svcProvider, svcRegistry);
 
   // Register routes
-  fastify.get("/providers", async (request: FastifyRequest, reply: FastifyReply) => {
-    await handler.getAllProviders({ request, reply });
-  });
+  fastify.get(
+    "/providers",
+    { schema: { tags: ["Providers"], summary: "Get all providers" } },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      await handler.getAllProviders({ request, reply });
+    }
+  );
 
-  fastify.get("/providers/active", async (request: FastifyRequest, reply: FastifyReply) => {
-    await handler.getActiveProviders({ request, reply });
-  });
+  fastify.get(
+    "/providers/active",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Providers"], summary: "Get active providers" },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      await handler.getActiveProviders({ request, reply });
+    }
+  );
 
   fastify.get(
     "/providers/by-capability/:capability",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Providers"], summary: "Get providers by capability" },
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       await handler.getProvidersByCapability({ request, reply });
     }
   );
 
-  fastify.get("/providers/:id", async (request: FastifyRequest, reply: FastifyReply) => {
-    await handler.getProviderById({ request, reply });
-  });
+  fastify.get(
+    "/providers/:id",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Providers"], summary: "Get provider details by ID" },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      await handler.getProviderById({ request, reply });
+    }
+  );
 
-  fastify.get("/providers/:id/health", async (request: FastifyRequest, reply: FastifyReply) => {
-    await handler.getProviderHealth({ request, reply });
-  });
+  fastify.get(
+    "/providers/:id/health",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Providers"], summary: "Check provider health" },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      await handler.getProviderHealth({ request, reply });
+    }
+  );
 
-  fastify.get("/providers/health/all", async (request: FastifyRequest, reply: FastifyReply) => {
-    await handler.getAllProvidersHealth({ request, reply });
-  });
+  fastify.get(
+    "/providers/health/all",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Providers"], summary: "Check all providers health" },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      await handler.getAllProvidersHealth({ request, reply });
+    }
+  );
 
   fastify.get(
     "/providers/connections/:projectId",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Providers"], summary: "Get provider connections for a project" },
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       await handler.getProviderConnections({ request, reply });
     }

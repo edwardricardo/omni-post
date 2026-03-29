@@ -64,9 +64,9 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse X webhook payload and normalize data
    */
-  override async parse(payload: Record<string, any>): Promise<{
+  override async parse(payload: Record<string, unknown>): Promise<{
     eventType: WebhookEventType;
-    normalizedData: Record<string, any>;
+    normalizedData: Record<string, unknown>;
     relatedEntities: {
       accountId?: string;
       projectId?: string;
@@ -75,34 +75,40 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
     };
   }> {
     let eventType: WebhookEventType;
-    let normalizedData: Record<string, any> = {};
-    let relatedEntities: any = {};
+    let normalizedData: Record<string, unknown> = {};
 
     // Handle different X webhook event types
     if (payload.tweet_create_events) {
       eventType = "POST_PUBLISHED";
-      normalizedData = await this.parseTweetCreateEvent(payload.tweet_create_events[0]);
+      const events = payload.tweet_create_events as Record<string, unknown>[];
+      normalizedData = await this.parseTweetCreateEvent(events[0] as Record<string, unknown>);
     } else if (payload.tweet_delete_events) {
       eventType = "POST_DELETED";
-      normalizedData = await this.parseTweetDeleteEvent(payload.tweet_delete_events[0]);
+      const events = payload.tweet_delete_events as Record<string, unknown>[];
+      normalizedData = await this.parseTweetDeleteEvent(events[0] as Record<string, unknown>);
     } else if (payload.favorite_events) {
       eventType = "LIKE_RECEIVED";
-      normalizedData = await this.parseFavoriteEvent(payload.favorite_events[0]);
+      const events = payload.favorite_events as Record<string, unknown>[];
+      normalizedData = await this.parseFavoriteEvent(events[0] as Record<string, unknown>);
     } else if (payload.retweet_events) {
       eventType = "SHARE_RECEIVED";
-      normalizedData = await this.parseRetweetEvent(payload.retweet_events[0]);
+      const events = payload.retweet_events as Record<string, unknown>[];
+      normalizedData = await this.parseRetweetEvent(events[0] as Record<string, unknown>);
     } else if (payload.reply_events) {
       eventType = "COMMENT_RECEIVED";
-      normalizedData = await this.parseReplyEvent(payload.reply_events[0]);
+      const events = payload.reply_events as Record<string, unknown>[];
+      normalizedData = await this.parseReplyEvent(events[0] as Record<string, unknown>);
     } else if (payload.direct_message_events) {
       eventType = "COMMENT_RECEIVED"; // Treating DMs as comments
-      normalizedData = await this.parseDirectMessageEvent(payload.direct_message_events[0]);
+      const events = payload.direct_message_events as Record<string, unknown>[];
+      normalizedData = await this.parseDirectMessageEvent(events[0] as Record<string, unknown>);
     } else if (payload.follow_events) {
       eventType = "ACCOUNT_CONNECTED";
-      normalizedData = await this.parseFollowEvent(payload.follow_events[0]);
+      const events = payload.follow_events as Record<string, unknown>[];
+      normalizedData = await this.parseFollowEvent(events[0] as Record<string, unknown>);
     } else if (payload.user_event) {
       eventType = "ACCOUNT_DISCONNECTED";
-      normalizedData = await this.parseUserEvent(payload.user_event);
+      normalizedData = await this.parseUserEvent(payload.user_event as Record<string, unknown>);
     } else {
       throw AppError.badRequest(
         `Unsupported X webhook event type: ${Object.keys(payload).join(", ")}`
@@ -110,7 +116,7 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
     }
 
     // Find related entities based on user ID or tweet content
-    relatedEntities = await this.findRelatedEntities(payload, normalizedData);
+    const relatedEntities = await this.findRelatedEntities(payload, normalizedData);
 
     return {
       eventType,
@@ -122,7 +128,10 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Process the normalized webhook event
    */
-  override async process(normalizedData: Record<string, any>, relatedEntities: any): Promise<void> {
+  override async process(
+    normalizedData: Record<string, unknown>,
+    relatedEntities: Record<string, unknown>
+  ): Promise<void> {
     const { accountId, projectId, postId: _postId, channelId: _channelId } = relatedEntities;
 
     if (!accountId && !projectId) {
@@ -173,13 +182,16 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse tweet creation events
    */
-  private async parseTweetCreateEvent(tweet: any): Promise<Record<string, any>> {
+  private async parseTweetCreateEvent(
+    tweet: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const user = (tweet.user ?? {}) as Record<string, unknown>;
     return {
       eventType: "tweet_created",
       tweetId: tweet.id_str,
       text: tweet.text || tweet.full_text,
-      userId: tweet.user.id_str,
-      screenName: tweet.user.screen_name,
+      userId: user.id_str,
+      screenName: user.screen_name,
       createdAt: tweet.created_at,
       retweetCount: tweet.retweet_count || 0,
       favoriteCount: tweet.favorite_count || 0,
@@ -187,19 +199,21 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
       isRetweet: !!tweet.retweeted_status,
       entities: tweet.entities,
       extendedEntities: tweet.extended_entities,
-      isThread:
-        !!tweet.in_reply_to_status_id_str && tweet.in_reply_to_user_id_str === tweet.user.id_str,
+      isThread: !!tweet.in_reply_to_status_id_str && tweet.in_reply_to_user_id_str === user.id_str,
     };
   }
 
   /**
    * Parse tweet deletion events
    */
-  private async parseTweetDeleteEvent(deleteEvent: any): Promise<Record<string, any>> {
+  private async parseTweetDeleteEvent(
+    deleteEvent: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const status = (deleteEvent.status ?? {}) as Record<string, unknown>;
     return {
       eventType: "tweet_deleted",
-      tweetId: deleteEvent.status?.id_str,
-      userId: deleteEvent.status?.user_id_str,
+      tweetId: status.id_str,
+      userId: status.user_id_str,
       deletedAt: new Date().toISOString(),
     };
   }
@@ -207,27 +221,36 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse favorite (like) events
    */
-  private async parseFavoriteEvent(favorite: any): Promise<Record<string, any>> {
+  private async parseFavoriteEvent(
+    favorite: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const favoritedStatus = (favorite.favorited_status ?? {}) as Record<string, unknown>;
+    const user = (favorite.user ?? {}) as Record<string, unknown>;
+    const targetUser = (favoritedStatus.user ?? {}) as Record<string, unknown>;
     return {
       eventType: "like_received",
-      tweetId: favorite.favorited_status?.id_str,
-      userId: favorite.user?.id_str,
-      screenName: favorite.user?.screen_name,
+      tweetId: favoritedStatus.id_str,
+      userId: user.id_str,
+      screenName: user.screen_name,
       createdAt: favorite.created_at,
-      targetTweetUserId: favorite.favorited_status?.user?.id_str,
+      targetTweetUserId: targetUser.id_str,
     };
   }
 
   /**
    * Parse retweet events
    */
-  private async parseRetweetEvent(retweet: any): Promise<Record<string, any>> {
+  private async parseRetweetEvent(
+    retweet: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const retweetedStatus = (retweet.retweeted_status ?? {}) as Record<string, unknown>;
+    const user = (retweet.user ?? {}) as Record<string, unknown>;
     return {
       eventType: "retweet_received",
       retweetId: retweet.id_str,
-      originalTweetId: retweet.retweeted_status?.id_str,
-      userId: retweet.user?.id_str,
-      screenName: retweet.user?.screen_name,
+      originalTweetId: retweetedStatus.id_str,
+      userId: user.id_str,
+      screenName: user.screen_name,
       createdAt: retweet.created_at,
       retweetText: retweet.text || retweet.full_text,
     };
@@ -236,13 +259,14 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse reply events
    */
-  private async parseReplyEvent(reply: any): Promise<Record<string, any>> {
+  private async parseReplyEvent(reply: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const user = (reply.user ?? {}) as Record<string, unknown>;
     return {
       eventType: "reply_received",
       replyId: reply.id_str,
       text: reply.text || reply.full_text,
-      userId: reply.user?.id_str,
-      screenName: reply.user?.screen_name,
+      userId: user.id_str,
+      screenName: user.screen_name,
       createdAt: reply.created_at,
       inReplyToTweetId: reply.in_reply_to_status_id_str,
       inReplyToUserId: reply.in_reply_to_user_id_str,
@@ -252,13 +276,18 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse direct message events
    */
-  private async parseDirectMessageEvent(dm: any): Promise<Record<string, any>> {
+  private async parseDirectMessageEvent(
+    dm: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const messageCreate = (dm.message_create ?? {}) as Record<string, unknown>;
+    const messageData = (messageCreate.message_data ?? {}) as Record<string, unknown>;
+    const target = (messageCreate.target ?? {}) as Record<string, unknown>;
     return {
       eventType: "direct_message",
       messageId: dm.id,
-      text: dm.message_create?.message_data?.text,
-      senderId: dm.message_create?.sender_id,
-      recipientId: dm.message_create?.target?.recipient_id,
+      text: messageData.text,
+      senderId: messageCreate.sender_id,
+      recipientId: target.recipient_id,
       createdAt: dm.created_timestamp,
       isDirectMessage: true,
     };
@@ -267,13 +296,17 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse follow events
    */
-  private async parseFollowEvent(follow: any): Promise<Record<string, any>> {
+  private async parseFollowEvent(
+    follow: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const source = (follow.source ?? {}) as Record<string, unknown>;
+    const target = (follow.target ?? {}) as Record<string, unknown>;
     return {
       eventType: "follow_event",
-      followerId: follow.source?.id_str,
-      followedId: follow.target?.id_str,
-      followerScreenName: follow.source?.screen_name,
-      followedScreenName: follow.target?.screen_name,
+      followerId: source.id_str,
+      followedId: target.id_str,
+      followerScreenName: source.screen_name,
+      followedScreenName: target.screen_name,
       createdAt: follow.created_at,
       type: follow.type, // follow or unfollow
     };
@@ -282,33 +315,38 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse user events (account changes)
    */
-  private async parseUserEvent(userEvent: any): Promise<Record<string, any>> {
+  private async parseUserEvent(
+    userEvent: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
     return {
       eventType: userEvent.revoked ? "account_disconnected" : "account_updated",
       userId: userEvent.id_str,
       screenName: userEvent.screen_name,
-      changes: userEvent.revoked || userEvent.revoke || {},
+      changes: (userEvent.revoked || userEvent.revoke || {}) as Record<string, unknown>,
     };
   }
 
   /**
    * Find related database entities based on X user ID or tweet content
    */
-  private async findRelatedEntities(payload: any, normalizedData: Record<string, any>) {
+  private async findRelatedEntities(
+    _payload: Record<string, unknown>,
+    normalizedData: Record<string, unknown>
+  ) {
     let userId: string | undefined;
     let tweetId: string | undefined;
 
     // Extract user ID from various event types
     if (normalizedData.userId) {
-      userId = normalizedData.userId;
+      userId = normalizedData.userId as string;
     } else if (normalizedData.targetTweetUserId) {
-      userId = normalizedData.targetTweetUserId;
+      userId = normalizedData.targetTweetUserId as string;
     }
 
     if (normalizedData.tweetId) {
-      tweetId = normalizedData.tweetId;
+      tweetId = normalizedData.tweetId as string;
     } else if (normalizedData.originalTweetId) {
-      tweetId = normalizedData.originalTweetId;
+      tweetId = normalizedData.originalTweetId as string;
     }
 
     // Find channel by X user ID
@@ -358,7 +396,7 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
       postId = publishLog?.postId || undefined;
     }
 
-    const result: any = {
+    const result: Record<string, unknown> = {
       accountId: channel.project.accountId,
       projectId: channel.projectId,
       channelId: channel.id,
@@ -372,8 +410,12 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle tweet created event
    */
-  private async handleTweetCreated(data: Record<string, any>, entities: any): Promise<void> {
-    const { postId, channelId } = entities;
+  private async handleTweetCreated(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const postId = entities.postId as string | undefined;
+    const channelId = entities.channelId as string | undefined;
 
     if (postId && channelId) {
       // Update publish log with X tweet ID
@@ -386,10 +428,10 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
         data: {
           status: "OK",
           payload: {
-            tweet_id: data.tweetId,
-            retweet_count: data.retweetCount,
-            favorite_count: data.favoriteCount,
-            is_thread: data.isThread,
+            tweet_id: String(data.tweetId ?? ""),
+            retweet_count: Number(data.retweetCount ?? 0),
+            favorite_count: Number(data.favoriteCount ?? 0),
+            is_thread: Boolean(data.isThread),
             webhook_received_at: new Date().toISOString(),
           },
         },
@@ -415,11 +457,11 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
     // Create/update analytics entry
     if (entities.accountId && entities.projectId && channelId) {
       await this.updateAnalytics(entities, {
-        externalId: data.tweetId,
+        externalId: Number(data.tweetId ?? 0),
         views: 0, // X doesn't provide initial view count
-        likes: data.favoriteCount,
+        likes: Number(data.favoriteCount ?? 0),
         comments: 0, // Will be updated by reply events
-        shares: data.retweetCount,
+        shares: Number(data.retweetCount ?? 0),
       });
     }
   }
@@ -427,23 +469,32 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle tweet deleted event
    */
-  private async handleTweetDeleted(data: Record<string, any>, entities: any): Promise<void> {
-    if (entities.postId) {
+  private async handleTweetDeleted(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const entityPostId = entities.postId as string | undefined;
+    const entityChannelId = entities.channelId as string | undefined;
+
+    if (entityPostId) {
+      const whereClause: Record<string, unknown> = {
+        postId: entityPostId,
+        provider: "X",
+        payload: {
+          path: ["tweet_id"],
+          equals: data.tweetId as string,
+        },
+      };
+      if (entityChannelId) {
+        whereClause.channelId = entityChannelId;
+      }
       // Update publish log to reflect deletion
       await prisma.publishLog.updateMany({
-        where: {
-          postId: entities.postId,
-          channelId: entities.channelId,
-          provider: "X",
-          payload: {
-            path: ["tweet_id"],
-            equals: data.tweetId,
-          },
-        },
+        where: whereClause,
         data: {
           status: "ERR",
           payload: {
-            deleted_at: data.deletedAt,
+            deleted_at: String(data.deletedAt ?? ""),
             webhook_received_at: new Date().toISOString(),
           },
         },
@@ -454,13 +505,17 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle like received event
    */
-  private async handleLikeReceived(data: Record<string, any>, entities: any): Promise<void> {
+  private async handleLikeReceived(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
     if (entities.accountId && entities.projectId && entities.channelId) {
-      await this.incrementAnalytics(entities, data.tweetId, "likes", 1);
+      await this.incrementAnalytics(entities, data.tweetId as string, "likes", 1);
 
       // Broadcast real-time engagement update
-      if (this.broadcaster && entities.postId) {
-        await this.broadcaster.broadcastEngagementUpdate(entities.postId, "X", {}, { likes: 1 });
+      const entityPostId = entities.postId as string | undefined;
+      if (this.broadcaster && entityPostId) {
+        await this.broadcaster.broadcastEngagementUpdate(entityPostId, "X", {}, { likes: 1 });
       }
     }
   }
@@ -468,13 +523,17 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle retweet received event
    */
-  private async handleRetweetReceived(data: Record<string, any>, entities: any): Promise<void> {
+  private async handleRetweetReceived(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
     if (entities.accountId && entities.projectId && entities.channelId) {
-      await this.incrementAnalytics(entities, data.originalTweetId, "shares", 1);
+      await this.incrementAnalytics(entities, data.originalTweetId as string, "shares", 1);
 
       // Broadcast real-time engagement update
-      if (this.broadcaster && entities.postId) {
-        await this.broadcaster.broadcastEngagementUpdate(entities.postId, "X", {}, { shares: 1 });
+      const entityPostId = entities.postId as string | undefined;
+      if (this.broadcaster && entityPostId) {
+        await this.broadcaster.broadcastEngagementUpdate(entityPostId, "X", {}, { shares: 1 });
       }
     }
   }
@@ -482,13 +541,17 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle reply received event
    */
-  private async handleReplyReceived(data: Record<string, any>, entities: any): Promise<void> {
+  private async handleReplyReceived(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
     if (entities.accountId && entities.projectId && entities.channelId) {
-      await this.incrementAnalytics(entities, data.inReplyToTweetId, "comments", 1);
+      await this.incrementAnalytics(entities, data.inReplyToTweetId as string, "comments", 1);
 
       // Broadcast real-time engagement update
-      if (this.broadcaster && entities.postId) {
-        await this.broadcaster.broadcastEngagementUpdate(entities.postId, "X", {}, { comments: 1 });
+      const entityPostId = entities.postId as string | undefined;
+      if (this.broadcaster && entityPostId) {
+        await this.broadcaster.broadcastEngagementUpdate(entityPostId, "X", {}, { comments: 1 });
       }
     }
 
@@ -498,7 +561,10 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle direct message event
    */
-  private async handleDirectMessage(data: Record<string, any>, _entities: any): Promise<void> {
+  private async handleDirectMessage(
+    data: Record<string, unknown>,
+    _entities: Record<string, unknown>
+  ): Promise<void> {
     // Future: DM tracking, auto-response, and customer service integration
     webhookLogger.info({ provider: "X", dm: data }, "X direct message received");
   }
@@ -506,7 +572,10 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle follow event
    */
-  private async handleFollowEvent(data: Record<string, any>, _entities: any): Promise<void> {
+  private async handleFollowEvent(
+    data: Record<string, unknown>,
+    _entities: Record<string, unknown>
+  ): Promise<void> {
     // Future: follower tracking and account metrics updates
     webhookLogger.info({ provider: "X", follow: data }, "X follow event");
   }
@@ -514,14 +583,22 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Update analytics with new data
    */
-  private async updateAnalytics(entities: any, metrics: Record<string, number>): Promise<void> {
-    const existing = await prisma.analytics.findFirst({
-      where: {
-        channelId: entities.channelId,
-        provider: "X",
-        postId: entities.postId,
-      },
-    });
+  private async updateAnalytics(
+    entities: Record<string, unknown>,
+    metrics: Record<string, number>
+  ): Promise<void> {
+    const entityChannelId = entities.channelId as string;
+    const entityPostId = entities.postId as string | undefined;
+
+    const whereClause: Record<string, unknown> = {
+      channelId: entityChannelId,
+      provider: "X",
+    };
+    if (entityPostId) {
+      whereClause.postId = entityPostId;
+    }
+
+    const existing = await prisma.analytics.findFirst({ where: whereClause });
 
     if (existing) {
       await prisma.analytics.update({
@@ -534,9 +611,9 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
     } else {
       await prisma.analytics.create({
         data: {
-          channelId: entities.channelId,
+          channelId: entityChannelId,
           provider: "X",
-          postId: entities.postId,
+          ...(entityPostId ? { postId: entityPostId } : {}),
           ...metrics,
           capturedAt: new Date(),
         },
@@ -548,18 +625,23 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
    * Increment specific analytics metric
    */
   private async incrementAnalytics(
-    entities: any,
-    tweetId: string,
+    entities: Record<string, unknown>,
+    _tweetId: string,
     metric: string,
     increment: number
   ): Promise<void> {
-    const existing = await prisma.analytics.findFirst({
-      where: {
-        channelId: entities.channelId,
-        provider: "X",
-        postId: entities.postId,
-      },
-    });
+    const entityChannelId = entities.channelId as string;
+    const entityPostId = entities.postId as string | undefined;
+
+    const whereClause: Record<string, unknown> = {
+      channelId: entityChannelId,
+      provider: "X",
+    };
+    if (entityPostId) {
+      whereClause.postId = entityPostId;
+    }
+
+    const existing = await prisma.analytics.findFirst({ where: whereClause });
 
     if (existing) {
       await prisma.analytics.update({
@@ -573,9 +655,9 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
       // Create new analytics entry if it doesn't exist
       await prisma.analytics.create({
         data: {
-          channelId: entities.channelId,
+          channelId: entityChannelId,
           provider: "X",
-          postId: entities.postId,
+          ...(entityPostId ? { postId: entityPostId } : {}),
           [metric]: increment,
           capturedAt: new Date(),
         },

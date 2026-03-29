@@ -266,10 +266,36 @@ export const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
     container.resolve<DeactivateApiKeyUseCase>(TOKENS.DeactivateApiKeyUseCase)
   );
 
-  const authOptions = { preHandler: [authenticateMiddleware] };
-
-  fastify.get("/api-keys", authOptions, (req, reply) => handler.list(req, reply));
-  fastify.post("/api-keys", authOptions, (req, reply) => handler.create(req, reply));
-  fastify.post("/api-keys/:id/rotate", authOptions, (req, reply) => handler.rotate(req, reply));
-  fastify.delete("/api-keys/:id", authOptions, (req, reply) => handler.deactivate(req, reply));
+  fastify.get(
+    "/api-keys",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["API Keys"], summary: "List API keys" },
+    },
+    (req, reply) => handler.list(req, reply)
+  );
+  fastify.post(
+    "/api-keys",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["API Keys"], summary: "Create API key" },
+    },
+    (req, reply) => handler.create(req, reply)
+  );
+  fastify.post(
+    "/api-keys/:id/rotate",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["API Keys"], summary: "Rotate API key" },
+    },
+    (req, reply) => handler.rotate(req, reply)
+  );
+  fastify.delete(
+    "/api-keys/:id",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["API Keys"], summary: "Deactivate API key" },
+    },
+    (req, reply) => handler.deactivate(req, reply)
+  );
 };

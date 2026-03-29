@@ -8,6 +8,9 @@
 
 import { type Result, ok, err } from "@shared/types";
 import type { EmailPort, SendEmailOptions } from "../../domain/repositories/EmailPort.js";
+import { createLogger } from "../../lib/logger.js";
+
+const emailLogger = createLogger("email");
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 
@@ -34,7 +37,7 @@ export class ResendEmailAdapter implements EmailPort {
    */
   async send(options: SendEmailOptions): Promise<Result<void, Error>> {
     if (!this.apiKey) {
-      console.warn("[ResendEmailAdapter] RESEND_API_KEY not set; skipping email delivery.");
+      emailLogger.warn("RESEND_API_KEY not set; skipping email delivery.");
       return ok(undefined);
     }
 
@@ -68,7 +71,7 @@ export class ResendEmailAdapter implements EmailPort {
       if (!response.ok) {
         const errorBody = await response.text();
 
-        console.error(`[ResendEmailAdapter] Resend API error ${response.status}: ${errorBody}`);
+        emailLogger.error({ status: response.status, errorBody }, "Resend API error");
         // Return ok for non-critical email failures
         return ok(undefined);
       }
@@ -77,7 +80,7 @@ export class ResendEmailAdapter implements EmailPort {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
 
-      console.error(`[ResendEmailAdapter] Failed to send email: ${message}`);
+      emailLogger.error({ err: error }, "Failed to send email");
       return err(error instanceof Error ? error : new Error(message));
     }
   }

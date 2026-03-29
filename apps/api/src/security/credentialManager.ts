@@ -336,7 +336,7 @@ export class CredentialManager {
       .digest("hex");
   }
 
-  private async cacheApiKey(keyId: string, data: any): Promise<void> {
+  private async cacheApiKey(keyId: string, data: Record<string, unknown>): Promise<void> {
     const cacheKey = `api_key:${keyId}`;
     const serializedData = {
       ...data,
@@ -362,16 +362,18 @@ export class CredentialManager {
     });
   }
 
-  private async logCredentialEvent(event: string, accountId: string, details: any): Promise<void> {
+  private async logCredentialEvent(
+    event: string,
+    accountId: string,
+    details: Record<string, unknown>
+  ): Promise<void> {
     try {
       await prisma.auditLog.create({
         data: {
           action: event,
           resource: "ApiKey",
           resourceId: accountId,
-          details,
-          ipAddress: null, // Would be passed from request context
-          userAgent: null,
+          details: details as Record<string, string | number | boolean>,
         },
       });
     } catch (_error: unknown) {

@@ -1,5 +1,5 @@
 // Correlation tracking and context propagation for distributed operations
-import { trace, context, propagation, ROOT_CONTEXT } from "@opentelemetry/api";
+import { trace, context, propagation, ROOT_CONTEXT, type Context } from "@opentelemetry/api";
 import { randomBytes } from "crypto";
 import pino from "pino";
 
@@ -14,7 +14,7 @@ export interface CorrelationContext {
   userId?: string;
   operation: string;
   timestamp: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface UserJourneyContext {
@@ -24,7 +24,7 @@ export interface UserJourneyContext {
   startTime: Date;
   currentStep: string;
   previousSteps: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 /**
@@ -70,7 +70,7 @@ export class CorrelationTracker {
     tenantId?: string,
     projectId?: string,
     userId?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): CorrelationContext {
     const currentSpan = trace.getActiveSpan();
     const spanContext = currentSpan?.spanContext();
@@ -160,7 +160,7 @@ export class CorrelationTracker {
     userId: string,
     sessionId: string,
     initialStep: string,
-    metadata: Record<string, any> = {}
+    metadata: Record<string, unknown> = {}
   ): string {
     const journeyId = this.generateCorrelationId("journey");
 
@@ -192,7 +192,11 @@ export class CorrelationTracker {
   /**
    * Update user journey with new step
    */
-  updateUserJourney(journeyId: string, newStep: string, metadata: Record<string, any> = {}): void {
+  updateUserJourney(
+    journeyId: string,
+    newStep: string,
+    metadata: Record<string, unknown> = {}
+  ): void {
     const journey = this.userJourneyMap.get(journeyId);
     if (journey) {
       journey.previousSteps.push(journey.currentStep);
@@ -333,7 +337,7 @@ export class ContextPropagation {
   /**
    * Extract context from incoming HTTP headers
    */
-  static extractFromHeaders(headers: Record<string, string | string[]>): any {
+  static extractFromHeaders(headers: Record<string, string | string[]>): unknown {
     // Convert headers to string format for propagation
     const stringHeaders: Record<string, string> = {};
     for (const [key, value] of Object.entries(headers)) {
@@ -354,23 +358,46 @@ export class ContextPropagation {
    * Create a new child context with additional attributes
    */
   static createChildContext(
-    parentContext: any,
+    parentContext: Context,
     operation: string,
-    attributes: Record<string, any> = {}
-  ): any {
+    attributes: Record<string, unknown> = {}
+  ): Context {
     const tracer = trace.getTracer("context-propagation", "1.0.0");
 
-    return tracer.startActiveSpan(operation, { attributes }, parentContext, (_span: any) => {
-      return context.active();
-    });
+    return tracer.startActiveSpan(
+      operation,
+      { attributes: attributes as Record<string, string | number | boolean> },
+      parentContext,
+      (_span: unknown) => {
+        return context.active();
+      }
+    );
   }
 
   /**
    * Run function with propagated context
    */
-  static async withPropagatedContext<T>(ctx: any, fn: () => Promise<T>): Promise<T> {
+  static async withPropagatedContext<T>(ctx: Context, fn: () => Promise<T>): Promise<T> {
     return context.with(ctx, fn);
   }
+}
+
+/** Minimal request shape expected by the correlation middleware */
+interface CorrelationRequest {
+  headers: Record<string, string | string[]>;
+  method: string;
+  url: string;
+  ip?: string;
+  user?: { id?: string };
+  correlationId?: string;
+  correlationContext?: CorrelationContext;
+  [key: string]: unknown;
+}
+
+/** Minimal reply shape expected by the correlation middleware */
+interface CorrelationReply {
+  header(name: string, value: string): void;
+  [key: string]: unknown;
 }
 
 /**
@@ -379,15 +406,16 @@ export class ContextPropagation {
 export function createCorrelationMiddleware() {
   const tracker = CorrelationTracker.getInstance();
 
-  return async (request: any, reply: any, next: any) => {
+  return async (request: CorrelationRequest, reply: CorrelationReply, next: () => unknown) => {
     try {
       // Extract context from headers if present
       const extractedContext = ContextPropagation.extractFromHeaders(request.headers);
 
       // Get tenant and user information from headers or auth
-      const tenantId = request.headers["x-tenant-id"] as string;
-      const projectId = request.headers["x-project-id"] as string;
-      const userId = request.user?.id || (request.headers["x-user-id"] as string);
+      const headers = request.headers as Record<string, string>;
+      const tenantId = headers["x-tenant-id"] as string;
+      const projectId = headers["x-project-id"] as string;
+      const userId = request.user?.id || (headers["x-user-id"] as string);
 
       // Create correlation context
       const correlationContext = tracker.createCorrelationContext(
@@ -396,7 +424,7 @@ export function createCorrelationMiddleware() {
         projectId,
         userId,
         {
-          userAgent: request.headers["user-agent"],
+          userAgent: headers["user-agent"],
           ip: request.ip,
           method: request.method,
           url: request.url,
@@ -413,7 +441,7 @@ export function createCorrelationMiddleware() {
 
       // Continue with request processing in the extracted context
       if (extractedContext) {
-        return context.with(extractedContext, () => next());
+        return context.with(extractedContext as Context, () => next());
       } else {
         return next();
       }
@@ -447,7 +475,7 @@ export class CorrelationUtils {
   /**
    * Add correlation context to log messages
    */
-  static enhanceLogContext(baseContext: any): any {
+  static enhanceLogContext(baseContext: Record<string, unknown>): Record<string, unknown> {
     const correlationId = CorrelationUtils.getCurrentCorrelationId();
     const currentSpan = trace.getActiveSpan();
     const spanContext = currentSpan?.spanContext();
@@ -468,7 +496,7 @@ export class CorrelationUtils {
   static createStructuredLog(
     level: "debug" | "info" | "warn" | "error",
     message: string,
-    data: any = {}
+    data: Record<string, unknown> = {}
   ): void {
     const enhancedData = CorrelationUtils.enhanceLogContext(data);
     logger[level](enhancedData, message);

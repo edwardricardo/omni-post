@@ -14,6 +14,7 @@ import type {
   SocialConversationRepository,
   SocialOutboundReplyRepository,
 } from "../../domain/index.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { CreateNotificationUseCase } from "../../application/notifications/index.js";
 import {
   IngestSocialMessageUseCase,
@@ -29,7 +30,12 @@ import {
   GetConversationQuery,
   GetConversationMessagesQuery,
   GetUnreadInboxCountQuery,
+  AddConversationNoteUseCase,
+  DeleteConversationNoteUseCase,
+  ListConversationNotesQuery,
 } from "../../application/inbox/index.js";
+import type { ConversationNoteRepository } from "../../domain/repositories/ConversationNoteRepository.js";
+import type { NotifyMentionedUsersService } from "../../application/mentions/index.js";
 import { InboxEventHandlers } from "../../application/inbox/handlers/InboxEventHandlers.js";
 import type { ProviderRegistryService } from "../../providers/providerRegistry.js";
 
@@ -44,7 +50,8 @@ export function setupInboxUseCases(container: Container): void {
       new IngestSocialMessageUseCase(
         container.resolve<SocialMessageRepository>(TOKENS.SocialMessageRepository),
         container.resolve<SocialConversationRepository>(TOKENS.SocialConversationRepository),
-        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -53,7 +60,8 @@ export function setupInboxUseCases(container: Container): void {
     () =>
       new MarkMessageReadUseCase(
         container.resolve<SocialMessageRepository>(TOKENS.SocialMessageRepository),
-        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -62,7 +70,8 @@ export function setupInboxUseCases(container: Container): void {
     () =>
       new MarkMessageArchivedUseCase(
         container.resolve<SocialMessageRepository>(TOKENS.SocialMessageRepository),
-        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -71,7 +80,8 @@ export function setupInboxUseCases(container: Container): void {
     () =>
       new AssignMessageUseCase(
         container.resolve<SocialMessageRepository>(TOKENS.SocialMessageRepository),
-        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -84,7 +94,8 @@ export function setupInboxUseCases(container: Container): void {
         container.resolve<SocialOutboundReplyRepository>(TOKENS.SocialOutboundReplyRepository),
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
-        { resolve: (provider) => registry.getAdapter(provider) }
+        { resolve: (provider) => registry.getAdapter(provider) },
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       );
     },
     true
@@ -93,7 +104,8 @@ export function setupInboxUseCases(container: Container): void {
     TOKENS.ResolveConversationUseCase,
     () =>
       new ResolveConversationUseCase(
-        container.resolve<SocialConversationRepository>(TOKENS.SocialConversationRepository)
+        container.resolve<SocialConversationRepository>(TOKENS.SocialConversationRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -101,7 +113,8 @@ export function setupInboxUseCases(container: Container): void {
     TOKENS.ReopenConversationUseCase,
     () =>
       new ReopenConversationUseCase(
-        container.resolve<SocialConversationRepository>(TOKENS.SocialConversationRepository)
+        container.resolve<SocialConversationRepository>(TOKENS.SocialConversationRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -110,7 +123,8 @@ export function setupInboxUseCases(container: Container): void {
     () =>
       new SyncProviderCommentsUseCase(
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
-        container.resolve<IngestSocialMessageUseCase>(TOKENS.IngestSocialMessageUseCase)
+        container.resolve<IngestSocialMessageUseCase>(TOKENS.IngestSocialMessageUseCase),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -153,6 +167,35 @@ export function setupInboxUseCases(container: Container): void {
     () =>
       new GetUnreadInboxCountQuery(
         container.resolve<SocialMessageQueryRepository>(TOKENS.SocialMessageQueryRepository)
+      ),
+    true
+  );
+
+  // Conversation Notes (Social Inbox)
+  container.register<AddConversationNoteUseCase>(
+    TOKENS.AddConversationNoteUseCase,
+    () =>
+      new AddConversationNoteUseCase(
+        container.resolve<ConversationNoteRepository>(TOKENS.ConversationNoteRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
+        container.tryResolve<NotifyMentionedUsersService>(TOKENS.NotifyMentionedUsersService)
+      ),
+    true
+  );
+  container.register<DeleteConversationNoteUseCase>(
+    TOKENS.DeleteConversationNoteUseCase,
+    () =>
+      new DeleteConversationNoteUseCase(
+        container.resolve<ConversationNoteRepository>(TOKENS.ConversationNoteRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<ListConversationNotesQuery>(
+    TOKENS.ListConversationNotesQuery,
+    () =>
+      new ListConversationNotesQuery(
+        container.resolve<ConversationNoteRepository>(TOKENS.ConversationNoteRepository)
       ),
     true
   );

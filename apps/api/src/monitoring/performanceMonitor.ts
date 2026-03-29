@@ -282,7 +282,7 @@ export class PerformanceMonitor {
   /**
    * Send alert (placeholder for notification system)
    */
-  private sendAlert(alert: any): void {
+  private sendAlert(alert: unknown): void {
     // Implement notification logic here
     // Could send to Slack, email, PagerDuty, etc.
     monitoringLogger.info({ alert }, "Alert would be sent to notification system");
@@ -457,7 +457,7 @@ export class PerformanceMonitor {
       // Track the response using the response hook pattern
       const originalSend = reply.send.bind(reply);
       const self = this;
-      reply.send = function (payload?: any) {
+      reply.send = function (payload?: unknown) {
         const responseTime = Date.now() - startTime;
         // Record asynchronously to avoid blocking response
         void self.recordRequest(req, reply, responseTime);
@@ -496,7 +496,7 @@ export class PerformanceMonitor {
   async getDashboardData(timeRangeMinutes: number = 60): Promise<{
     systemHealth: SystemHealth;
     endpointStats: EndpointStats[];
-    recentAlerts: any[];
+    recentAlerts: Record<string, unknown>[];
     slowRequests: PerformanceMetrics[];
   }> {
     const [systemHealth, endpointStats, recentAlerts] = await Promise.all([

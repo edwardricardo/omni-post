@@ -604,10 +604,8 @@ describe("webhookDashboardRoutes", () => {
   });
 
   describe("GET /api/webhooks/dashboard/stream", () => {
-    it.skip("should establish SSE connection (skipped - SSE not compatible with inject)", async () => {
-      // SSE streams don't work well with Fastify inject() as they are long-lived connections
-      // This would require a different testing approach with actual HTTP requests
-    });
+    // SSE connection test moved to integration — requires real HTTP, not inject()
+    // See: docs/development/TESTING_BACKLOG.md
 
     it("should reject SSE without authentication", async () => {
       const response = await app.inject({

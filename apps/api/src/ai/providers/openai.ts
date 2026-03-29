@@ -128,7 +128,7 @@ Content to optimize:
   async predictPerformance(
     content: string,
     platform: string,
-    historicalData?: any[]
+    historicalData?: unknown[]
   ): Promise<PerformancePrediction> {
     const prompt = `Estimate the likely performance of this content on ${platform}.
     ${historicalData ? `Historical data: ${JSON.stringify(historicalData.slice(0, 5))}` : ""}

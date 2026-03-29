@@ -31,6 +31,7 @@ export interface Review {
   readonly reviewerId: string;
   readonly decision: ReviewDecision;
   readonly comment?: string;
+  readonly level: number;
   readonly reviewedAt: Date;
 }
 
@@ -74,6 +75,7 @@ export class ApprovalReviewAdded extends BaseDomainEvent {
     readonly aggregateId: string,
     readonly reviewerId: string,
     readonly decision: string,
+    readonly level: number = 1,
     version: number = 1
   ) {
     super(version);
@@ -84,6 +86,32 @@ export class ApprovalReviewAdded extends BaseDomainEvent {
       approvalRequestId: this.aggregateId,
       reviewerId: this.reviewerId,
       decision: this.decision,
+      level: this.level,
+    };
+  }
+}
+
+/**
+ * Event raised when an approval request advances to the next level
+ */
+export class ApprovalLevelAdvanced extends BaseDomainEvent {
+  readonly eventType = "ApprovalLevelAdvanced";
+  readonly aggregateType = "ApprovalRequest";
+
+  constructor(
+    readonly aggregateId: string,
+    readonly previousLevel: number,
+    readonly newLevel: number,
+    version: number = 1
+  ) {
+    super(version);
+  }
+
+  toPayload(): Record<string, unknown> {
+    return {
+      approvalRequestId: this.aggregateId,
+      previousLevel: this.previousLevel,
+      newLevel: this.newLevel,
     };
   }
 }
@@ -147,6 +175,9 @@ export interface CreateApprovalRequestInput {
   postId: string;
   submitterId: string;
   comment?: string;
+  workflowId?: string;
+  currentLevel?: number;
+  totalLevels?: number;
 }
 
 /**
@@ -158,6 +189,9 @@ export interface ApprovalRequestState {
   submitterId: string;
   status: ApprovalStatus;
   comment?: string;
+  workflowId?: string;
+  currentLevel: number;
+  totalLevels: number;
   reviews: Review[];
   createdAt: Date;
   updatedAt: Date;
@@ -190,6 +224,9 @@ export class ApprovalRequestAggregate extends AggregateRoot<ApprovalRequestId> {
   private readonly _submitterId: string;
   private _status: ApprovalStatus;
   private readonly _comment: string | undefined;
+  private readonly _workflowId: string | undefined;
+  private _currentLevel: number;
+  private readonly _totalLevels: number;
   private readonly _reviews: Review[];
 
   private constructor(id: ApprovalRequestId, state: Omit<ApprovalRequestState, "id">) {
@@ -198,6 +235,9 @@ export class ApprovalRequestAggregate extends AggregateRoot<ApprovalRequestId> {
     this._submitterId = state.submitterId;
     this._status = state.status;
     this._comment = state.comment;
+    this._workflowId = state.workflowId;
+    this._currentLevel = state.currentLevel;
+    this._totalLevels = state.totalLevels;
     this._reviews = [...state.reviews];
 
     if (state.updatedAt) {
@@ -256,6 +296,26 @@ export class ApprovalRequestAggregate extends AggregateRoot<ApprovalRequestId> {
     return this._status.isTerminal();
   }
 
+  /** @description The workflow ID if using a multi-level workflow */
+  get workflowId(): string | undefined {
+    return this._workflowId;
+  }
+
+  /** @description The current approval level (1-indexed) */
+  get currentLevel(): number {
+    return this._currentLevel;
+  }
+
+  /** @description The total number of approval levels */
+  get totalLevels(): number {
+    return this._totalLevels;
+  }
+
+  /** @description Whether this is a multi-level approval request */
+  get isMultiLevel(): boolean {
+    return this._totalLevels > 1;
+  }
+
   // --- Factory ---
 
   /**
@@ -284,6 +344,9 @@ export class ApprovalRequestAggregate extends AggregateRoot<ApprovalRequestId> {
       submitterId: input.submitterId,
       status: ApprovalStatus.pending(),
       ...(input.comment !== undefined && { comment: input.comment }),
+      ...(input.workflowId !== undefined && { workflowId: input.workflowId }),
+      currentLevel: input.currentLevel ?? 1,
+      totalLevels: input.totalLevels ?? 1,
       reviews: [],
       createdAt: now,
       updatedAt: now,
@@ -346,30 +409,43 @@ export class ApprovalRequestAggregate extends AggregateRoot<ApprovalRequestId> {
       reviewerId,
       decision,
       ...(comment !== undefined && { comment }),
+      level: this._currentLevel,
       reviewedAt: new Date(),
     };
 
     this._reviews.push(review);
     this.markUpdated();
 
-    this.addDomainEvent(new ApprovalReviewAdded(this._id.value, reviewerId, decision.value));
+    this.addDomainEvent(
+      new ApprovalReviewAdded(this._id.value, reviewerId, decision.value, this._currentLevel)
+    );
 
-    // Determine if the decision resolves the request
-    if (decision.isApproval()) {
-      const transitionResult = this._status.transitionTo(APPROVAL_STATUSES.APPROVED);
-      if (transitionResult.ok) {
-        this._status = transitionResult.value;
-        this.addDomainEvent(
-          new ApprovalRequestResolved(this._id.value, this._postId, REVIEW_DECISIONS.APPROVED)
-        );
-      }
-    } else if (decision.isRejection()) {
+    // Rejection at any level terminates the request immediately
+    if (decision.isRejection()) {
       const transitionResult = this._status.transitionTo(APPROVAL_STATUSES.REJECTED);
       if (transitionResult.ok) {
         this._status = transitionResult.value;
         this.addDomainEvent(
           new ApprovalRequestResolved(this._id.value, this._postId, REVIEW_DECISIONS.REJECTED)
         );
+      }
+    } else if (decision.isApproval()) {
+      // For multi-level: if this is not the last level, advance
+      if (this._currentLevel < this._totalLevels) {
+        const previousLevel = this._currentLevel;
+        this._currentLevel += 1;
+        this.addDomainEvent(
+          new ApprovalLevelAdvanced(this._id.value, previousLevel, this._currentLevel)
+        );
+      } else {
+        // Last level (or single-level): mark as APPROVED
+        const transitionResult = this._status.transitionTo(APPROVAL_STATUSES.APPROVED);
+        if (transitionResult.ok) {
+          this._status = transitionResult.value;
+          this.addDomainEvent(
+            new ApprovalRequestResolved(this._id.value, this._postId, REVIEW_DECISIONS.APPROVED)
+          );
+        }
       }
     }
 
@@ -410,11 +486,15 @@ export class ApprovalRequestAggregate extends AggregateRoot<ApprovalRequestId> {
       submitterId: this._submitterId,
       status: this._status.value,
       ...(this._comment !== undefined && { comment: this._comment }),
+      ...(this._workflowId !== undefined && { workflowId: this._workflowId }),
+      currentLevel: this._currentLevel,
+      totalLevels: this._totalLevels,
       reviews: this._reviews.map((r) => ({
         id: r.id,
         reviewerId: r.reviewerId,
         decision: r.decision.value,
         ...(r.comment !== undefined && { comment: r.comment }),
+        level: r.level,
         reviewedAt: r.reviewedAt.toISOString(),
       })),
       version: this.version,

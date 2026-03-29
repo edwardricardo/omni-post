@@ -26,6 +26,7 @@ import {
 } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { PostsService } from "./postsService.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 
 // Validation Schemas
 const GetOptimizedPostsQuerySchema = z.object({
@@ -150,17 +151,31 @@ export function registerOptimizedPostsRoutes(fastify: FastifyInstance) {
    * GET /api/posts/optimized
    * Get optimized posts list for dashboard with multi-level caching
    */
-  fastify.get("/api/posts/optimized", async (request: FastifyRequest, reply: FastifyReply) => {
-    return handler.getOptimizedPosts(request, reply);
-  });
+  fastify.get(
+    "/api/posts/optimized",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Posts"], summary: "Get optimized posts list for dashboard" },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return handler.getOptimizedPosts(request, reply);
+    }
+  );
 
   /**
    * GET /api/dashboard/stats
    * Get dashboard statistics with materialized view optimization
    */
-  fastify.get("/api/dashboard/stats", async (request: FastifyRequest, reply: FastifyReply) => {
-    return handler.getDashboardStats(request, reply);
-  });
+  fastify.get(
+    "/api/dashboard/stats",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Posts"], summary: "Get dashboard statistics" },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return handler.getDashboardStats(request, reply);
+    }
+  );
 
   /**
    * POST /api/cache/warm/:accountId
@@ -168,6 +183,10 @@ export function registerOptimizedPostsRoutes(fastify: FastifyInstance) {
    */
   fastify.post(
     "/api/cache/warm/:accountId",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Posts"], summary: "Warm cache for a specific account" },
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return handler.warmCache(request, reply);
     }

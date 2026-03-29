@@ -74,8 +74,8 @@ export interface ApiCallMetrics {
 }
 
 export class ExternalApiCircuitBreaker {
-  private breakers = new Map<string, CircuitBreaker<any[], any>>();
-  private cache = new Map<string, { data: any; expires: number }>();
+  private breakers = new Map<string, CircuitBreaker<unknown[], unknown>>();
+  private cache = new Map<string, { data: unknown; expires: number }>();
   private metrics: ApiCallMetrics;
   private registry: client.Registry;
   private fallbackManager: FallbackManager;
@@ -189,7 +189,7 @@ export class ExternalApiCircuitBreaker {
     };
   }
 
-  private getOrCreateBreaker<T extends any[], R>(
+  private getOrCreateBreaker<T extends unknown[], R>(
     service: string,
     operation: string,
     apiCall: (...args: T) => Promise<R>,
@@ -268,7 +268,7 @@ export class ExternalApiCircuitBreaker {
     return breaker;
   }
 
-  private generateCacheKey(service: string, operation: string, args: any[]): string {
+  private generateCacheKey(service: string, operation: string, args: unknown[]): string {
     const argsHash = JSON.stringify(args);
     return `${service}:${operation}:${Buffer.from(argsHash).toString("base64")}`;
   }
@@ -277,7 +277,7 @@ export class ExternalApiCircuitBreaker {
     cacheKey: string,
     service: string,
     operation: string
-  ): Promise<any | null> {
+  ): Promise<unknown | null> {
     try {
       const cached = this.cache.get(cacheKey);
       if (cached && cached.expires > Date.now()) {
@@ -300,7 +300,7 @@ export class ExternalApiCircuitBreaker {
 
   private async setCache(
     cacheKey: string,
-    data: any,
+    data: unknown,
     ttl: number,
     service: string,
     operation: string
@@ -339,7 +339,7 @@ export class ExternalApiCircuitBreaker {
     return Math.max(0, exponentialDelay + randomJitter);
   }
 
-  async call<T extends any[], R>(
+  async call<T extends unknown[], R>(
     service: string,
     operation: string,
     apiCall: (...args: T) => Promise<R>,
@@ -358,7 +358,7 @@ export class ExternalApiCircuitBreaker {
       cacheKey = this.generateCacheKey(service, operation, args);
       const cached = await this.getFromCache(cacheKey, service, operation);
       if (cached) {
-        return cached;
+        return cached as R;
       }
     }
 
@@ -539,11 +539,12 @@ export class ExternalApiCircuitBreaker {
     }
   }
 
-  private isRetryableError(error: any): boolean {
+  private isRetryableError(error: unknown): boolean {
     if (!error) return false;
 
-    const errorMessage = error.message || "";
-    const errorCode = error.code || error.status || 0;
+    const errorObj = error as Record<string, unknown>;
+    const errorMessage = (errorObj.message as string) || "";
+    const errorCode = (errorObj.code as number) || (errorObj.status as number) || 0;
 
     // Network errors
     if (
@@ -615,8 +616,8 @@ export class ExternalApiCircuitBreaker {
   /**
    * Get all circuit breaker statuses
    */
-  getAllStatuses(): Record<string, any> {
-    const statuses: Record<string, any> = {};
+  getAllStatuses(): Record<string, unknown> {
+    const statuses: Record<string, unknown> = {};
 
     for (const [key, _breaker] of this.breakers) {
       const [service, operation] = key.split(":");

@@ -20,7 +20,13 @@ import { setupRecurringPostUseCases } from "./setupRecurringPostUseCases.js";
 import { setupAIPromptTemplateUseCases } from "./setupAIPromptTemplateUseCases.js";
 import { setupUsageUseCases } from "./setupUsageUseCases.js";
 import { setupBrandVoiceUseCases } from "./setupBrandVoiceUseCases.js";
+import { setupBrandKitUseCases } from "./setupBrandKitUseCases.js";
 import { setupAssetUseCases } from "./setupAssetUseCases.js";
+import { setupIntegrationUseCases } from "./setupIntegrationUseCases.js";
+import { setupTaskUseCases } from "./setupTaskUseCases.js";
+import { setupSamlUseCases } from "./setupSamlUseCases.js";
+import { setupCustomReportUseCases } from "./setupCustomReportUseCases.js";
+import { setupCrmUseCases } from "./setupCrmUseCases.js";
 
 /**
  * @method setupUseCases
@@ -42,5 +48,11 @@ export function setupUseCases(container: Container): void {
   setupAIPromptTemplateUseCases(container);
   setupUsageUseCases(container);
   setupBrandVoiceUseCases(container);
+  setupBrandKitUseCases(container);
   setupAssetUseCases(container);
+  setupIntegrationUseCases(container);
+  setupTaskUseCases(container);
+  setupSamlUseCases(container);
+  setupCustomReportUseCases(container);
+  setupCrmUseCases(container);
 }

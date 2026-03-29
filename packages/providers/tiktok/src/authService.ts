@@ -128,7 +128,7 @@ export class TikTokAuthService {
     } = {}
   ): Promise<TikTokAuthResult> {
     const apiCall = async (): Promise<TikTokAuthResult> => {
-      const params: any = {
+      const params: Record<string, string> = {
         client_key: this.config.clientKey,
         client_secret: this.config.clientSecret,
         code,
@@ -459,7 +459,7 @@ export class TikTokAuthService {
   /**
    * Get circuit breaker status for TikTok Auth API operations
    */
-  getCircuitBreakerStatus(): Record<string, any> {
+  getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }
 

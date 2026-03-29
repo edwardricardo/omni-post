@@ -64,7 +64,7 @@ export class SyncEngine extends SyncEngineBase {
     this.eventService.registerHandler("POST_UPDATED", {
       eventType: "POST_UPDATED",
       handle: async (event) => {
-        const data = event.data as { postId: string; changes?: any[]; providerId: string };
+        const data = event.data as { postId: string; changes?: VersionDiff[]; providerId: string };
         const { postId, changes, providerId } = data;
         await this.handleContentChange(postId, changes || [], providerId as ProviderId);
       },

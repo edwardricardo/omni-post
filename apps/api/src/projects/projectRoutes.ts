@@ -5,6 +5,7 @@ import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-com
 import type { PrismaClient } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 
 // Zod Schemas for Validation
 const CreateProjectBodySchema = z.object({
@@ -340,25 +341,52 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   const handler = new ProjectRouteHandler(prisma);
 
   // Create project for account
-  fastify.post("/accounts/:accountId/projects", async (request, reply) =>
-    handler.createProject(request, reply)
+  fastify.post(
+    "/accounts/:accountId/projects",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Projects"], summary: "Create project for account" },
+    },
+    async (request, reply) => handler.createProject(request, reply)
   );
 
   // List projects for account
-  fastify.get("/accounts/:accountId/projects", async (request, reply) =>
-    handler.listProjects(request, reply)
+  fastify.get(
+    "/accounts/:accountId/projects",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Projects"], summary: "List projects for account" },
+    },
+    async (request, reply) => handler.listProjects(request, reply)
   );
 
   // Get project by ID
-  fastify.get("/projects/:projectId", async (request, reply) => handler.getProject(request, reply));
+  fastify.get(
+    "/projects/:projectId",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Projects"], summary: "Get project by ID" },
+    },
+    async (request, reply) => handler.getProject(request, reply)
+  );
 
   // Get publish logs for project
-  fastify.get("/projects/:projectId/publish-logs", async (request, reply) =>
-    handler.getPublishLogs(request, reply)
+  fastify.get(
+    "/projects/:projectId/publish-logs",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Projects"], summary: "Get publish logs for project" },
+    },
+    async (request, reply) => handler.getPublishLogs(request, reply)
   );
 
   // Delete project
-  fastify.delete("/projects/:projectId", async (request, reply) =>
-    handler.deleteProject(request, reply)
+  fastify.delete(
+    "/projects/:projectId",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Projects"], summary: "Delete project" },
+    },
+    async (request, reply) => handler.deleteProject(request, reply)
   );
 };

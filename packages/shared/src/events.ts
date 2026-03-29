@@ -36,7 +36,7 @@ export interface EventMetadata {
   sessionId?: string;
   userAgent?: string;
   ipAddress?: string;
-  [key: string]: any; // Allow additional metadata properties
+  [key: string]: unknown; // Allow additional metadata properties
 }
 
 // Event envelope for serialization

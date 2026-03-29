@@ -9,7 +9,7 @@ export interface AuditLogEntry {
   action: string;
   resource?: string;
   resourceId?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
   success: boolean;
@@ -28,7 +28,7 @@ export interface CreateAuditLogParams {
   action: string;
   resource?: string;
   resourceId?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
   success?: boolean;
@@ -62,18 +62,20 @@ export class AuditService extends BaseService {
         metadata: { action: params.action, resource: params.resource },
       },
       async () => {
+        const createData: Record<string, unknown> = {
+          action: params.action,
+          success: params.success ?? true,
+        };
+        if (params.userId) createData.userId = params.userId;
+        if (params.resource) createData.resource = params.resource;
+        if (params.resourceId) createData.resourceId = params.resourceId;
+        if (params.details) createData.details = params.details;
+        if (params.ipAddress) createData.ipAddress = params.ipAddress;
+        if (params.userAgent) createData.userAgent = params.userAgent;
+        if (params.error) createData.error = params.error;
+
         const auditLog = await prisma.auditLog.create({
-          data: {
-            ...(params.userId && { userId: params.userId }),
-            action: params.action,
-            ...(params.resource && { resource: params.resource }),
-            ...(params.resourceId && { resourceId: params.resourceId }),
-            ...(params.details && { details: params.details }),
-            ...(params.ipAddress && { ipAddress: params.ipAddress }),
-            ...(params.userAgent && { userAgent: params.userAgent }),
-            success: params.success ?? true,
-            ...(params.error && { error: params.error }),
-          },
+          data: createData as Parameters<typeof prisma.auditLog.create>[0]["data"],
           include: {
             user: {
               select: {
@@ -118,7 +120,7 @@ export class AuditService extends BaseService {
           offset = 0,
         } = filters;
 
-        const where: any = {};
+        const where: Record<string, unknown> = {};
 
         if (userId) where.userId = userId;
         if (action) where.action = { contains: action, mode: "insensitive" };
@@ -127,13 +129,14 @@ export class AuditService extends BaseService {
         if (success !== undefined) where.success = success;
 
         if (startDate || endDate) {
-          where.createdAt = {};
-          if (startDate) where.createdAt.gte = startDate;
-          if (endDate) where.createdAt.lte = endDate;
+          const createdAt: Record<string, Date> = {};
+          if (startDate) createdAt.gte = startDate;
+          if (endDate) createdAt.lte = endDate;
+          where.createdAt = createdAt;
         }
 
         const logs = await prisma.auditLog.findMany({
-          where,
+          where: where as Record<string, unknown> & { createdAt?: Record<string, Date> },
           include: {
             user: {
               select: {
@@ -184,7 +187,7 @@ export class AuditService extends BaseService {
       async () => {
         const { userId, action, resource, resourceId, success, startDate, endDate } = filters;
 
-        const where: any = {};
+        const where: Record<string, unknown> = {};
 
         if (userId) where.userId = userId;
         if (action) where.action = { contains: action, mode: "insensitive" };
@@ -193,9 +196,10 @@ export class AuditService extends BaseService {
         if (success !== undefined) where.success = success;
 
         if (startDate || endDate) {
-          where.createdAt = {};
-          if (startDate) where.createdAt.gte = startDate;
-          if (endDate) where.createdAt.lte = endDate;
+          const createdAt: Record<string, Date> = {};
+          if (startDate) createdAt.gte = startDate;
+          if (endDate) createdAt.lte = endDate;
+          where.createdAt = createdAt;
         }
 
         // Get basic counts

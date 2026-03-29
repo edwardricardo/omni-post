@@ -21,6 +21,7 @@ import type { GetMediaAssetsQuery } from "../application/assets/GetMediaAssetsQu
 import type { CreateAssetTagUseCase } from "../application/assets/CreateAssetTagUseCase.js";
 import type { ListAssetTagsQuery } from "../application/assets/ListAssetTagsQuery.js";
 import type { CreateAssetFolderUseCase } from "../application/assets/CreateAssetFolderUseCase.js";
+import type { ImportFromGoogleDriveUseCase } from "../application/assets/ImportFromGoogleDriveUseCase.js";
 import type { AssetTagRepository } from "../domain/repositories/AssetTagRepository.js";
 import type { AssetFolderRepository } from "../domain/repositories/AssetFolderRepository.js";
 
@@ -79,6 +80,14 @@ const CreateFolderBodySchema = z.object({
   parentId: z.string().uuid().optional(),
 });
 
+const ImportGoogleDriveBodySchema = z.object({
+  fileId: z.string().min(1, { message: "Google Drive file ID is required" }),
+  accessToken: z.string().min(1, { message: "Google access token is required" }),
+  fileName: z.string().min(1, { message: "File name is required" }).max(255),
+  mimeType: z.string().min(1, { message: "MIME type is required" }),
+  folderId: z.string().uuid().optional(),
+});
+
 // ============================================================================
 // Route Handler Implementation
 // ============================================================================
@@ -101,7 +110,8 @@ class AssetRouteHandler extends BaseRouteHandler {
     private readonly listTagsQuery: ListAssetTagsQuery,
     private readonly createFolderUseCase: CreateAssetFolderUseCase,
     private readonly assetTagRepository: AssetTagRepository,
-    private readonly assetFolderRepository: AssetFolderRepository
+    private readonly assetFolderRepository: AssetFolderRepository,
+    private readonly importFromGoogleDriveUseCase: ImportFromGoogleDriveUseCase
   ) {
     super();
   }
@@ -353,6 +363,44 @@ class AssetRouteHandler extends BaseRouteHandler {
   }
 
   // --------------------------------------------------------------------------
+  // Import endpoints
+  // --------------------------------------------------------------------------
+
+  /**
+   * @method importFromGoogleDrive
+   * @description POST /api/assets/import/google-drive -- Imports a file from Google Drive.
+   */
+  async importFromGoogleDrive(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    const accountId = this.getAccountId(request);
+    if (!accountId) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    const bodyValidation = await this.validateBody(ctx, ImportGoogleDriveBodySchema);
+    if (!bodyValidation.ok) {
+      return this.sendError(ctx, 400, "Invalid request body");
+    }
+
+    const body = bodyValidation.value;
+    const result = await this.importFromGoogleDriveUseCase.execute({
+      accountId,
+      fileId: body.fileId,
+      accessToken: body.accessToken,
+      fileName: body.fileName,
+      mimeType: body.mimeType,
+      ...(body.folderId !== undefined && { folderId: body.folderId }),
+    });
+
+    if (!result.ok) {
+      return this.sendError(ctx, this.mapErrorCode(result.error.code), result.error.message);
+    }
+
+    this.sendSuccess(ctx, result.value, 201);
+  }
+
+  // --------------------------------------------------------------------------
   // Tag endpoints
   // --------------------------------------------------------------------------
 
@@ -503,26 +551,36 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
     app.container.resolve<ListAssetTagsQuery>(TOKENS.ListAssetTagsQuery),
     app.container.resolve<CreateAssetFolderUseCase>(TOKENS.CreateAssetFolderUseCase),
     app.container.resolve<AssetTagRepository>(TOKENS.AssetTagRepository),
-    app.container.resolve<AssetFolderRepository>(TOKENS.AssetFolderRepository)
+    app.container.resolve<AssetFolderRepository>(TOKENS.AssetFolderRepository),
+    app.container.resolve<ImportFromGoogleDriveUseCase>(TOKENS.ImportFromGoogleDriveUseCase)
   );
 
   // -- Tag routes (registered BEFORE parameterized asset routes to avoid conflicts) --
 
   app.get(
     "/api/assets/tags",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "List asset tags" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.listTags(request, reply)
   );
 
   app.post(
     "/api/assets/tags",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "Create asset tag" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.createTag(request, reply)
   );
 
   app.delete(
     "/api/assets/tags/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "Delete asset tag" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.deleteTag(request, reply)
   );
 
@@ -530,51 +588,86 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     "/api/assets/folders",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "List asset folders" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.listFolders(request, reply)
   );
 
   app.post(
     "/api/assets/folders",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "Create asset folder" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.createFolder(request, reply)
+  );
+
+  // -- Import routes (before parameterized asset routes to avoid conflicts) --
+
+  app.post(
+    "/api/assets/import/google-drive",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "Import file from Google Drive" },
+    },
+    (request: FastifyRequest, reply: FastifyReply) => handler.importFromGoogleDrive(request, reply)
   );
 
   // -- Media Asset routes --
 
   app.get(
     "/api/assets",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "List media assets" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.listAssets(request, reply)
   );
 
   app.post(
     "/api/assets",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "Create media asset" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.createAsset(request, reply)
   );
 
   app.get(
     "/api/assets/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "Get media asset by ID" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getAsset(request, reply)
   );
 
   app.patch(
     "/api/assets/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "Update media asset" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.updateAsset(request, reply)
   );
 
   app.delete(
     "/api/assets/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "Delete media asset" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.deleteAsset(request, reply)
   );
 
   app.post(
     "/api/assets/:id/tags",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Assets"], summary: "Tag media asset" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.tagAsset(request, reply)
   );
 };

@@ -108,7 +108,10 @@ export class RateLimitingDashboard {
       tenant_specific_blocks: tenantStats,
       average_response_time: avgResponseTime,
       peak_usage_periods: peakUsage,
-      distributed_instance_stats: distributedStats,
+      distributed_instance_stats: distributedStats as Record<
+        string,
+        { active: boolean; last_heartbeat: string; requests_handled: number }
+      >,
     };
   }
 
@@ -313,10 +316,10 @@ export class RateLimitingDashboard {
     return stats;
   }
 
-  private async getDistributedInstanceStats(): Promise<Record<string, any>> {
+  private async getDistributedInstanceStats(): Promise<Record<string, unknown>> {
     const pattern = "rate_limit:instances:*";
     const keys = await this.redis.keys(pattern);
-    const stats: Record<string, any> = {};
+    const stats: Record<string, unknown> = {};
 
     for (const key of keys) {
       const instanceId = key.split(":")[2];
@@ -333,7 +336,10 @@ export class RateLimitingDashboard {
     return stats;
   }
 
-  private async getPeakUsagePeriods(_startTime: number, _endTime: number): Promise<Array<any>> {
+  private async getPeakUsagePeriods(
+    _startTime: number,
+    _endTime: number
+  ): Promise<Array<{ timestamp: string; requests_per_minute: number; tenant: string }>> {
     // Implementation would analyze time series data to find peak usage
     return [];
   }
@@ -383,7 +389,7 @@ export class RateLimitingDashboard {
     };
   }
 
-  private async getActiveAlerts(): Promise<Array<any>> {
+  private async getActiveAlerts(): Promise<Array<unknown>> {
     const keys = await this.redis.keys(`${this.ALERT_PREFIX}*`);
     const alerts = [];
 
@@ -411,7 +417,9 @@ export class RateLimitingDashboard {
     };
   }
 
-  private async sendAlerts(alerts: Array<any>): Promise<void> {
+  private async sendAlerts(
+    alerts: Array<{ type: string; message: string; severity: string }>
+  ): Promise<void> {
     // Store alerts in Redis for dashboard display
     for (const alert of alerts) {
       const alertKey = `${this.ALERT_PREFIX}${Date.now()}:${alert.type}`;
@@ -439,17 +447,23 @@ export class RateLimitingDashboard {
     }
   }
 
-  private async sendSlackAlerts(alerts: Array<any>): Promise<void> {
+  private async sendSlackAlerts(
+    alerts: Array<{ type: string; message: string; severity: string }>
+  ): Promise<void> {
     // Slack webhook implementation
     monitoringLogger.info({ alerts }, "Slack alerts would be sent");
   }
 
-  private async sendEmailAlerts(alerts: Array<any>): Promise<void> {
+  private async sendEmailAlerts(
+    alerts: Array<{ type: string; message: string; severity: string }>
+  ): Promise<void> {
     // Email notification implementation
     monitoringLogger.info({ alertCount: alerts.length }, "Email alerts would be sent");
   }
 
-  private async sendPagerDutyAlerts(alerts: Array<any>): Promise<void> {
+  private async sendPagerDutyAlerts(
+    alerts: Array<{ type: string; message: string; severity: string }>
+  ): Promise<void> {
     // PagerDuty integration implementation
     monitoringLogger.info({ alertCount: alerts.length }, "PagerDuty alerts would be sent");
   }

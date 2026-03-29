@@ -113,9 +113,9 @@ export class YouTubeAnalyticsService {
       ...(credentials.accessToken && { access_token: credentials.accessToken }),
     });
 
-    this.youtubeAnalytics = (google as any).youtubeAnalytics({
+    this.youtubeAnalytics = google.youtubeAnalytics({
       version: "v2",
-      auth: this.oauth2Client,
+      auth: this.oauth2Client as unknown as import("googleapis").Auth.OAuth2Client,
     });
   }
 

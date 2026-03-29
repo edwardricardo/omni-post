@@ -40,7 +40,8 @@ export class TransformationEngine {
     switch (transformation.transformer) {
       case "truncate":
         if (transformation.field === "body") {
-          const maxLength = transformation.parameters?.maxLength || 280;
+          const rawMaxLength = transformation.parameters?.maxLength;
+          const maxLength = typeof rawMaxLength === "number" ? rawMaxLength : 280;
           (transformedContent as Record<string, unknown>)[transformation.field] =
             content.body.substring(0, maxLength);
         }
@@ -48,7 +49,8 @@ export class TransformationEngine {
 
       case "hashtag_limit":
         if (transformation.field === "tags" && content.tags) {
-          const maxTags = transformation.parameters?.maxTags || 10;
+          const rawMaxTags = transformation.parameters?.maxTags;
+          const maxTags = typeof rawMaxTags === "number" ? rawMaxTags : 10;
           transformedContent.tags = content.tags.slice(0, maxTags);
         }
         break;

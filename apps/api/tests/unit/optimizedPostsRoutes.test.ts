@@ -7,6 +7,15 @@
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
+
+vi.mock("../../src/auth/authMiddleware.js", () => ({
+  authenticateMiddleware: async () => {},
+  requireAdmin: async () => {},
+  requireSuperAdmin: async () => {},
+  requireRole: () => async () => {},
+  optionalAuth: async () => {},
+}));
+
 import Fastify, { FastifyInstance } from "fastify";
 import { registerOptimizedPostsRoutes } from "../../src/posts/optimizedPostsRoutes.js";
 import { Container } from "../../src/infrastructure/container/Container.js";

@@ -35,7 +35,16 @@ console.info = () => {};
 console.warn = () => {};
 console.error = () => {};
 
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+
+vi.mock("../../src/auth/authMiddleware.js", () => ({
+  authenticateMiddleware: async () => {},
+  requireAdmin: async () => {},
+  requireSuperAdmin: async () => {},
+  requireRole: () => async () => {},
+  optionalAuth: async () => {},
+}));
+
 import Fastify, { FastifyInstance } from "fastify";
 import fastifyCookie from "@fastify/cookie";
 import { contentRoutes } from "../../src/content/contentRoutes.js";

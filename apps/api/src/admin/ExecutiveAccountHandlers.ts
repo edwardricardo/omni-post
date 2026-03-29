@@ -72,7 +72,7 @@ export class ExecutiveAccountHandler extends BaseRouteHandler {
       }
 
       // Build update data with conditional spreading for optional fields
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
 
       if (updates.name !== undefined) {
         updateData.name = updates.name;

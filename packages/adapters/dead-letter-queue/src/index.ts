@@ -14,7 +14,7 @@ export interface FailedOperation {
   id: string;
   service: string;
   operation: string;
-  args: any[];
+  args: unknown[];
   context: {
     originalError: Error;
     retryCount: number;
@@ -174,7 +174,7 @@ export class DeadLetterQueueManager {
   async addFailedOperation(
     service: string,
     operation: string,
-    args: any[],
+    args: unknown[],
     originalError: Error,
     context: {
       retryCount: number;
@@ -370,7 +370,9 @@ export class DeadLetterQueueManager {
       await retryQueue.add(
         failedOp.operation,
         {
-          ...failedOp.args[0],
+          ...(failedOp.args[0] && typeof failedOp.args[0] === "object"
+            ? (failedOp.args[0] as Record<string, unknown>)
+            : {}),
           _dlqRetry: {
             dlqJobId: failedOp.id,
             retryCount: failedOp.context.retryCount,

@@ -82,6 +82,15 @@ export {
   type MediaAssetCreateProps,
 } from "./MediaAsset.js";
 
+// Brand Kit entity
+export {
+  BrandKit,
+  BrandKitValidationError,
+  type BrandKitProps,
+  type CreateBrandKitInput,
+  type UpdateBrandKitInput,
+} from "./BrandKit.js";
+
 // Social Inbox entities (Phase 2: Social Inbox)
 export {
   SocialConversation,
@@ -91,3 +100,70 @@ export {
   ConversationResolved,
   ConversationReopened,
 } from "./SocialConversation.js";
+
+// Conversation Notes (Social Inbox)
+export {
+  ConversationNote,
+  type ConversationNoteProps,
+  type CreateConversationNoteInput,
+} from "./ConversationNote.js";
+
+// Task entity
+export {
+  Task,
+  type TaskProps,
+  type CreateTaskInput,
+  type UpdateTaskInput,
+  type TaskStatusValue,
+  type TaskPriorityValue,
+  TASK_STATUS,
+  TASK_PRIORITY,
+} from "./Task.js";
+
+// Integration Platform entities (Zapier, Make, etc.)
+export {
+  IntegrationApiKey,
+  type IntegrationApiKeyProps,
+  type CreateIntegrationApiKeyInput,
+  type IntegrationPlatformValue,
+} from "./IntegrationApiKey.js";
+
+export {
+  IntegrationSubscription,
+  type IntegrationSubscriptionProps,
+  type CreateIntegrationSubscriptionInput,
+} from "./IntegrationSubscription.js";
+
+// SAML SSO entity
+export {
+  SamlConfiguration,
+  type SamlConfigurationProps,
+  type CreateSamlConfigurationInput,
+  type SamlAttributeMapping,
+} from "./SamlConfiguration.js";
+
+// OIDC SSO entity
+export {
+  OidcConfiguration,
+  type OidcConfigurationProps,
+  type CreateOidcConfigurationInput,
+  type OidcAttributeMapping,
+} from "./OidcConfiguration.js";
+
+// CRM Connection entity
+export {
+  CrmConnection,
+  CrmConnectionValidationError,
+  type CrmConnectionProps,
+  type CreateCrmConnectionInput,
+  type CrmPlatformValue,
+} from "./CrmConnection.js";
+
+// Custom Report Builder entity
+export {
+  CustomReport,
+  InvalidCustomReportError,
+  type CustomReportProps,
+  type CreateCustomReportInput,
+  type UpdateCustomReportInput,
+} from "./CustomReport.js";

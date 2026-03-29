@@ -178,7 +178,7 @@ export class TikTokVideoProcessor {
         thumbnail: thumbnailPath,
         previewGif: previewGifPath,
         processingTime,
-        optimizations: processingParams.optimizations,
+        optimizations: processingParams.optimizations as string[],
         metadata: {
           title: "Processed TikTok Video",
           description: "Video processed for TikTok optimization",
@@ -295,7 +295,7 @@ export class TikTokVideoProcessor {
     if (!template) throw ProviderError.notFound("tiktok", `Template: ${templateId}`);
 
     const options: TikTokVideoProcessingOptions = {
-      targetAspectRatio: template.aspectRatio as any,
+      targetAspectRatio: template.aspectRatio as "9:16" | "1:1" | "16:9",
       targetResolution: template.resolution.height >= 1920 ? "1080p" : "720p",
       quality: "high",
       addEffects: template.effects,

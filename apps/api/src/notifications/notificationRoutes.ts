@@ -382,56 +382,80 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   // List notifications with cursor pagination
   app.get(
     "/notifications",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Notifications"], summary: "List notifications with cursor pagination" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.listNotifications(request, reply)
   );
 
   // Get unread count
   app.get(
     "/notifications/unread-count",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Notifications"], summary: "Get unread notification count" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getUnreadCount(request, reply)
   );
 
   // Mark single notification as read
   app.patch(
     "/notifications/:id/read",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Notifications"], summary: "Mark a single notification as read" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.markAsRead(request, reply)
   );
 
   // Mark all notifications as read
   app.post(
     "/notifications/mark-all-read",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Notifications"], summary: "Mark all notifications as read" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.markAllAsRead(request, reply)
   );
 
   // Create notification (internal/admin)
   app.post(
     "/notifications",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Notifications"], summary: "Create a new notification" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.createNotification(request, reply)
   );
 
   // Get preferences
   app.get(
     "/notifications/preferences",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Notifications"], summary: "Get notification preferences" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getPreferences(request, reply)
   );
 
   // Update preferences
   app.put(
     "/notifications/preferences",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Notifications"], summary: "Update notification preferences" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.updatePreferences(request, reply)
   );
 
   // SSE stream for real-time notifications
   app.get(
     "/notifications/stream",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Notifications"], summary: "Stream real-time notifications via SSE" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.streamNotifications(request, reply)
   );
 };

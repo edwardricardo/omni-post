@@ -152,4 +152,37 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
     });
     return rows as unknown as AccountDto[];
   }
+
+  /**
+   * Toggle SSO enabled flag and provider on an account.
+   *
+   * Maps Prisma P2025 (record not found) to err("NOT_FOUND").
+   */
+  async setSsoEnabled(
+    accountId: string,
+    enabled: boolean,
+    ssoProvider?: "NONE" | "SAML" | "OIDC"
+  ): Promise<Result<void, "NOT_FOUND">> {
+    try {
+      const data: Record<string, unknown> = { ssoEnabled: enabled };
+      if (ssoProvider !== undefined) {
+        data.ssoProvider = ssoProvider;
+      }
+      await this.prisma.account.update({
+        where: { id: accountId },
+        data,
+      });
+      return ok(undefined);
+    } catch (error: unknown) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code: string }).code === "P2025"
+      ) {
+        return err("NOT_FOUND");
+      }
+      throw error;
+    }
+  }
 }

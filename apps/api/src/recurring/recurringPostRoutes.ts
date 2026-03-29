@@ -295,35 +295,50 @@ export const recurringPostRoutes: FastifyPluginAsync = async (app) => {
   // Create a recurring post schedule
   app.post(
     "/recurring-posts",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Recurring Posts"], summary: "Create a recurring post schedule" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.create(request, reply)
   );
 
   // List recurring posts for a project
   app.get(
     "/recurring-posts",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Recurring Posts"], summary: "List recurring posts for a project" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.list(request, reply)
   );
 
   // Get a single recurring post
   app.get(
     "/recurring-posts/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Recurring Posts"], summary: "Get a single recurring post" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getOne(request, reply)
   );
 
   // Update a recurring post schedule
   app.patch(
     "/recurring-posts/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Recurring Posts"], summary: "Update a recurring post schedule" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.update(request, reply)
   );
 
   // Deactivate a recurring post schedule
   app.delete(
     "/recurring-posts/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Recurring Posts"], summary: "Deactivate a recurring post schedule" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.deactivate(request, reply)
   );
 };

@@ -1,4 +1,13 @@
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
+
+vi.mock("../../src/auth/authMiddleware.js", () => ({
+  authenticateMiddleware: async () => {},
+  requireAdmin: async () => {},
+  requireSuperAdmin: async () => {},
+  requireRole: () => async () => {},
+  optionalAuth: async () => {},
+}));
+
 import type { FastifyInstance } from "fastify";
 import { createTestApp, aiService, setupAiServiceMocks } from "./aiRoutes.test-helpers.js";
 

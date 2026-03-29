@@ -24,27 +24,44 @@ export const executiveRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
   const handler = new ExecutiveRouteHandler(prisma);
 
-  // All routes require authentication
-  const authOptions = { preHandler: [requireAdminAuth] };
-
   // GET /api/admin/executive/metrics - Executive dashboard KPIs
-  fastify.get("/api/admin/executive/metrics", authOptions, async (request, reply) =>
-    handler.getExecutiveMetrics(request, reply)
+  fastify.get(
+    "/api/admin/executive/metrics",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Executive"], summary: "Get executive dashboard KPIs" },
+    },
+    async (request, reply) => handler.getExecutiveMetrics(request, reply)
   );
 
   // GET /api/admin/compliance/metrics - Compliance status overview
-  fastify.get("/api/admin/compliance/metrics", authOptions, async (request, reply) =>
-    handler.getComplianceMetrics(request, reply)
+  fastify.get(
+    "/api/admin/compliance/metrics",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Executive"], summary: "Get compliance metrics" },
+    },
+    async (request, reply) => handler.getComplianceMetrics(request, reply)
   );
 
   // GET /api/admin/compliance/audit-logs - Fetch compliance audit logs
-  fastify.get("/api/admin/compliance/audit-logs", authOptions, async (request, reply) =>
-    handler.getComplianceAuditLogs(request, reply)
+  fastify.get(
+    "/api/admin/compliance/audit-logs",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Executive"], summary: "Get compliance audit logs" },
+    },
+    async (request, reply) => handler.getComplianceAuditLogs(request, reply)
   );
 
   // GET /api/admin/compliance/gdpr - GDPR compliance data
-  fastify.get("/api/admin/compliance/gdpr", authOptions, async (request, reply) =>
-    handler.getGdprData(request, reply)
+  fastify.get(
+    "/api/admin/compliance/gdpr",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Executive"], summary: "Get GDPR compliance data" },
+    },
+    async (request, reply) => handler.getGdprData(request, reply)
   );
 
   // Note: PUT /admin/accounts/:id is handled by accountLifecycleRoutes to avoid duplication

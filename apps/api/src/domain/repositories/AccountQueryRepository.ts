@@ -105,4 +105,20 @@ export interface AccountQueryRepositoryPort {
    * @param daysThreshold - Number of days ahead to look (e.g., 1 = expiring tomorrow)
    */
   getExpiringTrials(daysThreshold: number): Promise<AccountDto[]>;
+
+  /**
+   * Toggle the SSO enabled flag and provider on an account.
+   *
+   * Used by SAML/OIDC SSO use cases to enable/disable single sign-on.
+   *
+   * @param accountId - The account to update
+   * @param enabled - Whether SSO is enabled
+   * @param ssoProvider - The SSO provider type (NONE, SAML, OIDC). Defaults to NONE when disabling.
+   * @returns ok(void) on success, err("NOT_FOUND") if the account does not exist
+   */
+  setSsoEnabled(
+    accountId: string,
+    enabled: boolean,
+    ssoProvider?: "NONE" | "SAML" | "OIDC"
+  ): Promise<Result<void, "NOT_FOUND">>;
 }

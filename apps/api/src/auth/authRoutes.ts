@@ -362,7 +362,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   // ✅ Register new admin user (rate limited: 10 per hour)
   fastify.post(
     "/auth/register",
-    { config: { rateLimit: { max: 10, timeWindow: "1 hour" } } },
+    {
+      schema: { tags: ["Auth"], summary: "Register new admin user" },
+      config: { rateLimit: { max: 10, timeWindow: "1 hour" } },
+    },
     async (request, reply) => {
       await authHandler.register(request, reply);
     }
@@ -371,7 +374,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   // ✅ Login (rate limited: 5 per 15 minutes)
   fastify.post(
     "/auth/login",
-    { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } },
+    {
+      schema: { tags: ["Auth"], summary: "Login user" },
+      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    },
     async (request, reply) => {
       await authHandler.login(request, reply);
     }
@@ -380,7 +386,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   // ✅ Refresh tokens (rate limited: 20 per 15 minutes)
   fastify.post(
     "/auth/refresh",
-    { config: { rateLimit: { max: 20, timeWindow: "15 minutes" } } },
+    {
+      schema: { tags: ["Auth"], summary: "Refresh access tokens" },
+      config: { rateLimit: { max: 20, timeWindow: "15 minutes" } },
+    },
     async (request, reply) => {
       await authHandler.refresh(request, reply);
     }
@@ -389,7 +398,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   // ✅ Logout (rate limited: 20 per 15 minutes)
   fastify.post(
     "/auth/logout",
-    { config: { rateLimit: { max: 20, timeWindow: "15 minutes" } } },
+    {
+      schema: { tags: ["Auth"], summary: "Logout user" },
+      config: { rateLimit: { max: 20, timeWindow: "15 minutes" } },
+    },
     async (request, reply) => {
       await authHandler.logout(request, reply);
     }
@@ -400,6 +412,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     "/auth/me",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Auth"], summary: "Get current authenticated user" },
     },
     async (request, reply) => {
       await authHandler.me(request, reply);
@@ -411,6 +424,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     "/auth/sessions",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Auth"], summary: "Get user sessions" },
     },
     async (request, reply) => {
       await authHandler.getSessions(request, reply);
@@ -422,6 +436,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     "/auth/revoke-all",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Auth"], summary: "Revoke all user sessions" },
     },
     async (request, reply) => {
       await authHandler.revokeAllSessions(request, reply);

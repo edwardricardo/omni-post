@@ -11,7 +11,7 @@ import type { HashtagPerformance, HashtagStrategy } from "./hashtagTypes.js";
  */
 export function createHashtagStrategy(
   performances: HashtagPerformance[],
-  options: any
+  options: { brandedHashtags?: string[] }
 ): HashtagStrategy {
   const primary = performances
     .filter((p) => p.recommendation === "use" && p.difficulty < 50)

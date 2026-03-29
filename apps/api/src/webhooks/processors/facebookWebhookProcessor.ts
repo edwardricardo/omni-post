@@ -25,9 +25,9 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse Facebook webhook payload and normalize data
    */
-  override async parse(payload: Record<string, any>): Promise<{
+  override async parse(payload: Record<string, unknown>): Promise<{
     eventType: WebhookEventType;
-    normalizedData: Record<string, any>;
+    normalizedData: Record<string, unknown>;
     relatedEntities: {
       accountId?: string;
       projectId?: string;
@@ -35,61 +35,65 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
       channelId?: string;
     };
   }> {
-    const entry = payload.entry?.[0];
+    const entryArr = payload.entry as Record<string, unknown>[] | undefined;
+    const entry = entryArr?.[0];
     if (!entry) {
       throw AppError.badRequest("Invalid Facebook webhook payload: missing entry");
     }
 
     // Determine event type based on payload structure
     let eventType: WebhookEventType;
-    let normalizedData: Record<string, any> = {};
-    let relatedEntities: any = {};
+    let normalizedData: Record<string, unknown> = {};
 
-    if (entry.changes) {
+    const changesArr = entry.changes as Record<string, unknown>[] | undefined;
+    const messagingArr = entry.messaging as Record<string, unknown>[] | undefined;
+
+    if (changesArr) {
       // Handle field changes (feed updates, comments, reactions, etc.)
-      const change = entry.changes[0];
+      const change = changesArr[0] as Record<string, unknown>;
       const field = change.field;
+      const changeValue = (change.value ?? {}) as Record<string, unknown>;
 
       switch (field) {
         case "feed":
           eventType = "POST_PUBLISHED";
-          normalizedData = await this.parseFeedEvent(change.value);
+          normalizedData = await this.parseFeedEvent(changeValue);
           break;
 
         case "comments":
           eventType = "COMMENT_RECEIVED";
-          normalizedData = await this.parseCommentEvent(change.value);
+          normalizedData = await this.parseCommentEvent(changeValue);
           break;
 
         case "reactions":
           eventType = "LIKE_RECEIVED";
-          normalizedData = await this.parseReactionEvent(change.value);
+          normalizedData = await this.parseReactionEvent(changeValue);
           break;
 
         case "mention":
         case "mentions":
           eventType = "MENTION_RECEIVED";
-          normalizedData = await this.parseMentionEvent(change.value);
+          normalizedData = await this.parseMentionEvent(changeValue);
           break;
 
         case "page":
           eventType = "ACCOUNT_CONNECTED";
-          normalizedData = await this.parsePageEvent(change.value);
+          normalizedData = await this.parsePageEvent(changeValue);
           break;
 
         case "live_videos":
           eventType = "POST_PUBLISHED";
-          normalizedData = await this.parseLiveVideoEvent(change.value);
+          normalizedData = await this.parseLiveVideoEvent(changeValue);
           break;
 
         default:
           eventType = "POST_UPDATED";
           normalizedData = { field, value: change.value };
       }
-    } else if (entry.messaging) {
+    } else if (messagingArr) {
       // Handle Facebook Messenger messages
       eventType = "COMMENT_RECEIVED";
-      normalizedData = await this.parseMessagingEvent(entry.messaging[0]);
+      normalizedData = await this.parseMessagingEvent(messagingArr[0] as Record<string, unknown>);
     } else {
       throw AppError.badRequest(
         `Unsupported Facebook webhook event type: ${JSON.stringify(entry)}`
@@ -97,7 +101,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
     }
 
     // Find related entities based on Facebook page ID
-    relatedEntities = await this.findRelatedEntities(entry.id, normalizedData);
+    const relatedEntities = await this.findRelatedEntities(entry.id as string, normalizedData);
 
     return {
       eventType,
@@ -109,7 +113,10 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Process the normalized webhook event
    */
-  override async process(normalizedData: Record<string, any>, relatedEntities: any): Promise<void> {
+  override async process(
+    normalizedData: Record<string, unknown>,
+    relatedEntities: Record<string, unknown>
+  ): Promise<void> {
     const { accountId, projectId, postId: _postId, channelId: _channelId } = relatedEntities;
 
     if (!accountId && !projectId) {
@@ -160,7 +167,8 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse feed publication/update events
    */
-  private async parseFeedEvent(value: any): Promise<Record<string, any>> {
+  private async parseFeedEvent(value: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const from = value.from as Record<string, unknown> | undefined;
     return {
       eventType: "feed_published",
       postId: value.post_id || value.id,
@@ -171,8 +179,8 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
       permalink: value.permalink_url,
       createdTime: value.created_time,
       from: {
-        id: value.from?.id,
-        name: value.from?.name,
+        id: from?.id,
+        name: from?.name,
       },
       isPublished: value.published === true,
       isHidden: value.is_hidden === true,
@@ -182,15 +190,18 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse comment events
    */
-  private async parseCommentEvent(value: any): Promise<Record<string, any>> {
+  private async parseCommentEvent(
+    value: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const from = value.from as Record<string, unknown> | undefined;
     return {
       eventType: "comment_received",
       commentId: value.comment_id || value.id,
       postId: value.post_id || value.parent_id,
       text: value.message || value.text,
       from: {
-        id: value.from?.id,
-        name: value.from?.name,
+        id: from?.id,
+        name: from?.name,
       },
       createdTime: value.created_time,
       parentId: value.parent_id,
@@ -202,15 +213,18 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse reaction events (likes, love, haha, wow, sad, angry)
    */
-  private async parseReactionEvent(value: any): Promise<Record<string, any>> {
+  private async parseReactionEvent(
+    value: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const from = value.from as Record<string, unknown> | undefined;
     return {
       eventType: "reaction_received",
       reactionId: value.reaction_id || value.id,
       postId: value.post_id || value.parent_id,
       reactionType: value.reaction_type || "like", // like, love, haha, wow, sad, angry
       from: {
-        id: value.from?.id,
-        name: value.from?.name,
+        id: from?.id,
+        name: from?.name,
       },
       createdTime: value.created_time,
       verb: value.verb, // "add", "remove"
@@ -220,14 +234,17 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse mention events
    */
-  private async parseMentionEvent(value: any): Promise<Record<string, any>> {
+  private async parseMentionEvent(
+    value: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const from = value.from as Record<string, unknown> | undefined;
     return {
       eventType: "mention_received",
       postId: value.post_id || value.id,
       message: value.message,
       from: {
-        id: value.from?.id,
-        name: value.from?.name,
+        id: from?.id,
+        name: from?.name,
       },
       createdTime: value.created_time,
       permalink: value.permalink_url,
@@ -237,7 +254,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse page events (page updates, settings changes)
    */
-  private async parsePageEvent(value: any): Promise<Record<string, any>> {
+  private async parsePageEvent(value: Record<string, unknown>): Promise<Record<string, unknown>> {
     return {
       eventType: "page_updated",
       pageId: value.page_id || value.id,
@@ -251,7 +268,10 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse live video events
    */
-  private async parseLiveVideoEvent(value: any): Promise<Record<string, any>> {
+  private async parseLiveVideoEvent(
+    value: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const from = value.from as Record<string, unknown> | undefined;
     return {
       eventType: "live_video_published",
       videoId: value.video_id || value.id,
@@ -260,8 +280,8 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
       description: value.description,
       permalink: value.permalink_url,
       from: {
-        id: value.from?.id,
-        name: value.from?.name,
+        id: from?.id,
+        name: from?.name,
       },
     };
   }
@@ -269,11 +289,15 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse messaging events (Facebook Messenger)
    */
-  private async parseMessagingEvent(messaging: any): Promise<Record<string, any>> {
+  private async parseMessagingEvent(
+    messaging: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const sender = messaging.sender as Record<string, unknown> | undefined;
+    const recipient = messaging.recipient as Record<string, unknown> | undefined;
     return {
       eventType: "comment_received",
-      senderId: messaging.sender?.id,
-      recipientId: messaging.recipient?.id,
+      senderId: sender?.id,
+      recipientId: recipient?.id,
       timestamp: messaging.timestamp,
       message: messaging.message,
       isDirectMessage: true,
@@ -284,7 +308,10 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Find related database entities based on Facebook page ID
    */
-  private async findRelatedEntities(facebookPageId: string, normalizedData: Record<string, any>) {
+  private async findRelatedEntities(
+    facebookPageId: string,
+    normalizedData: Record<string, unknown>
+  ) {
     // Find channel by Facebook page ID
     const channel = await prisma.channel.findFirst({
       where: {
@@ -338,8 +365,12 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle feed published event
    */
-  private async handleFeedPublished(data: Record<string, any>, entities: any): Promise<void> {
-    const { postId, channelId } = entities;
+  private async handleFeedPublished(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const postId = entities.postId as string | undefined;
+    const channelId = entities.channelId as string | undefined;
 
     if (postId && channelId) {
       // Update publish log with Facebook post ID
@@ -352,10 +383,10 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
         data: {
           status: "OK",
           payload: {
-            facebook_post_id: data.postId,
-            item_type: data.item,
-            permalink: data.permalink,
-            is_published: data.isPublished,
+            facebook_post_id: String(data.postId ?? ""),
+            item_type: String(data.item ?? ""),
+            permalink: String(data.permalink ?? ""),
+            is_published: Boolean(data.isPublished),
             webhook_received_at: new Date().toISOString(),
           },
         },
@@ -378,13 +409,13 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
     }
 
     // Store Facebook analytics if available
-    if (entities.channelId && postId) {
+    if (channelId && postId) {
       await prisma.analytics.create({
         data: {
-          channelId: entities.channelId,
+          channelId,
           provider: "FACEBOOK",
           postId,
-          capturedAt: new Date(data.createdTime || new Date()),
+          capturedAt: new Date((data.createdTime ?? Date.now()) as string | number),
           views: 0,
           likes: 0,
           comments: 0,
@@ -397,15 +428,20 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle comment received event
    */
-  private async handleCommentReceived(data: Record<string, any>, entities: any): Promise<void> {
+  private async handleCommentReceived(
+    _data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const entityChannelId = entities.channelId as string | undefined;
+    const entityPostId = entities.postId as string | undefined;
     // Create analytics entry for comment engagement
-    if (entities.channelId && entities.postId) {
+    if (entityChannelId && entityPostId) {
       // Find existing analytics record and increment comments
       const existing = await prisma.analytics.findFirst({
         where: {
-          channelId: entities.channelId,
+          channelId: entityChannelId,
           provider: "FACEBOOK",
-          postId: entities.postId,
+          postId: entityPostId,
         },
       });
 
@@ -422,7 +458,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
         // Broadcast real-time engagement update
         if (this.broadcaster) {
           await this.broadcaster.broadcastEngagementUpdate(
-            entities.postId,
+            entityPostId,
             "FACEBOOK",
             { comments: newCommentsCount },
             { comments: 1 }
@@ -437,14 +473,20 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle reaction received event
    */
-  private async handleReactionReceived(data: Record<string, any>, entities: any): Promise<void> {
-    if (entities.channelId && entities.postId) {
+  private async handleReactionReceived(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const entityChannelId = entities.channelId as string | undefined;
+    const entityPostId = entities.postId as string | undefined;
+
+    if (entityChannelId && entityPostId) {
       // Find existing analytics record and increment likes (reactions count as likes)
       const existing = await prisma.analytics.findFirst({
         where: {
-          channelId: entities.channelId,
+          channelId: entityChannelId,
           provider: "FACEBOOK",
-          postId: entities.postId,
+          postId: entityPostId,
         },
       });
 
@@ -464,7 +506,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
         // Broadcast real-time engagement update
         if (this.broadcaster) {
           await this.broadcaster.broadcastEngagementUpdate(
-            entities.postId,
+            entityPostId,
             "FACEBOOK",
             { likes: newLikesCount },
             { likes: increment }
@@ -479,7 +521,10 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle mention received event
    */
-  private async handleMentionReceived(data: Record<string, any>, _entities: any): Promise<void> {
+  private async handleMentionReceived(
+    data: Record<string, unknown>,
+    _entities: Record<string, unknown>
+  ): Promise<void> {
     // Future: mention tracking, notifications, and brand monitoring analytics
     webhookLogger.info({ provider: "FACEBOOK", mention: data }, "Facebook mention received");
   }
@@ -487,14 +532,19 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle page updated event
    */
-  private async handlePageUpdated(data: Record<string, any>, entities: any): Promise<void> {
-    if (entities.channelId) {
+  private async handlePageUpdated(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const entityChannelId = entities.channelId as string | undefined;
+    if (entityChannelId) {
+      const changes = (data.changes ?? {}) as Record<string, unknown>;
       // Update channel with latest page information
       await prisma.channel.update({
-        where: { id: entities.channelId },
+        where: { id: entityChannelId },
         data: {
           credentials: {
-            ...(data.changes || {}),
+            ...changes,
             last_page_update: new Date().toISOString(),
           },
         },
@@ -507,15 +557,18 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle live video published event
    */
-  private async handleLiveVideoPublished(data: Record<string, any>, entities: any): Promise<void> {
+  private async handleLiveVideoPublished(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
     if (entities.channelId && entities.postId) {
       // Create analytics entry for live video
       await prisma.analytics.create({
         data: {
-          channelId: entities.channelId,
+          channelId: entities.channelId as string,
           provider: "FACEBOOK",
-          postId: entities.postId,
-          capturedAt: new Date(data.broadcastStartTime || new Date()),
+          postId: entities.postId as string,
+          capturedAt: new Date((data.broadcastStartTime ?? Date.now()) as string | number),
           views: 0,
           likes: 0,
           comments: 0,
@@ -530,7 +583,10 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle engagement updates (shares, etc.)
    */
-  private async handleEngagementUpdate(_data: Record<string, any>, _entities: any): Promise<void> {
+  private async handleEngagementUpdate(
+    _data: Record<string, unknown>,
+    _entities: Record<string, unknown>
+  ): Promise<void> {
     // Future: real-time engagement tracking, analytics updates, milestone notifications
   }
 }

@@ -83,8 +83,8 @@ export function calculateTargetBitrate(quality?: string): number {
  * Calculate optimizations achieved by comparing original and processed metadata.
  */
 export function calculateOptimizations(
-  originalMetadata: any,
-  processedVideo: any
+  originalMetadata: { fileSize: number },
+  processedVideo: { fileSize: number }
 ): VideoProcessingResult["optimizations"] {
   const sizeReduction =
     ((originalMetadata.fileSize - processedVideo.fileSize) / originalMetadata.fileSize) * 100;

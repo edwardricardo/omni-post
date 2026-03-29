@@ -38,8 +38,8 @@ export interface SyncChange {
   id: string;
   field: string;
   operation: "create" | "update" | "delete";
-  oldValue: any;
-  newValue: any;
+  oldValue: unknown;
+  newValue: unknown;
   providerId: ProviderId;
   timestamp: Date;
   checksum: string;
@@ -53,10 +53,10 @@ export interface SyncConflict {
     | "validation_failure"
     | "dependency_violation";
   field: string;
-  sourceValue: any;
-  targetValue: any;
+  sourceValue: unknown;
+  targetValue: unknown;
   resolution?: "source_wins" | "target_wins" | "merge" | "manual";
-  resolvedValue?: any;
+  resolvedValue?: unknown;
   severity: "low" | "medium" | "high" | "critical";
 }
 
@@ -73,7 +73,7 @@ export interface SyncRollbackAction {
   providerId: ProviderId;
   operation: "restore_content" | "delete_content" | "revert_changes";
   targetField: string;
-  rollbackValue: any;
+  rollbackValue: unknown;
   order: number;
 }
 
@@ -94,6 +94,6 @@ export interface RealtimeSyncEvent {
   postId: string;
   providerId: ProviderId;
   timestamp: Date;
-  data: any;
-  metadata?: Record<string, any>;
+  data: unknown;
+  metadata?: Record<string, unknown>;
 }

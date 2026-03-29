@@ -24,6 +24,9 @@ interface PrismaApprovalRequestRow {
   id: string;
   postId: string;
   submitterId: string;
+  workflowId: string | null;
+  currentLevel: number;
+  totalLevels: number;
   status: string;
   comment: string | null;
   createdAt: Date;
@@ -40,6 +43,7 @@ interface PrismaApprovalReviewRow {
   reviewerId: string;
   decision: string;
   comment: string | null;
+  level: number;
   reviewedAt: Date;
 }
 
@@ -154,9 +158,13 @@ export class PrismaApprovalRequestRepository implements ApprovalRequestRepositor
             submitterId: request.submitterId,
             status: statusValue,
             comment: (json.comment as string) ?? null,
+            ...(request.workflowId !== undefined && { workflowId: request.workflowId }),
+            currentLevel: request.currentLevel,
+            totalLevels: request.totalLevels,
           },
           update: {
             status: statusValue,
+            currentLevel: request.currentLevel,
           },
         });
 
@@ -171,6 +179,7 @@ export class PrismaApprovalRequestRepository implements ApprovalRequestRepositor
               reviewerId: review.reviewerId,
               decision: decisionValue,
               comment: review.comment ?? null,
+              level: review.level,
               reviewedAt: review.reviewedAt,
             },
             update: {
@@ -213,6 +222,7 @@ export class PrismaApprovalRequestRepository implements ApprovalRequestRepositor
         reviewerId: r.reviewerId,
         decision,
         ...(r.comment !== null && { comment: r.comment }),
+        level: r.level,
         reviewedAt: r.reviewedAt,
       };
     });
@@ -223,6 +233,9 @@ export class PrismaApprovalRequestRepository implements ApprovalRequestRepositor
       submitterId: row.submitterId,
       status,
       ...(row.comment !== null && { comment: row.comment }),
+      ...(row.workflowId !== null && { workflowId: row.workflowId }),
+      currentLevel: row.currentLevel,
+      totalLevels: row.totalLevels,
       reviews,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

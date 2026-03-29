@@ -498,7 +498,7 @@ export class SagaIntegration {
     );
 
     // Forward the event to the saga manager
-    await this.sagaManager.handleEvent(parsed as any);
+    await this.sagaManager.handleEvent(parsed as unknown as import("@shared/types").DomainEvent);
   }
 
   /**

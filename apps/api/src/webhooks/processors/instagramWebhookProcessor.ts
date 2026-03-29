@@ -25,9 +25,9 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse Instagram webhook payload and normalize data
    */
-  override async parse(payload: Record<string, any>): Promise<{
+  override async parse(payload: Record<string, unknown>): Promise<{
     eventType: WebhookEventType;
-    normalizedData: Record<string, any>;
+    normalizedData: Record<string, unknown>;
     relatedEntities: {
       accountId?: string;
       projectId?: string;
@@ -35,50 +35,54 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
       channelId?: string;
     };
   }> {
-    const entry = payload.entry?.[0];
+    const entryArr = payload.entry as Record<string, unknown>[] | undefined;
+    const entry = entryArr?.[0];
     if (!entry) {
       throw AppError.badRequest("Invalid Instagram webhook payload: missing entry");
     }
 
     // Determine event type based on payload structure
     let eventType: WebhookEventType;
-    let normalizedData: Record<string, any> = {};
-    let relatedEntities: any = {};
+    let normalizedData: Record<string, unknown> = {};
 
-    if (entry.changes) {
+    const changesArr = entry.changes as Record<string, unknown>[] | undefined;
+    const messagingArr = entry.messaging as Record<string, unknown>[] | undefined;
+
+    if (changesArr) {
       // Handle field changes (media updates, comments, etc.)
-      const change = entry.changes[0];
+      const change = changesArr[0] as Record<string, unknown>;
       const field = change.field;
+      const changeValue = (change.value ?? {}) as Record<string, unknown>;
 
       switch (field) {
         case "media":
           eventType = "POST_PUBLISHED";
-          normalizedData = await this.parseMediaEvent(change.value);
+          normalizedData = await this.parseMediaEvent(changeValue);
           break;
 
         case "comments":
           eventType = "COMMENT_RECEIVED";
-          normalizedData = await this.parseCommentEvent(change.value);
+          normalizedData = await this.parseCommentEvent(changeValue);
           break;
 
         case "mentions":
           eventType = "MENTION_RECEIVED";
-          normalizedData = await this.parseMentionEvent(change.value);
+          normalizedData = await this.parseMentionEvent(changeValue);
           break;
 
         case "story_insights":
           eventType = "STORY_EXPIRED";
-          normalizedData = await this.parseStoryEvent(change.value);
+          normalizedData = await this.parseStoryEvent(changeValue);
           break;
 
         default:
           eventType = "POST_UPDATED";
           normalizedData = { field, value: change.value };
       }
-    } else if (entry.messaging) {
+    } else if (messagingArr) {
       // Handle direct messages (for Instagram Business accounts)
       eventType = "COMMENT_RECEIVED";
-      normalizedData = await this.parseMessagingEvent(entry.messaging[0]);
+      normalizedData = await this.parseMessagingEvent(messagingArr[0] as Record<string, unknown>);
     } else {
       throw AppError.badRequest(
         `Unsupported Instagram webhook event type: ${JSON.stringify(entry)}`
@@ -86,7 +90,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
     }
 
     // Find related entities based on Instagram page/account ID
-    relatedEntities = await this.findRelatedEntities(entry.id, normalizedData);
+    const relatedEntities = await this.findRelatedEntities(entry.id as string, normalizedData);
 
     return {
       eventType,
@@ -98,7 +102,10 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Process the normalized webhook event
    */
-  override async process(normalizedData: Record<string, any>, relatedEntities: any): Promise<void> {
+  override async process(
+    normalizedData: Record<string, unknown>,
+    relatedEntities: Record<string, unknown>
+  ): Promise<void> {
     const { accountId, projectId, postId: _postId, channelId: _channelId } = relatedEntities;
 
     if (!accountId && !projectId) {
@@ -141,7 +148,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse media publication/update events
    */
-  private async parseMediaEvent(value: any): Promise<Record<string, any>> {
+  private async parseMediaEvent(value: Record<string, unknown>): Promise<Record<string, unknown>> {
     return {
       eventType: "media_published",
       mediaId: value.id,
@@ -158,14 +165,18 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse comment events
    */
-  private async parseCommentEvent(value: any): Promise<Record<string, any>> {
+  private async parseCommentEvent(
+    value: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const media = value.media as Record<string, unknown> | undefined;
+    const from = value.from as Record<string, unknown> | undefined;
     return {
       eventType: "comment_received",
       commentId: value.id,
-      mediaId: value.media?.id,
+      mediaId: media?.id,
       text: value.text,
-      username: value.from?.username,
-      userId: value.from?.id,
+      username: from?.username,
+      userId: from?.id,
       timestamp: value.created_time,
       parentId: value.parent_id,
       isReply: !!value.parent_id,
@@ -175,14 +186,17 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse mention events
    */
-  private async parseMentionEvent(value: any): Promise<Record<string, any>> {
+  private async parseMentionEvent(
+    value: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const from = value.from as Record<string, unknown> | undefined;
     return {
       eventType: "mention_received",
       mediaId: value.media_id,
       commentId: value.comment_id,
       text: value.text,
-      username: value.from?.username,
-      userId: value.from?.id,
+      username: from?.username,
+      userId: from?.id,
       timestamp: value.created_time,
     };
   }
@@ -190,7 +204,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse story events
    */
-  private async parseStoryEvent(value: any): Promise<Record<string, any>> {
+  private async parseStoryEvent(value: Record<string, unknown>): Promise<Record<string, unknown>> {
     return {
       eventType: "story_expired",
       storyId: value.id,
@@ -204,11 +218,15 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Parse messaging events (Instagram Business)
    */
-  private async parseMessagingEvent(messaging: any): Promise<Record<string, any>> {
+  private async parseMessagingEvent(
+    messaging: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const sender = messaging.sender as Record<string, unknown> | undefined;
+    const recipient = messaging.recipient as Record<string, unknown> | undefined;
     return {
       eventType: "comment_received",
-      senderId: messaging.sender?.id,
-      recipientId: messaging.recipient?.id,
+      senderId: sender?.id,
+      recipientId: recipient?.id,
       timestamp: messaging.timestamp,
       message: messaging.message,
       isDirectMessage: true,
@@ -218,7 +236,10 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Find related database entities based on Instagram page ID
    */
-  private async findRelatedEntities(instagramPageId: string, normalizedData: Record<string, any>) {
+  private async findRelatedEntities(
+    instagramPageId: string,
+    normalizedData: Record<string, unknown>
+  ) {
     // Find channel by Instagram page ID
     const channel = await prisma.channel.findFirst({
       where: {
@@ -272,8 +293,12 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle media published event
    */
-  private async handleMediaPublished(data: Record<string, any>, entities: any): Promise<void> {
-    const { postId, channelId } = entities;
+  private async handleMediaPublished(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
+    const postId = entities.postId as string | undefined;
+    const channelId = entities.channelId as string | undefined;
 
     if (postId && channelId) {
       // Update publish log with Instagram media ID
@@ -286,9 +311,9 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
         data: {
           status: "OK",
           payload: {
-            instagram_media_id: data.mediaId,
-            media_type: data.mediaType,
-            permalink: data.permalink,
+            instagram_media_id: String(data.mediaId ?? ""),
+            media_type: String(data.mediaType ?? ""),
+            permalink: String(data.permalink ?? ""),
             webhook_received_at: new Date().toISOString(),
           },
         },
@@ -314,16 +339,16 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
     if (entities.accountId && entities.projectId) {
       await prisma.instagramAnalytics.create({
         data: {
-          accountId: entities.accountId,
-          projectId: entities.projectId,
+          accountId: entities.accountId as string,
+          projectId: entities.projectId as string,
           contentType: data.isStory
             ? "STORIES"
             : data.mediaType === "CAROUSEL_ALBUM"
               ? "CAROUSEL"
               : "FEED",
-          contentId: data.mediaId,
-          instagramId: data.mediaId,
-          capturedAt: new Date(data.timestamp),
+          contentId: String(data.mediaId ?? ""),
+          instagramId: String(data.mediaId ?? "") || null,
+          capturedAt: new Date(data.timestamp as string | number),
         },
       });
     }
@@ -332,15 +357,18 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle comment received event
    */
-  private async handleCommentReceived(data: Record<string, any>, entities: any): Promise<void> {
+  private async handleCommentReceived(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
     // Create analytics entry for comment engagement
     if (entities.accountId && entities.projectId && data.mediaId) {
       // Find existing analytics record and increment comments
       const existing = await prisma.instagramAnalytics.findFirst({
         where: {
-          accountId: entities.accountId,
-          projectId: entities.projectId,
-          instagramId: data.mediaId,
+          accountId: entities.accountId as string,
+          projectId: entities.projectId as string,
+          instagramId: data.mediaId as string,
         },
       });
 
@@ -356,7 +384,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
         // Broadcast real-time engagement update
         if (this.broadcaster) {
           await this.broadcaster.broadcastEngagementUpdate(
-            entities.postId || data.mediaId,
+            (entities.postId || data.mediaId) as string,
             "INSTAGRAM",
             { comments: existing.comments + 1 },
             { comments: 1 }
@@ -371,7 +399,10 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle mention received event
    */
-  private async handleMentionReceived(data: Record<string, any>, _entities: any): Promise<void> {
+  private async handleMentionReceived(
+    data: Record<string, unknown>,
+    _entities: Record<string, unknown>
+  ): Promise<void> {
     // Future: mention tracking, notifications, and brand monitoring analytics
     webhookLogger.info({ provider: "INSTAGRAM", mention: data }, "Instagram mention received");
   }
@@ -379,21 +410,30 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle story expired event
    */
-  private async handleStoryExpired(data: Record<string, any>, entities: any): Promise<void> {
+  private async handleStoryExpired(
+    data: Record<string, unknown>,
+    entities: Record<string, unknown>
+  ): Promise<void> {
     if (entities.accountId && entities.projectId) {
+      const insights = (data.insights ?? {}) as Record<string, unknown>;
+      // Build update data from insights - only include serializable values
+      const updatePayload: Record<string, unknown> = {
+        capturedAt: new Date(),
+      };
+      for (const [key, val] of Object.entries(insights)) {
+        if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
+          updatePayload[key] = val;
+        }
+      }
       // Update story analytics with final insights
       await prisma.instagramAnalytics.updateMany({
         where: {
-          accountId: entities.accountId,
-          projectId: entities.projectId,
+          accountId: entities.accountId as string,
+          projectId: entities.projectId as string,
           contentType: "STORIES",
-          instagramId: data.storyId,
+          instagramId: data.storyId as string,
         },
-        data: {
-          // Update with final story metrics
-          ...data.insights,
-          capturedAt: new Date(),
-        },
+        data: updatePayload,
       });
     }
   }
@@ -401,7 +441,10 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   /**
    * Handle engagement updates (likes, shares, etc.)
    */
-  private async handleEngagementUpdate(_data: Record<string, any>, _entities: any): Promise<void> {
+  private async handleEngagementUpdate(
+    _data: Record<string, unknown>,
+    _entities: Record<string, unknown>
+  ): Promise<void> {
     // Future: real-time engagement tracking, analytics updates, milestone notifications
   }
 }

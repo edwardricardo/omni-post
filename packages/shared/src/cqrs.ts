@@ -507,10 +507,10 @@ export function createQuery<T>(
  */
 export function validateCommand<T extends Command>(
   command: unknown,
-  schema: z.ZodSchema<any>
+  schema: z.ZodType
 ): CommandResult<T> {
   try {
-    const validatedCommand = schema.parse(command);
+    const validatedCommand = schema.parse(command) as T;
     return {
       success: true,
       data: validatedCommand,
@@ -537,12 +537,9 @@ export function validateCommand<T extends Command>(
 /**
  * Validate query using Zod schema
  */
-export function validateQuery<T extends Query>(
-  query: unknown,
-  schema: z.ZodSchema<any>
-): QueryResult<T> {
+export function validateQuery<T extends Query>(query: unknown, schema: z.ZodType): QueryResult<T> {
   try {
-    const validatedQuery = schema.parse(query);
+    const validatedQuery = schema.parse(query) as T;
     return {
       success: true,
       data: validatedQuery,

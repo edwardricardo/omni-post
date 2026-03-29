@@ -40,7 +40,7 @@ export function createBullMQQueueAdapter(): QueuePort & {
   // Create circuit breakers for queue operations
   const enqueueBreaker = createCircuitBreaker(
     async (job: QueueJob) => {
-      const opts: any = {
+      const opts: { jobId: string; delay?: number } = {
         jobId: job.dedupeKey,
       };
 

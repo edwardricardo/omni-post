@@ -5,7 +5,9 @@ import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:post");
 
-export function createPostRepository(transactionBreaker: any) {
+export function createPostRepository(transactionBreaker: {
+  fire: (fn: () => Promise<unknown>) => Promise<unknown>;
+}) {
   return {
     async getPostById(id: string): Promise<Result<CanonicalPost, "NOT_FOUND" | "DATABASE_ERROR">> {
       try {
@@ -103,24 +105,43 @@ export function createPostRepository(transactionBreaker: any) {
         });
 
         // Transform to CanonicalPost format
+        const txResult = result as {
+          post: { id: string; projectId: string; scheduledAt: Date | null };
+          content: {
+            locale: string;
+            title: string | null;
+            summary: string | null;
+            body: string;
+            tags: string[];
+          };
+          media: Array<{
+            id: string;
+            type: string;
+            url: string;
+            width: number | null;
+            height: number | null;
+            durationMs: number | null;
+            alt: string | null;
+          }>;
+        };
         const canonical: CanonicalPost = {
-          id: result.post.id,
-          projectId: result.post.projectId,
-          locale: result.content.locale as "es" | "en",
-          title: result.content.title ?? undefined,
-          summary: result.content.summary ?? undefined,
-          body: result.content.body,
-          tags: result.content.tags,
-          media: result.media.map((m: any) => ({
+          id: txResult.post.id,
+          projectId: txResult.post.projectId,
+          locale: txResult.content.locale as "es" | "en",
+          ...(txResult.content.title ? { title: txResult.content.title } : {}),
+          ...(txResult.content.summary ? { summary: txResult.content.summary } : {}),
+          body: txResult.content.body,
+          tags: txResult.content.tags,
+          media: txResult.media.map((m) => ({
             id: m.id,
             type: m.type.toLowerCase() as "image" | "video" | "gif",
             url: m.url,
-            w: m.width ?? undefined,
-            h: m.height ?? undefined,
-            durationMs: m.durationMs ?? undefined,
-            alt: m.alt ?? undefined,
+            ...(m.width != null ? { w: m.width } : {}),
+            ...(m.height != null ? { h: m.height } : {}),
+            ...(m.durationMs != null ? { durationMs: m.durationMs } : {}),
+            ...(m.alt != null ? { alt: m.alt } : {}),
           })),
-          scheduledAt: result.post.scheduledAt ?? undefined,
+          ...(txResult.post.scheduledAt ? { scheduledAt: txResult.post.scheduledAt } : {}),
         };
 
         return ok(canonical);
@@ -132,7 +153,7 @@ export function createPostRepository(transactionBreaker: any) {
 
     async listPosts(query: ListPostsQuery): Promise<Result<PostsPage, "DATABASE_ERROR">> {
       try {
-        const where: any = {};
+        const where: Record<string, unknown> = {};
 
         if (query.projectId) where.projectId = query.projectId;
         if (query.status) where.status = query.status;

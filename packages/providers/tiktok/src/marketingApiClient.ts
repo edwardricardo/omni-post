@@ -77,6 +77,35 @@ export interface TikTokCreativeInsight {
   videoUrl?: string;
 }
 
+/** Raw response item from TikTok reporting APIs with metrics. */
+interface TikTokReportItem {
+  metrics: Record<string, string>;
+  dimensions: Record<string, string>;
+}
+
+/** Raw campaign item from TikTok campaign list API. */
+interface TikTokRawCampaign {
+  campaign_id: string;
+  campaign_name: string;
+  objective_type: string;
+  budget?: number;
+  status: string;
+  start_time: string;
+  end_time?: string;
+  create_time: string;
+  modify_time: string;
+}
+
+/** Safely parse an integer from a metrics record, defaulting to 0. */
+function safeParseInt(metrics: Record<string, string>, key: string): number {
+  return parseInt(metrics[key] ?? "0") || 0;
+}
+
+/** Safely parse a float from a metrics record, defaulting to 0. */
+function safeParseFloat(metrics: Record<string, string>, key: string): number {
+  return parseFloat(metrics[key] ?? "0") || 0;
+}
+
 // Global registry for circuit breaker metrics
 const registry = new client.Registry();
 const circuitBreaker = createExternalApiCircuitBreaker(registry, process.env.REDIS_URL);
@@ -160,7 +189,7 @@ export class TikTokMarketingApiClient {
     objective?: string;
   }): Promise<TikTokCampaign[]> {
     const apiCall = async (): Promise<TikTokCampaign[]> => {
-      const params: any = {
+      const params: Record<string, string | number> = {
         advertiser_id: this.credentials.advertiserAccountId,
         fields: JSON.stringify([
           "campaign_id",
@@ -200,7 +229,7 @@ export class TikTokMarketingApiClient {
         );
       }
 
-      return response.data.data.list.map((campaign: any) => ({
+      return response.data.data.list.map((campaign: TikTokRawCampaign) => ({
         campaignId: campaign.campaign_id,
         campaignName: campaign.campaign_name,
         objective: campaign.objective_type,
@@ -264,7 +293,7 @@ export class TikTokMarketingApiClient {
         "comments",
       ];
 
-      const params: any = {
+      const params: Record<string, string | number> = {
         advertiser_id: this.credentials.advertiserAccountId,
         start_date: options.startDate,
         end_date: options.endDate,
@@ -298,27 +327,27 @@ export class TikTokMarketingApiClient {
         );
       }
 
-      return response.data.data.list.map((insight: any) => {
-        const metrics = insight.metrics;
+      return response.data.data.list.map((insight: TikTokReportItem) => {
+        const m = insight.metrics;
         return {
-          impressions: parseInt(metrics.impressions) || 0,
-          clicks: parseInt(metrics.clicks) || 0,
-          spend: parseFloat(metrics.spend) || 0,
-          conversions: parseInt(metrics.conversions) || 0,
-          conversionRate: parseFloat(metrics.conversion_rate) || 0,
-          cpc: parseFloat(metrics.cpc) || 0,
-          cpm: parseFloat(metrics.cpm) || 0,
-          ctr: parseFloat(metrics.ctr) || 0,
-          reach: parseInt(metrics.reach) || 0,
-          frequency: parseFloat(metrics.frequency) || 0,
-          videoViews: parseInt(metrics.video_play_actions) || 0,
-          videoViewRate: parseFloat(metrics.video_views_p100) || 0,
-          videoWatchTime: parseInt(metrics.video_watched_6s) || 0,
-          profileVisits: parseInt(metrics.profile_visits) || 0,
-          follows: parseInt(metrics.follows) || 0,
-          likes: parseInt(metrics.likes) || 0,
-          shares: parseInt(metrics.shares) || 0,
-          comments: parseInt(metrics.comments) || 0,
+          impressions: safeParseInt(m, "impressions"),
+          clicks: safeParseInt(m, "clicks"),
+          spend: safeParseFloat(m, "spend"),
+          conversions: safeParseInt(m, "conversions"),
+          conversionRate: safeParseFloat(m, "conversion_rate"),
+          cpc: safeParseFloat(m, "cpc"),
+          cpm: safeParseFloat(m, "cpm"),
+          ctr: safeParseFloat(m, "ctr"),
+          reach: safeParseInt(m, "reach"),
+          frequency: safeParseFloat(m, "frequency"),
+          videoViews: safeParseInt(m, "video_play_actions"),
+          videoViewRate: safeParseFloat(m, "video_views_p100"),
+          videoWatchTime: safeParseInt(m, "video_watched_6s"),
+          profileVisits: safeParseInt(m, "profile_visits"),
+          follows: safeParseInt(m, "follows"),
+          likes: safeParseInt(m, "likes"),
+          shares: safeParseInt(m, "shares"),
+          comments: safeParseInt(m, "comments"),
         };
       });
     };
@@ -347,7 +376,7 @@ export class TikTokMarketingApiClient {
     campaignIds?: string[];
   }): Promise<TikTokAudienceInsight> {
     const apiCall = async (): Promise<TikTokAudienceInsight> => {
-      const params: any = {
+      const params: Record<string, string | number> = {
         advertiser_id: this.credentials.advertiserAccountId,
         start_date: options.startDate,
         end_date: options.endDate,
@@ -401,37 +430,40 @@ export class TikTokMarketingApiClient {
       };
 
       // Process insights data
-      insights.forEach((insight: any) => {
+      insights.forEach((insight: TikTokReportItem) => {
         const dimension = insight.dimensions;
-        const metrics = insight.metrics;
-        const impressions = parseInt(metrics.impressions) || 0;
+        const impressions = safeParseInt(insight.metrics, "impressions");
 
-        if (dimension.gender) {
-          audienceInsight.gender[dimension.gender as keyof typeof audienceInsight.gender] =
-            impressions;
+        const genderValue = dimension.gender;
+        if (genderValue) {
+          audienceInsight.gender[genderValue as keyof typeof audienceInsight.gender] = impressions;
         }
 
-        if (dimension.age) {
-          audienceInsight.age[dimension.age] = impressions;
+        const ageValue = dimension.age;
+        if (ageValue) {
+          audienceInsight.age[ageValue] = impressions;
         }
 
-        if (dimension.location && dimension.location.country) {
+        const locationValue = dimension.location;
+        if (locationValue) {
           audienceInsight.location.push({
-            country: dimension.location.country,
+            country: locationValue,
             percentage: impressions,
           });
         }
 
-        if (dimension.interest_category) {
+        const interestCategory = dimension.interest_category;
+        if (interestCategory) {
           audienceInsight.interests.push({
-            category: dimension.interest_category,
+            category: interestCategory,
             affinity: impressions,
           });
         }
 
-        if (dimension.ac_subtype) {
+        const acSubtype = dimension.ac_subtype;
+        if (acSubtype) {
           audienceInsight.devices.push({
-            deviceType: dimension.ac_subtype,
+            deviceType: acSubtype,
             percentage: impressions,
           });
         }
@@ -464,7 +496,7 @@ export class TikTokMarketingApiClient {
     campaignIds?: string[];
   }): Promise<TikTokCreativeInsight[]> {
     const apiCall = async (): Promise<TikTokCreativeInsight[]> => {
-      const params: any = {
+      const params: Record<string, string | number> = {
         advertiser_id: this.credentials.advertiserAccountId,
         start_date: options.startDate,
         end_date: options.endDate,
@@ -505,22 +537,23 @@ export class TikTokMarketingApiClient {
         );
       }
 
-      return response.data.data.list.map((creative: any) => {
-        const metrics = creative.metrics;
-        const dimensions = creative.dimensions;
+      return response.data.data.list.map((creative: TikTokReportItem) => {
+        const m = creative.metrics;
+        const d = creative.dimensions;
+        const adId = d.ad_id ?? "";
 
         return {
-          creativeId: dimensions.ad_id,
-          creativeName: dimensions.ad_name || `Creative ${dimensions.ad_id}`,
-          format: dimensions.ad_format || "video",
-          impressions: parseInt(metrics.impressions) || 0,
-          clicks: parseInt(metrics.clicks) || 0,
-          spend: parseFloat(metrics.spend) || 0,
-          ctr: parseFloat(metrics.ctr) || 0,
-          engagementRate: parseFloat(metrics.engagement_rate) || 0,
-          videoCompletionRate: parseFloat(metrics.video_views_p100) || 0,
-          thumbnailUrl: dimensions.thumbnail_url,
-          videoUrl: dimensions.video_url,
+          creativeId: adId,
+          creativeName: d.ad_name || `Creative ${adId}`,
+          format: d.ad_format || "video",
+          impressions: safeParseInt(m, "impressions"),
+          clicks: safeParseInt(m, "clicks"),
+          spend: safeParseFloat(m, "spend"),
+          ctr: safeParseFloat(m, "ctr"),
+          engagementRate: safeParseFloat(m, "engagement_rate"),
+          videoCompletionRate: safeParseFloat(m, "video_views_p100"),
+          thumbnailUrl: d.thumbnail_url,
+          videoUrl: d.video_url,
         };
       });
     };
@@ -543,7 +576,7 @@ export class TikTokMarketingApiClient {
   /**
    * Get circuit breaker status for TikTok Marketing API operations
    */
-  getCircuitBreakerStatus(): Record<string, any> {
+  getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }
 

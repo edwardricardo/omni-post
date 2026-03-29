@@ -132,9 +132,9 @@ export class YouTubeCommunityService {
       ...(credentials.accessToken && { access_token: credentials.accessToken }),
     });
 
-    this.youtube = (google as any).youtube({
+    this.youtube = google.youtube({
       version: "v3",
-      auth: this.oauth2Client,
+      auth: this.oauth2Client as unknown as import("googleapis").Auth.OAuth2Client,
     });
   }
 

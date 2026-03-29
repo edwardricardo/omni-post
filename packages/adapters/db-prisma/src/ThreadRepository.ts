@@ -88,7 +88,7 @@ export function createThreadRepository() {
           id: thread.id,
           postId: thread.postId,
           strategy: mapThreadStrategyFromDB(thread.strategy),
-          tweets: thread.tweets.map((t: any) => ({
+          tweets: thread.tweets.map((t) => ({
             id: t.id,
             threadId: t.threadId,
             sequenceNumber: t.sequenceNumber,
@@ -131,7 +131,7 @@ export function createThreadRepository() {
           id: thread.id,
           postId: thread.postId,
           strategy: mapThreadStrategyFromDB(thread.strategy),
-          tweets: thread.tweets.map((t: any) => ({
+          tweets: thread.tweets.map((t) => ({
             id: t.id,
             threadId: t.threadId,
             sequenceNumber: t.sequenceNumber,
@@ -236,7 +236,7 @@ export function createThreadRepository() {
           return err("NOT_FOUND");
         }
 
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           status: mapTweetStatusToDB(input.status),
         };
         if (input.tweetId !== undefined) updateData.tweetId = input.tweetId;

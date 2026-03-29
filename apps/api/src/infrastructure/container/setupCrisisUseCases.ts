@@ -7,6 +7,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { EventDispatcher } from "../../domain/index.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { OutboxRelay } from "../outbox/OutboxRelay.js";
 import { OutboxCleaner } from "../outbox/OutboxCleaner.js";
 import type { CrisisProjectRepository } from "../../application/crisis/types.js";
@@ -52,7 +53,8 @@ export function setupCrisisUseCases(container: Container): void {
     () =>
       new EnterCrisisModeUseCase(
         container.resolve<CrisisProjectRepository>(TOKENS.CrisisProjectRepository),
-        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -61,7 +63,8 @@ export function setupCrisisUseCases(container: Container): void {
     () =>
       new ExitCrisisModeUseCase(
         container.resolve<CrisisProjectRepository>(TOKENS.CrisisProjectRepository),
-        container.resolve<EventDispatcher>(TOKENS.EventDispatcher)
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -77,19 +80,20 @@ export function setupCrisisUseCases(container: Container): void {
   // Register Scheduled Report Use Cases (Phase 3 Step 7)
   const reportRepo = () =>
     container.resolve<ScheduledReportRepository>(TOKENS.ScheduledReportRepository);
+  const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
   container.register(
     TOKENS.CreateScheduledReportUseCase,
-    () => new CreateScheduledReportUseCase(reportRepo()),
+    () => new CreateScheduledReportUseCase(reportRepo(), uow()),
     true
   );
   container.register(
     TOKENS.UpdateScheduledReportUseCase,
-    () => new UpdateScheduledReportUseCase(reportRepo()),
+    () => new UpdateScheduledReportUseCase(reportRepo(), uow()),
     true
   );
   container.register(
     TOKENS.DeleteScheduledReportUseCase,
-    () => new DeleteScheduledReportUseCase(reportRepo()),
+    () => new DeleteScheduledReportUseCase(reportRepo(), uow()),
     true
   );
   container.register(

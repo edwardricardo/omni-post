@@ -64,7 +64,7 @@ export function generateStrategyWarnings(
  */
 export function generateRecommendationsForGoal(
   goal: string,
-  _keywordTrends: any[],
+  _keywordTrends: unknown[],
   trendingHashtags: TikTokTrendingHashtag[],
   currentHashtags: string[],
   avoidHashtags: string[]

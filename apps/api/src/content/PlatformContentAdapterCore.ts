@@ -211,7 +211,7 @@ export class PlatformContentAdapterCore {
   async optimizeForEngagement(
     content: CanonicalPost,
     providerId: ProviderId,
-    audienceData?: any
+    audienceData?: Record<string, unknown>
   ): Promise<OrchestrationResult<PlatformAdaptation>> {
     try {
       const baseAdaptation = await this.adaptForSingleProvider(content, providerId);

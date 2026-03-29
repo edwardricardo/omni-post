@@ -41,6 +41,8 @@ import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberR
 import { PrismaTeamMemberRepository } from "../repositories/PrismaTeamMemberRepository.js";
 import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
 import { PrismaApprovalRequestRepository } from "../repositories/PrismaApprovalRequestRepository.js";
+import type { ApprovalWorkflowRepository } from "../../domain/repositories/ApprovalWorkflowRepository.js";
+import { PrismaApprovalWorkflowRepository } from "../repositories/PrismaApprovalWorkflowRepository.js";
 import type {
   NotificationRepository,
   NotificationPreferenceRepository,
@@ -56,6 +58,8 @@ import { PrismaSocialMessageRepository } from "../repositories/PrismaSocialMessa
 import { PrismaSocialMessageQueryRepository } from "../repositories/PrismaSocialMessageQueryRepository.js";
 import { PrismaSocialConversationRepository } from "../repositories/PrismaSocialConversationRepository.js";
 import { PrismaSocialOutboundReplyRepository } from "../repositories/PrismaSocialOutboundReplyRepository.js";
+import type { ConversationNoteRepository } from "../../domain/repositories/ConversationNoteRepository.js";
+import { PrismaConversationNoteRepository } from "../repositories/PrismaConversationNoteRepository.js";
 import type { CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
 import type { CampaignQueryRepository } from "../../domain/repositories/CampaignQueryRepository.js";
 import { PrismaCampaignRepository } from "../repositories/PrismaCampaignRepository.js";
@@ -66,6 +70,8 @@ import type { FirstCommentRepository } from "../../domain/repositories/FirstComm
 import { PrismaFirstCommentRepository } from "../repositories/PrismaFirstCommentRepository.js";
 import type { RecurringPostRepository } from "../../domain/repositories/RecurringPostRepository.js";
 import { PrismaRecurringPostRepository } from "../repositories/PrismaRecurringPostRepository.js";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository.js";
+import { PrismaTaskRepository } from "../repositories/PrismaTaskRepository.js";
 
 /**
  * Register all repository adapters in the container
@@ -179,6 +185,13 @@ export function setupRepositories(container: Container): void {
     true
   );
 
+  // Register ApprovalWorkflow Repository (Multi-Level Approvals)
+  container.register<ApprovalWorkflowRepository>(
+    TOKENS.ApprovalWorkflowRepository,
+    () => new PrismaApprovalWorkflowRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
   // Register TeamMember Repository (Phase 1.1)
   container.register<TeamMemberRepository>(
     TOKENS.TeamMemberRepository,
@@ -228,6 +241,13 @@ export function setupRepositories(container: Container): void {
     true
   );
 
+  // Register ConversationNote Repository (Social Inbox)
+  container.register<ConversationNoteRepository>(
+    TOKENS.ConversationNoteRepository,
+    () => new PrismaConversationNoteRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
   // Register Campaign Repositories (Phase 3)
   container.register<CampaignRepository>(
     TOKENS.CampaignRepository,
@@ -258,6 +278,13 @@ export function setupRepositories(container: Container): void {
   container.register<RecurringPostRepository>(
     TOKENS.RecurringPostRepository,
     () => new PrismaRecurringPostRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register Task Repository
+  container.register<TaskRepository>(
+    TOKENS.TaskRepository,
+    () => new PrismaTaskRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 }

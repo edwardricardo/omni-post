@@ -46,8 +46,8 @@ export interface ContentVersion {
 
 export interface VersionDiff {
   field: string;
-  oldValue: any;
-  newValue: any;
+  oldValue: unknown;
+  newValue: unknown;
   changeType: "added" | "modified" | "removed";
 }
 
@@ -67,7 +67,7 @@ export interface AdaptationRule {
   type: "text_length" | "media_format" | "hashtag_limit" | "mention_format" | "custom";
   description: string;
   applied: boolean;
-  transformedValue?: any;
+  transformedValue?: unknown;
 }
 
 // Provider Dependencies and Coordination
@@ -145,7 +145,7 @@ export interface PublishResult {
   error?: string;
   retryCount: number;
   duration: number; // milliseconds
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface OrchestrationConflict {
@@ -161,7 +161,7 @@ export interface OrchestrationConflict {
 
 export interface ConflictResolution {
   strategy: "retry" | "skip" | "adapt_content" | "reschedule" | "manual";
-  parameters?: Record<string, any>;
+  parameters?: Record<string, unknown>;
   appliedAt: Date;
   result: "resolved" | "failed" | "pending";
 }
@@ -185,7 +185,7 @@ export interface OrchestrationError {
   providerId?: ProviderId;
   retryable: boolean;
   occurredAt: Date;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 // Rollback and Recovery
@@ -206,7 +206,7 @@ export interface RollbackTrigger {
 export interface RollbackAction {
   providerId: ProviderId;
   action: "delete_post" | "unpublish" | "mark_draft" | "revert_content" | "custom";
-  parameters?: Record<string, any>;
+  parameters?: Record<string, unknown>;
   timeout: number; // milliseconds
 }
 
@@ -233,13 +233,13 @@ export interface SyncRule {
 export interface SyncFilter {
   field: string;
   operator: "equals" | "not_equals" | "contains" | "gt" | "lt" | "in" | "regex";
-  value: any;
+  value: unknown;
 }
 
 export interface SyncTransformation {
   field: string;
   transformer: string;
-  parameters?: Record<string, any>;
+  parameters?: Record<string, unknown>;
 }
 
 export interface SyncSchedule {
@@ -263,7 +263,7 @@ export interface AnalyticsAggregation {
   };
   providers: ProviderId[];
   metrics: AggregatedMetrics;
-  rawData: Record<ProviderId, any>;
+  rawData: Record<ProviderId, unknown>;
   aggregatedAt: Date;
   version: number;
 }
@@ -309,14 +309,14 @@ export interface ContentRoute {
 export interface RouteCondition {
   type: "content_type" | "provider" | "audience_size" | "time_of_day" | "custom";
   operator: "equals" | "not_equals" | "contains" | "gt" | "lt" | "in";
-  value: any;
+  value: unknown;
   weight?: number; // for scoring
 }
 
 export interface RouteAction {
   type: "route_to_provider" | "apply_adaptation" | "schedule_delay" | "skip" | "custom";
   providerId?: ProviderId;
-  parameters?: Record<string, any>;
+  parameters?: Record<string, unknown>;
 }
 
 // Monitoring and Health
@@ -427,8 +427,8 @@ export interface OrchestrationEvent {
   type: OrchestrationEventType;
   orchestrationId: string;
   timestamp: Date;
-  data: any;
-  metadata?: Record<string, any>;
+  data: unknown;
+  metadata?: Record<string, unknown>;
 }
 
 export type OrchestrationEventType =

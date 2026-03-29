@@ -243,7 +243,7 @@ export class FacebookShopManagementApi {
     // Filter by price range if specified
     let products = data.data || [];
     if (filters?.priceMin !== undefined || filters?.priceMax !== undefined) {
-      products = products.filter((product: any) => {
+      products = products.filter((product: unknown) => {
         const price = (product.price || 0) / 100; // Convert from cents
         if (filters.priceMin !== undefined && price < filters.priceMin) return false;
         if (filters.priceMax !== undefined && price > filters.priceMax) return false;
@@ -251,7 +251,7 @@ export class FacebookShopManagementApi {
       });
     }
 
-    return products.map((product: any) => ({
+    return products.map((product: unknown) => ({
       id: product.id,
       name: product.name,
       description: product.description,

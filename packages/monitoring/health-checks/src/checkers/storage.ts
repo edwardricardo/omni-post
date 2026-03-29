@@ -72,16 +72,16 @@ export class StorageHealthChecker implements HealthChecker {
           ...(result.value && { expiresAt: result.value.expiresAt }),
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latency = Date.now() - startTime;
       return {
         status: "unhealthy",
         latency,
         message: "Storage health check failed",
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         details: {
-          errorType: error.constructor.name,
-          code: error.code,
+          errorType: error instanceof Error ? error.constructor.name : "Unknown",
+          code: (error as Record<string, unknown>)["code"],
           responseTime: latency,
         },
       };

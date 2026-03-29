@@ -24,13 +24,13 @@ export interface ConflictContext {
 export interface ConflictDetectionRule {
   type: "error_code" | "content_validation" | "rate_limit" | "timing" | "dependency" | "custom";
   pattern: string | RegExp;
-  condition?: (context: ConflictContext, data: any) => boolean;
+  condition?: (context: ConflictContext, data: unknown) => boolean;
   weight: number; // 0-1, confidence score
 }
 
 export interface ConflictResolutionRule {
   strategy: "retry" | "adapt_content" | "reschedule" | "skip" | "fallback_provider" | "custom";
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
   condition?: (conflict: OrchestrationConflict, context: ConflictContext) => boolean;
   maxAttempts?: number;
   cooldownMs?: number;
@@ -53,5 +53,5 @@ export interface ResolutionResult {
   newScheduleTime?: Date;
   fallbackProvider?: ProviderId;
   nextAttemptIn?: number; // milliseconds
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }

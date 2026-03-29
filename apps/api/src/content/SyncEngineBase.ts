@@ -364,7 +364,7 @@ export abstract class SyncEngineBase {
     resolutions: Array<{
       conflictId: string;
       resolution: "source_wins" | "target_wins" | "merge" | "manual";
-      resolvedValue?: any;
+      resolvedValue?: unknown;
     }>
   ): Promise<OrchestrationResult<SyncTransaction>> {
     try {

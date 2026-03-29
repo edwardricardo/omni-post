@@ -61,7 +61,11 @@ export function setupPostUseCases(container: Container): void {
   );
   container.register<DeletePostUseCase>(
     TOKENS.DeletePostUseCase,
-    () => new DeletePostUseCase(container.resolve<PostRepository>(TOKENS.PostRepository)),
+    () =>
+      new DeletePostUseCase(
+        container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
     true
   );
 
@@ -72,7 +76,8 @@ export function setupPostUseCases(container: Container): void {
       new SchedulePostUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
-        container.resolve<ChannelRepository>(TOKENS.ChannelRepository)
+        container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );

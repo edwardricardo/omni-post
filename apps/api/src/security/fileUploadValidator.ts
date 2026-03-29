@@ -607,7 +607,7 @@ export class FileUploadValidator {
    */
   getPlugin() {
     const _self = this;
-    return async function fileUploadValidatorPlugin(fastify: any) {
+    return async function fileUploadValidatorPlugin(fastify: import("fastify").FastifyInstance) {
       fastify.addContentTypeParser(
         ["multipart/form-data"],
         { parseAs: "buffer" },

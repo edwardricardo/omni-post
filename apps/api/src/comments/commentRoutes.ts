@@ -252,28 +252,40 @@ export const commentRoutes: FastifyPluginAsync = async (app) => {
   // Create a comment on a post
   app.post(
     "/posts/:postId/comments",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Comments"], summary: "Create a comment on a post" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.createComment(request, reply)
   );
 
   // List comments for a post (threaded, paginated)
   app.get(
     "/posts/:postId/comments",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Comments"], summary: "List comments for a post" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.listComments(request, reply)
   );
 
   // Edit a comment
   app.patch(
     "/comments/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Comments"], summary: "Edit a comment" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.editComment(request, reply)
   );
 
   // Soft-delete a comment
   app.delete(
     "/comments/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Comments"], summary: "Soft-delete a comment" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.deleteComment(request, reply)
   );
 };

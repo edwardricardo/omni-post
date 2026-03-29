@@ -13,6 +13,7 @@ import { PrismaExternalNotificationConfigRepository } from "../repositories/Pris
 import { SlackNotifierAdapter } from "../adapters/SlackNotifierAdapter.js";
 import { TeamsNotifierAdapter } from "../adapters/TeamsNotifierAdapter.js";
 import { ExternalNotificationDispatcher } from "../adapters/ExternalNotificationDispatcher.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import {
   ConfigureExternalNotificationUseCase,
   ListExternalNotificationsQuery,
@@ -60,7 +61,8 @@ export function setupExternalNotificationUseCases(container: Container): void {
       new ConfigureExternalNotificationUseCase(
         container.resolve<ExternalNotificationConfigRepository>(
           TOKENS.ExternalNotificationConfigRepository
-        )
+        ),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -82,7 +84,8 @@ export function setupExternalNotificationUseCases(container: Container): void {
       new DeleteExternalNotificationUseCase(
         container.resolve<ExternalNotificationConfigRepository>(
           TOKENS.ExternalNotificationConfigRepository
-        )
+        ),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );

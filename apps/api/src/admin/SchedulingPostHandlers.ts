@@ -54,7 +54,7 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
       const sortDir = sortOrder ?? "asc";
 
       // Build where clause with conditional filtering
-      const whereClause: any = {};
+      const whereClause: Record<string, unknown> = {};
 
       // Filter by project if specified
       if (projectId) {
@@ -71,13 +71,14 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
 
       // Filter by date range
       if (startDate || endDate) {
-        whereClause.scheduledAt = {};
+        const scheduledAtFilter: { gte?: Date; lte?: Date } = {};
         if (startDate) {
-          whereClause.scheduledAt.gte = new Date(startDate);
+          scheduledAtFilter.gte = new Date(startDate);
         }
         if (endDate) {
-          whereClause.scheduledAt.lte = new Date(endDate);
+          scheduledAtFilter.lte = new Date(endDate);
         }
+        whereClause.scheduledAt = scheduledAtFilter;
       } else {
         // Only scheduled posts must have scheduledAt
         whereClause.scheduledAt = { not: null };

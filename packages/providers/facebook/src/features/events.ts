@@ -301,13 +301,17 @@ export class FacebookEventsApi {
     );
     const data = await response.json();
 
-    return (data.data || []).map((attendee: any) => ({
-      id: attendee.id,
-      name: attendee.name,
-      rsvpStatus: attendee.rsvp_status || rsvpStatus || "attending",
-      profilePicture: attendee.picture?.data?.url,
-      joinedTime: attendee.created_time || new Date().toISOString(),
-    }));
+    return (data.data || []).map((attendee: Record<string, unknown>) => {
+      const picture = attendee.picture as Record<string, unknown> | undefined;
+      const pictureData = picture?.data as Record<string, unknown> | undefined;
+      return {
+        id: attendee.id as string,
+        name: attendee.name as string,
+        rsvpStatus: (attendee.rsvp_status as string) || rsvpStatus || "attending",
+        profilePicture: pictureData?.url as string | undefined,
+        joinedTime: (attendee.created_time as string) || new Date().toISOString(),
+      };
+    });
   }
 
   /**
@@ -465,21 +469,28 @@ export class FacebookEventsApi {
     );
     const data = await response.json();
 
-    return (data.data || []).map((post: any) => ({
-      id: post.id,
-      message: post.message,
-      createdTime: post.created_time,
-      reactions: {
-        like: post.reactions?.summary?.total_count || 0,
-        love: 0,
-        wow: 0,
-        haha: 0,
-        sad: 0,
-        angry: 0,
-      },
-      comments: post.comments?.summary?.total_count || 0,
-      shares: post.shares?.count || 0,
-    }));
+    return (data.data || []).map((post: Record<string, unknown>) => {
+      const reactions = post.reactions as Record<string, unknown> | undefined;
+      const reactionsSummary = reactions?.summary as Record<string, unknown> | undefined;
+      const comments = post.comments as Record<string, unknown> | undefined;
+      const commentsSummary = comments?.summary as Record<string, unknown> | undefined;
+      const shares = post.shares as Record<string, unknown> | undefined;
+      return {
+        id: post.id as string,
+        message: post.message as string,
+        createdTime: post.created_time as string,
+        reactions: {
+          like: (reactionsSummary?.total_count as number) || 0,
+          love: 0,
+          wow: 0,
+          haha: 0,
+          sad: 0,
+          angry: 0,
+        },
+        comments: (commentsSummary?.total_count as number) || 0,
+        shares: (shares?.count as number) || 0,
+      };
+    });
   }
 
   /**
@@ -524,7 +535,11 @@ export class FacebookEventsApi {
       `/${this.apiClient.credentials.pageId}/events?limit=${limit}${timeFilterParam}`
     );
     const data = await response.json();
-    return Promise.all((data.data || []).map((event: any) => this.getEventDetails(event.id)));
+    return Promise.all(
+      (data.data || []).map((event: Record<string, unknown>) =>
+        this.getEventDetails(event.id as string)
+      )
+    );
   }
 
   /**
@@ -547,6 +562,10 @@ export class FacebookEventsApi {
 
     const response = await this.apiClient.makeApiRequest(`/search?${params}`);
     const data = await response.json();
-    return Promise.all((data.data || []).map((event: any) => this.getEventDetails(event.id)));
+    return Promise.all(
+      (data.data || []).map((event: Record<string, unknown>) =>
+        this.getEventDetails(event.id as string)
+      )
+    );
   }
 }

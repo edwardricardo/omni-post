@@ -155,14 +155,23 @@ export const TOKENS = {
   GetTeamMembersQuery: Symbol.for("GetTeamMembersQuery"),
   UpdateTeamMemberRoleUseCase: Symbol.for("UpdateTeamMemberRoleUseCase"),
   RemoveTeamMemberUseCase: Symbol.for("RemoveTeamMemberUseCase"),
+  SearchTeamMembersQuery: Symbol.for("SearchTeamMembersQuery"),
+
+  // Mention Notifications (Phase 1.1 — @mention autocomplete)
+  NotifyMentionedUsersService: Symbol.for("NotifyMentionedUsersService"),
 
   // Approval Workflow (Phase 1.3)
   ApprovalRequestRepository: Symbol.for("ApprovalRequestRepository"),
+  ApprovalWorkflowRepository: Symbol.for("ApprovalWorkflowRepository"),
   SubmitForReviewUseCase: Symbol.for("SubmitForReviewUseCase"),
   ApprovePostUseCase: Symbol.for("ApprovePostUseCase"),
   RejectPostUseCase: Symbol.for("RejectPostUseCase"),
   GetApprovalHistoryQuery: Symbol.for("GetApprovalHistoryQuery"),
   GetPendingApprovalsQuery: Symbol.for("GetPendingApprovalsQuery"),
+  CreateApprovalWorkflowUseCase: Symbol.for("CreateApprovalWorkflowUseCase"),
+  UpdateApprovalWorkflowUseCase: Symbol.for("UpdateApprovalWorkflowUseCase"),
+  DeleteApprovalWorkflowUseCase: Symbol.for("DeleteApprovalWorkflowUseCase"),
+  ListApprovalWorkflowsQuery: Symbol.for("ListApprovalWorkflowsQuery"),
 
   // Notification System (Phase 1.2)
   NotificationRepository: Symbol.for("NotificationRepository"),
@@ -202,6 +211,12 @@ export const TOKENS = {
   GetConversationMessagesQuery: Symbol.for("GetConversationMessagesQuery"),
   GetUnreadInboxCountQuery: Symbol.for("GetUnreadInboxCountQuery"),
   InboxEventHandlers: Symbol.for("InboxEventHandlers"),
+
+  // Conversation Notes (Social Inbox)
+  ConversationNoteRepository: Symbol.for("ConversationNoteRepository"),
+  AddConversationNoteUseCase: Symbol.for("AddConversationNoteUseCase"),
+  DeleteConversationNoteUseCase: Symbol.for("DeleteConversationNoteUseCase"),
+  ListConversationNotesQuery: Symbol.for("ListConversationNotesQuery"),
 
   // Campaign (Phase 3.1: Campaign Tagging)
   CampaignRepository: Symbol.for("CampaignRepository"),
@@ -278,6 +293,31 @@ export const TOKENS = {
   GetBrandVoiceQuery: Symbol.for("GetBrandVoiceQuery"),
   UpsertBrandVoiceUseCase: Symbol.for("UpsertBrandVoiceUseCase"),
   DeleteBrandVoiceUseCase: Symbol.for("DeleteBrandVoiceUseCase"),
+  // Brand Kit
+  BrandKitRepository: Symbol.for("BrandKitRepository"),
+  GetBrandKitQuery: Symbol.for("GetBrandKitQuery"),
+  UpsertBrandKitUseCase: Symbol.for("UpsertBrandKitUseCase"),
+  DeleteBrandKitUseCase: Symbol.for("DeleteBrandKitUseCase"),
+
+  // Integration Platform (Zapier, Make, etc.)
+  IntegrationApiKeyRepository: Symbol.for("IntegrationApiKeyRepository"),
+  IntegrationSubscriptionRepository: Symbol.for("IntegrationSubscriptionRepository"),
+  GenerateIntegrationApiKeyUseCase: Symbol.for("GenerateIntegrationApiKeyUseCase"),
+  RevokeIntegrationApiKeyUseCase: Symbol.for("RevokeIntegrationApiKeyUseCase"),
+  ListIntegrationApiKeysQuery: Symbol.for("ListIntegrationApiKeysQuery"),
+  SubscribeIntegrationTriggerUseCase: Symbol.for("SubscribeIntegrationTriggerUseCase"),
+  UnsubscribeIntegrationTriggerUseCase: Symbol.for("UnsubscribeIntegrationTriggerUseCase"),
+  TriggerIntegrationEventService: Symbol.for("TriggerIntegrationEventService"),
+
+  // Task Assignment
+  TaskRepository: Symbol.for("TaskRepository"),
+  CreateTaskUseCase: Symbol.for("CreateTaskUseCase"),
+  UpdateTaskUseCase: Symbol.for("UpdateTaskUseCase"),
+  CompleteTaskUseCase: Symbol.for("CompleteTaskUseCase"),
+  CancelTaskUseCase: Symbol.for("CancelTaskUseCase"),
+  ListTasksQuery: Symbol.for("ListTasksQuery"),
+  GetTaskQuery: Symbol.for("GetTaskQuery"),
+
   // Asset Library (Phase 2: Asset Tags)
   MediaAssetRepository: Symbol.for("MediaAssetRepository"),
   AssetTagRepository: Symbol.for("AssetTagRepository"),
@@ -290,6 +330,42 @@ export const TOKENS = {
   CreateAssetTagUseCase: Symbol.for("CreateAssetTagUseCase"),
   ListAssetTagsQuery: Symbol.for("ListAssetTagsQuery"),
   CreateAssetFolderUseCase: Symbol.for("CreateAssetFolderUseCase"),
+  ImportFromGoogleDriveUseCase: Symbol.for("ImportFromGoogleDriveUseCase"),
+
+  // SAML SSO
+  SamlConfigurationRepository: Symbol.for("SamlConfigurationRepository"),
+  ConfigureSamlUseCase: Symbol.for("ConfigureSamlUseCase"),
+  EnableSsoUseCase: Symbol.for("EnableSsoUseCase"),
+  DisableSsoUseCase: Symbol.for("DisableSsoUseCase"),
+  GetSamlConfigurationQuery: Symbol.for("GetSamlConfigurationQuery"),
+
+  // OIDC SSO
+  OidcConfigurationRepository: Symbol.for("OidcConfigurationRepository"),
+  ConfigureOidcUseCase: Symbol.for("ConfigureOidcUseCase"),
+  EnableOidcSsoUseCase: Symbol.for("EnableOidcSsoUseCase"),
+  DisableOidcSsoUseCase: Symbol.for("DisableOidcSsoUseCase"),
+  GetOidcConfigurationQuery: Symbol.for("GetOidcConfigurationQuery"),
+
+  // Custom Report Builder
+  CustomReportRepository: Symbol.for("CustomReportRepository"),
+  CreateCustomReportUseCase: Symbol.for("CreateCustomReportUseCase"),
+  UpdateCustomReportUseCase: Symbol.for("UpdateCustomReportUseCase"),
+  DeleteCustomReportUseCase: Symbol.for("DeleteCustomReportUseCase"),
+  ListCustomReportsQuery: Symbol.for("ListCustomReportsQuery"),
+  GetCustomReportQuery: Symbol.for("GetCustomReportQuery"),
+  RunCustomReportQuery: Symbol.for("RunCustomReportQuery"),
+  ScheduleCustomReportUseCase: Symbol.for("ScheduleCustomReportUseCase"),
+  // CRM Integration
+  CrmConnectionRepository: Symbol.for("CrmConnectionRepository"),
+  CrmContactRepository: Symbol.for("CrmContactRepository"),
+  CrmActivityRepository: Symbol.for("CrmActivityRepository"),
+  CrmSyncLogRepository: Symbol.for("CrmSyncLogRepository"),
+  ConnectCrmUseCase: Symbol.for("ConnectCrmUseCase"),
+  DisconnectCrmUseCase: Symbol.for("DisconnectCrmUseCase"),
+  GetCrmConnectionsQuery: Symbol.for("GetCrmConnectionsQuery"),
+  SyncCrmContactsUseCase: Symbol.for("SyncCrmContactsUseCase"),
+  LogCrmActivityUseCase: Symbol.for("LogCrmActivityUseCase"),
+  GetCrmSyncLogsQuery: Symbol.for("GetCrmSyncLogsQuery"),
 } as const;
 
 /**

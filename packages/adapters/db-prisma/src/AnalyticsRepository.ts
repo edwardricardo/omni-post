@@ -10,16 +10,17 @@ export function createAnalyticsRepository() {
   return {
     async listAnalytics(query: AnalyticsQuery): Promise<Result<Analytics[], "DATABASE_ERROR">> {
       try {
-        const where: any = {};
+        const where: Record<string, unknown> = {};
 
         if (query.postId) where.postId = query.postId;
         if (query.channelId) where.channelId = query.channelId;
         if (query.provider) where.provider = mapProviderToDB(query.provider);
 
         if (query.since || query.until) {
-          where.capturedAt = {};
-          if (query.since) where.capturedAt.gte = query.since;
-          if (query.until) where.capturedAt.lte = query.until;
+          const capturedAtFilter: { gte?: Date; lte?: Date } = {};
+          if (query.since) capturedAtFilter.gte = query.since;
+          if (query.until) capturedAtFilter.lte = query.until;
+          where.capturedAt = capturedAtFilter;
         }
 
         const analytics = await prisma.analytics.findMany({

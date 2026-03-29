@@ -21,6 +21,7 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { PrismaClient } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 import { TrendAnalysisService } from "./trendAnalysisService.js";
 import {
   categorizeTrendingContent,
@@ -364,27 +365,52 @@ export const trendRoutes: FastifyPluginAsync = async (fastify) => {
   const handler = new TrendRouteHandler(trendService);
 
   // GET /trends/analysis — retrieve trending content with optional filters
-  fastify.get("/trends/analysis", async (request, reply) =>
-    handler.getTrendingContent(request, reply)
+  fastify.get(
+    "/trends/analysis",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Trends"], summary: "Retrieve trending content with optional filters" },
+    },
+    async (request, reply) => handler.getTrendingContent(request, reply)
   );
 
   // GET /trends/viral — analyze viral DNA of a content item
-  fastify.get("/trends/viral", async (request, reply) =>
-    handler.analyzeViralContent(request, reply)
+  fastify.get(
+    "/trends/viral",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Trends"], summary: "Analyze viral DNA of a content item" },
+    },
+    async (request, reply) => handler.analyzeViralContent(request, reply)
   );
 
   // GET /trends/opportunities — discover content gap opportunities
-  fastify.get("/trends/opportunities", async (request, reply) =>
-    handler.discoverOpportunities(request, reply)
+  fastify.get(
+    "/trends/opportunities",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Trends"], summary: "Discover content opportunity gaps" },
+    },
+    async (request, reply) => handler.discoverOpportunities(request, reply)
   );
 
   // GET /trends/predictions — generate trend predictions
-  fastify.get("/trends/predictions", async (request, reply) =>
-    handler.generatePredictions(request, reply)
+  fastify.get(
+    "/trends/predictions",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Trends"], summary: "Generate trend predictions" },
+    },
+    async (request, reply) => handler.generatePredictions(request, reply)
   );
 
   // GET /trends/report — generate a comprehensive trend report
-  fastify.get("/trends/report", async (request, reply) =>
-    handler.generateTrendReport(request, reply)
+  fastify.get(
+    "/trends/report",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Trends"], summary: "Generate a comprehensive trend report" },
+    },
+    async (request, reply) => handler.generateTrendReport(request, reply)
   );
 };

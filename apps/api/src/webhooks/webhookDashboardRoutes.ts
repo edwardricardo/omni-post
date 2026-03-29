@@ -275,6 +275,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
     "/api/webhooks/dashboard/metrics",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Webhooks"], summary: "Get webhook dashboard metrics" },
     },
     handler.getDashboardMetrics.bind(handler)
   );
@@ -284,6 +285,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
     "/api/webhooks/dashboard/events",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Webhooks"], summary: "Get recent webhook events with pagination" },
     },
     handler.getRecentEvents.bind(handler)
   );
@@ -293,6 +295,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
     "/api/webhooks/dashboard/events/:eventId",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Webhooks"], summary: "Get webhook event details" },
     },
     handler.getEventDetails.bind(handler)
   );
@@ -302,6 +305,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
     "/api/webhooks/dashboard/subscriptions",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Webhooks"], summary: "Get webhook subscriptions overview" },
     },
     handler.getSubscriptions.bind(handler)
   );
@@ -311,6 +315,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
     "/api/webhooks/dashboard/dead-letter",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Webhooks"], summary: "Get dead letter queue events" },
     },
     handler.getDeadLetterQueue.bind(handler)
   );
@@ -320,6 +325,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
     "/api/webhooks/dashboard/dead-letter/:eventId/retry",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Webhooks"], summary: "Retry a dead letter event" },
     },
     handler.retryDeadLetterEvent.bind(handler)
   );
@@ -329,6 +335,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
     "/api/webhooks/dashboard/stream",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Webhooks"], summary: "Stream real-time webhook events via SSE" },
     },
     handler.streamWebhookEvents.bind(handler)
   );
@@ -338,6 +345,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
     "/api/webhooks/dashboard/export",
     {
       preHandler: [authenticateMiddleware],
+      schema: { tags: ["Webhooks"], summary: "Export webhook events as CSV" },
     },
     handler.exportWebhookEvents.bind(handler)
   );

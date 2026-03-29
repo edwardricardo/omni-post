@@ -170,13 +170,19 @@ const utmRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/api/links/:id/utm",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["UTM"], summary: "Generate UTM parameters for a tracked link" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.generateUTM(request, reply)
   );
 
   app.get(
     "/api/links/:id/utm-url",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["UTM"], summary: "Get the UTM URL for a tracked link" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getUTMUrl(request, reply)
   );
 };

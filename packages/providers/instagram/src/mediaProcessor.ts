@@ -64,16 +64,18 @@ export class InstagramMediaProcessor {
       ]);
 
       const probeData = JSON.parse(stdout);
-      const videoStream = (probeData.streams as any[]).find((s: any) => s.codec_type === "video");
+      const videoStream = (probeData.streams as Record<string, unknown>[]).find(
+        (s) => s.codec_type === "video"
+      );
       if (!videoStream) {
         throw new Error("No video stream found");
       }
 
       const duration = parseFloat(String(probeData.format.duration || "0"));
       const bitrate = parseInt(String(probeData.format.bit_rate || "0"), 10);
-      const width = videoStream.width || 0;
-      const height = videoStream.height || 0;
-      const frameRate = this.parseFrameRate(videoStream.r_frame_rate || "0/1");
+      const width = (videoStream.width as number) || 0;
+      const height = (videoStream.height as number) || 0;
+      const frameRate = this.parseFrameRate(String(videoStream.r_frame_rate || "0/1"));
       const format = (probeData.format.format_name as string)?.split(",")[0] || "unknown";
 
       return {

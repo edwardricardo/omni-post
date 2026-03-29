@@ -113,9 +113,9 @@ export class YouTubeLiveStreamingService {
       ...(credentials.accessToken && { access_token: credentials.accessToken }),
     });
 
-    this.youtube = (google as any).youtube({
+    this.youtube = google.youtube({
       version: "v3",
-      auth: this.oauth2Client,
+      auth: this.oauth2Client as unknown as import("googleapis").Auth.OAuth2Client,
     });
   }
 
@@ -412,10 +412,10 @@ export class YouTubeLiveStreamingService {
 
       // Get chat messages
 
-      const response = (await (this.youtube as any).liveChatMessages.list({
+      const response = (await this.youtube.liveChatMessages.list({
         liveChatId,
         part: ["id", "snippet", "authorDetails"],
-        pageToken,
+        ...(pageToken ? { pageToken } : {}),
         maxResults: 200,
       })) as unknown as { data: youtube_v3.Schema$LiveChatMessageListResponse };
 

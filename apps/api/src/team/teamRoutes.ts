@@ -14,6 +14,7 @@ import type { InviteTeamMemberUseCase } from "../application/team/InviteTeamMemb
 import type { GetTeamMembersQuery } from "../application/team/GetTeamMembersQuery.js";
 import type { UpdateTeamMemberRoleUseCase } from "../application/team/UpdateTeamMemberRoleUseCase.js";
 import type { RemoveTeamMemberUseCase } from "../application/team/RemoveTeamMemberUseCase.js";
+import type { SearchTeamMembersQuery } from "../application/team/SearchTeamMembersQuery.js";
 
 // --- Zod Schemas ---
 
@@ -42,6 +43,11 @@ const RemoveBodySchema = z.object({
   changerMemberId: z.string().uuid(),
 });
 
+const MentionSearchQuerySchema = z.object({
+  q: z.string().max(200).default(""),
+  accountId: z.string().uuid(),
+});
+
 /**
  * @class TeamRouteHandler
  * @description Route handler for team management endpoints.
@@ -54,7 +60,8 @@ class TeamRouteHandler extends BaseRouteHandler {
     private readonly inviteUseCase: InviteTeamMemberUseCase,
     private readonly getQuery: GetTeamMembersQuery,
     private readonly updateRoleUseCase: UpdateTeamMemberRoleUseCase,
-    private readonly removeUseCase: RemoveTeamMemberUseCase
+    private readonly removeUseCase: RemoveTeamMemberUseCase,
+    private readonly searchQuery: SearchTeamMembersQuery
   ) {
     super();
   }
@@ -161,6 +168,35 @@ class TeamRouteHandler extends BaseRouteHandler {
   }
 
   /**
+   * @method mentionSearch
+   * @description GET /team/mention-search — Searches team members for @mention autocomplete
+   */
+  async mentionSearch(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    const validation = await this.validateRequest<{
+      query: z.infer<typeof MentionSearchQuerySchema>;
+    }>(ctx, { query: MentionSearchQuerySchema });
+
+    if (!validation.ok) {
+      return this.sendError(ctx, 400, "Invalid query parameters");
+    }
+
+    const { q, accountId } = validation.value.query;
+
+    const result = await this.searchQuery.execute({
+      accountId,
+      query: q,
+      limit: 10,
+    });
+
+    if (!result.ok) {
+      return this.sendError(ctx, 500, result.error.message);
+    }
+
+    this.sendSuccess(ctx, result.value);
+  }
+
+  /**
    * @method remove
    * @description DELETE /team/:id — Deactivates a team member
    */
@@ -219,30 +255,58 @@ export const teamRoutes: FastifyPluginAsync = async (app) => {
   const removeUseCase = app.container.resolve<RemoveTeamMemberUseCase>(
     TOKENS.RemoveTeamMemberUseCase
   );
+  const searchQuery = app.container.resolve<SearchTeamMembersQuery>(TOKENS.SearchTeamMembersQuery);
 
-  const handler = new TeamRouteHandler(inviteUseCase, getQuery, updateRoleUseCase, removeUseCase);
+  const handler = new TeamRouteHandler(
+    inviteUseCase,
+    getQuery,
+    updateRoleUseCase,
+    removeUseCase,
+    searchQuery
+  );
 
   app.get(
     "/team",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Team"], summary: "List all team members for an account" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.listMembers(request, reply)
+  );
+
+  app.get(
+    "/team/mention-search",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Team"], summary: "Search team members for @mention autocomplete" },
+    },
+    (request: FastifyRequest, reply: FastifyReply) => handler.mentionSearch(request, reply)
   );
 
   app.post(
     "/team/invite",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Team"], summary: "Invite a new team member" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.invite(request, reply)
   );
 
   app.patch(
     "/team/:id/role",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Team"], summary: "Update a team member role" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.updateRole(request, reply)
   );
 
   app.delete(
     "/team/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Team"], summary: "Remove a team member" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.remove(request, reply)
   );
 };

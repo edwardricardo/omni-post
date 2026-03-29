@@ -127,7 +127,7 @@ export class DatabaseOptimizer {
         SELECT * FROM get_dashboard_posts(${accountId}::uuid, ${limit}, ${offset})
       `;
 
-      return posts.map((post: any) => ({
+      return posts.map((post) => ({
         id: post.post_id,
         title: post.title,
         status: post.status,
@@ -226,7 +226,7 @@ export class DatabaseOptimizer {
         ORDER BY hour DESC
       `;
 
-      return summary.map((row: any) => ({
+      return summary.map((row) => ({
         hour: row.hour,
         totalViews: Number(row.total_views),
         totalLikes: Number(row.total_likes),
@@ -247,7 +247,7 @@ export class DatabaseOptimizer {
     metricName: string,
     value: number,
     unit: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<void> {
     try {
       await this.prisma.$executeRaw`
@@ -305,7 +305,7 @@ export class DatabaseOptimizer {
         LEFT JOIN current_metrics c ON b.metric_name = c.metric_name AND c.rn = 1
       `;
 
-      return baselines.map((row: any) => ({
+      return baselines.map((row) => ({
         metricName: row.metric_name,
         currentValue: Number(row.current_value),
         baselineValue: Number(row.baseline_value),
@@ -392,7 +392,7 @@ export class DatabaseOptimizer {
       LIMIT 10
     `;
 
-    return metrics.map((row: any) => ({
+    return metrics.map((row) => ({
       queryType: row.query.replace(/\s+/g, " ").trim(),
       averageExecutionTime: Number(row.mean_exec_time),
       maxExecutionTime: Number(row.max_exec_time),
@@ -425,7 +425,7 @@ export class DatabaseOptimizer {
       LIMIT 20
     `;
 
-    return indexes.map((row: any) => ({
+    return indexes.map((row) => ({
       tableName: row.tablename,
       indexName: row.indexname,
       scanCount: Number(row.idx_scan),
@@ -456,7 +456,7 @@ export class DatabaseOptimizer {
    * Calculate overall database health
    */
   private calculateOverallHealth(
-    connectionStats: any,
+    connectionStats: { total: number; active: number; idle: number; utilization: number },
     queryStats: QueryPerformanceMetrics[]
   ): "healthy" | "warning" | "critical" {
     // Connection utilization check

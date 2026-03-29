@@ -73,7 +73,7 @@ export class UniversalWebhookHandler {
         return {
           success: true,
           eventId,
-          normalizedData: (existingEvent.normalizedData as Record<string, any>) || {},
+          normalizedData: (existingEvent.normalizedData as Record<string, unknown>) || {},
         };
       }
 
@@ -153,38 +153,46 @@ export class UniversalWebhookHandler {
 
   private extractEventId(
     provider: Provider,
-    payload: Record<string, any>,
+    payload: Record<string, unknown>,
     headers: Record<string, string>
   ): string {
     switch (provider) {
       case "INSTAGRAM":
-      case "FACEBOOK":
+      case "FACEBOOK": {
+        const entryArr = payload.entry as Record<string, unknown>[] | undefined;
+        const firstEntry = entryArr?.[0];
         return (
-          payload.entry?.[0]?.id ||
+          (firstEntry?.id as string) ||
           headers["x-hub-signature-256"] ||
           createHash("md5").update(JSON.stringify(payload)).digest("hex")
         );
+      }
 
-      case "X":
+      case "X": {
+        const tweetEvents = payload.tweet_create_events as Record<string, unknown>[] | undefined;
         return (
-          payload.tweet_create_events?.[0]?.id_str ||
-          payload.id ||
+          (tweetEvents?.[0]?.id_str as string) ||
+          (payload.id as string) ||
           createHash("md5").update(JSON.stringify(payload)).digest("hex")
         );
+      }
 
       case "YOUTUBE":
         return (
-          payload.id ||
+          (payload.id as string) ||
           headers["x-goog-channel-id"] ||
           createHash("md5").update(JSON.stringify(payload)).digest("hex")
         );
 
-      case "TIKTOK":
+      case "TIKTOK": {
+        const tiktokEvent = payload.event as Record<string, unknown> | undefined;
+        const tiktokContent = tiktokEvent?.content as Record<string, unknown> | undefined;
         return (
-          payload.event?.content?.video_id ||
-          payload.timestamp ||
+          (tiktokContent?.video_id as string) ||
+          (payload.timestamp as string) ||
           createHash("md5").update(JSON.stringify(payload)).digest("hex")
         );
+      }
 
       case "TELEGRAM":
         return (
@@ -225,30 +233,28 @@ export class UniversalWebhookHandler {
   }
 
   private async storeWebhookEvent(eventInput: WebhookEventInput): Promise<WebhookEvent> {
-    const data: any = {
-      provider: eventInput.provider,
-      eventType: "POST_ENGAGEMENT_UPDATE",
-      eventId: eventInput.eventId,
-      signature: eventInput.signature,
-      payload: eventInput.payload,
-      headers: eventInput.headers,
-      status: "PROCESSING",
-      verified: true,
-      processed: false,
-    };
-    if (eventInput.accountId !== undefined) data.accountId = eventInput.accountId;
-    if (eventInput.projectId !== undefined) data.projectId = eventInput.projectId;
-    if (eventInput.postId !== undefined) data.postId = eventInput.postId;
-    if (eventInput.channelId !== undefined) data.channelId = eventInput.channelId;
-
     return prisma.webhookEvent.create({
-      data,
+      data: {
+        provider: eventInput.provider,
+        eventType: "POST_ENGAGEMENT_UPDATE",
+        eventId: eventInput.eventId,
+        signature: eventInput.signature,
+        payload: eventInput.payload as Record<string, string | number | boolean | null>,
+        headers: eventInput.headers as Record<string, string>,
+        status: "PROCESSING",
+        verified: true,
+        processed: false,
+        ...(eventInput.accountId !== undefined && { accountId: eventInput.accountId }),
+        ...(eventInput.projectId !== undefined && { projectId: eventInput.projectId }),
+        ...(eventInput.postId !== undefined && { postId: eventInput.postId }),
+        ...(eventInput.channelId !== undefined && { channelId: eventInput.channelId }),
+      },
     });
   }
 
   private async markEventProcessed(
     eventId: string,
-    normalizedData: Record<string, any>,
+    normalizedData: Record<string, unknown>,
     processingTimeMs: number
   ): Promise<void> {
     await prisma.webhookEvent.update({
@@ -256,7 +262,7 @@ export class UniversalWebhookHandler {
       data: {
         status: "COMPLETED",
         processed: true,
-        normalizedData,
+        normalizedData: normalizedData as Record<string, string | number | boolean | null>,
         processedAt: new Date(),
         processingTime: processingTimeMs,
       },
@@ -294,7 +300,7 @@ export class UniversalWebhookHandler {
   private async moveToDeadLetterQueue(
     provider: Provider,
     eventId: string,
-    payload: Record<string, any>,
+    payload: Record<string, unknown>,
     headers: Record<string, string>,
     error: string
   ): Promise<void> {
@@ -311,8 +317,8 @@ export class UniversalWebhookHandler {
         originalEventId: event.id,
         provider,
         eventType: event.eventType,
-        payload,
-        headers,
+        payload: payload as Record<string, string | number | boolean | null>,
+        headers: headers as Record<string, string>,
         failureReason: error,
         finalError: error,
         retryCount: event.retryCount,
@@ -342,7 +348,7 @@ export class UniversalWebhookHandler {
   // Retry & Stats
   // ---------------------------------------------------------------------------
 
-  private shouldRetryEvent(error: any): boolean {
+  private shouldRetryEvent(error: unknown): boolean {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     if (
@@ -361,7 +367,7 @@ export class UniversalWebhookHandler {
   }
 
   async getProcessingStats(provider?: Provider, timeRange?: { start: Date; end: Date }) {
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     if (provider) {
       where.provider = provider;
@@ -402,12 +408,12 @@ export class UniversalWebhookHandler {
         }
         return acc;
       },
-      {} as Record<string, Record<string, any>>
+      {} as Record<string, Record<string, unknown>>
     );
   }
 
   async retryFailedEvents(maxAge?: Date): Promise<number> {
-    const where: any = {
+    const where: Record<string, unknown> = {
       status: "RETRYING",
       nextRetryAt: {
         lte: new Date(),

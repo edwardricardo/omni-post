@@ -66,7 +66,7 @@ export function createPrismaRepoAdapter(): RepoPort & {
 
   // Create circuit breakers for critical database operations
   const readOperationBreaker = createDatabaseCircuitBreaker(
-    async (operation: () => Promise<any>) => {
+    async (operation: () => Promise<unknown>) => {
       return await withDatabaseRetry(operation);
     },
     {
@@ -77,7 +77,7 @@ export function createPrismaRepoAdapter(): RepoPort & {
   );
 
   const writeOperationBreaker = createDatabaseCircuitBreaker(
-    async (operation: () => Promise<any>) => {
+    async (operation: () => Promise<unknown>) => {
       return await withDatabaseRetry(operation, { maxRetries: 2, baseDelay: 100 });
     },
     {
@@ -88,7 +88,7 @@ export function createPrismaRepoAdapter(): RepoPort & {
   );
 
   const transactionBreaker = createDatabaseCircuitBreaker(
-    async (operation: () => Promise<any>) => {
+    async (operation: () => Promise<unknown>) => {
       return await withDatabaseRetry(operation, { maxRetries: 1, baseDelay: 200 });
     },
     {

@@ -391,7 +391,12 @@ export class PostgreSQLEventStore implements IEventStore {
       lastEventAt?: Date;
     };
   }> {
-    const details: any = {
+    const details: {
+      database: boolean;
+      redis: boolean;
+      totalEvents?: number;
+      lastEventAt?: Date;
+    } = {
       database: false,
       redis: false,
     };
@@ -418,7 +423,9 @@ export class PostgreSQLEventStore implements IEventStore {
 
       if (stats[0]) {
         details.totalEvents = Number(stats[0].total_events);
-        details.lastEventAt = stats[0].last_event_at;
+        if (stats[0].last_event_at) {
+          details.lastEventAt = stats[0].last_event_at;
+        }
       }
     } catch (error) {
       logger.error({ err: error }, "Database health check failed");

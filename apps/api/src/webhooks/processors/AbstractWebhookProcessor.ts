@@ -143,9 +143,9 @@ export abstract class AbstractWebhookProcessor implements WebhookProcessor {
    * @param payload - Parsed webhook payload object
    * @returns Event type, normalized data, and related entities
    */
-  async parse(payload: Record<string, any>): Promise<{
+  async parse(payload: Record<string, unknown>): Promise<{
     eventType: WebhookEventType;
-    normalizedData: Record<string, any>;
+    normalizedData: Record<string, unknown>;
     relatedEntities: {
       accountId?: string;
       projectId?: string;
@@ -175,7 +175,10 @@ export abstract class AbstractWebhookProcessor implements WebhookProcessor {
    * @param normalizedData - Normalized event data
    * @param relatedEntities - Related database entities
    */
-  async process(normalizedData: Record<string, any>, relatedEntities: any): Promise<void> {
+  async process(
+    normalizedData: Record<string, unknown>,
+    relatedEntities: Record<string, unknown>
+  ): Promise<void> {
     const { accountId, projectId } = relatedEntities;
 
     if (!accountId && !projectId) {
@@ -194,9 +197,9 @@ export abstract class AbstractWebhookProcessor implements WebhookProcessor {
    * Override in subclasses that use the base class `parse()` workflow.
    * Subclasses that override `parse()` directly do not need to implement this.
    */
-  protected parsePayload(_payload: Record<string, any>): Promise<{
+  protected parsePayload(_payload: Record<string, unknown>): Promise<{
     eventType: WebhookEventType;
-    normalizedData: Record<string, any>;
+    normalizedData: Record<string, unknown>;
   }> {
     throw new Error(
       `${this.providerId}: parsePayload() not implemented. Override parse() or implement parsePayload().`
@@ -212,8 +215,8 @@ export abstract class AbstractWebhookProcessor implements WebhookProcessor {
    * `findRelatedEntities` methods that have different signatures.
    */
   protected resolveRelatedEntities(
-    _payload: Record<string, any>,
-    _normalizedData: Record<string, any>
+    _payload: Record<string, unknown>,
+    _normalizedData: Record<string, unknown>
   ): Promise<RelatedEntities> {
     throw new Error(
       `${this.providerId}: resolveRelatedEntities() not implemented. Override parse() or implement resolveRelatedEntities().`
@@ -226,7 +229,7 @@ export abstract class AbstractWebhookProcessor implements WebhookProcessor {
    * Subclasses that override `process()` directly do not need to implement this.
    */
   protected processEvent(
-    _normalizedData: Record<string, any>,
+    _normalizedData: Record<string, unknown>,
     _relatedEntities: RelatedEntities
   ): Promise<void> {
     throw new Error(

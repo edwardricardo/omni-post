@@ -165,21 +165,30 @@ export const firstCommentRoutes: FastifyPluginAsync = async (app) => {
   // Set or update the first comment for a post
   app.put(
     "/posts/:postId/first-comment",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["First Comment"], summary: "Set or update first comment for a post" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.setFirstComment(request, reply)
   );
 
   // Get the first comment for a post
   app.get(
     "/posts/:postId/first-comment",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["First Comment"], summary: "Get first comment for a post" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getFirstComment(request, reply)
   );
 
   // Remove the first comment for a post
   app.delete(
     "/posts/:postId/first-comment",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["First Comment"], summary: "Remove first comment for a post" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.removeFirstComment(request, reply)
   );
 };

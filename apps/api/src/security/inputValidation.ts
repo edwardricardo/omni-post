@@ -124,8 +124,8 @@ export class SecurityValidator {
 
 // Enhanced Zod schemas with security validation
 export const createSecureSchema = <T>(baseSchema: ZodSchema<T>) => {
-  return baseSchema.superRefine((data: any, ctx) => {
-    const validateRecursively = (obj: any, path: string[] = []) => {
+  return baseSchema.superRefine((data: unknown, ctx) => {
+    const validateRecursively = (obj: unknown, path: string[] = []) => {
       if (typeof obj === "string") {
         const contextKey = path[path.length - 1] || "default";
         const validation = SecurityValidator.validateString(obj, contextKey);

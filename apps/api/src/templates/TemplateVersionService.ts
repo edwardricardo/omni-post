@@ -16,42 +16,71 @@ import { AppError } from "../lib/errors/AppError.js";
 /**
  * Maps a database template version record to the TemplateVersion interface.
  */
-function mapToTemplateVersion(dbVersion: any): TemplateVersion {
+function mapToTemplateVersion(dbVersion: {
+  id: string;
+  templateId: string;
+  version: number;
+  content: string;
+  variables: unknown;
+  platforms: unknown;
+  tags: unknown;
+  changeLog: string;
+  author: unknown;
+  createdAt: Date;
+  isActive: boolean;
+  parentVersionId: string | null;
+  branchName: string | null;
+  commitMessage: string | null;
+}): TemplateVersion {
   return {
     id: dbVersion.id,
     templateId: dbVersion.templateId,
     version: dbVersion.version,
     content: dbVersion.content,
-    variables: dbVersion.variables || [],
-    platforms: dbVersion.platforms || [],
-    tags: dbVersion.tags || [],
+    variables: (dbVersion.variables as TemplateVersion["variables"]) || [],
+    platforms: (dbVersion.platforms as string[]) || [],
+    tags: (dbVersion.tags as string[]) || [],
     changeLog: dbVersion.changeLog,
-    author: dbVersion.author,
+    author: dbVersion.author as TemplateVersion["author"],
     createdAt: dbVersion.createdAt,
     isActive: dbVersion.isActive,
-    parentVersionId: dbVersion.parentVersionId,
-    branchName: dbVersion.branchName,
-    commitMessage: dbVersion.commitMessage,
+    ...(dbVersion.parentVersionId != null ? { parentVersionId: dbVersion.parentVersionId } : {}),
+    ...(dbVersion.branchName != null ? { branchName: dbVersion.branchName } : {}),
+    ...(dbVersion.commitMessage != null ? { commitMessage: dbVersion.commitMessage } : {}),
   };
 }
 
 /**
  * Maps a database template record to the Template interface.
  */
-export function mapToTemplate(dbTemplate: any): Template {
+export function mapToTemplate(dbTemplate: Record<string, unknown>): Template {
+  const t = dbTemplate as {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    content: string;
+    variables: unknown;
+    platforms: unknown;
+    variants: unknown;
+    tags: unknown;
+    version: number;
+    createdAt: Date;
+    updatedAt: Date;
+  };
   return {
-    id: dbTemplate.id,
-    name: dbTemplate.name,
-    description: dbTemplate.description,
-    category: dbTemplate.category,
-    content: dbTemplate.content,
-    variables: dbTemplate.variables || [],
-    platforms: dbTemplate.platforms || [],
-    variants: dbTemplate.variants || [],
-    tags: dbTemplate.tags || [],
-    version: dbTemplate.version,
-    createdAt: dbTemplate.createdAt,
-    updatedAt: dbTemplate.updatedAt,
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    category: t.category,
+    content: t.content,
+    variables: (t.variables as Template["variables"]) || [],
+    platforms: (t.platforms as string[]) || [],
+    variants: (t.variants as Template["variants"]) || [],
+    tags: (t.tags as string[]) || [],
+    version: t.version,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
   };
 }
 

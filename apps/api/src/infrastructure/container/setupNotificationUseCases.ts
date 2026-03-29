@@ -10,6 +10,7 @@ import type {
   NotificationRepository,
   NotificationPreferenceRepository,
 } from "../../domain/repositories/NotificationRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import {
   CreateNotificationUseCase,
   GetNotificationsQuery,
@@ -29,7 +30,10 @@ export function setupNotificationUseCases(container: Container): void {
     () =>
       new CreateNotificationUseCase(
         container.resolve<NotificationRepository>(TOKENS.NotificationRepository),
-        container.resolve<NotificationPreferenceRepository>(TOKENS.NotificationPreferenceRepository)
+        container.resolve<NotificationPreferenceRepository>(
+          TOKENS.NotificationPreferenceRepository
+        ),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -45,7 +49,8 @@ export function setupNotificationUseCases(container: Container): void {
     TOKENS.MarkNotificationReadUseCase,
     () =>
       new MarkNotificationReadUseCase(
-        container.resolve<NotificationRepository>(TOKENS.NotificationRepository)
+        container.resolve<NotificationRepository>(TOKENS.NotificationRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );

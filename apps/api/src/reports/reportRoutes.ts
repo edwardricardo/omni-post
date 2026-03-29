@@ -322,25 +322,37 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/api/reports",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Reports"], summary: "Create scheduled report" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.createReport(request, reply)
   );
 
   app.patch(
     "/api/reports/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Reports"], summary: "Update scheduled report" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.updateReport(request, reply)
   );
 
   app.delete(
     "/api/reports/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Reports"], summary: "Delete scheduled report" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.deleteReport(request, reply)
   );
 
   app.post(
     "/api/reports/:id/generate",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Reports"], summary: "Generate report manually" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.generateReport(request, reply)
   );
 
@@ -348,13 +360,19 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     "/api/reports",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Reports"], summary: "List scheduled reports" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.listReports(request, reply)
   );
 
   app.get(
     "/api/reports/:id",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Reports"], summary: "Get scheduled report by ID" },
+    },
     (request: FastifyRequest, reply: FastifyReply) => handler.getReport(request, reply)
   );
 };

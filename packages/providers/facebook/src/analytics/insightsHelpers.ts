@@ -5,23 +5,192 @@
  * These are pure data-processing functions with no API calls.
  */
 
+/** Represents a single metric entry from Facebook Insights API. */
+interface InsightMetric {
+  name: string;
+  values?: Array<{ value: unknown; end_time?: string }>;
+}
+
+/** A Facebook post object with engagement data. */
+interface FacebookPostData {
+  id?: string;
+  type?: string;
+  created_time?: string;
+  reach?: number;
+  engagements?: number;
+  reactions?: { summary?: { total_count?: number } };
+  comments?: { summary?: { total_count?: number } };
+  shares?: { count?: number };
+  attachments?: { data?: Array<{ type?: string }> };
+}
+
+/** A competitor data entry used for benchmarking. */
+interface CompetitorData {
+  avgEngagementRate: number;
+  followers: number;
+  postFrequency: number;
+}
+
+/** Processed age-group breakdown keyed by age range. */
+interface AgeGroupBreakdown {
+  [ageRange: string]: { male: number; female: number; unknown: number };
+}
+
+/** Gender totals. */
+interface GenderTotals {
+  male: number;
+  female: number;
+  unknown: number;
+}
+
+/** A peak hour/day entry. */
+interface PeakEntry {
+  hour?: number;
+  day: string;
+  activity: number;
+}
+
+/** Likes sources breakdown. */
+interface LikesSources {
+  organic: number;
+  paid: number;
+  viral: number;
+}
+
+/** Processed post insights. */
+interface PostInsightsResult {
+  reach: number;
+  impressions: number;
+  clicks: number;
+  videoViews: number;
+  reactions: Record<string, unknown>;
+}
+
+/** Content summary statistics. */
+interface ContentSummary {
+  totalPosts: number;
+  avgReach: number;
+  avgEngagements: number;
+  avgEngagementRate: number;
+  topPerformingPost: string;
+  topPostType: string;
+  bestPostingTime: { hour: number; day: string };
+}
+
+/** Content category statistics. */
+interface ContentCategory {
+  category: string;
+  postCount: number;
+  avgEngagement: number;
+  avgReach: number;
+}
+
+/** Best posting time result. */
+interface BestPostingTime {
+  hour: number;
+  day: string;
+}
+
+/** Retention data point. */
+interface RetentionPoint {
+  timestamp: number;
+  percentage: number;
+}
+
+/** Drop-off data point. */
+interface DropOffPoint {
+  timestamp: number;
+  dropOffRate: number;
+}
+
+/** Demographics result shape. */
+interface DemographicsResult {
+  ageGroups: AgeGroupBreakdown;
+  genders: GenderTotals;
+  countries: Record<string, unknown>;
+  cities: Record<string, unknown>;
+  locales: Record<string, unknown>;
+}
+
+/** Activity data result shape. */
+interface ActivityResult {
+  peakHours: PeakEntry[];
+  peakDays: PeakEntry[];
+  timeZones: Record<string, never>;
+}
+
+/** Fan acquisition data result. */
+interface FanAcquisitionResult {
+  totalNewLikes: number;
+  totalUnlikes: number;
+  netLikeChange: number;
+  likesSources: LikesSources;
+}
+
+/** Video demographics result. */
+interface VideoDemographicsResult {
+  ageGroups: Record<string, unknown>;
+  genders: Record<string, never>;
+  countries: Record<string, unknown>;
+  cities: Record<string, never>;
+}
+
+/** Benchmark result. */
+interface BenchmarkResult {
+  industryAvgEngagement: number;
+  industryAvgFollowers: number;
+  industryAvgPostFrequency: number;
+  yourRanking: number;
+}
+
+/** Opportunity entry. */
+interface OpportunityEntry {
+  type: string;
+  description: string;
+  priority: string;
+  estimatedImpact: number;
+}
+
+/** Content type distribution entry. */
+interface ContentTypeEntry {
+  type: string;
+  percentage: number;
+}
+
+/** Internal accumulator for category aggregation. */
+interface CategoryAccumulator {
+  [type: string]: { count: number; totalEngagement: number; totalReach: number };
+}
+
+/** Internal accumulator for hour/day engagement tracking. */
+interface EngagementAccumulator {
+  [key: string]: number;
+}
+
+/** Internal accumulator for best hour/day reduction. */
+interface BestAccumulator {
+  hour?: number;
+  day?: string;
+  engagements: number;
+}
+
 /**
  * Extract metric value from an insights data array by metric name.
  */
-export function getMetricValue(insights: any[], metricName: string): number {
+export function getMetricValue(insights: InsightMetric[], metricName: string): number {
   const metric = insights.find((m) => m.name === metricName);
   if (!metric || !metric.values || metric.values.length === 0) {
     return 0;
   }
 
   const latestValue = metric.values[metric.values.length - 1];
-  return latestValue.value || 0;
+  return (latestValue.value as number) || 0;
 }
 
 /**
  * Process demographics data (age/gender, country, city, locale) from page insights.
  */
-export function processDemographicsData(insights: any[]): any {
+export function processDemographicsData(insights: InsightMetric[]): DemographicsResult {
   const ageGenderMetric = insights.find((m) => m.name === "page_fans_by_age_gender");
   const countryMetric = insights.find((m) => m.name === "page_fans_by_country");
   const cityMetric = insights.find((m) => m.name === "page_fans_by_city");
@@ -39,7 +208,7 @@ export function processDemographicsData(insights: any[]): any {
 /**
  * Process activity data (online hours, online per day) from page insights.
  */
-export function processActivityData(insights: any[]): any {
+export function processActivityData(insights: InsightMetric[]): ActivityResult {
   const onlineMetric = insights.find((m) => m.name === "page_fans_online");
   const onlinePerDayMetric = insights.find((m) => m.name === "page_fans_online_per_day");
 
@@ -53,7 +222,7 @@ export function processActivityData(insights: any[]): any {
 /**
  * Process fan acquisition data (adds, removes, paid/non-paid).
  */
-export function processFanAcquisitionData(insights: any[]): any {
+export function processFanAcquisitionData(insights: InsightMetric[]): FanAcquisitionResult {
   const fanAdds = getMetricValue(insights, "page_fan_adds");
   const fanRemoves = getMetricValue(insights, "page_fan_removes");
   const paidNonPaidMetric = insights.find((m) => m.name === "page_fan_adds_by_paid_non_paid");
@@ -69,21 +238,21 @@ export function processFanAcquisitionData(insights: any[]): any {
 /**
  * Parse age+gender breakdown from a page_fans_by_age_gender metric.
  */
-export function processAgeGenderData(metric: any): any {
+export function processAgeGenderData(metric: InsightMetric | undefined): AgeGroupBreakdown {
   if (!metric?.values?.[0]?.value) return {};
 
-  const ageGroups: any = {};
-  const data = metric.values[0].value;
+  const ageGroups: AgeGroupBreakdown = {};
+  const data = metric.values[0].value as Record<string, number>;
 
   Object.entries(data).forEach(([key, value]) => {
-    const parts = (key as string).split(".");
+    const parts = key.split(".");
     const ageRange = parts[0];
     const gender = parts[1];
     if (!ageRange || !gender) return;
     if (!ageGroups[ageRange]) {
       ageGroups[ageRange] = { male: 0, female: 0, unknown: 0 };
     }
-    ageGroups[ageRange][gender as "male" | "female" | "unknown"] = value as number;
+    ageGroups[ageRange][gender as "male" | "female" | "unknown"] = value;
   });
 
   return ageGroups;
@@ -92,17 +261,17 @@ export function processAgeGenderData(metric: any): any {
 /**
  * Aggregate gender totals from a page_fans_by_age_gender metric.
  */
-export function processGenderData(metric: any): any {
+export function processGenderData(metric: InsightMetric | undefined): GenderTotals {
   if (!metric?.values?.[0]?.value) return { male: 0, female: 0, unknown: 0 };
 
-  const data = metric.values[0].value;
-  const genders = { male: 0, female: 0, unknown: 0 };
+  const data = metric.values[0].value as Record<string, number>;
+  const genders: GenderTotals = { male: 0, female: 0, unknown: 0 };
 
   Object.entries(data).forEach(([key, value]) => {
-    const genderStr = (key as string).split(".")[1];
+    const genderStr = key.split(".")[1];
     if (!genderStr) return;
     const gender = genderStr as "male" | "female" | "unknown";
-    genders[gender] += value as number;
+    genders[gender] += value;
   });
 
   return genders;
@@ -111,26 +280,26 @@ export function processGenderData(metric: any): any {
 /**
  * Extract the latest value object from a metric (generic helper).
  */
-export function processMetricData(metric: any): any {
+export function processMetricData(metric: InsightMetric | undefined): Record<string, unknown> {
   if (!metric?.values?.[0]?.value) return {};
-  return metric.values[0].value;
+  return metric.values[0].value as Record<string, unknown>;
 }
 
 /**
  * Extract peak hours from page_fans_online metric.
  */
-export function processPeakHours(metric: any): any[] {
+export function processPeakHours(metric: InsightMetric | undefined): PeakEntry[] {
   if (!metric?.values?.[0]?.value) return [];
 
-  const data = metric.values[0].value;
+  const data = metric.values[0].value as Record<string, number>;
   return Object.entries(data).map(([timeKey, activity]) => {
-    const parts = (timeKey as string).split("_");
+    const parts = timeKey.split("_");
     const day = parts[0] ?? "";
     const hour = parts[1] ?? "0";
     return {
       hour: parseInt(hour),
       day,
-      activity: activity as number,
+      activity,
     };
   });
 }
@@ -138,22 +307,22 @@ export function processPeakHours(metric: any): any[] {
 /**
  * Extract peak days from page_fans_online_per_day metric.
  */
-export function processPeakDays(metric: any): any[] {
+export function processPeakDays(metric: InsightMetric | undefined): PeakEntry[] {
   if (!metric?.values) return [];
 
-  return metric.values.map((value: any) => ({
-    day: value.end_time,
-    activity: value.value || 0,
+  return metric.values.map((value) => ({
+    day: (value.end_time as string) || "",
+    activity: (value.value as number) || 0,
   }));
 }
 
 /**
  * Extract likes sources (organic / paid / viral) from metric.
  */
-export function processLikesSources(metric: any): any {
+export function processLikesSources(metric: InsightMetric | undefined): LikesSources {
   if (!metric?.values?.[0]?.value) return { organic: 0, paid: 0, viral: 0 };
 
-  const data = metric.values[0].value;
+  const data = metric.values[0].value as Record<string, number>;
   return {
     organic: data.organic || 0,
     paid: data.paid || 0,
@@ -164,8 +333,8 @@ export function processLikesSources(metric: any): any {
 /**
  * Process raw post insights into a flat object.
  */
-export function processPostInsights(insights: any[]): any {
-  const result: any = {
+export function processPostInsights(insights: InsightMetric[]): PostInsightsResult {
+  const result: PostInsightsResult = {
     reach: getMetricValue(insights, "post_reach"),
     impressions: getMetricValue(insights, "post_impressions"),
     clicks: getMetricValue(insights, "post_clicks"),
@@ -175,7 +344,7 @@ export function processPostInsights(insights: any[]): any {
 
   const reactionsMetric = insights.find((m) => m.name === "post_reactions_by_type_total");
   if (reactionsMetric?.values?.[0]?.value) {
-    result.reactions = reactionsMetric.values[0].value;
+    result.reactions = reactionsMetric.values[0].value as Record<string, unknown>;
   }
 
   return result;
@@ -184,7 +353,7 @@ export function processPostInsights(insights: any[]): any {
 /**
  * Calculate summary statistics from an array of post insights.
  */
-export function calculateContentSummary(posts: any[]): any {
+export function calculateContentSummary(posts: FacebookPostData[]): ContentSummary {
   if (posts.length === 0) {
     return {
       totalPosts: 0,
@@ -218,8 +387,8 @@ export function calculateContentSummary(posts: any[]): any {
 /**
  * Categorise content by post type and compute per-category averages.
  */
-export function categorizeContent(posts: any[]): any[] {
-  const categories = posts.reduce((acc: any, post) => {
+export function categorizeContent(posts: FacebookPostData[]): ContentCategory[] {
+  const categories = posts.reduce((acc: CategoryAccumulator, post) => {
     const type = post.type || "status";
     if (!acc[type]) {
       acc[type] = { count: 0, totalEngagement: 0, totalReach: 0 };
@@ -230,7 +399,7 @@ export function categorizeContent(posts: any[]): any[] {
     return acc;
   }, {});
 
-  return Object.entries(categories).map(([category, data]: [string, any]) => ({
+  return Object.entries(categories).map(([category, data]) => ({
     category,
     postCount: data.count,
     avgEngagement: data.totalEngagement / data.count,
@@ -241,9 +410,9 @@ export function categorizeContent(posts: any[]): any[] {
 /**
  * Determine best posting time based on engagement totals.
  */
-export function findBestPostingTime(posts: any[]): any {
-  const hourCounts: any = {};
-  const dayCounts: any = {};
+export function findBestPostingTime(posts: FacebookPostData[]): BestPostingTime {
+  const hourCounts: EngagementAccumulator = {};
+  const dayCounts: EngagementAccumulator = {};
 
   posts.forEach((post) => {
     if (post.created_time) {
@@ -257,42 +426,44 @@ export function findBestPostingTime(posts: any[]): any {
   });
 
   const bestHour = Object.entries(hourCounts).reduce(
-    (max: any, [hour, engagements]: [string, any]) =>
+    (max: BestAccumulator, [hour, engagements]: [string, number]) =>
       engagements > max.engagements ? { hour: parseInt(hour), engagements } : max,
     { hour: 0, engagements: 0 }
   );
 
   const bestDay = Object.entries(dayCounts).reduce(
-    (max: any, [day, engagements]: [string, any]) =>
+    (max: BestAccumulator, [day, engagements]: [string, number]) =>
       engagements > max.engagements ? { day, engagements } : max,
     { day: "", engagements: 0 }
   );
 
   return {
-    hour: bestHour.hour,
-    day: bestDay.day,
+    hour: bestHour.hour ?? 0,
+    day: bestDay.day ?? "",
   };
 }
 
 /**
  * Process video retention graph data into an array.
  */
-export function processRetentionData(insights: any[]): any[] {
+export function processRetentionData(insights: InsightMetric[]): RetentionPoint[] {
   const retentionMetric = insights.find((m) => m.name === "video_retention_graph");
   if (!retentionMetric?.values?.[0]?.value) return [];
 
-  return Object.entries(retentionMetric.values[0].value).map(([timestamp, percentage]) => ({
-    timestamp: parseInt(timestamp),
-    percentage: percentage as number,
-  }));
+  return Object.entries(retentionMetric.values[0].value as Record<string, number>).map(
+    ([timestamp, percentage]) => ({
+      timestamp: parseInt(timestamp),
+      percentage,
+    })
+  );
 }
 
 /**
  * Identify significant drop-off points (>10 pp drop between consecutive timestamps).
  */
-export function calculateDropOffPoints(insights: any[]): any[] {
+export function calculateDropOffPoints(insights: InsightMetric[]): DropOffPoint[] {
   const retention = processRetentionData(insights);
-  const dropOffs = [];
+  const dropOffs: DropOffPoint[] = [];
 
   for (let i = 1; i < retention.length; i++) {
     const dropOff = retention[i - 1].percentage - retention[i].percentage;
@@ -310,7 +481,7 @@ export function calculateDropOffPoints(insights: any[]): any[] {
 /**
  * Process video demographics breakdown.
  */
-export function processVideoDemographics(insights: any[]): any {
+export function processVideoDemographics(insights: InsightMetric[]): VideoDemographicsResult {
   const ageGenderMetric = insights.find(
     (m) => m.name === "video_view_time_by_age_bucket_and_gender"
   );
@@ -327,7 +498,7 @@ export function processVideoDemographics(insights: any[]): any {
 /**
  * Calculate average engagement for a set of posts.
  */
-export function calculateAverageEngagement(posts: any[]): number {
+export function calculateAverageEngagement(posts: FacebookPostData[]): number {
   if (posts.length === 0) return 0;
 
   const totalEngagements = posts.reduce((sum, post) => {
@@ -343,14 +514,14 @@ export function calculateAverageEngagement(posts: any[]): number {
 /**
  * Count posts published in the last 7 days.
  */
-export function calculatePostFrequency(posts: any[]): number {
+export function calculatePostFrequency(posts: FacebookPostData[]): number {
   if (posts.length === 0) return 0;
 
   const now = new Date();
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const recentPosts = posts.filter((post) => {
-    const postDate = new Date(post.created_time);
+    const postDate = new Date(post.created_time || 0);
     return postDate >= oneWeekAgo;
   });
 
@@ -360,8 +531,8 @@ export function calculatePostFrequency(posts: any[]): number {
 /**
  * Analyse content types distribution from a set of posts.
  */
-export function analyzeContentTypes(posts: any[]): any[] {
-  const types: any = {};
+export function analyzeContentTypes(posts: FacebookPostData[]): ContentTypeEntry[] {
+  const types: EngagementAccumulator = {};
   posts.forEach((post) => {
     const type = determineContentType(post);
     types[type] = (types[type] || 0) + 1;
@@ -370,14 +541,14 @@ export function analyzeContentTypes(posts: any[]): any[] {
   const total = posts.length;
   return Object.entries(types).map(([type, count]) => ({
     type,
-    percentage: total > 0 ? ((count as number) / total) * 100 : 0,
+    percentage: total > 0 ? (count / total) * 100 : 0,
   }));
 }
 
 /**
  * Determine content type from post attachment data.
  */
-export function determineContentType(post: any): string {
+export function determineContentType(post: FacebookPostData): string {
   if (post.attachments?.data?.[0]) {
     const attachment = post.attachments.data[0];
     if (attachment.type === "photo") return "photo";
@@ -390,7 +561,7 @@ export function determineContentType(post: any): string {
 /**
  * Calculate benchmarks from competitor data.
  */
-export function calculateBenchmarks(competitors: any[]): any {
+export function calculateBenchmarks(competitors: CompetitorData[]): BenchmarkResult {
   if (competitors.length === 0) {
     return {
       industryAvgEngagement: 0,
@@ -418,8 +589,8 @@ export function calculateBenchmarks(competitors: any[]): any {
 /**
  * Identify opportunities from competitor analysis.
  */
-export function identifyOpportunities(competitors: any[]): any[] {
-  const opportunities = [];
+export function identifyOpportunities(competitors: CompetitorData[]): OpportunityEntry[] {
+  const opportunities: OpportunityEntry[] = [];
 
   const avgPostFreq =
     competitors.reduce((sum, comp) => sum + comp.postFrequency, 0) / competitors.length;

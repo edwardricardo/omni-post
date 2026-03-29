@@ -205,7 +205,7 @@ Original content to optimize: "${content}"`;
   async predictPerformance(
     content: string,
     platform: string,
-    historicalData?: any[]
+    historicalData?: unknown[]
   ): Promise<PerformancePrediction> {
     const prompt = `As a social media content analyst, estimate the likely performance of this content on ${platform}.
 

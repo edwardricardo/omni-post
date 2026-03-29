@@ -59,6 +59,29 @@ export interface SagaContext {
   events: DomainEvent[];
 }
 
+/** Shape returned by executeCommand callbacks used in saga steps */
+interface CommandResult {
+  success: boolean;
+  error?: string;
+  data?: Record<string, unknown>;
+}
+
+/** Shape of the incoming postData payload passed to saga steps */
+interface PostDataPayload {
+  body?: string;
+  channelIds?: string[];
+  scheduledAt?: Date;
+  [key: string]: unknown;
+}
+
+/** Shape of the execute data argument for steps that receive postData */
+interface StepExecuteData {
+  postData?: PostDataPayload;
+  postId?: string;
+  priority?: string;
+  [key: string]: unknown;
+}
+
 // Step data shapes for cross-step communication
 interface ValidateStepData {
   validatedData?: { channelIds: string[]; scheduledAt?: Date; [key: string]: unknown };
@@ -80,6 +103,12 @@ interface ScheduleStepData {
 interface CompletionStepData {
   publishingComplete?: boolean;
   [key: string]: unknown;
+}
+
+interface StatusCompensationData {
+  postId?: string;
+  previousStatus?: string;
+  newStatus?: string;
 }
 
 /**
@@ -136,9 +165,9 @@ export class ValidatePostDataStep implements SagaStep {
   readonly id = "validate-post-data";
   readonly name = "Validate Post Data";
 
-  async execute(context: SagaContext, data?: any): Promise<SagaStepResult> {
+  async execute(context: SagaContext, data?: StepExecuteData): Promise<SagaStepResult> {
     try {
-      const { postData } = data || {};
+      const postData = data?.postData;
 
       if (!postData?.body) {
         return {
@@ -177,17 +206,18 @@ export class CreatePostStep implements SagaStep {
   readonly id = "create-post";
   readonly name = "Create Post";
 
-  constructor(private executeCommand: (command: Command) => Promise<any>) {}
+  constructor(private executeCommand: (command: Command) => Promise<unknown>) {}
 
-  async execute(context: SagaContext, data?: any): Promise<SagaStepResult> {
+  async execute(context: SagaContext, data?: StepExecuteData): Promise<SagaStepResult> {
     try {
       const validationData = context.stepData["validate-post-data"] as ValidateStepData | undefined;
       const postData = validationData?.validatedData || data?.postData;
+      const aggregateId = data?.postId || `post-${Date.now()}`;
 
-      const createCommand = {
+      const createCommand: Command = {
         id: `cmd-create-post-${Date.now()}`,
         type: "post.create",
-        aggregateId: data?.postId || `post-${Date.now()}`,
+        aggregateId,
         aggregateType: "Post",
         data: postData,
         metadata: {
@@ -198,12 +228,12 @@ export class CreatePostStep implements SagaStep {
         timestamp: new Date(),
       };
 
-      const result = await this.executeCommand(createCommand);
+      const result = (await this.executeCommand(createCommand)) as CommandResult;
 
       if (!result.success) {
         return {
           success: false,
-          error: result.error,
+          ...(result.error !== undefined && { error: result.error }),
         };
       }
 
@@ -226,15 +256,18 @@ export class CreatePostStep implements SagaStep {
     }
   }
 
-  async compensate(context: SagaContext, compensationData?: any): Promise<SagaStepResult> {
+  async compensate(context: SagaContext, compensationData?: unknown): Promise<SagaStepResult> {
     try {
-      const { postId } = compensationData || context.stepData[this.id];
+      const compData = (compensationData || context.stepData[this.id]) as
+        | CreateStepData
+        | undefined;
+      const postId = compData?.postId;
 
       if (!postId) {
         return { success: true }; // Nothing to compensate
       }
 
-      const deleteCommand = {
+      const deleteCommand: Command = {
         id: `cmd-delete-post-${Date.now()}`,
         type: "post.delete",
         aggregateId: postId,
@@ -273,7 +306,7 @@ export class SchedulePublishingJobsStep implements SagaStep {
     private cancelJob?: (jobId: string) => Promise<boolean>
   ) {}
 
-  async execute(context: SagaContext, data?: any): Promise<SagaStepResult> {
+  async execute(context: SagaContext, data?: StepExecuteData): Promise<SagaStepResult> {
     try {
       const createData = context.stepData["create-post"] as CreateStepData | undefined;
       const postId = createData?.postId || data?.postId;
@@ -286,7 +319,9 @@ export class SchedulePublishingJobsStep implements SagaStep {
       }
 
       const validationData = context.stepData["validate-post-data"] as ValidateStepData | undefined;
-      const { channelIds, scheduledAt } = validationData?.validatedData || data;
+      const resolved = validationData?.validatedData || data?.postData;
+      const channelIds = resolved?.channelIds || [];
+      const scheduledAt = resolved?.scheduledAt;
 
       const jobIds: string[] = [];
 
@@ -323,9 +358,12 @@ export class SchedulePublishingJobsStep implements SagaStep {
     }
   }
 
-  async compensate(context: SagaContext, compensationData?: any): Promise<SagaStepResult> {
+  async compensate(context: SagaContext, compensationData?: unknown): Promise<SagaStepResult> {
     try {
-      const { jobIds } = compensationData || context.stepData[this.id];
+      const compData = (compensationData || context.stepData[this.id]) as
+        | ScheduleStepData
+        | undefined;
+      const jobIds = compData?.jobIds;
 
       if (!jobIds || jobIds.length === 0) {
         return { success: true }; // Nothing to compensate
@@ -437,9 +475,9 @@ export class UpdatePostStatusStep implements SagaStep {
   readonly id = "update-post-status";
   readonly name = "Update Post Status";
 
-  constructor(private executeCommand: (command: Command) => Promise<any>) {}
+  constructor(private executeCommand: (command: Command) => Promise<unknown>) {}
 
-  async execute(context: SagaContext, _data?: any): Promise<SagaStepResult> {
+  async execute(context: SagaContext, _data?: unknown): Promise<SagaStepResult> {
     try {
       const createData = context.stepData["create-post"] as CreateStepData | undefined;
       const completionData = context.stepData["wait-publishing-completion"] as
@@ -458,14 +496,14 @@ export class UpdatePostStatusStep implements SagaStep {
 
       const newStatus = publishingSuccess ? "PUBLISHED" : "FAILED";
 
-      const updateCommand = {
+      const updateCommand: Command = {
         id: `cmd-update-post-status-${Date.now()}`,
         type: "post.update",
         aggregateId: postId,
         aggregateType: "Post",
         data: {
           status: newStatus,
-          publishedAt: publishingSuccess ? new Date() : undefined,
+          ...(publishingSuccess && { publishedAt: new Date() }),
         },
         metadata: {
           ...(context.userId && { userId: context.userId }),
@@ -475,12 +513,12 @@ export class UpdatePostStatusStep implements SagaStep {
         timestamp: new Date(),
       };
 
-      const result = await this.executeCommand(updateCommand);
+      const result = (await this.executeCommand(updateCommand)) as CommandResult;
 
       if (!result.success) {
         return {
           success: false,
-          error: result.error,
+          ...(result.error !== undefined && { error: result.error }),
         };
       }
 
@@ -503,15 +541,19 @@ export class UpdatePostStatusStep implements SagaStep {
     }
   }
 
-  async compensate(context: SagaContext, compensationData?: any): Promise<SagaStepResult> {
+  async compensate(context: SagaContext, compensationData?: unknown): Promise<SagaStepResult> {
     try {
-      const { postId, previousStatus } = compensationData || context.stepData[this.id];
+      const compData = (compensationData || context.stepData[this.id]) as
+        | StatusCompensationData
+        | undefined;
+      const postId = compData?.postId;
+      const previousStatus = compData?.previousStatus;
 
       if (!postId || !previousStatus) {
         return { success: true }; // Nothing to compensate
       }
 
-      const revertCommand = {
+      const revertCommand: Command = {
         id: `cmd-revert-post-status-${Date.now()}`,
         type: "post.update",
         aggregateId: postId,

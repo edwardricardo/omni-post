@@ -182,20 +182,59 @@ Routes → Application → Domain ← (never imports from) → Infrastructure
 
 ## Unit of Work
 
-**Aggregate persistence + event dispatch must be atomic. Always use UoW for mutations.**
+**Every mutating use case MUST use UoW. No exceptions for new code.**
+
+All 56 mutating use cases in the project use Unit of Work. New mutating use cases
+must follow the same pattern. Queries (read-only) do not need UoW.
 
 ```typescript
-// Every mutating use case follows this pattern:
-await this.unitOfWork.execute(async (uow) => {
-  const post = await uow.postRepository.findById(id);
-  post.scheduleForPublishing(scheduledTime);
-  await uow.postRepository.save(post);
-  await uow.outboxWriter.write(post.pullEvents());
-});
+// Required pattern for ALL mutating use cases:
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+
+export class MyUseCase {
+  constructor(
+    private readonly someRepository: SomeRepository,
+    private readonly unitOfWork?: UnitOfWork // LAST param, optional for tests
+  ) {}
+
+  async execute(input: Input): Promise<Result<Output, UseCaseError>> {
+    // Validation, domain logic...
+
+    const doWork = async (): Promise<Result<Output, UseCaseError>> => {
+      // ALL repo writes + event dispatch go here
+      await this.someRepository.save(aggregate);
+      return ok(output);
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<Output, UseCaseError> = ok(undefined) as Result<Output, UseCaseError>;
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
+      return err(
+        new UseCaseError(
+          "...",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
+  }
+}
 ```
 
-- Never `repository.save()` + `eventDispatcher.dispatch()` as two separate calls
-- `PrismaUnitOfWork` wraps both writes in a **single `$transaction()`**
+### UoW Rules
+
+- **Never** write to a repository outside of `executeInTransaction` in production code
+- **Never** put external API calls (provider APIs, email, etc.) inside the transaction — only DB writes
+- UoW parameter is `optional` for backward compatibility in unit tests
+- DI container MUST pass `container.resolve<UnitOfWork>(TOKENS.UnitOfWork)` to every mutating use case
+- `PrismaUnitOfWork` uses `AsyncLocalStorage` — repositories auto-detect the active transaction via `PrismaUnitOfWork.getTransactionClient()`
 
 ---
 

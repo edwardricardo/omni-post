@@ -298,8 +298,8 @@ export class EventService extends BaseService {
         status: "healthy" | "unhealthy";
         details: {
           initialized: boolean;
-          eventStore: any;
-          publisher: any;
+          eventStore: unknown;
+          publisher: unknown;
           handlersCount: number;
         };
       },
@@ -340,7 +340,7 @@ export class EventService extends BaseService {
       {
         handlersRegistered: number;
         eventTypes: string[];
-        publisherMetrics?: any;
+        publisherMetrics?: unknown;
       },
       string
     >
@@ -422,7 +422,7 @@ export function createPostEvent(
   eventType: string,
   postId: string,
   projectId: string,
-  data: any,
+  data: Record<string, unknown>,
   metadata: { userId?: string; source: string }
 ): DomainEvent {
   return createDomainEvent(
@@ -445,7 +445,7 @@ export function createChannelEvent(
   eventType: string,
   channelId: string,
   projectId: string,
-  data: any,
+  data: Record<string, unknown>,
   metadata: { userId?: string; source: string }
 ): DomainEvent {
   return createDomainEvent(
@@ -469,7 +469,7 @@ export function createUserActionEvent(
   action: string,
   resourceType: string,
   resourceId: string,
-  details?: Record<string, any>,
+  details?: Record<string, unknown>,
   sessionId?: string
 ): DomainEvent {
   return createDomainEvent(
@@ -500,7 +500,7 @@ export function createAnalyticsEvent(
   postId: string,
   channelId: string,
   provider: string,
-  metrics: any
+  metrics: Record<string, unknown>
 ): DomainEvent {
   return createDomainEvent(
     EVENT_TYPES.ANALYTICS_COLLECTED,

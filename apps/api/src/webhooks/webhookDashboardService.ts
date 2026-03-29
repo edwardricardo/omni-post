@@ -92,7 +92,7 @@ async function generateTimeline(
   timeRange: { start: Date; end: Date },
   provider?: Provider
 ): Promise<Array<{ timestamp: string; total: number; success: number; failed: number }>> {
-  const where: any = {
+  const where: Record<string, unknown> = {
     accountId,
     receivedAt: {
       gte: timeRange.start,
@@ -175,7 +175,7 @@ export class WebhookDashboardService extends BaseService {
       async () => {
         const timeRange = getTimeRange(query.timeRange);
 
-        const where: any = {
+        const where: Record<string, unknown> = {
           accountId,
           receivedAt: {
             gte: timeRange.start,
@@ -214,7 +214,14 @@ export class WebhookDashboardService extends BaseService {
           _avg: { processingTime: true },
         });
 
-        const byProvider: Record<string, any> = {};
+        interface ProviderMetrics {
+          total: number;
+          success: number;
+          failed: number;
+          successRate: number;
+          avgProcessingTime: number;
+        }
+        const byProvider: Record<string, ProviderMetrics> = {};
         for (const stat of providerStats) {
           if (!byProvider[stat.provider]) {
             byProvider[stat.provider] = {
@@ -226,20 +233,21 @@ export class WebhookDashboardService extends BaseService {
             };
           }
 
-          byProvider[stat.provider].total += stat._count.id;
+          const providerEntry = byProvider[stat.provider] as ProviderMetrics;
+          providerEntry.total += stat._count.id;
 
           if (stat.status === "COMPLETED") {
-            byProvider[stat.provider].success = stat._count.id;
-            byProvider[stat.provider].avgProcessingTime = stat._avg.processingTime || 0;
+            providerEntry.success = stat._count.id;
+            providerEntry.avgProcessingTime = stat._avg.processingTime || 0;
           } else if (stat.status === "FAILED" || stat.status === "DEAD_LETTER") {
-            byProvider[stat.provider].failed += stat._count.id;
+            providerEntry.failed += stat._count.id;
           }
         }
 
         // Calculate success rates
         Object.keys(byProvider).forEach((provider) => {
-          const data = byProvider[provider];
-          data.successRate = data.total > 0 ? (data.success / data.total) * 100 : 0;
+          const entry = byProvider[provider] as ProviderMetrics;
+          entry.successRate = entry.total > 0 ? (entry.success / entry.total) * 100 : 0;
         });
 
         // Get metrics by event type
@@ -283,7 +291,7 @@ export class WebhookDashboardService extends BaseService {
     return this.execute(
       { operation: "getRecentEvents", userId: accountId, metadata: { query } },
       async () => {
-        const where: any = { accountId };
+        const where: Record<string, unknown> = { accountId };
 
         if (query.provider) {
           where.provider = query.provider;
@@ -448,7 +456,7 @@ export class WebhookDashboardService extends BaseService {
     return this.execute(
       { operation: "getDeadLetterQueue", userId: accountId, metadata: { query } },
       async () => {
-        const where: any = {
+        const where: Record<string, unknown> = {
           provider: query.provider,
         };
 
@@ -545,7 +553,7 @@ export class WebhookDashboardService extends BaseService {
         // Future: add event back to BullMQ webhook processing queue for retry
 
         // Mark as resolved
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           resolvedAt: new Date(),
         };
         if (userId) {
@@ -568,7 +576,7 @@ export class WebhookDashboardService extends BaseService {
       async () => {
         const timeRange = getTimeRange(query.timeRange);
 
-        const where: any = {
+        const where: Record<string, unknown> = {
           accountId,
           receivedAt: {
             gte: timeRange.start,

@@ -14,6 +14,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
+import { authenticateMiddleware } from "../auth/authMiddleware.js";
 import type { GetBrandVoiceQuery } from "../application/brand-voice/GetBrandVoiceQuery.js";
 import type { UpsertBrandVoiceUseCase } from "../application/brand-voice/UpsertBrandVoiceUseCase.js";
 import type { DeleteBrandVoiceUseCase } from "../application/brand-voice/DeleteBrandVoiceUseCase.js";
@@ -124,19 +125,39 @@ export const brandVoiceRoutes: FastifyPluginAsync = async (app) => {
     app.container.resolve<DeleteBrandVoiceUseCase>(TOKENS.DeleteBrandVoiceUseCase)
   );
 
-  app.get("/api/ai/brand-voice", (request: FastifyRequest, reply: FastifyReply) =>
-    handler.get(request, reply)
+  app.get(
+    "/api/ai/brand-voice",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Brand Voice"], summary: "Get brand voice profiles" },
+    },
+    (request: FastifyRequest, reply: FastifyReply) => handler.get(request, reply)
   );
 
-  app.post("/api/ai/brand-voice", (request: FastifyRequest, reply: FastifyReply) =>
-    handler.upsert(request, reply)
+  app.post(
+    "/api/ai/brand-voice",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Brand Voice"], summary: "Create brand voice profile" },
+    },
+    (request: FastifyRequest, reply: FastifyReply) => handler.upsert(request, reply)
   );
 
-  app.put("/api/ai/brand-voice/:accountId", (request: FastifyRequest, reply: FastifyReply) =>
-    handler.upsert(request, reply)
+  app.put(
+    "/api/ai/brand-voice/:accountId",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Brand Voice"], summary: "Update brand voice profile" },
+    },
+    (request: FastifyRequest, reply: FastifyReply) => handler.upsert(request, reply)
   );
 
-  app.delete("/api/ai/brand-voice/:accountId", (request: FastifyRequest, reply: FastifyReply) =>
-    handler.delete(request, reply)
+  app.delete(
+    "/api/ai/brand-voice/:accountId",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Brand Voice"], summary: "Delete brand voice profile" },
+    },
+    (request: FastifyRequest, reply: FastifyReply) => handler.delete(request, reply)
   );
 };

@@ -3,17 +3,10 @@ import { AppError } from "../lib/errors/AppError.js";
 import { aiOrchestrator } from "./orchestrator.js";
 import type { ImageGenerationOptions, ImageGenerationResult, AIResponse } from "./types.js";
 
-interface Message {
-  role: string;
-  content: string;
-}
+import type { AIMessage, GenerationOptions as AIGenerateOptions } from "./types.js";
 
-interface GenerateOptions {
-  model?: string | undefined;
-  maxTokens?: number | undefined;
-  temperature?: number | undefined;
-  topP?: number | undefined;
-}
+type Message = AIMessage;
+type GenerateOptions = AIGenerateOptions;
 
 type AnalysisType = "sentiment" | "tone" | "readability" | "engagement";
 type VariationType = "tone" | "length" | "audience";
@@ -32,14 +25,14 @@ interface SmartAnalysisResult {
   content: string;
   platform: string;
   analysis: {
-    sentiment?: any;
-    tone?: any;
-    readability?: any;
-    engagement?: any;
+    sentiment?: unknown;
+    tone?: unknown;
+    readability?: unknown;
+    engagement?: unknown;
   };
-  optimization?: any;
-  prediction?: any;
-  variations?: any;
+  optimization?: unknown;
+  prediction?: unknown;
+  variations?: unknown;
   metadata: {
     providersUsed: string[];
     totalLatency: number;
@@ -141,9 +134,13 @@ export class AIService extends BaseService {
     });
   }
 
-  async predictPerformance(content: string, platform: string, historicalData?: any[]) {
+  async predictPerformance(content: string, platform: string, historicalData?: unknown[]) {
     return this.execute({ operation: "predictPerformance", metadata: { platform } }, async () => {
-      const result = await aiOrchestrator.predictPerformance(content, platform, historicalData);
+      const result = await aiOrchestrator.predictPerformance(
+        content,
+        platform,
+        historicalData as Record<string, unknown>[] | undefined
+      );
 
       if (!result.ok) {
         const errorMsg =

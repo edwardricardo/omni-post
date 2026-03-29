@@ -139,8 +139,12 @@ export class VideoProcessor {
 
         try {
           const probe = JSON.parse(output);
-          const videoStream = probe.streams.find((s: any) => s.codec_type === "video");
-          const audioStream = probe.streams.find((s: any) => s.codec_type === "audio");
+          const videoStream = probe.streams.find(
+            (s: Record<string, unknown>) => s.codec_type === "video"
+          );
+          const audioStream = probe.streams.find(
+            (s: Record<string, unknown>) => s.codec_type === "audio"
+          );
 
           if (!videoStream) {
             reject(new Error("No video stream found"));

@@ -55,28 +55,40 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   // ✅ Get dashboard statistics
   fastify.get(
     "/admin/dashboard/stats",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireAdmin],
+      schema: { tags: ["Admin Dashboard"], summary: "Get dashboard statistics" },
+    },
     async (request, reply) => handler.getStats(request, reply)
   );
 
   // ✅ Get account statistics for account management page
   fastify.get(
     "/admin/accounts/summary",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireAdmin],
+      schema: { tags: ["Admin Dashboard"], summary: "Get accounts summary" },
+    },
     async (request, reply) => handler.getAccountsSummary(request, reply)
   );
 
   // ✅ Get subscription statistics for subscription management page
   fastify.get(
     "/admin/subscriptions/summary",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireAdmin],
+      schema: { tags: ["Admin Dashboard"], summary: "Get subscriptions summary" },
+    },
     async (request, reply) => handler.getSubscriptionsSummary(request, reply)
   );
 
   // ✅ Get analytics overview data
   fastify.get(
     "/admin/analytics/overview",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    {
+      preHandler: [authenticateMiddleware, requireAdmin],
+      schema: { tags: ["Admin Dashboard"], summary: "Get analytics overview" },
+    },
     async (request, reply) => handler.getAnalyticsOverview(request, reply)
   );
 };

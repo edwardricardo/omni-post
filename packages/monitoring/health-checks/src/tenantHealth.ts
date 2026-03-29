@@ -79,6 +79,41 @@ export interface TenantAlertThresholds {
   integrationFailureHours: number;
 }
 
+/** Minimal interface for the database repository used by TenantHealthMonitor. */
+export interface TenantDbRepo {
+  getProjectsByAccount(tenantId: string): Promise<Result<Array<{ id: string }>, unknown>>;
+  listLogs(opts: { limit: number; offset: number }): Promise<
+    Result<
+      Array<{
+        channelId: string;
+        provider: string;
+        status: string;
+        createdAt: Date;
+      }>,
+      unknown
+    >
+  >;
+}
+
+/** Minimal interface for the queue adapter used by TenantHealthMonitor. */
+export interface TenantQueueAdapter {
+  health(): Promise<Result<{ waiting: number; active: number; failed: number }, unknown>>;
+}
+
+/**
+ * Minimal interface for the storage adapter used by TenantHealthMonitor.
+ * Storage metrics are not yet available in StoragePort, so this adapter
+ * is accepted but not queried for specific methods.
+ */
+export interface TenantStorageAdapter {}
+
+/** Minimal interface for the cache manager used by TenantHealthMonitor. */
+export interface TenantCacheManager {
+  get(
+    key: string
+  ): Promise<Result<{ remaining: number; resetTime: number; throttled: boolean } | null, unknown>>;
+}
+
 export class TenantHealthMonitor {
   private alerts = new Map<string, HealthAlert[]>(); // tenant -> alerts
   private readonly defaultThresholds: TenantAlertThresholds = {
@@ -92,10 +127,10 @@ export class TenantHealthMonitor {
   private readonly thresholds: TenantAlertThresholds;
 
   constructor(
-    private dbRepo: any,
-    private queueAdapter: any,
-    private storageAdapter: any,
-    private cacheManager: any,
+    private dbRepo: TenantDbRepo,
+    private queueAdapter: TenantQueueAdapter,
+    private storageAdapter: TenantStorageAdapter,
+    private cacheManager: TenantCacheManager,
     thresholds?: Partial<TenantAlertThresholds>
   ) {
     this.thresholds = {
@@ -180,8 +215,8 @@ export class TenantHealthMonitor {
         `Tenant health check completed for ${tenantId}/${projectId}: ${overallHealth} (score: ${score.toFixed(2)})`
       );
       return ok(metrics);
-    } catch (error: any) {
-      logger.error(`Tenant health check failed for ${tenantId}/${projectId}:`, error);
+    } catch (error: unknown) {
+      logger.error({ err: error }, `Tenant health check failed for ${tenantId}/${projectId}`);
       return err("NOT_FOUND");
     }
   }
@@ -232,7 +267,7 @@ export class TenantHealthMonitor {
         return err("ACCESS_DENIED");
       }
 
-      const project = projectsResult.value.find((p: any) => p.id === projectId);
+      const project = projectsResult.value.find((p) => p.id === projectId);
 
       if (!project) {
         return err("NOT_FOUND");
@@ -397,7 +432,7 @@ export class TenantHealthMonitor {
 
       // Filter logs from last 24 hours (client-side filtering due to interface limitations)
       const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const filteredLogs = recentLogs.value.filter((log: any) => log.createdAt >= last24Hours);
+      const filteredLogs = recentLogs.value.filter((log) => log.createdAt >= last24Hours);
 
       // Group by channel and analyze success/failure patterns
       const channelHealth = new Map<
@@ -600,10 +635,10 @@ export class TenantHealthMonitor {
 
 // Export factory function
 export function createTenantHealthMonitor(
-  dbRepo: any,
-  queueAdapter: any,
-  storageAdapter: any,
-  cacheManager: any,
+  dbRepo: TenantDbRepo,
+  queueAdapter: TenantQueueAdapter,
+  storageAdapter: TenantStorageAdapter,
+  cacheManager: TenantCacheManager,
   thresholds?: Partial<TenantAlertThresholds>
 ): TenantHealthMonitor {
   return new TenantHealthMonitor(dbRepo, queueAdapter, storageAdapter, cacheManager, thresholds);

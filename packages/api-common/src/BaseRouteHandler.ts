@@ -64,7 +64,7 @@ export interface OAuthErrorResponse {
   error: string;
   details?: string;
   retryable: boolean;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -150,7 +150,7 @@ export abstract class BaseRouteHandler {
     schemas: ValidationOptions
   ): Promise<Result<T, "VALIDATION_ERROR">> {
     try {
-      const validated: any = {};
+      const validated: Record<string, unknown> = {};
 
       if (schemas.body) {
         validated.body = schemas.body.parse(ctx.request.body);
@@ -283,7 +283,7 @@ export abstract class BaseRouteHandler {
     message: string,
     details?: unknown
   ): void {
-    this.logError(ctx, message, details as Record<string, any> | undefined);
+    this.logError(ctx, message, details as Record<string, unknown> | undefined);
 
     ctx.reply.code(statusCode).send({
       ok: false,
@@ -388,7 +388,7 @@ export abstract class BaseRouteHandler {
       retryable: false,
     };
 
-    const metadata: Record<string, any> = {
+    const metadata: Record<string, unknown> = {
       provider: context.provider,
       operation: context.operation,
       errorCode,
@@ -518,7 +518,7 @@ export abstract class BaseRouteHandler {
   /**
    * Log with context
    */
-  protected logInfo(ctx: RouteContext, message: string, meta?: Record<string, any>): void {
+  protected logInfo(ctx: RouteContext, message: string, meta?: Record<string, unknown>): void {
     logger.info({
       route: this.routeName,
       method: ctx.request.method,
@@ -533,7 +533,7 @@ export abstract class BaseRouteHandler {
   /**
    * Log errors with context
    */
-  protected logError(ctx: RouteContext, message: string, meta?: Record<string, any>): void {
+  protected logError(ctx: RouteContext, message: string, meta?: Record<string, unknown>): void {
     logger.error({
       route: this.routeName,
       method: ctx.request.method,
@@ -549,19 +549,25 @@ export abstract class BaseRouteHandler {
    * Extract user context from authenticated request
    */
   protected getUserContext(request: FastifyRequest): { userId?: string; tenantId?: string } {
-    const user = (request as any).user;
+    const user = (request as unknown as Record<string, unknown>).user as
+      | { id?: string; tenantId?: string }
+      | undefined;
     return {
-      userId: user?.id,
-      tenantId: user?.tenantId,
+      ...(user?.id !== undefined && { userId: user.id }),
+      ...(user?.tenantId !== undefined && { tenantId: user.tenantId }),
     };
   }
 
   /**
    * Parse pagination params
    */
-  protected parsePagination(query: any): { page: number; limit: number; offset: number } {
-    const page = Math.max(1, parseInt(query.page || "1", 10));
-    const limit = Math.min(100, Math.max(1, parseInt(query.limit || "20", 10)));
+  protected parsePagination(query: Record<string, unknown>): {
+    page: number;
+    limit: number;
+    offset: number;
+  } {
+    const page = Math.max(1, parseInt(String(query.page || "1"), 10));
+    const limit = Math.min(100, Math.max(1, parseInt(String(query.limit || "20"), 10)));
     const offset = (page - 1) * limit;
 
     return { page, limit, offset };

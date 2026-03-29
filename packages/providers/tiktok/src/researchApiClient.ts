@@ -157,7 +157,7 @@ export class TikTokResearchApiClient {
         );
       }
 
-      return response.data.data.map((hashtag: any) => ({
+      return response.data.data.map((hashtag: Record<string, unknown>) => ({
         hashtag: hashtag.hashtag,
         volume: hashtag.volume || 0,
         growth: hashtag.growth || 0,
@@ -222,7 +222,7 @@ export class TikTokResearchApiClient {
         );
       }
 
-      return response.data.data.map((video: any) => ({
+      return response.data.data.map((video: Record<string, unknown>) => ({
         videoId: video.video_id,
         authorId: video.author_id,
         authorName: video.author_name,
@@ -270,7 +270,7 @@ export class TikTokResearchApiClient {
     } = {}
   ): Promise<TikTokTrendingSound[]> {
     const apiCall = async (): Promise<TikTokTrendingSound[]> => {
-      const params: any = {
+      const params: Record<string, string | number | boolean> = {
         region: options.region || "US",
         category: options.category || "all",
         limit: options.limit || 50,
@@ -297,7 +297,7 @@ export class TikTokResearchApiClient {
         );
       }
 
-      return response.data.data.map((sound: any) => ({
+      return response.data.data.map((sound: Record<string, unknown>) => ({
         soundId: sound.sound_id,
         title: sound.title,
         author: sound.author,
@@ -361,19 +361,22 @@ export class TikTokResearchApiClient {
         );
       }
 
-      return response.data.data.map((keyword: any) => ({
-        keyword: keyword.keyword,
-        volume: keyword.volume || 0,
-        competition: keyword.competition || 0,
-        trend: keyword.trend || "stable",
-        relatedKeywords: keyword.related_keywords || [],
-        categoryScores: keyword.category_scores || {},
-        demographicBreakdown: {
-          age: keyword.demographic_breakdown?.age || {},
-          gender: keyword.demographic_breakdown?.gender || {},
-          location: keyword.demographic_breakdown?.location || {},
-        },
-      }));
+      return response.data.data.map((keyword: Record<string, unknown>) => {
+        const demographics = (keyword.demographic_breakdown || {}) as Record<string, unknown>;
+        return {
+          keyword: keyword.keyword,
+          volume: keyword.volume || 0,
+          competition: keyword.competition || 0,
+          trend: keyword.trend || "stable",
+          relatedKeywords: keyword.related_keywords || [],
+          categoryScores: keyword.category_scores || {},
+          demographicBreakdown: {
+            age: demographics.age || {},
+            gender: demographics.gender || {},
+            location: demographics.location || {},
+          },
+        };
+      });
     };
 
     return circuitBreaker.call("tiktok-research-api", "get-keyword-trends", apiCall, [], {
@@ -426,19 +429,22 @@ export class TikTokResearchApiClient {
         );
       }
 
-      return response.data.data.map((gap: any) => ({
-        topic: gap.topic,
-        opportunity: gap.opportunity || 0,
-        difficulty: gap.difficulty || 0,
-        suggestedHashtags: gap.suggested_hashtags || [],
-        suggestedFormats: gap.suggested_formats || [],
-        targetAudience: gap.target_audience || [],
-        competitorAnalysis: {
-          topCreators: gap.competitor_analysis?.top_creators || [],
-          averageEngagement: gap.competitor_analysis?.average_engagement || 0,
-          contentFrequency: gap.competitor_analysis?.content_frequency || 0,
-        },
-      }));
+      return response.data.data.map((gap: Record<string, unknown>) => {
+        const competitors = (gap.competitor_analysis || {}) as Record<string, unknown>;
+        return {
+          topic: gap.topic,
+          opportunity: gap.opportunity || 0,
+          difficulty: gap.difficulty || 0,
+          suggestedHashtags: gap.suggested_hashtags || [],
+          suggestedFormats: gap.suggested_formats || [],
+          targetAudience: gap.target_audience || [],
+          competitorAnalysis: {
+            topCreators: competitors.top_creators || [],
+            averageEngagement: competitors.average_engagement || 0,
+            contentFrequency: competitors.content_frequency || 0,
+          },
+        };
+      });
     };
 
     return circuitBreaker.call("tiktok-research-api", "get-content-gaps", apiCall, [], {
@@ -495,32 +501,37 @@ export class TikTokResearchApiClient {
         );
       }
 
-      return response.data.data.map((content: any) => ({
-        contentId: content.content_id,
-        type: content.type,
-        title: content.title,
-        description: content.description,
-        creator: content.creator,
-        viralMetrics: {
-          viralCoefficient: content.viral_metrics?.viral_coefficient || 0,
-          growthRate: content.viral_metrics?.growth_rate || 0,
-          peakEngagement: content.viral_metrics?.peak_engagement || 0,
-          sustainabilityScore: content.viral_metrics?.sustainability_score || 0,
-        },
-        characteristics: {
-          hooks: content.characteristics?.hooks || [],
-          format: content.characteristics?.format || "video",
-          duration: content.characteristics?.duration,
-          musicGenre: content.characteristics?.music_genre,
-          visualStyle: content.characteristics?.visual_style || [],
-        },
-        replicationGuide: {
-          keyElements: content.replication_guide?.key_elements || [],
-          timing: content.replication_guide?.timing || "anytime",
-          hashtags: content.replication_guide?.hashtags || [],
-          suggestedVariations: content.replication_guide?.suggested_variations || [],
-        },
-      }));
+      return response.data.data.map((content: Record<string, unknown>) => {
+        const viralMetrics = (content.viral_metrics || {}) as Record<string, unknown>;
+        const characteristics = (content.characteristics || {}) as Record<string, unknown>;
+        const replicationGuide = (content.replication_guide || {}) as Record<string, unknown>;
+        return {
+          contentId: content.content_id,
+          type: content.type,
+          title: content.title,
+          description: content.description,
+          creator: content.creator,
+          viralMetrics: {
+            viralCoefficient: viralMetrics.viral_coefficient || 0,
+            growthRate: viralMetrics.growth_rate || 0,
+            peakEngagement: viralMetrics.peak_engagement || 0,
+            sustainabilityScore: viralMetrics.sustainability_score || 0,
+          },
+          characteristics: {
+            hooks: characteristics.hooks || [],
+            format: characteristics.format || "video",
+            duration: characteristics.duration,
+            musicGenre: characteristics.music_genre,
+            visualStyle: characteristics.visual_style || [],
+          },
+          replicationGuide: {
+            keyElements: replicationGuide.key_elements || [],
+            timing: replicationGuide.timing || "anytime",
+            hashtags: replicationGuide.hashtags || [],
+            suggestedVariations: replicationGuide.suggested_variations || [],
+          },
+        };
+      });
     };
 
     return circuitBreaker.call("tiktok-research-api", "get-viral-content-analysis", apiCall, [], {
@@ -541,7 +552,7 @@ export class TikTokResearchApiClient {
   /**
    * Get circuit breaker status for TikTok Research API operations
    */
-  getCircuitBreakerStatus(): Record<string, any> {
+  getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }
 

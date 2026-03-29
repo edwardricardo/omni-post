@@ -49,7 +49,11 @@ export class YouTubePlaylistManager {
       ...(credentials.accessToken && { access_token: credentials.accessToken }),
     });
 
-    this.youtube = (google as any).youtube({
+    const youtubeFactory = (
+      google as unknown as Record<string, ((...args: unknown[]) => youtube_v3.Youtube) | undefined>
+    ).youtube;
+    if (!youtubeFactory) throw new Error("google.youtube factory not available");
+    this.youtube = youtubeFactory({
       version: "v3",
       auth: this.oauth2Client,
     });
@@ -62,7 +66,10 @@ export class YouTubePlaylistManager {
     const apiCall = async (): Promise<Playlist> => {
       await this.refreshTokenIfNeeded();
 
-      const response = (await (this.youtube as any).playlists.insert({
+      const yt = this.youtube as unknown as {
+        playlists: { insert: (...args: unknown[]) => Promise<unknown> };
+      };
+      const response = (await yt.playlists.insert({
         part: ["snippet", "status", "localizations"],
         requestBody: {
           snippet: {
@@ -131,7 +138,10 @@ export class YouTubePlaylistManager {
       }
       const currentSnippet = current.snippet!;
 
-      const response = (await (this.youtube as any).playlists.update({
+      const ytUpdate = this.youtube as unknown as {
+        playlists: { update: (...args: unknown[]) => Promise<unknown> };
+      };
+      const response = (await ytUpdate.playlists.update({
         part: ["snippet", "status"],
         requestBody: {
           id: playlistId,

@@ -18,7 +18,7 @@ export interface WebhookEventInput {
   eventType: string;
   eventId: string;
   signature: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   headers: Record<string, string>;
   accountId?: string;
   projectId?: string;
@@ -32,7 +32,7 @@ export interface WebhookEventInput {
 export interface WebhookProcessingResult {
   success: boolean;
   eventId: string;
-  normalizedData?: Record<string, any>;
+  normalizedData?: Record<string, unknown>;
   error?: string;
   retryAfter?: number;
 }
@@ -47,9 +47,9 @@ export interface WebhookProcessor {
     secret: string,
     headers?: Record<string, string>
   ): boolean;
-  parse(payload: Record<string, any>): Promise<{
+  parse(payload: Record<string, unknown>): Promise<{
     eventType: WebhookEventType;
-    normalizedData: Record<string, any>;
+    normalizedData: Record<string, unknown>;
     relatedEntities: {
       accountId?: string;
       projectId?: string;
@@ -57,5 +57,8 @@ export interface WebhookProcessor {
       channelId?: string;
     };
   }>;
-  process(normalizedData: Record<string, any>, relatedEntities: any): Promise<void>;
+  process(
+    normalizedData: Record<string, unknown>,
+    relatedEntities: Record<string, unknown>
+  ): Promise<void>;
 }

@@ -42,7 +42,7 @@ import {
 
 export class FacebookVideoProcessor {
   private apiClient: FacebookApiClient;
-  private processingQueue: Map<string, any> = new Map();
+  private processingQueue: Map<string, unknown> = new Map();
 
   constructor(apiClient: FacebookApiClient) {
     this.apiClient = apiClient;
@@ -226,7 +226,7 @@ export class FacebookVideoProcessor {
 
     try {
       const maxConcurrent = batchOptions.maxConcurrentJobs || 3;
-      const processingPromises: Promise<any>[] = [];
+      const processingPromises: Promise<unknown>[] = [];
 
       for (let i = 0; i < batchOptions.videos.length; i += maxConcurrent) {
         const batch = batchOptions.videos.slice(i, i + maxConcurrent);
@@ -341,7 +341,7 @@ export class FacebookVideoProcessor {
   // Private helpers
   // ============================================================
 
-  private async getVideoMetadata(videoUrl: string): Promise<any> {
+  private async getVideoMetadata(videoUrl: string): Promise<unknown> {
     try {
       const response = await fetch(videoUrl, { method: "HEAD" });
       const contentLength = response.headers.get("content-length");
@@ -360,7 +360,7 @@ export class FacebookVideoProcessor {
     }
   }
 
-  private validateVideoInput(metadata: any, options: VideoProcessingOptions): void {
+  private validateVideoInput(metadata: unknown, options: VideoProcessingOptions): void {
     if (options.maxDuration && metadata.duration > options.maxDuration) {
       throw AppError.validationFailed(
         `Video duration (${metadata.duration}s) exceeds maximum allowed (${options.maxDuration}s)`
@@ -376,8 +376,12 @@ export class FacebookVideoProcessor {
   private async performVideoProcessing(
     videoUrl: string,
     options: VideoProcessingOptions,
-    originalMetadata: any
-  ): Promise<any> {
+    originalMetadata: {
+      dimensions: { width: number; height: number };
+      duration: number;
+      format: string;
+    }
+  ): Promise<unknown> {
     const processedDimensions = calculateTargetDimensions(
       originalMetadata.dimensions,
       options.targetAspectRatio

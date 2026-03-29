@@ -135,7 +135,7 @@ export interface AIProvider {
   predictPerformance(
     content: string,
     platform: string,
-    historicalData?: any[]
+    historicalData?: unknown[]
   ): Promise<PerformancePrediction>;
   generateVariations(
     content: string,
@@ -187,7 +187,7 @@ export type AITask =
       data: { content: string; analysisType: "sentiment" | "tone" | "readability" | "engagement" };
     }
   | { type: "optimize"; data: { content: string; platform: string; brandVoice?: string } }
-  | { type: "predict"; data: { content: string; platform: string; historicalData?: any[] } }
+  | { type: "predict"; data: { content: string; platform: string; historicalData?: unknown[] } }
   | {
       type: "variations";
       data: { content: string; variationType: "tone" | "length" | "audience"; count: number };

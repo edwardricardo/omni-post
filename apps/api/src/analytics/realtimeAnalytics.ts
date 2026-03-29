@@ -61,7 +61,7 @@ export class RealtimeAnalyticsService extends BaseService {
   /**
    * Register WebSocket routes
    */
-  async registerWebSocketRoutes(fastify: FastifyInstance<any, any, any, any, any>): Promise<void> {
+  async registerWebSocketRoutes(fastify: FastifyInstance): Promise<void> {
     const websocketPlugin = await import("@fastify/websocket");
     await fastify.register(websocketPlugin.default);
 
@@ -182,7 +182,7 @@ export class RealtimeAnalyticsService extends BaseService {
    */
   private async handleSubscribe(
     connectionId: string,
-    data: { type: string; config: any }
+    data: { type: string; config: unknown }
   ): Promise<void> {
     const connection = this.connections.get(connectionId);
     if (!connection) return;
@@ -354,7 +354,15 @@ export class RealtimeAnalyticsService extends BaseService {
       });
 
       // Group by postId and provider
-      const latestMetrics = new Map<string, any>();
+      interface AnalyticsRecord {
+        views: number | null;
+        likes: number | null;
+        comments: number | null;
+        shares: number | null;
+        postId: string | null;
+        provider: string;
+      }
+      const latestMetrics = new Map<string, AnalyticsRecord>();
       analytics.forEach((a) => {
         const key = `${a.postId}:${a.provider}`;
         if (!latestMetrics.has(key)) {
@@ -363,7 +371,7 @@ export class RealtimeAnalyticsService extends BaseService {
       });
 
       // Calculate deltas and broadcast updates
-      for (const [key, analytics] of latestMetrics) {
+      for (const [key, analyticsRecord] of latestMetrics) {
         const splitKey = key.split(":");
         if (splitKey.length !== 2) continue;
         const [postId, provider] = splitKey;
@@ -375,11 +383,11 @@ export class RealtimeAnalyticsService extends BaseService {
           postId,
           provider,
           metrics: {
-            views: analytics.views || 0,
-            likes: analytics.likes || 0,
-            comments: analytics.comments || 0,
-            shares: analytics.shares || 0,
-            engagementRate: this.calculateEngagementRate(analytics),
+            views: analyticsRecord.views || 0,
+            likes: analyticsRecord.likes || 0,
+            comments: analyticsRecord.comments || 0,
+            shares: analyticsRecord.shares || 0,
+            engagementRate: this.calculateEngagementRate(analyticsRecord),
           },
         };
 
@@ -422,7 +430,7 @@ export class RealtimeAnalyticsService extends BaseService {
   /**
    * Send message to WebSocket client
    */
-  private sendMessage(socket: WebSocket.WebSocket, message: Record<string, any>): void {
+  private sendMessage(socket: WebSocket.WebSocket, message: Record<string, unknown>): void {
     try {
       if (socket.readyState === 1) {
         // WebSocket.OPEN
@@ -463,7 +471,9 @@ export class RealtimeAnalyticsService extends BaseService {
   private async authenticateWebSocket(request: FastifyRequest): Promise<{ id: string } | null> {
     try {
       // Try to get token from query parameter, header, or cookies
-      let token: string | undefined = (request.query as any)?.token;
+      let token: string | undefined = (request.query as Record<string, unknown>)?.token as
+        | string
+        | undefined;
 
       if (!token && request.headers?.authorization) {
         token = request.headers.authorization.replace("Bearer ", "");
@@ -485,21 +495,19 @@ export class RealtimeAnalyticsService extends BaseService {
       }
 
       const JWT_SECRET = getRequiredSecret("JWT_SECRET", "jwt-secret-dev-only");
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const decoded = jwt.verify(token, JWT_SECRET) as Record<string, unknown>;
+      const userId = typeof decoded?.userId === "string" ? decoded.userId : null;
 
-      if (!decoded || !decoded.userId) {
+      if (!userId) {
         analyticsLogger.info("Invalid token payload for WebSocket connection");
         return null;
       }
 
       // ✅ Phase 1: Verify account exists in database using repository
-      const accountResult = await this.accountRepository.findById(decoded.userId);
+      const accountResult = await this.accountRepository.findById(userId);
 
       if (!accountResult.ok) {
-        analyticsLogger.info(
-          { userId: decoded.userId },
-          "Account not found for WebSocket connection"
-        );
+        analyticsLogger.info({ userId }, "Account not found for WebSocket connection");
         return null;
       }
 
@@ -578,17 +586,21 @@ export class RealtimeAnalyticsService extends BaseService {
   /**
    * Trigger real-time update (called when new analytics data arrives)
    */
-  async triggerUpdate(postId: string, provider: string, metrics: any): Promise<void> {
+  async triggerUpdate(
+    postId: string,
+    provider: string,
+    metrics: Record<string, unknown>
+  ): Promise<void> {
     const realtimeMetrics: RealtimeMetrics = {
       timestamp: new Date(),
       postId,
       provider,
       metrics: {
-        views: metrics.views || 0,
-        likes: metrics.likes || 0,
-        comments: metrics.comments || 0,
-        shares: metrics.shares || 0,
-        engagementRate: metrics.engagementRate || 0,
+        views: (metrics.views as number) || 0,
+        likes: (metrics.likes as number) || 0,
+        comments: (metrics.comments as number) || 0,
+        shares: (metrics.shares as number) || 0,
+        engagementRate: (metrics.engagementRate as number) || 0,
       },
     };
 

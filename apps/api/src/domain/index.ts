@@ -27,5 +27,8 @@ export * from "./aggregates/index.js";
 // Domain Events (Sprint 5)
 export * from "./events/index.js";
 
+// Domain Services
+export * from "./services/index.js";
+
 // Repository Interfaces (Sprint 5)
 export * from "./repositories/index.js";

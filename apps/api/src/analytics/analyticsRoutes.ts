@@ -677,61 +677,91 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   const handler = new AnalyticsRouteHandler(prisma, threadAnalytics);
 
-  // ✅ Get project-level analytics summary (no auth required for read)
-  fastify.get("/analytics/project/:projectId", async (request, reply) =>
-    handler.getProjectAnalytics(request, reply)
+  // Get project-level analytics summary (no auth required for read)
+  fastify.get(
+    "/analytics/project/:projectId",
+    { schema: { tags: ["Analytics"], summary: "Get project analytics summary" } },
+    async (request, reply) => handler.getProjectAnalytics(request, reply)
   );
 
-  // ✅ Get detailed performance metrics for a specific thread
+  // Get detailed performance metrics for a specific thread
   fastify.get(
     "/threads/:threadId/performance",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Analytics"], summary: "Get thread performance metrics" },
+    },
     async (request, reply) => handler.getThreadPerformance(request, reply)
   );
 
-  // ✅ Compare thread performance vs single posts
+  // Compare thread performance vs single posts
   fastify.get(
     "/threads/compare",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Analytics"], summary: "Compare thread performance" },
+    },
     async (request, reply) => handler.compareThreads(request, reply)
   );
 
-  // ✅ Get engagement trends over time
+  // Get engagement trends over time
   fastify.get(
     "/engagement/trends",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Analytics"], summary: "Get engagement trends" },
+    },
     async (request, reply) => handler.getEngagementTrends(request, reply)
   );
 
-  // ✅ Get optimal posting times based on historical data
+  // Get optimal posting times based on historical data
   fastify.get(
     "/posts/best-times",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Analytics"], summary: "Get best posting times" },
+    },
     async (request, reply) => handler.getBestPostingTimes(request, reply)
   );
 
-  // ✅ Get geographic distribution of engagement
+  // Get geographic distribution of engagement
   fastify.get(
     "/engagement/geographic",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Analytics"], summary: "Get geographic analytics" },
+    },
     async (request, reply) => handler.getGeographicAnalytics(request, reply)
   );
 
-  // ✅ Compare performance of media vs text-only content
+  // Compare performance of media vs text-only content
   fastify.get(
     "/content/media-performance",
-    { preHandler: [authenticateMiddleware] },
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Analytics"], summary: "Get media performance analytics" },
+    },
     async (request, reply) => handler.getMediaPerformance(request, reply)
   );
 
-  // ✅ Get comprehensive analytics dashboard data
-  fastify.get("/dashboard", { preHandler: [authenticateMiddleware] }, async (request, reply) =>
-    handler.getDashboard(request, reply)
+  // Get comprehensive analytics dashboard data
+  fastify.get(
+    "/dashboard",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Analytics"], summary: "Get analytics dashboard" },
+    },
+    async (request, reply) => handler.getDashboard(request, reply)
   );
 
-  // ✅ Export analytics data in various formats
-  fastify.get("/export", { preHandler: [authenticateMiddleware] }, async (request, reply) =>
-    handler.exportAnalytics(request, reply)
+  // Export analytics data in various formats
+  fastify.get(
+    "/export",
+    {
+      preHandler: [authenticateMiddleware],
+      schema: { tags: ["Analytics"], summary: "Export analytics data" },
+    },
+    async (request, reply) => handler.exportAnalytics(request, reply)
   );
 };
 

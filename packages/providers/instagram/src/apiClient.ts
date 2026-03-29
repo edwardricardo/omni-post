@@ -124,9 +124,9 @@ export class InstagramApiClient {
             errorData.error?.message || errorText
           }`
         );
-        (error as any).status = response.status;
-        (error as any).statusText = response.statusText;
-        (error as any).errorData = errorData;
+        (error as unknown as Record<string, unknown>).status = response.status;
+        (error as unknown as Record<string, unknown>).statusText = response.statusText;
+        (error as unknown as Record<string, unknown>).errorData = errorData;
         throw error;
       }
 
@@ -194,7 +194,7 @@ export class InstagramApiClient {
   ): Promise<InstagramMediaContainer> {
     const url = `${this.baseUrl}/${this.credentials.userId}/media`;
 
-    const body: any = {
+    const body: Record<string, string> = {
       media_type: "STORIES",
       [mediaType === "VIDEO" ? "video_url" : "image_url"]: mediaUrl,
       access_token: this.credentials.accessToken,
@@ -217,7 +217,7 @@ export class InstagramApiClient {
   ): Promise<InstagramMediaContainer> {
     const url = `${this.baseUrl}/${this.credentials.userId}/media`;
 
-    const body: any = {
+    const body: Record<string, string> = {
       media_type: mediaType,
       media_url: mediaUrl,
       access_token: this.credentials.accessToken,
@@ -245,10 +245,10 @@ export class InstagramApiClient {
   ): Promise<InstagramMediaContainer> {
     const url = `${this.baseUrl}/${this.credentials.userId}/media`;
 
-    const body: any = {
+    const body: Record<string, string> = {
       media_type: "REELS",
       video_url: videoUrl,
-      share_to_feed: shareToFeed, // Share to main feed and Reels tab
+      share_to_feed: String(shareToFeed), // Share to main feed and Reels tab
       access_token: this.credentials.accessToken,
     };
 
@@ -291,7 +291,7 @@ export class InstagramApiClient {
     // Then create the carousel container
     const url = `${this.baseUrl}/${this.credentials.userId}/media`;
 
-    const body: any = {
+    const body: Record<string, string> = {
       media_type: "CAROUSEL",
       children: childContainers.join(","),
       access_token: this.credentials.accessToken,

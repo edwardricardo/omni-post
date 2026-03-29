@@ -152,7 +152,7 @@ Content: "${content}"`;
   async predictPerformance(
     content: string,
     platform: string,
-    historicalData?: any[]
+    historicalData?: unknown[]
   ): Promise<PerformancePrediction> {
     const prompt = `Research current ${platform} performance trends, algorithm preferences, and user behavior patterns. Estimate the likely performance of this content based on latest data and trends.
 

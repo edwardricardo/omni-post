@@ -1,5 +1,9 @@
 import { prisma } from "@infra/prisma";
-import { createWebhookJobProcessor, type WebhookJobProcessor } from "./webhookJobProcessor.js";
+import {
+  createWebhookJobProcessor,
+  type WebhookJobProcessor,
+  type WebhookJobData,
+} from "./webhookJobProcessor.js";
 import type { Provider, WebhookEventType } from "@infra/prisma";
 import Redis from "ioredis";
 import { webhookLogger } from "../lib/logger.js";
@@ -127,7 +131,10 @@ export class WebhookManager {
     const { secretKey: _secretKey, ...safeSubscription } = subscription;
     return {
       ...safeSubscription,
-      setupInstructions: this.generateSetupInstructions(subscription),
+      setupInstructions: this.generateSetupInstructions({
+        provider: subscription.provider,
+        verifyToken: subscription.verifyToken || "",
+      }),
     };
   }
 
@@ -173,7 +180,7 @@ export class WebhookManager {
   ) {
     const validated = UpdateWebhookSubscriptionSchema.parse(data);
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(validated)) {
       if (value !== undefined) {
         updateData[key] = value;
@@ -227,13 +234,13 @@ export class WebhookManager {
     eventType: WebhookEventType,
     eventId: string,
     signature: string,
-    payload: Record<string, any>,
+    payload: Record<string, unknown>,
     headers: Record<string, string>,
     accountId?: string,
     projectId?: string
   ): Promise<string> {
     // Add to job queue for asynchronous processing
-    const jobData: any = {
+    const jobData: WebhookJobData = {
       eventId,
       provider,
       eventType,
@@ -242,9 +249,9 @@ export class WebhookManager {
       signature,
       retryCount: 0,
       originalReceivedAt: new Date().toISOString(),
+      ...(accountId !== undefined && { accountId }),
+      ...(projectId !== undefined && { projectId }),
     };
-    if (accountId !== undefined) jobData.accountId = accountId;
-    if (projectId !== undefined) jobData.projectId = projectId;
 
     const jobId = await this.jobProcessor.addWebhookJob(jobData);
 
@@ -255,7 +262,7 @@ export class WebhookManager {
    * Get webhook processing statistics
    */
   async getProcessingStats(accountId: string, timeRange?: { start: Date; end: Date }) {
-    const where: any = { accountId };
+    const where: Record<string, unknown> = { accountId };
 
     if (timeRange) {
       where.receivedAt = {
@@ -303,7 +310,7 @@ export class WebhookManager {
    * Get statistics by provider
    */
   private async getStatsByProvider(accountId: string, timeRange?: { start: Date; end: Date }) {
-    const where: any = { accountId };
+    const where: Record<string, unknown> = { accountId };
 
     if (timeRange) {
       where.receivedAt = {
@@ -319,7 +326,15 @@ export class WebhookManager {
       _avg: { processingTime: true },
     });
 
-    const result: Record<string, any> = {};
+    interface ProviderStatEntry {
+      total: number;
+      completed: number;
+      failed: number;
+      processing: number;
+      avgProcessingTime: number;
+      [key: string]: number;
+    }
+    const result: Record<string, ProviderStatEntry> = {};
 
     for (const stat of stats) {
       if (!result[stat.provider]) {
@@ -332,11 +347,12 @@ export class WebhookManager {
         };
       }
 
-      result[stat.provider].total += stat._count.id;
-      result[stat.provider][stat.status.toLowerCase()] = stat._count.id;
+      const entry = result[stat.provider] as ProviderStatEntry;
+      entry.total += stat._count.id;
+      entry[stat.status.toLowerCase()] = stat._count.id;
 
       if (stat.status === "COMPLETED" && stat._avg.processingTime) {
-        result[stat.provider].avgProcessingTime = stat._avg.processingTime;
+        entry.avgProcessingTime = stat._avg.processingTime;
       }
     }
 
@@ -386,18 +402,18 @@ export class WebhookManager {
     for (const event of failedEvents) {
       try {
         // Add back to processing queue
-        const retryJobData: any = {
+        const retryJobData: WebhookJobData = {
           eventId: event.id,
           provider: event.provider,
           eventType: event.eventType,
-          payload: event.payload as Record<string, any>,
+          payload: event.payload as Record<string, unknown>,
           headers: event.headers as Record<string, string>,
           signature: event.signature,
           retryCount: 0, // Reset retry count for manual retry
           originalReceivedAt: event.receivedAt.toISOString(),
+          ...(event.accountId && { accountId: event.accountId }),
+          ...(event.projectId && { projectId: event.projectId }),
         };
-        if (event.accountId) retryJobData.accountId = event.accountId;
-        if (event.projectId) retryJobData.projectId = event.projectId;
 
         await this.jobProcessor.addWebhookJob(retryJobData);
 
@@ -445,11 +461,11 @@ export class WebhookManager {
   /**
    * Generate setup instructions for webhook subscription
    */
-  private generateSetupInstructions(subscription: any) {
+  private generateSetupInstructions(subscription: { provider: string; verifyToken: string }) {
     const baseUrl = process.env.API_BASE_URL || "https://your-api-domain.com";
     const webhookUrl = `${baseUrl}/webhooks/${subscription.provider.toLowerCase()}`;
 
-    const instructions: Record<string, any> = {
+    const instructions: Record<string, unknown> = {
       webhookUrl,
       provider: subscription.provider,
     };

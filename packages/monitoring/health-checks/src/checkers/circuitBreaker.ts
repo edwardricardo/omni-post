@@ -89,13 +89,13 @@ export class CircuitBreakerHealthChecker implements HealthChecker {
           services: serviceDetails,
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latency = Date.now() - startTime;
       return {
         status: "unhealthy",
         latency,
         message: "Circuit breaker health check failed",
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }

@@ -59,6 +59,12 @@ export type AdminRoleKind = "SUPER_ADMIN" | "ADMIN" | "SUPPORT";
  */
 export type MediaKindValue = "image" | "video" | "gif";
 
+/**
+ * SSO provider types.
+ * Mirrors the Prisma `SsoProvider` enum.
+ */
+export type SsoProviderKind = "NONE" | "SAML" | "OIDC";
+
 // ---------------------------------------------------------------------------
 // Core entity DTOs
 // ---------------------------------------------------------------------------
@@ -83,6 +89,8 @@ export interface AccountDto {
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   deletedAt: Date | null;
+  ssoEnabled: boolean;
+  ssoProvider: SsoProviderKind;
   createdAt: Date;
   updatedAt: Date;
 }

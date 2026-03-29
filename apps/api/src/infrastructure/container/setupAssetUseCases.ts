@@ -11,6 +11,7 @@ import { prisma } from "@infra/prisma";
 import { PrismaMediaAssetRepository } from "../repositories/PrismaMediaAssetRepository.js";
 import { PrismaAssetTagRepository } from "../repositories/PrismaAssetTagRepository.js";
 import { PrismaAssetFolderRepository } from "../repositories/PrismaAssetFolderRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import {
   CreateMediaAssetUseCase,
   UpdateMediaAssetUseCase,
@@ -20,6 +21,7 @@ import {
   CreateAssetTagUseCase,
   ListAssetTagsQuery,
   CreateAssetFolderUseCase,
+  ImportFromGoogleDriveUseCase,
 } from "../../application/assets/index.js";
 
 /**
@@ -38,27 +40,36 @@ export function setupAssetUseCases(container: Container): void {
   container.registerInstance(TOKENS.AssetFolderRepository, assetFolderRepo);
 
   // -- Use Cases --
+  const resolveUoW = (): UnitOfWork => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
+
   container.registerInstance(
     TOKENS.CreateMediaAssetUseCase,
-    new CreateMediaAssetUseCase(mediaAssetRepo)
+    new CreateMediaAssetUseCase(mediaAssetRepo, resolveUoW())
   );
   container.registerInstance(
     TOKENS.UpdateMediaAssetUseCase,
-    new UpdateMediaAssetUseCase(mediaAssetRepo)
+    new UpdateMediaAssetUseCase(mediaAssetRepo, resolveUoW())
   );
   container.registerInstance(
     TOKENS.DeleteMediaAssetUseCase,
-    new DeleteMediaAssetUseCase(mediaAssetRepo)
+    new DeleteMediaAssetUseCase(mediaAssetRepo, resolveUoW())
   );
   container.registerInstance(
     TOKENS.TagMediaAssetUseCase,
-    new TagMediaAssetUseCase(mediaAssetRepo, assetTagRepo)
+    new TagMediaAssetUseCase(mediaAssetRepo, assetTagRepo, resolveUoW())
   );
   container.registerInstance(TOKENS.GetMediaAssetsQuery, new GetMediaAssetsQuery(mediaAssetRepo));
-  container.registerInstance(TOKENS.CreateAssetTagUseCase, new CreateAssetTagUseCase(assetTagRepo));
+  container.registerInstance(
+    TOKENS.CreateAssetTagUseCase,
+    new CreateAssetTagUseCase(assetTagRepo, resolveUoW())
+  );
   container.registerInstance(TOKENS.ListAssetTagsQuery, new ListAssetTagsQuery(assetTagRepo));
   container.registerInstance(
     TOKENS.CreateAssetFolderUseCase,
-    new CreateAssetFolderUseCase(assetFolderRepo)
+    new CreateAssetFolderUseCase(assetFolderRepo, resolveUoW())
+  );
+  container.registerInstance(
+    TOKENS.ImportFromGoogleDriveUseCase,
+    new ImportFromGoogleDriveUseCase(mediaAssetRepo, resolveUoW())
   );
 }

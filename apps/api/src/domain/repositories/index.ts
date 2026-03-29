@@ -178,6 +178,54 @@ export { type AssetTagRepository, type AssetTagDTO } from "./AssetTagRepository.
 // AssetFolder repository port (Asset Library)
 export { type AssetFolderRepository, type AssetFolderDTO } from "./AssetFolderRepository.js";
 
+// Task repository port
+export { type TaskRepository, type TaskFilters } from "./TaskRepository.js";
+
+// Integration platform repository ports (Zapier, Make, etc.)
+export { type IntegrationApiKeyRepository } from "./IntegrationApiKeyRepository.js";
+export { type IntegrationSubscriptionRepository } from "./IntegrationSubscriptionRepository.js";
+
+// SAML SSO repository port
+export {
+  type SamlConfigurationRepository,
+  type SamlConfigurationData,
+} from "./SamlConfigurationRepository.js";
+
+// OIDC SSO repository port
+export {
+  type OidcConfigurationRepository,
+  type OidcConfigurationData,
+} from "./OidcConfigurationRepository.js";
+
+// Custom Report repository port (Custom Report Builder)
+export {
+  type CustomReportRepository,
+  type CustomReportDto,
+  type ReportScheduleDto,
+} from "./CustomReportRepository.js";
+
+// CRM repository ports
+export { type CrmConnectionRepository, type CrmConnectionData } from "./CrmConnectionRepository.js";
+
+export {
+  type CrmContactRepository,
+  type CrmContactData,
+  type UpsertCrmContactInput,
+} from "./CrmContactRepository.js";
+
+export {
+  type CrmActivityRepository,
+  type CrmActivityData,
+  type CreateCrmActivityInput,
+} from "./CrmActivityRepository.js";
+
+export {
+  type CrmSyncLogRepository,
+  type CrmSyncLogData,
+  type CreateCrmSyncLogInput,
+  type UpdateCrmSyncLogInput,
+} from "./CrmSyncLogRepository.js";
+
 // Plain domain DTOs — Prisma-free type mirrors for read-model ports
 export {
   type ProviderKind,
@@ -192,4 +240,5 @@ export {
   type ChannelDto,
   type AnalyticsDto,
   type AdminUserDto,
+  type SsoProviderKind,
 } from "./ReadModelDtos.js";

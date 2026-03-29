@@ -18,6 +18,7 @@ import {
   ApprovalRequestCreated,
   ApprovalRequestResolved,
   ApprovalRequestCancelled,
+  ApprovalLevelAdvanced,
 } from "../../../src/domain/aggregates/ApprovalRequestAggregate.js";
 import { ApprovalRequestId } from "../../../src/domain/value-objects/ApprovalRequestId.js";
 import { PostAggregate } from "../../../src/domain/aggregates/PostAggregate.js";
@@ -329,6 +330,7 @@ describe("ApprovalRequestAggregate", () => {
       reviewerId: REVIEWER_UUID,
       decision: ReviewDecision.approved(),
       comment: "LGTM",
+      level: 1,
       reviewedAt: now,
     };
 
@@ -338,6 +340,8 @@ describe("ApprovalRequestAggregate", () => {
       submitterId: VALID_UUID,
       status: ApprovalStatus.approved(),
       comment: "Initial comment",
+      currentLevel: 1,
+      totalLevels: 1,
       reviews: [review],
       createdAt: now,
       updatedAt: now,
@@ -352,6 +356,164 @@ describe("ApprovalRequestAggregate", () => {
     expect(aggregate.reviews.length).toBe(1);
     expect(aggregate.version).toBe(3);
     expect(aggregate.domainEvents.length).toBe(0);
+    expect(aggregate.currentLevel).toBe(1);
+    expect(aggregate.totalLevels).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Multi-Level Approval
+// ---------------------------------------------------------------------------
+
+describe("ApprovalRequestAggregate multi-level", () => {
+  const THIRD_REVIEWER_UUID = "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80";
+
+  function createMultiLevelRequest(totalLevels: number): ApprovalRequestAggregate {
+    const result = ApprovalRequestAggregate.create({
+      postId: VALID_UUID,
+      submitterId: VALID_UUID,
+      workflowId: "wf-001",
+      currentLevel: 1,
+      totalLevels,
+    });
+    expect(result.ok).toBeTruthy();
+    return result.value;
+  }
+
+  it("creates multi-level request with correct state", () => {
+    const aggregate = createMultiLevelRequest(3);
+    expect(aggregate.isMultiLevel).toBe(true);
+    expect(aggregate.currentLevel).toBe(1);
+    expect(aggregate.totalLevels).toBe(3);
+    expect(aggregate.workflowId).toBe("wf-001");
+  });
+
+  it("advances level on approval when not at last level", () => {
+    const aggregate = createMultiLevelRequest(3);
+    aggregate.clearDomainEvents();
+
+    const result = aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved());
+
+    expect(result.ok).toBeTruthy();
+    expect(aggregate.isPending).toBeTruthy();
+    expect(aggregate.currentLevel).toBe(2);
+    expect(aggregate.isApproved).toBeFalsy();
+
+    // Should emit ApprovalLevelAdvanced event
+    const advancedEvent = aggregate.domainEvents.find((e) => e instanceof ApprovalLevelAdvanced);
+    expect(advancedEvent).toBeTruthy();
+
+    // Should NOT emit ApprovalRequestResolved event
+    const resolvedEvent = aggregate.domainEvents.find((e) => e instanceof ApprovalRequestResolved);
+    expect(resolvedEvent).toBeFalsy();
+  });
+
+  it("fully approves on last level", () => {
+    const aggregate = createMultiLevelRequest(2);
+    aggregate.clearDomainEvents();
+
+    // Level 1 approval -- advances to level 2
+    const result1 = aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved());
+    expect(result1.ok).toBeTruthy();
+    expect(aggregate.currentLevel).toBe(2);
+    expect(aggregate.isPending).toBeTruthy();
+
+    // Level 2 approval -- final approval
+    const result2 = aggregate.addReview(SECOND_REVIEWER_UUID, ReviewDecision.approved());
+    expect(result2.ok).toBeTruthy();
+    expect(aggregate.isApproved).toBeTruthy();
+
+    const resolvedEvent = aggregate.domainEvents.find((e) => e instanceof ApprovalRequestResolved);
+    expect(resolvedEvent).toBeTruthy();
+  });
+
+  it("rejects at any level terminates the request", () => {
+    const aggregate = createMultiLevelRequest(3);
+    aggregate.clearDomainEvents();
+
+    // Level 1 approval -- advances to level 2
+    aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved());
+    expect(aggregate.currentLevel).toBe(2);
+
+    // Level 2 rejection -- terminates immediately
+    const result = aggregate.addReview(
+      SECOND_REVIEWER_UUID,
+      ReviewDecision.rejected(),
+      "Bad content"
+    );
+    expect(result.ok).toBeTruthy();
+    expect(aggregate.isRejected).toBeTruthy();
+    expect(aggregate.isTerminal).toBeTruthy();
+  });
+
+  it("reviews include the correct level number", () => {
+    const aggregate = createMultiLevelRequest(3);
+
+    // Level 1 review
+    aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved());
+    expect(aggregate.reviews[0]?.level).toBe(1);
+
+    // Level 2 review
+    aggregate.addReview(SECOND_REVIEWER_UUID, ReviewDecision.approved());
+    expect(aggregate.reviews[1]?.level).toBe(2);
+
+    // Level 3 review (final)
+    aggregate.addReview(THIRD_REVIEWER_UUID, ReviewDecision.approved());
+    expect(aggregate.reviews[2]?.level).toBe(3);
+    expect(aggregate.isApproved).toBeTruthy();
+  });
+
+  it("single-level request maintains backward compatibility", () => {
+    const aggregate = createPendingApprovalRequest();
+    expect(aggregate.isMultiLevel).toBe(false);
+    expect(aggregate.currentLevel).toBe(1);
+    expect(aggregate.totalLevels).toBe(1);
+
+    const result = aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved());
+    expect(result.ok).toBeTruthy();
+    expect(aggregate.isApproved).toBeTruthy();
+  });
+
+  it("toJSON includes multi-level fields", () => {
+    const aggregate = createMultiLevelRequest(3);
+    const json = aggregate.toJSON();
+
+    expect(json.workflowId).toBe("wf-001");
+    expect(json.currentLevel).toBe(1);
+    expect(json.totalLevels).toBe(3);
+  });
+
+  it("reconstitutes multi-level aggregate correctly", () => {
+    const id = ApprovalRequestId.generate();
+    const now = new Date();
+
+    const aggregate = ApprovalRequestAggregate.reconstitute({
+      id,
+      postId: VALID_UUID,
+      submitterId: VALID_UUID,
+      status: ApprovalStatus.pending(),
+      workflowId: "wf-002",
+      currentLevel: 2,
+      totalLevels: 3,
+      reviews: [
+        {
+          id: "rev-1",
+          reviewerId: REVIEWER_UUID,
+          decision: ReviewDecision.approved(),
+          level: 1,
+          reviewedAt: now,
+        },
+      ],
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+    });
+
+    expect(aggregate.workflowId).toBe("wf-002");
+    expect(aggregate.currentLevel).toBe(2);
+    expect(aggregate.totalLevels).toBe(3);
+    expect(aggregate.isMultiLevel).toBe(true);
+    expect(aggregate.reviews[0]?.level).toBe(1);
   });
 });
 

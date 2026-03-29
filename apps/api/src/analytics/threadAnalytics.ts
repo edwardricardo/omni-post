@@ -327,7 +327,7 @@ export class ThreadAnalytics {
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
       // Build where clause
-      const whereClause: any = {
+      const whereClause: Record<string, unknown> = {
         createdAt: { gte: startDate },
       };
 
@@ -445,7 +445,7 @@ export class ThreadAnalytics {
     }>
   > {
     try {
-      const whereClause: any = {};
+      const whereClause: Record<string, unknown> = {};
 
       if (projectId) {
         whereClause.post = { projectId };

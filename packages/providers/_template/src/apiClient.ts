@@ -83,8 +83,8 @@ export class ProviderApiClient {
         const error = new Error(
           `Provider API Error: ${response.status} ${response.statusText} - ${errorText}`
         );
-        (error as any).status = response.status;
-        (error as any).statusText = response.statusText;
+        (error as unknown as Record<string, unknown>).status = response.status;
+        (error as unknown as Record<string, unknown>).statusText = response.statusText;
         throw error;
       }
 
@@ -121,8 +121,8 @@ export class ProviderApiClient {
   /**
    * Validate credentials by calling the provider's auth endpoint
    */
-  async validateCredentials(): Promise<{ valid: boolean; user?: any }> {
-    return this.makeRequest<{ valid: boolean; user?: any }>(
+  async validateCredentials(): Promise<{ valid: boolean; user?: unknown }> {
+    return this.makeRequest<{ valid: boolean; user?: unknown }>(
       "validate-credentials",
       `${this.baseUrl}/auth/me`, // Adjust endpoint
       { method: "GET" }
@@ -135,9 +135,9 @@ export class ProviderApiClient {
   async postContent(
     text: string,
     mediaIds: string[] = [],
-    options?: any
+    options?: Record<string, unknown>
   ): Promise<ProviderPostResponse> {
-    const postData: any = { text };
+    const postData: Record<string, unknown> = { text };
 
     if (mediaIds.length > 0) {
       postData.media_ids = mediaIds; // Adjust field name
@@ -244,7 +244,7 @@ export class ProviderApiClient {
   /**
    * Get circuit breaker status for provider API operations
    */
-  getCircuitBreakerStatus(): Record<string, any> {
+  getCircuitBreakerStatus(): Record<string, unknown> {
     return circuitBreaker.getAllStatuses();
   }
 
