@@ -436,8 +436,8 @@ importers:
         specifier: 3.6.1
         version: 3.6.1(@tiptap/pm@3.6.1)
       '@tiptap/extension-character-count':
-        specifier: 3.6.1
-        version: 3.6.1(@tiptap/extensions@3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))
+        specifier: 3.21.0
+        version: 3.21.0(@tiptap/extensions@3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))
       '@tiptap/extension-color':
         specifier: 3.6.1
         version: 3.6.1(@tiptap/extension-text-style@3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1)))
@@ -1553,8 +1553,8 @@ importers:
         specifier: 3.6.1
         version: 3.6.1(@tiptap/pm@3.6.1)
       '@tiptap/extension-character-count':
-        specifier: 3.6.1
-        version: 3.6.1(@tiptap/extensions@3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))
+        specifier: 3.21.0
+        version: 3.21.0(@tiptap/extensions@3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))
       '@tiptap/extension-placeholder':
         specifier: 3.6.1
         version: 3.6.1(@tiptap/extensions@3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))
@@ -3904,6 +3904,7 @@ packages:
   '@opentelemetry/instrumentation-fastify@0.57.0':
     resolution: {integrity: sha512-D+rwRtbiOediYocpKGvY/RQTpuLsLdCVwaOREyqWViwItJGibWI7O/wgd9xIV63pMP0D9IdSy27wnARfUaotKg==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Deprecated in favor of @fastify/otel, maintained by the Fastify authors.
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
 
@@ -5956,10 +5957,10 @@ packages:
     peerDependencies:
       '@tiptap/extension-list': ^3.6.1
 
-  '@tiptap/extension-character-count@3.6.1':
-    resolution: {integrity: sha512-7D1etVbA9g2e9aDWfbPEZPTprjYr+YQgcfeUNTWFJDRPrzWLgv0R6HOAr4fEmAvgFLXegnn+VXv5pcMfj8kK0g==}
+  '@tiptap/extension-character-count@3.21.0':
+    resolution: {integrity: sha512-qLWpWYnldBIbFme/BEp9obFLlORNnRJ51nIdH71GynG8CbtWF1dBvvafHLszjDxxQpyBBTC5fwXvQVSVcolTtw==}
     peerDependencies:
-      '@tiptap/extensions': ^3.6.1
+      '@tiptap/extensions': ^3.21.0
 
   '@tiptap/extension-code-block@3.6.1':
     resolution: {integrity: sha512-9UFxNYUZHFH0lr1ionpPEJgfMpsaE6RpeBLTGotCh3Ls4Qmd//1wKS/H5fm1T74rLFVrRaPCAQXEB7tPWZbfng==}
@@ -6568,6 +6569,7 @@ packages:
   '@xmldom/xmldom@0.8.11':
     resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
@@ -17217,7 +17219,7 @@ snapshots:
     dependencies:
       '@tiptap/extension-list': 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)
 
-  '@tiptap/extension-character-count@3.6.1(@tiptap/extensions@3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))':
+  '@tiptap/extension-character-count@3.21.0(@tiptap/extensions@3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))':
     dependencies:
       '@tiptap/extensions': 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)
 
