@@ -14,10 +14,10 @@
  *
  * Usage:
  *   fetch("/api/backend/posts")        -> GET  http://localhost:3000/posts
- *   fetch("/api/backend/auth/me")      -> GET  http://localhost:3000/auth/me
- *   fetch("/api/backend/auth/login")   -> POST http://localhost:3000/auth/login
+ *   fetch("/api/backend/auth/customer/me")      -> GET  http://localhost:3000/auth/customer/me
+ *   fetch("/api/backend/auth/customer/login")   -> POST http://localhost:3000/auth/customer/login
  *
- * Cookie: "session" (httpOnly, secure in production, sameSite=lax)
+ * Cookie: "customer-session" (httpOnly, secure in production, sameSite=lax)
  *
  * @module app/api/backend/[...path]/route
  */
@@ -29,16 +29,16 @@ const API_URL = process.env.API_URL ?? "http://localhost:3000";
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 // Session cookie configuration
-const SESSION_COOKIE_NAME = "session";
+const SESSION_COOKIE_NAME = "customer-session";
 const SESSION_MAX_AGE = 15 * 60; // 15 minutes (matches typical JWT access token TTL)
-const REFRESH_COOKIE_NAME = "client-refresh";
+const REFRESH_COOKIE_NAME = "customer-refresh";
 const REFRESH_MAX_AGE = 7 * 24 * 60 * 60; // 7 days
 
-// Auth paths that require special cookie handling
-const AUTH_LOGIN_PATH = "auth/login";
-const AUTH_REFRESH_PATH = "auth/refresh";
-const AUTH_LOGOUT_PATH = "auth/logout";
-const AUTH_REGISTER_PATH = "auth/register";
+// Auth paths that require special cookie handling (CustomerUser endpoints)
+const AUTH_LOGIN_PATH = "auth/customer/login";
+const AUTH_REFRESH_PATH = "auth/customer/refresh";
+const AUTH_LOGOUT_PATH = "auth/customer/logout";
+const AUTH_REGISTER_PATH = "auth/customer/register";
 
 /**
  * Set an httpOnly session cookie with the access token

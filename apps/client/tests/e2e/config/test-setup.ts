@@ -32,7 +32,7 @@ export class TestDataHelper {
       role,
     };
 
-    await this.page.request.post("/api/auth/register", {
+    await this.page.request.post("/api/auth/customer/register", {
       data: userData,
     });
 

@@ -65,18 +65,51 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: "Platform",
+    title: "Social",
     items: [
-      { label: "Accounts", href: "/accounts", icon: Users },
-      { label: "Subscriptions", href: "/subscriptions", icon: CreditCard },
-      { label: "Executive", href: "/executive", icon: TrendingUp },
+      { label: "Inbox", href: "/inbox", icon: Inbox },
+      { label: "Approvals", href: "/approvals", icon: CheckSquare },
     ],
   },
   {
-    title: "Operations",
+    title: "Content",
     items: [
+      { label: "Library", href: "/content/library", icon: Library },
+      { label: "Templates", href: "/content/templates", icon: FileText },
+      { label: "New Post", href: "/posts/new", icon: FilePlus },
+    ],
+  },
+  {
+    title: "AI",
+    items: [
+      { label: "Generate", href: "/ai/generate", icon: Sparkles },
+      { label: "Analytics", href: "/ai/analytics", icon: BrainCircuit },
+      { label: "Optimizer", href: "/ai/optimizer", icon: Gauge },
+    ],
+  },
+  {
+    title: "Scheduling",
+    items: [
+      { label: "Calendar", href: "/scheduling", icon: CalendarDays },
+      { label: "Queue", href: "/queue", icon: ListOrdered },
+    ],
+  },
+  {
+    title: "Analytics",
+    items: [
+      { label: "Overview", href: "/analytics", icon: BarChart3 },
+      { label: "Insights", href: "/analytics/insights", icon: Lightbulb },
+    ],
+  },
+  {
+    title: "Admin",
+    items: [
+      { label: "Accounts", href: "/accounts", icon: Users },
+      { label: "Channels", href: "/channels", icon: Link2 },
+      { label: "Subscriptions", href: "/subscriptions", icon: CreditCard },
       { label: "Security", href: "/security", icon: ShieldCheck },
       { label: "Compliance", href: "/compliance", icon: ClipboardCheck },
+      { label: "Executive", href: "/executive", icon: TrendingUp },
       { label: "Logs", href: "/logs", icon: ScrollText },
       { label: "Webhooks", href: "/webhooks", icon: Webhook },
     ],

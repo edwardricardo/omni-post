@@ -12,7 +12,10 @@
     "paths": {
       "@/*": ["./*"],
       "@shared/types": ["../../packages/shared/src/index.ts"],
-      "@shared/types/*": ["../../packages/shared/src/*"]
+      "@shared/types/*": ["../../packages/shared/src/*"],
+      "@providers/instagram/*": ["../../packages/providers/instagram/*"],
+      "@packages/ui": ["../../packages/ui/src/index.ts"],
+      "@packages/ui/*": ["../../packages/ui/src/*"]
     },
     "plugins": [
       {

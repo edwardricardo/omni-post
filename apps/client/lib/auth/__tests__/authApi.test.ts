@@ -34,7 +34,7 @@ describe("authApi.login", () => {
     vi.clearAllMocks();
   });
 
-  it("sends credentials as JSON to /api/backend/auth/login", async () => {
+  it("sends credentials as JSON to /api/backend/auth/customer/login", async () => {
     mockFetch.mockResolvedValue(
       mockJsonResponse({
         data: {
@@ -47,7 +47,7 @@ describe("authApi.login", () => {
     await authApi.login({ email: "a@b.com", password: "pass123" });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/backend/auth/login",
+      "/api/backend/auth/customer/login",
       expect.objectContaining({
         method: "POST",
         credentials: "include",
@@ -166,7 +166,7 @@ describe("authApi.register", () => {
     vi.clearAllMocks();
   });
 
-  it("sends registration data to /api/backend/auth/register", async () => {
+  it("sends registration data to /api/backend/auth/customer/register", async () => {
     mockFetch.mockResolvedValue(
       mockJsonResponse({ user: { id: "u1", email: "a@b.com", name: "Alice" } })
     );
@@ -174,7 +174,7 @@ describe("authApi.register", () => {
     await authApi.register({ email: "a@b.com", password: "pass123", name: "Alice" });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/backend/auth/register",
+      "/api/backend/auth/customer/register",
       expect.objectContaining({
         method: "POST",
         credentials: "include",
@@ -204,13 +204,13 @@ describe("authApi.logout", () => {
     vi.clearAllMocks();
   });
 
-  it("sends POST to /api/backend/auth/logout", async () => {
+  it("sends POST to /api/backend/auth/customer/logout", async () => {
     mockFetch.mockResolvedValue(mockJsonResponse({}));
 
     await authApi.logout();
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/backend/auth/logout",
+      "/api/backend/auth/customer/logout",
       expect.objectContaining({
         method: "POST",
         credentials: "include",
@@ -238,13 +238,13 @@ describe("authApi.refreshToken", () => {
     vi.clearAllMocks();
   });
 
-  it("sends POST to /api/backend/auth/refresh", async () => {
+  it("sends POST to /api/backend/auth/customer/refresh", async () => {
     mockFetch.mockResolvedValue(mockJsonResponse({ data: { expiresAt: "2025-12-31" } }));
 
     await authApi.refreshToken();
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/backend/auth/refresh",
+      "/api/backend/auth/customer/refresh",
       expect.objectContaining({
         method: "POST",
         credentials: "include",
@@ -282,14 +282,14 @@ describe("authApi.getCurrentUser", () => {
     vi.clearAllMocks();
   });
 
-  it("sends GET to /api/backend/auth/me", async () => {
+  it("sends GET to /api/backend/auth/customer/me", async () => {
     const user = { id: "u1", email: "a@b.com", name: "Alice", createdAt: "", updatedAt: "" };
     mockFetch.mockResolvedValue(mockJsonResponse({ ok: true, data: { user } }));
 
     await authApi.getCurrentUser();
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/backend/auth/me",
+      "/api/backend/auth/customer/me",
       expect.objectContaining({
         method: "GET",
         credentials: "include",
@@ -323,13 +323,13 @@ describe("authApi.updateProfile", () => {
     vi.clearAllMocks();
   });
 
-  it("sends PATCH to /api/backend/auth/profile", async () => {
+  it("sends PATCH to /api/backend/auth/customer/profile", async () => {
     mockFetch.mockResolvedValue(mockJsonResponse({ id: "u1", name: "Updated" }));
 
     await authApi.updateProfile({ name: "Updated" });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/backend/auth/profile",
+      "/api/backend/auth/customer/profile",
       expect.objectContaining({
         method: "PATCH",
         credentials: "include",
@@ -405,13 +405,13 @@ describe("authApi.resendVerificationEmail", () => {
     vi.clearAllMocks();
   });
 
-  it("sends POST to /api/backend/auth/verify-email/resend", async () => {
+  it("sends POST to /api/backend/auth/customer/verify-email/resend", async () => {
     mockFetch.mockResolvedValue(mockJsonResponse({}));
 
     await authApi.resendVerificationEmail();
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/backend/auth/verify-email/resend",
+      "/api/backend/auth/customer/verify-email/resend",
       expect.objectContaining({
         method: "POST",
         credentials: "include",

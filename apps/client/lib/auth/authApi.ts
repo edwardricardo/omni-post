@@ -4,16 +4,16 @@
  * All auth calls go through the Next.js backend proxy at /api/backend/
  * which handles httpOnly cookie management. The browser NEVER sees JWTs.
  *
- * - Login:    POST /api/backend/auth/login   -> sets session cookie server-side
- * - Logout:   POST /api/backend/auth/logout  -> clears session cookie server-side
- * - Refresh:  POST /api/backend/auth/refresh -> rotates session cookie server-side
- * - Me:       GET  /api/backend/auth/me      -> proxy injects Bearer from cookie
+ * - Login:    POST /api/backend/auth/customer/login   -> sets session cookie server-side
+ * - Logout:   POST /api/backend/auth/customer/logout  -> clears session cookie server-side
+ * - Refresh:  POST /api/backend/auth/customer/refresh -> rotates session cookie server-side
+ * - Me:       GET  /api/backend/auth/customer/me      -> proxy injects Bearer from cookie
  *
  * @module lib/auth/authApi
  */
 
 // All requests go through the Next.js proxy -- no direct backend access
-const PROXY_BASE = "/api/backend/auth";
+const PROXY_BASE = "/api/backend/auth/customer";
 
 export interface User {
   id: string;
@@ -190,8 +190,9 @@ class AuthAPI {
     });
 
     // Handle both { data: { user } } and { user } response shapes
-    const data = (result as any).data ?? result;
-    return data.user ?? data;
+    const resultObj = result as unknown as Record<string, unknown>;
+    const data = (resultObj.data as Record<string, unknown> | undefined) ?? resultObj;
+    return (data.user as User | undefined) ?? (data as unknown as User);
   }
 
   /**

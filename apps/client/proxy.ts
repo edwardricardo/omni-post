@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check for session cookie (set by Server Actions)
-  const session = request.cookies.get("session");
+  const session = request.cookies.get("customer-session");
 
   // Allow public paths
   if (publicPaths.includes(pathname)) {

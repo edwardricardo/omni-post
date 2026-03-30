@@ -31,7 +31,7 @@ export async function loginAction(
   try {
     // Call backend API
     const apiUrl = process.env.API_URL || "http://localhost:3000";
-    const response = await fetch(`${apiUrl}/auth/login`, {
+    const response = await fetch(`${apiUrl}/auth/customer/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -58,7 +58,7 @@ export async function loginAction(
 
     // Set session cookie (Next.js 15 - async cookies)
     const cookieStore = await cookies();
-    cookieStore.set("session", accessToken, {
+    cookieStore.set("customer-session", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -107,13 +107,24 @@ export async function registerAction(
   try {
     const apiUrl = process.env.API_URL || "http://localhost:3000";
 
-    // Register user
-    const registerResponse = await fetch(`${apiUrl}/auth/register`, {
+    // Derive customer registration fields from the name
+    const firstName = name.split(" ")[0] || name;
+    const lastName = name.split(" ").slice(1).join(" ") || name;
+
+    // Register customer user
+    const registerResponse = await fetch(`${apiUrl}/auth/customer/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({
+        accountName: name,
+        accountEmail: email,
+        firstName,
+        lastName,
+        email,
+        password,
+      }),
       credentials: "include",
     });
 
@@ -127,7 +138,7 @@ export async function registerAction(
     }
 
     // Auto-login after registration
-    const loginResponse = await fetch(`${apiUrl}/auth/login`, {
+    const loginResponse = await fetch(`${apiUrl}/auth/customer/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -151,7 +162,7 @@ export async function registerAction(
 
     // Set session cookie
     const cookieStore = await cookies();
-    cookieStore.set("session", accessToken, {
+    cookieStore.set("customer-session", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

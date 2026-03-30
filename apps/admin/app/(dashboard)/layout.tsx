@@ -14,7 +14,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { SidebarNav } from "@/components/shared/SidebarNav";
-import { NotificationBell } from "@/components/notifications";
 import { verifyAccessToken } from "@/lib/auth/backend-client";
 import { ProjectProvider } from "@/providers/ProjectProvider";
 
@@ -42,7 +41,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <div className="flex justify-between items-center">
               <h1 className="text-xl font-semibold text-gray-900">OmniPost Admin</h1>
               <div className="flex items-center gap-3">
-                <NotificationBell />
                 <span className="text-sm text-gray-600">
                   {user.name}{" "}
                   <span className="text-xs text-gray-400 capitalize">({user.role})</span>
