@@ -390,6 +390,13 @@ export const TOKENS = {
 
   // Inbox Sync (Sprint Gaps — Batch 3)
   DispatchInboxSyncUseCase: Symbol.for("DispatchInboxSyncUseCase"),
+
+  // Payment Billing (Sprint 6 — Batch 5)
+  PaymentAdapter: Symbol.for("PaymentAdapter"),
+
+  // Report Sharing (Sprint 6 — Batch 3)
+  EnableReportSharingUseCase: Symbol.for("EnableReportSharingUseCase"),
+  DisableReportSharingUseCase: Symbol.for("DisableReportSharingUseCase"),
 } as const;
 
 /**

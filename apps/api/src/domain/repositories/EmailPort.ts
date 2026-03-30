@@ -24,6 +24,7 @@ export interface SendEmailOptions {
   to: string[];
   subject: string;
   body: string;
+  html?: string;
   attachments?: EmailAttachment[];
 }
 

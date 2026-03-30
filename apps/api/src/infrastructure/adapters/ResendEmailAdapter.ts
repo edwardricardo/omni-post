@@ -53,6 +53,7 @@ export class ResendEmailAdapter implements EmailPort {
         to: options.to,
         subject: options.subject,
         text: options.body,
+        ...(options.html !== undefined && { html: options.html }),
       };
 
       if (attachments && attachments.length > 0) {

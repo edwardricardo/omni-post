@@ -8,12 +8,14 @@
  * sub-sections live in dedicated child components.
  */
 
-import React from "react";
+import React, { useState, useCallback } from "react";
 import type { SchedulingDashboardProps } from "./schedulingDashboardTypes";
 import { useSchedulingDashboard } from "./useSchedulingDashboard";
 import { SchedulingDashboardSidebar } from "./SchedulingDashboardSidebar";
 import { SchedulingDashboardCalendar } from "./SchedulingDashboardCalendar";
 import { SchedulingDashboardPostModal } from "./SchedulingDashboardPostModal";
+import { WeekCalendar } from "./WeekCalendar";
+import { DayCalendar } from "./DayCalendar";
 
 export function SchedulingDashboard({
   projectId,
@@ -44,6 +46,32 @@ export function SchedulingDashboard({
     filters,
     setFilters,
   } = useSchedulingDashboard({ projectId, accountId, onPostCancelled, onError });
+
+  const [weekDate, setWeekDate] = useState(currentDate);
+  const [dayDate, setDayDate] = useState(currentDate);
+
+  const navigateWeek = useCallback((direction: "prev" | "next") => {
+    setWeekDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + (direction === "next" ? 7 : -7));
+      return d;
+    });
+  }, []);
+
+  const navigateDay = useCallback((direction: "prev" | "next") => {
+    setDayDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + (direction === "next" ? 1 : -1));
+      return d;
+    });
+  }, []);
+
+  const goToTodayWeek = useCallback(() => {
+    setWeekDate(new Date());
+  }, []);
+  const goToTodayDay = useCallback(() => {
+    setDayDate(new Date());
+  }, []);
 
   return (
     <div className="scheduling-dashboard h-screen flex flex-col bg-gray-50">
@@ -155,15 +183,30 @@ export function SchedulingDashboard({
             />
           )}
 
-          {/* Other view modes placeholder */}
-          {view !== "month" && (
+          {view === "week" && (
+            <WeekCalendar
+              currentDate={weekDate}
+              posts={filteredPosts}
+              onPostClick={handlePostClick}
+              onWeekNavigate={navigateWeek}
+              onToday={goToTodayWeek}
+            />
+          )}
+
+          {view === "day" && (
+            <DayCalendar
+              currentDate={dayDate}
+              posts={filteredPosts}
+              onPostClick={handlePostClick}
+              onDayNavigate={navigateDay}
+              onToday={goToTodayDay}
+            />
+          )}
+
+          {view === "list" && (
             <div className="flex-1 flex items-center justify-center text-gray-500">
               <div className="text-center">
-                <div className="text-4xl mb-4">{"\u{1F6A7}"}</div>
-                <div className="text-lg font-medium">Coming Soon</div>
-                <div className="text-sm">
-                  {view.charAt(0).toUpperCase() + view.slice(1)} view is under development
-                </div>
+                <div className="text-lg font-medium">List view coming soon</div>
               </div>
             </div>
           )}

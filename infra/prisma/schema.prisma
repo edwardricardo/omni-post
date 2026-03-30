@@ -2489,6 +2489,9 @@ model CustomReport {
   chartType      ReportChartType @default(LINE)
   filters        Json?
   isShared       Boolean         @default(false)
+  shareToken     String?         @unique
+  shareEnabled   Boolean         @default(false)
+  shareExpiresAt DateTime?
   createdById    String
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
