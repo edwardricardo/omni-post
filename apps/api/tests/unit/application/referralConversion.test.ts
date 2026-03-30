@@ -1,0 +1,174 @@
+/**
+ * @file referralConversion.test.ts
+ * @description Unit tests for ConvertReferralUseCase and GrantReferralRewardUseCase.
+ * @layer test
+ */
+
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import assert from "node:assert/strict";
+import { ConvertReferralUseCase } from "../../../src/application/referral/ConvertReferralUseCase.js";
+import { GrantReferralRewardUseCase } from "../../../src/application/referral/GrantReferralRewardUseCase.js";
+import { ok } from "@shared/types";
+
+function makeMockConvertRepo(
+  pending: { id: string; referralCodeId: string; status: string } | null = {
+    id: "ref-1",
+    referralCodeId: "code-1",
+    status: "PENDING",
+  }
+) {
+  return {
+    findPendingByAccountId: vi.fn().mockResolvedValue(pending),
+    setConverted: vi.fn().mockResolvedValue(undefined),
+    incrementConversions: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function makeMockGrantReward() {
+  return {
+    execute: vi
+      .fn()
+      .mockResolvedValue(ok({ rewardedAccountId: "acc-referrer", newExpiry: new Date() })),
+  };
+}
+
+describe("ConvertReferralUseCase", () => {
+  let repo: ReturnType<typeof makeMockConvertRepo>;
+  let grantReward: ReturnType<typeof makeMockGrantReward>;
+  let useCase: ConvertReferralUseCase;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repo = makeMockConvertRepo();
+    grantReward = makeMockGrantReward();
+    useCase = new ConvertReferralUseCase(repo, grantReward);
+  });
+
+  it("converts PENDING referral to CONVERTED", async () => {
+    const result = await useCase.execute({ accountId: "acc-new" });
+
+    assert.ok(result.ok);
+    assert.strictEqual(result.value.converted, true);
+    expect(repo.setConverted).toHaveBeenCalledWith("ref-1", expect.any(Date));
+  });
+
+  it("increments ReferralCode.conversions", async () => {
+    await useCase.execute({ accountId: "acc-new" });
+
+    expect(repo.incrementConversions).toHaveBeenCalledWith("code-1");
+  });
+
+  it("triggers GrantReferralRewardUseCase", async () => {
+    await useCase.execute({ accountId: "acc-new" });
+
+    expect(grantReward.execute).toHaveBeenCalledWith({ referralId: "ref-1" });
+  });
+
+  it("returns converted: false when no PENDING referral exists", async () => {
+    repo = makeMockConvertRepo(null);
+    useCase = new ConvertReferralUseCase(repo, grantReward);
+
+    const result = await useCase.execute({ accountId: "unknown" });
+
+    assert.ok(result.ok);
+    assert.strictEqual(result.value.converted, false);
+    expect(repo.setConverted).not.toHaveBeenCalled();
+  });
+
+  it("returns converted: false when referral already CONVERTED", async () => {
+    repo = makeMockConvertRepo({ id: "ref-1", referralCodeId: "code-1", status: "CONVERTED" });
+    useCase = new ConvertReferralUseCase(repo, grantReward);
+
+    const result = await useCase.execute({ accountId: "acc-old" });
+
+    assert.ok(result.ok);
+    assert.strictEqual(result.value.converted, false);
+  });
+});
+
+describe("GrantReferralRewardUseCase", () => {
+  const now = Date.now();
+  const futureDate = new Date(now + 15 * 24 * 60 * 60 * 1000);
+
+  function makeMockGrantRepo(overrides: Record<string, unknown> = {}) {
+    return {
+      findReferralById: vi.fn().mockResolvedValue({
+        id: "ref-1",
+        referralCodeId: "code-1",
+        rewardGranted: false,
+        status: "CONVERTED",
+        ...overrides,
+      }),
+      findReferrerAccountId: vi.fn().mockResolvedValue("acc-referrer"),
+      findSubscription: vi.fn().mockResolvedValue({
+        id: "sub-1",
+        status: "ACTIVE",
+        currentPeriodEnd: futureDate,
+        trialEndsAt: null,
+      }),
+      extendSubscription: vi.fn().mockResolvedValue(undefined),
+      extendTrial: vi.fn().mockResolvedValue(undefined),
+      setRewardGranted: vi.fn().mockResolvedValue(undefined),
+    };
+  }
+
+  it("extends ACTIVE subscription by 30 days", async () => {
+    const grantRepo = makeMockGrantRepo();
+    const useCase = new GrantReferralRewardUseCase(grantRepo);
+
+    const result = await useCase.execute({ referralId: "ref-1" });
+
+    assert.ok(result.ok);
+    expect(grantRepo.extendSubscription).toHaveBeenCalledOnce();
+    const newEnd = grantRepo.extendSubscription.mock.calls[0]?.[1] as Date;
+    const expectedEnd = futureDate.getTime() + 30 * 24 * 60 * 60 * 1000;
+    assert.ok(Math.abs(newEnd.getTime() - expectedEnd) < 1000);
+  });
+
+  it("extends TRIALING subscription by extending trialEndsAt", async () => {
+    const trialEnd = new Date(now + 5 * 24 * 60 * 60 * 1000);
+    const grantRepo = makeMockGrantRepo();
+    grantRepo.findSubscription.mockResolvedValue({
+      id: "sub-1",
+      status: "TRIALING",
+      currentPeriodEnd: null,
+      trialEndsAt: trialEnd,
+    });
+    const useCase = new GrantReferralRewardUseCase(grantRepo);
+
+    const result = await useCase.execute({ referralId: "ref-1" });
+
+    assert.ok(result.ok);
+    expect(grantRepo.extendTrial).toHaveBeenCalledOnce();
+  });
+
+  it("sets referral.rewardGranted = true", async () => {
+    const grantRepo = makeMockGrantRepo();
+    const useCase = new GrantReferralRewardUseCase(grantRepo);
+
+    await useCase.execute({ referralId: "ref-1" });
+
+    expect(grantRepo.setRewardGranted).toHaveBeenCalledWith("ref-1");
+  });
+
+  it("does not reward twice if rewardGranted is already true", async () => {
+    const grantRepo = makeMockGrantRepo({ rewardGranted: true });
+    const useCase = new GrantReferralRewardUseCase(grantRepo);
+
+    const result = await useCase.execute({ referralId: "ref-1" });
+
+    assert.ok(result.ok);
+    expect(grantRepo.extendSubscription).not.toHaveBeenCalled();
+    expect(grantRepo.setRewardGranted).not.toHaveBeenCalled();
+  });
+
+  it("returns NOT_FOUND when referral does not exist", async () => {
+    const grantRepo = makeMockGrantRepo();
+    grantRepo.findReferralById.mockResolvedValue(null);
+    const useCase = new GrantReferralRewardUseCase(grantRepo);
+
+    const result = await useCase.execute({ referralId: "nope" });
+
+    assert.ok(!result.ok);
+  });
+});
