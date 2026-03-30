@@ -29,6 +29,7 @@ import {
   ListTodo,
   ClipboardList,
   Megaphone,
+  Puzzle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -47,6 +48,7 @@ const navigation = [
   { name: "Tasks", href: "/dashboard/tasks", icon: ClipboardList },
   { name: "Queue", href: "/dashboard/queue", icon: ListTodo },
   { name: "Channels", href: "/dashboard/channels", icon: Share2 },
+  { name: "Integrations", href: "/dashboard/integrations", icon: Puzzle },
   { name: "Settings", href: "/dashboard/settings/brand-voice", icon: Settings },
 ];
 

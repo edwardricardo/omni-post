@@ -67,11 +67,9 @@ model Account {
   mediaAssets            MediaAsset[]
   assetFolders           AssetFolder[]
   assetTags              AssetTag[]
-  // @@index([subscription]) - REMOVED: Low cardinality (only 3 values)
-  // @@index([createdAt]) - REMOVED: Rarely queried alone
-  // @@index([updatedAt]) - REMOVED: Rarely queried alone
+  accountSubscription    AccountSubscription?
+  referralCode           ReferralCode?
 
-  // @@index([email]) - REMOVED: Already unique indexed
   @@index([isOnTrial, trialEndDate])
   @@index([nextBillingDate])
   @@index([deletedAt])
@@ -2698,4 +2696,147 @@ model AssetTagOnAsset {
   tag   AssetTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([assetId, tagId])
+}
+
+// ─── Provider-Based Billing (Sprint 8) ──────────────────────────────────────
+
+model ProviderPricingTier {
+  id                    String   @id @default(cuid())
+  minProviders          Int
+  maxProviders          Int?
+  pricePerProviderMonth Decimal  @db.Decimal(10, 2)
+  isActive              Boolean  @default(true)
+  effectiveFrom         DateTime @default(now())
+  createdAt             DateTime @default(now())
+
+  @@index([minProviders, isActive])
+}
+
+model AccountPricingTier {
+  id            String   @id @default(cuid())
+  minAccounts   Int
+  maxAccounts   Int?
+  multiplier    Decimal  @db.Decimal(4, 3)
+  isActive      Boolean  @default(true)
+  effectiveFrom DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([minAccounts, isActive])
+}
+
+model ProviderBundle {
+  id                   String     @id @default(cuid())
+  name                 String
+  slug                 String     @unique
+  description          String
+  providers            Provider[]
+  pricePerAccountMonth Decimal    @db.Decimal(10, 2)
+  isActive             Boolean    @default(true)
+  sortOrder            Int        @default(0)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  subscriptions    AccountSubscription[]
+  featureFlags     BundleFeatureFlag[]
+}
+
+model BundleFeatureFlag {
+  id         String          @id @default(cuid())
+  bundleId   String?
+  featureKey String
+  isEnabled  Boolean         @default(true)
+
+  bundle     ProviderBundle? @relation(fields: [bundleId], references: [id])
+
+  @@unique([bundleId, featureKey])
+}
+
+model AccountSubscription {
+  id                     String             @id @default(cuid())
+  accountId              String             @unique
+  bundleId               String?
+  providers              Provider[]
+  accountCount           Int                @default(1)
+  pricePerMonth          Decimal            @db.Decimal(10, 2)
+  status                 SubscriptionStatus @default(TRIALING)
+  externalSubscriptionId String?
+  externalCustomerId     String?
+  billingCycle           BillingCycle       @default(MONTHLY)
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  trialEndsAt            DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  account Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  bundle  ProviderBundle? @relation(fields: [bundleId], references: [id])
+  history SubscriptionPriceHistory[]
+
+  @@index([status])
+}
+
+model SubscriptionPriceHistory {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  previousPrice  Decimal  @db.Decimal(10, 2)
+  newPrice       Decimal  @db.Decimal(10, 2)
+  reason         String
+  effectiveAt    DateTime
+  notifiedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  subscription AccountSubscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId])
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  GRANDFATHERED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+// ─── Referral Program (Sprint 8) ────────────────────────────────────────────
+
+model ReferralCode {
+  id          String     @id @default(cuid())
+  accountId   String     @unique
+  code        String     @unique
+  usageCount  Int        @default(0)
+  conversions Int        @default(0)
+  createdAt   DateTime   @default(now())
+
+  account     Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  referrals   Referral[]
+}
+
+model Referral {
+  id                String         @id @default(cuid())
+  referralCodeId    String
+  referredAccountId String?
+  referredEmail     String
+  status            ReferralStatus @default(PENDING)
+  rewardGranted     Boolean        @default(false)
+  convertedAt       DateTime?
+  createdAt         DateTime       @default(now())
+
+  referralCode      ReferralCode   @relation(fields: [referralCodeId], references: [id])
+
+  @@index([referralCodeId])
+  @@index([referredAccountId])
+}
+
+enum ReferralStatus {
+  PENDING
+  CONVERTED
+  REWARDED
+  EXPIRED
 }
