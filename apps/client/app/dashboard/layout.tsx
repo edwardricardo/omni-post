@@ -28,6 +28,7 @@ import {
   Share2,
   ListTodo,
   ClipboardList,
+  Megaphone,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -39,9 +40,10 @@ const navigation = [
   { name: "Inbox", href: "/dashboard/inbox", icon: Inbox },
   { name: "Scheduling", href: "/dashboard/scheduling", icon: Calendar },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+  { name: "Campaigns", href: "/dashboard/campaigns", icon: Megaphone },
   { name: "AI", href: "/dashboard/ai/generate", icon: Sparkles },
   { name: "Approvals", href: "/dashboard/approvals", icon: CheckCircle },
-  { name: "Assets", href: "/dashboard/content/library", icon: Image },
+  { name: "Assets", href: "/dashboard/assets", icon: Image },
   { name: "Tasks", href: "/dashboard/tasks", icon: ClipboardList },
   { name: "Queue", href: "/dashboard/queue", icon: ListTodo },
   { name: "Channels", href: "/dashboard/channels", icon: Share2 },
