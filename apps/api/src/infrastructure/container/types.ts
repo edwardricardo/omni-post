@@ -397,6 +397,12 @@ export const TOKENS = {
   // Report Sharing (Sprint 6 — Batch 3)
   EnableReportSharingUseCase: Symbol.for("EnableReportSharingUseCase"),
   DisableReportSharingUseCase: Symbol.for("DisableReportSharingUseCase"),
+
+  // AI Differentiation (Sprint 7)
+  TopPerformersQueryPort: Symbol.for("TopPerformersQueryPort"),
+  GetTopPerformersContextUseCase: Symbol.for("GetTopPerformersContextUseCase"),
+  GeneratePlatformVariantsUseCase: Symbol.for("GeneratePlatformVariantsUseCase"),
+  GenerateContentCalendarUseCase: Symbol.for("GenerateContentCalendarUseCase"),
 } as const;
 
 /**

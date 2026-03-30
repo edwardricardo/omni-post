@@ -39,6 +39,11 @@ import { IngestChannelAnalyticsUseCase } from "../../application/analytics/Inges
 import { DispatchAnalyticsIngestionUseCase } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
 import { PrismaAnalyticsWriteRepository } from "../repositories/PrismaAnalyticsWriteRepository.js";
 import { PrismaChannelQueryForIngestion } from "../repositories/PrismaChannelQueryForIngestion.js";
+import { PrismaTopPerformersQuery } from "../repositories/PrismaTopPerformersQuery.js";
+import {
+  GetTopPerformersContextUseCase,
+  type TopPerformersQueryPort,
+} from "../../application/ai/GetTopPerformersContextUseCase.js";
 import type { PrismaClient } from "@infra/prisma";
 import type { QueuePort } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
@@ -235,6 +240,21 @@ export function setupAnalyticsUseCases(container: Container): void {
         container.resolve<QueuePort>(TOKENS.QueuePort),
         QUEUE_NAMES.ANALYTICS_AGGREGATION,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+
+  // AI Differentiation — Analytics→AI Bridge (Sprint 7)
+  container.register<TopPerformersQueryPort>(
+    TOKENS.TopPerformersQueryPort,
+    () => new PrismaTopPerformersQuery(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<GetTopPerformersContextUseCase>(
+    TOKENS.GetTopPerformersContextUseCase,
+    () =>
+      new GetTopPerformersContextUseCase(
+        container.resolve<TopPerformersQueryPort>(TOKENS.TopPerformersQueryPort)
       ),
     true
   );
