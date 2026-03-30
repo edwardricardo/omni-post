@@ -12,7 +12,7 @@
   "dependencies": {
     "@adapters/external-apis": "workspace:*",
     "@aws-sdk/client-s3": "3.894.0",
-    "@aws-sdk/s3-presigned-post": "3.894.0",
+    "@aws-sdk/s3-presigned-post": "3.1019.0",
     "@aws-sdk/s3-request-presigner": "3.894.0",
     "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
