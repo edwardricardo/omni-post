@@ -17,6 +17,8 @@ import { ListCustomReportsQuery } from "../../application/custom-reports/ListCus
 import { GetCustomReportQuery } from "../../application/custom-reports/GetCustomReportQuery.js";
 import { RunCustomReportQuery } from "../../application/custom-reports/RunCustomReportQuery.js";
 import { ScheduleCustomReportUseCase } from "../../application/custom-reports/ScheduleCustomReportUseCase.js";
+import { PrismaAnalyticsAggregationQuery } from "../repositories/PrismaAnalyticsAggregationQuery.js";
+import type { AnalyticsAggregationQueryPort } from "../../domain/repositories/AnalyticsAggregationQueryPort.js";
 
 /**
  * Register all Custom Report use cases in the container
@@ -24,14 +26,19 @@ import { ScheduleCustomReportUseCase } from "../../application/custom-reports/Sc
 export function setupCustomReportUseCases(container: Container): void {
   const repo = new PrismaCustomReportRepository(prisma);
   const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
+  const analyticsAggQuery = new PrismaAnalyticsAggregationQuery(prisma);
 
   container.registerInstance(TOKENS.CustomReportRepository, repo);
+  container.registerInstance(TOKENS.AnalyticsAggregationQuery, analyticsAggQuery);
 
   container.registerInstance(TOKENS.ListCustomReportsQuery, new ListCustomReportsQuery(repo));
 
   container.registerInstance(TOKENS.GetCustomReportQuery, new GetCustomReportQuery(repo));
 
-  container.registerInstance(TOKENS.RunCustomReportQuery, new RunCustomReportQuery(repo));
+  container.registerInstance(
+    TOKENS.RunCustomReportQuery,
+    new RunCustomReportQuery(repo, analyticsAggQuery)
+  );
 
   container.register(
     TOKENS.CreateCustomReportUseCase,

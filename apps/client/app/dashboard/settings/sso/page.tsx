@@ -1,0 +1,28 @@
+/**
+ * @file page.tsx
+ * @description SSO settings page for SAML 2.0 and OpenID Connect configuration.
+ * @layer client-pages
+ */
+
+"use client";
+
+import { useAuth } from "@/lib/auth/authContext";
+import { SsoSettings } from "@/components/settings/sso/SsoSettings";
+
+export default function SsoSettingsPage() {
+  const { user } = useAuth();
+  const accountId = ((user as Record<string, unknown> | null)?.accountId as string) ?? "";
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-foreground">Single Sign-On (SSO)</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Allow your team to log in with your company identity provider.
+        </p>
+      </div>
+
+      <SsoSettings accountId={accountId} />
+    </div>
+  );
+}

@@ -234,12 +234,43 @@ describe("GetCustomReportQuery", () => {
 
 describe("RunCustomReportQuery", () => {
   let repo: ReturnType<typeof makeMockRepo>;
+  let analyticsQuery: {
+    findChannelIdsByAccount: ReturnType<typeof vi.fn>;
+    findSummaries: ReturnType<typeof vi.fn>;
+  };
   let query: RunCustomReportQuery;
 
   beforeEach(() => {
     vi.clearAllMocks();
     repo = makeMockRepo();
-    query = new RunCustomReportQuery(repo);
+    analyticsQuery = {
+      findChannelIdsByAccount: vi.fn().mockResolvedValue(["ch-1", "ch-2"]),
+      findSummaries: vi.fn().mockResolvedValue([
+        {
+          date: new Date("2026-03-01"),
+          provider: "INSTAGRAM",
+          channelId: "ch-1",
+          postId: null,
+          views: 100,
+          likes: 10,
+          comments: 5,
+          shares: 2,
+          records: 1,
+        },
+        {
+          date: new Date("2026-03-02"),
+          provider: "INSTAGRAM",
+          channelId: "ch-1",
+          postId: null,
+          views: 200,
+          likes: 20,
+          comments: 10,
+          shares: 4,
+          records: 1,
+        },
+      ]),
+    };
+    query = new RunCustomReportQuery(repo, analyticsQuery);
   });
 
   it("returns chart data structure", async () => {
@@ -247,10 +278,11 @@ describe("RunCustomReportQuery", () => {
 
     assert.ok(result.ok, "Should succeed");
     expect(result.value.reportId).toBe("report-001");
+    expect(result.value.hasData).toBe(true);
     expect(Array.isArray(result.value.labels)).toBe(true);
     expect(result.value.labels.length).toBeGreaterThan(0);
     expect(Array.isArray(result.value.datasets)).toBe(true);
-    expect(result.value.datasets.length).toBe(2); // impressions, reach
+    expect(result.value.datasets.length).toBe(2);
     for (const dataset of result.value.datasets) {
       expect(typeof dataset.label).toBe("string");
       expect(Array.isArray(dataset.data)).toBe(true);
@@ -271,12 +303,36 @@ describe("RunCustomReportQuery", () => {
 
   it("generates labels based on platform dimension", async () => {
     repo.findById = vi.fn().mockResolvedValue(ok(makeReportDto({ dimensions: ["platform"] })));
+    analyticsQuery.findSummaries.mockResolvedValue([
+      {
+        date: new Date("2026-03-01"),
+        provider: "X",
+        channelId: "ch-1",
+        postId: null,
+        views: 100,
+        likes: 10,
+        comments: 5,
+        shares: 2,
+        records: 1,
+      },
+      {
+        date: new Date("2026-03-01"),
+        provider: "INSTAGRAM",
+        channelId: "ch-2",
+        postId: null,
+        views: 200,
+        likes: 20,
+        comments: 10,
+        shares: 4,
+        records: 1,
+      },
+    ]);
 
     const result = await query.execute({ reportId: "report-001", accountId: "acc-001" });
 
     assert.ok(result.ok, "Should succeed");
-    expect(result.value.labels).toContain("Twitter/X");
-    expect(result.value.labels).toContain("Instagram");
+    expect(result.value.labels).toContain("X");
+    expect(result.value.labels).toContain("INSTAGRAM");
   });
 
   it("denies access to private report from different account", async () => {

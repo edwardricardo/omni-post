@@ -355,6 +355,15 @@ export const TOKENS = {
   GetCustomReportQuery: Symbol.for("GetCustomReportQuery"),
   RunCustomReportQuery: Symbol.for("RunCustomReportQuery"),
   ScheduleCustomReportUseCase: Symbol.for("ScheduleCustomReportUseCase"),
+  // Customer Auth
+  CustomerUserRepository: Symbol.for("CustomerUserRepository"),
+  RegisterCustomerUseCase: Symbol.for("RegisterCustomerUseCase"),
+  LoginCustomerUseCase: Symbol.for("LoginCustomerUseCase"),
+  RefreshCustomerTokenUseCase: Symbol.for("RefreshCustomerTokenUseCase"),
+  LogoutCustomerUseCase: Symbol.for("LogoutCustomerUseCase"),
+  RequestPasswordResetUseCase: Symbol.for("RequestPasswordResetUseCase"),
+  ResetPasswordUseCase: Symbol.for("ResetPasswordUseCase"),
+
   // CRM Integration
   CrmConnectionRepository: Symbol.for("CrmConnectionRepository"),
   CrmContactRepository: Symbol.for("CrmContactRepository"),
@@ -366,6 +375,21 @@ export const TOKENS = {
   SyncCrmContactsUseCase: Symbol.for("SyncCrmContactsUseCase"),
   LogCrmActivityUseCase: Symbol.for("LogCrmActivityUseCase"),
   GetCrmSyncLogsQuery: Symbol.for("GetCrmSyncLogsQuery"),
+
+  // Queue (shared)
+  QueuePort: Symbol.for("QueuePort"),
+
+  // Analytics Aggregation (Sprint Gaps — Batch 2)
+  AnalyticsAggregationQuery: Symbol.for("AnalyticsAggregationQuery"),
+
+  // Analytics Ingestion (Sprint Gaps — Batch 1)
+  AnalyticsWriteRepository: Symbol.for("AnalyticsWriteRepository"),
+  ChannelQueryForIngestion: Symbol.for("ChannelQueryForIngestion"),
+  IngestChannelAnalyticsUseCase: Symbol.for("IngestChannelAnalyticsUseCase"),
+  DispatchAnalyticsIngestionUseCase: Symbol.for("DispatchAnalyticsIngestionUseCase"),
+
+  // Inbox Sync (Sprint Gaps — Batch 3)
+  DispatchInboxSyncUseCase: Symbol.for("DispatchInboxSyncUseCase"),
 } as const;
 
 /**

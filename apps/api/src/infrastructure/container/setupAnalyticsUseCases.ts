@@ -33,6 +33,15 @@ import {
 import { GetHistoricalAnalyticsQuery } from "../../application/analytics/GetHistoricalAnalyticsQuery.js";
 import { GenerateUTMLinksUseCase } from "../../application/utm/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { AnalyticsWriteRepository } from "../../domain/repositories/AnalyticsWriteRepository.js";
+import type { ChannelQueryForIngestion } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
+import { IngestChannelAnalyticsUseCase } from "../../application/analytics/IngestChannelAnalyticsUseCase.js";
+import { DispatchAnalyticsIngestionUseCase } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
+import { PrismaAnalyticsWriteRepository } from "../repositories/PrismaAnalyticsWriteRepository.js";
+import { PrismaChannelQueryForIngestion } from "../repositories/PrismaChannelQueryForIngestion.js";
+import type { PrismaClient } from "@infra/prisma";
+import type { QueuePort } from "@ports/core";
+import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 
 /**
  * Register all analytics, ML, campaign, historical analytics, and UTM use cases in the container
@@ -188,6 +197,44 @@ export function setupAnalyticsUseCases(container: Container): void {
     () =>
       new GenerateUTMLinksUseCase(
         container.resolve<TrackedLinkRepository>(TOKENS.TrackedLinkRepository)
+      ),
+    true
+  );
+
+  // Analytics Ingestion (Sprint Gaps — Batch 1)
+  container.register<AnalyticsWriteRepository>(
+    TOKENS.AnalyticsWriteRepository,
+    () => new PrismaAnalyticsWriteRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<ChannelQueryForIngestion>(
+    TOKENS.ChannelQueryForIngestion,
+    () => new PrismaChannelQueryForIngestion(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<IngestChannelAnalyticsUseCase>(
+    TOKENS.IngestChannelAnalyticsUseCase,
+    () => {
+      const registry = container.resolve<{
+        getAdapter(id: string): import("@ports/core").ProviderAdapter | undefined;
+      }>(TOKENS.ProviderRegistry);
+      return new IngestChannelAnalyticsUseCase(
+        container.resolve(TOKENS.ChannelRepository),
+        container.resolve<AnalyticsWriteRepository>(TOKENS.AnalyticsWriteRepository),
+        (provider: string) => registry.getAdapter(provider),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      );
+    },
+    true
+  );
+  container.register<DispatchAnalyticsIngestionUseCase>(
+    TOKENS.DispatchAnalyticsIngestionUseCase,
+    () =>
+      new DispatchAnalyticsIngestionUseCase(
+        container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
+        container.resolve<QueuePort>(TOKENS.QueuePort),
+        QUEUE_NAMES.ANALYTICS_AGGREGATION,
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );

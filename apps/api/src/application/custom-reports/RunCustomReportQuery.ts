@@ -1,7 +1,7 @@
 /**
  * @file RunCustomReportQuery.ts
- * @description Executes a custom report and returns chart-ready mock data.
- *   Real data aggregation from analytics tables is a future enhancement.
+ * @description Executes a custom report and returns chart-ready data from
+ *              real AnalyticsDailySummary aggregations via AnalyticsAggregationQueryPort.
  * @layer application
  */
 
@@ -9,24 +9,31 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { CustomReportRepository } from "../../domain/repositories/CustomReportRepository.js";
 import type { RunCustomReportInput, RunCustomReportOutput } from "./types.js";
+import type {
+  AnalyticsAggregationQueryPort,
+  AnalyticsSummaryRow,
+} from "../../domain/repositories/AnalyticsAggregationQueryPort.js";
 
 /**
  * @class RunCustomReportQuery
- * @description Executes a custom report by ID and returns chart-ready data.
- *   Currently returns mock data; real analytics aggregation is planned.
+ * @description Executes a custom report by ID and returns chart-ready data
+ *              aggregated from AnalyticsDailySummary. CQRS query — reads only.
  */
 export class RunCustomReportQuery implements UseCase<
   RunCustomReportInput,
   RunCustomReportOutput,
   UseCaseError
 > {
-  constructor(private readonly repository: CustomReportRepository) {}
+  constructor(
+    private readonly repository: CustomReportRepository,
+    private readonly analyticsQuery?: AnalyticsAggregationQueryPort
+  ) {}
 
   /**
    * @method execute
    * @description Runs a custom report and returns chart-ready dataset.
    * @param input - reportId and accountId
-   * @returns Result with labels and datasets for chart rendering
+   * @returns Result with labels, datasets, and hasData flag
    */
   async execute(input: RunCustomReportInput): Promise<Result<RunCustomReportOutput, UseCaseError>> {
     try {
@@ -52,18 +59,37 @@ export class RunCustomReportQuery implements UseCase<
         );
       }
 
-      // Generate mock chart-ready data based on report configuration
-      const labels = generateLabels(dto.dateRange, dto.dimensions);
-      const datasets = dto.metrics.map((metric) => ({
-        label: metric,
-        data: labels.map(() => Math.floor(Math.random() * 1000)),
-      }));
+      if (!this.analyticsQuery) {
+        return ok({ reportId: dto.id, labels: [], datasets: [], hasData: false });
+      }
 
-      return ok({
-        reportId: dto.id,
-        labels,
-        datasets,
+      const { startDate, endDate } = resolveDateRange(
+        dto.dateRange,
+        dto.dateRangeStart,
+        dto.dateRangeEnd
+      );
+
+      const channelIds = await this.analyticsQuery.findChannelIdsByAccount(input.accountId);
+      if (channelIds.length === 0) {
+        return ok({ reportId: dto.id, labels: [], datasets: [], hasData: false });
+      }
+
+      const filters = (dto.filters ?? {}) as Record<string, string>;
+      const rawData = await this.analyticsQuery.findSummaries({
+        channelIds,
+        startDate,
+        endDate,
+        ...(filters.platform ? { platformFilter: filters.platform } : {}),
       });
+
+      if (rawData.length === 0) {
+        return ok({ reportId: dto.id, labels: [], datasets: [], hasData: false });
+      }
+
+      const primaryDimension = dto.dimensions[0] ?? "date";
+      const { labels, datasets } = aggregateByDimension(rawData, primaryDimension, dto.metrics);
+
+      return ok({ reportId: dto.id, labels, datasets, hasData: true });
     } catch (error: unknown) {
       return err(
         new UseCaseError(
@@ -76,35 +102,93 @@ export class RunCustomReportQuery implements UseCase<
   }
 }
 
-/**
- * Generates placeholder labels based on the date range and primary dimension.
- */
-function generateLabels(dateRange: string, dimensions: string[]): string[] {
-  const primaryDimension = dimensions[0] ?? "date";
+function resolveDateRange(
+  dateRange: string,
+  dateRangeStart: Date | null,
+  dateRangeEnd: Date | null
+): { startDate: Date; endDate: Date } {
+  const now = new Date();
+  const endDate = dateRangeEnd ?? now;
 
-  if (primaryDimension === "platform") {
-    return ["Twitter/X", "Instagram", "Facebook", "LinkedIn", "TikTok"];
-  }
-
-  if (primaryDimension === "post_type") {
-    return ["Text", "Image", "Video", "Carousel", "Story"];
-  }
-
-  if (primaryDimension === "campaign") {
-    return ["Campaign A", "Campaign B", "Campaign C"];
-  }
-
-  // Default: date-based labels
   switch (dateRange) {
     case "LAST_7_DAYS":
-      return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      return { startDate: new Date(now.getTime() - 7 * 86400000), endDate };
     case "LAST_30_DAYS":
-      return Array.from({ length: 4 }, (_, i) => `Week ${i + 1}`);
+      return { startDate: new Date(now.getTime() - 30 * 86400000), endDate };
     case "LAST_90_DAYS":
-      return ["Month 1", "Month 2", "Month 3"];
+      return { startDate: new Date(now.getTime() - 90 * 86400000), endDate };
     case "LAST_12_MONTHS":
-      return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return { startDate: new Date(now.getTime() - 365 * 86400000), endDate };
+    case "CUSTOM":
+      return {
+        startDate: dateRangeStart ?? new Date(now.getTime() - 30 * 86400000),
+        endDate,
+      };
     default:
-      return Array.from({ length: 7 }, (_, i) => `Day ${i + 1}`);
+      return { startDate: new Date(now.getTime() - 30 * 86400000), endDate };
+  }
+}
+
+function getMetricValue(row: AnalyticsSummaryRow, metric: string): number {
+  switch (metric) {
+    case "views":
+    case "impressions":
+      return row.views;
+    case "likes":
+    case "reactions":
+      return row.likes;
+    case "comments":
+      return row.comments;
+    case "shares":
+    case "reposts":
+      return row.shares;
+    case "engagement":
+      return row.likes + row.comments + row.shares;
+    default:
+      return 0;
+  }
+}
+
+function aggregateByDimension(
+  rows: AnalyticsSummaryRow[],
+  dimension: string,
+  metrics: string[]
+): { labels: string[]; datasets: { label: string; data: number[] }[] } {
+  const buckets = new Map<string, Map<string, number>>();
+
+  for (const row of rows) {
+    const key = getDimensionKey(row, dimension);
+
+    if (!buckets.has(key)) {
+      buckets.set(key, new Map<string, number>());
+    }
+    const metricMap = buckets.get(key)!;
+
+    for (const metric of metrics) {
+      const current = metricMap.get(metric) ?? 0;
+      metricMap.set(metric, current + getMetricValue(row, metric));
+    }
+  }
+
+  const labels = Array.from(buckets.keys());
+  const datasets = metrics.map((metric) => ({
+    label: metric,
+    data: labels.map((label) => buckets.get(label)?.get(metric) ?? 0),
+  }));
+
+  return { labels, datasets };
+}
+
+function getDimensionKey(row: AnalyticsSummaryRow, dimension: string): string {
+  switch (dimension) {
+    case "platform":
+    case "provider":
+      return row.provider;
+    case "date":
+      return row.date.toISOString().slice(0, 10);
+    case "channel":
+      return row.channelId;
+    default:
+      return row.date.toISOString().slice(0, 10);
   }
 }

@@ -3,7 +3,6 @@
  * @description Synchronizes comments from a social media provider into the inbox.
  *   Fetches comments via the provider adapter and ingests each one through
  *   IngestSocialMessageUseCase for deduplication and persistence.
- *   Provider integration will be wired in Step 7; currently returns a stub result.
  * @layer application
  */
 
@@ -13,23 +12,21 @@ import { type ChannelRepository } from "../../domain/repositories/ChannelReposit
 import { ChannelId } from "../../domain/value-objects/index.js";
 import { type IngestSocialMessageUseCase } from "./IngestSocialMessageUseCase.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { ProviderAdapter } from "@ports/core";
+import type { ProviderType } from "../../domain/value-objects/Provider.js";
 
 // ---------------------------------------------------------------------------
 // Input / Output DTOs
 // ---------------------------------------------------------------------------
 
-/**
- * Input DTO for syncing comments from a provider.
- */
 export interface SyncProviderCommentsInput {
   channelId: string;
+  accountId?: string;
+  projectId?: string;
   since?: Date;
   limit?: number;
 }
 
-/**
- * Output DTO reporting the number of synced and skipped (duplicate) messages.
- */
 export interface SyncProviderCommentsOutput {
   synced: number;
   skipped: number;
@@ -44,9 +41,6 @@ export interface SyncProviderCommentsOutput {
  * @description Fetches comments from a provider and ingests them into the inbox.
  *   Each fetched comment is passed through IngestSocialMessageUseCase which handles
  *   deduplication and conversation grouping.
- *
- *   NOTE: The provider adapter call is deferred to Step 7. This skeleton validates
- *   the channel and returns a zero-count result.
  */
 export class SyncProviderCommentsUseCase implements UseCase<
   SyncProviderCommentsInput,
@@ -55,14 +49,15 @@ export class SyncProviderCommentsUseCase implements UseCase<
 > {
   constructor(
     private readonly channelRepository: ChannelRepository,
-    private readonly _ingestUseCase: IngestSocialMessageUseCase,
-    private readonly unitOfWork?: UnitOfWork
+    private readonly ingestUseCase: IngestSocialMessageUseCase,
+    private readonly unitOfWork?: UnitOfWork,
+    private readonly getProviderAdapter?: (provider: string) => ProviderAdapter | undefined
   ) {}
 
   /**
    * @method execute
-   * @description Validates the channel exists, then fetches and ingests provider comments.
-   *   Currently returns a stub result until provider integration is wired in Step 7.
+   * @description Validates the channel, fetches comments from provider adapter,
+   *   and ingests each through IngestSocialMessageUseCase.
    * @param input - Contains channelId, optional since date, and optional limit
    * @returns Result containing sync counts on success, UseCaseError on failure
    */
@@ -70,7 +65,6 @@ export class SyncProviderCommentsUseCase implements UseCase<
     input: SyncProviderCommentsInput
   ): Promise<Result<SyncProviderCommentsOutput, UseCaseError>> {
     const doWork = async (): Promise<Result<SyncProviderCommentsOutput, UseCaseError>> => {
-      // 1. Validate channel ID
       const channelIdResult = ChannelId.fromString(input.channelId);
       if (!channelIdResult.ok) {
         return err(
@@ -82,7 +76,6 @@ export class SyncProviderCommentsUseCase implements UseCase<
         );
       }
 
-      // 2. Verify channel exists
       const channelResult = await this.channelRepository.findById(channelIdResult.value);
       if (!channelResult.ok) {
         return err(
@@ -94,26 +87,85 @@ export class SyncProviderCommentsUseCase implements UseCase<
         );
       }
 
-      // TODO: Step 7 — Wire provider adapter integration:
-      //   1. Get provider adapter from ProviderAdapterFactory using channel.provider
-      //   2. Fetch comments via adapter.fetchComments({ since, limit })
-      //   3. For each comment, call this._ingestUseCase.execute() with mapped data
-      //   4. Count synced (isNew=true) vs skipped (isNew=false) from results
-      //
-      // const channel = channelResult.value;
-      // const adapter = ProviderAdapterFactory.create(channel.provider);
-      // const comments = await adapter.fetchComments({ since: input.since, limit: input.limit });
-      // let synced = 0;
-      // let skipped = 0;
-      // for (const comment of comments) {
-      //   const result = await this._ingestUseCase.execute({ ...mappedComment });
-      //   if (result.ok) {
-      //     if (result.value.isNew) synced++; else skipped++;
-      //   }
-      // }
-      // return ok({ synced, skipped });
+      const channel = channelResult.value;
+      const providerName = channel.provider.toString().toLowerCase();
 
-      return ok({ synced: 0, skipped: 0 });
+      if (!this.getProviderAdapter) {
+        return ok({ synced: 0, skipped: 0 });
+      }
+
+      const adapter = this.getProviderAdapter(providerName);
+      if (!adapter || !adapter.getComments) {
+        return ok({ synced: 0, skipped: 0 });
+      }
+
+      const credentials = channel.credentials;
+      let synced = 0;
+      let skipped = 0;
+      let cursor: string | undefined;
+
+      do {
+        const commentsResult = await adapter.getComments({
+          channelCredentials: credentials as unknown,
+          ...(input.since !== undefined && { since: input.since }),
+          ...(cursor !== undefined && { cursor }),
+          limit: input.limit ?? 100,
+        });
+
+        if (!commentsResult.ok) {
+          if (commentsResult.error === "AUTH") {
+            return err(
+              new UseCaseError(
+                `Auth error syncing comments for channel ${input.channelId}`,
+                USE_CASE_ERRORS.FORBIDDEN
+              )
+            );
+          }
+          return err(
+            new UseCaseError(
+              `Network error syncing comments for channel ${input.channelId}`,
+              USE_CASE_ERRORS.INTERNAL_ERROR
+            )
+          );
+        }
+
+        const { comments, nextCursor } = commentsResult.value;
+
+        for (const comment of comments) {
+          const ingestResult = await this.ingestUseCase.execute({
+            accountId: input.accountId ?? "",
+            projectId: input.projectId ?? channel.projectId.value,
+            channelId: input.channelId,
+            provider: providerName.toUpperCase() as ProviderType,
+            providerMessageId: comment.providerMessageId,
+            ...(comment.providerParentId !== undefined && {
+              providerParentId: comment.providerParentId,
+            }),
+            messageType: "COMMENT",
+            authorName: comment.authorName,
+            ...(comment.authorHandle !== undefined && { authorHandle: comment.authorHandle }),
+            ...(comment.authorAvatarUrl !== undefined && {
+              authorAvatarUrl: comment.authorAvatarUrl,
+            }),
+            authorProviderId: comment.authorProviderId,
+            body: comment.body,
+            ...(comment.mediaUrls !== undefined && { mediaUrls: comment.mediaUrls }),
+            providerCreatedAt: comment.createdAt,
+          });
+
+          if (ingestResult.ok) {
+            if (ingestResult.value.isNew) {
+              synced++;
+            } else {
+              skipped++;
+            }
+          }
+        }
+
+        cursor = nextCursor;
+      } while (cursor);
+
+      return ok({ synced, skipped });
     };
 
     try {

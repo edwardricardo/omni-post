@@ -36,6 +36,9 @@ export const QUEUE_NAMES = {
 
   /** Recurring post scheduling queue (cron-driven post creation from templates) */
   RECURRING_POSTS: "recurring-posts",
+
+  /** Inbox sync queue (polling provider comments every 30 minutes) */
+  INBOX_SYNC: "inbox-sync",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

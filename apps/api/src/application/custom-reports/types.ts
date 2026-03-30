@@ -62,6 +62,7 @@ export interface RunCustomReportOutput {
   reportId: string;
   labels: string[];
   datasets: { label: string; data: number[] }[];
+  hasData: boolean;
 }
 
 export interface ScheduleCustomReportInput {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/authContext";
+import { ProjectProvider } from "@/providers/ProjectProvider";
 import { Button } from "@packages/ui";
 import { Avatar, AvatarFallback, AvatarInitial } from "@packages/ui";
 import {
@@ -10,7 +11,24 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@packages/ui";
-import { LogOut, User, Settings, Home, FileText, BarChart3, Layers, Menu } from "lucide-react";
+import {
+  LogOut,
+  User,
+  Settings,
+  Home,
+  FileText,
+  BarChart3,
+  Layers,
+  Menu,
+  Inbox,
+  Calendar,
+  Sparkles,
+  CheckCircle,
+  Image,
+  Share2,
+  ListTodo,
+  ClipboardList,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -18,8 +36,16 @@ import { useState } from "react";
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Posts", href: "/dashboard/posts", icon: FileText },
+  { name: "Inbox", href: "/dashboard/inbox", icon: Inbox },
+  { name: "Scheduling", href: "/dashboard/scheduling", icon: Calendar },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-  { name: "Providers", href: "/dashboard/providers", icon: Layers },
+  { name: "AI", href: "/dashboard/ai/generate", icon: Sparkles },
+  { name: "Approvals", href: "/dashboard/approvals", icon: CheckCircle },
+  { name: "Assets", href: "/dashboard/content/library", icon: Image },
+  { name: "Tasks", href: "/dashboard/tasks", icon: ClipboardList },
+  { name: "Queue", href: "/dashboard/queue", icon: ListTodo },
+  { name: "Channels", href: "/dashboard/channels", icon: Share2 },
+  { name: "Settings", href: "/dashboard/settings/brand-voice", icon: Settings },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -124,7 +150,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Main Content */}
         <main className="flex-1 lg:ml-0">
-          <div className="p-6">{children}</div>
+          <div className="p-6">
+            <ProjectProvider>{children}</ProjectProvider>
+          </div>
         </main>
       </div>
 

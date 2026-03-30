@@ -38,6 +38,10 @@ import type { ConversationNoteRepository } from "../../domain/repositories/Conve
 import type { NotifyMentionedUsersService } from "../../application/mentions/index.js";
 import { InboxEventHandlers } from "../../application/inbox/handlers/InboxEventHandlers.js";
 import type { ProviderRegistryService } from "../../providers/providerRegistry.js";
+import { DispatchInboxSyncUseCase } from "../../application/inbox/DispatchInboxSyncUseCase.js";
+import type { ChannelQueryForIngestion } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
+import type { QueuePort } from "@ports/core";
+import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 
 /**
  * Register social inbox commands, queries, and event handlers
@@ -120,12 +124,15 @@ export function setupInboxUseCases(container: Container): void {
   );
   container.register<SyncProviderCommentsUseCase>(
     TOKENS.SyncProviderCommentsUseCase,
-    () =>
-      new SyncProviderCommentsUseCase(
+    () => {
+      const registry = container.resolve<ProviderRegistryService>(TOKENS.ProviderRegistry);
+      return new SyncProviderCommentsUseCase(
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
         container.resolve<IngestSocialMessageUseCase>(TOKENS.IngestSocialMessageUseCase),
-        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
-      ),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
+        (provider: string) => registry.getAdapter(provider)
+      );
+    },
     true
   );
 
@@ -196,6 +203,19 @@ export function setupInboxUseCases(container: Container): void {
     () =>
       new ListConversationNotesQuery(
         container.resolve<ConversationNoteRepository>(TOKENS.ConversationNoteRepository)
+      ),
+    true
+  );
+
+  // Inbox Sync Coordinator (Sprint Gaps — Batch 3)
+  container.register<DispatchInboxSyncUseCase>(
+    TOKENS.DispatchInboxSyncUseCase,
+    () =>
+      new DispatchInboxSyncUseCase(
+        container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
+        container.resolve<QueuePort>(TOKENS.QueuePort),
+        QUEUE_NAMES.INBOX_SYNC,
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
