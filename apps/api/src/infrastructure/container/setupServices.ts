@@ -53,6 +53,7 @@ import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.
 import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import { ResendEmailAdapter } from "../adapters/ResendEmailAdapter.js";
+import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
 
 /**
  * Register all services in the container
@@ -141,6 +142,9 @@ export function setupServices(
     true
   );
   container.registerInstance(TOKENS.ProviderRegistry, providerRegistry);
+
+  // Queue adapter (shared by analytics ingestion, inbox sync, etc.)
+  container.register(TOKENS.QueuePort, () => createBullMQQueueAdapter(), true);
 
   // Register Content Sync Services (F28)
   container.register<ContentVersionManager>(

@@ -27,6 +27,7 @@ import { setupTaskUseCases } from "./setupTaskUseCases.js";
 import { setupSamlUseCases } from "./setupSamlUseCases.js";
 import { setupCustomReportUseCases } from "./setupCustomReportUseCases.js";
 import { setupCrmUseCases } from "./setupCrmUseCases.js";
+import { setupCustomerAuthUseCases } from "./setupCustomerAuthUseCases.js";
 
 /**
  * @method setupUseCases
@@ -55,4 +56,5 @@ export function setupUseCases(container: Container): void {
   setupSamlUseCases(container);
   setupCustomReportUseCases(container);
   setupCrmUseCases(container);
+  setupCustomerAuthUseCases(container);
 }

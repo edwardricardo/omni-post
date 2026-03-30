@@ -197,6 +197,9 @@ export {
   type OidcConfigurationData,
 } from "./OidcConfigurationRepository.js";
 
+// CustomerUser repository port (Customer Auth)
+export { type CustomerUserRepository } from "./CustomerUserRepository.js";
+
 // Custom Report repository port (Custom Report Builder)
 export {
   type CustomReportRepository,

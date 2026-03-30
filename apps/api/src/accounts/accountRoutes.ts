@@ -8,17 +8,31 @@ import { SecureSchemas } from "../security/inputValidation.js";
 import { authenticateMiddleware } from "../auth/authMiddleware.js";
 
 // Zod Schemas for Validation with security enhancement
+const SlugSchema = z
+  .string()
+  .min(3)
+  .max(30)
+  .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, "Slug must be lowercase letters, numbers, and hyphens");
+
 const CreateAccountBodySchema = z.object({
   email: SecureSchemas.userEmail,
   name: SecureSchemas.userName,
   subscription: z.enum(["BASIC", "PRO", "ENTERPRISE"]).optional().default("BASIC"),
   maxProjects: z.number().int().min(1).optional(),
+  timezone: z.string().min(1).max(64).optional(),
+  locale: z.string().min(2).max(10).optional(),
+  slug: SlugSchema.optional(),
+  phone: z.string().min(5).max(20).optional(),
 });
 
 const UpdateAccountBodySchema = z.object({
   name: SecureSchemas.userName.optional(),
   subscription: z.enum(["BASIC", "PRO", "ENTERPRISE"]).optional(),
   maxProjects: z.number().int().min(1).optional(),
+  timezone: z.string().min(1).max(64).optional(),
+  locale: z.string().min(2).max(10).optional(),
+  slug: SlugSchema.optional(),
+  phone: z.string().min(5).max(20).optional(),
 });
 
 const AccountParamsSchema = z.object({

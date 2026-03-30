@@ -159,6 +159,16 @@ export {
   type CrmPlatformValue,
 } from "./CrmConnection.js";
 
+// CustomerUser entity (Customer-facing authentication)
+export {
+  CustomerUser,
+  type CustomerUserProps,
+  type CreateCustomerUserInput,
+  type CustomerUserPublicDto,
+  type CustomerRoleValue,
+  CUSTOMER_ROLE,
+} from "./CustomerUser.js";
+
 // Custom Report Builder entity
 export {
   CustomReport,

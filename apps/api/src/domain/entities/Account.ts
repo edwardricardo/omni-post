@@ -28,16 +28,39 @@ export type SubscriptionTierValue = (typeof SUBSCRIPTION_TIER)[keyof typeof SUBS
 /**
  * Tier limits configuration
  */
-const TIER_LIMITS: Record<
-  SubscriptionTierValue,
-  { maxProjects: number; maxChannelsPerProject: number; maxPostsPerDay: number }
-> = {
-  [SUBSCRIPTION_TIER.BASIC]: { maxProjects: 1, maxChannelsPerProject: 3, maxPostsPerDay: 10 },
-  [SUBSCRIPTION_TIER.PRO]: { maxProjects: 5, maxChannelsPerProject: 10, maxPostsPerDay: 100 },
+interface TierLimits {
+  maxProjects: number;
+  maxChannelsPerProject: number;
+  maxPostsPerDay: number;
+  maxTeamMembers: number;
+  maxStorageBytes: bigint;
+  maxRecurringPosts: number;
+}
+
+const TIER_LIMITS: Record<SubscriptionTierValue, TierLimits> = {
+  [SUBSCRIPTION_TIER.BASIC]: {
+    maxProjects: 1,
+    maxChannelsPerProject: 3,
+    maxPostsPerDay: 10,
+    maxTeamMembers: 5,
+    maxStorageBytes: 5_368_709_120n, // 5 GB
+    maxRecurringPosts: 5,
+  },
+  [SUBSCRIPTION_TIER.PRO]: {
+    maxProjects: 5,
+    maxChannelsPerProject: 10,
+    maxPostsPerDay: 100,
+    maxTeamMembers: 15,
+    maxStorageBytes: 53_687_091_200n, // 50 GB
+    maxRecurringPosts: 20,
+  },
   [SUBSCRIPTION_TIER.ENTERPRISE]: {
     maxProjects: -1,
     maxChannelsPerProject: -1,
     maxPostsPerDay: -1,
+    maxTeamMembers: Infinity,
+    maxStorageBytes: BigInt(Number.MAX_SAFE_INTEGER),
+    maxRecurringPosts: Infinity,
   }, // Unlimited
 };
 
@@ -66,6 +89,13 @@ export interface AccountProps extends EntityProps {
   billingCycle?: BillingCycleValue;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
+  slug?: string;
+  timezone?: string;
+  locale?: string;
+  phone?: string;
+  maxTeamMembers?: number;
+  maxStorageBytes?: bigint;
+  maxRecurringPosts?: number;
 }
 
 /**
@@ -76,6 +106,9 @@ export interface CreateAccountInput {
   name: string;
   subscription?: SubscriptionTierValue;
   trialDays?: number;
+  timezone?: string;
+  locale?: string;
+  slug?: string;
 }
 
 /**
@@ -107,6 +140,13 @@ export class Account extends Entity<AccountId> {
   private _stripeCustomerId: string | undefined;
   private _stripeSubscriptionId: string | undefined;
   private _projectCount: number;
+  private _slug: string | undefined;
+  private _timezone: string;
+  private _locale: string;
+  private _phone: string | undefined;
+  private _maxTeamMembers: number;
+  private _maxStorageBytes: bigint;
+  private _maxRecurringPosts: number;
 
   private constructor(id: AccountId, props: AccountProps) {
     super(id, props.createdAt);
@@ -122,6 +162,15 @@ export class Account extends Entity<AccountId> {
     this._stripeCustomerId = props.stripeCustomerId;
     this._stripeSubscriptionId = props.stripeSubscriptionId;
     this._projectCount = 0;
+    this._slug = props.slug;
+    this._timezone = props.timezone ?? "UTC";
+    this._locale = props.locale ?? "en";
+    this._phone = props.phone;
+    this._maxTeamMembers = props.maxTeamMembers ?? TIER_LIMITS[this._subscription].maxTeamMembers;
+    this._maxStorageBytes =
+      props.maxStorageBytes ?? TIER_LIMITS[this._subscription].maxStorageBytes;
+    this._maxRecurringPosts =
+      props.maxRecurringPosts ?? TIER_LIMITS[this._subscription].maxRecurringPosts;
 
     if (props.updatedAt) {
       this._updatedAt = props.updatedAt;
@@ -154,6 +203,9 @@ export class Account extends Entity<AccountId> {
         subscription: input.subscription ?? SUBSCRIPTION_TIER.BASIC,
         isOnTrial: true,
         trialEndDate,
+        ...(input.timezone !== undefined && { timezone: input.timezone }),
+        ...(input.locale !== undefined && { locale: input.locale }),
+        ...(input.slug !== undefined && { slug: input.slug }),
       })
     );
   }
@@ -225,6 +277,34 @@ export class Account extends Entity<AccountId> {
     return this._stripeSubscriptionId;
   }
 
+  get slug(): string | undefined {
+    return this._slug;
+  }
+
+  get timezone(): string {
+    return this._timezone;
+  }
+
+  get locale(): string {
+    return this._locale;
+  }
+
+  get phone(): string | undefined {
+    return this._phone;
+  }
+
+  get maxTeamMembers(): number {
+    return this._maxTeamMembers;
+  }
+
+  get maxStorageBytes(): bigint {
+    return this._maxStorageBytes;
+  }
+
+  get maxRecurringPosts(): number {
+    return this._maxRecurringPosts;
+  }
+
   get projectCount(): number {
     return this._projectCount;
   }
@@ -232,7 +312,7 @@ export class Account extends Entity<AccountId> {
   /**
    * Get tier limits for this account
    */
-  get tierLimits(): { maxProjects: number; maxChannelsPerProject: number; maxPostsPerDay: number } {
+  get tierLimits(): TierLimits {
     return { ...TIER_LIMITS[this._subscription] };
   }
 
@@ -430,6 +510,51 @@ export class Account extends Entity<AccountId> {
     }
   }
 
+  /**
+   * Set the account slug (URL-friendly identifier).
+   * Must be lowercase, numbers, and hyphens only, between 3 and 30 characters.
+   */
+  setSlug(slug: string): Result<void, InvalidValueError> {
+    const slugRegex = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
+    if (slug.length < 3 || slug.length > 30) {
+      return err(new InvalidValueError("slug", slug, "Slug must be between 3 and 30 characters"));
+    }
+    if (!slugRegex.test(slug)) {
+      return err(
+        new InvalidValueError(
+          "slug",
+          slug,
+          "Slug must contain only lowercase letters, numbers, and hyphens"
+        )
+      );
+    }
+
+    this._slug = slug;
+    this.markUpdated();
+    return ok(undefined);
+  }
+
+  /**
+   * Check if a new team member can be added given the current count.
+   */
+  canAddTeamMember(currentCount: number): boolean {
+    return currentCount < this._maxTeamMembers;
+  }
+
+  /**
+   * Check if additional storage can be added given the current and additional bytes.
+   */
+  canAddStorage(currentBytes: bigint, additionalBytes: bigint): boolean {
+    return currentBytes + additionalBytes <= this._maxStorageBytes;
+  }
+
+  /**
+   * Check if a new recurring post can be added given the current count.
+   */
+  canAddRecurringPost(currentCount: number): boolean {
+    return currentCount < this._maxRecurringPosts;
+  }
+
   toJSON(): Record<string, unknown> {
     return {
       id: this._id.toString(),
@@ -445,7 +570,17 @@ export class Account extends Entity<AccountId> {
       isActive: this.isActive,
       autoRenewal: this._autoRenewal,
       billingCycle: this._billingCycle,
-      tierLimits: this.tierLimits,
+      tierLimits: {
+        ...this.tierLimits,
+        maxStorageBytes: this.tierLimits.maxStorageBytes.toString(),
+      },
+      ...(this._slug !== undefined && { slug: this._slug }),
+      timezone: this._timezone,
+      locale: this._locale,
+      ...(this._phone !== undefined && { phone: this._phone }),
+      maxTeamMembers: this._maxTeamMembers,
+      maxStorageBytes: this._maxStorageBytes.toString(),
+      maxRecurringPosts: this._maxRecurringPosts,
       createdAt: this._createdAt.toISOString(),
       updatedAt: this._updatedAt.toISOString(),
     };

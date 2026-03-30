@@ -100,6 +100,7 @@ import { samlRoutes } from "./auth/samlRoutes.js";
 import { oidcRoutes } from "./auth/oidcRoutes.js";
 import { customReportRoutes } from "./custom-reports/customReportRoutes.js";
 import { crmRoutes } from "./crm/crmRoutes.js";
+import { customerAuthRoutes } from "./auth/customerAuthRoutes.js";
 
 // Phase 3 imports
 import { DatabaseOptimizer } from "./utils/dbOptimization.js";
@@ -464,6 +465,9 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Register CRM routes
   await typedApp.register(crmRoutes);
+
+  // Register customer authentication routes
+  await typedApp.register(customerAuthRoutes);
 
   // Initialize Saga Integration (orchestrates multi-step publishing workflows
   // with real BullMQ job enqueuing and Redis pub/sub worker notifications)

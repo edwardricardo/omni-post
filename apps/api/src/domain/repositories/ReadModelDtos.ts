@@ -91,6 +91,13 @@ export interface AccountDto {
   deletedAt: Date | null;
   ssoEnabled: boolean;
   ssoProvider: SsoProviderKind;
+  slug: string | null;
+  timezone: string;
+  locale: string;
+  phone: string | null;
+  maxTeamMembers: number;
+  maxStorageBytes: bigint;
+  maxRecurringPosts: number;
   createdAt: Date;
   updatedAt: Date;
 }

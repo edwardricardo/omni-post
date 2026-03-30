@@ -1,0 +1,155 @@
+/**
+ * @file RegisterCustomerUseCase.ts
+ * @description Creates a new Account + CustomerUser atomically, hashes the password,
+ *   and returns JWT tokens for immediate login (no email verification enforced).
+ * @layer application
+ */
+
+import { type Result, ok, err } from "@shared/types";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
+import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
+import { Account, type SubscriptionTierValue } from "../../domain/entities/Account.js";
+import { CustomerUser, CUSTOMER_ROLE } from "../../domain/entities/CustomerUser.js";
+import { randomBytes } from "crypto";
+import argon2 from "argon2";
+import { signCustomerAccessToken, signCustomerRefreshToken } from "../../auth/customerJwt.js";
+
+/** Error code union for this use case */
+export type RegisterCustomerError = "VALIDATION_ERROR" | "EMAIL_EXISTS" | "INTERNAL_ERROR";
+
+/** Input DTO */
+export interface RegisterCustomerInput {
+  readonly accountName: string;
+  readonly accountEmail: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly email: string;
+  readonly password: string;
+  readonly plan?: SubscriptionTierValue;
+}
+
+/** Output DTO */
+export interface RegisterCustomerOutput {
+  readonly account: Record<string, unknown>;
+  readonly user: Record<string, unknown>;
+  readonly accessToken: string;
+  readonly refreshToken: string;
+}
+
+/**
+ * @class RegisterCustomerUseCase
+ * @description Orchestrates customer registration: creates Account + CustomerUser
+ *   atomically, then signs JWT tokens for immediate login.
+ */
+export class RegisterCustomerUseCase {
+  constructor(
+    private readonly customerUserRepo: CustomerUserRepository,
+    private readonly accountRepo: AccountRepositoryPort,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
+
+  /**
+   * @method execute
+   * @description Creates account + user in a single transaction and returns tokens.
+   */
+  async execute(
+    input: RegisterCustomerInput
+  ): Promise<Result<RegisterCustomerOutput, RegisterCustomerError>> {
+    // Basic validation
+    if (!input.email || !input.password || !input.firstName || !input.lastName) {
+      return err("VALIDATION_ERROR");
+    }
+    if (input.password.length < 8) {
+      return err("VALIDATION_ERROR");
+    }
+
+    // Check for duplicate email across all accounts
+    const existingUsers = await this.customerUserRepo.findByEmailAcrossAccounts(input.email);
+    if (existingUsers.length > 0) {
+      return err("EMAIL_EXISTS");
+    }
+
+    // Create Account domain entity
+    const accountResult = Account.create({
+      email: input.accountEmail || input.email,
+      name: input.accountName || `${input.firstName} ${input.lastName}`,
+      ...(input.plan !== undefined && { subscription: input.plan }),
+    });
+
+    if (!accountResult.ok) {
+      return err("VALIDATION_ERROR");
+    }
+
+    const account = accountResult.value;
+
+    // Hash password (application layer responsibility)
+    const passwordHash = await argon2.hash(input.password, {
+      type: argon2.argon2id,
+      memoryCost: 65536,
+      timeCost: 3,
+      parallelism: 4,
+    });
+
+    // Create CustomerUser domain entity
+    const userId = randomBytes(12).toString("hex");
+    const userResult = CustomerUser.create({
+      id: userId,
+      accountId: account.id.toString(),
+      email: input.email,
+      passwordHash,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      role: CUSTOMER_ROLE.OWNER,
+    });
+
+    if (!userResult.ok) {
+      return err("VALIDATION_ERROR");
+    }
+
+    const user = userResult.value;
+
+    const doWork = async (): Promise<Result<RegisterCustomerOutput, RegisterCustomerError>> => {
+      // Persist account
+      const saveAccountResult = await this.accountRepo.save(account);
+      if (!saveAccountResult.ok) {
+        return err("INTERNAL_ERROR");
+      }
+
+      // Persist customer user
+      const saveUserResult = await this.customerUserRepo.save(user, passwordHash);
+      if (!saveUserResult.ok) {
+        return err("INTERNAL_ERROR");
+      }
+
+      // Sign tokens for immediate login
+      const sessionId = randomBytes(16).toString("hex");
+      const accessToken = signCustomerAccessToken({
+        sub: user.id,
+        accountId: user.accountId,
+        role: user.role,
+      });
+      const refreshToken = signCustomerRefreshToken(user.id, sessionId);
+
+      return ok({
+        account: account.toJSON(),
+        user: { ...user.toJSON() } as Record<string, unknown>,
+        accessToken,
+        refreshToken,
+      });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<RegisterCustomerOutput, RegisterCustomerError> = err("INTERNAL_ERROR");
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
+      return err("INTERNAL_ERROR");
+    }
+  }
+}

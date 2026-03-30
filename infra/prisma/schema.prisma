@@ -22,6 +22,13 @@ model Account {
   nextBillingDate        DateTime?
   stripeCustomerId       String?
   stripeSubscriptionId   String?
+  slug                   String?                 @unique
+  timezone               String                  @default("UTC")
+  locale                 String                  @default("en")
+  phone                  String?
+  maxTeamMembers         Int                     @default(5)
+  maxStorageBytes        BigInt                  @default(5368709120)
+  maxRecurringPosts      Int                     @default(5)
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   projects               Project[]
@@ -56,6 +63,7 @@ model Account {
   crmConnections         CrmConnection[]
   crmContacts            CrmContact[]
   crmActivities          CrmActivity[]
+  customerUsers          CustomerUser[]
   mediaAssets            MediaAsset[]
   assetFolders           AssetFolder[]
   assetTags              AssetTag[]
@@ -234,6 +242,34 @@ model TeamMember {
 
   @@unique([accountId, email])
   @@index([accountId, isActive])
+  @@index([email])
+}
+
+model CustomerUser {
+  id                String    @id @default(cuid())
+  accountId         String
+  email             String
+  passwordHash      String
+  firstName         String
+  lastName          String
+  role              TeamRole  @default(MEMBER)
+  isActive          Boolean   @default(true)
+  isEmailVerified   Boolean   @default(false)
+  emailVerifyToken  String?   @unique
+  emailVerifyExpiry DateTime?
+  resetToken        String?   @unique
+  resetTokenExpiry  DateTime?
+  mfaEnabled        Boolean   @default(false)
+  mfaSecret         String?
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, email])
+  @@index([accountId])
   @@index([email])
 }
 
