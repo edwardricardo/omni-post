@@ -39,6 +39,18 @@ export const QUEUE_NAMES = {
 
   /** Inbox sync queue (polling provider comments every 30 minutes) */
   INBOX_SYNC: "inbox-sync",
+
+  /** Detect high-performing posts for repurposing */
+  DETECT_REPURPOSE: "detect-repurpose",
+
+  /** Generate platform variants for repurpose proposals */
+  GENERATE_REPURPOSE: "generate-repurpose",
+
+  /** AI triage for incoming inbox messages */
+  TRIAGE_INBOX: "triage-inbox",
+
+  /** Trend radar — fetch and score trending topics */
+  TREND_RADAR: "trend-radar",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

@@ -69,6 +69,8 @@ model Account {
   assetTags              AssetTag[]
   accountSubscription    AccountSubscription?
   referralCode           ReferralCode?
+  repurposeProposals     RepurposeProposal[]
+  trendRadarResults      TrendRadarResult[]
 
   @@index([isOnTrial, trialEndDate])
   @@index([nextBillingDate])
@@ -579,8 +581,10 @@ model Post {
   comments        PostComment[]
   socialMessages  SocialMessage[]
   campaignPosts   CampaignPost[]
-  firstComment    FirstComment?
-  deletedAt       DateTime?
+  firstComment          FirstComment?
+  repurposeProposals    RepurposeProposal[]  @relation("RepurposeSource")
+  repurposedVariants    RepurposeVariant[]   @relation("RepurposedPost")
+  deletedAt             DateTime?
 
   // @@index([projectId]) - REMOVED: Covered by [projectId, status] and [projectId, createdAt]
   // @@index([status]) - REMOVED: Low cardinality (only 3-4 values)
@@ -2039,6 +2043,11 @@ model SocialMessage {
   status            SocialMessageStatus @default(UNREAD)
   assigneeId        String?
   isArchived        Boolean             @default(false)
+  priority          MessagePriority     @default(NORMAL)
+  suggestedReplies  String[]            @default([])
+  crmContactId      String?
+  aiProcessedAt     DateTime?
+  sentimentScore    Decimal?            @db.Decimal(3, 2)
   providerCreatedAt DateTime
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -2839,4 +2848,83 @@ enum ReferralStatus {
   CONVERTED
   REWARDED
   EXPIRED
+}
+
+// ─── Autonomous Post Repurposing (Sprint 9) ─────────────────────────────────
+
+model RepurposeProposal {
+  id                   String          @id @default(cuid())
+  accountId            String
+  sourcePostId         String
+  sourcePlatform       Provider
+  status               RepurposeStatus @default(PENDING)
+  engagementRate       Decimal         @db.Decimal(8, 4)
+  engagementMultiplier Decimal         @db.Decimal(6, 2)
+  detectedAt           DateTime        @default(now())
+  reviewedAt           DateTime?
+  reviewedBy           String?
+
+  account    Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  sourcePost Post                @relation("RepurposeSource", fields: [sourcePostId], references: [id])
+  variants   RepurposeVariant[]
+
+  @@index([accountId, status])
+  @@index([sourcePostId])
+}
+
+model RepurposeVariant {
+  id         String          @id @default(cuid())
+  proposalId String
+  platform   Provider
+  content    String          @db.Text
+  hashtags   String[]
+  status     RepurposeStatus @default(PENDING)
+  postId     String?
+
+  proposal RepurposeProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  post     Post?             @relation("RepurposedPost", fields: [postId], references: [id])
+
+  @@index([proposalId])
+}
+
+enum RepurposeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PUBLISHED
+}
+
+// ─── AI Inbox Triage (Sprint 9) ─────────────────────────────────────────────
+
+enum MessagePriority {
+  URGENT
+  HIGH
+  NORMAL
+  LOW
+}
+
+// ─── Trend Radar (Sprint 9) ─────────────────────────────────────────────────
+
+model TrendRadarResult {
+  id             String       @id @default(cuid())
+  accountId      String
+  topic          String
+  platform       Provider
+  relevanceScore Int
+  postIdea       String?      @db.Text
+  bestPlatform   Provider?
+  urgency        TrendUrgency
+  volume         Int?
+  fetchedAt      DateTime
+  expiresAt      DateTime
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, expiresAt])
+}
+
+enum TrendUrgency {
+  NOW
+  TODAY
+  THIS_WEEK
 }
