@@ -921,6 +921,31 @@ importers:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.6)(utf-8-validate@5.0.10))(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
 
+  packages/adapters/storage-azure:
+    dependencies:
+      '@azure/storage-blob':
+        specifier: 12.31.0
+        version: 12.31.0
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+      prom-client:
+        specifier: 15.1.3
+        version: 15.1.3
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.6)(utf-8-validate@5.0.10))(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
   packages/adapters/storage-cloudinary:
     dependencies:
       '@adapters/external-apis':
@@ -941,6 +966,53 @@ importers:
       prom-client:
         specifier: 15.0.0
         version: 15.0.0
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.6)(utf-8-validate@5.0.10))(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/adapters/storage-do-spaces:
+    dependencies:
+      '@adapters/storage-s3':
+        specifier: workspace:*
+        version: link:../storage-s3
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.6)(utf-8-validate@5.0.10))(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/adapters/storage-gcs:
+    dependencies:
+      '@google-cloud/storage':
+        specifier: 7.19.0
+        version: 7.19.0
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+      prom-client:
+        specifier: 15.1.3
+        version: 15.1.3
     devDependencies:
       '@types/node':
         specifier: 24.5.2
@@ -1916,6 +1988,61 @@ packages:
     resolution: {integrity: sha512-6/b5BJjG6hDaRNtgzLIfKr5DfwyiLHO4+ByTLB0cJgWSM8Ll7KqtdblIS6bEkwSF642/Ex91vNqIl3GLXGlceg==}
     peerDependencies:
       playwright-core: '>= 1.0.0'
+
+  '@azure/abort-controller@2.1.2':
+    resolution: {integrity: sha512-nBrLsEWm4J2u5LpAPjxADTlq3trDgVZZXHNKabeXZtpq3d3AbN/KGO82R87rdDz5/lYB024rtEf10/q0urNgsA==}
+    engines: {node: '>=18.0.0'}
+
+  '@azure/core-auth@1.10.1':
+    resolution: {integrity: sha512-ykRMW8PjVAn+RS6ww5cmK9U2CyH9p4Q88YJwvUslfuMmN98w/2rdGRLPqJYObapBCdzBVeDgYWdJnFPFb7qzpg==}
+    engines: {node: '>=20.0.0'}
+
+  '@azure/core-client@1.10.1':
+    resolution: {integrity: sha512-Nh5PhEOeY6PrnxNPsEHRr9eimxLwgLlpmguQaHKBinFYA/RU9+kOYVOQqOrTsCL+KSxrLLl1gD8Dk5BFW/7l/w==}
+    engines: {node: '>=20.0.0'}
+
+  '@azure/core-http-compat@2.3.2':
+    resolution: {integrity: sha512-Tf6ltdKzOJEgxZeWLCjMxrxbodB/ZeCbzzA1A2qHbhzAjzjHoBVSUeSl/baT/oHAxhc4qdqVaDKnc2+iE932gw==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      '@azure/core-client': ^1.10.0
+      '@azure/core-rest-pipeline': ^1.22.0
+
+  '@azure/core-lro@2.7.2':
+    resolution: {integrity: sha512-0YIpccoX8m/k00O7mDDMdJpbr6mf1yWo2dfmxt5A8XVZVVMz2SSKaEbMCeJRvgQ0IaSlqhjT47p4hVIRRy90xw==}
+    engines: {node: '>=18.0.0'}
+
+  '@azure/core-paging@1.6.2':
+    resolution: {integrity: sha512-YKWi9YuCU04B55h25cnOYZHxXYtEvQEbKST5vqRga7hWY9ydd3FZHdeQF8pyh+acWZvppw13M/LMGx0LABUVMA==}
+    engines: {node: '>=18.0.0'}
+
+  '@azure/core-rest-pipeline@1.23.0':
+    resolution: {integrity: sha512-Evs1INHo+jUjwHi1T6SG6Ua/LHOQBCLuKEEE6efIpt4ZOoNonaT1kP32GoOcdNDbfqsD2445CPri3MubBy5DEQ==}
+    engines: {node: '>=20.0.0'}
+
+  '@azure/core-tracing@1.3.1':
+    resolution: {integrity: sha512-9MWKevR7Hz8kNzzPLfX4EAtGM2b8mr50HPDBvio96bURP/9C+HjdH3sBlLSNNrvRAr5/k/svoH457gB5IKpmwQ==}
+    engines: {node: '>=20.0.0'}
+
+  '@azure/core-util@1.13.1':
+    resolution: {integrity: sha512-XPArKLzsvl0Hf0CaGyKHUyVgF7oDnhKoP85Xv6M4StF/1AhfORhZudHtOyf2s+FcbuQ9dPRAjB8J2KvRRMUK2A==}
+    engines: {node: '>=20.0.0'}
+
+  '@azure/core-xml@1.5.0':
+    resolution: {integrity: sha512-D/sdlJBMJfx7gqoj66PKVmhDDaU6TKA49ptcolxdas29X7AfvLTmfAGLjAcIMBK7UZ2o4lygHIqVckOlQU3xWw==}
+    engines: {node: '>=20.0.0'}
+
+  '@azure/logger@1.3.0':
+    resolution: {integrity: sha512-fCqPIfOcLE+CGqGPd66c8bZpwAji98tZ4JI9i/mlTNTlsIWslCfpg48s/ypyLxZTump5sypjrKn2/kY7q8oAbA==}
+    engines: {node: '>=20.0.0'}
+
+  '@azure/storage-blob@12.31.0':
+    resolution: {integrity: sha512-DBgNv10aCSxopt92DkTDD0o9xScXeBqPKGmR50FPZQaEcH4JLQ+GEOGEDv19V5BMkB7kxr+m4h6il/cCDPvmHg==}
+    engines: {node: '>=20.0.0'}
+
+  '@azure/storage-common@12.3.0':
+    resolution: {integrity: sha512-/OFHhy86aG5Pe8dP5tsp+BuJ25JOAl9yaMU3WZbkeoiFMHFtJ7tu5ili7qEdBXNW9G5lDB19trwyI6V49F/8iQ==}
+    engines: {node: '>=20.0.0'}
 
   '@babel/code-frame@7.27.1':
     resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
@@ -3302,6 +3429,22 @@ packages:
 
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
+
+  '@google-cloud/paginator@5.0.2':
+    resolution: {integrity: sha512-DJS3s0OVH4zFDB1PzjxAsHqJT6sKVbRwwML0ZBP9PbU7Yebtu/7SWMRzvO2J3nUi9pRNITCfu4LJeooM2w4pjg==}
+    engines: {node: '>=14.0.0'}
+
+  '@google-cloud/projectify@4.0.0':
+    resolution: {integrity: sha512-MmaX6HeSvyPbWGwFq7mXdo0uQZLGBYCwziiLIGq5JVX+/bdI3SAq6bP98trV5eTWfLuvsMcIC1YJOF2vfteLFA==}
+    engines: {node: '>=14.0.0'}
+
+  '@google-cloud/promisify@4.0.0':
+    resolution: {integrity: sha512-Orxzlfb9c67A15cq2JQEyVc7wEsmFBmHjZWZYQMUyJ1qivXyMwdyNOs9odi79hze+2zqdTtu1E19IM/FtqZ10g==}
+    engines: {node: '>=14'}
+
+  '@google-cloud/storage@7.19.0':
+    resolution: {integrity: sha512-n2FjE7NAOYyshogdc7KQOl/VZb4sneqPjWouSyia9CMDdMhRX5+RIbqalNmC7LOLzuLAN89VlF2HvG8na9G+zQ==}
+    engines: {node: '>=14'}
 
   '@google/genai@1.20.0':
     resolution: {integrity: sha512-QdShxO9LX35jFogy3iKprQNqgKKveux4H2QjOnyIvyHRuGi6PHiz3fjNf8Y0VPY8o5V2fHqR2XqiSVoz7yZs0w==}
@@ -6314,6 +6457,10 @@ packages:
   '@tiptap/starter-kit@3.6.1':
     resolution: {integrity: sha512-gmQCHEcZxjnVqTInhNx3z7Vuvz+mmIVcXiCSLd5cA9/8PkHo3ttxijfc3lXe4V2ed6RPBWU/FUHFxcUmxqc5Vg==}
 
+  '@tootallnate/once@2.0.0':
+    resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
+    engines: {node: '>= 10'}
+
   '@ts-graphviz/adapter@2.0.6':
     resolution: {integrity: sha512-kJ10lIMSWMJkLkkCG5gt927SnGZcBuG0s0HHswGzcHTgvtUe7yk5/3zTEr0bafzsodsOq5Gi6FhQeV775nC35Q==}
     engines: {node: '>=18'}
@@ -6383,6 +6530,9 @@ packages:
 
   '@types/bunyan@1.8.11':
     resolution: {integrity: sha512-758fRH7umIMk5qt5ELmRMff4mLDlN+xyYzC+dkPTdKwbSkJFvz6xwyScrytPU0QIBbRRwbiE8/BIg8bpajerNQ==}
+
+  '@types/caseless@0.12.5':
+    resolution: {integrity: sha512-hWtVTC2q7hc7xZ/RLbxapMvDMgUnDvKvMOpKal4DrMyfGBUfB1oKaZlIRr6mJL+If3bAP6sV/QneGzF6tJjZDg==}
 
   '@types/chai@5.2.2':
     resolution: {integrity: sha512-8kB30R7Hwqf40JPiKhVzodJs2Qc1ZJ5zuT3uzw5Hq/dhNCl3G3l83jfpdI1e20BP348+fV7VIL/+FxaXkqBmWg==}
@@ -6515,6 +6665,9 @@ packages:
   '@types/react@19.2.14':
     resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
 
+  '@types/request@2.48.13':
+    resolution: {integrity: sha512-FGJ6udDNUCjd19pp0Q3iTiDkwhYup7J8hpMW9c4k53NrccQFFWKRho6hvtPPEhnXWKvukfwAlB6DbDz4yhH5Gg==}
+
   '@types/resolve@1.20.6':
     resolution: {integrity: sha512-A4STmOXPhMUtHH+S6ymgE2GiBSMqf4oTvcQZMcHzokuTLVYzXTB8ttjcgxOVaAp2lGwEdzZ0J+cRbbeevQj1UQ==}
 
@@ -6532,6 +6685,9 @@ packages:
 
   '@types/tedious@4.0.14':
     resolution: {integrity: sha512-KHPsfX/FoVbUGbyYvk1q9MMQHLPeRZhRJZdO45Q4YjvFkv4hMNghCWTvy7rdKessBsmtz4euWCWAB6/tVpI1Iw==}
+
+  '@types/tough-cookie@4.0.5':
+    resolution: {integrity: sha512-/Ad8+nIOV7Rl++6f1BdKxFSMgmoqEoYbHRpPcx3JEfv8VRsQe9Z4mCXeJBzxs7mbHY/XOZZuXlRNfhpVPbs6ZA==}
 
   '@types/trusted-types@1.0.6':
     resolution: {integrity: sha512-230RC8sFeHoT6sSUlRO6a8cAnclO06eeiq1QDfiv2FGCLWFvvERWgwIQD4FWqD9A69BN7Lzee4OXwoMVnnsWDw==}
@@ -6615,6 +6771,10 @@ packages:
   '@typescript-eslint/visitor-keys@8.57.2':
     resolution: {integrity: sha512-zhahknjobV2FiD6Ee9iLbS7OV9zi10rG26odsQdfBO/hjSzUQbkIYgda+iNKK1zNiW2ey+Lf8MU5btN17V3dUw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@typespec/ts-http-runtime@0.3.4':
+    resolution: {integrity: sha512-CI0NhTrz4EBaa0U+HaaUZrJhPoso8sG7ZFya8uQoBA57fjzrjRSv87ekCjLZOFExN+gXE/z0xuN2QfH4H2HrLQ==}
+    engines: {node: '>=20.0.0'}
 
   '@vitejs/plugin-react@5.1.4':
     resolution: {integrity: sha512-VIcFLdRi/VYRU8OL/puL7QXMYafHmqOnwTZY50U1JPlCNj30PxCMx65c494b1K9be9hX83KVt0+gTEwTWLqToA==}
@@ -6824,6 +6984,10 @@ packages:
     resolution: {integrity: sha512-salcGninV0nPrwpGNn4VTXBb1SOuXQBiqbrNXoeizJsHrsL6ERFM2Ne3JUSBWRE6aeNJI2ROP/WEEIDUiDe3cg==}
     engines: {node: '>= 4.0.0'}
 
+  agent-base@6.0.2:
+    resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
+    engines: {node: '>= 6.0.0'}
+
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
@@ -7022,6 +7186,9 @@ packages:
   async-function@1.0.0:
     resolution: {integrity: sha512-hsU18Ae8CDTR6Kgu9DYf0EbCr/a5iGL0rytQDobUcdpYOKokk8LEjVphnXkDkgpi0wYVsqrXuP0bZxJaTqdgoA==}
     engines: {node: '>= 0.4'}
+
+  async-retry@1.3.3:
+    resolution: {integrity: sha512-wfr/jstw9xNi/0teMHrRW7dsz3Lt5ARhYNZ2ewpadnhaIp5mbALhOAP+EAdsC7t4Z6wqsDVv9+W6gm1Dk9mEyw==}
 
   asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
@@ -8896,6 +9063,10 @@ packages:
   http-parser-js@0.5.10:
     resolution: {integrity: sha512-Pysuw9XpUq5dVc/2SMHpuTY01RFl8fttgcyunjL7eEMhGM3cI4eOmiCycJDVCo/7O7ClfQD3SaI6ftDzqOXYMA==}
 
+  http-proxy-agent@5.0.0:
+    resolution: {integrity: sha512-n2hY8YdoRE1i7r6M0w9DIw5GgZN0G25P8zLCRQ8rjXtTU3vsNFBI/vWK/UIeE6g5MUUz6avwAPXmL6Fy9D/90w==}
+    engines: {node: '>= 6'}
+
   http-proxy-agent@7.0.2:
     resolution: {integrity: sha512-T1gkAiYYDWYx3V5Bmyu7HcfcvL7mUrTWiM6yOfa3PIphViJ/gFPbvidQ+veqSOHci/PxBcDabeUNCzpOODJZig==}
     engines: {node: '>= 14'}
@@ -8913,6 +9084,10 @@ packages:
   https-proxy-agent@2.2.4:
     resolution: {integrity: sha512-OmvfoQ53WLjtA9HeYP9RNrWMJzzAz1JGaSFr1nijg0PVR1JaD/xbJq1mdEIIlxGpXp9eSe/O2LgU9DJmTPd0Eg==}
     engines: {node: '>= 4.5.0'}
+
+  https-proxy-agent@5.0.1:
+    resolution: {integrity: sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==}
+    engines: {node: '>= 6'}
 
   https-proxy-agent@7.0.6:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
@@ -9714,6 +9889,11 @@ packages:
   mime-types@2.1.35:
     resolution: {integrity: sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==}
     engines: {node: '>= 0.6'}
+
+  mime@3.0.0:
+    resolution: {integrity: sha512-jSCU7/VB1loIWBZe14aEYHU/+1UMEHoaO7qxCOVJOw9GgH72VAWppxNcjU+x9a2k3GSIBXNKxXQFqRvvZ7vr3A==}
+    engines: {node: '>=10.0.0'}
+    hasBin: true
 
   mimic-fn@2.1.0:
     resolution: {integrity: sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==}
@@ -10959,8 +11139,16 @@ packages:
   retimer@3.0.0:
     resolution: {integrity: sha512-WKE0j11Pa0ZJI5YIk0nflGI7SQsfl2ljihVy7ogh7DeQSeYAUi0ubZ/yEueGtDfUPk6GH5LRw1hBdLq4IwUBWA==}
 
+  retry-request@7.0.2:
+    resolution: {integrity: sha512-dUOvLMJ0/JJYEn8NrpOaGNE7X3vpI5XlZS/u0ANjqtcZVKnIxP7IgCFwrKTxENw29emmwug53awKtaMm4i9g5w==}
+    engines: {node: '>=14'}
+
   retry@0.12.0:
     resolution: {integrity: sha512-9LkiTwjUh6rT555DtE9rTX+BKByPfrMzEAtnlEtdEwr3Nkffwiihqe2bWADg+OQRjt9gl6ICdmB/ZFDCGAtSow==}
+    engines: {node: '>= 4'}
+
+  retry@0.13.1:
+    resolution: {integrity: sha512-XQBQ3I8W1Cge0Seh+6gjj03LbmRFWuoszgK9ooCpwYIrhhoO80pfq4cUkU5DkknwfOfFteRwlZ56PYOGYyFWdg==}
     engines: {node: '>= 4'}
 
   reusify@1.1.0:
@@ -11297,6 +11485,9 @@ packages:
   stream-browserify@3.0.0:
     resolution: {integrity: sha512-H73RAHsVBapbim0tU2JwwOiXUj+fikfiaoYAKHF3VJfA0pe2BCzkhAHBlLG6REzE+2WNZcxOXjK7lkso+9euLA==}
 
+  stream-events@1.0.5:
+    resolution: {integrity: sha512-E1GUzBSgvct8Jsb3v2X15pjzN1tYebtbLaMg+eBOUOAxgbLoSbT2NS91ckc5lJD1KfLjId+jXJRgo0qnV5Nerg==}
+
   stream-http@3.2.0:
     resolution: {integrity: sha512-Oq1bLqisTyK3TSCXpPbT4sdeYNdmyZJv1LxpEm2vu1ZhK89kSE5YXwZc3cWk0MagGaKriBh9mCFbVGtO+vY29A==}
 
@@ -11403,6 +11594,9 @@ packages:
   strnum@2.2.2:
     resolution: {integrity: sha512-DnR90I+jtXNSTXWdwrEy9FakW7UX+qUZg28gj5fk2vxxl7uS/3bpI4fjFYVmdK9etptYBPNkpahuQnEwhwECqA==}
 
+  stubs@3.0.0:
+    resolution: {integrity: sha512-PdHt7hHUJKxvTCgbKX9C1V/ftOcjJQgz8BZwNfV5c4B6dcGqlpelTbJ999jBGZ2jYiPAwcX5dP6oBwVlBlUbxw==}
+
   style-loader@3.3.4:
     resolution: {integrity: sha512-0WqXzrsMTyb8yjZJHDqwmnwRJvhALK9LfRtRc6B4UTWe8AijYLZYZ9thuJTZc2VfQWINADW/j+LiJnfy2RoC1w==}
     engines: {node: '>= 12.13.0'}
@@ -11471,6 +11665,10 @@ packages:
 
   tdigest@0.1.2:
     resolution: {integrity: sha512-+G0LLgjjo9BZX2MfdvPfH+MKLCrxlXSYec5DaPYP1fe6Iyhf0/fSmJ0bFiZ1F8BT6cGXl2LpltQptzjXKWEkKA==}
+
+  teeny-request@9.0.0:
+    resolution: {integrity: sha512-resvxdc6Mgb7YEThw6G6bExlXKkv6+YbuzGg9xuXxSgxJF7Ozs+o8Y9+2R3sArdWdW8nOokoQb1yrpFB0pQK2g==}
+    engines: {node: '>=14'}
 
   terser-webpack-plugin@5.3.14:
     resolution: {integrity: sha512-vkZjpUjb6OMS7dhV+tILUW6BhpDR7P2L/aQSAv+Uwk+m8KATX9EccViHTJR2qDtACKPIYndLGCyl3FMo+r2LMw==}
@@ -12998,6 +13196,119 @@ snapshots:
       axe-core: 4.10.3
       playwright-core: 1.55.1
 
+  '@azure/abort-controller@2.1.2':
+    dependencies:
+      tslib: 2.8.1
+
+  '@azure/core-auth@1.10.1':
+    dependencies:
+      '@azure/abort-controller': 2.1.2
+      '@azure/core-util': 1.13.1
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@azure/core-client@1.10.1':
+    dependencies:
+      '@azure/abort-controller': 2.1.2
+      '@azure/core-auth': 1.10.1
+      '@azure/core-rest-pipeline': 1.23.0
+      '@azure/core-tracing': 1.3.1
+      '@azure/core-util': 1.13.1
+      '@azure/logger': 1.3.0
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@azure/core-http-compat@2.3.2(@azure/core-client@1.10.1)(@azure/core-rest-pipeline@1.23.0)':
+    dependencies:
+      '@azure/abort-controller': 2.1.2
+      '@azure/core-client': 1.10.1
+      '@azure/core-rest-pipeline': 1.23.0
+
+  '@azure/core-lro@2.7.2':
+    dependencies:
+      '@azure/abort-controller': 2.1.2
+      '@azure/core-util': 1.13.1
+      '@azure/logger': 1.3.0
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@azure/core-paging@1.6.2':
+    dependencies:
+      tslib: 2.8.1
+
+  '@azure/core-rest-pipeline@1.23.0':
+    dependencies:
+      '@azure/abort-controller': 2.1.2
+      '@azure/core-auth': 1.10.1
+      '@azure/core-tracing': 1.3.1
+      '@azure/core-util': 1.13.1
+      '@azure/logger': 1.3.0
+      '@typespec/ts-http-runtime': 0.3.4
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@azure/core-tracing@1.3.1':
+    dependencies:
+      tslib: 2.8.1
+
+  '@azure/core-util@1.13.1':
+    dependencies:
+      '@azure/abort-controller': 2.1.2
+      '@typespec/ts-http-runtime': 0.3.4
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@azure/core-xml@1.5.0':
+    dependencies:
+      fast-xml-parser: 5.5.9
+      tslib: 2.8.1
+
+  '@azure/logger@1.3.0':
+    dependencies:
+      '@typespec/ts-http-runtime': 0.3.4
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@azure/storage-blob@12.31.0':
+    dependencies:
+      '@azure/abort-controller': 2.1.2
+      '@azure/core-auth': 1.10.1
+      '@azure/core-client': 1.10.1
+      '@azure/core-http-compat': 2.3.2(@azure/core-client@1.10.1)(@azure/core-rest-pipeline@1.23.0)
+      '@azure/core-lro': 2.7.2
+      '@azure/core-paging': 1.6.2
+      '@azure/core-rest-pipeline': 1.23.0
+      '@azure/core-tracing': 1.3.1
+      '@azure/core-util': 1.13.1
+      '@azure/core-xml': 1.5.0
+      '@azure/logger': 1.3.0
+      '@azure/storage-common': 12.3.0(@azure/core-client@1.10.1)
+      events: 3.3.0
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@azure/storage-common@12.3.0(@azure/core-client@1.10.1)':
+    dependencies:
+      '@azure/abort-controller': 2.1.2
+      '@azure/core-auth': 1.10.1
+      '@azure/core-http-compat': 2.3.2(@azure/core-client@1.10.1)(@azure/core-rest-pipeline@1.23.0)
+      '@azure/core-rest-pipeline': 1.23.0
+      '@azure/core-tracing': 1.3.1
+      '@azure/core-util': 1.13.1
+      '@azure/logger': 1.3.0
+      events: 3.3.0
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@azure/core-client'
+      - supports-color
+
   '@babel/code-frame@7.27.1':
     dependencies:
       '@babel/helper-validator-identifier': 7.27.1
@@ -14406,6 +14717,36 @@ snapshots:
       react-dom: 19.2.4(react@19.2.4)
 
   '@floating-ui/utils@0.2.10': {}
+
+  '@google-cloud/paginator@5.0.2':
+    dependencies:
+      arrify: 2.0.1
+      extend: 3.0.2
+
+  '@google-cloud/projectify@4.0.0': {}
+
+  '@google-cloud/promisify@4.0.0': {}
+
+  '@google-cloud/storage@7.19.0':
+    dependencies:
+      '@google-cloud/paginator': 5.0.2
+      '@google-cloud/projectify': 4.0.0
+      '@google-cloud/promisify': 4.0.0
+      abort-controller: 3.0.0
+      async-retry: 1.3.3
+      duplexify: 4.1.3
+      fast-xml-parser: 5.5.9
+      gaxios: 6.7.1
+      google-auth-library: 9.14.1
+      html-entities: 2.6.0
+      mime: 3.0.0
+      p-limit: 3.1.0
+      retry-request: 7.0.2
+      teeny-request: 9.0.0
+      uuid: 8.3.2
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
 
   '@google/genai@1.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)':
     dependencies:
@@ -17799,6 +18140,8 @@ snapshots:
       '@tiptap/extensions': 3.6.1(@tiptap/core@3.6.1(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)
       '@tiptap/pm': 3.6.1
 
+  '@tootallnate/once@2.0.0': {}
+
   '@ts-graphviz/adapter@2.0.6':
     dependencies:
       '@ts-graphviz/common': 2.1.5
@@ -17865,6 +18208,8 @@ snapshots:
   '@types/bunyan@1.8.11':
     dependencies:
       '@types/node': 24.5.2
+
+  '@types/caseless@0.12.5': {}
 
   '@types/chai@5.2.2':
     dependencies:
@@ -18009,6 +18354,13 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
+  '@types/request@2.48.13':
+    dependencies:
+      '@types/caseless': 0.12.5
+      '@types/node': 24.5.2
+      '@types/tough-cookie': 4.0.5
+      form-data: 4.0.5
+
   '@types/resolve@1.20.6': {}
 
   '@types/sarif@2.1.7': {}
@@ -18024,6 +18376,8 @@ snapshots:
   '@types/tedious@4.0.14':
     dependencies:
       '@types/node': 24.5.2
+
+  '@types/tough-cookie@4.0.5': {}
 
   '@types/trusted-types@1.0.6': {}
 
@@ -18166,6 +18520,14 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.57.2
       eslint-visitor-keys: 5.0.1
+
+  '@typespec/ts-http-runtime@0.3.4':
+    dependencies:
+      http-proxy-agent: 7.0.2
+      https-proxy-agent: 7.0.6
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
 
   '@vitejs/plugin-react@5.1.4(vite@7.1.7(@types/node@24.5.2)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
@@ -18463,6 +18825,12 @@ snapshots:
     dependencies:
       es6-promisify: 5.0.0
 
+  agent-base@6.0.2:
+    dependencies:
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
+
   agent-base@7.1.4: {}
 
   agentkeepalive@2.2.0: {}
@@ -18659,6 +19027,10 @@ snapshots:
       js-tokens: 10.0.0
 
   async-function@1.0.0: {}
+
+  async-retry@1.3.3:
+    dependencies:
+      retry: 0.13.1
 
   asynckit@0.4.0: {}
 
@@ -20608,7 +20980,7 @@ snapshots:
 
   gcp-metadata@7.0.1:
     dependencies:
-      gaxios: 7.1.2
+      gaxios: 7.1.4
       google-logging-utils: 1.1.1
       json-bigint: 1.0.0
     transitivePeerDependencies:
@@ -20828,7 +21200,7 @@ snapshots:
 
   gtoken@8.0.0:
     dependencies:
-      gaxios: 7.1.2
+      gaxios: 7.1.4
       jws: 4.0.0
     transitivePeerDependencies:
       - supports-color
@@ -20978,6 +21350,14 @@ snapshots:
 
   http-parser-js@0.5.10: {}
 
+  http-proxy-agent@5.0.0:
+    dependencies:
+      '@tootallnate/once': 2.0.0
+      agent-base: 6.0.2
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
+
   http-proxy-agent@7.0.2:
     dependencies:
       agent-base: 7.1.4
@@ -20999,6 +21379,13 @@ snapshots:
     dependencies:
       agent-base: 4.3.0
       debug: 3.2.7
+    transitivePeerDependencies:
+      - supports-color
+
+  https-proxy-agent@5.0.1:
+    dependencies:
+      agent-base: 6.0.2
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -21874,6 +22261,8 @@ snapshots:
     dependencies:
       mime-db: 1.52.0
 
+  mime@3.0.0: {}
+
   mimic-fn@2.1.0: {}
 
   mimic-function@5.0.1: {}
@@ -22710,7 +23099,7 @@ snapshots:
 
   prom-client@15.1.3:
     dependencies:
-      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/api': 1.9.1
       tdigest: 0.1.2
 
   promise@7.3.1:
@@ -23421,7 +23810,18 @@ snapshots:
 
   retimer@3.0.0: {}
 
+  retry-request@7.0.2:
+    dependencies:
+      '@types/request': 2.48.13
+      extend: 3.0.2
+      teeny-request: 9.0.0
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
   retry@0.12.0: {}
+
+  retry@0.13.1: {}
 
   reusify@1.1.0: {}
 
@@ -23812,6 +24212,10 @@ snapshots:
       inherits: 2.0.4
       readable-stream: 3.6.2
 
+  stream-events@1.0.5:
+    dependencies:
+      stubs: 3.0.0
+
   stream-http@3.2.0:
     dependencies:
       builtin-status-codes: 3.0.0
@@ -23934,6 +24338,8 @@ snapshots:
 
   strnum@2.2.2: {}
 
+  stubs@3.0.0: {}
+
   style-loader@3.3.4(webpack@5.101.3(esbuild@0.27.4)):
     dependencies:
       webpack: 5.101.3(esbuild@0.27.4)
@@ -23982,6 +24388,17 @@ snapshots:
   tdigest@0.1.2:
     dependencies:
       bintrees: 1.0.2
+
+  teeny-request@9.0.0:
+    dependencies:
+      http-proxy-agent: 5.0.0
+      https-proxy-agent: 5.0.1
+      node-fetch: 2.7.0
+      stream-events: 1.0.5
+      uuid: 9.0.1
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
 
   terser-webpack-plugin@5.3.14(esbuild@0.27.4)(webpack@5.101.3(esbuild@0.27.4)):
     dependencies:

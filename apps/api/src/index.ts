@@ -40,7 +40,7 @@ import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { closeDatabaseConnections, prisma } from "@infra/prisma";
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
 import client from "prom-client";
-import { createS3StorageAdapter } from "@adapters/storage-s3";
+import { createStorageAdapter } from "./infrastructure/storage/createStorageAdapter.js";
 import { RateLimit, RateLimitConfigs, EXPENSIVE_ENDPOINT_RULES } from "./security/rateLimit.js";
 import { createErrorHandler } from "./lib/errors/errorHandler.js";
 import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
@@ -215,12 +215,7 @@ async function createApp(): Promise<FastifyInstance> {
   // Initialize components
   const repoAdapter = createPrismaRepoAdapter();
   const queueAdapter = createBullMQQueueAdapter();
-  const storageAdapter = createS3StorageAdapter({
-    bucket: process.env.S3_BUCKET || "omni-post-media",
-    region: process.env.S3_REGION || "us-east-1",
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "",
-  });
+  const storageAdapter = createStorageAdapter();
 
   // Initialize dead letter queue
   const _deadLetterQueue = createDeadLetterQueue({
