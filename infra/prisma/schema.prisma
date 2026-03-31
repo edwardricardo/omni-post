@@ -1058,6 +1058,7 @@ enum Provider {
   PINTEREST
   LINKEDIN
   BLUESKY
+  THREADS
 }
 
 enum SubscriptionTier {

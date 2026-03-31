@@ -9,6 +9,7 @@ import { telegramAdapter } from "@providers/telegram";
 import { pinterestAdapter } from "@providers/pinterest";
 import { linkedInAdapter } from "@providers/linkedin";
 import { blueskyAdapter } from "@providers/bluesky";
+import { threadsAdapter } from "@providers/threads";
 import { providerLogger } from "../lib/logger.js";
 import {
   PROVIDER_CONFIGS,
@@ -54,6 +55,7 @@ class ProviderRegistryService {
     this.adapters.set("pinterest", pinterestAdapter);
     this.adapters.set("linkedin", linkedInAdapter);
     this.adapters.set("bluesky", blueskyAdapter);
+    this.adapters.set("threads", threadsAdapter);
   }
 
   /**

@@ -444,6 +444,8 @@ export class ProviderCapabilityManager {
       pinterest: 600,
       snapchat: 900,
       telegram: 700,
+      bluesky: 400,
+      threads: 1200,
     };
 
     return baseReach[providerId] || 500;

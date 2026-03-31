@@ -194,7 +194,8 @@ export type ProviderName =
   | "TELEGRAM"
   | "PINTEREST"
   | "LINKEDIN"
-  | "BLUESKY";
+  | "BLUESKY"
+  | "THREADS";
 
 /** Admin user roles matching the Prisma AdminRole enum */
 export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "SUPPORT";

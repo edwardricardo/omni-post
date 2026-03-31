@@ -22,7 +22,8 @@ export type ProviderId =
   | "telegram"
   | "pinterest"
   | "linkedin"
-  | "bluesky";
+  | "bluesky"
+  | "threads";
 
 export type ProviderLimits = {
   maxChars: number;

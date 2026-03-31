@@ -588,4 +588,6 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   // which validates the bot token by calling the getMe endpoint.
   // -----------------------------------------------------------------
   telegram: createUnimplementedProvider("telegram"),
+  bluesky: createUnimplementedProvider("bluesky"),
+  threads: createUnimplementedProvider("threads"),
 };

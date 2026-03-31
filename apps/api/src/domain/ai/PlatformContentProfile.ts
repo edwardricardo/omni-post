@@ -108,4 +108,15 @@ export const PLATFORM_CONTENT_PROFILES: Record<string, PlatformProfile> = {
     structure: "Key update → Detailed explanation → Links/resources → Discussion prompt",
     avoidances: "Don't be too casual. Telegram communities value depth over brevity.",
   },
+  THREADS: {
+    name: "Threads",
+    maxChars: 500,
+    style: "conversational, authentic, community-first",
+    hashtagStrategy: "Minimal — 0-3 hashtags, audience uses search not hashtags",
+    toneNotes:
+      "Threads rewards genuine conversation over broadcast marketing. Speak to a community, not an audience. Ask questions. Share perspectives.",
+    structure: "Standalone thought or question → optional context → optional CTA",
+    avoidances:
+      "Avoid link spam (links discouraged in feed). Avoid cross-posting from X verbatim. No hashtag walls.",
+  },
 } as const;

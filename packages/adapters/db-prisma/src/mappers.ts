@@ -11,7 +11,8 @@ export type Provider =
   | "TELEGRAM"
   | "PINTEREST"
   | "LINKEDIN"
-  | "BLUESKY";
+  | "BLUESKY"
+  | "THREADS";
 export type PrismaSubscriptionTier = "BASIC" | "PRO" | "ENTERPRISE";
 export type PrismaThreadStrategy = "SEQUENTIAL" | "INSTANT" | "BATCH";
 export type PrismaTweetStatus = "PENDING" | "PUBLISHED" | "FAILED";
@@ -26,7 +27,8 @@ type AppProvider =
   | "telegram"
   | "pinterest"
   | "linkedin"
-  | "bluesky";
+  | "bluesky"
+  | "threads";
 
 /**
  * Maps database Provider enum to application provider string
