@@ -20,6 +20,8 @@ const log = createLogger("auth-actions");
 // ---------------------------------------------------------------------------
 
 const COOKIE_NAME = "admin-session";
+const REFRESH_COOKIE_NAME = "admin-refresh";
+const CSRF_COOKIE_NAME = "admin-csrf";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -27,6 +29,22 @@ const COOKIE_OPTIONS = {
   sameSite: "lax" as const,
   path: "/",
   maxAge: 24 * 60 * 60, // 1 day
+};
+
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  path: "/",
+  maxAge: 7 * 24 * 60 * 60, // 7 days — matches refresh token TTL
+};
+
+const CSRF_COOKIE_OPTIONS = {
+  httpOnly: true, // only needed server-side in proxy
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  path: "/",
+  maxAge: 7 * 24 * 60 * 60, // 7 days
 };
 
 // ---------------------------------------------------------------------------
@@ -87,6 +105,8 @@ export async function loginAction(
 
     const cookieStore = await cookies();
     cookieStore.set(COOKIE_NAME, accessToken, COOKIE_OPTIONS);
+    cookieStore.set(REFRESH_COOKIE_NAME, result.tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
+    cookieStore.set(CSRF_COOKIE_NAME, result.tokens.csrfToken, CSRF_COOKIE_OPTIONS);
   } catch (error) {
     log.error("Unexpected login error", error);
     return {
@@ -123,11 +143,13 @@ export async function logoutAction(): Promise<void> {
     }
 
     cookieStore.delete(COOKIE_NAME);
+    cookieStore.delete(REFRESH_COOKIE_NAME);
+    cookieStore.delete(CSRF_COOKIE_NAME);
   } catch (error) {
     log.error("Logout error", error);
     // Still redirect even if there's an unexpected error
   }
 
   // Redirect OUTSIDE try/catch — redirect() throws internally (NEXT_REDIRECT)
-  redirect("/auth/login");
+  redirect("/login");
 }
