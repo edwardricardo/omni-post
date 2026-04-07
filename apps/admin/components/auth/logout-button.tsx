@@ -1,13 +1,12 @@
 /**
- * Admin Logout Button
- *
- * Renders a form whose action is the logoutAction Server Action.
- * Submitting the form clears the admin-session cookie and redirects
- * to /auth/login — no client-side JavaScript is required.
+ * @file logout-button.tsx
+ * @description Admin Logout Button using next-intl for localized label.
+ * @layer presentation
  */
 "use client";
 
 import { logoutAction } from "@/app/actions/auth";
+import { useTranslations } from "next-intl";
 
 interface LogoutButtonProps {
   className?: string;
@@ -15,10 +14,12 @@ interface LogoutButtonProps {
 }
 
 export function LogoutButton({ className, children }: LogoutButtonProps) {
+  const t = useTranslations("common");
+
   return (
     <form action={logoutAction}>
       <button type="submit" className={className}>
-        {children ?? "Logout"}
+        {children ?? t("logout")}
       </button>
     </form>
   );

@@ -244,8 +244,8 @@ export function ProjectProvider({
         aria-label="Loading project context"
       >
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
-          <p className="text-sm text-gray-500">Loading projects...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--border-default)] border-t-[var(--accent)]" />
+          <p className="text-sm text-[var(--text-tertiary)]">Loading projects...</p>
         </div>
       </div>
     );
@@ -256,15 +256,17 @@ export function ProjectProvider({
   if (errorMsg) {
     return (
       <div
-        className="mx-auto max-w-lg rounded-lg border border-red-200 bg-red-50 p-6 text-center"
+        className="mx-auto max-w-lg rounded-lg border border-[var(--error-subtle)] bg-[var(--error-subtle)] p-6 text-center"
         role="alert"
       >
-        <h2 className="text-lg font-semibold text-red-800">Failed to load project context</h2>
-        <p className="mt-2 text-sm text-red-600">{errorMsg}</p>
+        <h2 className="text-lg font-semibold text-[var(--error)]">
+          Failed to load project context
+        </h2>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">{errorMsg}</p>
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="mt-4 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          className="mt-4 rounded-md bg-[var(--error)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-hidden focus:ring-2 focus:ring-[var(--error)] focus:ring-offset-2"
         >
           Retry
         </button>
@@ -276,10 +278,10 @@ export function ProjectProvider({
 
   if (isEmpty) {
     return (
-      <div className="mx-auto max-w-lg rounded-lg border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+      <div className="mx-auto max-w-lg rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent-subtle)]">
           <svg
-            className="h-6 w-6 text-blue-600"
+            className="h-6 w-6 text-[var(--accent)]"
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth={1.5}
@@ -293,8 +295,8 @@ export function ProjectProvider({
             />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-gray-900">No projects found</h2>
-        <p className="mt-2 text-sm text-gray-500">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">No projects found</h2>
+        <p className="mt-2 text-sm text-[var(--text-tertiary)]">
           {accountId
             ? "This account has no projects yet. Create one to start managing content."
             : "No active accounts were found. Create an account first, then add a project."}

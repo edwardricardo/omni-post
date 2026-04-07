@@ -1,8 +1,8 @@
 /**
- * LoadingSpinner Component
- *
- * Accessible loading indicator with ARIA live region.
- * Announces loading state to screen readers.
+ * @file LoadingSpinner.tsx
+ * @description Accessible loading indicator with ARIA live region.
+ *   Uses CSS custom-property tokens for theme support.
+ * @layer presentation
  */
 
 import React from "react";
@@ -13,17 +13,17 @@ interface LoadingSpinnerProps {
   className?: string;
 }
 
+const SIZE_CLASSES: Record<NonNullable<LoadingSpinnerProps["size"]>, string> = {
+  sm: "w-4 h-4 border-2",
+  md: "w-8 h-8 border-2",
+  lg: "w-12 h-12 border-[3px]",
+};
+
 export function LoadingSpinner({
   size = "md",
   label = "Loading...",
   className = "",
 }: LoadingSpinnerProps) {
-  const sizeClasses = {
-    sm: "w-4 h-4 border-2",
-    md: "w-8 h-8 border-2",
-    lg: "w-12 h-12 border-3",
-  };
-
   return (
     <div
       className={`flex items-center justify-center ${className}`}
@@ -31,7 +31,7 @@ export function LoadingSpinner({
       aria-live="polite"
     >
       <div
-        className={`${sizeClasses[size]} border-blue-600 border-t-transparent rounded-full animate-spin`}
+        className={`${SIZE_CLASSES[size]} border-[var(--accent)] border-t-transparent rounded-full animate-spin`}
         aria-hidden="true"
       />
       <span className="sr-only">{label}</span>

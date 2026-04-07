@@ -1,18 +1,38 @@
+/**
+ * @file layout.tsx
+ * @description Root layout for the admin dashboard. Configures Geist font family,
+ *   next-intl i18n, ThemeProvider (dark/light), and the AdminToaster for notifications.
+ * @layer infrastructure
+ */
 import React from "react";
-import { Toaster } from "@packages/ui";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
+
+import { ThemeProvider } from "@/providers/ThemeProvider";
+import { AdminToaster } from "@/components/ui/AdminToaster";
+import "./globals.css";
 
 export const metadata = { title: "Admin", description: "CMS Multicanal" };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="es">
-      <body style={{ fontFamily: "system-ui, sans-serif", margin: 0 }}>
-        <header style={{ padding: 12, borderBottom: "1px solid #eee" }}>
-          <a href="/">Admin</a> · <a href="/posts">Posts</a> · <a href="/logs">Logs</a> ·{" "}
-          <a href="/webhooks">Webhooks</a>
-        </header>
-        <main style={{ padding: 16 }}>{children}</main>
-        <Toaster />
+    <html
+      lang={locale}
+      className={`dark ${GeistSans.variable} ${GeistMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="font-sans antialiased">
+        <ThemeProvider>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            {children}
+            <AdminToaster />
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

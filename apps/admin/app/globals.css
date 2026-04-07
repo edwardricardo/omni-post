@@ -1,0 +1,187 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@source "../../packages/ui/src/**/*.{ts,tsx}";
+@source "../components/**/*.{ts,tsx}";
+
+/* @packages/ui class safelist — scanner can't resolve pnpm workspace symlinks.
+   This .ts file contains all classes from dialog, alert-dialog, toast, toaster. */
+@source "../lib/ui-safelist.ts";
+@source "../app/**/*.{ts,tsx}";
+@source "../providers/**/*.{ts,tsx}";
+@source "../hooks/**/*.{ts,tsx}";
+
+/* ═══════════════════════════════════════════════════════════════
+   Tailwind v4 @theme — maps CSS vars to utility classes
+   Required for @packages/ui components (Dialog, AlertDialog, Toast)
+   ═══════════════════════════════════════════════════════════════ */
+@theme inline {
+  --color-background: var(--bg-surface);
+  --color-foreground: var(--text-primary);
+  --color-muted-foreground: var(--text-secondary);
+  --color-border: var(--border-default);
+  --color-input: var(--border-default);
+  --color-ring: var(--accent);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-fg);
+  --color-accent: var(--accent-subtle);
+  --color-accent-foreground: var(--accent);
+  --color-destructive: var(--error);
+  --color-destructive-foreground: #ffffff;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Design Tokens — Light + Dark
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Background layers */
+  --bg-base: #fafafa;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f5f5f5;
+  --bg-overlay: #ebebeb;
+
+  /* Borders */
+  --border-subtle: #f0f0f0;
+  --border-default: #e5e5e5;
+  --border-strong: #d4d4d4;
+
+  /* Text */
+  --text-primary: #0a0a0a;
+  --text-secondary: #6b6b6b;
+  --text-tertiary: #a0a0a0;
+  --text-inverse: #fafafa;
+
+  /* Accent */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-subtle: rgba(37, 99, 235, 0.08);
+  --accent-fg: #ffffff;
+
+  /* Status */
+  --success: #16a34a;
+  --success-subtle: rgba(22, 163, 74, 0.08);
+  --warning: #d97706;
+  --warning-subtle: rgba(217, 119, 6, 0.08);
+  --error: #dc2626;
+  --error-subtle: rgba(220, 38, 38, 0.08);
+  --info: #2563eb;
+  --info-subtle: rgba(37, 99, 235, 0.08);
+
+  /* Sidebar */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e5e5e5;
+  --sidebar-item-hover: #f5f5f5;
+  --sidebar-item-active: rgba(37, 99, 235, 0.08);
+  --sidebar-item-active-text: #2563eb;
+
+}
+
+.dark {
+  /* Background layers */
+  --bg-base: #080808;
+  --bg-surface: #111111;
+  --bg-elevated: #1a1a1a;
+  --bg-overlay: #222222;
+
+  /* Borders */
+  --border-subtle: #1f1f1f;
+  --border-default: #2a2a2a;
+  --border-strong: #3a3a3a;
+
+  /* Text */
+  --text-primary: #f0f0f0;
+  --text-secondary: #888888;
+  --text-tertiary: #555555;
+  --text-inverse: #080808;
+
+  /* Accent */
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-subtle: rgba(59, 130, 246, 0.1);
+  --accent-fg: #ffffff;
+
+  /* Status */
+  --success: #22c55e;
+  --success-subtle: rgba(34, 197, 94, 0.1);
+  --warning: #f59e0b;
+  --warning-subtle: rgba(245, 158, 11, 0.1);
+  --error: #ef4444;
+  --error-subtle: rgba(239, 68, 68, 0.1);
+  --info: #3b82f6;
+  --info-subtle: rgba(59, 130, 246, 0.1);
+
+  /* Sidebar */
+  --sidebar-bg: #0f0f0f;
+  --sidebar-border: #1f1f1f;
+  --sidebar-item-hover: #1a1a1a;
+  --sidebar-item-active: rgba(59, 130, 246, 0.12);
+  --sidebar-item-active-text: #3b82f6;
+
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Base Styles
+   ═══════════════════════════════════════════════════════════════ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Selection */
+::selection {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+/* Focus ring utility */
+.focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.focus-ring:focus-visible {
+  outline-color: var(--accent);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   @packages/ui component overrides
+   Tailwind v4 @source cannot resolve classes from pnpm workspace
+   symlinked packages. These explicit styles guarantee Dialog,
+   AlertDialog, and Toast render correctly.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Dialog / AlertDialog — fade+zoom only, neutralize directional slide */
+[role="dialog"][data-state],
+[role="alertdialog"][data-state] {
+  --tw-enter-translate-x: 0 !important;
+  --tw-enter-translate-y: 0 !important;
+  --tw-exit-translate-x: 0 !important;
+  --tw-exit-translate-y: 0 !important;
+}
