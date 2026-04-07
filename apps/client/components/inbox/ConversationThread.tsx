@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useConversation, useConversationMessages, useMarkMessageRead } from "@/hooks/api/useInbox";
 import { MessageBubble } from "./MessageBubble";
 import { ConversationHeader } from "./ConversationHeader";
@@ -25,6 +25,15 @@ export function ConversationThread({ conversationId, userId }: ConversationThrea
   const markRead = useMarkMessageRead();
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [suggestedText, setSuggestedText] = useState<string | undefined>(undefined);
+
+  const handleSelectReply = useCallback((text: string) => {
+    setSuggestedText(text);
+  }, []);
+
+  const handleSuggestedTextConsumed = useCallback(() => {
+    setSuggestedText(undefined);
+  }, []);
 
   const allMessages = messagesData?.pages.flatMap((p) => p.items) ?? [];
 
@@ -81,7 +90,7 @@ export function ConversationThread({ conversationId, userId }: ConversationThrea
         )}
 
         {allMessages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
+          <MessageBubble key={message.id} message={message} onSelectReply={handleSelectReply} />
         ))}
 
         <div ref={bottomRef} aria-hidden="true" />
@@ -92,6 +101,8 @@ export function ConversationThread({ conversationId, userId }: ConversationThrea
         conversationId={conversationId}
         lastMessageId={lastMessageId}
         provider={conversation.provider}
+        {...(suggestedText !== undefined && { suggestedText })}
+        onSuggestedTextConsumed={handleSuggestedTextConsumed}
       />
     </div>
   );

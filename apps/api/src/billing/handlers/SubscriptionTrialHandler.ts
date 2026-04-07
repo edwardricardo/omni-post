@@ -65,11 +65,11 @@ export class SubscriptionTrialHandler extends BaseRouteHandler {
 
     this.logInfo(ctx, "Started trial", {
       accountId,
-      trialDurationDays: trialRequest.trialDurationDays,
+      trialDays: trialRequest.trialDays,
     });
     return this.sendSuccess(ctx, {
       subscription: result.value,
-      message: `${trialRequest.trialDurationDays}-day trial started successfully`,
+      message: `${trialRequest.trialDays}-day trial started successfully`,
       timestamp: new Date().toISOString(),
     });
   }
@@ -188,22 +188,42 @@ export class SubscriptionTrialHandler extends BaseRouteHandler {
   async processAutoRenewals(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const result = await this.subscriptionService.processAutoRenewals();
+    try {
+      const result = await this.subscriptionService.processAutoRenewals();
 
-    if (!result.ok) {
+      if (!result.ok) {
+        return this.sendError(ctx, 500, "Failed to process auto-renewals");
+      }
+
+      const { processed, failed, details } = result.value;
+
+      // Create audit log for the manual trigger
+      const { prisma } = await import("@infra/prisma");
+      await prisma.auditLog.create({
+        data: {
+          action: "AUTO_RENEWAL_BATCH",
+          resource: "Billing",
+          userId: request.auth?.user?.id ?? null,
+          details: { processed, failed, details, triggeredManually: true },
+          success: failed === 0,
+          ...(failed > 0 && { error: `${failed} account(s) failed to renew` }),
+        },
+      });
+
+      this.logInfo(ctx, "Processed auto-renewals", { processed, failed });
+      return this.sendSuccess(ctx, {
+        processed,
+        failed,
+        details,
+        message: "Auto-renewals processed",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: unknown) {
+      this.logError(ctx, "Auto-renewal processing error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.sendError(ctx, 500, "Failed to process auto-renewals");
     }
-
-    this.logInfo(ctx, "Processed auto-renewals", {
-      processed: result.value.processed,
-      failed: result.value.failed,
-    });
-    return this.sendSuccess(ctx, {
-      processed: result.value.processed,
-      failed: result.value.failed,
-      message: "Auto-renewals processed",
-      timestamp: new Date().toISOString(),
-    });
   }
 
   async getTrialStats(request: FastifyRequest, reply: FastifyReply): Promise<void> {

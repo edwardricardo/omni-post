@@ -155,7 +155,13 @@ export default function BillingPage() {
                     </li>
                   ))}
                 </ul>
-                <Button className="w-full mt-4">Choose {bundle.name}</Button>
+                <Button
+                  className="w-full mt-4"
+                  variant="outline"
+                  onClick={() => alert("Please contact support to change your plan.")}
+                >
+                  Contact support
+                </Button>
               </div>
             );
           })}
@@ -227,7 +233,13 @@ export default function BillingPage() {
               </div>
             </div>
             {selectedProviders.size > 0 && (
-              <Button className="w-full mt-4">Start 14-day Free Trial</Button>
+              <Button
+                className="w-full mt-4"
+                variant="outline"
+                onClick={() => alert("Please contact support to start a trial.")}
+              >
+                Contact support to start a trial
+              </Button>
             )}
           </div>
         </div>

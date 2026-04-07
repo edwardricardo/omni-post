@@ -10,7 +10,7 @@ import { randomUUID } from "crypto";
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { CreateNotificationUseCase } from "../application/notifications/CreateNotificationUseCase.js";
 import type { GetNotificationsQuery } from "../application/notifications/GetNotificationsQuery.js";
@@ -383,7 +383,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/notifications",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Notifications"], summary: "List notifications with cursor pagination" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.listNotifications(request, reply)
@@ -393,7 +393,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/notifications/unread-count",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Notifications"], summary: "Get unread notification count" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getUnreadCount(request, reply)
@@ -403,7 +403,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   app.patch(
     "/notifications/:id/read",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Notifications"], summary: "Mark a single notification as read" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.markAsRead(request, reply)
@@ -413,7 +413,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/notifications/mark-all-read",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Notifications"], summary: "Mark all notifications as read" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.markAllAsRead(request, reply)
@@ -423,7 +423,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/notifications",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Notifications"], summary: "Create a new notification" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.createNotification(request, reply)
@@ -433,7 +433,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/notifications/preferences",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Notifications"], summary: "Get notification preferences" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getPreferences(request, reply)
@@ -443,7 +443,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   app.put(
     "/notifications/preferences",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Notifications"], summary: "Update notification preferences" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.updatePreferences(request, reply)
@@ -453,7 +453,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/notifications/stream",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Notifications"], summary: "Stream real-time notifications via SSE" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.streamNotifications(request, reply)

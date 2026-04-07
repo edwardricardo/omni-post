@@ -1,165 +1,521 @@
 /**
  * @file page.tsx
- * @description Admin pricing management page with tier editing and MRR dashboard.
- * @layer admin-pages
+ * @description Admin pricing management page with live provider tiers, account tiers,
+ *   bundles (CRUD), and MRR dashboard. Delegates to functional tab components.
+ * @layer page
  */
-
 "use client";
 
-import { useState } from "react";
-import { Button } from "@packages/ui";
+import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
+import {
+  toast,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@packages/ui";
+import { PROVIDER_NAMES } from "@shared/types";
 
-const PROVIDER_TIERS = [
-  { min: 1, max: 1, price: "$12.00" },
-  { min: 2, max: 3, price: "$10.00" },
-  { min: 4, max: 6, price: "$8.00" },
-  { min: 7, max: 10, price: "$6.00" },
+import {
+  usePricingTiers,
+  useUpdateBundle,
+  useCreateBundle,
+  useDeleteBundle,
+} from "@/hooks/api/usePricingTiers";
+import type { PricingBundle } from "@/hooks/api/usePricingTiers";
+import { ProviderTiersTab } from "@/components/pricing/ProviderTiersTab";
+import { AccountTiersTab } from "@/components/pricing/AccountTiersTab";
+import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { TabNav } from "@/components/ui/TabNav";
+import { ActionButton } from "@/components/ui/ActionButton";
+import { Badge } from "@/components/ui/Badge";
+import { StatCard } from "@/components/ui/StatCard";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+
+const TABS = [
+  { key: "providers", label: "Provider Tiers" },
+  { key: "accounts", label: "Account Tiers" },
+  { key: "bundles", label: "Bundles" },
+  { key: "mrr", label: "MRR Dashboard" },
 ];
 
-const ACCOUNT_TIERS = [
-  { min: 1, max: 1, multiplier: "1.000" },
-  { min: 2, max: 3, multiplier: "0.800" },
-  { min: 4, max: 9, multiplier: "0.650" },
-  { min: 10, max: null, multiplier: "0.500" },
-];
+const EMPTY_BUNDLE_FORM: BundleFormData = {
+  name: "",
+  slug: "",
+  description: "",
+  providers: "",
+  pricePerAccountMonth: 0,
+  sortOrder: 0,
+};
 
-const BUNDLES = [
-  { name: "Creator", providers: "X, Instagram, YouTube", price: "$25.00" },
-  { name: "Social Pro", providers: "X, Instagram, Facebook, LinkedIn", price: "$32.00" },
-  { name: "Agency Full", providers: "All 10 platforms", price: "$55.00" },
-];
+interface BundleFormData {
+  name: string;
+  slug: string;
+  description: string;
+  providers: string;
+  pricePerAccountMonth: number;
+  sortOrder: number;
+}
 
-export default function PricingPage() {
-  const [activeTab, setActiveTab] = useState<"providers" | "accounts" | "bundles" | "mrr">(
-    "providers"
-  );
+function PricingPageContent() {
+  const t = useTranslations("nav");
+  const { data, isLoading, error, refetch } = usePricingTiers();
+  const [activeTab, setActiveTab] = useState("providers");
+
+  // Bundle CRUD state
+  const [editingBundleId, setEditingBundleId] = useState<string | null>(null);
+  const [bundleForm, setBundleForm] = useState<BundleFormData>(EMPTY_BUNDLE_FORM);
+  const [showCreateBundle, setShowCreateBundle] = useState(false);
+  const [deleteBundleOpen, setDeleteBundleOpen] = useState(false);
+  const [deleteBundleTarget, setDeleteBundleTarget] = useState("");
+
+  const updateBundle = useUpdateBundle();
+  const createBundle = useCreateBundle();
+  const deleteBundle = useDeleteBundle();
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  const handleEditBundle = useCallback((bundle: PricingBundle) => {
+    setEditingBundleId(bundle.id);
+    setBundleForm({
+      name: bundle.name,
+      slug: bundle.slug,
+      description: bundle.description,
+      providers: bundle.providers.join(", "),
+      pricePerAccountMonth: Number(bundle.pricePerAccountMonth),
+      sortOrder: Number(bundle.sortOrder),
+    });
+  }, []);
+
+  const handleSaveBundle = useCallback(async () => {
+    if (!editingBundleId) return;
+    try {
+      await updateBundle.mutateAsync({
+        id: editingBundleId,
+        data: {
+          name: bundleForm.name,
+          slug: bundleForm.slug,
+          description: bundleForm.description,
+          providers: bundleForm.providers
+            .split(",")
+            .map((p) => p.trim())
+            .filter(Boolean),
+          pricePerAccountMonth: Number(bundleForm.pricePerAccountMonth),
+          sortOrder: Number(bundleForm.sortOrder),
+        },
+      });
+      toast({ title: "Success", description: "Bundle updated" });
+      setEditingBundleId(null);
+      setBundleForm(EMPTY_BUNDLE_FORM);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Update failed",
+        variant: "destructive",
+      });
+    }
+  }, [editingBundleId, bundleForm, updateBundle]);
+
+  const handleCreateBundle = useCallback(async () => {
+    if (!bundleForm.name || !bundleForm.slug) return;
+    try {
+      await createBundle.mutateAsync({
+        name: bundleForm.name,
+        slug: bundleForm.slug,
+        description: bundleForm.description,
+        providers: bundleForm.providers
+          .split(",")
+          .map((p) => p.trim())
+          .filter(Boolean),
+        pricePerAccountMonth: Number(bundleForm.pricePerAccountMonth),
+        sortOrder: Number(bundleForm.sortOrder),
+      });
+      toast({ title: "Success", description: "Bundle created" });
+      setShowCreateBundle(false);
+      setBundleForm(EMPTY_BUNDLE_FORM);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Create failed",
+        variant: "destructive",
+      });
+    }
+  }, [bundleForm, createBundle]);
+
+  const handleDeleteBundle = useCallback(async () => {
+    if (!deleteBundleTarget) return;
+    try {
+      await deleteBundle.mutateAsync(deleteBundleTarget);
+      toast({ title: "Success", description: "Bundle deleted" });
+      setDeleteBundleOpen(false);
+      setDeleteBundleTarget("");
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Delete failed",
+        variant: "destructive",
+      });
+    }
+  }, [deleteBundleTarget, deleteBundle]);
+
+  const handleCancelBundleEdit = useCallback(() => {
+    setEditingBundleId(null);
+    setShowCreateBundle(false);
+    setBundleForm(EMPTY_BUNDLE_FORM);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader title={t("pricing")} />
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner size="lg" label="Loading pricing tiers..." />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <PageHeader title={t("pricing")} />
+        <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
+          <div className="text-sm text-[var(--error)]">Error: {error.message}</div>
+          <ActionButton variant="primary" size="sm" onClick={handleRefresh} className="ml-4">
+            Retry
+          </ActionButton>
+        </div>
+      </div>
+    );
+  }
+
+  const providerTiers = data?.providerTiers ?? [];
+  const accountTiers = data?.accountTiers ?? [];
+  const bundles = data?.bundles ?? [];
+
+  const totalMRR = bundles
+    .filter((b) => b.isActive)
+    .reduce((sum, b) => sum + Number(b.pricePerAccountMonth), 0);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-2">Pricing Management</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        Configure provider tiers, account discounts, and bundles. Price changes trigger
-        grandfathering for existing customers.
-      </p>
+    <div>
+      <PageHeader
+        title={t("pricing")}
+        description="Configure provider tiers, account discounts, and bundles. Price changes trigger grandfathering for existing customers."
+        actions={
+          <ActionButton variant="primary" size="sm" onClick={handleRefresh} loading={isLoading}>
+            Refresh
+          </ActionButton>
+        }
+      />
 
-      <div className="flex border-b mb-6">
-        {(["providers", "accounts", "bundles", "mrr"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${
-              activeTab === tab
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500"
-            }`}
-          >
-            {tab === "mrr" ? "MRR Dashboard" : tab}
-          </button>
-        ))}
+      <TabNav tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+
+      <div className="mt-4">
+        {activeTab === "providers" && (
+          <ProviderTiersTab tiers={providerTiers} isLoading={isLoading} />
+        )}
+
+        {activeTab === "accounts" && <AccountTiersTab tiers={accountTiers} isLoading={isLoading} />}
+
+        {activeTab === "bundles" && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <ActionButton
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setBundleForm(EMPTY_BUNDLE_FORM);
+                  setShowCreateBundle(true);
+                }}
+                aria-label="Create new bundle"
+              >
+                New Bundle
+              </ActionButton>
+            </div>
+
+            {/* Bundle Dialog */}
+            <BundleFormDialog
+              open={showCreateBundle || !!editingBundleId}
+              onOpenChange={(open) => {
+                if (!open) handleCancelBundleEdit();
+              }}
+              form={bundleForm}
+              onChange={setBundleForm}
+              onSave={editingBundleId ? handleSaveBundle : handleCreateBundle}
+              isEdit={!!editingBundleId}
+              loading={updateBundle.isPending || createBundle.isPending}
+            />
+
+            {/* Bundle list */}
+            {bundles.map((bundle) => (
+              <div
+                key={bundle.id}
+                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 flex items-center justify-between"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-[var(--text-primary)]">{bundle.name}</h3>
+                    <Badge variant={bundle.isActive ? "success" : "neutral"}>
+                      {bundle.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-[var(--text-secondary)]">{bundle.description}</p>
+                  <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                    Providers: {bundle.providers.join(", ")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="font-mono font-semibold text-[var(--text-primary)]">
+                    ${Number(bundle.pricePerAccountMonth).toFixed(2)}/account/mo
+                  </span>
+                  <div className="flex gap-2">
+                    <ActionButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleEditBundle(bundle)}
+                      aria-label={`Edit bundle ${bundle.name}`}
+                    >
+                      Edit
+                    </ActionButton>
+                    <ActionButton
+                      variant="danger"
+                      size="sm"
+                      onClick={() => {
+                        setDeleteBundleTarget(bundle.id);
+                        setDeleteBundleOpen(true);
+                      }}
+                      aria-label={`Delete bundle ${bundle.name}`}
+                    >
+                      Delete
+                    </ActionButton>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {bundles.length === 0 && (
+              <div className="text-center py-12 text-[var(--text-secondary)]" role="status">
+                No bundles configured yet.
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "mrr" && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard
+              label="Active Bundles"
+              value={String(bundles.filter((b) => b.isActive).length)}
+            />
+            <StatCard label="Bundle Base MRR" value={`$${totalMRR.toFixed(2)}`} />
+            <StatCard label="Total Provider Tiers" value={String(providerTiers.length)} />
+          </div>
+        )}
       </div>
 
-      {activeTab === "providers" && (
-        <div className="bg-white rounded-lg border p-4">
-          <h2 className="font-semibold mb-3">Provider Pricing Tiers</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="py-2 px-3 font-medium">Min Providers</th>
-                <th className="py-2 px-3 font-medium">Max Providers</th>
-                <th className="py-2 px-3 font-medium">Price/Provider/Month</th>
-                <th className="py-2 px-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {PROVIDER_TIERS.map((tier) => (
-                <tr key={tier.min} className="border-b">
-                  <td className="py-2 px-3">{tier.min}</td>
-                  <td className="py-2 px-3">{tier.max}</td>
-                  <td className="py-2 px-3 font-mono">{tier.price}</td>
-                  <td className="py-2 px-3">
-                    <Button variant="ghost" size="sm">
-                      Edit
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {activeTab === "accounts" && (
-        <div className="bg-white rounded-lg border p-4">
-          <h2 className="font-semibold mb-3">Account Volume Discounts</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="py-2 px-3 font-medium">Min Accounts</th>
-                <th className="py-2 px-3 font-medium">Max Accounts</th>
-                <th className="py-2 px-3 font-medium">Multiplier</th>
-                <th className="py-2 px-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ACCOUNT_TIERS.map((tier) => (
-                <tr key={tier.min} className="border-b">
-                  <td className="py-2 px-3">{tier.min}</td>
-                  <td className="py-2 px-3">{tier.max ?? "No limit"}</td>
-                  <td className="py-2 px-3 font-mono">{tier.multiplier}</td>
-                  <td className="py-2 px-3">
-                    <Button variant="ghost" size="sm">
-                      Edit
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {activeTab === "bundles" && (
-        <div className="space-y-4">
-          {BUNDLES.map((bundle) => (
-            <div
-              key={bundle.name}
-              className="bg-white rounded-lg border p-4 flex items-center justify-between"
-            >
-              <div>
-                <h3 className="font-semibold">{bundle.name}</h3>
-                <p className="text-sm text-gray-500">{bundle.providers}</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="font-mono font-semibold">{bundle.price}/account/mo</span>
-                <Button variant="ghost" size="sm">
-                  Edit
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === "mrr" && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg border p-4">
-            <p className="text-sm text-gray-500">Monthly Recurring Revenue</p>
-            <p className="text-2xl font-bold mt-1">$0</p>
-            <p className="text-xs text-gray-400 mt-1">No active subscriptions yet</p>
-          </div>
-          <div className="bg-white rounded-lg border p-4">
-            <p className="text-sm text-gray-500">Active Subscriptions</p>
-            <p className="text-2xl font-bold mt-1">0</p>
-          </div>
-          <div className="bg-white rounded-lg border p-4">
-            <p className="text-sm text-gray-500">Grandfathered Revenue</p>
-            <p className="text-2xl font-bold mt-1">$0</p>
-            <p className="text-xs text-gray-400 mt-1">
-              Revenue at old prices during notification window
-            </p>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={deleteBundleOpen}
+        onOpenChange={setDeleteBundleOpen}
+        title="Delete Bundle"
+        description="This will permanently delete this bundle. Existing subscribers will be grandfathered."
+        variant="danger"
+        confirmLabel="Delete Bundle"
+        onConfirm={handleDeleteBundle}
+        loading={deleteBundle.isPending}
+      />
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Bundle inline form
+// ---------------------------------------------------------------------------
+
+const INPUT_CLASS =
+  "w-full px-3 py-2 border border-[var(--border-default)] rounded-md bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)] text-sm";
+
+interface BundleFormDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  form: BundleFormData;
+  onChange: (form: BundleFormData) => void;
+  onSave: () => void;
+  isEdit: boolean;
+  loading: boolean;
+}
+
+function BundleFormDialog({
+  open,
+  onOpenChange,
+  form,
+  onChange,
+  onSave,
+  isEdit,
+  loading,
+}: BundleFormDialogProps) {
+  const providerList =
+    typeof form.providers === "string"
+      ? form.providers
+          .split(",")
+          .map((p) => p.trim().toUpperCase())
+          .filter(Boolean)
+      : (form.providers as string[]);
+
+  const toggleProvider = (provider: string) => {
+    const updated = providerList.includes(provider)
+      ? providerList.filter((p) => p !== provider)
+      : [...providerList, provider];
+    onChange({ ...form, providers: updated.join(",") });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg overflow-hidden bg-[var(--bg-surface)] border-[var(--border-default)] p-0 gap-0 rounded-lg">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-[var(--border-subtle)]">
+          <DialogTitle className="text-base font-semibold text-[var(--text-primary)]">
+            {isEdit ? "Edit Bundle" : "New Bundle"}
+          </DialogTitle>
+          <DialogDescription className="text-sm text-[var(--text-secondary)]">
+            {isEdit ? "Update bundle details and providers" : "Create a new provider bundle"}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="bundle-name"
+                className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
+              >
+                Name
+              </label>
+              <input
+                id="bundle-name"
+                type="text"
+                value={form.name}
+                onChange={(e) => onChange({ ...form, name: e.target.value })}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="bundle-slug"
+                className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
+              >
+                Slug
+              </label>
+              <input
+                id="bundle-slug"
+                type="text"
+                value={form.slug}
+                onChange={(e) => onChange({ ...form, slug: e.target.value })}
+                className={INPUT_CLASS}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="bundle-price"
+                className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
+              >
+                Price / Account / Month
+              </label>
+              <input
+                id="bundle-price"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.pricePerAccountMonth}
+                onChange={(e) =>
+                  onChange({ ...form, pricePerAccountMonth: Number(e.target.value) })
+                }
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="bundle-order"
+                className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
+              >
+                Sort Order
+              </label>
+              <input
+                id="bundle-order"
+                type="number"
+                min="0"
+                value={form.sortOrder}
+                onChange={(e) => onChange({ ...form, sortOrder: Number(e.target.value) })}
+                className={INPUT_CLASS}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="bundle-desc"
+              className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
+            >
+              Description
+            </label>
+            <input
+              id="bundle-desc"
+              type="text"
+              value={form.description}
+              onChange={(e) => onChange({ ...form, description: e.target.value })}
+              className={INPUT_CLASS}
+            />
+          </div>
+
+          {/* Provider selection */}
+          <div>
+            <span className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+              Providers ({providerList.length} selected)
+            </span>
+            <div className="grid grid-cols-3 gap-1.5">
+              {PROVIDER_NAMES.map((provider) => {
+                const checked = providerList.includes(provider);
+                return (
+                  <button
+                    key={provider}
+                    type="button"
+                    onClick={() => toggleProvider(provider)}
+                    className={[
+                      "rounded-md border px-2.5 py-2 text-xs font-medium transition-colors",
+                      checked
+                        ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--text-primary)]"
+                        : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]",
+                    ].join(" ")}
+                  >
+                    {provider}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-6 py-4 flex justify-end gap-2">
+          <ActionButton variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
+            Cancel
+          </ActionButton>
+          <ActionButton variant="primary" size="sm" onClick={onSave} loading={loading}>
+            {isEdit ? "Save Changes" : "Create Bundle"}
+          </ActionButton>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function Page() {
+  return <PricingPageContent />;
 }

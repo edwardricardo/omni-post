@@ -16,17 +16,17 @@ export default function InstagramStoriesPage() {
       <StoriesEditor
         projectId={projectId}
         accountId={accountId}
-        onSave={(_project) => {
-          // Save via API not yet integrated
+        onSave={() => {
+          alert("Coming soon");
         }}
-        onSchedule={(_project, _scheduledAt) => {
-          // Schedule via API not yet integrated
+        onSchedule={() => {
+          alert("Coming soon");
         }}
-        onPublish={(_project) => {
-          // Publish via API not yet integrated
+        onPublish={() => {
+          alert("Coming soon");
         }}
         onError={(_error) => {
-          // Error toast notification pending UI notification package
+          alert("Coming soon");
         }}
       />
     </div>

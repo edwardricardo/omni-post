@@ -7,20 +7,8 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -36,13 +24,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from "@packages/ui";
+import { Badge } from "@/components/ui/Badge";
+import { ActionButton } from "@/components/ui/ActionButton";
 import {
   Search,
   Eye,
@@ -66,7 +50,7 @@ interface DeadLetterEvent {
   lastRetryAt: string;
   resolvedAt?: string;
   resolvedBy?: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   headers: Record<string, string>;
   originalEvent?: {
     id: string;
@@ -101,7 +85,7 @@ export function DeadLetterQueue() {
         ...(filters.search && { search: filters.search }),
       });
 
-      const response = await fetch(`/api/webhooks/dashboard/dead-letter?${params}`, {
+      const response = await fetch(`/api/backend/api/webhooks/dashboard/dead-letter?${params}`, {
         credentials: "include",
       });
 
@@ -122,10 +106,13 @@ export function DeadLetterQueue() {
 
   const retryEvent = async (eventId: string) => {
     try {
-      const response = await fetch(`/api/webhooks/dashboard/dead-letter/${eventId}/retry`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const response = await fetch(
+        `/api/backend/api/webhooks/dashboard/dead-letter/${eventId}/retry`,
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to retry event");
@@ -141,7 +128,7 @@ export function DeadLetterQueue() {
   const bulkRetryAll = async () => {
     try {
       // This would need to be implemented in the API
-      const response = await fetch("/api/webhooks/dashboard/dead-letter/retry-all", {
+      const response = await fetch("/api/backend/api/webhooks/dashboard/dead-letter/retry-all", {
         method: "POST",
         credentials: "include",
       });
@@ -173,22 +160,15 @@ export function DeadLetterQueue() {
   }, [fetchDeadLetterEvents, filters.search, pagination.page]);
 
   const getProviderBadge = (provider: string) => {
-    const colors = {
-      X: "bg-black text-white",
-      INSTAGRAM: "bg-pink-100 text-pink-800",
-      FACEBOOK: "bg-blue-100 text-blue-800",
-      YOUTUBE: "bg-red-100 text-red-800",
-      TIKTOK: "bg-gray-100 text-gray-800",
+    const variantMap: Record<string, "info" | "error" | "neutral"> = {
+      X: "neutral",
+      INSTAGRAM: "error",
+      FACEBOOK: "info",
+      YOUTUBE: "error",
+      TIKTOK: "neutral",
     };
 
-    return (
-      <Badge
-        variant="outline"
-        className={colors[provider as keyof typeof colors] || "bg-gray-100 text-gray-800"}
-      >
-        {provider}
-      </Badge>
-    );
+    return <Badge variant={variantMap[provider] ?? "neutral"}>{provider}</Badge>;
   };
 
   const formatEventType = (eventType: string) => {
@@ -198,33 +178,27 @@ export function DeadLetterQueue() {
       .replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
-  const getSeverityColor = (retryCount: number) => {
-    if (retryCount >= 5) return "text-red-600";
-    if (retryCount >= 3) return "text-orange-600";
-    return "text-yellow-600";
-  };
-
   return (
-    <Card>
-      <CardHeader>
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+      <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center space-x-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
+            <h3 className="flex items-center space-x-2 text-base font-semibold text-[var(--text-primary)]">
+              <AlertTriangle className="h-5 w-5 text-[var(--error)]" />
               <span>Dead Letter Queue</span>
-            </CardTitle>
-            <CardDescription>
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)]">
               Failed webhook events that require manual intervention
-            </CardDescription>
+            </p>
           </div>
           <div className="flex items-center space-x-2">
             {events.length > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <ActionButton variant="secondary" size="sm">
                     <RotateCcw className="h-4 w-4 mr-2" />
                     Retry All
-                  </Button>
+                  </ActionButton>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -241,119 +215,133 @@ export function DeadLetterQueue() {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            <Button onClick={fetchDeadLetterEvents} variant="outline" size="sm">
+            <ActionButton onClick={fetchDeadLetterEvents} variant="secondary" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
-            </Button>
+            </ActionButton>
           </div>
         </div>
 
         {/* Filters */}
         <div className="flex items-center space-x-4">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-tertiary)] h-4 w-4" />
+            <input
               placeholder="Search by error or event type..."
               value={filters.search}
               onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-              className="pl-10"
+              className="w-full pl-10 pr-3 py-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             />
           </div>
 
-          <Select
+          <select
             value={filters.provider}
-            onValueChange={(value) => setFilters((prev) => ({ ...prev, provider: value }))}
+            onChange={(e) => setFilters((prev) => ({ ...prev, provider: e.target.value }))}
+            className="w-40 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           >
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Providers</SelectItem>
-              <SelectItem value="X">X (Twitter)</SelectItem>
-              <SelectItem value="INSTAGRAM">Instagram</SelectItem>
-              <SelectItem value="FACEBOOK">Facebook</SelectItem>
-              <SelectItem value="YOUTUBE">YouTube</SelectItem>
-              <SelectItem value="TIKTOK">TikTok</SelectItem>
-            </SelectContent>
-          </Select>
+            <option value="all">All Providers</option>
+            <option value="X">X (Twitter)</option>
+            <option value="INSTAGRAM">Instagram</option>
+            <option value="FACEBOOK">Facebook</option>
+            <option value="YOUTUBE">YouTube</option>
+            <option value="TIKTOK">TikTok</option>
+          </select>
         </div>
-      </CardHeader>
-      <CardContent>
+      </div>
+      <div className="p-4 pt-0">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <LoadingSpinner size="lg" />
           </div>
         ) : error ? (
           <div className="text-center py-8">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={fetchDeadLetterEvents} variant="outline">
+            <p className="text-[var(--error)] mb-4">{error}</p>
+            <ActionButton onClick={fetchDeadLetterEvents} variant="secondary">
               Retry
-            </Button>
+            </ActionButton>
           </div>
         ) : events.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <div className="text-center py-8 text-[var(--text-secondary)]">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-[var(--text-tertiary)]" />
             <p className="text-lg font-medium mb-2">No failed events</p>
             <p>All webhook events are processing successfully!</p>
           </div>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>Event Type</TableHead>
-                  <TableHead>Failure Reason</TableHead>
-                  <TableHead>Retry Count</TableHead>
-                  <TableHead>First Failed</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border-subtle)]">
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Provider
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Event Type
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Failure Reason
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Retry Count
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    First Failed
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Status
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
                 {events.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell>{getProviderBadge(event.provider)}</TableCell>
-                    <TableCell>
+                  <tr
+                    key={event.id}
+                    className="border-b border-[var(--border-subtle)] last:border-0"
+                  >
+                    <td className="px-3 py-2">{getProviderBadge(event.provider)}</td>
+                    <td className="px-3 py-2">
                       <span className="text-sm">{formatEventType(event.eventType)}</span>
-                    </TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-3 py-2">
                       <div className="max-w-xs">
-                        <p className="text-sm text-red-600 truncate" title={event.failureReason}>
+                        <p
+                          className="text-sm text-[var(--error)] truncate"
+                          title={event.failureReason}
+                        >
                           {event.failureReason}
                         </p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={getSeverityColor(event.retryCount)}>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge variant={event.retryCount >= 5 ? "error" : "warning"}>
                         {event.retryCount} retries
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-gray-600">
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="text-sm text-[var(--text-secondary)]">
                         {formatDistanceToNow(new Date(event.firstFailedAt), { addSuffix: true })}
                       </span>
-                    </TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-3 py-2">
                       {event.resolvedAt ? (
-                        <Badge variant="default" className="bg-green-100 text-green-800">
-                          Resolved
-                        </Badge>
+                        <Badge variant="success">Resolved</Badge>
                       ) : (
-                        <Badge variant="destructive">Failed</Badge>
+                        <Badge variant="error">Failed</Badge>
                       )}
-                    </TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-3 py-2">
                       <div className="flex items-center space-x-2">
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
+                            <ActionButton
+                              variant="secondary"
                               size="sm"
                               onClick={() => setSelectedEvent(event)}
                             >
                               <Eye className="h-4 w-4" />
-                            </Button>
+                            </ActionButton>
                           </DialogTrigger>
                           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
@@ -384,33 +372,28 @@ export function DeadLetterQueue() {
                                     <label className="text-sm font-medium">Status</label>
                                     <p className="text-sm">
                                       {selectedEvent.resolvedAt ? (
-                                        <Badge
-                                          variant="default"
-                                          className="bg-green-100 text-green-800"
-                                        >
-                                          Resolved
-                                        </Badge>
+                                        <Badge variant="success">Resolved</Badge>
                                       ) : (
-                                        <Badge variant="destructive">Failed</Badge>
+                                        <Badge variant="error">Failed</Badge>
                                       )}
                                     </p>
                                   </div>
                                 </div>
 
                                 <div>
-                                  <label className="text-sm font-medium text-red-600">
+                                  <label className="text-sm font-medium text-[var(--error)]">
                                     Failure Reason
                                   </label>
-                                  <p className="text-sm bg-red-50 p-3 rounded-sm border text-red-800">
+                                  <p className="text-sm bg-[var(--error-subtle)] p-3 rounded-sm border text-[var(--error)]">
                                     {selectedEvent.failureReason}
                                   </p>
                                 </div>
 
                                 <div>
-                                  <label className="text-sm font-medium text-red-600">
+                                  <label className="text-sm font-medium text-[var(--error)]">
                                     Final Error
                                   </label>
-                                  <pre className="text-xs bg-red-50 p-3 rounded-sm border text-red-800 overflow-x-auto">
+                                  <pre className="text-xs bg-[var(--error-subtle)] p-3 rounded-sm border text-[var(--error)] overflow-x-auto">
                                     {selectedEvent.finalError}
                                   </pre>
                                 </div>
@@ -442,14 +425,14 @@ export function DeadLetterQueue() {
 
                                 <div>
                                   <label className="text-sm font-medium">Request Headers</label>
-                                  <pre className="text-xs bg-gray-50 p-3 rounded-sm border overflow-x-auto">
+                                  <pre className="text-xs bg-[var(--bg-elevated)] p-3 rounded-sm border overflow-x-auto">
                                     {JSON.stringify(selectedEvent.headers, null, 2)}
                                   </pre>
                                 </div>
 
                                 <div>
                                   <label className="text-sm font-medium">Payload</label>
-                                  <pre className="text-xs bg-gray-50 p-3 rounded-sm border overflow-x-auto max-h-64">
+                                  <pre className="text-xs bg-[var(--bg-elevated)] p-3 rounded-sm border overflow-x-auto max-h-64">
                                     {JSON.stringify(selectedEvent.payload, null, 2)}
                                   </pre>
                                 </div>
@@ -461,13 +444,9 @@ export function DeadLetterQueue() {
                         {!event.resolvedAt && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:text-blue-700"
-                              >
+                              <ActionButton variant="secondary" size="sm">
                                 <RotateCcw className="h-4 w-4" />
-                              </Button>
+                              </ActionButton>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
@@ -487,46 +466,46 @@ export function DeadLetterQueue() {
                           </AlertDialog>
                         )}
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
 
             {/* Pagination */}
             <div className="flex items-center justify-between mt-6">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-[var(--text-secondary)]">
                 Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
                 {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
                 {pagination.total} failed events
               </div>
               <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
+                <ActionButton
+                  variant="secondary"
                   size="sm"
                   onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
                   disabled={pagination.page === 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Previous
-                </Button>
+                </ActionButton>
                 <span className="text-sm">
                   Page {pagination.page} of {pagination.pages}
                 </span>
-                <Button
-                  variant="outline"
+                <ActionButton
+                  variant="secondary"
                   size="sm"
                   onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
                   disabled={pagination.page === pagination.pages}
                 >
                   Next
                   <ChevronRight className="h-4 w-4" />
-                </Button>
+                </ActionButton>
               </div>
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

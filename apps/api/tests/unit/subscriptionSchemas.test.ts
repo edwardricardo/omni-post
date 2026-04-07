@@ -165,7 +165,7 @@ describe("SubscriptionFiltersSchema", () => {
   });
 
   it("accepts valid sort options", () => {
-    for (const sortBy of ["createdAt", "updatedAt", "email", "subscription"]) {
+    for (const sortBy of ["createdAt", "updatedAt", "pricePerMonth", "status"]) {
       assert.ok(SubscriptionFiltersSchema.safeParse({ sortBy }).success);
     }
   });
@@ -215,41 +215,44 @@ describe("ExportQuerySchema", () => {
     });
     assert.ok(result.success);
   });
+
+  it("accepts status filter", () => {
+    const result = ExportQuerySchema.safeParse({ status: "ACTIVE" });
+    assert.ok(result.success);
+  });
 });
 
 describe("StartTrialSchema", () => {
-  it("defaults tier to PRO", () => {
+  it("defaults trialDays to 14", () => {
     const result = StartTrialSchema.safeParse({});
     assert.ok(result.success);
-    if (result.success) assert.equal(result.data.tier, "PRO");
+    if (result.success) assert.equal(result.data.trialDays, 14);
   });
 
-  it("defaults trialDurationDays to 7", () => {
-    const result = StartTrialSchema.safeParse({});
+  it("accepts optional bundleId", () => {
+    const result = StartTrialSchema.safeParse({ bundleId: "bundle-123" });
     assert.ok(result.success);
-    if (result.success) assert.equal(result.data.trialDurationDays, 7);
   });
 
-  it("defaults autoRenewal to false", () => {
-    const result = StartTrialSchema.safeParse({});
+  it("accepts optional providers array", () => {
+    const result = StartTrialSchema.safeParse({ providers: ["twitter", "instagram"] });
     assert.ok(result.success);
-    if (result.success) assert.equal(result.data.autoRenewal, false);
   });
 
-  it("rejects trial duration > 30 days", () => {
-    assert.ok(!StartTrialSchema.safeParse({ trialDurationDays: 31 }).success);
+  it("rejects trial duration > 90 days", () => {
+    assert.ok(!StartTrialSchema.safeParse({ trialDays: 91 }).success);
   });
 
   it("rejects trial duration < 1 day", () => {
-    assert.ok(!StartTrialSchema.safeParse({ trialDurationDays: 0 }).success);
+    assert.ok(!StartTrialSchema.safeParse({ trialDays: 0 }).success);
   });
 
-  it("accepts exactly 30 days", () => {
-    assert.ok(StartTrialSchema.safeParse({ trialDurationDays: 30 }).success);
+  it("accepts exactly 90 days", () => {
+    assert.ok(StartTrialSchema.safeParse({ trialDays: 90 }).success);
   });
 
   it("accepts exactly 1 day", () => {
-    assert.ok(StartTrialSchema.safeParse({ trialDurationDays: 1 }).success);
+    assert.ok(StartTrialSchema.safeParse({ trialDays: 1 }).success);
   });
 });
 

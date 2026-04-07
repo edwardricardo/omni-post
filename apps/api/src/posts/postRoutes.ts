@@ -30,7 +30,7 @@ import { USE_CASE_ERRORS } from "../application/UseCase.js";
 import { ProjectId, type ContentLocale, type ProjectRepository } from "../domain/index.js";
 import type { PublishStatusValue } from "../domain/value-objects/PublishStatus.js";
 import type { IncrementUsageUseCase } from "../application/usage/IncrementUsageUseCase.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // ---------------------------------------------------------------------------
 // Zod Schemas for Validation with security enhancement
@@ -526,7 +526,7 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
   // List posts
   fastify.get(
     "/posts",
-    { preHandler: [authenticateMiddleware], schema: { tags: ["Posts"], summary: "List posts" } },
+    { preHandler: [requireClientAuth], schema: { tags: ["Posts"], summary: "List posts" } },
     async (request, reply) => handler.listPosts(request, reply)
   );
 
@@ -534,7 +534,7 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/posts",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Posts"], summary: "Create a new post" },
     },
     async (request, reply) => handler.createPost(request, reply)
@@ -544,7 +544,7 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/posts/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Posts"], summary: "Get post by ID" },
     },
     async (request, reply) => handler.getPost(request, reply)
@@ -553,7 +553,7 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
   // Update post
   fastify.patch(
     "/posts/:id",
-    { preHandler: [authenticateMiddleware], schema: { tags: ["Posts"], summary: "Update post" } },
+    { preHandler: [requireClientAuth], schema: { tags: ["Posts"], summary: "Update post" } },
     async (request, reply) => handler.updatePost(request, reply)
   );
 
@@ -561,7 +561,7 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/posts/:id/schedule",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Posts"], summary: "Schedule post for publishing" },
     },
     async (request, reply) => handler.schedulePost(request, reply)
@@ -570,7 +570,7 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
   // Delete post
   fastify.delete(
     "/posts/:id",
-    { preHandler: [authenticateMiddleware], schema: { tags: ["Posts"], summary: "Delete post" } },
+    { preHandler: [requireClientAuth], schema: { tags: ["Posts"], summary: "Delete post" } },
     async (request, reply) => handler.deletePost(request, reply)
   );
 };

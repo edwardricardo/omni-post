@@ -70,10 +70,20 @@ prismaAny.post = { ...noopModel };
 prismaAny.channel = { ...noopModel };
 prismaAny.postContent = { ...noopModel };
 prismaAny.postMedia = { ...noopModel };
+prismaAny.accountSubscription = {
+  ...noopModel,
+  groupBy: vi.fn(async () => []),
+  updateMany: vi.fn(async () => ({ count: 0 })),
+};
 
 vi.mock("@infra/prisma", async (importOriginal) => {
   const original = await importOriginal<Record<string, unknown>>();
   return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
+  const { createAdminAuthMock } = await import("./helpers/mockAuthMiddleware.js");
+  return createAdminAuthMock();
 });
 
 vi.mock("../../src/lib/logger.js", () => {
@@ -98,9 +108,8 @@ vi.mock("../../src/lib/logger.js", () => {
 // Import SUT after mocks
 // ---------------------------------------------------------------------------
 
-const { createTestApp, createTestUsers, cleanupTestUsers, prisma } = await import(
-  "./subscriptionRoutes.test-helpers.js"
-);
+const { createTestApp, createTestUsers, cleanupTestUsers, prisma } =
+  await import("./subscriptionRoutes.test-helpers.js");
 
 // ---------------------------------------------------------------------------
 // Test suite
@@ -187,10 +196,10 @@ describe("subscriptionRoutes - Trials, Reporting and Auto-Renewals", () => {
       expect(response.headers["content-disposition"]?.includes("attachment")).toBeTruthy();
     });
 
-    it("should filter export by tier", async () => {
+    it("should filter export by status", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/admin/billing/export?format=json&tier=PRO",
+        url: "/admin/billing/export?format=json&status=ACTIVE",
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
@@ -226,10 +235,7 @@ describe("subscriptionRoutes - Trials, Reporting and Auto-Renewals", () => {
         url: `/admin/billing/accounts/${trialAccount.id}/trial/start`,
         headers: { authorization: `Bearer ${adminToken}` },
         payload: {
-          tier: "PRO",
-          trialDurationDays: 14,
-          autoRenewal: false,
-          billingCycle: "monthly",
+          trialDays: 14,
         },
       });
 
@@ -248,8 +254,7 @@ describe("subscriptionRoutes - Trials, Reporting and Auto-Renewals", () => {
         url: `/admin/billing/accounts/${testAccountId}/trial/start`,
         headers: { authorization: `Bearer ${adminToken}` },
         payload: {
-          tier: "PRO",
-          trialDurationDays: 100,
+          trialDays: 100,
         },
       });
 
@@ -261,8 +266,7 @@ describe("subscriptionRoutes - Trials, Reporting and Auto-Renewals", () => {
         method: "POST",
         url: `/admin/billing/accounts/${testAccountId}/trial/start`,
         payload: {
-          tier: "PRO",
-          trialDurationDays: 7,
+          trialDays: 7,
         },
       });
 

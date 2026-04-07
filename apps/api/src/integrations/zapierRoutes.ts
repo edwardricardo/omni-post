@@ -2,7 +2,7 @@
  * @file zapierRoutes.ts
  * @description REST API routes for the Zapier integration platform.
  *
- *   API Key Management (authenticateMiddleware -- admin auth):
+ *   API Key Management (requireClientAuth -- admin auth):
  *   GET    /api/zapier/keys     -> ListIntegrationApiKeysQuery
  *   POST   /api/zapier/keys     -> GenerateIntegrationApiKeyUseCase
  *   DELETE /api/zapier/keys/:id -> RevokeIntegrationApiKeyUseCase
@@ -24,7 +24,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { integrationAuthMiddleware } from "../auth/integrationAuthMiddleware.js";
 import type { ListIntegrationApiKeysQuery } from "../application/integrations/ListIntegrationApiKeysQuery.js";
 import type { GenerateIntegrationApiKeyUseCase } from "../application/integrations/GenerateIntegrationApiKeyUseCase.js";
@@ -101,7 +101,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/zapier/keys",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Zapier"], summary: "List active Zapier API keys" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -122,7 +122,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/zapier/keys",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Zapier"], summary: "Generate a new Zapier API key" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -154,7 +154,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/zapier/keys/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Zapier"], summary: "Revoke a Zapier API key" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {

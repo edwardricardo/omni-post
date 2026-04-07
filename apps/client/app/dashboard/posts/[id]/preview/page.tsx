@@ -1,8 +1,9 @@
 "use client";
 
-// import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePost } from "@/lib/api/hooks";
+import { apiClient } from "@/lib/api/client";
 import { PlatformPreview } from "@/components/editor/PlatformPreview";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
@@ -17,12 +18,62 @@ export default function PreviewPostPage() {
   const params = useParams();
   const postId = params.id as string;
 
-  const { data: postData, isLoading: postLoading, error: postError } = usePost(postId);
+  const { data: postData, isLoading: postLoading, error: postError, refetch } = usePost(postId);
   const { enabledProviders, getProviderConfig } = useProviders();
 
   const post = postData?.data;
 
   const { user } = useAuth();
+
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [isScheduling, setIsScheduling] = useState(false);
+
+  const handlePublishNow = useCallback(async () => {
+    setIsPublishing(true);
+    try {
+      await apiClient.publishPost(postId);
+      alert("Post published successfully!");
+      refetch();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to publish post.");
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [postId, refetch]);
+
+  const handleSharePreview = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert("Failed to copy link to clipboard.");
+    }
+  }, []);
+
+  // C12: Schedule post from preview
+  const handleSchedulePost = useCallback(async () => {
+    if (!scheduleDate) {
+      alert("Please select a date and time.");
+      return;
+    }
+
+    setIsScheduling(true);
+    try {
+      await apiClient.schedulePost(postId, new Date(scheduleDate).toISOString());
+      alert("Post scheduled successfully!");
+      setShowScheduleDialog(false);
+      setScheduleDate("");
+      refetch();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to schedule post.");
+    } finally {
+      setIsScheduling(false);
+    }
+  }, [postId, scheduleDate, refetch]);
 
   // Use real user data for preview, with fallbacks
   const userInfo = {
@@ -195,20 +246,46 @@ export default function PreviewPostPage() {
             <CardContent className="space-y-3">
               {post.status === "DRAFT" && (
                 <>
-                  <Button className="w-full">
+                  <Button className="w-full" onClick={handlePublishNow} disabled={isPublishing}>
                     <Send className="mr-2 h-4 w-4" />
-                    Publish Now
+                    {isPublishing ? "Publishing..." : "Publish Now"}
                   </Button>
-                  <Button variant="outline" className="w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setShowScheduleDialog((prev) => !prev)}
+                  >
                     <Calendar className="mr-2 h-4 w-4" />
                     Schedule Post
                   </Button>
+                  {showScheduleDialog && (
+                    <div className="space-y-2 p-3 border rounded-md bg-muted/50">
+                      <label htmlFor="preview-schedule-date" className="block text-sm font-medium">
+                        Select date and time
+                      </label>
+                      <input
+                        id="preview-schedule-date"
+                        type="datetime-local"
+                        value={scheduleDate}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                        className="w-full p-2 border rounded-md bg-background text-foreground text-sm"
+                      />
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        onClick={handleSchedulePost}
+                        disabled={isScheduling || !scheduleDate}
+                      >
+                        {isScheduling ? "Scheduling..." : "Confirm Schedule"}
+                      </Button>
+                    </div>
+                  )}
                 </>
               )}
 
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={handleSharePreview}>
                 <Share2 className="mr-2 h-4 w-4" />
-                Share Preview
+                {copied ? "Link Copied!" : "Share Preview"}
               </Button>
 
               <Button

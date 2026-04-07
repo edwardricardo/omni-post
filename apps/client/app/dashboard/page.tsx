@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/authContext";
 import { usePosts, useProjects, useApiProviders } from "@/lib/api/hooks";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const { data: postsData, isLoading: postsLoading } = usePosts({ limit: 5 });
   const { data: projectsData, isLoading: projectsLoading } = useProjects();
@@ -60,7 +62,7 @@ export default function DashboardPage() {
             Here&apos;s an overview of your social media management
           </p>
         </div>
-        <Button>
+        <Button onClick={() => router.push("/dashboard/posts/new")}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Create Post
         </Button>
@@ -90,15 +92,27 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2">
-              <Button className="w-full justify-start" variant="outline">
+              <Button
+                className="w-full justify-start"
+                variant="outline"
+                onClick={() => router.push("/dashboard/posts/new")}
+              >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Create New Post
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button
+                className="w-full justify-start"
+                variant="outline"
+                onClick={() => router.push("/dashboard/analytics")}
+              >
                 <BarChart3 className="mr-2 h-4 w-4" />
                 View Analytics
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button
+                className="w-full justify-start"
+                variant="outline"
+                onClick={() => router.push("/dashboard/settings")}
+              >
                 <Users className="mr-2 h-4 w-4" />
                 Manage Accounts
               </Button>

@@ -7,15 +7,8 @@
  */
 
 import { useState, useEffect, useRef } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-} from "@packages/ui";
+import { Badge } from "@/components/ui/Badge";
+import { ActionButton } from "@/components/ui/ActionButton";
 import { TrendingUp, TrendingDown, Activity, AlertCircle, Play, Pause } from "lucide-react";
 
 interface TimelineDataPoint {
@@ -45,7 +38,7 @@ export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
   useEffect(() => {
     if (isRealTime) {
       // Connect to Server-Sent Events for real-time updates
-      eventSourceRef.current = new EventSource("/api/webhooks/dashboard/stream", {
+      eventSourceRef.current = new EventSource("/api/backend/api/webhooks/dashboard/stream", {
         withCredentials: true,
       });
 
@@ -111,10 +104,11 @@ export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
     setIsRealTime(!isRealTime);
   };
 
-  const maxTotal = Math.max(...realtimeData.map((d) => d.total));
-  const totalEvents = realtimeData.reduce((sum, d) => sum + d.total, 0);
-  const totalSuccess = realtimeData.reduce((sum, d) => sum + d.success, 0);
-  const totalFailed = realtimeData.reduce((sum, d) => sum + d.failed, 0);
+  const maxTotal =
+    realtimeData.length > 0 ? Math.max(...realtimeData.map((d) => Number(d.total))) : 1;
+  const totalEvents = realtimeData.reduce((sum, d) => sum + Number(d.total), 0);
+  const totalSuccess = realtimeData.reduce((sum, d) => sum + Number(d.success), 0);
+  const totalFailed = realtimeData.reduce((sum, d) => sum + Number(d.failed), 0);
   const successRate = totalEvents > 0 ? (totalSuccess / totalEvents) * 100 : 0;
 
   const formatTimeLabel = (timestamp: string, index: number) => {
@@ -141,54 +135,53 @@ export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
     const olderAvg = older.reduce((sum, d) => sum + d.total, 0) / older.length;
 
     if (recentAvg > olderAvg * 1.1) {
-      return <TrendingUp className="h-4 w-4 text-green-600" />;
+      return <TrendingUp className="h-4 w-4 text-[var(--success)]" />;
     } else if (recentAvg < olderAvg * 0.9) {
-      return <TrendingDown className="h-4 w-4 text-red-600" />;
+      return <TrendingDown className="h-4 w-4 text-[var(--error)]" />;
     }
-    return <Activity className="h-4 w-4 text-gray-600" />;
+    return <Activity className="h-4 w-4 text-[var(--text-secondary)]" />;
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+      <div className="p-4">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center space-x-2">
+            <h3 className="flex items-center space-x-2 text-base font-semibold text-[var(--text-primary)]">
               <span>Webhook Timeline</span>
               {getTrendIcon()}
-            </CardTitle>
-            <CardDescription>
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)]">
               Event processing over time ({timeRange})
               {isRealTime && (
-                <Badge variant="default" className="ml-2 bg-green-100 text-green-800">
+                <Badge variant="success" size="sm">
                   Live
                 </Badge>
               )}
-            </CardDescription>
+            </p>
           </div>
 
           <div className="flex items-center space-x-4">
             {/* Summary Stats */}
             <div className="text-right">
-              <div className="text-sm text-gray-600">Success Rate</div>
+              <div className="text-sm text-[var(--text-secondary)]">Success Rate</div>
               <div
                 className={`text-lg font-semibold ${
                   successRate >= 95
-                    ? "text-green-600"
+                    ? "text-[var(--success)]"
                     : successRate >= 90
-                      ? "text-yellow-600"
-                      : "text-red-600"
+                      ? "text-[var(--warning)]"
+                      : "text-[var(--error)]"
                 }`}
               >
                 {successRate.toFixed(1)}%
               </div>
             </div>
 
-            <Button
+            <ActionButton
               onClick={toggleRealTime}
-              variant={isRealTime ? "default" : "outline"}
+              variant={isRealTime ? "primary" : "secondary"}
               size="sm"
-              className="flex items-center space-x-2"
             >
               {isRealTime ? (
                 <>
@@ -201,27 +194,31 @@ export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
                   <span>Live</span>
                 </>
               )}
-            </Button>
+            </ActionButton>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
+      </div>
+      <div className="p-4 pt-0">
         <div className="space-y-4">
           {/* Quick Stats */}
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{totalEvents.toLocaleString()}</div>
-              <div className="text-sm text-gray-600">Total Events</div>
+              <div className="text-2xl font-bold text-[var(--accent)]">
+                {totalEvents.toLocaleString()}
+              </div>
+              <div className="text-sm text-[var(--text-secondary)]">Total Events</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-bold text-[var(--success)]">
                 {totalSuccess.toLocaleString()}
               </div>
-              <div className="text-sm text-gray-600">Successful</div>
+              <div className="text-sm text-[var(--text-secondary)]">Successful</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">{totalFailed.toLocaleString()}</div>
-              <div className="text-sm text-gray-600">Failed</div>
+              <div className="text-2xl font-bold text-[var(--error)]">
+                {totalFailed.toLocaleString()}
+              </div>
+              <div className="text-sm text-[var(--text-secondary)]">Failed</div>
             </div>
           </div>
 
@@ -240,18 +237,18 @@ export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
                       {/* Bar */}
                       <div className="relative w-4 flex flex-col justify-end h-48">
                         {point.total > 0 && (
-                          <div className="w-full bg-gray-100 rounded-t-sm relative">
+                          <div className="w-full bg-[var(--bg-elevated)] rounded-t-sm relative">
                             {/* Failed portion (red) */}
                             {failedHeight > 0 && (
                               <div
-                                className="w-full bg-red-500 rounded-t-sm"
+                                className="w-full bg-[var(--error-subtle)]0 rounded-t-sm"
                                 style={{ height: `${failedHeight}px` }}
                               />
                             )}
                             {/* Success portion (green) */}
                             {successHeight > 0 && (
                               <div
-                                className="w-full bg-green-500"
+                                className="w-full bg-[var(--success)]"
                                 style={{
                                   height: `${successHeight}px`,
                                   ...(failedHeight === 0 && {
@@ -266,7 +263,7 @@ export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
                       </div>
 
                       {/* Time Label */}
-                      <div className="text-xs text-gray-500 mt-1 transform -rotate-45 origin-left">
+                      <div className="text-xs text-[var(--text-secondary)] mt-1 transform -rotate-45 origin-left">
                         {formatTimeLabel(point.timestamp, index)}
                       </div>
 
@@ -282,9 +279,9 @@ export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
                 })}
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-gray-500">
+              <div className="h-full flex items-center justify-center text-[var(--text-secondary)]">
                 <div className="text-center">
-                  <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <AlertCircle className="h-12 w-12 mx-auto mb-4 text-[var(--text-tertiary)]" />
                   <p>No data available for this time range</p>
                 </div>
               </div>
@@ -294,26 +291,26 @@ export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
           {/* Legend */}
           <div className="flex items-center justify-center space-x-6 text-sm">
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
+              <div className="w-3 h-3 bg-[var(--success)] rounded-sm"></div>
               <span>Successful</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
+              <div className="w-3 h-3 bg-[var(--error-subtle)]0 rounded-sm"></div>
               <span>Failed</span>
             </div>
           </div>
 
           {/* Real-time Status */}
           {isRealTime && (
-            <div className="flex items-center justify-center text-sm text-gray-600">
+            <div className="flex items-center justify-center text-sm text-[var(--text-secondary)]">
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse"></div>
                 <span>Receiving live updates</span>
               </div>
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -10,7 +10,7 @@ import { type FastifyPluginAsync, type FastifyRequest, type FastifyReply } from 
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { ConfigureExternalNotificationUseCase } from "../application/external-notifications/ConfigureExternalNotificationUseCase.js";
 import type { ListExternalNotificationsQuery } from "../application/external-notifications/ListExternalNotificationsQuery.js";
 import type { DeleteExternalNotificationUseCase } from "../application/external-notifications/DeleteExternalNotificationUseCase.js";
@@ -196,7 +196,7 @@ export const externalNotificationRoutes: FastifyPluginAsync = async (fastify) =>
   fastify.post(
     "/api/external-notifications",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["External Notifications"], summary: "Create external notification config" },
     },
     handler.create.bind(handler)
@@ -204,7 +204,7 @@ export const externalNotificationRoutes: FastifyPluginAsync = async (fastify) =>
   fastify.get(
     "/api/external-notifications",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["External Notifications"], summary: "List external notification configs" },
     },
     handler.list.bind(handler)
@@ -212,7 +212,7 @@ export const externalNotificationRoutes: FastifyPluginAsync = async (fastify) =>
   fastify.delete(
     "/api/external-notifications/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["External Notifications"], summary: "Delete external notification config" },
     },
     handler.remove.bind(handler)
@@ -220,7 +220,7 @@ export const externalNotificationRoutes: FastifyPluginAsync = async (fastify) =>
   fastify.post(
     "/api/external-notifications/:id/test",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["External Notifications"], summary: "Send test notification" },
     },
     handler.test.bind(handler)

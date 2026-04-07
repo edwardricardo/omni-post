@@ -9,7 +9,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import pino from "pino";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 const logger = pino({
   name: "cache-stats-routes",
@@ -26,7 +26,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/cache/stats",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Cache"], summary: "Get comprehensive cache statistics" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -94,7 +94,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/cache/health",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Cache"], summary: "Check cache health status" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -144,7 +144,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/cache/flush",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Cache"], summary: "Flush all cache entries" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -192,7 +192,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/cache/invalidate",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Cache"], summary: "Invalidate cache by tags or patterns" },
     },
     async (request, reply) => {
@@ -260,7 +260,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/cache/hot-keys",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Cache"], summary: "Get most frequently accessed cache keys" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -307,7 +307,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/cache/warm",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Cache"], summary: "Warm cache with frequently accessed data" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {

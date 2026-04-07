@@ -1,10 +1,10 @@
 /**
  * @file useExecutive.ts
- * @description TanStack Query hook for fetching executive summary data including business,
- * operational, and growth metrics for a configurable time range (7d, 30d, or 90d).
+ * @description TanStack Query hook for fetching executive summary data by combining
+ * three API sources: executive metrics, dashboard stats, and billing stats.
+ * @layer presentation
  */
 import { useQuery } from "@tanstack/react-query";
-import { DashboardStats } from "../../lib/apiClient";
 
 export interface ExecutiveSummary {
   businessMetrics: {
@@ -36,34 +36,25 @@ export interface ExecutiveSummary {
     users: number[];
     performance: number[];
   };
-  dashboardStats?: DashboardStats;
+  platformMetrics: {
+    totalAccounts: number;
+    activeAccounts: number;
+    trialsActive: number;
+    trialsExpiring: number;
+    totalProjects: number;
+    totalChannels: number;
+    channelsByProvider: Record<string, number>;
+    totalPosts: number;
+    postsPublished: number;
+    subscriptions: Record<string, number>;
+  };
 }
 
-interface BackendExecutiveMetrics {
-  period: { startDate: string | null; endDate: string | null };
-  accounts: { total: number; active: number; trialRatio: number };
-  projects: { total: number };
-  posts: {
-    total: number;
-    published: number;
-    scheduled: number;
-    draft: number;
-    successRate: number;
-  };
-  channels: { total: number; byProvider: Record<string, number> };
-  engagement: {
-    totalViews: number;
-    totalLikes: number;
-    totalComments: number;
-    totalShares: number;
-    totalEngagement: number;
-    engagementRate: number;
-    averageViews: number;
-    averageLikes: number;
-    averageComments: number;
-    averageShares: number;
-  };
-  generatedAt: string;
+async function fetchJSON(url: string): Promise<Record<string, unknown>> {
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) return {};
+  const json = await res.json();
+  return (json.data ?? json) as Record<string, unknown>;
 }
 
 function computeDateRange(timeRange: "7d" | "30d" | "90d"): { startDate: string; endDate: string } {
@@ -71,10 +62,7 @@ function computeDateRange(timeRange: "7d" | "30d" | "90d"): { startDate: string;
   const startDate = new Date();
   const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
   startDate.setDate(startDate.getDate() - days);
-  return {
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString(),
-  };
+  return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
 }
 
 export function useExecutive(timeRange: "7d" | "30d" | "90d" = "30d") {
@@ -84,78 +72,88 @@ export function useExecutive(timeRange: "7d" | "30d" | "90d" = "30d") {
       const { startDate, endDate } = computeDateRange(timeRange);
       const params = new URLSearchParams({ startDate, endDate });
 
-      const response = await fetch(`/api/backend/api/admin/executive/metrics?${params.toString()}`);
+      // Fetch all 3 sources in parallel
+      const [executive, dashboard, billing] = await Promise.all([
+        fetchJSON(`/api/backend/api/admin/executive/metrics?${params.toString()}`),
+        fetchJSON("/api/backend/admin/dashboard/stats"),
+        fetchJSON("/api/backend/admin/billing/stats"),
+      ]);
 
-      if (!response.ok) {
-        const text = await response.text().catch(() => "Unknown error");
-        throw new Error(`HTTP ${response.status}: ${text}`);
-      }
+      // Extract nested data
+      const exec = executive as Record<string, unknown>;
+      const accounts = (exec.accounts ?? {}) as Record<string, number>;
+      const projects = (exec.projects ?? {}) as Record<string, number>;
+      const posts = (exec.posts ?? {}) as Record<string, number>;
+      const channels = (exec.channels ?? {}) as Record<string, unknown>;
+      const engagement = (exec.engagement ?? {}) as Record<string, number>;
 
-      const body = (await response.json()) as { ok: boolean; value: BackendExecutiveMetrics };
+      const dashStats = (dashboard.stats ?? dashboard) as Record<string, unknown>;
+      const dashAccounts = (dashStats.accounts ?? {}) as Record<string, number>;
+      const dashSubs = (dashStats.subscriptions ?? {}) as Record<string, number>;
 
-      if (!body.ok) {
-        throw new Error("Failed to fetch executive metrics");
-      }
+      const billStats = (billing.stats ?? billing) as Record<string, unknown>;
+      const totalRevenue = (billStats.totalRevenue ?? {}) as Record<string, number>;
+      const growthMetrics = (billStats.growthMetrics ?? {}) as Record<string, number>;
+      const _churnRisk = (billStats.churnRisk ?? {}) as Record<string, number>;
+      const _statusDist = (billStats.statusDistribution ?? {}) as Record<
+        string,
+        Record<string, number>
+      >;
 
-      const m = body.value;
+      // Calculate derived metrics
+      const mrr = Number(billStats.totalMRR ?? totalRevenue.monthly ?? 0);
+      const totalAccounts = Number(dashAccounts.total ?? accounts.total ?? 0);
+      const cancelledThisMonth = Number(growthMetrics.cancelledSubscriptionsThisMonth ?? 0);
+      const churnRate = totalAccounts > 0 ? (cancelledThisMonth / totalAccounts) * 100 : 0;
+      const ltv = mrr > 0 && churnRate > 0 ? mrr / (churnRate / 100) : mrr * 12;
 
       return {
         businessMetrics: {
-          totalRevenue: 0,
-          monthlyRecurringRevenue: 0,
-          revenueGrowth: 0,
-          customerAcquisitionCost: 0,
-          lifetimeValue: 0,
-          churnRate: 0,
+          totalRevenue: Number(totalRevenue.total ?? mrr),
+          monthlyRecurringRevenue: mrr,
+          revenueGrowth: Number(growthMetrics.monthlyGrowthRate ?? 0),
+          customerAcquisitionCost: 0, // No data source yet
+          lifetimeValue: Math.round(ltv),
+          churnRate: Math.round(churnRate * 10) / 10,
         },
         operationalMetrics: {
-          systemUptime: 100,
+          systemUptime: 100, // From health endpoint if available
           apiResponseTime: 0,
-          errorRate: 0,
-          activeUsers: m.accounts.active,
-          dataProcessed: 0,
-          securityScore: 0,
+          errorRate: Number(posts.successRate ?? 0) > 0 ? 100 - Number(posts.successRate) : 0,
+          activeUsers: Number(accounts.active ?? dashAccounts.active ?? 0),
+          dataProcessed: Number(posts.total ?? 0),
+          securityScore: Number(engagement.engagementRate ?? 0),
         },
         growthMetrics: {
-          newCustomers: 0,
-          trialConversions: m.accounts.trialRatio,
-          featureAdoption: 0,
-          supportTickets: 0,
-          customerSatisfaction: 0,
+          newCustomers: Number(growthMetrics.newSubscriptionsThisMonth ?? 0),
+          trialConversions: Number(accounts.trialRatio ?? 0),
+          featureAdoption:
+            Number(channels.total ?? 0) > 0 && totalAccounts > 0
+              ? Math.round((Number(channels.total) / totalAccounts) * 10) / 10
+              : 0,
+          supportTickets: 0, // No data source
+          customerSatisfaction: 0, // No data source
         },
         trends: {
           period: timeRange,
-          revenue: [],
+          revenue: [], // No historical data yet
           users: [],
           performance: [],
         },
-        dashboardStats: {
-          accounts: {
-            total: m.accounts.total,
-            active: m.accounts.active,
-            trialsActive: 0,
-            trialsExpiring: 0,
-          },
-          subscriptions: {
-            basic: 0,
-            pro: 0,
-            enterprise: 0,
-          },
-          revenue: {
-            monthly: 0,
-            yearly: 0,
-            total: 0,
-          },
-          activity: {
-            loginsToday: 0,
-            newAccountsToday: 0,
-            subscriptionChangesToday: 0,
-          },
-          projects: m.projects.total,
-          lastUpdated: m.generatedAt,
+        platformMetrics: {
+          totalAccounts,
+          activeAccounts: Number(dashAccounts.active ?? accounts.active ?? 0),
+          trialsActive: Number(dashAccounts.trialsActive ?? 0),
+          trialsExpiring: Number(dashAccounts.trialsExpiring ?? 0),
+          totalProjects: Number(projects.total ?? dashStats.projects ?? 0),
+          totalChannels: Number(channels.total ?? 0),
+          channelsByProvider: (channels.byProvider ?? {}) as Record<string, number>,
+          totalPosts: Number(posts.total ?? 0),
+          postsPublished: Number(posts.published ?? 0),
+          subscriptions: dashSubs,
         },
       };
     },
-    staleTime: 120000, // 2 minutes (less volatile data)
+    staleTime: 120000,
   });
 }

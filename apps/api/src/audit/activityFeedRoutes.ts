@@ -7,7 +7,7 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { ActivityFeedService } from "./activityFeedService.js";
 
@@ -76,7 +76,7 @@ export const activityFeedRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/activity-feed",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Audit"], summary: "Get activity feed" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getFeed(request, reply)

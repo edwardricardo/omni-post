@@ -82,10 +82,6 @@ export class ExecutiveAccountHandler extends BaseRouteHandler {
         updateData.email = updates.email;
       }
 
-      if (updates.subscription !== undefined) {
-        updateData.subscription = updates.subscription;
-      }
-
       if (updates.maxProjects !== undefined) {
         updateData.maxProjects = updates.maxProjects;
       }
@@ -117,7 +113,21 @@ export class ExecutiveAccountHandler extends BaseRouteHandler {
       const updatedAccount = await this.prisma.account.update({
         where: { id },
         data: updateData,
-        include: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          maxProjects: true,
+          isOnTrial: true,
+          trialStartDate: true,
+          trialEndDate: true,
+          autoRenewal: true,
+          billingCycle: true,
+          stripeCustomerId: true,
+          stripeSubscriptionId: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
           projects: {
             select: {
               id: true,
@@ -156,7 +166,6 @@ export class ExecutiveAccountHandler extends BaseRouteHandler {
         id: updatedAccount.id,
         email: updatedAccount.email,
         name: updatedAccount.name,
-        subscription: updatedAccount.subscription,
         maxProjects: updatedAccount.maxProjects,
         isOnTrial: updatedAccount.isOnTrial,
         trialStartDate: updatedAccount.trialStartDate,

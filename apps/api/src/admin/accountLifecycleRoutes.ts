@@ -14,6 +14,13 @@ import { requireAdminAuth, requireAdmin, requireSuperAdmin } from "./auth/adminA
 import { removeUndefinedProperties } from "../utils/typeUtils.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { TOKENS } from "../infrastructure/container/types.js";
+import { prisma } from "@infra/prisma";
+import {
+  PricingCalculator,
+  type ProviderTier,
+  type AccountTier,
+  type BundleDef,
+} from "../domain/billing/PricingCalculator.js";
 
 // ✅ Zod schemas for validation with security enhancement
 const AdminRoleSchema = z.enum(["SUPER_ADMIN", "ADMIN", "SUPPORT"]);
@@ -53,10 +60,23 @@ const SuspendAccountSchema = z.object({
   }),
 });
 
+const UpdateAccountStatusSchema = z.object({
+  params: z.object({ accountId: IdSchema }),
+  body: z.object({
+    isActive: z.boolean().optional(),
+    name: z.string().min(1).optional(),
+  }),
+});
+
 const AccountParamsSchema = z.object({
   params: z.object({
     accountId: IdSchema,
   }),
+});
+
+const UpdateGrandfatheringSchema = z.object({
+  params: z.object({ accountId: IdSchema }),
+  body: z.object({ effectiveAt: z.string().datetime() }),
 });
 
 const queryBoolean = z.preprocess(
@@ -530,6 +550,325 @@ class AccountLifecycleHandler extends BaseRouteHandler {
       total: validated.value.body.accountIds.length,
     });
   }
+
+  async updateAccountStatus(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    const validated = await this.validateRequest<z.infer<typeof UpdateAccountStatusSchema>>(ctx, {
+      params: UpdateAccountStatusSchema.shape.params,
+      body: UpdateAccountStatusSchema.shape.body,
+    });
+
+    if (!validated.ok) {
+      return this.sendError(ctx, 400, "Invalid request data");
+    }
+
+    const { accountId } = validated.value.params;
+    const body = validated.value.body;
+
+    try {
+      const account = await prisma.account.findUnique({ where: { id: accountId } });
+
+      if (!account) {
+        return this.sendError(ctx, 404, "Account not found");
+      }
+
+      const updatedAccount = await prisma.account.update({
+        where: { id: accountId },
+        data: {
+          ...(body.isActive !== undefined && { isActive: body.isActive }),
+          ...(body.name !== undefined && { name: body.name }),
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          isActive: true,
+          updatedAt: true,
+        },
+      });
+
+      // Create audit log with resource: "Account"
+      const adminUserId = request.auth?.user?.id;
+      if (adminUserId) {
+        await prisma.auditLog.create({
+          data: {
+            action: "ACCOUNT_UPDATE",
+            resource: "Account",
+            resourceId: accountId,
+            userId: adminUserId,
+            details: {
+              changes: {
+                ...(body.isActive !== undefined && {
+                  isActive: { from: account.isActive, to: body.isActive },
+                }),
+                ...(body.name !== undefined && { name: { from: account.name, to: body.name } }),
+              },
+              updatedBy: adminUserId,
+            },
+          },
+        });
+      }
+
+      this.logInfo(ctx, "Account updated", { accountId, changes: body });
+      return this.sendSuccess(ctx, { account: updatedAccount });
+    } catch (error: unknown) {
+      this.logError(ctx, "Failed to update account status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return this.sendError(ctx, 500, "Internal server error");
+    }
+  }
+
+  async getAccountBilling(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    const validated = await this.validateRequest<z.infer<typeof AccountParamsSchema>>(ctx, {
+      params: AccountParamsSchema.shape.params,
+    });
+
+    if (!validated.ok) {
+      return this.sendError(ctx, 400, "Invalid parameters");
+    }
+
+    const { accountId } = validated.value.params;
+
+    try {
+      // 1. Load account
+      const account = await prisma.account.findUnique({ where: { id: accountId } });
+      if (!account) {
+        return this.sendError(ctx, 404, "Account not found");
+      }
+
+      // 1b. Load account subscription with bundle info and price history
+      const subscription = await prisma.accountSubscription.findUnique({
+        where: { accountId },
+        include: {
+          bundle: true,
+          history: { orderBy: { createdAt: "desc" }, take: 1 },
+        },
+      });
+
+      // 2. Build provider list from subscription only (no client channel data)
+      const subscriptionProviders = subscription?.providers?.map(String) ?? [];
+      const providerCounts = new Map<string, number>();
+      for (const p of subscriptionProviders) {
+        providerCounts.set(p, 1);
+      }
+
+      // 3. Load active pricing tiers
+      const rawProviderTiers = await prisma.providerPricingTier.findMany({
+        where: { isActive: true },
+        orderBy: { minProviders: "asc" },
+      });
+      const rawAccountTiers = await prisma.accountPricingTier.findMany({
+        where: { isActive: true },
+        orderBy: { minAccounts: "asc" },
+      });
+      const rawBundles = await prisma.providerBundle.findMany({
+        where: { isActive: true },
+      });
+
+      // 4. Map Prisma models to PricingCalculator interfaces
+      const providerTiers: ProviderTier[] = rawProviderTiers.map((t) => ({
+        minProviders: t.minProviders,
+        maxProviders: t.maxProviders,
+        pricePerProviderMonth: Number(t.pricePerProviderMonth),
+        isActive: t.isActive,
+      }));
+      const accountTiers: AccountTier[] = rawAccountTiers.map((t) => ({
+        minAccounts: t.minAccounts,
+        maxAccounts: t.maxAccounts,
+        multiplier: Number(t.multiplier),
+        isActive: t.isActive,
+      }));
+      const bundles: BundleDef[] = rawBundles.map((b) => ({
+        id: b.id,
+        name: b.name,
+        slug: b.slug,
+        providers: b.providers.map(String),
+        pricePerAccountMonth: Number(b.pricePerAccountMonth),
+        isActive: b.isActive,
+      }));
+
+      const providerCount = providerCounts.size;
+
+      // If no pricing tiers exist, return zero-cost breakdown
+      const hasTiers = providerTiers.length > 0;
+      let total = 0;
+      let breakdown = {
+        pricePerProvider: 0,
+        basePricePerAccount: 0,
+        accountLines: [] as Array<{ accountNumber: number; multiplier: number; price: number }>,
+        subtotal: 0,
+        savings: 0,
+      };
+      let cheaperBundle: {
+        bundle: { name: string; slug: string };
+        bundleTotal: number;
+        customTotal: number;
+        savings: number;
+      } | null = null;
+
+      if (hasTiers && providerCount > 0) {
+        const result = PricingCalculator.calculateCustomPrice(
+          providerCount,
+          1,
+          providerTiers,
+          accountTiers
+        );
+        total = result.total;
+        breakdown = result.breakdown;
+
+        const selectedProviders = Array.from(providerCounts.keys());
+        const cheaperBundleResult = PricingCalculator.findCheaperBundle(
+          selectedProviders,
+          total,
+          bundles,
+          1,
+          accountTiers
+        );
+        if (cheaperBundleResult) {
+          cheaperBundle = {
+            bundle: {
+              name: cheaperBundleResult.bundle.name,
+              slug: cheaperBundleResult.bundle.slug,
+            },
+            bundleTotal: cheaperBundleResult.total,
+            customTotal: total,
+            savings: cheaperBundleResult.savings,
+          };
+        }
+      }
+
+      const providers = Array.from(providerCounts.keys()).map((platform) => ({
+        platform,
+        pricePerProvider: breakdown.pricePerProvider,
+      }));
+
+      // Determine plan type and grandfathering
+      let planType: "custom" | "bundle" | "none" = "none";
+      let bundleInfo: { name: string; slug: string } | null = null;
+      let isGrandfathered = false;
+      let grandfathering: {
+        lockedPrice: number;
+        currentListPrice: number;
+        savingsFromGrandfathering: number;
+        expiresAt: string | null;
+      } | null = null;
+
+      if (subscription) {
+        if (subscription.bundleId && subscription.bundle) {
+          planType = "bundle";
+          bundleInfo = {
+            name: subscription.bundle.name,
+            slug: subscription.bundle.slug,
+          };
+        } else if (subscription.providers.length > 0) {
+          planType = "custom";
+        }
+
+        if (subscription.status === "GRANDFATHERED") {
+          isGrandfathered = true;
+          const lockedPrice = Number(subscription.pricePerMonth);
+          const currentListPrice = total;
+          const lastHistory = subscription.history[0];
+
+          grandfathering = {
+            lockedPrice,
+            currentListPrice,
+            savingsFromGrandfathering: Math.round((currentListPrice - lockedPrice) * 100) / 100,
+            ...(lastHistory?.effectiveAt
+              ? { expiresAt: lastHistory.effectiveAt.toISOString() }
+              : { expiresAt: null }),
+          };
+        }
+      }
+
+      return this.sendSuccess(ctx, {
+        accountId: account.id,
+        accountName: account.name,
+        planType,
+        bundleInfo,
+        isGrandfathered,
+        grandfathering,
+        providers,
+        calculation: {
+          providerCount,
+          accountCount: 1,
+          basePrice: breakdown.basePricePerAccount,
+          totalMonthly: isGrandfathered ? Number(subscription!.pricePerMonth) : total,
+          listPrice: total,
+          savings: breakdown.savings,
+        },
+        cheaperBundle,
+        ...(account.isOnTrial &&
+          account.trialEndDate && {
+            trial: {
+              isOnTrial: true,
+              trialEndDate: account.trialEndDate.toISOString(),
+              daysRemaining: Math.max(
+                0,
+                Math.ceil((account.trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              ),
+            },
+          }),
+      });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : "";
+      this.logError(ctx, "Failed to get account billing", { error: msg, stack });
+      return this.sendError(ctx, 500, `Billing error: ${msg}`);
+    }
+  }
+  /** @method updateGrandfathering — Adjusts the grandfathering expiry date */
+  async updateGrandfathering(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    const validated = await this.validateRequest<z.infer<typeof UpdateGrandfatheringSchema>>(ctx, {
+      params: UpdateGrandfatheringSchema.shape.params,
+      body: UpdateGrandfatheringSchema.shape.body,
+    });
+    if (!validated.ok) return this.sendError(ctx, 400, "Invalid request data");
+
+    const { accountId } = validated.value.params;
+    const newDate = new Date(validated.value.body.effectiveAt);
+    if (newDate <= new Date()) return this.sendError(ctx, 400, "Date must be in the future");
+
+    try {
+      const sub = await prisma.accountSubscription.findUnique({
+        where: { accountId },
+        include: { history: { orderBy: { createdAt: "desc" }, take: 1 } },
+      });
+      if (!sub || sub.status !== "GRANDFATHERED") {
+        return this.sendError(ctx, 404, "No grandfathered subscription found");
+      }
+
+      const history = sub.history[0];
+      if (history) {
+        await prisma.subscriptionPriceHistory.update({
+          where: { id: history.id },
+          data: { effectiveAt: newDate },
+        });
+      } else {
+        await prisma.subscriptionPriceHistory.create({
+          data: {
+            subscriptionId: sub.id,
+            previousPrice: sub.pricePerMonth,
+            newPrice: sub.pricePerMonth,
+            reason: "Grandfathering window adjusted",
+            effectiveAt: newDate,
+          },
+        });
+      }
+
+      return this.sendSuccess(ctx, { effectiveAt: newDate.toISOString() });
+    } catch (error: unknown) {
+      this.logError(ctx, "Failed to update grandfathering", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return this.sendError(ctx, 500, "Internal server error");
+    }
+  }
 }
 
 // ✅ PROPER Fastify v5.6.1 Plugin Implementation
@@ -587,6 +926,26 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Admin"], summary: "Update account" },
     },
     async (request, reply) => handler.updateAccount(request, reply)
+  );
+
+  // ✅ Update account active status (operates on Account model, not AdminUser)
+  fastify.put(
+    "/admin/accounts/:accountId/status",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Update account active status" },
+    },
+    async (request, reply) => handler.updateAccountStatus(request, reply)
+  );
+
+  // ✅ Get account billing breakdown
+  fastify.get(
+    "/admin/accounts/:accountId/billing",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Get account billing breakdown" },
+    },
+    async (request, reply) => handler.getAccountBilling(request, reply)
   );
 
   // ✅ Suspend account
@@ -647,6 +1006,16 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Admin"], summary: "Revoke all account sessions" },
     },
     async (request, reply) => handler.revokeAllSessions(request, reply)
+  );
+
+  // ✅ Update grandfathering expiry
+  fastify.patch(
+    "/admin/accounts/:accountId/grandfathering",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin"], summary: "Adjust grandfathering expiry date" },
+    },
+    async (request, reply) => handler.updateGrandfathering(request, reply)
   );
 
   // ✅ Bulk suspend accounts

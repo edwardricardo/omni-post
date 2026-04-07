@@ -11,7 +11,7 @@ import { type FastifyPluginAsync, type FastifyRequest, type FastifyReply } from 
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { CreateTrackedLinkUseCase } from "../application/links/CreateTrackedLinkUseCase.js";
 import type { GetTrackedLinkUseCase } from "../application/links/GetTrackedLinkUseCase.js";
 import type { RedirectAndTrackClickUseCase } from "../application/links/RedirectAndTrackClickUseCase.js";
@@ -233,7 +233,7 @@ export const linkRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/links",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Links"], summary: "Create tracked link" },
     },
     handler.createLink.bind(handler)
@@ -241,7 +241,7 @@ export const linkRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/links/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Links"], summary: "Get tracked link by ID" },
     },
     handler.getLink.bind(handler)
@@ -249,7 +249,7 @@ export const linkRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/links/:id/stats",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Links"], summary: "Get link statistics" },
     },
     handler.getLinkStats.bind(handler)
@@ -257,7 +257,7 @@ export const linkRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete(
     "/links/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Links"], summary: "Delete tracked link" },
     },
     handler.deleteLink.bind(handler)

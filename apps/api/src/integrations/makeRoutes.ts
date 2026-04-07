@@ -2,7 +2,7 @@
  * @file makeRoutes.ts
  * @description REST API routes for the Make (formerly Integromat) integration platform.
  *
- *   API Key Management (authenticateMiddleware -- admin auth):
+ *   API Key Management (requireClientAuth -- admin auth):
  *   GET    /api/make/keys     -> ListIntegrationApiKeysQuery
  *   POST   /api/make/keys     -> GenerateIntegrationApiKeyUseCase (platform: MAKE)
  *   DELETE /api/make/keys/:id -> RevokeIntegrationApiKeyUseCase
@@ -24,7 +24,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { integrationAuthMiddleware } from "../auth/integrationAuthMiddleware.js";
 import type {
   ListIntegrationApiKeysQuery,
@@ -104,7 +104,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/make/keys",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Make"], summary: "List active Make API keys" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -127,7 +127,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/make/keys",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Make"], summary: "Generate a new Make API key" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -159,7 +159,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/make/keys/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Make"], summary: "Revoke a Make API key" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {

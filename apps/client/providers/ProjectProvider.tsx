@@ -4,9 +4,9 @@
  * @file ProjectProvider.tsx
  * @description React context provider that resolves the active project and account from the API.
  *
- * On mount it fetches accounts via GET /admin/accounts, then fetches projects for the first
- * (or previously-selected) account via GET /accounts/:accountId/projects. The selection is
- * persisted to localStorage so it survives page reloads.
+ * On mount it fetches the authenticated customer's account via GET /auth/customer/me,
+ * then fetches projects for that account via GET /accounts/:accountId/projects.
+ * The selection is persisted to localStorage so it survives page reloads.
  *
  * Downstream consumers call useProject() to get { projectId, accountId, setProjectId, setAccountId }.
  * While loading, children are replaced with a spinner. When no projects exist, an informative
@@ -99,15 +99,22 @@ function writeStoredSelection(accountId: string, projectId: string): void {
 // ---------------------------------------------------------------------------
 
 async function fetchAccounts(): Promise<AccountEntry[]> {
-  const res = await fetch("/api/backend/admin/accounts?page=1&limit=100&isActive=true");
+  const res = await fetch("/api/backend/auth/customer/me");
   if (!res.ok) return [];
   const data: {
     ok: boolean;
-    value?: {
-      accounts: AccountEntry[];
-    };
+    user?: { id: string; accountId: string; role: string };
   } = await res.json();
-  return data.ok && data.value?.accounts ? data.value.accounts : [];
+  if (!data.ok || !data.user?.accountId) return [];
+  // Return a single-entry array so the downstream account-selection logic still works
+  return [
+    {
+      id: data.user.accountId,
+      email: "",
+      name: "",
+      isActive: true,
+    },
+  ];
 }
 
 async function fetchProjects(accountId: string): Promise<ProjectEntry[]> {

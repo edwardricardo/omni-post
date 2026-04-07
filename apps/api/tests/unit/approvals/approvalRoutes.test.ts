@@ -70,6 +70,11 @@ vi.mock("@infra/prisma", async (importOriginal) => {
   return { ...original, prisma: mockPrisma.prisma };
 });
 
+vi.mock("../../../src/auth/customerAuthMiddleware.js", async () => {
+  const { createCustomerAuthMock } = await import("../helpers/mockAuthMiddleware.js");
+  return createCustomerAuthMock();
+});
+
 vi.mock("../../../src/lib/logger.js", () => {
   const noop = vi.fn();
   const noopLogger = {
@@ -96,9 +101,8 @@ const { setupContainer } = await import("../../../src/infrastructure/container/s
 const { TOKENS } = await import("../../../src/infrastructure/container/types.js");
 const { AuthService, setRedisInstance } = await import("../../../src/auth/authService.js");
 const { MfaService } = await import("../../../src/auth/mfaService.js");
-const { PrismaAdminUserRepository } = await import(
-  "../../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
-);
+const { PrismaAdminUserRepository } =
+  await import("../../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
 
 setRedisInstance(null as never);
 

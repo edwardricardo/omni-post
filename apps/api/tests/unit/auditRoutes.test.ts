@@ -19,6 +19,11 @@ vi.mock("@infra/prisma", async (importOriginal) => {
   return { ...original, prisma: mockPrisma.prisma };
 });
 
+vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
+  const { createAdminAuthMock } = await import("./helpers/mockAuthMiddleware.js");
+  return createAdminAuthMock();
+});
+
 vi.mock("../../src/lib/logger.js", () => {
   const noop = vi.fn();
   const noopLogger = {

@@ -7,11 +7,7 @@ import {
   type UpdateAccountInput,
 } from "@shared/types";
 import { prisma } from "@infra/prisma";
-import {
-  mapSubscriptionTierFromDB,
-  mapSubscriptionTierToDB,
-  getMaxProjectsForTier,
-} from "./mappers.js";
+import type { SubscriptionTier } from "@shared/types";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:account");
@@ -26,14 +22,12 @@ export function createAccountRepository(
     ): Promise<Result<Account, "EMAIL_TAKEN" | "DATABASE_ERROR">> {
       try {
         const result = await writeBreaker.fire(() => {
-          const tier = input.subscription || "BASIC";
-          const maxProjects = input.maxProjects || getMaxProjectsForTier(tier);
+          const maxProjects = input.maxProjects || 1;
 
           return prisma.account.create({
             data: {
               email: input.email,
               name: input.name,
-              subscription: mapSubscriptionTierToDB(tier),
               maxProjects,
             },
           });
@@ -43,16 +37,16 @@ export function createAccountRepository(
           id: string;
           email: string;
           name: string;
-          subscription: Parameters<typeof mapSubscriptionTierFromDB>[0];
           maxProjects: number;
           createdAt: Date;
           updatedAt: Date;
         };
+
         const account: Account = {
           id: dbResult.id,
           email: dbResult.email,
           name: dbResult.name,
-          subscription: mapSubscriptionTierFromDB(dbResult.subscription),
+
           maxProjects: dbResult.maxProjects,
           createdAt: dbResult.createdAt,
           updatedAt: dbResult.updatedAt,
@@ -94,7 +88,6 @@ export function createAccountRepository(
           id: string;
           email: string;
           name: string;
-          subscription: Parameters<typeof mapSubscriptionTierFromDB>[0];
           maxProjects: number;
           createdAt: Date;
           updatedAt: Date;
@@ -103,7 +96,7 @@ export function createAccountRepository(
           id: dbResult.id,
           email: dbResult.email,
           name: dbResult.name,
-          subscription: mapSubscriptionTierFromDB(dbResult.subscription),
+
           maxProjects: dbResult.maxProjects,
           createdAt: dbResult.createdAt,
           updatedAt: dbResult.updatedAt,
@@ -132,7 +125,7 @@ export function createAccountRepository(
           id: account.id,
           email: account.email,
           name: account.name,
-          subscription: mapSubscriptionTierFromDB(account.subscription),
+
           maxProjects: account.maxProjects,
           createdAt: account.createdAt,
           updatedAt: account.updatedAt,
@@ -152,13 +145,6 @@ export function createAccountRepository(
       try {
         const updateData: Record<string, unknown> = {};
         if (input.name !== undefined) updateData.name = input.name;
-        if (input.subscription !== undefined) {
-          updateData.subscription = mapSubscriptionTierToDB(input.subscription);
-          // Update maxProjects if subscription changes but maxProjects not explicitly set
-          if (input.maxProjects === undefined) {
-            updateData.maxProjects = getMaxProjectsForTier(input.subscription);
-          }
-        }
         if (input.maxProjects !== undefined) updateData.maxProjects = input.maxProjects;
 
         const account = await prisma.account.update({
@@ -170,7 +156,7 @@ export function createAccountRepository(
           id: account.id,
           email: account.email,
           name: account.name,
-          subscription: mapSubscriptionTierFromDB(account.subscription),
+
           maxProjects: account.maxProjects,
           createdAt: account.createdAt,
           updatedAt: account.updatedAt,
@@ -211,7 +197,7 @@ export function createAccountRepository(
           id: account.id,
           email: account.email,
           name: account.name,
-          subscription: mapSubscriptionTierFromDB(account.subscription),
+
           maxProjects: account.maxProjects,
           createdAt: account.createdAt,
           updatedAt: account.updatedAt,

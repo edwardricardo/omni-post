@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/publishWorker.ts",
+    "dev:auto-renewal": "tsx src/autoRenewalWorker.ts",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:watch": "vitest",

@@ -16,6 +16,7 @@ import { ComposedEventDispatcher } from "../integration-events/ComposedEventDisp
 import type { IntegrationEventPublisher } from "../integration-events/IntegrationEventPort.js";
 import { setupRepositories } from "./setupRepositories.js";
 import { setupUseCases } from "./setupUseCases.js";
+import { setupBillingUseCases } from "./setupBillingUseCases.js";
 import { setupServices } from "./setupServices.js";
 
 /**
@@ -68,6 +69,7 @@ export function setupContainer(options: ContainerSetupOptions): Container {
 
   // Register all use cases
   setupUseCases(container);
+  setupBillingUseCases(container);
 
   // Register all services
   setupServices(container, options.integrationEventPublisher);

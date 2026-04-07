@@ -18,7 +18,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import {
   AVAILABLE_METRICS,
   AVAILABLE_DIMENSIONS,
@@ -368,7 +368,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/custom-reports",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "List custom reports" },
     },
     (req: FastifyRequest, reply: FastifyReply) => handler.list(req, reply)
@@ -377,7 +377,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/custom-reports",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Create custom report" },
     },
     (req: FastifyRequest, reply: FastifyReply) => handler.create(req, reply)
@@ -386,7 +386,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/custom-reports/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Get custom report by ID" },
     },
     (req: FastifyRequest, reply: FastifyReply) => handler.get(req, reply)
@@ -395,7 +395,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   app.patch(
     "/api/custom-reports/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Update custom report" },
     },
     (req: FastifyRequest, reply: FastifyReply) => handler.update(req, reply)
@@ -404,7 +404,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/custom-reports/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Delete custom report" },
     },
     (req: FastifyRequest, reply: FastifyReply) => handler.remove(req, reply)
@@ -413,7 +413,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/custom-reports/:id/run",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Execute custom report" },
     },
     (req: FastifyRequest, reply: FastifyReply) => handler.run(req, reply)
@@ -422,7 +422,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/custom-reports/:id/schedules",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Schedule custom report delivery" },
     },
     (req: FastifyRequest, reply: FastifyReply) => handler.schedule(req, reply)

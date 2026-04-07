@@ -8,10 +8,11 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { SubscriptionService } from "../subscription/index.js";
+import type { ChangeAccountSubscriptionUseCase } from "../../application/billing/ChangeAccountSubscriptionUseCase.js";
 import { removeUndefinedProperties } from "../../utils/typeUtils.js";
 import {
   ParamsWithAccountIdSchema,
-  SubscriptionChangeSchema,
+  ChangeSubscriptionSchema,
   SubscriptionFiltersSchema,
   ValidateLimitsSchema,
   SuspendSubscriptionSchema,
@@ -21,7 +22,10 @@ import {
 export class SubscriptionAccountHandler extends BaseRouteHandler {
   protected routeName = "subscription-account";
 
-  constructor(private readonly subscriptionService: SubscriptionService) {
+  constructor(
+    private readonly subscriptionService: SubscriptionService,
+    private readonly changeSubscriptionUseCase: ChangeAccountSubscriptionUseCase
+  ) {
     super();
   }
 
@@ -60,10 +64,10 @@ export class SubscriptionAccountHandler extends BaseRouteHandler {
 
     const validated = await this.validateRequest<{
       params: z.infer<typeof ParamsWithAccountIdSchema>;
-      body: z.infer<typeof SubscriptionChangeSchema>;
+      body: z.infer<typeof ChangeSubscriptionSchema>;
     }>(ctx, {
       params: ParamsWithAccountIdSchema,
-      body: SubscriptionChangeSchema,
+      body: ChangeSubscriptionSchema,
     });
 
     if (!validated.ok) {
@@ -72,36 +76,27 @@ export class SubscriptionAccountHandler extends BaseRouteHandler {
 
     const { accountId } = validated.value.params;
     const changeRequest = validated.value.body;
-    const updatedByUserId = request.user?.id;
 
-    const result = await this.subscriptionService.updateSubscription(
+    const result = await this.changeSubscriptionUseCase.execute({
       accountId,
-      removeUndefinedProperties(changeRequest) as Parameters<
-        SubscriptionService["updateSubscription"]
-      >[1],
-      updatedByUserId
-    );
+      ...(changeRequest.bundleId !== undefined && { bundleId: changeRequest.bundleId }),
+      ...(changeRequest.providers !== undefined && { providers: changeRequest.providers }),
+      ...(changeRequest.cancelAtPeriodEnd !== undefined && {
+        cancelAtPeriodEnd: changeRequest.cancelAtPeriodEnd,
+      }),
+    });
 
     if (!result.ok) {
-      if (result.error === "NOT_FOUND") {
-        return this.sendError(ctx, 404, "Account not found");
+      const error = result.error;
+      if (error.code === "NOT_FOUND") {
+        return this.sendError(ctx, 404, error.message);
       }
-      if (result.error === "INVALID_TIER") {
-        return this.sendError(ctx, 400, "Invalid subscription tier");
-      }
-      if (result.error === "NO_CHANGE") {
-        return this.sendError(ctx, 409, "Account already has the requested subscription tier");
-      }
-      return this.sendError(ctx, 500, "Internal server error");
+      return this.sendError(ctx, 400, error.message);
     }
 
-    this.logInfo(ctx, "Updated account subscription", {
-      accountId,
-      newTier: changeRequest.newTier,
-    });
+    this.logInfo(ctx, "Updated account subscription", { accountId });
     return this.sendSuccess(ctx, {
       subscription: result.value,
-      message: "Subscription updated successfully",
       timestamp: new Date().toISOString(),
     });
   }

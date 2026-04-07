@@ -4,18 +4,28 @@
  * JSON defaults and exposes methods for posts, admin dashboard stats, accounts, subscriptions,
  * analytics, and security (MFA/RBAC) endpoints.
  */
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = "/api/backend";
 
-async function http<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * HTTP client that unwraps the BaseRouteHandler envelope.
+ * Backend always returns `{ ok, data: T }`. This function returns the
+ * full envelope so callers can check `ok` and access the payload via
+ * the shape they declare in the generic — which should match the `data`
+ * contents, NOT the outer envelope.
+ */
+async function http<T>(path: string, init?: RequestInit): Promise<{ ok: boolean } & T> {
   const res = await fetch(API_URL + path, {
     headers: { "content-type": "application/json", ...(init?.headers || {}) },
+    credentials: "include",
     ...init,
   });
   if (!res.ok) {
     const error = await res.text();
     throw new Error(`HTTP ${res.status}: ${error}`);
   }
-  return res.json() as Promise<T>;
+  const json: { ok: boolean; data?: T } = await res.json();
+  // Unwrap: merge `ok` + spread `data` so callers see { ok, ...fields }
+  return { ok: json.ok, ...(json.data as T) } as { ok: boolean } & T;
 }
 
 // Interface definitions
@@ -26,20 +36,28 @@ export interface DashboardStats {
     trialsActive: number;
     trialsExpiring: number;
   };
-  subscriptions: {
-    basic: number;
-    pro: number;
-    enterprise: number;
+  subscriptions?: {
+    TRIALING: number;
+    ACTIVE: number;
+    PAST_DUE: number;
+    CANCELED: number;
+    GRANDFATHERED: number;
   };
-  revenue: {
+  plans?: {
+    custom: number;
+    bundle: number;
+    trial: number;
+    none: number;
+  };
+  revenue?: {
     monthly: number;
     yearly: number;
     total: number;
   };
   activity: {
-    loginsToday: number;
+    loginsToday?: number;
     newAccountsToday: number;
-    subscriptionChangesToday: number;
+    subscriptionChangesToday?: number;
   };
   projects: number;
   lastUpdated: string;
@@ -49,10 +67,16 @@ export interface AccountSummary {
   id: string;
   email: string;
   name: string;
-  subscription: "BASIC" | "PRO" | "ENTERPRISE";
   isActive: boolean;
   createdAt: string;
-  lastLoginAt: string | null;
+  lastLoginAt?: string | null;
+  plan: {
+    type: "custom" | "bundle" | "none";
+    name: string;
+    status: string;
+    providers: string[];
+    pricePerMonth: number;
+  };
   trial: {
     isOnTrial: boolean;
     trialDaysRemaining: number;
@@ -66,8 +90,40 @@ export interface AccountSummary {
 }
 
 export interface SubscriptionSummary {
-  subscriptions: any[];
-  trials: any[];
+  subscriptions: Array<{
+    id: string;
+    email: string;
+    name: string;
+    plan?: {
+      type: string;
+      name: string;
+      status: string;
+      providers: string[];
+      pricePerMonth: number;
+    };
+    billingCycle: string;
+    autoRenewal: boolean;
+    nextBillingDate: string | null;
+    lastBillingDate: string | null;
+    createdAt: string;
+  }>;
+  trials: Array<{
+    id: string;
+    email: string;
+    name: string;
+    plan?: {
+      type: string;
+      name: string;
+      status: string;
+      providers: string[];
+      pricePerMonth: number;
+    };
+    trialStartDate: string;
+    trialEndDate: string;
+    trialDaysRemaining: number;
+    autoRenewal: boolean;
+    status: string;
+  }>;
   stats: {
     totalRevenue: number;
     monthlyRevenue: number;
@@ -78,31 +134,18 @@ export interface SubscriptionSummary {
   };
 }
 
-export interface AnalyticsData {
-  data: {
-    overview: any;
-    revenue: any;
-    subscriptions: any;
-    activity: any;
-    geographic: any[];
-    features: any[];
-  };
-}
-
 // Audit interfaces
 export interface AuditLog {
   id: string;
-  userId: string;
+  userId: string | null;
   action: string;
-  resource: string;
-  resourceId: string;
+  resource: string | null;
+  resourceId: string | null;
   success: boolean;
-  details: Record<string, unknown>;
-  ipAddress: string;
-  userAgent: string;
-  provider: string;
-  channelId: string;
-  status: string;
+  error: string | null;
+  details: Record<string, unknown> | null;
+  ipAddress: string | null;
+  userAgent: string | null;
   createdAt: string;
 }
 
@@ -221,24 +264,21 @@ export const api = {
       }
       const qs = p.toString();
       return http<{
-        ok: boolean;
-        data: {
-          accounts: Array<{
-            id: string;
-            email: string;
-            name: string;
-            role: string;
-            isActive: boolean;
-            mfaEnabled: boolean;
-          }>;
-          pagination: {
-            page: number;
-            limit: number;
-            total: number;
-            totalPages: number;
-            hasNext: boolean;
-            hasPrev: boolean;
-          };
+        accounts: Array<{
+          id: string;
+          email: string;
+          name: string;
+          role: string;
+          isActive: boolean;
+          mfaEnabled: boolean;
+        }>;
+        pagination: {
+          page: number;
+          limit: number;
+          total: number;
+          totalPages: number;
+          hasNext: boolean;
+          hasPrev: boolean;
         };
       }>(`/admin/accounts${qs ? `?${qs}` : ""}`);
     },
@@ -261,10 +301,6 @@ export const api = {
       http<{ ok: boolean } & SubscriptionSummary & { timestamp: string }>(
         "/admin/subscriptions/summary"
       ),
-
-    // Analytics
-    getAnalyticsOverview: () =>
-      http<{ ok: boolean } & AnalyticsData & { timestamp: string }>("/admin/analytics/overview"),
   },
 
   // Audit log endpoints
@@ -281,12 +317,11 @@ export const api = {
         if (filters.offset !== undefined) p.set("offset", String(filters.offset));
       }
       const qs = p.toString();
-      return http<{ ok: boolean; data: { logs: AuditLog[]; filters: Record<string, unknown> } }>(
+      return http<{ logs: AuditLog[]; filters: Record<string, unknown> }>(
         `/admin/audit/logs${qs ? `?${qs}` : ""}`
       );
     },
-    getStats: () =>
-      http<{ ok: boolean; data: { stats: Record<string, unknown> } }>("/admin/audit/stats"),
+    getStats: () => http<{ stats: Record<string, unknown> }>("/admin/audit/stats"),
   },
 
   // Delete post

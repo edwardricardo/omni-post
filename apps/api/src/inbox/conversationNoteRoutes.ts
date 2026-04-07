@@ -9,7 +9,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 import type { AddConversationNoteUseCase } from "../application/inbox/AddConversationNoteUseCase.js";
@@ -198,7 +198,7 @@ const conversationNoteRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/inbox/conversations/:id/notes",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "List conversation notes" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.listNotes(request, reply)
@@ -207,7 +207,7 @@ const conversationNoteRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/inbox/conversations/:id/notes",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Add conversation note" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.addNote(request, reply)
@@ -216,7 +216,7 @@ const conversationNoteRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/inbox/conversations/:conversationId/notes/:noteId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Delete conversation note" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.deleteNote(request, reply)

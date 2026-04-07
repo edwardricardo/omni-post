@@ -6,15 +6,7 @@
  * queue depth, real-time connections, and per-provider breakdown statistics.
  */
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Progress,
-  Badge,
-} from "@packages/ui";
+import { Badge } from "@/components/ui/Badge";
 import { TrendingUp, TrendingDown, Activity, Clock, Zap, AlertTriangle } from "lucide-react";
 
 interface WebhookMetricsProps {
@@ -43,20 +35,21 @@ interface WebhookMetricsProps {
 export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
   const getPerformanceStatus = (successRate: number) => {
     if (successRate >= 99)
-      return { status: "excellent", color: "text-green-600", icon: TrendingUp };
-    if (successRate >= 95) return { status: "good", color: "text-green-500", icon: TrendingUp };
+      return { status: "excellent", color: "text-[var(--success)]", icon: TrendingUp };
+    if (successRate >= 95)
+      return { status: "good", color: "text-[var(--success)]", icon: TrendingUp };
     if (successRate >= 90)
-      return { status: "warning", color: "text-yellow-500", icon: TrendingDown };
-    return { status: "critical", color: "text-red-500", icon: AlertTriangle };
+      return { status: "warning", color: "text-[var(--warning)]", icon: TrendingDown };
+    return { status: "critical", color: "text-[var(--error)]", icon: AlertTriangle };
   };
 
   const performance = getPerformanceStatus(metrics.successRate);
   const StatusIcon = performance.icon;
 
   const getProcessingTimeStatus = (avgTime: number) => {
-    if (avgTime < 100) return "text-green-600";
-    if (avgTime < 500) return "text-yellow-600";
-    return "text-red-600";
+    if (avgTime < 100) return "text-[var(--success)]";
+    if (avgTime < 500) return "text-[var(--warning)]";
+    return "text-[var(--error)]";
   };
 
   const topProviders = Object.entries(metrics.byProvider)
@@ -67,18 +60,29 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 8);
 
+  const ProgressBar = ({ value, height = "h-2" }: { value: number; height?: string }) => (
+    <div className={`w-full ${height} rounded-full bg-[var(--bg-elevated)] overflow-hidden`}>
+      <div
+        className="h-full rounded-full bg-[var(--accent)] transition-all"
+        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+      />
+    </div>
+  );
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Performance Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+        <div className="p-4">
+          <h3 className="flex items-center space-x-2 text-base font-semibold text-[var(--text-primary)]">
             <Activity className="h-5 w-5" />
             <span>Performance Overview</span>
-          </CardTitle>
-          <CardDescription>Webhook processing health and performance metrics</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
+          </h3>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Webhook processing health and performance metrics
+          </p>
+        </div>
+        <div className="p-4 pt-0 space-y-6">
           {/* Success Rate */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -86,14 +90,14 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
               <div className="flex items-center space-x-2">
                 <StatusIcon className={`h-4 w-4 ${performance.color}`} />
                 <span className={`font-semibold ${performance.color}`}>
-                  {metrics.successRate.toFixed(1)}%
+                  {Number(metrics.successRate).toFixed(1)}%
                 </span>
               </div>
             </div>
-            <Progress value={metrics.successRate} className="h-2" />
-            <p className="text-xs text-gray-500">
-              {metrics.processedEvents.toLocaleString()} successful out of{" "}
-              {metrics.totalEvents.toLocaleString()} total
+            <ProgressBar value={metrics.successRate} />
+            <p className="text-xs text-[var(--text-secondary)]">
+              {Number(metrics.processedEvents).toLocaleString()} successful out of{" "}
+              {Number(metrics.totalEvents).toLocaleString()} total
             </p>
           </div>
 
@@ -102,20 +106,20 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Avg Processing Time</span>
               <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-gray-400" />
+                <Clock className="h-4 w-4 text-[var(--text-tertiary)]" />
                 <span
                   className={`font-semibold ${getProcessingTimeStatus(metrics.avgProcessingTime)}`}
                 >
-                  {metrics.avgProcessingTime.toFixed(0)}ms
+                  {Number(metrics.avgProcessingTime).toFixed(0)}ms
                 </span>
               </div>
             </div>
-            <div className="text-xs text-gray-500">
-              {metrics.avgProcessingTime < 100 && "🟢 Excellent response times"}
+            <div className="text-xs text-[var(--text-secondary)]">
+              {metrics.avgProcessingTime < 100 && "Excellent response times"}
               {metrics.avgProcessingTime >= 100 &&
                 metrics.avgProcessingTime < 500 &&
-                "🟡 Acceptable response times"}
-              {metrics.avgProcessingTime >= 500 && "🔴 Slow response times"}
+                "Acceptable response times"}
+              {metrics.avgProcessingTime >= 500 && "Slow response times"}
             </div>
           </div>
 
@@ -124,11 +128,11 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Queue Depth</span>
               <div className="flex items-center space-x-2">
-                <Zap className="h-4 w-4 text-gray-400" />
+                <Zap className="h-4 w-4 text-[var(--text-tertiary)]" />
                 <span className="font-semibold">{metrics.queueDepth}</span>
               </div>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-[var(--text-secondary)]">
               {metrics.queueDepth === 0
                 ? "No pending events"
                 : `${metrics.queueDepth} events pending`}
@@ -140,72 +144,80 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Active Connections</span>
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse"></div>
                 <span className="font-semibold">{metrics.realtimeConnections}</span>
               </div>
             </div>
-            <p className="text-xs text-gray-500">Real-time dashboard connections</p>
+            <p className="text-xs text-[var(--text-secondary)]">Real-time dashboard connections</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Provider Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Provider Performance</CardTitle>
-          <CardDescription>Webhook processing by social media platform</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+        <div className="p-4">
+          <h3 className="text-base font-semibold text-[var(--text-primary)]">
+            Provider Performance
+          </h3>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Webhook processing by social media platform
+          </p>
+        </div>
+        <div className="p-4 pt-0">
           <div className="space-y-4">
             {topProviders.length > 0 ? (
               topProviders.map(([provider, stats]) => (
                 <div key={provider} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="neutral" size="sm">
                         {provider}
                       </Badge>
-                      <span className="text-sm text-gray-600">
-                        {stats.total.toLocaleString()} events
+                      <span className="text-sm text-[var(--text-secondary)]">
+                        {Number(stats.total).toLocaleString()} events
                       </span>
                     </div>
                     <span
                       className={`text-sm font-semibold ${
                         stats.successRate >= 95
-                          ? "text-green-600"
+                          ? "text-[var(--success)]"
                           : stats.successRate >= 90
-                            ? "text-yellow-600"
-                            : "text-red-600"
+                            ? "text-[var(--warning)]"
+                            : "text-[var(--error)]"
                       }`}
                     >
-                      {stats.successRate.toFixed(1)}%
+                      {Number(stats.successRate).toFixed(1)}%
                     </span>
                   </div>
-                  <Progress value={stats.successRate} className="h-1.5" />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>{stats.success.toLocaleString()} success</span>
-                    <span>{stats.failed.toLocaleString()} failed</span>
-                    <span>{stats.avgProcessingTime.toFixed(0)}ms avg</span>
+                  <ProgressBar value={stats.successRate} height="h-1.5" />
+                  <div className="flex justify-between text-xs text-[var(--text-secondary)]">
+                    <span>{Number(stats.success).toLocaleString()} success</span>
+                    <span>{Number(stats.failed).toLocaleString()} failed</span>
+                    <span>{Number(stats.avgProcessingTime).toFixed(0)}ms avg</span>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <div className="text-center py-8 text-[var(--text-secondary)]">
+                <Activity className="h-12 w-12 mx-auto mb-4 text-[var(--text-tertiary)]" />
                 <p>No webhook events in this time period</p>
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Event Types Distribution */}
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Event Types Distribution</CardTitle>
-          <CardDescription>Most common webhook event types received</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] lg:col-span-2">
+        <div className="p-4">
+          <h3 className="text-base font-semibold text-[var(--text-primary)]">
+            Event Types Distribution
+          </h3>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Most common webhook event types received
+          </p>
+        </div>
+        <div className="p-4 pt-0">
           {topEventTypes.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {topEventTypes.map(([eventType, count]) => {
@@ -219,12 +231,12 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
                           .toLowerCase()
                           .replace(/\b\w/g, (l) => l.toUpperCase())}
                       </span>
-                      <Badge variant="secondary" className="ml-2">
-                        {count.toLocaleString()}
+                      <Badge variant="neutral" size="sm">
+                        {Number(count).toLocaleString()}
                       </Badge>
                     </div>
-                    <Progress value={percentage} className="h-1.5" />
-                    <p className="text-xs text-gray-500">
+                    <ProgressBar value={percentage} height="h-1.5" />
+                    <p className="text-xs text-[var(--text-secondary)]">
                       {percentage.toFixed(1)}% of total events
                     </p>
                   </div>
@@ -232,35 +244,37 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Zap className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-8 text-[var(--text-secondary)]">
+              <Zap className="h-12 w-12 mx-auto mb-4 text-[var(--text-tertiary)]" />
               <p>No event types to display</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Health Status Summary */}
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>System Health</CardTitle>
-          <CardDescription>Overall webhook system status and recommendations</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] lg:col-span-2">
+        <div className="p-4">
+          <h3 className="text-base font-semibold text-[var(--text-primary)]">System Health</h3>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Overall webhook system status and recommendations
+          </p>
+        </div>
+        <div className="p-4 pt-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Overall Health */}
             <div className="text-center space-y-2">
               <div className={`text-3xl font-bold ${performance.color}`}>
                 {performance.status.toUpperCase()}
               </div>
-              <p className="text-sm text-gray-600">System Status</p>
+              <p className="text-sm text-[var(--text-secondary)]">System Status</p>
               <StatusIcon className={`h-8 w-8 mx-auto ${performance.color}`} />
             </div>
 
             {/* Key Metrics */}
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Reliability</span>
+                <span className="text-sm text-[var(--text-secondary)]">Reliability</span>
                 <span className={`font-semibold ${performance.color}`}>
                   {metrics.successRate >= 99
                     ? "Excellent"
@@ -272,7 +286,7 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Performance</span>
+                <span className="text-sm text-[var(--text-secondary)]">Performance</span>
                 <span
                   className={`font-semibold ${getProcessingTimeStatus(metrics.avgProcessingTime)}`}
                 >
@@ -284,7 +298,7 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Load</span>
+                <span className="text-sm text-[var(--text-secondary)]">Load</span>
                 <span className="font-semibold">
                   {metrics.queueDepth === 0
                     ? "Light"
@@ -298,20 +312,20 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
             {/* Recommendations */}
             <div className="space-y-2">
               <h4 className="font-semibold text-sm">Recommendations</h4>
-              <div className="space-y-1 text-xs text-gray-600">
-                {metrics.successRate < 95 && <p>• Review failed events in Dead Letter queue</p>}
+              <div className="space-y-1 text-xs text-[var(--text-secondary)]">
+                {metrics.successRate < 95 && <p>Review failed events in Dead Letter queue</p>}
                 {metrics.avgProcessingTime > 500 && (
-                  <p>• Optimize webhook processors for faster response</p>
+                  <p>Optimize webhook processors for faster response</p>
                 )}
-                {metrics.queueDepth > 100 && <p>• Consider scaling webhook workers</p>}
+                {metrics.queueDepth > 100 && <p>Consider scaling webhook workers</p>}
                 {metrics.failedEvents === 0 && metrics.successRate === 100 && (
-                  <p>• System operating optimally</p>
+                  <p>System operating optimally</p>
                 )}
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

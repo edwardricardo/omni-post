@@ -208,7 +208,6 @@ export class ExecutiveComplianceHandler extends BaseRouteHandler {
         accountId: account.id,
         email: account.email,
         name: account.name,
-        subscription: account.subscription,
         createdAt: account.createdAt,
         dataCategories: {
           personalInformation: {
@@ -217,7 +216,6 @@ export class ExecutiveComplianceHandler extends BaseRouteHandler {
             createdAt: account.createdAt,
           },
           subscriptionData: {
-            subscription: account.subscription,
             maxProjects: account.maxProjects,
             isOnTrial: account.isOnTrial,
             trialStartDate: account.trialStartDate,

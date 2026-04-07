@@ -1,26 +1,74 @@
 /**
  * @file useAnalytics.ts
- * @description TanStack Query hooks for fetching analytics overview data including user activity,
- * revenue trends, and subscription breakdown for the admin analytics page.
+ * @description TanStack Query hook for fetching customer analytics dashboard data
+ * including post performance, engagement metrics, and per-platform breakdown.
  */
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../../lib/apiClient";
+
+interface PlatformMetric {
+  platformId: string;
+  platformName: string;
+  handle: string;
+  totalPosts: number;
+  totalEngagement: number;
+  totalReach: number;
+  totalImpressions: number;
+  totalClicks: number;
+  followerCount: number;
+  growthRate: number;
+  engagementRate: number;
+}
+
+export interface AnalyticsDashboardData {
+  overview: {
+    totalPosts: number;
+    totalEngagement: number;
+    totalReach: number;
+    totalImpressions: number;
+    avgEngagementRate: number;
+    topPlatform: string;
+    growthThisWeek: number;
+    performanceScore: number;
+  };
+  platformMetrics: PlatformMetric[];
+  timeRange: string;
+  dataPoints: number;
+}
+
+interface AnalyticsResponse {
+  ok: boolean;
+  data?: AnalyticsDashboardData;
+}
 
 /**
- * Hook to fetch analytics overview data
+ * Hook to fetch customer analytics dashboard data.
+ * Routes through the Next.js proxy so the customer-session token is injected.
  */
-export function useAnalytics() {
+export function useAnalytics(projectId: string, timeRange: string = "30d") {
   return useQuery({
-    queryKey: ["analytics", "overview"],
-    queryFn: async () => {
-      const response = await api.admin.getAnalyticsOverview();
+    queryKey: ["analytics", "dashboard", projectId, timeRange],
+    queryFn: async (): Promise<AnalyticsDashboardData> => {
+      const params = new URLSearchParams({ timeRange });
+      if (projectId) params.set("projectId", projectId);
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch analytics");
+      const res = await fetch(`/api/backend/analytics/dashboard?${params}`, {
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch analytics: HTTP ${res.status}`);
       }
 
-      return response;
+      const json: AnalyticsResponse = await res.json();
+
+      if (!json.ok || !json.data) {
+        throw new Error("Failed to fetch analytics data");
+      }
+
+      return json.data;
     },
-    staleTime: 120000, // 2 minutes (analytics can be slightly stale)
+    enabled: !!projectId,
+    staleTime: 120_000,
+    retry: 2,
   });
 }

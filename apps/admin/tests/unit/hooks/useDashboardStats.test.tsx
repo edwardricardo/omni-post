@@ -26,7 +26,7 @@ const mockGetDashboardStats = vi.mocked(api.admin.getDashboardStats);
 
 const MOCK_STATS = {
   accounts: { total: 42, active: 35, trialsActive: 5, trialsExpiring: 2 },
-  subscriptions: { basic: 20, pro: 15, enterprise: 7 },
+  plans: { custom: 20, bundle: 15, trial: 5, none: 2 },
   revenue: { monthly: 9000, yearly: 108000, total: 108000 },
   activity: { loginsToday: 12, newAccountsToday: 3, subscriptionChangesToday: 1 },
   projects: 88,

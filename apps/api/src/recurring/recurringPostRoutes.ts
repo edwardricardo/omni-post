@@ -9,7 +9,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { CreateRecurringPostUseCase } from "../application/recurring/CreateRecurringPostUseCase.js";
 import type { UpdateRecurringPostUseCase } from "../application/recurring/UpdateRecurringPostUseCase.js";
@@ -296,7 +296,7 @@ export const recurringPostRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/recurring-posts",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Recurring Posts"], summary: "Create a recurring post schedule" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.create(request, reply)
@@ -306,7 +306,7 @@ export const recurringPostRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/recurring-posts",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Recurring Posts"], summary: "List recurring posts for a project" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.list(request, reply)
@@ -316,7 +316,7 @@ export const recurringPostRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/recurring-posts/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Recurring Posts"], summary: "Get a single recurring post" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getOne(request, reply)
@@ -326,7 +326,7 @@ export const recurringPostRoutes: FastifyPluginAsync = async (app) => {
   app.patch(
     "/recurring-posts/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Recurring Posts"], summary: "Update a recurring post schedule" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.update(request, reply)
@@ -336,7 +336,7 @@ export const recurringPostRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/recurring-posts/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Recurring Posts"], summary: "Deactivate a recurring post schedule" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.deactivate(request, reply)

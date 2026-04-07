@@ -9,7 +9,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { SetFirstCommentUseCase } from "../application/first-comment/SetFirstCommentUseCase.js";
 import type { RemoveFirstCommentUseCase } from "../application/first-comment/RemoveFirstCommentUseCase.js";
@@ -166,7 +166,7 @@ export const firstCommentRoutes: FastifyPluginAsync = async (app) => {
   app.put(
     "/posts/:postId/first-comment",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["First Comment"], summary: "Set or update first comment for a post" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.setFirstComment(request, reply)
@@ -176,7 +176,7 @@ export const firstCommentRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/posts/:postId/first-comment",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["First Comment"], summary: "Get first comment for a post" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getFirstComment(request, reply)
@@ -186,7 +186,7 @@ export const firstCommentRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/posts/:postId/first-comment",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["First Comment"], summary: "Remove first comment for a post" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.removeFirstComment(request, reply)

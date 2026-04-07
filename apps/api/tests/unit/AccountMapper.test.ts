@@ -16,7 +16,6 @@ function createAccount(data: Partial<Account>): Account {
     id: data.id || "test-account-id",
     email: data.email || "test@example.com",
     name: data.name || "Test Account",
-    subscription: data.subscription || "BASIC",
     maxProjects: data.maxProjects ?? 1,
     isOnTrial: data.isOnTrial ?? false,
     trialStartDate: data.trialStartDate || new Date(),
@@ -29,7 +28,7 @@ function createAccount(data: Partial<Account>): Account {
     stripeSubscriptionId: data.stripeSubscriptionId || null,
     createdAt: data.createdAt || new Date(),
     updatedAt: data.updatedAt || new Date(),
-  };
+  } as Account;
 }
 
 // Helper function to create mock Project
@@ -47,7 +46,6 @@ describe("AccountMapper - toSubscriptionInfo", () => {
   it("toSubscriptionInfo - Complete mapping", () => {
     const accountWithProjects = {
       ...createAccount({
-        subscription: "PRO",
         maxProjects: 10,
         isOnTrial: false,
       }),
@@ -58,11 +56,7 @@ describe("AccountMapper - toSubscriptionInfo", () => {
 
     expect(subscriptionInfo.id).toBe("test-account-id");
     expect(subscriptionInfo.email).toBe("test@example.com");
-    expect(subscriptionInfo.subscription).toBe("PRO");
     expect(subscriptionInfo.maxProjects).toBe(10);
-    expect(subscriptionInfo.currentProjects).toBe(2);
-    expect(subscriptionInfo.plan.name).toBe("PRO");
-    expect(subscriptionInfo.plan.displayName).toBe("Professional Plan");
     expect(subscriptionInfo.usage.projectsUsed).toBe(2);
     expect(subscriptionInfo.usage.projectsRemaining).toBe(8);
     expect(subscriptionInfo.usage.utilizationPercent).toBe(20);
@@ -138,42 +132,9 @@ describe("AccountMapper - calculateUsage", () => {
   });
 });
 
-describe("AccountMapper - getSubscriptionPlan", () => {
-  it("getSubscriptionPlan - BASIC tier", () => {
-    const basicPlan = AccountMapper.getSubscriptionPlan("BASIC");
-
-    expect(basicPlan.name).toBe("BASIC");
-    expect(basicPlan.displayName).toBe("Basic Plan");
-    expect(basicPlan.maxProjects).toBe(1);
-    expect(basicPlan.features.length >= 4).toBeTruthy();
-    expect(basicPlan.price).toBe(undefined); // BASIC is free
-  });
-
-  it("getSubscriptionPlan - PRO tier", () => {
-    const proPlan = AccountMapper.getSubscriptionPlan("PRO");
-
-    expect(proPlan.name).toBe("PRO");
-    expect(proPlan.displayName).toBe("Professional Plan");
-    expect(proPlan.maxProjects).toBe(10);
-    expect(proPlan.price?.monthly).toBe(29);
-    expect(proPlan.price?.yearly).toBe(290);
-  });
-
-  it("getSubscriptionPlan - ENTERPRISE tier", () => {
-    const enterprisePlan = AccountMapper.getSubscriptionPlan("ENTERPRISE");
-
-    expect(enterprisePlan.name).toBe("ENTERPRISE");
-    expect(enterprisePlan.displayName).toBe("Enterprise Plan");
-    expect(enterprisePlan.maxProjects).toBe(-1); // Unlimited
-    expect(enterprisePlan.price?.monthly).toBe(99);
-    expect(enterprisePlan.price?.yearly).toBe(990);
-  });
-});
-
 describe("AccountMapper - canCreateProject", () => {
   it("canCreateProject - Allowed", () => {
     const allowedAccount = createAccount({
-      subscription: "PRO",
       maxProjects: 10,
       isOnTrial: false,
     });
@@ -186,7 +147,6 @@ describe("AccountMapper - canCreateProject", () => {
 
   it("canCreateProject - Project limit reached", () => {
     const limitReachedAccount = createAccount({
-      subscription: "BASIC",
       maxProjects: 1,
       isOnTrial: false,
     });
@@ -202,7 +162,6 @@ describe("AccountMapper - canCreateProject", () => {
     pastDate.setDate(pastDate.getDate() - 7);
 
     const expiredAccount = createAccount({
-      subscription: "BASIC",
       maxProjects: 1,
       isOnTrial: true,
       trialEndDate: pastDate,
@@ -216,7 +175,6 @@ describe("AccountMapper - canCreateProject", () => {
 
   it("canCreateProject - ENTERPRISE unlimited", () => {
     const enterpriseAccount = createAccount({
-      subscription: "ENTERPRISE",
       maxProjects: -1, // Unlimited
       isOnTrial: false,
     });
@@ -224,35 +182,5 @@ describe("AccountMapper - canCreateProject", () => {
     const enterpriseCreate = AccountMapper.canCreateProject(enterpriseAccount, 1000);
 
     expect(enterpriseCreate.allowed).toBe(true);
-  });
-});
-
-describe("AccountMapper - canUpgradeTo", () => {
-  it("canUpgradeTo - Valid upgrade", () => {
-    const canUpgrade = AccountMapper.canUpgradeTo("BASIC", "PRO");
-
-    expect(canUpgrade.allowed).toBe(true);
-  });
-
-  it("canUpgradeTo - Invalid (downgrade attempt)", () => {
-    const cannotDowngrade = AccountMapper.canUpgradeTo("PRO", "BASIC");
-
-    expect(cannotDowngrade.allowed).toBe(false);
-    expect(cannotDowngrade.reason?.includes("higher-tier")).toBeTruthy();
-  });
-});
-
-describe("AccountMapper - canDowngradeTo", () => {
-  it("canDowngradeTo - Valid downgrade", () => {
-    const canDowngrade = AccountMapper.canDowngradeTo("PRO", "BASIC", 1);
-
-    expect(canDowngrade.allowed).toBe(true);
-  });
-
-  it("canDowngradeTo - Too many projects", () => {
-    const cannotDowngradeProjects = AccountMapper.canDowngradeTo("PRO", "BASIC", 5);
-
-    expect(cannotDowngradeProjects.allowed).toBe(false);
-    expect(cannotDowngradeProjects.reason?.includes("5 projects")).toBeTruthy();
   });
 });

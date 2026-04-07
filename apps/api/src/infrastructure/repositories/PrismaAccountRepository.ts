@@ -11,7 +11,6 @@ import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import { Account, AccountId, EntityNotFoundError } from "../../domain/index.js";
 import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
-import type { SubscriptionTierValue } from "../../domain/entities/Account.js";
 
 /**
  * Maps a Prisma Account row to the Account domain entity
@@ -20,7 +19,6 @@ function toDomain(row: {
   id: string;
   email: string;
   name: string;
-  subscription: string;
   maxProjects: number;
   isOnTrial: boolean;
   trialStartDate: Date;
@@ -38,7 +36,6 @@ function toDomain(row: {
   return Account.reconstitute(id, {
     email: row.email,
     name: row.name,
-    subscription: row.subscription as SubscriptionTierValue,
     maxProjects: row.maxProjects,
     isOnTrial: row.isOnTrial,
     trialStartDate: row.trialStartDate,
@@ -109,7 +106,6 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
           id: account.id.value,
           email: account.email,
           name: account.name,
-          subscription: account.subscription as "BASIC" | "PRO" | "ENTERPRISE",
           maxProjects: account.maxProjects,
           isOnTrial: account.isOnTrial,
           trialStartDate: account.trialStartDate,
@@ -128,7 +124,6 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
         update: {
           email: account.email,
           name: account.name,
-          subscription: account.subscription as "BASIC" | "PRO" | "ENTERPRISE",
           maxProjects: account.maxProjects,
           isOnTrial: account.isOnTrial,
           trialStartDate: account.trialStartDate,

@@ -8,12 +8,8 @@
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 
-vi.mock("../../src/auth/authMiddleware.js", () => ({
-  authenticateMiddleware: async () => {},
-  requireAdmin: async () => {},
-  requireSuperAdmin: async () => {},
-  requireRole: () => async () => {},
-  optionalAuth: async () => {},
+vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
+  requireClientAuth: async () => {},
 }));
 
 import Fastify, { FastifyInstance } from "fastify";

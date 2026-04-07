@@ -17,7 +17,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { CreateTaskUseCase } from "../application/tasks/CreateTaskUseCase.js";
 import type { UpdateTaskUseCase } from "../application/tasks/UpdateTaskUseCase.js";
 import type { CompleteTaskUseCase } from "../application/tasks/CompleteTaskUseCase.js";
@@ -319,7 +319,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/tasks",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "List tasks with filters" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.list(request, reply)
@@ -328,7 +328,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/tasks",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Create a new task" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.create(request, reply)
@@ -337,7 +337,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/tasks/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Get a single task" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.get(request, reply)
@@ -346,7 +346,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   app.patch(
     "/api/tasks/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Update a task" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.update(request, reply)
@@ -355,7 +355,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/tasks/:id/complete",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Complete a task" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.complete(request, reply)
@@ -364,7 +364,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/tasks/:id/cancel",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Cancel a task" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.cancelTask(request, reply)
@@ -373,7 +373,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/tasks/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Soft-delete a task" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.deleteTask(request, reply)

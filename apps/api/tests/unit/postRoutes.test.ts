@@ -10,12 +10,8 @@
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 
-vi.mock("../../src/auth/authMiddleware.js", () => ({
-  authenticateMiddleware: async () => {},
-  requireAdmin: async () => {},
-  requireSuperAdmin: async () => {},
-  requireRole: () => async () => {},
-  optionalAuth: async () => {},
+vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
+  requireClientAuth: async () => {},
 }));
 
 import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";

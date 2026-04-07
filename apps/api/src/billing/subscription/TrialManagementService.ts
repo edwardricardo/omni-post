@@ -22,7 +22,7 @@ import type { AccountQueryRepositoryPort } from "../../domain/repositories/Accou
 import { AuditableService } from "../../services/AuditableService";
 import { subscriptionPlanService } from "./SubscriptionPlanService";
 import { billingService } from "./BillingService";
-import { SUBSCRIPTION_PLANS, type AccountSubscriptionInfo, type StartTrialRequest } from "./types";
+import { type AccountSubscriptionInfo, type StartTrialRequest } from "./types";
 
 /**
  * Service responsible for trial period management operations:
@@ -50,6 +50,36 @@ export class TrialManagementService extends AuditableService {
     const subscriptionInfo = subscriptionPlanService.mapAccountToSubscriptionInfo(account);
 
     return ok(subscriptionInfo);
+  }
+
+  /**
+   * @method getTrialStatusFromSubscription
+   * @description Reads trial status from the new AccountSubscription model.
+   *   This is an additive method — legacy Account-based trial fields remain
+   *   untouched until Phase 3 migration.
+   * @param accountId - The account ID to check
+   * @returns Trial status object or null if no subscription exists
+   */
+  async getTrialStatusFromSubscription(accountId: string): Promise<{
+    isTrialing: boolean;
+    trialEndsAt: Date | null;
+    daysRemaining: number;
+    status: string;
+  } | null> {
+    const sub = await prisma.accountSubscription.findUnique({
+      where: { accountId },
+    });
+
+    if (!sub) return null;
+
+    return {
+      isTrialing: sub.status === "TRIALING",
+      trialEndsAt: sub.trialEndsAt,
+      daysRemaining: sub.trialEndsAt
+        ? Math.max(0, Math.ceil((sub.trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+        : 0,
+      status: sub.status,
+    };
   }
 
   /**
@@ -100,8 +130,6 @@ export class TrialManagementService extends AuditableService {
           isOnTrial: true,
           trialStartDate: now,
           trialEndDate,
-          subscription: tier,
-          maxProjects: SUBSCRIPTION_PLANS[tier].maxProjects,
           autoRenewal,
           billingCycle,
           ...(autoRenewal && { nextBillingDate }),
@@ -195,8 +223,6 @@ export class TrialManagementService extends AuditableService {
         data: {
           isOnTrial: false,
           trialEndDate: new Date(),
-          subscription: "BASIC", // Downgrade to basic after trial
-          maxProjects: SUBSCRIPTION_PLANS.BASIC.maxProjects,
           autoRenewal: false,
           nextBillingDate: null,
           updatedAt: new Date(),
@@ -215,8 +241,6 @@ export class TrialManagementService extends AuditableService {
           severity: "MEDIUM",
           details: {
             email: account.email,
-            fromTier: account.subscription,
-            toTier: "BASIC",
             reason,
           },
         });
@@ -226,8 +250,6 @@ export class TrialManagementService extends AuditableService {
       await billingService.logBillingEvent({
         accountId,
         type: "TRIAL_END",
-        fromTier: account.subscription,
-        toTier: "BASIC",
         currency: "USD",
         reason,
         ...(endedByUserId && { processedBy: endedByUserId }),
@@ -324,12 +346,10 @@ export class TrialManagementService extends AuditableService {
         return err("NOT_ON_TRIAL");
       }
 
-      const plan = subscriptionPlanService.getSubscriptionPlan(account.subscription);
-      const amount = billingService.calculateBillingAmount(
-        plan.monthlyPrice,
-        plan.yearlyPrice,
-        billingCycle
-      );
+      // Look up plan from AccountSubscription model
+      const accountPlan = await subscriptionPlanService.getAccountPlan(accountId);
+      const pricePerMonth = accountPlan ? accountPlan.pricePerMonth : 0;
+      const amount = pricePerMonth * (billingCycle === "yearly" ? 12 : 1);
       const now = new Date();
       const nextBilling = billingService.calculateNextBillingDate(billingCycle, now);
 
@@ -357,7 +377,6 @@ export class TrialManagementService extends AuditableService {
           severity: "HIGH",
           details: {
             email: account.email,
-            tier: account.subscription,
             billingCycle,
             amount,
             nextBillingDate: nextBilling.toISOString(),
@@ -369,7 +388,6 @@ export class TrialManagementService extends AuditableService {
       await billingService.logBillingEvent({
         accountId,
         type: "UPGRADE",
-        toTier: account.subscription,
         amount,
         currency: "USD",
         reason: "Trial converted to paid subscription",
@@ -437,17 +455,13 @@ export class TrialManagementService extends AuditableService {
       const results = await Promise.allSettled(
         expiredTrialAccounts.map(async (account) => {
           try {
-            const plan = SUBSCRIPTION_PLANS[account.subscription];
-            const amount = billingService.calculateBillingAmount(
-              plan.monthlyPrice,
-              plan.yearlyPrice,
-              account.billingCycle as "monthly" | "yearly"
-            );
+            // Look up plan from AccountSubscription model
+            const accountPlan = await subscriptionPlanService.getAccountPlan(account.id);
+            const pricePerMonth = accountPlan ? accountPlan.pricePerMonth : 0;
+            const cycle = account.billingCycle as "monthly" | "yearly";
+            const amount = pricePerMonth * (cycle === "yearly" ? 12 : 1);
 
-            const nextBilling = billingService.calculateNextBillingDate(
-              account.billingCycle as "monthly" | "yearly",
-              now
-            );
+            const nextBilling = billingService.calculateNextBillingDate(cycle, now);
 
             await prisma.account.update({
               where: { id: account.id },
@@ -467,7 +481,6 @@ export class TrialManagementService extends AuditableService {
               severity: "MEDIUM",
               details: {
                 email: account.email,
-                tier: account.subscription,
                 amount,
                 billingCycle: account.billingCycle,
                 nextBillingDate: nextBilling.toISOString(),
@@ -478,7 +491,6 @@ export class TrialManagementService extends AuditableService {
             await billingService.logBillingEvent({
               accountId: account.id,
               type: "AUTO_RENEWAL",
-              toTier: account.subscription,
               amount,
               currency: "USD",
               reason: "Automatic renewal after trial period",

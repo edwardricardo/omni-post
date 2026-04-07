@@ -46,10 +46,10 @@ describe("BillingService", () => {
       assert.equal(service.getChangeType("ENTERPRISE", "PRO"), "DOWNGRADE");
     });
 
-    it("returns DOWNGRADE when same tier (not strictly upgrade)", () => {
-      // Same tier has equal order, so toTier > fromTier is false → DOWNGRADE
+    it("returns LATERAL when same tier (equal price)", () => {
+      // Same tier has equal order → LATERAL
       const result = service.getChangeType("PRO", "PRO");
-      assert.equal(result, "DOWNGRADE");
+      assert.equal(result, "LATERAL");
     });
   });
 

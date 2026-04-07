@@ -11,7 +11,7 @@ import {
   type ColumnDefinition,
 } from "@packages/api-common";
 import type { AuditService } from "./auditService.js";
-import { authenticateMiddleware, requireAdmin, requireSuperAdmin } from "../auth/authMiddleware.js";
+import { requireAdminAuth, requireSuperAdmin } from "../admin/auth/adminAuthMiddleware.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
@@ -301,7 +301,7 @@ class AuditRouteHandler extends BaseRouteHandler {
   async getMyLogs(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const userId = request.user?.id;
+    const userId = request.auth?.user?.id;
     if (!userId) {
       return this.sendError(ctx, 401, "User not authenticated");
     }
@@ -419,58 +419,52 @@ const auditRoutes: FastifyPluginAsync = async (fastify) => {
   const handler = new AuditRouteHandler(auditService);
 
   // ✅ Get audit logs with filtering
-  fastify.get(
-    "/admin/audit/logs",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
-    async (request, reply) => handler.getAuditLogs(request, reply)
+  fastify.get("/admin/audit/logs", { preHandler: [requireAdminAuth] }, async (request, reply) =>
+    handler.getAuditLogs(request, reply)
   );
 
   // ✅ Get audit log statistics
-  fastify.get(
-    "/admin/audit/stats",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
-    async (request, reply) => handler.getAuditStats(request, reply)
+  fastify.get("/admin/audit/stats", { preHandler: [requireAdminAuth] }, async (request, reply) =>
+    handler.getAuditStats(request, reply)
   );
 
   // ✅ Get audit logs for a specific user
   fastify.get(
     "/admin/audit/users/:userId/logs",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    { preHandler: [requireAdminAuth] },
     async (request, reply) => handler.getUserLogs(request, reply)
   );
 
   // ✅ Get audit logs for a specific resource
   fastify.get(
     "/admin/audit/resources/:resource/logs",
-    { preHandler: [authenticateMiddleware, requireAdmin] },
+    { preHandler: [requireAdminAuth] },
     async (request, reply) => handler.getResourceLogs(request, reply)
   );
 
   // ✅ Manual audit log creation (for special cases)
   fastify.post(
     "/admin/audit/logs",
-    { preHandler: [authenticateMiddleware, requireSuperAdmin] },
+    { preHandler: [requireAdminAuth, requireSuperAdmin] },
     async (request, reply) => handler.createAuditLog(request, reply)
   );
 
   // ✅ Cleanup old audit logs (data retention)
   fastify.post(
     "/admin/audit/cleanup",
-    { preHandler: [authenticateMiddleware, requireSuperAdmin] },
+    { preHandler: [requireAdminAuth, requireSuperAdmin] },
     async (request, reply) => handler.cleanupAuditLogs(request, reply)
   );
 
   // ✅ Get current user's audit logs (self-service)
-  fastify.get(
-    "/admin/audit/my-logs",
-    { preHandler: [authenticateMiddleware] },
-    async (request, reply) => handler.getMyLogs(request, reply)
+  fastify.get("/admin/audit/my-logs", { preHandler: [requireAdminAuth] }, async (request, reply) =>
+    handler.getMyLogs(request, reply)
   );
 
   // ✅ Export audit logs (for compliance)
   fastify.get(
     "/admin/audit/export",
-    { preHandler: [authenticateMiddleware, requireSuperAdmin] },
+    { preHandler: [requireAdminAuth, requireSuperAdmin] },
     async (request, reply) => handler.exportAuditLogs(request, reply)
   );
 };

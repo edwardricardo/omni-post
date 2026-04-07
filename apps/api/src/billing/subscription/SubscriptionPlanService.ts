@@ -1,47 +1,85 @@
 /**
- * Subscription Plan Service
- *
- * Manages subscription plan definitions, tier validation, and feature access
- * checks. Handles plan lookups, upgrade/downgrade eligibility, trial period
- * management, and enforces per-tier resource limits.
- *
- * @module billing/subscription/SubscriptionPlanService
+ * @file SubscriptionPlanService.ts
+ * @description Manages subscription plans from AccountSubscription + ProviderBundle models.
+ *   Validates limits, provides plan info from DB instead of hardcoded constants.
+ * @layer application
  */
 
 import { ok, type Result, type SubscriptionTier } from "@shared/types";
 import type { Account as PrismaAccount } from "@infra/prisma";
 import { prisma } from "@infra/prisma";
-import { AuditableService } from "../../services/AuditableService";
+import { AuditableService } from "../../services/AuditableService.js";
 import {
   SUBSCRIPTION_PLANS,
   type SubscriptionPlan,
   type AccountSubscriptionInfo,
   type SubscriptionHierarchy,
   type TrialInfo,
-} from "./types";
+} from "./types.js";
 
 type AccountWithProjects = PrismaAccount & { projects: unknown[] };
+
 export class SubscriptionPlanService extends AuditableService {
   constructor() {
     super("SubscriptionPlanService");
   }
 
   /**
-   * Get subscription plan details
+   * Get subscription plan details.
+   * @deprecated Prefer getAccountPlan(accountId) for provider-based model.
    */
   getSubscriptionPlan(tier: SubscriptionTier): SubscriptionPlan {
     return SUBSCRIPTION_PLANS[tier];
   }
 
   /**
-   * Get all available subscription plans
+   * Get plan info from AccountSubscription for an account.
+   */
+  async getAccountPlan(accountId: string) {
+    const sub = await prisma.accountSubscription.findUnique({
+      where: { accountId },
+      include: { bundle: true },
+    });
+
+    if (!sub) return null;
+
+    return {
+      id: sub.id,
+      planType: sub.bundleId
+        ? ("bundle" as const)
+        : sub.providers.length > 0
+          ? ("custom" as const)
+          : ("none" as const),
+      bundleName: sub.bundle?.name ?? null,
+      providers: sub.providers.map(String),
+      pricePerMonth: Number(sub.pricePerMonth),
+      maxProjects: sub.maxProjects,
+      status: sub.status,
+      billingCycle: sub.billingCycle,
+      trialEndsAt: sub.trialEndsAt,
+      currentPeriodEnd: sub.currentPeriodEnd,
+    };
+  }
+
+  /**
+   * Get all available bundles from DB.
+   */
+  async getAllPlansFromDB() {
+    return prisma.providerBundle.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    });
+  }
+
+  /**
+   * @deprecated Use getAllPlansFromDB instead.
    */
   getAllPlans(): SubscriptionPlan[] {
     return Object.values(SUBSCRIPTION_PLANS);
   }
 
   /**
-   * Validate subscription limits
+   * Validate subscription limits using AccountSubscription.maxProjects.
    */
   async validateSubscriptionLimits(
     subscriptionInfo: AccountSubscriptionInfo,
@@ -62,7 +100,6 @@ export class SubscriptionPlanService extends AuditableService {
           remaining,
         });
       }
-
       case "ADD_TEAM_MEMBER":
         return ok({
           allowed: plan.limits.teamMembers === -1 || usage.projectsUsed < plan.limits.teamMembers,
@@ -70,7 +107,6 @@ export class SubscriptionPlanService extends AuditableService {
           current: usage.projectsUsed,
           remaining: Math.max(0, plan.limits.teamMembers - usage.projectsUsed),
         });
-
       case "UPLOAD_MEDIA": {
         const storageUsedGB = await this.calculateStorageUsedGB(subscriptionInfo.id);
         const remaining = Math.max(0, plan.limits.mediaStorageGB - storageUsedGB);
@@ -81,37 +117,27 @@ export class SubscriptionPlanService extends AuditableService {
           remaining,
         });
       }
-
       default:
-        return ok({
-          allowed: true,
-          limit: 0,
-          current: 0,
-          remaining: 0,
-        });
+        return ok({ allowed: true, limit: 0, current: 0, remaining: 0 });
     }
   }
 
   /**
-   * Validate upgrade using tier hierarchy
+   * Validate upgrade by comparing prices.
+   * @deprecated Legacy tier hierarchy validation. Use price comparison.
    */
   validateUpgrade(current: SubscriptionHierarchy, target: SubscriptionHierarchy) {
     const hierarchy: SubscriptionHierarchy[] = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
     const currentIndex = hierarchy.indexOf(current);
     const targetIndex = hierarchy.indexOf(target);
-
     if (targetIndex <= currentIndex) {
-      return {
-        allowed: false,
-        reason: "Can only upgrade to a higher-tier plan",
-      };
+      return { allowed: false, reason: "Can only upgrade to a higher-tier plan" };
     }
-
     return { allowed: true };
   }
 
   /**
-   * Validate downgrade using tier hierarchy
+   * @deprecated Legacy tier hierarchy validation. Use price comparison.
    */
   validateDowngrade(
     current: SubscriptionHierarchy,
@@ -121,15 +147,9 @@ export class SubscriptionPlanService extends AuditableService {
     const hierarchy: SubscriptionHierarchy[] = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
     const currentIndex = hierarchy.indexOf(current);
     const targetIndex = hierarchy.indexOf(target);
-
     if (targetIndex >= currentIndex) {
-      return {
-        allowed: false,
-        reason: "Can only downgrade to a lower-tier plan",
-      };
+      return { allowed: false, reason: "Can only downgrade to a lower-tier plan" };
     }
-
-    // Check if target plan can accommodate current projects
     const targetPlan = this.getSubscriptionPlan(target as unknown as SubscriptionTier);
     if (targetPlan.maxProjects !== -1 && currentProjectCount > targetPlan.maxProjects) {
       return {
@@ -137,17 +157,16 @@ export class SubscriptionPlanService extends AuditableService {
         reason: `Cannot downgrade: You have ${currentProjectCount} projects but ${target} plan allows only ${targetPlan.maxProjects}`,
       };
     }
-
     return { allowed: true };
   }
 
   /**
-   * Map Account to SubscriptionInfo using centralized logic
+   * Map Account to SubscriptionInfo.
+   * @deprecated Uses legacy Account.subscription field. Use getAccountPlan instead.
    */
   mapAccountToSubscriptionInfo(account: AccountWithProjects): AccountSubscriptionInfo {
-    const plan = this.getSubscriptionPlan(account.subscription);
+    const defaultPlan = SUBSCRIPTION_PLANS.BASIC;
     const currentProjects = account.projects.length;
-
     const usage = this.calculateUsage(currentProjects, account.maxProjects);
     const trial = this.calculateTrialInfo(account);
     const billing = this.extractBillingInfo(account);
@@ -156,12 +175,12 @@ export class SubscriptionPlanService extends AuditableService {
       id: account.id,
       email: account.email,
       name: account.name,
-      subscription: account.subscription,
+      subscription: "BASIC",
       maxProjects: account.maxProjects,
       currentProjects,
       createdAt: account.createdAt,
       updatedAt: account.updatedAt,
-      plan,
+      plan: defaultPlan,
       usage,
       isActive: !trial.trialExpired,
       trial,
@@ -169,66 +188,35 @@ export class SubscriptionPlanService extends AuditableService {
     };
   }
 
-  /**
-   * Calculate estimated storage usage in GB for an account.
-   *
-   * PostMedia does not have a `size` column, so we estimate using average
-   * file sizes per media type:
-   *   - image: ~2 MB
-   *   - gif:   ~2 MB
-   *   - video: ~20 MB
-   *
-   * This is a heuristic. When a `size` column is added to PostMedia,
-   * switch to `_sum: { size: true }` for an exact calculation.
-   */
   private async calculateStorageUsedGB(accountId: string): Promise<number> {
     const mediaCounts = await prisma.postMedia.groupBy({
       by: ["type"],
-      where: {
-        post: { project: { accountId } },
-      },
+      where: { post: { project: { accountId } } },
       _count: { id: true },
     });
-
-    const AVG_SIZE_MB: Record<string, number> = {
-      image: 2,
-      gif: 2,
-      video: 20,
-    };
-
+    const AVG_SIZE_MB: Record<string, number> = { image: 2, gif: 2, video: 20 };
     let totalMB = 0;
     for (const group of mediaCounts) {
-      const avgMB = AVG_SIZE_MB[group.type] ?? 2;
-      totalMB += group._count.id * avgMB;
+      totalMB += group._count.id * (AVG_SIZE_MB[group.type] ?? 2);
     }
-
-    // Convert MB to GB with 2 decimal precision
     return Math.round((totalMB / 1024) * 100) / 100;
   }
 
-  /**
-   * Calculate usage statistics
-   */
   private calculateUsage(currentProjects: number, maxProjects: number) {
     return {
       projectsUsed: currentProjects,
       projectsRemaining: Math.max(0, maxProjects - currentProjects),
-      utilizationPercent: Math.round((currentProjects / maxProjects) * 100),
+      utilizationPercent: maxProjects > 0 ? Math.round((currentProjects / maxProjects) * 100) : 0,
     };
   }
 
-  /**
-   * Calculate trial information
-   */
   calculateTrialInfo(account: PrismaAccount): TrialInfo {
     const now = new Date();
     const trialEndDate = account.trialEndDate;
     const trialExpired = trialEndDate ? now > trialEndDate : false;
-
     const trialDaysRemaining = trialEndDate
       ? Math.max(0, Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
       : 0;
-
     return {
       isOnTrial: account.isOnTrial && !trialExpired,
       trialStartDate: account.trialStartDate,
@@ -238,9 +226,6 @@ export class SubscriptionPlanService extends AuditableService {
     };
   }
 
-  /**
-   * Extract billing information
-   */
   private extractBillingInfo(account: PrismaAccount) {
     return {
       billingCycle: account.billingCycle,

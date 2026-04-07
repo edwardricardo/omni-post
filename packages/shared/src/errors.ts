@@ -190,6 +190,20 @@ export function getSafeErrorMessage(error: unknown): string {
       return "Validation failed";
     }
 
+    // Handle Fastify native errors — safe to expose their messages as they are
+    // user-facing by design (e.g., "Body cannot be empty when content-type is
+    // set to 'application/json'")
+    if (
+      error.name === "FastifyError" &&
+      "statusCode" in error &&
+      typeof (error as Record<string, unknown>).statusCode === "number"
+    ) {
+      const statusCode = (error as Record<string, unknown>).statusCode as number;
+      if (statusCode >= 400 && statusCode < 500) {
+        return error.message;
+      }
+    }
+
     // Generic error - don't expose details
     return "An unexpected error occurred";
   }
@@ -214,6 +228,18 @@ export function getErrorCode(error: unknown): ErrorCode {
     if (error.name === "ValidationError" || error.name === "ZodError") {
       return ErrorCode.VALIDATION_ERROR;
     }
+
+    // Handle Fastify native errors (e.g., content-type parser, schema validation)
+    if (
+      error.name === "FastifyError" &&
+      "statusCode" in error &&
+      typeof (error as Record<string, unknown>).statusCode === "number"
+    ) {
+      const statusCode = (error as Record<string, unknown>).statusCode as number;
+      if (statusCode >= 400 && statusCode < 500) {
+        return ErrorCode.VALIDATION_ERROR;
+      }
+    }
   }
 
   return ErrorCode.INTERNAL_SERVER_ERROR;
@@ -225,6 +251,16 @@ export function getErrorCode(error: unknown): ErrorCode {
 export function getStatusCode(error: unknown): number {
   if (error instanceof AppError) {
     return error.statusCode;
+  }
+
+  // Handle Fastify native errors (e.g., content-type parser errors)
+  // FastifyError objects carry their own statusCode property
+  if (
+    error instanceof Error &&
+    "statusCode" in error &&
+    typeof (error as Record<string, unknown>).statusCode === "number"
+  ) {
+    return (error as Record<string, unknown>).statusCode as number;
   }
 
   // Default to 500 for unknown errors

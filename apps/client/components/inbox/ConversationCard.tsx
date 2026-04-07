@@ -9,7 +9,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import type { ConversationListItem } from "@/hooks/api/useInbox";
+import type { ConversationListItem, InboxMessageType } from "@/hooks/api/useInbox";
 
 // ---------------------------------------------------------------------------
 // Platform badge colours
@@ -25,6 +25,20 @@ const PROVIDER_COLOURS: Record<string, string> = {
   telegram: "bg-sky-500 text-white",
   pinterest: "bg-red-500 text-white",
   linkedin: "bg-blue-700 text-white",
+};
+
+const MESSAGE_TYPE_STYLES: Record<InboxMessageType, string> = {
+  COMPLAINT: "bg-red-100 text-red-700",
+  LEAD: "bg-green-100 text-green-700",
+  QUESTION: "bg-blue-100 text-blue-700",
+  SPAM: "bg-gray-100 text-gray-500",
+  FEEDBACK: "bg-gray-100 text-gray-600",
+};
+
+const PRIORITY_COLOURS: Record<string, string> = {
+  URGENT: "bg-red-500",
+  HIGH: "bg-orange-500",
+  LOW: "bg-gray-400",
 };
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -90,12 +104,30 @@ export function ConversationCard({ conversation, selected, onClick }: Conversati
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline justify-between gap-2">
-            <p
-              className={`text-sm truncate ${conversation.unreadCount > 0 ? "font-semibold text-gray-900" : "font-medium text-gray-700"}`}
-            >
-              {conversation.lastMessage?.senderName ?? "Unknown sender"}
-            </p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {/* Priority indicator */}
+              {conversation.priority && conversation.priority !== "NORMAL" && (
+                <span
+                  className={`inline-block h-2 w-2 shrink-0 rounded-full ${PRIORITY_COLOURS[conversation.priority] ?? ""}`}
+                  title={conversation.priority}
+                  aria-label={`Priority: ${conversation.priority}`}
+                />
+              )}
+              <p
+                className={`text-sm truncate ${conversation.unreadCount > 0 ? "font-semibold text-gray-900" : "font-medium text-gray-700"}`}
+              >
+                {conversation.lastMessage?.senderName ?? "Unknown sender"}
+              </p>
+              {/* Message type badge */}
+              {conversation.messageType && conversation.messageType !== "FEEDBACK" && (
+                <span
+                  className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium ${MESSAGE_TYPE_STYLES[conversation.messageType]}`}
+                >
+                  {conversation.messageType}
+                </span>
+              )}
+            </div>
             {timeAgo && <span className="shrink-0 text-xs text-gray-400">{timeAgo}</span>}
           </div>
           <p className="mt-0.5 text-xs text-gray-500 line-clamp-1">{truncatedPreview}</p>

@@ -44,7 +44,7 @@ export function useWebhookMetrics(timeRange: string, selectedProvider?: string) 
         ...(selectedProvider && selectedProvider !== "all" && { provider: selectedProvider }),
       });
 
-      const response = await fetch(`/api/webhooks/dashboard/metrics?${params}`, {
+      const response = await fetch(`/api/backend/api/webhooks/dashboard/metrics?${params}`, {
         credentials: "include",
       });
 
@@ -52,7 +52,11 @@ export function useWebhookMetrics(timeRange: string, selectedProvider?: string) 
         throw new Error("Failed to fetch webhook metrics");
       }
 
-      return (await response.json()) as DashboardMetrics;
+      const body = (await response.json()) as { ok: boolean; data: DashboardMetrics };
+      if (!body.ok || !body.data) {
+        throw new Error("Failed to fetch webhook metrics data");
+      }
+      return body.data;
     },
     staleTime: 30000, // 30 seconds
     refetchInterval: 30000, // Auto-refresh every 30 seconds

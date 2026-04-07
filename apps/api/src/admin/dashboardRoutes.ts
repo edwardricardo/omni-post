@@ -3,7 +3,7 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware, requireAdmin } from "../auth/authMiddleware.js";
+import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import type { DashboardService } from "./dashboardService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
@@ -56,7 +56,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/dashboard/stats",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Admin Dashboard"], summary: "Get dashboard statistics" },
     },
     async (request, reply) => handler.getStats(request, reply)
@@ -66,7 +66,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/accounts/summary",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Admin Dashboard"], summary: "Get accounts summary" },
     },
     async (request, reply) => handler.getAccountsSummary(request, reply)
@@ -76,7 +76,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/subscriptions/summary",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Admin Dashboard"], summary: "Get subscriptions summary" },
     },
     async (request, reply) => handler.getSubscriptionsSummary(request, reply)
@@ -86,7 +86,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/analytics/overview",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Admin Dashboard"], summary: "Get analytics overview" },
     },
     async (request, reply) => handler.getAnalyticsOverview(request, reply)

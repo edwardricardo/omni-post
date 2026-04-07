@@ -21,7 +21,7 @@ import * as openidClient from "openid-client";
 import { randomBytes } from "crypto";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware, requireAdmin } from "./authMiddleware.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import type { ConfigureOidcUseCase } from "../application/auth/ConfigureOidcUseCase.js";
 import type { EnableOidcSsoUseCase } from "../application/auth/EnableOidcSsoUseCase.js";
 import type { DisableOidcSsoUseCase } from "../application/auth/DisableOidcSsoUseCase.js";
@@ -95,7 +95,7 @@ class OidcAdminHandler extends BaseRouteHandler {
 
   async getConfig(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.accountId ?? request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -121,7 +121,7 @@ class OidcAdminHandler extends BaseRouteHandler {
 
   async configure(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.accountId ?? request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -160,7 +160,7 @@ class OidcAdminHandler extends BaseRouteHandler {
 
   async enableSso(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.accountId ?? request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -177,7 +177,7 @@ class OidcAdminHandler extends BaseRouteHandler {
 
   async disableSso(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.accountId ?? request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -232,7 +232,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/oidc/config",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Get OIDC configuration" },
     },
     (request: FastifyRequest, reply: FastifyReply) => adminHandler.getConfig(request, reply)
@@ -241,7 +241,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
   app.put(
     "/api/oidc/config",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Configure OIDC IdP settings" },
     },
     (request: FastifyRequest, reply: FastifyReply) => adminHandler.configure(request, reply)
@@ -250,7 +250,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/oidc/enable",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Enable OIDC SSO for account" },
     },
     (request: FastifyRequest, reply: FastifyReply) => adminHandler.enableSso(request, reply)
@@ -259,7 +259,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/oidc/disable",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Disable OIDC SSO for account" },
     },
     (request: FastifyRequest, reply: FastifyReply) => adminHandler.disableSso(request, reply)

@@ -9,7 +9,7 @@ import {
   generateCSVFilename,
   type ColumnDefinition,
 } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { AuthenticatedUser } from "../auth/authService.js";
 import type { PrismaClient } from "@infra/prisma";
 import { ThreadAnalytics } from "./threadAnalytics.js";
@@ -688,7 +688,7 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/threads/:threadId/performance",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Analytics"], summary: "Get thread performance metrics" },
     },
     async (request, reply) => handler.getThreadPerformance(request, reply)
@@ -698,7 +698,7 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/threads/compare",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Analytics"], summary: "Compare thread performance" },
     },
     async (request, reply) => handler.compareThreads(request, reply)
@@ -708,7 +708,7 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/engagement/trends",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Analytics"], summary: "Get engagement trends" },
     },
     async (request, reply) => handler.getEngagementTrends(request, reply)
@@ -718,7 +718,7 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/posts/best-times",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Analytics"], summary: "Get best posting times" },
     },
     async (request, reply) => handler.getBestPostingTimes(request, reply)
@@ -728,7 +728,7 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/engagement/geographic",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Analytics"], summary: "Get geographic analytics" },
     },
     async (request, reply) => handler.getGeographicAnalytics(request, reply)
@@ -738,7 +738,7 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/content/media-performance",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Analytics"], summary: "Get media performance analytics" },
     },
     async (request, reply) => handler.getMediaPerformance(request, reply)
@@ -748,7 +748,7 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/dashboard",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Analytics"], summary: "Get analytics dashboard" },
     },
     async (request, reply) => handler.getDashboard(request, reply)
@@ -758,7 +758,7 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/export",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Analytics"], summary: "Export analytics data" },
     },
     async (request, reply) => handler.exportAnalytics(request, reply)

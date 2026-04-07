@@ -7,33 +7,17 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from "@packages/ui";
+import { Badge } from "@/components/ui/Badge";
+import { ActionButton } from "@/components/ui/ActionButton";
 import { Search, Eye, RefreshCw, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -88,7 +72,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
         ...(filters.search && { search: filters.search }),
       });
 
-      const response = await fetch(`/api/webhooks/dashboard/events?${params}`, {
+      const response = await fetch(`/api/backend/api/webhooks/dashboard/events?${params}`, {
         credentials: "include",
       });
 
@@ -109,7 +93,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
 
   const fetchEventDetails = async (eventId: string) => {
     try {
-      const response = await fetch(`/api/webhooks/dashboard/events/${eventId}`, {
+      const response = await fetch(`/api/backend/api/webhooks/dashboard/events/${eventId}`, {
         credentials: "include",
       });
 
@@ -143,53 +127,30 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "COMPLETED":
-        return (
-          <Badge variant="default" className="bg-green-100 text-green-800">
-            Completed
-          </Badge>
-        );
+        return <Badge variant="success">Completed</Badge>;
       case "PROCESSING":
-        return (
-          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-            Processing
-          </Badge>
-        );
+        return <Badge variant="info">Processing</Badge>;
       case "FAILED":
-        return <Badge variant="destructive">Failed</Badge>;
+        return <Badge variant="error">Failed</Badge>;
       case "RETRYING":
-        return (
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-            Retrying
-          </Badge>
-        );
+        return <Badge variant="warning">Retrying</Badge>;
       case "DEAD_LETTER":
-        return (
-          <Badge variant="destructive" className="bg-red-100 text-red-800">
-            Dead Letter
-          </Badge>
-        );
+        return <Badge variant="error">Dead Letter</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="neutral">{status}</Badge>;
     }
   };
 
   const getProviderBadge = (provider: string) => {
-    const colors = {
-      X: "bg-black text-white",
-      INSTAGRAM: "bg-pink-100 text-pink-800",
-      FACEBOOK: "bg-blue-100 text-blue-800",
-      YOUTUBE: "bg-red-100 text-red-800",
-      TIKTOK: "bg-gray-100 text-gray-800",
+    const variantMap: Record<string, "info" | "error" | "neutral"> = {
+      X: "neutral",
+      INSTAGRAM: "error",
+      FACEBOOK: "info",
+      YOUTUBE: "error",
+      TIKTOK: "neutral",
     };
 
-    return (
-      <Badge
-        variant="outline"
-        className={colors[provider as keyof typeof colors] || "bg-gray-100 text-gray-800"}
-      >
-        {provider}
-      </Badge>
-    );
+    return <Badge variant={variantMap[provider] ?? "neutral"}>{provider}</Badge>;
   };
 
   const formatEventType = (eventType: string) => {
@@ -206,7 +167,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
         ...(filters.status !== "all" && { status: filters.status }),
       });
 
-      const response = await fetch(`/api/webhooks/dashboard/export?${params}`, {
+      const response = await fetch(`/api/backend/api/webhooks/dashboard/export?${params}`, {
         credentials: "include",
       });
 
@@ -229,135 +190,150 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+      <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Webhook Events</CardTitle>
-            <CardDescription>Recent webhook events and their processing status</CardDescription>
+            <h3 className="text-base font-semibold text-[var(--text-primary)]">Webhook Events</h3>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Recent webhook events and their processing status
+            </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button onClick={exportEvents} variant="outline" size="sm">
+            <ActionButton onClick={exportEvents} variant="secondary" size="sm">
               <Download className="h-4 w-4 mr-2" />
               Export
-            </Button>
-            <Button onClick={fetchEvents} variant="outline" size="sm">
+            </ActionButton>
+            <ActionButton onClick={fetchEvents} variant="secondary" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
-            </Button>
+            </ActionButton>
           </div>
         </div>
 
         {/* Filters */}
         <div className="flex items-center space-x-4">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-tertiary)] h-4 w-4" />
+            <input
               placeholder="Search events..."
               value={filters.search}
               onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-              className="pl-10"
+              className="w-full pl-10 pr-3 py-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             />
           </div>
 
-          <Select
+          <select
             value={filters.status}
-            onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
+            onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
+            className="w-32 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           >
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
-              <SelectItem value="PROCESSING">Processing</SelectItem>
-              <SelectItem value="FAILED">Failed</SelectItem>
-              <SelectItem value="RETRYING">Retrying</SelectItem>
-              <SelectItem value="DEAD_LETTER">Dead Letter</SelectItem>
-            </SelectContent>
-          </Select>
+            <option value="all">All Status</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="PROCESSING">Processing</option>
+            <option value="FAILED">Failed</option>
+            <option value="RETRYING">Retrying</option>
+            <option value="DEAD_LETTER">Dead Letter</option>
+          </select>
         </div>
-      </CardHeader>
-      <CardContent>
+      </div>
+      <div className="p-4 pt-0">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <LoadingSpinner size="lg" />
           </div>
         ) : error ? (
           <div className="text-center py-8">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={fetchEvents} variant="outline">
+            <p className="text-[var(--error)] mb-4">{error}</p>
+            <ActionButton onClick={fetchEvents} variant="secondary">
               Retry
-            </Button>
+            </ActionButton>
           </div>
         ) : events.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-[var(--text-secondary)]">
             <p>No webhook events found</p>
           </div>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Processing Time</TableHead>
-                  <TableHead>Received</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border-subtle)]">
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Event
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Provider
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Type
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Status
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Processing Time
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Received
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
                 {events.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell>
+                  <tr
+                    key={event.id}
+                    className="border-b border-[var(--border-subtle)] last:border-0"
+                  >
+                    <td className="px-3 py-2">
                       <div>
                         <p className="font-medium text-sm">{event.eventId}</p>
                         {event.retryCount > 0 && (
-                          <p className="text-xs text-yellow-600">
+                          <p className="text-xs text-[var(--warning)]">
                             Retried {event.retryCount} times
                           </p>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell>{getProviderBadge(event.provider)}</TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-3 py-2">{getProviderBadge(event.provider)}</td>
+                    <td className="px-3 py-2">
                       <span className="text-sm">{formatEventType(event.eventType)}</span>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(event.status)}</TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-3 py-2">{getStatusBadge(event.status)}</td>
+                    <td className="px-3 py-2">
                       {event.processingTime ? (
                         <span
                           className={`text-sm ${
                             event.processingTime < 100
-                              ? "text-green-600"
+                              ? "text-[var(--success)]"
                               : event.processingTime < 500
-                                ? "text-yellow-600"
-                                : "text-red-600"
+                                ? "text-[var(--warning)]"
+                                : "text-[var(--error)]"
                           }`}
                         >
                           {event.processingTime}ms
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-sm">-</span>
+                        <span className="text-[var(--text-tertiary)] text-sm">-</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-gray-600">
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="text-sm text-[var(--text-secondary)]">
                         {formatDistanceToNow(new Date(event.receivedAt), { addSuffix: true })}
                       </span>
-                    </TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-3 py-2">
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button
-                            variant="ghost"
+                          <ActionButton
+                            variant="secondary"
                             size="sm"
                             onClick={() => fetchEventDetails(event.id)}
                           >
                             <Eye className="h-4 w-4" />
-                          </Button>
+                          </ActionButton>
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                           <DialogHeader>
@@ -387,14 +363,9 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                                   <label className="text-sm font-medium">Verified</label>
                                   <p className="text-sm">
                                     {selectedEvent.verified ? (
-                                      <Badge
-                                        variant="default"
-                                        className="bg-green-100 text-green-800"
-                                      >
-                                        Verified
-                                      </Badge>
+                                      <Badge variant="success">Verified</Badge>
                                     ) : (
-                                      <Badge variant="destructive">Not Verified</Badge>
+                                      <Badge variant="error">Not Verified</Badge>
                                     )}
                                   </p>
                                 </div>
@@ -402,10 +373,10 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
 
                               {selectedEvent.lastError && (
                                 <div>
-                                  <label className="text-sm font-medium text-red-600">
+                                  <label className="text-sm font-medium text-[var(--error)]">
                                     Last Error
                                   </label>
-                                  <p className="text-sm bg-red-50 p-2 rounded-sm border">
+                                  <p className="text-sm bg-[var(--error-subtle)] p-2 rounded-sm border">
                                     {selectedEvent.lastError}
                                   </p>
                                 </div>
@@ -454,46 +425,46 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                           )}
                         </DialogContent>
                       </Dialog>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
 
             {/* Pagination */}
             <div className="flex items-center justify-between mt-6">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-[var(--text-secondary)]">
                 Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
                 {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
                 {pagination.total} events
               </div>
               <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
+                <ActionButton
+                  variant="secondary"
                   size="sm"
                   onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
                   disabled={pagination.page === 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Previous
-                </Button>
+                </ActionButton>
                 <span className="text-sm">
                   Page {pagination.page} of {pagination.pages}
                 </span>
-                <Button
-                  variant="outline"
+                <ActionButton
+                  variant="secondary"
                   size="sm"
                   onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
                   disabled={pagination.page === pagination.pages}
                 >
                   Next
                   <ChevronRight className="h-4 w-4" />
-                </Button>
+                </ActionButton>
               </div>
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

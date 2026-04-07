@@ -8,7 +8,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { SubmitForReviewUseCase } from "../application/approvals/SubmitForReviewUseCase.js";
 import type { ApprovePostUseCase } from "../application/approvals/ApprovePostUseCase.js";
@@ -281,7 +281,7 @@ export const approvalRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/posts/:postId/submit-for-review",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Approvals"], summary: "Submit post for review" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.submitForReview(request, reply)
@@ -291,7 +291,7 @@ export const approvalRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/approvals/:id/approve",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Approvals"], summary: "Approve an approval request" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.approve(request, reply)
@@ -301,7 +301,7 @@ export const approvalRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/approvals/:id/reject",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Approvals"], summary: "Reject an approval request" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.reject(request, reply)
@@ -311,7 +311,7 @@ export const approvalRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/posts/:postId/approvals",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Approvals"], summary: "Get approval history for a post" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getHistory(request, reply)
@@ -321,7 +321,7 @@ export const approvalRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/approvals/pending",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Approvals"], summary: "Get pending approvals" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getPending(request, reply)

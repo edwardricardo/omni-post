@@ -88,8 +88,9 @@ export class SubscriptionService {
   async listAccountSubscriptions(
     filters?: {
       tier?: SubscriptionTier;
+      status?: string;
       search?: string;
-      sortBy?: "createdAt" | "updatedAt" | "email" | "subscription";
+      sortBy?: "createdAt" | "updatedAt" | "email";
       sortOrder?: "asc" | "desc";
     },
     page?: number,

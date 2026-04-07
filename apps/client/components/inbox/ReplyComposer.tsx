@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Send } from "lucide-react";
 import { useSendReply } from "@/hooks/api/useInbox";
 
@@ -22,13 +22,37 @@ interface ReplyComposerProps {
   conversationId: string;
   lastMessageId: string | null;
   provider: string;
+  /** When set externally (e.g. from suggested replies), populates the textarea */
+  suggestedText?: string;
+  /** Called after the suggested text has been consumed so the parent can clear it */
+  onSuggestedTextConsumed?: () => void;
 }
 
-export function ReplyComposer({ conversationId, lastMessageId, provider }: ReplyComposerProps) {
+export function ReplyComposer({
+  conversationId,
+  lastMessageId,
+  provider,
+  suggestedText,
+  onSuggestedTextConsumed,
+}: ReplyComposerProps) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const sendReplyMutation = useSendReply(conversationId);
+
+  // Populate textarea when a suggested reply is selected
+  useEffect(() => {
+    if (suggestedText) {
+      setText(suggestedText);
+      onSuggestedTextConsumed?.();
+      // Focus and auto-resize the textarea
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+      }
+    }
+  }, [suggestedText, onSuggestedTextConsumed]);
 
   const isSupported = REPLY_SUPPORTED_PROVIDERS.has(provider);
 

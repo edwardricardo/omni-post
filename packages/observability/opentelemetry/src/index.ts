@@ -46,6 +46,12 @@ export class SocialMediaTelemetry {
   }
 
   private initializeSDK() {
+    // Prevent NodeSDK auto-configuration from creating OTLP exporters for
+    // metrics and logs. We use Prometheus for metrics and Pino for structured
+    // logging — only traces go to OTLP (Jaeger).
+    process.env.OTEL_METRICS_EXPORTER ??= "none";
+    process.env.OTEL_LOGS_EXPORTER ??= "none";
+
     // Create resource with service information
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: this.config.serviceName,

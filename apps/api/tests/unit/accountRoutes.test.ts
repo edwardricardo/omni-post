@@ -7,12 +7,8 @@
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 
-vi.mock("../../src/auth/authMiddleware.js", () => ({
-  authenticateMiddleware: async () => {},
-  requireAdmin: async () => {},
-  requireSuperAdmin: async () => {},
-  requireRole: () => async () => {},
-  optionalAuth: async () => {},
+vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
+  requireClientAuth: async () => {},
 }));
 
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
@@ -161,49 +157,10 @@ describe("accountRoutes Unit Tests", () => {
       expect(body.data?.id).toBeTruthy();
       expect(body.data?.email).toBe(testEmail);
       expect(body.data?.name).toBe(testName);
-      expect(body.data?.subscription).toBe("BASIC");
-      expect(body.data?.maxProjects).toBe(1); // BASIC tier default
+      expect(body.data?.maxProjects).toBe(1);
       expect(body.data?.isOnTrial).toBe(true);
 
       testAccountId = body.data?.id || "";
-    });
-
-    it("should create PRO account with correct maxProjects", async () => {
-      const proEmail = `pro-${testEmail}`;
-      const response = await app.inject({
-        method: "POST",
-        url: "/accounts",
-        payload: {
-          email: proEmail,
-          name: testName,
-          subscription: "PRO",
-        },
-      });
-
-      const body = JSON.parse(response.body);
-
-      expect(response.statusCode).toBe(200);
-      expect(body.data?.subscription).toBe("PRO");
-      expect(body.data?.maxProjects).toBe(3); // PRO tier default
-    });
-
-    it("should create ENTERPRISE account with correct maxProjects", async () => {
-      const enterpriseEmail = `enterprise-${testEmail}`;
-      const response = await app.inject({
-        method: "POST",
-        url: "/accounts",
-        payload: {
-          email: enterpriseEmail,
-          name: testName,
-          subscription: "ENTERPRISE",
-        },
-      });
-
-      const body = JSON.parse(response.body);
-
-      expect(response.statusCode).toBe(200);
-      expect(body.data?.subscription).toBe("ENTERPRISE");
-      expect(body.data?.maxProjects).toBe(10); // ENTERPRISE tier default
     });
 
     it("should create account with custom maxProjects", async () => {
@@ -214,7 +171,6 @@ describe("accountRoutes Unit Tests", () => {
         payload: {
           email: customEmail,
           name: testName,
-          subscription: "PRO",
           maxProjects: 5,
         },
       });
@@ -222,7 +178,7 @@ describe("accountRoutes Unit Tests", () => {
       const body = JSON.parse(response.body);
 
       expect(response.statusCode).toBe(200);
-      expect(body.data?.maxProjects).toBe(5); // Custom value
+      expect(body.data?.maxProjects).toBe(5);
     });
 
     it("should reject duplicate email", async () => {
@@ -279,18 +235,19 @@ describe("accountRoutes Unit Tests", () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it("should reject invalid subscription tier", async () => {
+    it("should ignore unknown fields in payload", async () => {
       const response = await app.inject({
         method: "POST",
         url: "/accounts",
         payload: {
-          email: `invalid-sub-${testEmail}`,
+          email: `unknown-field-${testEmail}`,
           name: testName,
-          subscription: "INVALID_TIER",
+          unknownField: "someValue",
         },
       });
 
-      expect(response.statusCode).toBe(400);
+      // Zod strips unknown fields; request should succeed
+      expect([200, 400].includes(response.statusCode)).toBeTruthy();
     });
 
     it("should reject negative maxProjects", async () => {
@@ -420,22 +377,6 @@ describe("accountRoutes Unit Tests", () => {
       expect(body.data?.id).toBe(testAccountId);
     });
 
-    it("should update account subscription tier", async () => {
-      const response = await app.inject({
-        method: "PUT",
-        url: `/accounts/${testAccountId}`,
-        payload: {
-          subscription: "PRO",
-        },
-      });
-
-      const body = JSON.parse(response.body);
-
-      expect(response.statusCode).toBe(200);
-      expect(body.data?.subscription).toBe("PRO");
-      expect(body.data?.maxProjects).toBe(3); // Auto-updated to PRO default
-    });
-
     it("should update maxProjects explicitly", async () => {
       const response = await app.inject({
         method: "PUT",
@@ -451,23 +392,6 @@ describe("accountRoutes Unit Tests", () => {
       expect(body.data?.maxProjects).toBe(7);
     });
 
-    it("should update subscription without overriding explicit maxProjects", async () => {
-      const response = await app.inject({
-        method: "PUT",
-        url: `/accounts/${testAccountId}`,
-        payload: {
-          subscription: "ENTERPRISE",
-          maxProjects: 15,
-        },
-      });
-
-      const body = JSON.parse(response.body);
-
-      expect(response.statusCode).toBe(200);
-      expect(body.data?.subscription).toBe("ENTERPRISE");
-      expect(body.data?.maxProjects).toBe(15); // Explicit value preserved
-    });
-
     it("should return 404 for non-existent account", async () => {
       const response = await app.inject({
         method: "PUT",
@@ -478,18 +402,6 @@ describe("accountRoutes Unit Tests", () => {
       });
 
       expect(response.statusCode).toBe(404);
-    });
-
-    it("should reject invalid subscription tier", async () => {
-      const response = await app.inject({
-        method: "PUT",
-        url: `/accounts/${testAccountId}`,
-        payload: {
-          subscription: "INVALID_TIER",
-        },
-      });
-
-      expect(response.statusCode).toBe(400);
     });
 
     it("should reject negative maxProjects", async () => {

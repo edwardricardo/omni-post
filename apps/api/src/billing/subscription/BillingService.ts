@@ -1,24 +1,41 @@
-import type { SubscriptionTier } from "@shared/types";
-import { AuditableService } from "../../services/AuditableService";
-import type { BillingEvent } from "./types";
+/**
+ * @file BillingService.ts
+ * @description Service for billing events, change type detection, and billing calculations.
+ *   Uses price comparison instead of legacy tier hierarchy.
+ * @layer application
+ */
+
+import { AuditableService } from "../../services/AuditableService.js";
+import type { BillingEvent } from "./types.js";
 import { createLogger } from "../../lib/logger.js";
 
 const log = createLogger("billing");
 
-/**
- * Service responsible for billing events, invoices, and payment logic
- */
+export type ChangeType = "UPGRADE" | "DOWNGRADE" | "LATERAL";
+
 export class BillingService extends AuditableService {
   constructor() {
     super("BillingService");
   }
 
   /**
-   * Get change type for billing events
+   * Determine change type by comparing monthly prices or legacy tier strings.
    */
-  getChangeType(fromTier: SubscriptionTier, toTier: SubscriptionTier): BillingEvent["type"] {
-    const tierOrder = { BASIC: 1, PRO: 2, ENTERPRISE: 3 };
-    return tierOrder[toTier] > tierOrder[fromTier] ? "UPGRADE" : "DOWNGRADE";
+  getChangeType(from: number | string, to: number | string): ChangeType {
+    if (typeof from === "string" && typeof to === "string") {
+      // Legacy tier comparison — to be removed when all callers use prices
+      const tierOrder: Record<string, number> = { BASIC: 1, PRO: 2, ENTERPRISE: 3 };
+      const fromVal = tierOrder[from] ?? 0;
+      const toVal = tierOrder[to] ?? 0;
+      if (toVal > fromVal) return "UPGRADE";
+      if (toVal < fromVal) return "DOWNGRADE";
+      return "LATERAL";
+    }
+    const fromPrice = Number(from);
+    const toPrice = Number(to);
+    if (toPrice > fromPrice) return "UPGRADE";
+    if (toPrice < fromPrice) return "DOWNGRADE";
+    return "LATERAL";
   }
 
   /**
@@ -32,12 +49,9 @@ export class BillingService extends AuditableService {
       currency: event.currency || "USD",
     };
 
-    // In a real implementation, this would be stored in a billing_events table
     log.info({ billingEvent }, "Billing event logged");
 
-    // Use logAccountAction for billing events
     if (event.processedBy) {
-      // Convert BillingEvent to plain object for details
       const eventDetails: Record<string, unknown> = {
         type: billingEvent.type,
         fromTier: billingEvent.fromTier,

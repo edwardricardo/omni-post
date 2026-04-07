@@ -62,6 +62,8 @@ import { auditMiddleware } from "./audit/auditMiddleware.js";
 import { mfaRoutes } from "./auth/mfaRoutes.js";
 import { rbacRoutes } from "./auth/rbacRoutes.js";
 import { accountLifecycleRoutes } from "./admin/accountLifecycleRoutes.js";
+import { pricingRoutes } from "./admin/pricingRoutes.js";
+import { adminUserRoutes } from "./admin/adminUserRoutes.js";
 import { adminAuthRoutes } from "./admin/auth/adminAuthRoutes.js";
 import { executiveRoutes } from "./admin/executiveRoutes.js";
 import { schedulingRoutes } from "./admin/schedulingRoutes.js";
@@ -388,6 +390,8 @@ async function createApp(): Promise<FastifyInstance> {
   const { apiKeyRoutes } = await import("./auth/apiKeyRoutes.js");
   await typedApp.register(apiKeyRoutes);
   await typedApp.register(accountLifecycleRoutes);
+  await typedApp.register(pricingRoutes);
+  await typedApp.register(adminUserRoutes);
   await typedApp.register(adminAuthRoutes);
   await typedApp.register(executiveRoutes);
   await typedApp.register(schedulingRoutes);

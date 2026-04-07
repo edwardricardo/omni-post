@@ -40,7 +40,7 @@
 
 import type { FastifyPluginAsync } from "fastify";
 import { createLogger } from "../lib/logger.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import {
   SyncHandlers,
   ChannelHandlers,
@@ -74,7 +74,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/sync/:postId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Sync a post through a channel" },
     },
     async (request, reply) => syncHandlers.syncPost({ request, reply })
@@ -88,7 +88,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/content/sync/metrics",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Get global sync metrics" },
     },
     async (request, reply) => syncHandlers.getSyncMetrics({ request, reply })
@@ -102,7 +102,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/content/sync/metrics/:channelId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Get per-channel sync metrics" },
     },
     async (request, reply) => syncHandlers.getSyncMetrics({ request, reply })
@@ -116,7 +116,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/sync/:transactionId/rollback",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Roll back a sync transaction" },
     },
     async (request, reply) => syncHandlers.rollbackTransaction({ request, reply })
@@ -134,7 +134,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/channels",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Create sync channel" },
     },
     async (request, reply) => channelHandlers.createChannel({ request, reply })
@@ -149,7 +149,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/channels/realtime/start",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Start real-time sync for a post" },
     },
     async (request, reply) => channelHandlers.startRealtimeSync({ request, reply })
@@ -163,7 +163,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/channels/realtime/stop/:postId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Stop real-time sync for a post" },
     },
     async (request, reply) => channelHandlers.stopRealtimeSync({ request, reply })
@@ -180,7 +180,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/content/versions/:postId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "List version history for a post" },
     },
     async (request, reply) => versionHandlers.listVersions({ request, reply })
@@ -196,7 +196,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/versions/:postId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Create version snapshot" },
     },
     async (request, reply) => versionHandlers.createVersionSnapshot({ request, reply })
@@ -213,7 +213,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/versions/:postId/restore/:versionId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Restore post to a specific version" },
     },
     async (request, reply) => versionHandlers.restoreVersion({ request, reply })
@@ -228,7 +228,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/versions/compare",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Compare two versions" },
     },
     async (request, reply) => versionHandlers.compareVersions({ request, reply })
@@ -246,7 +246,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/conflicts/resolve",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Resolve sync conflicts" },
     },
     async (request, reply) => conflictHandlers.resolveConflicts({ request, reply })
@@ -261,7 +261,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/content/conflicts/history/:channelId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Get conflict history for a channel" },
     },
     async (request, reply) => conflictHandlers.getConflictHistory({ request, reply })
@@ -279,7 +279,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/transform",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Transform content for a provider" },
     },
     async (request, reply) => transformHandlers.transformContent({ request, reply })
@@ -295,7 +295,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/transform/multi",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Transform content for multiple providers" },
     },
     async (request, reply) => transformHandlers.transformForMultipleProviders({ request, reply })
@@ -312,7 +312,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/transform/recommendations",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Get adaptation recommendations" },
     },
     async (request, reply) => transformHandlers.getRecommendations({ request, reply })
@@ -328,7 +328,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/render/:provider",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Render content preview for a provider" },
     },
     async (request, reply) => transformHandlers.renderForProvider({ request, reply })
@@ -345,7 +345,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/content/diff",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Content Sync"], summary: "Calculate diff between two versions" },
     },
     async (request, reply) => transformHandlers.calculateDiff({ request, reply })

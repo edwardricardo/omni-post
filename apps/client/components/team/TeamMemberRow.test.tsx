@@ -1,154 +1,322 @@
 /**
  * @file TeamMemberRow.test.tsx
- * @description Tests for TeamMemberRow role-based action visibility.
- * @layer test
+ * @description Security-focused tests for TeamMemberRow role-based access control.
+ *              Verifies that only OWNER can manage roles and remove members,
+ *              and that self-management is correctly prevented.
+ * @layer client-tests
  */
 
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { TeamMemberRow } from "./TeamMemberRow";
+import type { TeamMemberDto } from "@/hooks/api/useTeam";
 
-// Mock @packages/ui to avoid monorepo path resolution issues
 vi.mock("@packages/ui", () => ({
-  Button: ({ children, ...props }: Record<string, unknown>) => {
-    const { variant: _v, size: _s, ...htmlProps } = props;
-    return (
-      <button {...(htmlProps as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
-        {children as React.ReactNode}
-      </button>
-    );
-  },
+  Button: ({
+    children,
+    onClick,
+    title,
+    ...rest
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    title?: string;
+    variant?: string;
+    size?: string;
+  }) => (
+    <button onClick={onClick} title={title} {...rest}>
+      {children}
+    </button>
+  ),
 }));
 
-// Mock lucide-react
 vi.mock("lucide-react", () => ({
-  Trash2: () => <span data-testid="trash-icon" />,
+  Trash2: ({ className }: { className?: string }) => (
+    <svg data-testid="trash-icon" className={className} />
+  ),
 }));
 
-// Mock RoleBadge
 vi.mock("./RoleBadge", () => ({
   RoleBadge: ({ role }: { role: string }) => <span data-testid="role-badge">{role}</span>,
 }));
 
-import { TeamMemberRow } from "./TeamMemberRow";
+// ---------------------------------------------------------------------------
+// Mock factory
+// ---------------------------------------------------------------------------
+const makeMember = (overrides?: Partial<TeamMemberDto>): TeamMemberDto => ({
+  id: "member-001",
+  accountId: "account-001",
+  email: "alice@example.com",
+  name: "Alice Johnson",
+  role: "MEMBER",
+  isActive: true,
+  joinedAt: "2025-06-15T00:00:00Z",
+  createdAt: "2025-06-15T00:00:00Z",
+  ...overrides,
+});
 
-function makeMember(overrides: Record<string, unknown> = {}) {
-  return {
-    id: "member-1",
-    accountId: "acc-1",
-    email: "alice@example.com",
-    name: "Alice Smith",
-    role: "MEMBER" as const,
-    isActive: true,
-    joinedAt: "2026-01-15T00:00:00Z",
-    createdAt: "2026-01-15T00:00:00Z",
-    ...overrides,
-  };
-}
+const CURRENT_USER_ID = "current-user-001";
 
-const defaultProps = {
-  member: makeMember(),
-  currentUserId: "current-user",
-  currentUserRole: "OWNER" as const,
-  onUpdateRole: vi.fn(),
-  onRemove: vi.fn(),
-};
+describe("TeamMemberRow", () => {
+  const onUpdateRole = vi.fn();
+  const onRemove = vi.fn();
 
-describe("TeamMemberRow — role-based action visibility", () => {
-  describe("when current user is OWNER", () => {
-    it("shows role select for a MEMBER", () => {
-      const { container } = render(<TeamMemberRow {...defaultProps} currentUserRole="OWNER" />);
-      const select = container.querySelector("select");
-      expect(select).toBeTruthy();
-    });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-    it("shows remove button for a MEMBER", () => {
-      render(<TeamMemberRow {...defaultProps} currentUserRole="OWNER" />);
-      const removeBtn = screen.queryByTitle("Remove");
-      expect(removeBtn).toBeTruthy();
-    });
+  // -----------------------------------------------------------------------
+  // 1. OWNER sees role select for non-OWNER members
+  // -----------------------------------------------------------------------
+  describe("OWNER permissions", () => {
+    it("shows role select when current user is OWNER and member is not OWNER", () => {
+      const member = makeMember({ role: "MEMBER" });
 
-    it("does NOT show remove button for self", () => {
       render(
         <TeamMemberRow
-          {...defaultProps}
+          member={member}
           currentUserRole="OWNER"
-          currentUserId="member-1"
-          member={makeMember({ id: "member-1" })}
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
         />
       );
-      const removeBtn = screen.queryByTitle("Remove");
-      expect(removeBtn).toBeNull();
+
+      const select = screen.getByRole("combobox");
+      expect(select).toBeInTheDocument();
+      expect(select).toHaveValue("MEMBER");
     });
 
-    it("does NOT show role select for another OWNER", () => {
-      const { container } = render(
-        <TeamMemberRow
-          {...defaultProps}
-          currentUserRole="OWNER"
-          member={makeMember({ role: "OWNER" })}
-        />
-      );
-      const select = container.querySelector("select");
-      expect(select).toBeNull();
-    });
-  });
+    // -----------------------------------------------------------------------
+    // 2. OWNER sees remove button for other members
+    // -----------------------------------------------------------------------
+    it("shows remove button when current user is OWNER and member is not self", () => {
+      const member = makeMember();
 
-  describe("when current user is MANAGER", () => {
-    it("does NOT show role select", () => {
-      const { container } = render(<TeamMemberRow {...defaultProps} currentUserRole="MANAGER" />);
-      expect(container.querySelector("select")).toBeNull();
-    });
-
-    it("does NOT show remove button", () => {
-      render(<TeamMemberRow {...defaultProps} currentUserRole="MANAGER" />);
-      expect(screen.queryByTitle("Remove")).toBeNull();
-    });
-  });
-
-  describe("when current user is MEMBER", () => {
-    it("does NOT show role select", () => {
-      const { container } = render(<TeamMemberRow {...defaultProps} currentUserRole="MEMBER" />);
-      expect(container.querySelector("select")).toBeNull();
-    });
-
-    it("does NOT show remove button", () => {
-      render(<TeamMemberRow {...defaultProps} currentUserRole="MEMBER" />);
-      expect(screen.queryByTitle("Remove")).toBeNull();
-    });
-  });
-
-  describe("when current user is VIEWER", () => {
-    it("does NOT show role select", () => {
-      const { container } = render(<TeamMemberRow {...defaultProps} currentUserRole="VIEWER" />);
-      expect(container.querySelector("select")).toBeNull();
-    });
-
-    it("does NOT show remove button", () => {
-      render(<TeamMemberRow {...defaultProps} currentUserRole="VIEWER" />);
-      expect(screen.queryByTitle("Remove")).toBeNull();
-    });
-  });
-
-  describe("member info display", () => {
-    it("shows member name", () => {
-      render(<TeamMemberRow {...defaultProps} />);
-      expect(screen.getByText(/Alice Smith/)).toBeTruthy();
-    });
-
-    it("shows member email", () => {
-      render(<TeamMemberRow {...defaultProps} />);
-      expect(screen.getByText("alice@example.com")).toBeTruthy();
-    });
-
-    it("shows (you) label for self", () => {
       render(
         <TeamMemberRow
-          {...defaultProps}
-          currentUserId="member-1"
-          member={makeMember({ id: "member-1" })}
+          member={member}
+          currentUserRole="OWNER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
         />
       );
-      expect(screen.getByText("(you)")).toBeTruthy();
+
+      const removeButton = screen.getByTitle("Remove");
+      expect(removeButton).toBeInTheDocument();
+    });
+
+    // -----------------------------------------------------------------------
+    // 3. OWNER does not see role select for self
+    // -----------------------------------------------------------------------
+    it("does not show role select when member is the current user", () => {
+      const member = makeMember({ id: CURRENT_USER_ID, role: "OWNER" });
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="OWNER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    });
+
+    // -----------------------------------------------------------------------
+    // 4. OWNER does not see remove button for self
+    // -----------------------------------------------------------------------
+    it("does not show remove button when member is the current user", () => {
+      const member = makeMember({ id: CURRENT_USER_ID, role: "OWNER" });
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="OWNER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      expect(screen.queryByTitle("Remove")).not.toBeInTheDocument();
+    });
+
+    // -----------------------------------------------------------------------
+    // 5. OWNER does not see role select for another OWNER
+    // -----------------------------------------------------------------------
+    it("does not show role select when target member is also OWNER", () => {
+      const member = makeMember({ id: "other-owner", role: "OWNER" });
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="OWNER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+      expect(screen.getByTestId("role-badge")).toHaveTextContent("OWNER");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 6-7. MANAGER cannot change role or remove
+  // -----------------------------------------------------------------------
+  describe("MANAGER permissions", () => {
+    it("does not show role select for MANAGER user", () => {
+      const member = makeMember();
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="MANAGER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    });
+
+    it("does not show remove button for MANAGER user", () => {
+      const member = makeMember();
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="MANAGER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      expect(screen.queryByTitle("Remove")).not.toBeInTheDocument();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 8-9. MEMBER cannot change role or remove
+  // -----------------------------------------------------------------------
+  describe("MEMBER permissions", () => {
+    it("does not show role select for MEMBER user", () => {
+      const member = makeMember({ id: "other-member" });
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="MEMBER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    });
+
+    it("does not show remove button for MEMBER user", () => {
+      const member = makeMember({ id: "other-member" });
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="MEMBER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      expect(screen.queryByTitle("Remove")).not.toBeInTheDocument();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 10-11. VIEWER cannot change role or remove
+  // -----------------------------------------------------------------------
+  describe("VIEWER permissions", () => {
+    it("does not show role select for VIEWER user", () => {
+      const member = makeMember({ id: "some-member" });
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="VIEWER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    });
+
+    it("does not show remove button for VIEWER user", () => {
+      const member = makeMember({ id: "some-member" });
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="VIEWER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      expect(screen.queryByTitle("Remove")).not.toBeInTheDocument();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 12. Displays member name and email
+  // -----------------------------------------------------------------------
+  describe("display", () => {
+    it("shows member name and email", () => {
+      const member = makeMember({ name: "Bob Smith", email: "bob@example.com" });
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="VIEWER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      expect(screen.getByText("Bob Smith")).toBeInTheDocument();
+      expect(screen.getByText("bob@example.com")).toBeInTheDocument();
+    });
+
+    // -----------------------------------------------------------------------
+    // 13. Displays role badge for non-editable roles
+    // -----------------------------------------------------------------------
+    it("shows role badge when role is not editable", () => {
+      const member = makeMember({ role: "MANAGER" });
+
+      render(
+        <TeamMemberRow
+          member={member}
+          currentUserRole="MANAGER"
+          currentUserId={CURRENT_USER_ID}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+        />
+      );
+
+      const badge = screen.getByTestId("role-badge");
+      expect(badge).toBeInTheDocument();
+      expect(badge).toHaveTextContent("MANAGER");
     });
   });
 });

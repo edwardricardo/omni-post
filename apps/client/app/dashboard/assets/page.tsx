@@ -6,18 +6,44 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Button, Input } from "@packages/ui";
-import { Upload, Search } from "lucide-react";
+import { Upload, Search, Loader2 } from "lucide-react";
 import { FolderSidebar } from "@/components/assets/FolderSidebar";
 import { AssetGrid } from "@/components/assets/AssetGrid";
 import { AssetDetailPanel } from "@/components/assets/AssetDetailPanel";
+import { apiClient } from "@/lib/api/client";
 import type { MediaAssetDto } from "@/hooks/api/useAssets";
 
 export default function AssetsPage() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>(undefined);
   const [selectedAsset, setSelectedAsset] = useState<MediaAssetDto | null>(null);
   const [search, setSearch] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadKey, setUploadKey] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileType = file.type.startsWith("video/") ? ("video" as const) : ("image" as const);
+      await apiClient.uploadFile(file, fileType);
+      setUploadKey((prev) => prev + 1);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Upload failed";
+      alert(`Upload failed: ${msg}`);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, []);
 
   return (
     <div>
@@ -28,9 +54,20 @@ export default function AssetsPage() {
             Upload and organize your brand assets
           </p>
         </div>
-        <Button>
-          <Upload className="h-4 w-4 mr-2" />
-          Upload
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*,video/*"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        <Button onClick={handleUploadClick} disabled={uploading}>
+          {uploading ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Upload className="h-4 w-4 mr-2" />
+          )}
+          {uploading ? "Uploading..." : "Upload"}
         </Button>
       </div>
 
@@ -50,7 +87,12 @@ export default function AssetsPage() {
             />
           </div>
 
-          <AssetGrid folderId={selectedFolderId} search={search} onAssetClick={setSelectedAsset} />
+          <AssetGrid
+            key={uploadKey}
+            folderId={selectedFolderId}
+            search={search}
+            onAssetClick={setSelectedAsset}
+          />
         </div>
       </div>
 

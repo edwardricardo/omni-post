@@ -88,6 +88,7 @@ export interface AccountDto {
   nextBillingDate: Date | null;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  isActive: boolean;
   deletedAt: Date | null;
   ssoEnabled: boolean;
   ssoProvider: SsoProviderKind;

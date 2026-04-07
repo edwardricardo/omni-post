@@ -64,10 +64,7 @@ export class ExecutiveDashboardHandler extends BaseRouteHandler {
         this.prisma.account.count(),
         this.prisma.account.count({
           where: {
-            OR: [
-              { isOnTrial: true, trialEndDate: { gte: new Date() } },
-              { subscription: { not: "BASIC" } },
-            ],
+            OR: [{ isOnTrial: true, trialEndDate: { gte: new Date() } }],
           },
         }),
         this.prisma.project.count({

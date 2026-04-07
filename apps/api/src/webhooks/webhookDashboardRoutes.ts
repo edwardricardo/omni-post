@@ -2,7 +2,7 @@
 // DI: service resolved from container (no direct singleton import)
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireAdminAuth, requireAdmin } from "../admin/auth/adminAuthMiddleware.js";
 import { BaseRouteHandler, RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { WebhookDashboardService } from "./webhookDashboardService.js";
@@ -44,7 +44,7 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
 
   async getDashboardMetrics(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -67,7 +67,7 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
 
   async getRecentEvents(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -90,7 +90,7 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
 
   async getEventDetails(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -113,7 +113,7 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
 
   async getSubscriptions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -125,7 +125,7 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
 
   async getDeadLetterQueue(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -148,7 +148,7 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
 
   async retryDeadLetterEvent(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -168,14 +168,14 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
     const result = await this.service.retryDeadLetterEvent(
       accountId,
       validated.value.params.eventId,
-      request.user?.id
+      request.auth?.user?.id
     );
     return this.sendSuccess(ctx, result);
   }
 
   async streamWebhookEvents(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -228,7 +228,7 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
 
   async exportWebhookEvents(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -274,7 +274,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/metrics",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["Webhooks"], summary: "Get webhook dashboard metrics" },
     },
     handler.getDashboardMetrics.bind(handler)
@@ -284,7 +284,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/events",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["Webhooks"], summary: "Get recent webhook events with pagination" },
     },
     handler.getRecentEvents.bind(handler)
@@ -294,7 +294,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/events/:eventId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["Webhooks"], summary: "Get webhook event details" },
     },
     handler.getEventDetails.bind(handler)
@@ -304,7 +304,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/subscriptions",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["Webhooks"], summary: "Get webhook subscriptions overview" },
     },
     handler.getSubscriptions.bind(handler)
@@ -314,7 +314,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/dead-letter",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["Webhooks"], summary: "Get dead letter queue events" },
     },
     handler.getDeadLetterQueue.bind(handler)
@@ -324,7 +324,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.post(
     "/api/webhooks/dashboard/dead-letter/:eventId/retry",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["Webhooks"], summary: "Retry a dead letter event" },
     },
     handler.retryDeadLetterEvent.bind(handler)
@@ -334,7 +334,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/stream",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["Webhooks"], summary: "Stream real-time webhook events via SSE" },
     },
     handler.streamWebhookEvents.bind(handler)
@@ -344,7 +344,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/export",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["Webhooks"], summary: "Export webhook events as CSV" },
     },
     handler.exportWebhookEvents.bind(handler)

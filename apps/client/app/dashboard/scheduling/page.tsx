@@ -5,7 +5,7 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { SchedulingDashboard } from "@/components/scheduling";
 import { MultiPlatformScheduler } from "@/components/scheduling/MultiPlatformSchedulerRefactored";
@@ -13,6 +13,7 @@ import { BulkScheduleView } from "@/components/scheduling/views/BulkScheduleView
 import { OptimalTimesView } from "@/components/scheduling/views/OptimalTimesView";
 import { RulesView } from "@/components/scheduling/views/RulesView";
 import { useProject } from "@/providers/ProjectProvider";
+import type { OptimalTime, SchedulingRule } from "@/types/multi-platform-scheduling";
 
 type TabId = "calendar" | "multi-platform" | "bulk" | "optimal" | "rules";
 
@@ -32,6 +33,185 @@ const TABS: Tab[] = [
 export default function SchedulingPage() {
   const { projectId, accountId } = useProject();
   const [activeTab, setActiveTab] = useState<TabId>("calendar");
+  const [optimalTimes, setOptimalTimes] = useState<OptimalTime[]>([]);
+  const [rules, setRules] = useState<SchedulingRule[]>([]);
+
+  // C7: Fetch optimal times when the tab is active
+  useEffect(() => {
+    if (activeTab !== "optimal") return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/backend/api/analytics/optimal-times", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data?.data)) {
+          setOptimalTimes(data.data);
+        }
+      } catch {
+        // Silently fail — empty state is shown
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+
+  // Fetch rules when the rules tab is active
+  useEffect(() => {
+    if (activeTab !== "rules") return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/backend/api/scheduling/slots", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data?.data)) {
+          setRules(data.data);
+        }
+      } catch {
+        // Silently fail — empty state is shown
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+
+  // C6: Bulk schedule handler
+  const handleBulkSchedule = useCallback(
+    async (
+      contents: string[],
+      providers: string[],
+      startDate: Date,
+      frequency: "daily" | "weekly" | "monthly",
+      interval: number
+    ) => {
+      try {
+        const res = await fetch("/api/backend/api/scheduling/slots/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            contents,
+            providers,
+            startDate: startDate.toISOString(),
+            frequency,
+            interval,
+          }),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ message: "Request failed" }));
+          alert(`Bulk schedule failed: ${errorData.message || res.statusText}`);
+          return;
+        }
+
+        alert("Bulk schedule created successfully!");
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "Failed to create bulk schedule.");
+      }
+    },
+    []
+  );
+
+  // C7: Schedule at optimal time handler
+  const handleScheduleAtTime = useCallback((dayOfWeek: number, hour: number) => {
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const dayName = dayNames[dayOfWeek] || "Unknown";
+    alert(
+      `Selected optimal time: ${dayName} at ${hour}:00.\nNavigate to a post to schedule it at this time.`
+    );
+  }, []);
+
+  // C8: Add rule handler
+  const handleAddRule = useCallback(async () => {
+    const name = prompt("Enter rule name:");
+    if (!name) return;
+
+    const platforms = prompt("Enter platforms (comma-separated, e.g. x,instagram,facebook):");
+    if (!platforms) return;
+
+    try {
+      const res = await fetch("/api/backend/api/scheduling/slots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name,
+          platforms: platforms.split(",").map((p) => p.trim()),
+          isActive: true,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: "Request failed" }));
+        alert(`Failed to add rule: ${errorData.message || res.statusText}`);
+        return;
+      }
+
+      alert("Rule created successfully!");
+      // Refresh rules
+      setActiveTab("rules");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to add rule.");
+    }
+  }, []);
+
+  // C8: Edit rule handler
+  const handleEditRule = useCallback(async (ruleId: string) => {
+    const name = prompt("Enter new rule name:");
+    if (!name) return;
+
+    try {
+      const res = await fetch(`/api/backend/api/scheduling/slots/${ruleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: "Request failed" }));
+        alert(`Failed to edit rule: ${errorData.message || res.statusText}`);
+        return;
+      }
+
+      alert("Rule updated successfully!");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to edit rule.");
+    }
+  }, []);
+
+  // C8: Toggle rule handler
+  const handleToggleRule = useCallback(async (ruleId: string, active: boolean) => {
+    try {
+      const res = await fetch(`/api/backend/api/scheduling/slots/${ruleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ isActive: active }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: "Request failed" }));
+        alert(`Failed to toggle rule: ${errorData.message || res.statusText}`);
+        return;
+      }
+
+      setRules((prev) => prev.map((r) => (r.id === ruleId ? { ...r, isActive: active } : r)));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to toggle rule.");
+    }
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -109,38 +289,23 @@ export default function SchedulingPage() {
 
         {activeTab === "bulk" && (
           <div role="tabpanel" id="tab-panel-bulk" aria-label="Bulk Schedule" className="p-6">
-            <BulkScheduleView
-              onBulkSchedule={(_contents, _providers, _startDate, _frequency, _interval) => {
-                // Bulk schedule via API not yet integrated
-              }}
-            />
+            <BulkScheduleView onBulkSchedule={handleBulkSchedule} projectId={projectId} />
           </div>
         )}
 
         {activeTab === "optimal" && (
           <div role="tabpanel" id="tab-panel-optimal" aria-label="Optimal Times" className="p-6">
-            <OptimalTimesView
-              optimalTimes={[]}
-              onScheduleAtTime={(_dayOfWeek, _hour) => {
-                // Schedule-at-time via API not yet integrated
-              }}
-            />
+            <OptimalTimesView optimalTimes={optimalTimes} onScheduleAtTime={handleScheduleAtTime} />
           </div>
         )}
 
         {activeTab === "rules" && (
           <div role="tabpanel" id="tab-panel-rules" aria-label="Rules" className="p-6">
             <RulesView
-              rules={[]}
-              onAddRule={() => {
-                // Add rule via API not yet integrated
-              }}
-              onEditRule={(_ruleId) => {
-                // Edit rule modal not yet implemented
-              }}
-              onToggleRule={(_ruleId, _active) => {
-                // Toggle rule via API not yet integrated
-              }}
+              rules={rules}
+              onAddRule={handleAddRule}
+              onEditRule={handleEditRule}
+              onToggleRule={handleToggleRule}
             />
           </div>
         )}

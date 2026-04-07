@@ -1,5 +1,5 @@
 /**
- * @file customerAuthMiddleware.ts
+ * @file requireClientAuth.ts
  * @description Fastify preHandler middleware that authenticates customer users.
  *   Validates Bearer tokens issued by the customer JWT system and rejects
  *   admin tokens (type !== 'customer').
@@ -29,11 +29,11 @@ declare module "fastify" {
 }
 
 /**
- * @function customerAuthMiddleware
+ * @function requireClientAuth
  * @description Fastify preHandler that validates customer Bearer tokens.
  *   Rejects admin tokens by checking the `type` discriminator.
  */
-export async function customerAuthMiddleware(
+export async function requireClientAuth(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {

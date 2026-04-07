@@ -14,6 +14,17 @@ class MockPrismaClient {
   private shouldFailQuery = false;
   private currentVersion = 0;
 
+  /**
+   * Extract SQL text from a Prisma.sql() object or template literal.
+   * Prisma.Sql objects have a `strings` property (array of template parts).
+   */
+  private extractSqlText(query: any): string {
+    if (query && Array.isArray(query.strings)) {
+      return query.strings.join(" ");
+    }
+    return String(query);
+  }
+
   async $transaction(callback: (tx: any) => Promise<void>): Promise<void> {
     if (this.shouldFailTransaction) {
       throw new Error("Transaction failed");
@@ -26,23 +37,20 @@ class MockPrismaClient {
       throw new Error("Query failed");
     }
 
+    const sqlText = this.extractSqlText(query);
+
     // Simulate version query
-    if (query.toString().includes("MAX(version)")) {
+    if (sqlText.includes("MAX(version)")) {
       return [{ version: this.currentVersion }] as T;
     }
 
     // Simulate sequence query
-    if (query.toString().includes("next_sequence")) {
+    if (sqlText.includes("next_sequence")) {
       return [{ next_sequence: this.events.length + 1 }] as T;
     }
 
-    // Simulate events query
-    if (query.toString().includes("SELECT")) {
-      return this.events as T;
-    }
-
-    // Simulate stats query
-    if (query.toString().includes("COUNT(*)")) {
+    // Simulate stats query (COUNT must come before generic SELECT)
+    if (sqlText.includes("COUNT(*)") || sqlText.includes("total_events")) {
       return [
         {
           event_count: this.events.length,
@@ -54,32 +62,53 @@ class MockPrismaClient {
       ] as T;
     }
 
+    // Simulate events query
+    if (sqlText.includes("SELECT")) {
+      return this.events as T;
+    }
+
     return [] as T;
   }
 
-  async $executeRaw(query: any, ...args: any[]): Promise<number> {
+  async $executeRaw(query: any, ..._args: any[]): Promise<number> {
     if (this.shouldFailQuery) {
       throw new Error("Execute failed");
     }
 
-    // Simulate INSERT
-    if (query.toString().includes("INSERT")) {
-      this.currentVersion++;
-      this.events.push({
-        id: args[0] || `event-${Date.now()}`,
-        stream_id: args[1] || "stream:test",
-        event_type: args[2] || "test.event",
-        event_data: args[3] || "{}",
-        metadata: args[4] || "{}",
-        version: this.currentVersion,
-        sequence: this.events.length + 1,
-        timestamp: new Date(),
-      });
-      return 1;
+    const sqlText = this.extractSqlText(query);
+    const values = query?.values ?? [];
+
+    // Simulate INSERT — batch inserts use Prisma.sql`INSERT ... VALUES ${Prisma.join(tuples)}`
+    // Structure: values[0] = tableRef Sql, values[1] = joined tuples Sql
+    //   values[1].values = array of per-event Sql objects (one per event row)
+    if (sqlText.includes("INSERT")) {
+      let eventCount = 1;
+      // The joined tuples Sql is at values[1]; its inner values array length = event count
+      const joinedTuples = values[1];
+      if (joinedTuples && typeof joinedTuples === "object" && "values" in joinedTuples) {
+        const innerValues = (joinedTuples as any).values;
+        if (Array.isArray(innerValues) && innerValues.length > 0) {
+          eventCount = innerValues.length;
+        }
+      }
+      for (let i = 0; i < eventCount; i++) {
+        this.currentVersion++;
+        this.events.push({
+          id: `event-${Date.now()}-${i}`,
+          stream_id: "stream:test",
+          event_type: "test.event",
+          event_data: "{}",
+          metadata: "{}",
+          version: this.currentVersion,
+          sequence: this.events.length + 1,
+          timestamp: new Date(),
+        });
+      }
+      return eventCount;
     }
 
     // Simulate DELETE
-    if (query.toString().includes("DELETE")) {
+    if (sqlText.includes("DELETE")) {
       const deleted = this.events.length;
       this.events = [];
       return deleted;

@@ -42,21 +42,22 @@ export class DashboardService extends BaseService {
           prisma.project.count(),
         ]);
 
-      // Get subscription distribution
-      const subscriptionStats = await prisma.account.groupBy({
-        by: ["subscription"],
+      // Get subscription distribution from AccountSubscription
+      const subscriptionStats = await prisma.accountSubscription.groupBy({
+        by: ["status"],
         _count: { id: true },
       });
 
-      const subscriptions = {
-        basic: 0,
-        pro: 0,
-        enterprise: 0,
+      const subscriptions: Record<string, number> = {
+        TRIALING: 0,
+        ACTIVE: 0,
+        PAST_DUE: 0,
+        CANCELED: 0,
+        GRANDFATHERED: 0,
       };
 
       subscriptionStats.forEach((stat) => {
-        const key = stat.subscription.toLowerCase() as keyof typeof subscriptions;
-        subscriptions[key] = stat._count.id;
+        subscriptions[stat.status] = stat._count.id;
       });
 
       // Get trials expiring soon (next 3 days)
@@ -98,6 +99,7 @@ export class DashboardService extends BaseService {
       const accounts = await prisma.account.findMany({
         include: {
           projects: true,
+          accountSubscription: { include: { bundle: true } },
         },
         take: 100,
         orderBy: { createdAt: "desc" },
@@ -113,22 +115,38 @@ export class DashboardService extends BaseService {
             )
           : 0;
 
+        const sub = account.accountSubscription;
+        const maxProjects = sub?.maxProjects ?? account.maxProjects;
+
         return {
           id: account.id,
           email: account.email,
           name: account.name,
-          subscription: account.subscription,
-          isActive: !trialExpired,
+          isActive: account.isActive,
           createdAt: account.createdAt.toISOString(),
+          plan: {
+            type: sub?.bundleId
+              ? ("bundle" as const)
+              : sub?.providers?.length
+                ? ("custom" as const)
+                : ("none" as const),
+            name: sub?.bundle?.name ?? (sub?.providers?.length ? "Custom" : "No Plan"),
+            status: sub?.status ?? "NONE",
+            providers: sub?.providers?.map(String) ?? [],
+            pricePerMonth: sub ? Number(sub.pricePerMonth) : 0,
+          },
           trial: {
-            isOnTrial: account.isOnTrial && !trialExpired,
+            isOnTrial: account.isOnTrial,
             trialDaysRemaining,
             trialExpired,
+            ...(account.trialEndDate && { trialEndDate: account.trialEndDate.toISOString() }),
+            autoRenewal: account.autoRenewal,
           },
           usage: {
             projectsUsed: account.projects.length,
-            projectsRemaining: Math.max(0, account.maxProjects - account.projects.length),
-            utilizationPercent: Math.round((account.projects.length / account.maxProjects) * 100),
+            projectsRemaining: Math.max(0, maxProjects - account.projects.length),
+            utilizationPercent:
+              maxProjects > 0 ? Math.round((account.projects.length / maxProjects) * 100) : 0,
           },
         };
       });
@@ -147,39 +165,29 @@ export class DashboardService extends BaseService {
     return this.execute({ operation: "getSubscriptionsSummary" }, async () => {
       const now = new Date();
 
-      // Get active subscriptions (not on trial)
+      // Get active subscriptions (not on trial) with plan data
       const activeSubscriptions = await prisma.account.findMany({
         where: {
           isOnTrial: false,
         },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          subscription: true,
-          billingCycle: true,
-          autoRenewal: true,
-          nextBillingDate: true,
-          lastBillingDate: true,
-          createdAt: true,
+        include: {
+          accountSubscription: {
+            include: { bundle: true },
+          },
         },
         take: 50,
         orderBy: { createdAt: "desc" },
       });
 
-      // Get trial accounts
+      // Get trial accounts with plan data
       const trialAccounts = await prisma.account.findMany({
         where: {
           isOnTrial: true,
         },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          subscription: true,
-          trialStartDate: true,
-          trialEndDate: true,
-          autoRenewal: true,
+        include: {
+          accountSubscription: {
+            include: { bundle: true },
+          },
         },
         take: 50,
         orderBy: { trialStartDate: "desc" },
@@ -197,25 +205,76 @@ export class DashboardService extends BaseService {
         if (trialDaysRemaining === 0) status = "EXPIRED";
         else if (trialDaysRemaining <= 2) status = "EXPIRING";
 
+        const sub = account.accountSubscription;
+
         return {
           id: account.id,
           email: account.email,
           name: account.name,
-          subscription: account.subscription,
           trialStartDate: account.trialStartDate?.toISOString() || "",
           trialEndDate: account.trialEndDate?.toISOString() || "",
           trialDaysRemaining,
           autoRenewal: account.autoRenewal,
           status,
+          plan: sub
+            ? {
+                type: sub.bundleId
+                  ? ("bundle" as const)
+                  : sub.providers?.length
+                    ? ("custom" as const)
+                    : ("none" as const),
+                name: sub.bundle?.name ?? (sub.providers?.length ? "Custom" : "No Plan"),
+                status: sub.status,
+                providers: sub.providers?.map(String) ?? [],
+                pricePerMonth: Number(sub.pricePerMonth ?? 0),
+              }
+            : null,
         };
       });
 
-      const subscriptionsWithDetails = activeSubscriptions.map((sub) => ({
-        ...sub,
-        createdAt: sub.createdAt.toISOString(),
-        nextBillingDate: sub.nextBillingDate?.toISOString() || null,
-        lastBillingDate: sub.lastBillingDate?.toISOString() || null,
-      }));
+      const subscriptionsWithDetails = activeSubscriptions.map((account) => {
+        const sub = account.accountSubscription;
+        return {
+          id: account.id,
+          email: account.email,
+          name: account.name,
+          billingCycle: account.billingCycle,
+          autoRenewal: account.autoRenewal,
+          createdAt: account.createdAt.toISOString(),
+          nextBillingDate: account.nextBillingDate?.toISOString() || null,
+          lastBillingDate: account.lastBillingDate?.toISOString() || null,
+          plan: sub
+            ? {
+                type: sub.bundleId
+                  ? ("bundle" as const)
+                  : sub.providers?.length
+                    ? ("custom" as const)
+                    : ("none" as const),
+                name: sub.bundle?.name ?? (sub.providers?.length ? "Custom" : "No Plan"),
+                status: sub.status,
+                providers: sub.providers?.map(String) ?? [],
+                pricePerMonth: Number(sub.pricePerMonth ?? 0),
+              }
+            : null,
+        };
+      });
+
+      // Calculate revenue from active + grandfathered subscriptions
+      const revenueAccounts = await prisma.accountSubscription.findMany({
+        where: { status: { in: ["ACTIVE", "GRANDFATHERED"] } },
+        select: { pricePerMonth: true },
+      });
+      const monthlyRevenue = revenueAccounts.reduce(
+        (sum, s) => sum + Number(s.pricePerMonth ?? 0),
+        0
+      );
+
+      const totalTrialCount = trialAccounts.length;
+      const totalActiveCount = revenueAccounts.length;
+      const conversionRate =
+        totalActiveCount + totalTrialCount > 0
+          ? Math.round((totalActiveCount / (totalActiveCount + totalTrialCount)) * 1000) / 10
+          : 0;
 
       // Calculate stats
       const stats = {
@@ -223,6 +282,9 @@ export class DashboardService extends BaseService {
         activeTrials: trials.filter((t) => t.status === "ACTIVE").length,
         expiringTrials: trials.filter((t) => t.status === "EXPIRING").length,
         expiredTrials: trials.filter((t) => t.status === "EXPIRED").length,
+        totalRevenue: monthlyRevenue,
+        monthlyRevenue,
+        conversionRate,
       };
 
       return {
@@ -251,20 +313,22 @@ export class DashboardService extends BaseService {
         },
       });
 
-      // Get subscription distribution
-      const subscriptionStats = await prisma.account.groupBy({
-        by: ["subscription"],
+      // Get subscription distribution from AccountSubscription
+      const subscriptionStats = await prisma.accountSubscription.groupBy({
+        by: ["status"],
         _count: { id: true },
       });
 
-      const subscriptions: Record<string, number> = { basic: 0, pro: 0, enterprise: 0, trials: 0 };
+      const subscriptions: Record<string, number> = {
+        TRIALING: 0,
+        ACTIVE: 0,
+        PAST_DUE: 0,
+        CANCELED: 0,
+        GRANDFATHERED: 0,
+      };
       subscriptionStats.forEach((stat) => {
-        const key = stat.subscription.toLowerCase();
-        subscriptions[key] = stat._count.id;
+        subscriptions[stat.status] = stat._count.id;
       });
-
-      // Add trials count
-      subscriptions.trials = await prisma.account.count({ where: { isOnTrial: true } });
 
       const overview = {
         totalUsers,

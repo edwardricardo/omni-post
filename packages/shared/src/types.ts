@@ -25,13 +25,13 @@ export type Media = {
   alt?: string;
 };
 
+/** @deprecated Legacy tier type — use AccountSubscription.status instead. */
 export type SubscriptionTier = "BASIC" | "PRO" | "ENTERPRISE";
 
 export type Account = {
   id: string;
   email: string;
   name: string;
-  subscription: SubscriptionTier;
   maxProjects: number;
   createdAt: Date;
   updatedAt: Date;
@@ -40,13 +40,11 @@ export type Account = {
 export type CreateAccountInput = {
   email: string;
   name: string;
-  subscription?: SubscriptionTier;
   maxProjects?: number;
 };
 
 export type UpdateAccountInput = {
   name?: string;
-  subscription?: SubscriptionTier;
   maxProjects?: number;
 };
 
@@ -196,6 +194,21 @@ export type ProviderName =
   | "LINKEDIN"
   | "BLUESKY"
   | "THREADS";
+
+/** All provider names as a runtime array */
+export const PROVIDER_NAMES: ProviderName[] = [
+  "X",
+  "INSTAGRAM",
+  "FACEBOOK",
+  "YOUTUBE",
+  "TIKTOK",
+  "LINKEDIN",
+  "PINTEREST",
+  "SNAPCHAT",
+  "TELEGRAM",
+  "BLUESKY",
+  "THREADS",
+];
 
 /** Admin user roles matching the Prisma AdminRole enum */
 export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "SUPPORT";

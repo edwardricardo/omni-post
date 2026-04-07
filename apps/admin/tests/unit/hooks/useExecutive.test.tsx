@@ -59,7 +59,7 @@ describe("useExecutive", () => {
   it("fetches and maps executive metrics for default 30d range", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ok: true, value: MOCK_BACKEND_METRICS }),
+      json: async () => ({ ok: true, data: MOCK_BACKEND_METRICS }),
     });
 
     const { result } = renderHook(() => useExecutive(), {
@@ -80,7 +80,7 @@ describe("useExecutive", () => {
   it("calls the correct URL with startDate/endDate params", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ok: true, value: MOCK_BACKEND_METRICS }),
+      json: async () => ({ ok: true, data: MOCK_BACKEND_METRICS }),
     });
 
     const { result } = renderHook(() => useExecutive("7d"), {
@@ -98,7 +98,7 @@ describe("useExecutive", () => {
   it("uses the timeRange in the query key", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ok: true, value: MOCK_BACKEND_METRICS }),
+      json: async () => ({ ok: true, data: MOCK_BACKEND_METRICS }),
     });
 
     const queryClient = new QueryClient({
@@ -133,7 +133,7 @@ describe("useExecutive", () => {
   it("throws when body.ok is false", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ok: false, value: null }),
+      json: async () => ({ ok: false, data: null }),
     });
 
     const { result } = renderHook(() => useExecutive(), {
@@ -147,7 +147,7 @@ describe("useExecutive", () => {
   it("maps trends.period to the supplied timeRange", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ok: true, value: MOCK_BACKEND_METRICS }),
+      json: async () => ({ ok: true, data: MOCK_BACKEND_METRICS }),
     });
 
     const { result } = renderHook(() => useExecutive("7d"), {

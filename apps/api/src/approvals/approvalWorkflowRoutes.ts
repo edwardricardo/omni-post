@@ -8,7 +8,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { CreateApprovalWorkflowUseCase } from "../application/approvals/CreateApprovalWorkflowUseCase.js";
 import type { UpdateApprovalWorkflowUseCase } from "../application/approvals/UpdateApprovalWorkflowUseCase.js";
@@ -299,7 +299,7 @@ export const approvalWorkflowRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/approval-workflows",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Approval Workflows"], summary: "List approval workflows" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.list(request, reply)
@@ -309,7 +309,7 @@ export const approvalWorkflowRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/approval-workflows",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Approval Workflows"], summary: "Create approval workflow" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.create(request, reply)
@@ -319,7 +319,7 @@ export const approvalWorkflowRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/approval-workflows/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Approval Workflows"], summary: "Get approval workflow by ID" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getById(request, reply)
@@ -329,7 +329,7 @@ export const approvalWorkflowRoutes: FastifyPluginAsync = async (app) => {
   app.patch(
     "/approval-workflows/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Approval Workflows"], summary: "Update approval workflow" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.update(request, reply)
@@ -339,7 +339,7 @@ export const approvalWorkflowRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/approval-workflows/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Approval Workflows"], summary: "Delete approval workflow" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.remove(request, reply)

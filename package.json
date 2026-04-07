@@ -29,6 +29,8 @@
     "dev:api": "pnpm --filter @apps/api dev",
     "dev:workers": "pnpm --filter @apps/workers dev",
     "dev:admin": "pnpm --filter @apps/admin dev",
+    "dev:client": "pnpm --filter @apps/client dev",
+    "dev:all": "concurrently -n api,workers,admin,client -c green,cyan,yellow,blue \"pnpm dev:api\" \"pnpm dev:workers\" \"pnpm dev:admin\" \"pnpm dev:client\"",
     "dev": "concurrently -n api,workers -c green,cyan \"pnpm dev:api\" \"pnpm dev:workers\"",
     "db:up": "docker compose up -d",
     "db:studio": "pnpm --filter @infra/prisma studio",

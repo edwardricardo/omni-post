@@ -1,7 +1,8 @@
 // ✅ Phase 6.2: Migrated to BaseRouteHandler Pattern
 import { FastifyPluginAsync } from "fastify";
 import type { SubscriptionService } from "./subscription/index.js";
-import { authenticateMiddleware, requireAdmin, requireSuperAdmin } from "../auth/authMiddleware.js";
+import type { ChangeAccountSubscriptionUseCase } from "../application/billing/ChangeAccountSubscriptionUseCase.js";
+import { requireAdminAuth, requireSuperAdmin } from "../admin/auth/adminAuthMiddleware.js";
 import {
   SubscriptionPlanHandler,
   SubscriptionAccountHandler,
@@ -15,8 +16,11 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   const subscriptionService = fastify.container!.resolve<SubscriptionService>(
     TOKENS.SubscriptionService
   );
+  const changeUseCase = fastify.container!.resolve<ChangeAccountSubscriptionUseCase>(
+    TOKENS.ChangeAccountSubscriptionUseCase
+  );
   const planHandler = new SubscriptionPlanHandler(subscriptionService);
-  const accountHandler = new SubscriptionAccountHandler(subscriptionService);
+  const accountHandler = new SubscriptionAccountHandler(subscriptionService, changeUseCase);
   const trialHandler = new SubscriptionTrialHandler(subscriptionService);
   const analyticsHandler = new SubscriptionAnalyticsHandler(subscriptionService);
 
@@ -24,7 +28,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/plans",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Get all available subscription plans" },
     },
     async (request, reply) => planHandler.getAllPlans(request, reply)
@@ -34,7 +38,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/plans/:tier",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Get specific subscription plan" },
     },
     async (request, reply) => planHandler.getSpecificPlan(request, reply)
@@ -44,7 +48,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/accounts/:accountId/subscription",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Get account subscription details" },
     },
     async (request, reply) => accountHandler.getAccountSubscription(request, reply)
@@ -54,7 +58,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/billing/accounts/:accountId/subscription",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Update account subscription" },
     },
     async (request, reply) => accountHandler.updateAccountSubscription(request, reply)
@@ -64,7 +68,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/subscriptions",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "List all account subscriptions" },
     },
     async (request, reply) => accountHandler.listSubscriptions(request, reply)
@@ -74,7 +78,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/stats",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Get subscription statistics" },
     },
     async (request, reply) => analyticsHandler.getSubscriptionStats(request, reply)
@@ -84,7 +88,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/accounts/:accountId/validate-limits",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Validate subscription limits for an account" },
     },
     async (request, reply) => accountHandler.validateLimits(request, reply)
@@ -94,7 +98,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/accounts/:accountId/suspend",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Suspend account subscription" },
     },
     async (request, reply) => accountHandler.suspendSubscription(request, reply)
@@ -104,7 +108,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/bulk/upgrade",
     {
-      preHandler: [authenticateMiddleware, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requireSuperAdmin],
       schema: { tags: ["Billing"], summary: "Bulk upgrade subscriptions" },
     },
     async (request, reply) => accountHandler.bulkUpgrade(request, reply)
@@ -116,7 +120,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/health",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Subscription health check" },
     },
     async (request, reply) => analyticsHandler.getSubscriptionHealth(request, reply)
@@ -126,7 +130,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/export",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Export subscription data" },
     },
     async (request, reply) => analyticsHandler.exportSubscriptions(request, reply)
@@ -136,7 +140,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/accounts/:accountId/trial/start",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Start trial for an account" },
     },
     async (request, reply) => trialHandler.startTrial(request, reply)
@@ -146,7 +150,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/accounts/:accountId/trial/end",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "End trial for an account" },
     },
     async (request, reply) => trialHandler.endTrial(request, reply)
@@ -156,7 +160,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/accounts/:accountId/trial/convert",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Convert trial to paid subscription" },
     },
     async (request, reply) => trialHandler.convertTrial(request, reply)
@@ -166,7 +170,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/trials/expiring",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Get expiring trials" },
     },
     async (request, reply) => trialHandler.getExpiringTrials(request, reply)
@@ -176,7 +180,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/auto-renewals/process",
     {
-      preHandler: [authenticateMiddleware, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requireSuperAdmin],
       schema: { tags: ["Billing"], summary: "Process auto-renewals" },
     },
     async (request, reply) => trialHandler.processAutoRenewals(request, reply)
@@ -186,7 +190,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/trials/stats",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["Billing"], summary: "Get trial statistics" },
     },
     async (request, reply) => trialHandler.getTrialStats(request, reply)

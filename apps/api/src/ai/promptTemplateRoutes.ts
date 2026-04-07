@@ -10,7 +10,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { ListAIPromptTemplatesQuery } from "../application/aiPromptTemplates/ListAIPromptTemplatesQuery.js";
 import type { CreateAIPromptTemplateUseCase } from "../application/aiPromptTemplates/CreateAIPromptTemplateUseCase.js";
 import type { UpdateAIPromptTemplateUseCase } from "../application/aiPromptTemplates/UpdateAIPromptTemplateUseCase.js";
@@ -201,7 +201,7 @@ export const promptTemplateRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/ai-templates",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI Templates"], summary: "List prompt templates" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.list(request, reply)
@@ -210,7 +210,7 @@ export const promptTemplateRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/ai-templates",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI Templates"], summary: "Create prompt template" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.create(request, reply)
@@ -219,7 +219,7 @@ export const promptTemplateRoutes: FastifyPluginAsync = async (app) => {
   app.patch(
     "/api/ai-templates/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI Templates"], summary: "Update prompt template" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.update(request, reply)
@@ -228,7 +228,7 @@ export const promptTemplateRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/ai-templates/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI Templates"], summary: "Delete prompt template" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.remove(request, reply)

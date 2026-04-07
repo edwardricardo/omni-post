@@ -2,12 +2,19 @@
 
 /**
  * @file RbacManager.tsx
- * @description Admin RBAC management panel for viewing roles and permissions, listing users
- * per role, and updating individual user role assignments across the platform.
+ * @description Admin RBAC management panel for viewing roles, permissions, and users per role.
+ *   Uses CSS design tokens and reusable UI components.
+ * @layer presentation
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { api, RoleInfo } from "../../lib/apiClient";
+import { toast } from "@packages/ui";
+
+import { api, type RoleInfo } from "../../lib/apiClient";
+import { LoadingSpinner } from "../shared/LoadingSpinner";
+
+import { InputDialog } from "../ui/InputDialog";
+import { Badge } from "../ui/Badge";
 
 interface RbacUser {
   id: string;
@@ -18,6 +25,12 @@ interface RbacUser {
   isActive: boolean;
 }
 
+const ROLE_VARIANT: Record<string, "info" | "success" | "neutral"> = {
+  SUPER_ADMIN: "info",
+  ADMIN: "info",
+  SUPPORT: "success",
+};
+
 export default function RbacManager() {
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
@@ -26,6 +39,13 @@ export default function RbacManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [pendingRoleChange, setPendingRoleChange] = useState<{
+    userId: string;
+    newRole: string;
+    userName: string;
+    originalRole: string;
+  } | null>(null);
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -54,8 +74,15 @@ export default function RbacManager() {
         throw new Error("Failed to fetch role users");
       }
 
-      // Map API response to RbacUser format
-      const roleUsers: RbacUser[] = (response.users || []).map((user: any) => ({
+      const rawUsers = (response.users || []) as Array<{
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        lastLogin: string | null;
+        isActive: boolean;
+      }>;
+      const mapped: RbacUser[] = rawUsers.map((user) => ({
         id: user.id,
         email: user.email,
         name: user.name,
@@ -64,9 +91,9 @@ export default function RbacManager() {
         isActive: user.isActive,
       }));
 
-      setRoleUsers(roleUsers);
+      setRoleUsers(mapped);
     } catch {
-      // Failed to fetch role users — list will remain empty
+      // Failed to fetch role users -- list will remain empty
     }
   }, []);
 
@@ -80,47 +107,31 @@ export default function RbacManager() {
     }
   }, [selectedRole, fetchRoleUsers]);
 
-  const handleRoleChange = async (userId: string, newRole: string, reason: string) => {
+  const handleRoleChange = useCallback(async (userId: string, newRole: string, reason: string) => {
     try {
       setActionLoading(userId);
-
       const response = await api.security.rbac.updateUserRole(userId, newRole, reason);
       if (!response.ok) {
         throw new Error("Failed to update user role");
       }
-
-      // Update local state
       setRoleUsers((prev) => prev.filter((user) => user.id !== userId));
-      alert("User role updated successfully");
+      toast({ title: "Success", description: "User role updated successfully" });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update user role");
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to update user role",
+        variant: "destructive",
+      });
     } finally {
       setActionLoading(null);
     }
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case "SUPER_ADMIN":
-        return "bg-purple-100 text-purple-800";
-      case "ADMIN":
-        return "bg-blue-100 text-blue-800";
-      case "SUPPORT":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
+  }, []);
 
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded-sm mb-4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="h-64 bg-gray-200 rounded-sm"></div>
-            <div className="md:col-span-2 h-64 bg-gray-200 rounded-sm"></div>
-          </div>
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+        <div className="flex justify-center items-center h-32">
+          <LoadingSpinner size="lg" label="Loading RBAC data..." />
         </div>
       </div>
     );
@@ -128,10 +139,13 @@ export default function RbacManager() {
 
   if (error) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <h3 className="text-red-800 font-medium">Error Loading RBAC Manager</h3>
-          <p className="text-red-600 mt-1">{error}</p>
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+        <div
+          className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-4"
+          role="alert"
+        >
+          <h3 className="text-[var(--error)] font-medium">Error Loading RBAC Manager</h3>
+          <p className="text-[var(--error)] mt-1 text-sm">{error}</p>
         </div>
       </div>
     );
@@ -140,48 +154,51 @@ export default function RbacManager() {
   const selectedRoleInfo = roles.find((r) => r.role === selectedRole);
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border">
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-900">Role-Based Access Control</h2>
-        <p className="text-gray-600">Manage user roles and permissions</p>
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+          Role-Based Access Control
+        </h2>
+        <p className="text-[var(--text-secondary)] text-sm">Manage user roles and permissions</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Roles Sidebar */}
         <div className="lg:col-span-1">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">System Roles</h3>
+          <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">System Roles</h3>
           <div className="space-y-2">
             {roles.map((role) => (
               <button
                 key={role.role}
                 onClick={() => setSelectedRole(role.role)}
-                className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
+                className={[
+                  "w-full text-left p-3 rounded-lg border-2 transition-colors",
                   selectedRole === role.role
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
+                    ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
+                    : "border-[var(--border-default)] hover:border-[var(--border-strong)]",
+                ].join(" ")}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span
-                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(role.role)}`}
-                  >
-                    {role.role}
+                  <Badge variant={ROLE_VARIANT[role.role] ?? "neutral"}>{role.role}</Badge>
+                  <span className="text-sm text-[var(--text-secondary)]">
+                    {role.userCount} users
                   </span>
-                  <span className="text-sm text-gray-600">{role.userCount} users</span>
                 </div>
-                <div className="text-sm text-gray-600">{role.description}</div>
+                <div className="text-sm text-[var(--text-secondary)]">{role.description}</div>
               </button>
             ))}
           </div>
 
           {/* Permission Categories */}
-          <div className="mt-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Permission Categories</h3>
+          <div className="mt-4">
+            <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">
+              Permission Categories
+            </h3>
             <div className="space-y-2">
               {Object.entries(permissionCategories).map(([category, perms]) => (
-                <div key={category} className="p-2 bg-gray-50 rounded-sm text-sm">
-                  <div className="font-medium text-gray-700">{category}</div>
-                  <div className="text-gray-600">{perms.length} permissions</div>
+                <div key={category} className="p-2 bg-[var(--bg-elevated)] rounded-md text-sm">
+                  <div className="font-medium text-[var(--text-primary)]">{category}</div>
+                  <div className="text-[var(--text-secondary)]">{perms.length} permissions</div>
                 </div>
               ))}
             </div>
@@ -192,28 +209,26 @@ export default function RbacManager() {
         <div className="lg:col-span-2">
           {selectedRoleInfo && (
             <>
-              {/* Role Information */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <div className="mb-4 p-4 bg-[var(--bg-elevated)] rounded-lg">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">{selectedRoleInfo.role}</h3>
-                  <span
-                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(selectedRoleInfo.role)}`}
-                  >
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+                    {selectedRoleInfo.role}
+                  </h3>
+                  <Badge variant={ROLE_VARIANT[selectedRoleInfo.role] ?? "neutral"}>
                     {selectedRoleInfo.userCount} users
-                  </span>
+                  </Badge>
                 </div>
-                <p className="text-gray-600 mb-3">{selectedRoleInfo.description}</p>
+                <p className="text-[var(--text-secondary)] mb-3">{selectedRoleInfo.description}</p>
 
-                {/* Permissions */}
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  <h4 className="text-sm font-medium text-[var(--text-secondary)] mb-2">
                     Permissions ({selectedRoleInfo.permissions.length})
                   </h4>
                   <div className="grid grid-cols-2 gap-1">
                     {selectedRoleInfo.permissions.map((permission) => (
                       <div
                         key={permission}
-                        className="text-xs bg-white px-2 py-1 rounded-sm border"
+                        className="text-xs bg-[var(--bg-surface)] px-2 py-1 rounded-md border border-[var(--border-subtle)] text-[var(--text-primary)]"
                       >
                         {permission.replace(/[_:]/g, " ").toLowerCase()}
                       </div>
@@ -222,44 +237,35 @@ export default function RbacManager() {
                 </div>
               </div>
 
-              {/* Users with this role */}
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">
                   Users with {selectedRoleInfo.role} role
                 </h3>
                 {roleUsers.length === 0 ? (
-                  <div className="text-center text-gray-500 py-8">
+                  <div className="text-center text-[var(--text-secondary)] py-8">
                     No users found with this role
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {roleUsers.map((user) => (
-                      <div key={user.id} className="border rounded-lg p-4">
+                      <div
+                        key={user.id}
+                        className="border border-[var(--border-subtle)] rounded-lg p-4"
+                      >
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center space-x-3">
+                            <div className="flex items-center gap-3">
                               <div>
-                                <h4 className="font-medium text-gray-900">{user.name}</h4>
-                                <p className="text-sm text-gray-600">{user.email}</p>
+                                <h4 className="font-medium text-[var(--text-primary)]">
+                                  {user.name}
+                                </h4>
+                                <p className="text-sm text-[var(--text-secondary)]">{user.email}</p>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                <span
-                                  className={`inline-flex items-center px-2 py-1 text-xs rounded-full ${
-                                    user.isActive
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-red-100 text-red-800"
-                                  }`}
-                                >
-                                  <div
-                                    className={`w-2 h-2 rounded-full mr-1 ${
-                                      user.isActive ? "bg-green-500" : "bg-red-500"
-                                    }`}
-                                  ></div>
-                                  {user.isActive ? "Active" : "Inactive"}
-                                </span>
-                              </div>
+                              <Badge variant={user.isActive ? "success" : "error"}>
+                                {user.isActive ? "Active" : "Inactive"}
+                              </Badge>
                             </div>
-                            <div className="mt-2 text-sm text-gray-600">
+                            <div className="mt-2 text-sm text-[var(--text-secondary)]">
                               Last login:{" "}
                               {user.lastLogin
                                 ? new Date(user.lastLogin).toLocaleDateString()
@@ -267,23 +273,23 @@ export default function RbacManager() {
                             </div>
                           </div>
 
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center gap-2">
                             <select
-                              className="text-sm border border-gray-300 rounded-sm px-2 py-1"
+                              className="text-sm border border-[var(--border-default)] rounded-md px-2 py-1 bg-[var(--bg-surface)] text-[var(--text-primary)]"
                               defaultValue={user.role}
                               onChange={(e) => {
                                 if (e.target.value !== user.role) {
-                                  const reason = prompt(
-                                    `Change ${user.name}'s role from ${user.role} to ${e.target.value}?\n\nPlease provide a reason:`
-                                  );
-                                  if (reason) {
-                                    handleRoleChange(user.id, e.target.value, reason);
-                                  } else {
-                                    e.target.value = user.role; // Reset if cancelled
-                                  }
+                                  setPendingRoleChange({
+                                    userId: user.id,
+                                    newRole: e.target.value,
+                                    userName: user.name,
+                                    originalRole: user.role,
+                                  });
+                                  setRoleDialogOpen(true);
                                 }
                               }}
                               disabled={actionLoading === user.id}
+                              aria-label={`Change role for ${user.name}`}
                             >
                               {roles.map((role) => (
                                 <option key={role.role} value={role.role}>
@@ -291,16 +297,6 @@ export default function RbacManager() {
                                 </option>
                               ))}
                             </select>
-
-                            <button
-                              className="text-sm text-blue-600 hover:text-blue-800"
-                              onClick={() => {
-                                // In a real app, this would open a detailed permission view
-                                alert(`View detailed permissions for ${user.name}`);
-                              }}
-                            >
-                              View Permissions
-                            </button>
                           </div>
                         </div>
                       </div>
@@ -312,6 +308,29 @@ export default function RbacManager() {
           )}
         </div>
       </div>
+      <InputDialog
+        open={roleDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingRoleChange(null);
+          }
+          setRoleDialogOpen(open);
+        }}
+        title="Change Role"
+        description={
+          pendingRoleChange
+            ? `Change ${pendingRoleChange.userName}'s role to ${pendingRoleChange.newRole}`
+            : ""
+        }
+        inputLabel="Reason for change"
+        inputPlaceholder="e.g., Promotion to admin role"
+        onConfirm={async (reason) => {
+          if (!pendingRoleChange || !reason.trim()) return;
+          await handleRoleChange(pendingRoleChange.userId, pendingRoleChange.newRole, reason);
+          setPendingRoleChange(null);
+          setRoleDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

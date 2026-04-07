@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth/authContext";
 import { Button } from "@packages/ui";
 import { RefreshCw } from "lucide-react";
@@ -30,23 +30,53 @@ export default function RepurposePage() {
   const accountId = ((user as Record<string, unknown> | null)?.accountId as string) ?? "";
   const [proposals, setProposals] = useState<RepurposeProposal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<Record<string, "approve" | "reject" | null>>(
+    {}
+  );
+
+  const fetchProposals = useCallback(async () => {
+    if (!accountId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/backend/repurpose/proposals?accountId=${accountId}`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { ok: boolean; value?: RepurposeProposal[] };
+        if (data.ok && data.value) setProposals(data.value);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId]);
+
+  const handleApproval = useCallback(
+    async (proposalId: string, action: "approve" | "reject") => {
+      setActionLoading((prev) => ({ ...prev, [proposalId]: action }));
+      try {
+        const res = await fetch(`/api/backend/approvals/${proposalId}/${action}`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ message: "Request failed" }));
+          throw new Error((errData as { message?: string }).message ?? "Request failed");
+        }
+        await fetchProposals();
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        alert(`Failed to ${action} proposal: ${msg}`);
+      } finally {
+        setActionLoading((prev) => ({ ...prev, [proposalId]: null }));
+      }
+    },
+    [fetchProposals]
+  );
 
   useEffect(() => {
-    async function fetchProposals() {
-      try {
-        const res = await fetch(`/api/backend/repurpose/proposals?accountId=${accountId}`, {
-          credentials: "include",
-        });
-        if (res.ok) {
-          const data = (await res.json()) as { ok: boolean; value?: RepurposeProposal[] };
-          if (data.ok && data.value) setProposals(data.value);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-    if (accountId) fetchProposals();
-  }, [accountId]);
+    fetchProposals();
+  }, [fetchProposals]);
 
   const pending = proposals.filter((p) => p.status === "PENDING");
 
@@ -92,11 +122,21 @@ export default function RepurposePage() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-medium">{variant.platform}</span>
                         <div className="flex gap-1">
-                          <Button size="sm" variant="outline">
-                            Approve
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={actionLoading[proposal.id] != null}
+                            onClick={() => handleApproval(proposal.id, "approve")}
+                          >
+                            {actionLoading[proposal.id] === "approve" ? "Approving..." : "Approve"}
                           </Button>
-                          <Button size="sm" variant="ghost">
-                            Reject
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={actionLoading[proposal.id] != null}
+                            onClick={() => handleApproval(proposal.id, "reject")}
+                          >
+                            {actionLoading[proposal.id] === "reject" ? "Rejecting..." : "Reject"}
                           </Button>
                         </div>
                       </div>

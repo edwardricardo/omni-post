@@ -4,7 +4,11 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
 import { Permission } from "./rbacService.js";
 import type { RbacService } from "./rbacService.js";
-import { authenticateMiddleware, requireSuperAdmin, requireAdmin } from "./authMiddleware.js";
+import {
+  requireAdminAuth,
+  requireSuperAdmin,
+  requireAdmin,
+} from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "./rbacMiddleware.js";
 import type { AuthenticatedUser } from "./authService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
@@ -58,8 +62,8 @@ class RbacRouteHandler extends BaseRouteHandler {
   async getCurrentUserPermissions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const userId = request.user?.id;
-    const userRole = request.user?.role;
+    const userId = request.auth?.user?.id;
+    const userRole = request.auth?.user?.role;
 
     if (!userId || !userRole) {
       return this.sendError(ctx, 401, "User not authenticated");
@@ -159,7 +163,7 @@ class RbacRouteHandler extends BaseRouteHandler {
   async updateUserRole(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const adminUserId = request.user?.id;
+    const adminUserId = request.auth?.user?.id;
 
     if (!adminUserId) {
       return this.sendError(ctx, 401, "Admin user not authenticated");
@@ -210,7 +214,7 @@ class RbacRouteHandler extends BaseRouteHandler {
   async checkPermissions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const userRole = request.user?.role;
+    const userRole = request.auth?.user?.role;
 
     if (!userRole) {
       return this.sendError(ctx, 401, "User not authenticated");
@@ -245,7 +249,10 @@ class RbacRouteHandler extends BaseRouteHandler {
       hasAccess = this.rbacService.hasAnyPermission(userRole, permissionObjects);
     }
 
-    const userPermissions = this.rbacService.getUserPermissions(request.user!.id, userRole);
+    const userPermissions = this.rbacService.getUserPermissions(
+      request.auth?.user?.id ?? "",
+      userRole
+    );
     const grantedPermissions = permissionObjects.filter((p) =>
       userPermissions.permissions.includes(p)
     );
@@ -293,7 +300,7 @@ class RbacRouteHandler extends BaseRouteHandler {
       permissionMatrix[role.role] = role.permissions;
     }
 
-    const currentUserRole = request.user?.role;
+    const currentUserRole = request.auth?.user?.role;
     const canModifyRoles = currentUserRole === "SUPER_ADMIN";
 
     this.logInfo(ctx, "Retrieved role hierarchy", { rolesCount: roles.value.length });
@@ -353,7 +360,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/auth/permissions",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["RBAC"], summary: "Get current user permissions" },
     },
     async (request, reply) => handler.getCurrentUserPermissions(request, reply)
@@ -363,7 +370,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/rbac/roles",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["RBAC"], summary: "Get all available roles and permissions" },
     },
     async (request, reply) => handler.getAllRoles(request, reply)
@@ -373,7 +380,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/rbac/roles/:role",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["RBAC"], summary: "Get specific role information" },
     },
     async (request, reply) => handler.getRoleInfo(request, reply)
@@ -383,7 +390,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/rbac/roles/:role/users",
     {
-      preHandler: [authenticateMiddleware, requirePermission(Permission.USER_READ)],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_READ)],
       schema: { tags: ["RBAC"], summary: "Get users by role" },
     },
     async (request, reply) => handler.getUsersByRole(request, reply)
@@ -393,7 +400,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/rbac/users/:userId/role",
     {
-      preHandler: [authenticateMiddleware, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requireSuperAdmin],
       schema: { tags: ["RBAC"], summary: "Update user role" },
     },
     async (request, reply) => handler.updateUserRole(request, reply)
@@ -403,7 +410,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/auth/permissions/check",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["RBAC"], summary: "Check specific permissions for current user" },
     },
     async (request, reply) => handler.checkPermissions(request, reply)
@@ -413,7 +420,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/rbac/hierarchy",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["RBAC"], summary: "Get permission hierarchy and role comparison" },
     },
     async (request, reply) => handler.getHierarchy(request, reply)
@@ -423,7 +430,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/rbac/status",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth, requireAdmin],
       schema: { tags: ["RBAC"], summary: "Get RBAC system status and statistics" },
     },
     async (request, reply) => handler.getStatus(request, reply)

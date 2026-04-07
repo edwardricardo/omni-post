@@ -9,7 +9,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 import type { GenerateUTMLinksUseCase } from "../application/utm/GenerateUTMLinksUseCase.js";
@@ -171,7 +171,7 @@ const utmRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/links/:id/utm",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["UTM"], summary: "Generate UTM parameters for a tracked link" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.generateUTM(request, reply)
@@ -180,7 +180,7 @@ const utmRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/links/:id/utm-url",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["UTM"], summary: "Get the UTM URL for a tracked link" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getUTMUrl(request, reply)

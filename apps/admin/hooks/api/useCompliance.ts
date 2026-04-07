@@ -106,23 +106,23 @@ export function useCompliance() {
 
       const metricsBody = (await metricsResponse.json()) as {
         ok: boolean;
-        value: BackendComplianceMetrics;
+        data: BackendComplianceMetrics;
       };
 
       const auditLogsBody = (await auditLogsResponse.json()) as {
         ok: boolean;
-        value: BackendAuditLogsResponse;
+        data: BackendAuditLogsResponse;
       };
 
-      if (!metricsBody.ok) {
+      if (!metricsBody.ok || !metricsBody.data) {
         throw new Error("Failed to fetch compliance metrics");
       }
 
-      if (!auditLogsBody.ok) {
+      if (!auditLogsBody.ok || !auditLogsBody.data) {
         throw new Error("Failed to fetch compliance audit logs");
       }
 
-      const { summary, generatedAt } = metricsBody.value;
+      const { summary, generatedAt } = metricsBody.data;
       const { successRate } = summary;
 
       const metrics: ComplianceMetric[] = [
@@ -160,7 +160,7 @@ export function useCompliance() {
         },
       ];
 
-      const auditLogs: AuditEvent[] = auditLogsBody.value.data.map((log) => ({
+      const auditLogs: AuditEvent[] = auditLogsBody.data.data.map((log) => ({
         id: log.id,
         timestamp: log.createdAt,
         action: log.action,

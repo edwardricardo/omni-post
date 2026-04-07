@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePost, useProjects, useProviders } from "@/lib/api/hooks";
+import { apiClient } from "@/lib/api/client";
 import { ClientContentEditor } from "@/components/editor/ClientContentEditor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
@@ -20,8 +21,13 @@ export default function EditPostPage() {
 
   const [locale, setLocale] = useState<"en" | "es">("en");
   const [tags, setTags] = useState<string>("");
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const { data: postData, isLoading: postLoading, error: postError } = usePost(postId);
+  const { data: postData, isLoading: postLoading, error: postError, refetch } = usePost(postId);
   const { data: projectsData } = useProjects();
   const { providers: _providers } = useProviders();
 
@@ -50,6 +56,66 @@ export default function EditPostPage() {
       .map((tag) => tag.trim())
       .filter((tag) => tag.length > 0);
   };
+
+  const handlePublishNow = useCallback(async () => {
+    setIsPublishing(true);
+    try {
+      await apiClient.publishPost(postId);
+      alert("Post published successfully!");
+      refetch();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to publish post.");
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [postId, refetch]);
+
+  // C9 & C11: Schedule or reschedule post
+  const handleSchedulePost = useCallback(async () => {
+    if (!scheduleDate) {
+      alert("Please select a date and time.");
+      return;
+    }
+
+    setIsScheduling(true);
+    try {
+      await apiClient.schedulePost(postId, new Date(scheduleDate).toISOString());
+      alert("Post scheduled successfully!");
+      setShowScheduleDialog(false);
+      setScheduleDate("");
+      refetch();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to schedule post.");
+    } finally {
+      setIsScheduling(false);
+    }
+  }, [postId, scheduleDate, refetch]);
+
+  // C10: Save changes
+  const handleSaveChanges = useCallback(async () => {
+    if (!post) return;
+
+    setIsSaving(true);
+    try {
+      const parsedTags = tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+
+      await apiClient.updatePost(postId, {
+        locale,
+        tags: parsedTags,
+        ...(post.title && { title: post.title }),
+        ...(post.body && { body: post.body }),
+      });
+      alert("Changes saved successfully!");
+      refetch();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to save changes.");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [postId, post, locale, tags, refetch]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -245,34 +311,97 @@ export default function EditPostPage() {
             <CardContent className="space-y-4">
               {post.status === "DRAFT" && (
                 <>
-                  <Button className="w-full">
+                  <Button className="w-full" onClick={handlePublishNow} disabled={isPublishing}>
                     <Send className="mr-2 h-4 w-4" />
-                    Publish Now
+                    {isPublishing ? "Publishing..." : "Publish Now"}
                   </Button>
-                  <Button variant="outline" className="w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setShowScheduleDialog((prev) => !prev)}
+                  >
                     <Calendar className="mr-2 h-4 w-4" />
                     Schedule Post
                   </Button>
+                  {showScheduleDialog && (
+                    <div className="space-y-2 p-3 border rounded-md bg-muted/50">
+                      <Label htmlFor="schedule-date" className="text-sm">
+                        Select date and time
+                      </Label>
+                      <Input
+                        id="schedule-date"
+                        type="datetime-local"
+                        value={scheduleDate}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                        className="bg-background"
+                      />
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        onClick={handleSchedulePost}
+                        disabled={isScheduling || !scheduleDate}
+                      >
+                        {isScheduling ? "Scheduling..." : "Confirm Schedule"}
+                      </Button>
+                    </div>
+                  )}
                 </>
               )}
 
               {post.status === "PUBLISHED" && (
-                <Button variant="outline" className="w-full">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push("/dashboard/analytics")}
+                >
                   <BarChart3 className="mr-2 h-4 w-4" />
                   View Analytics
                 </Button>
               )}
 
               {post.status === "SCHEDULED" && (
-                <Button variant="outline" className="w-full">
-                  <Clock className="mr-2 h-4 w-4" />
-                  Modify Schedule
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setShowScheduleDialog((prev) => !prev)}
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    Modify Schedule
+                  </Button>
+                  {showScheduleDialog && (
+                    <div className="space-y-2 p-3 border rounded-md bg-muted/50">
+                      <Label htmlFor="reschedule-date" className="text-sm">
+                        New date and time
+                      </Label>
+                      <Input
+                        id="reschedule-date"
+                        type="datetime-local"
+                        value={scheduleDate}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                        className="bg-background"
+                      />
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        onClick={handleSchedulePost}
+                        disabled={isScheduling || !scheduleDate}
+                      >
+                        {isScheduling ? "Rescheduling..." : "Confirm New Schedule"}
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
 
-              <Button variant="outline" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleSaveChanges}
+                disabled={isSaving}
+              >
                 <Save className="mr-2 h-4 w-4" />
-                Save Changes
+                {isSaving ? "Saving..." : "Save Changes"}
               </Button>
 
               <Button

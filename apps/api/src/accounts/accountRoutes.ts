@@ -2,10 +2,10 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
-import type { PrismaClient, SubscriptionTier } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // Zod Schemas for Validation with security enhancement
 const SlugSchema = z
@@ -17,7 +17,6 @@ const SlugSchema = z
 const CreateAccountBodySchema = z.object({
   email: SecureSchemas.userEmail,
   name: SecureSchemas.userName,
-  subscription: z.enum(["BASIC", "PRO", "ENTERPRISE"]).optional().default("BASIC"),
   maxProjects: z.number().int().min(1).optional(),
   timezone: z.string().min(1).max(64).optional(),
   locale: z.string().min(2).max(10).optional(),
@@ -27,7 +26,6 @@ const CreateAccountBodySchema = z.object({
 
 const UpdateAccountBodySchema = z.object({
   name: SecureSchemas.userName.optional(),
-  subscription: z.enum(["BASIC", "PRO", "ENTERPRISE"]).optional(),
   maxProjects: z.number().int().min(1).optional(),
   timezone: z.string().min(1).max(64).optional(),
   locale: z.string().min(2).max(10).optional(),
@@ -41,13 +39,6 @@ const AccountParamsSchema = z.object({
 
 type _CreateAccountBody = z.infer<typeof CreateAccountBodySchema>;
 type _UpdateAccountBody = z.infer<typeof UpdateAccountBodySchema>;
-
-// Subscription tier defaults
-const SUBSCRIPTION_DEFAULTS: Record<SubscriptionTier, number> = {
-  BASIC: 1,
-  PRO: 3,
-  ENTERPRISE: 10,
-};
 
 /**
  * Account Route Handler
@@ -81,7 +72,7 @@ class AccountRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const { email, name, subscription, maxProjects } = validated.value.body;
+    const { email, name, maxProjects } = validated.value.body;
 
     try {
       // Check if email already exists
@@ -93,16 +84,13 @@ class AccountRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 409, "EMAIL_TAKEN", { error: "EMAIL_TAKEN" });
       }
 
-      // Determine maxProjects based on subscription tier
-      const subscriptionTier = subscription as SubscriptionTier;
-      const finalMaxProjects = maxProjects ?? SUBSCRIPTION_DEFAULTS[subscriptionTier];
+      const finalMaxProjects = maxProjects ?? 1;
 
       // Create account
       const account = await this.prisma.account.create({
         data: {
           email,
           name,
-          subscription: subscriptionTier,
           maxProjects: finalMaxProjects,
           isOnTrial: true,
           trialStartDate: new Date(),
@@ -118,7 +106,6 @@ class AccountRouteHandler extends BaseRouteHandler {
           id: account.id,
           email: account.email,
           name: account.name,
-          subscription: account.subscription,
           maxProjects: account.maxProjects,
           isOnTrial: account.isOnTrial,
           createdAt: account.createdAt,
@@ -171,7 +158,6 @@ class AccountRouteHandler extends BaseRouteHandler {
         id: account.id,
         email: account.email,
         name: account.name,
-        subscription: account.subscription,
         maxProjects: account.maxProjects,
         isOnTrial: account.isOnTrial,
         createdAt: account.createdAt,
@@ -208,7 +194,6 @@ class AccountRouteHandler extends BaseRouteHandler {
           id: account.id,
           email: account.email,
           name: account.name,
-          subscription: account.subscription,
           maxProjects: account.maxProjects,
           isOnTrial: account.isOnTrial,
           createdAt: account.createdAt,
@@ -256,17 +241,10 @@ class AccountRouteHandler extends BaseRouteHandler {
       }
 
       // Build update data
-      const updateData: { name?: string; subscription?: SubscriptionTier; maxProjects?: number } =
-        {};
+      const updateData: { name?: string; maxProjects?: number } = {};
       if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.subscription !== undefined) {
-        updateData.subscription = updates.subscription as SubscriptionTier;
-      }
       if (updates.maxProjects !== undefined) {
         updateData.maxProjects = updates.maxProjects;
-      } else if (updates.subscription !== undefined) {
-        // Auto-update maxProjects based on subscription tier if not explicitly provided
-        updateData.maxProjects = SUBSCRIPTION_DEFAULTS[updates.subscription as SubscriptionTier];
       }
 
       // Update account
@@ -281,7 +259,6 @@ class AccountRouteHandler extends BaseRouteHandler {
         id: account.id,
         email: account.email,
         name: account.name,
-        subscription: account.subscription,
         maxProjects: account.maxProjects,
         isOnTrial: account.isOnTrial,
         updatedAt: account.updatedAt,
@@ -378,7 +355,7 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/accounts",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Accounts"], summary: "Create a new account" },
     },
     async (request, reply) => handler.createAccount(request, reply)
@@ -388,7 +365,7 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/accounts/:accountId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Accounts"], summary: "Get account by ID" },
     },
     async (request, reply) => handler.getAccount(request, reply)
@@ -398,7 +375,7 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/accounts",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Accounts"], summary: "List all accounts" },
     },
     async (request, reply) => handler.listAccounts(request, reply)
@@ -408,7 +385,7 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/accounts/:accountId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Accounts"], summary: "Update account" },
     },
     async (request, reply) => handler.updateAccount(request, reply)
@@ -418,7 +395,7 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete(
     "/accounts/:accountId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Accounts"], summary: "Delete account" },
     },
     async (request, reply) => handler.deleteAccount(request, reply)

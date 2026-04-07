@@ -9,7 +9,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { customerAuthMiddleware } from "./customerAuthMiddleware.js";
+import { requireClientAuth } from "./customerAuthMiddleware.js";
 import type {
   RegisterCustomerUseCase,
   LoginCustomerUseCase,
@@ -339,7 +339,7 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/auth/customer/logout",
     {
-      preHandler: [customerAuthMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Customer Auth"], summary: "Customer logout" },
     },
     async (request, reply) => {
@@ -390,7 +390,7 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/auth/customer/me",
     {
-      preHandler: [customerAuthMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Customer Auth"], summary: "Get current customer user" },
     },
     async (request, reply) => {

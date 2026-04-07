@@ -10,6 +10,9 @@ import { TOKENS } from "./types.js";
 import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
 import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
+import { PrismaAccountSubscriptionAdapter } from "../repositories/PrismaAccountSubscriptionAdapter.js";
 import { PrismaCustomerUserRepository } from "../repositories/PrismaCustomerUserRepository.js";
 import {
   RegisterCustomerUseCase,
@@ -39,6 +42,7 @@ export function setupCustomerAuthUseCases(container: Container): void {
       new RegisterCustomerUseCase(
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
         container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
+        new PrismaAccountSubscriptionAdapter(),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -78,6 +82,7 @@ export function setupCustomerAuthUseCases(container: Container): void {
     () =>
       new RequestPasswordResetUseCase(
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
+        container.resolve<EmailPort>(TOKENS.EmailPort),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

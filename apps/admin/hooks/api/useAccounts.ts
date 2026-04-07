@@ -46,9 +46,10 @@ export function useUpdateAccount() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateAccountData }) => {
-      const response = await fetch(`/api/backend/admin/accounts/${id}`, {
+      const response = await fetch(`/api/backend/admin/accounts/${id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       });
 

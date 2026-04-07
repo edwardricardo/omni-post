@@ -9,14 +9,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const COOKIE_NAME = "admin-session";
-const PUBLIC_PATHS = ["/auth/login"];
+const PUBLIC_PATHS = ["/login"];
 
 export function proxy(request: NextRequest) {
   const session = request.cookies.get(COOKIE_NAME);
   const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
 
   if (!session && !isPublic) {
-    return NextResponse.redirect(new URL("/auth/login", request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
   if (session && isPublic) {
     return NextResponse.redirect(new URL("/", request.url));

@@ -1,18 +1,12 @@
 /**
- * Phase 2: Week 3-4 - PostgreSQL Event Store Implementation
- *
- * High-performance Event Store using PostgreSQL for persistence and Redis for pub/sub.
- * Implements event sourcing patterns with optimistic concurrency control.
- *
- * Features:
- * - ACID transactions for event appending
- * - Optimistic concurrency control
- * - Event projection capabilities
- * - Performance monitoring
- * - Connection pooling optimization
+ * @file EventStore.ts
+ * @description PostgreSQL Event Store with Redis pub/sub for real-time subscriptions.
+ *   Implements event sourcing with optimistic concurrency control.
+ *   Uses Prisma.sql for adapter-pg compatibility (no template literal interpolation).
+ * @layer infrastructure
  */
 
-import { PrismaClient } from "@infra/prisma";
+import { PrismaClient, Prisma } from "@infra/prisma";
 import Redis from "ioredis";
 import {
   DomainEvent,
@@ -47,14 +41,14 @@ interface StoredEvent {
 export class PostgreSQLEventStore implements IEventStore {
   private prisma: PrismaClient;
   private redis: Redis;
-  private tableName: string;
+  private tableRef: Prisma.Sql;
   private streamPrefix: string;
   private maxBatchSize: number;
 
   constructor(config: EventStoreConfig) {
     this.prisma = config.prisma;
     this.redis = config.redis;
-    this.tableName = config.tableName || "EventStore";
+    this.tableRef = Prisma.raw(config.tableName || "stored_events");
     this.streamPrefix = config.streamPrefix || "stream:";
     this.maxBatchSize = config.maxBatchSize || 1000;
   }
@@ -63,9 +57,7 @@ export class PostgreSQLEventStore implements IEventStore {
    * Append events to a stream with optimistic concurrency control
    */
   async append(streamId: string, events: DomainEvent[], expectedVersion?: number): Promise<void> {
-    if (events.length === 0) {
-      return;
-    }
+    if (events.length === 0) return;
 
     if (events.length > this.maxBatchSize) {
       throw new Error(`Cannot append more than ${this.maxBatchSize} events at once`);
@@ -75,31 +67,24 @@ export class PostgreSQLEventStore implements IEventStore {
 
     try {
       await this.prisma.$transaction(async (tx) => {
-        // Get current stream version
-        const currentVersionResult = await tx.$queryRaw<[{ version: number | null }]>`
-          SELECT MAX(version) as version
-          FROM ${this.tableName}
-          WHERE stream_id = ${fullStreamId}
-        `;
+        const currentVersionResult = await tx.$queryRaw<[{ version: number | null }]>(
+          Prisma.sql`SELECT MAX(version) as version FROM ${this.tableRef} WHERE stream_id = ${fullStreamId}`
+        );
 
         const currentVersion = currentVersionResult[0]?.version || 0;
 
-        // Check optimistic concurrency
         if (expectedVersion !== undefined && currentVersion !== expectedVersion) {
           throw new Error(
             `Concurrency conflict: expected version ${expectedVersion}, but current version is ${currentVersion}`
           );
         }
 
-        // Get next sequence number
-        const sequenceResult = await tx.$queryRaw<[{ next_sequence: number }]>`
-          SELECT COALESCE(MAX(sequence), 0) + 1 as next_sequence
-          FROM ${this.tableName}
-        `;
+        const sequenceResult = await tx.$queryRaw<[{ next_sequence: number }]>(
+          Prisma.sql`SELECT COALESCE(MAX(sequence), 0) + 1 as next_sequence FROM ${this.tableRef}`
+        );
 
         let nextSequence = sequenceResult[0]?.next_sequence || 1;
 
-        // Prepare events for insertion
         const eventsToInsert = events.map((event, index) => ({
           id: event.id,
           stream_id: fullStreamId,
@@ -113,22 +98,19 @@ export class PostgreSQLEventStore implements IEventStore {
           causation_id: event.causationId || null,
         }));
 
-        // Insert events - use individual inserts or createMany instead
-        for (const event of eventsToInsert) {
-          await tx.$executeRaw`
-            INSERT INTO stored_events (
-              id, stream_id, event_type, event_data, metadata,
-              version, sequence, timestamp, correlation_id, causation_id
-            )
-            VALUES (
-              ${event.id}, ${event.stream_id}, ${event.event_type}, ${event.event_data}, ${event.metadata},
-              ${event.version}, ${event.sequence}, ${event.timestamp}, ${event.correlation_id}, ${event.causation_id}
-            )
-          `;
-        }
+        // Batch insert all events in a single query
+        const valuesTuples = eventsToInsert.map(
+          (evt) =>
+            Prisma.sql`(${evt.id}, ${evt.stream_id}, ${evt.event_type}, ${evt.event_data}, ${evt.metadata}, ${evt.version}, ${evt.sequence}, ${evt.timestamp}, ${evt.correlation_id}, ${evt.causation_id})`
+        );
+        await tx.$executeRaw(
+          Prisma.sql`INSERT INTO ${this.tableRef} (
+            id, stream_id, event_type, event_data, metadata,
+            version, sequence, timestamp, correlation_id, causation_id
+          ) VALUES ${Prisma.join(valuesTuples)}`
+        );
       });
 
-      // Publish events to Redis after successful storage
       await this.publishEvents(events);
     } catch (error) {
       logger.error({ err: error, streamId }, "Failed to append events to stream");
@@ -144,22 +126,20 @@ export class PostgreSQLEventStore implements IEventStore {
 
     try {
       const storedEvents = fromVersion
-        ? await this.prisma.$queryRaw<StoredEvent[]>`
-            SELECT
-              id, stream_id, event_type, event_data, metadata,
+        ? await this.prisma.$queryRaw<StoredEvent[]>(
+            Prisma.sql`SELECT id, stream_id, event_type, event_data, metadata,
               version, sequence, timestamp, correlation_id, causation_id
-            FROM stored_events
+            FROM ${this.tableRef}
             WHERE stream_id = ${fullStreamId} AND version >= ${fromVersion}
-            ORDER BY version ASC
-          `
-        : await this.prisma.$queryRaw<StoredEvent[]>`
-            SELECT
-              id, stream_id, event_type, event_data, metadata,
+            ORDER BY version ASC`
+          )
+        : await this.prisma.$queryRaw<StoredEvent[]>(
+            Prisma.sql`SELECT id, stream_id, event_type, event_data, metadata,
               version, sequence, timestamp, correlation_id, causation_id
-            FROM stored_events
+            FROM ${this.tableRef}
             WHERE stream_id = ${fullStreamId}
-            ORDER BY version ASC
-          `;
+            ORDER BY version ASC`
+          );
 
       return storedEvents.map(this.mapToEventEnvelope.bind(this));
     } catch (error) {
@@ -174,23 +154,21 @@ export class PostgreSQLEventStore implements IEventStore {
   async getAllEvents(fromPosition?: number): Promise<EventEnvelope[]> {
     try {
       const storedEvents = fromPosition
-        ? await this.prisma.$queryRaw<StoredEvent[]>`
-            SELECT
-              id, stream_id, event_type, event_data, metadata,
+        ? await this.prisma.$queryRaw<StoredEvent[]>(
+            Prisma.sql`SELECT id, stream_id, event_type, event_data, metadata,
               version, sequence, timestamp, correlation_id, causation_id
-            FROM stored_events
+            FROM ${this.tableRef}
             WHERE sequence >= ${fromPosition}
             ORDER BY sequence ASC
-            LIMIT 1000
-          `
-        : await this.prisma.$queryRaw<StoredEvent[]>`
-            SELECT
-              id, stream_id, event_type, event_data, metadata,
+            LIMIT 1000`
+          )
+        : await this.prisma.$queryRaw<StoredEvent[]>(
+            Prisma.sql`SELECT id, stream_id, event_type, event_data, metadata,
               version, sequence, timestamp, correlation_id, causation_id
-            FROM stored_events
+            FROM ${this.tableRef}
             ORDER BY sequence ASC
-            LIMIT 1000
-          `;
+            LIMIT 1000`
+          );
 
       return storedEvents.map(this.mapToEventEnvelope.bind(this));
     } catch (error) {
@@ -205,24 +183,22 @@ export class PostgreSQLEventStore implements IEventStore {
   async getEventsByType(eventType: string, fromTimestamp?: Date): Promise<EventEnvelope[]> {
     try {
       const storedEvents = fromTimestamp
-        ? await this.prisma.$queryRaw<StoredEvent[]>`
-            SELECT
-              id, stream_id, event_type, event_data, metadata,
+        ? await this.prisma.$queryRaw<StoredEvent[]>(
+            Prisma.sql`SELECT id, stream_id, event_type, event_data, metadata,
               version, sequence, timestamp, correlation_id, causation_id
-            FROM stored_events
+            FROM ${this.tableRef}
             WHERE event_type = ${eventType} AND timestamp >= ${fromTimestamp}
             ORDER BY timestamp DESC
-            LIMIT 1000
-          `
-        : await this.prisma.$queryRaw<StoredEvent[]>`
-            SELECT
-              id, stream_id, event_type, event_data, metadata,
+            LIMIT 1000`
+          )
+        : await this.prisma.$queryRaw<StoredEvent[]>(
+            Prisma.sql`SELECT id, stream_id, event_type, event_data, metadata,
               version, sequence, timestamp, correlation_id, causation_id
-            FROM stored_events
+            FROM ${this.tableRef}
             WHERE event_type = ${eventType}
             ORDER BY timestamp DESC
-            LIMIT 1000
-          `;
+            LIMIT 1000`
+          );
 
       return storedEvents.map(this.mapToEventEnvelope.bind(this));
     } catch (error) {
@@ -252,15 +228,15 @@ export class PostgreSQLEventStore implements IEventStore {
             last_event_at?: Date;
           },
         ]
-      >`
-        SELECT
+      >(
+        Prisma.sql`SELECT
           COUNT(*) as event_count,
           COALESCE(MAX(version), 0) as current_version,
           MIN(timestamp) as first_event_at,
           MAX(timestamp) as last_event_at
-        FROM ${this.tableName}
-        WHERE stream_id = ${fullStreamId}
-      `;
+        FROM ${this.tableRef}
+        WHERE stream_id = ${fullStreamId}`
+      );
 
       const result = stats[0];
       return {
@@ -280,17 +256,15 @@ export class PostgreSQLEventStore implements IEventStore {
    */
   async createSnapshot(streamId: string, version: number, data: unknown): Promise<void> {
     const fullStreamId = `${this.streamPrefix}${streamId}`;
+    const jsonData = JSON.stringify(data);
 
     try {
-      await this.prisma.$executeRaw`
-        INSERT INTO EventSnapshots (stream_id, version, data, created_at)
-        VALUES (${fullStreamId}, ${version}, ${JSON.stringify(data)}, NOW())
+      await this.prisma.$executeRaw(
+        Prisma.sql`INSERT INTO "EventSnapshots" (stream_id, version, data, created_at)
+        VALUES (${fullStreamId}, ${version}, ${jsonData}, NOW())
         ON CONFLICT (stream_id)
-        DO UPDATE SET
-          version = ${version},
-          data = ${JSON.stringify(data)},
-          created_at = NOW()
-      `;
+        DO UPDATE SET version = ${version}, data = ${jsonData}, created_at = NOW()`
+      );
     } catch (error) {
       logger.error({ err: error, streamId }, "Failed to create snapshot for stream");
       throw error;
@@ -309,23 +283,15 @@ export class PostgreSQLEventStore implements IEventStore {
 
     try {
       const snapshot = await this.prisma.$queryRaw<
-        [
-          {
-            version: number;
-            data: string;
-            created_at: Date;
-          },
-        ]
-      >`
-        SELECT version, data, created_at
-        FROM EventSnapshots
-        WHERE stream_id = ${fullStreamId}
-      `;
+        [{ version: number; data: string; created_at: Date }]
+      >(
+        Prisma.sql`SELECT version, data, created_at
+        FROM "EventSnapshots"
+        WHERE stream_id = ${fullStreamId}`
+      );
 
       const result = snapshot[0];
-      if (!result) {
-        return null;
-      }
+      if (!result) return null;
 
       return {
         version: result.version,
@@ -348,7 +314,6 @@ export class PostgreSQLEventStore implements IEventStore {
       for (const event of events) {
         const channel = `events:${event.type}`;
         const payload = serializeEvent(event);
-
         pipeline.publish(channel, payload);
         pipeline.publish("events:all", payload);
       }
@@ -356,7 +321,6 @@ export class PostgreSQLEventStore implements IEventStore {
       await pipeline.exec();
     } catch (error) {
       logger.error({ err: error }, "Failed to publish events to Redis");
-      // Don't throw - event storage succeeded, publishing is optional
     }
   }
 
@@ -384,42 +348,21 @@ export class PostgreSQLEventStore implements IEventStore {
    */
   async healthCheck(): Promise<{
     status: "healthy" | "unhealthy";
-    details: {
-      database: boolean;
-      redis: boolean;
-      totalEvents?: number;
-      lastEventAt?: Date;
-    };
+    details: { database: boolean; redis: boolean; totalEvents?: number; lastEventAt?: Date };
   }> {
-    const details: {
-      database: boolean;
-      redis: boolean;
-      totalEvents?: number;
-      lastEventAt?: Date;
-    } = {
-      database: false,
-      redis: false,
-    };
+    const details: { database: boolean; redis: boolean; totalEvents?: number; lastEventAt?: Date } =
+      {
+        database: false,
+        redis: false,
+      };
 
     try {
-      // Check database connection
-      await this.prisma.$queryRaw`SELECT 1`;
+      await this.prisma.$queryRaw(Prisma.sql`SELECT 1`);
       details.database = true;
 
-      // Get basic stats
-      const stats = await this.prisma.$queryRaw<
-        [
-          {
-            total_events: number;
-            last_event_at?: Date;
-          },
-        ]
-      >`
-        SELECT
-          COUNT(*) as total_events,
-          MAX(timestamp) as last_event_at
-        FROM ${this.tableName}
-      `;
+      const stats = await this.prisma.$queryRaw<[{ total_events: number; last_event_at?: Date }]>(
+        Prisma.sql`SELECT COUNT(*) as total_events, MAX(timestamp) as last_event_at FROM ${this.tableRef}`
+      );
 
       if (stats[0]) {
         details.totalEvents = Number(stats[0].total_events);
@@ -432,7 +375,6 @@ export class PostgreSQLEventStore implements IEventStore {
     }
 
     try {
-      // Check Redis connection
       await this.redis.ping();
       details.redis = true;
     } catch (error) {
@@ -450,16 +392,15 @@ export class PostgreSQLEventStore implements IEventStore {
    */
   async cleanup(olderThan: Date, keepMinimumEvents: number = 1000): Promise<number> {
     try {
-      const deleted = await this.prisma.$executeRaw`
-        DELETE FROM ${this.tableName}
+      const deleted = await this.prisma.$executeRaw(
+        Prisma.sql`DELETE FROM ${this.tableRef}
         WHERE timestamp < ${olderThan}
         AND sequence NOT IN (
-          SELECT sequence
-          FROM ${this.tableName}
+          SELECT sequence FROM ${this.tableRef}
           ORDER BY sequence DESC
           LIMIT ${keepMinimumEvents}
-        )
-      `;
+        )`
+      );
 
       return Number(deleted);
     } catch (error) {

@@ -85,7 +85,7 @@ describe("RegisterCustomerUseCase", () => {
     customerUserRepo = makeCustomerUserRepo();
     accountRepo = makeAccountRepo();
     unitOfWork = makeUnitOfWork();
-    useCase = new RegisterCustomerUseCase(customerUserRepo, accountRepo, unitOfWork);
+    useCase = new RegisterCustomerUseCase(customerUserRepo, accountRepo, undefined, unitOfWork);
   });
 
   it("creates Account + CustomerUser atomically and returns tokens", async () => {
@@ -397,7 +397,8 @@ describe("ResetPasswordUseCase", () => {
 
 describe("customerAuthMiddleware", () => {
   it("rejects requests without Authorization header", async () => {
-    const { customerAuthMiddleware } = await import("../../src/auth/customerAuthMiddleware.js");
+    const { requireClientAuth: customerAuthMiddleware } =
+      await import("../../src/auth/customerAuthMiddleware.js");
 
     const request = {
       headers: {},
@@ -424,7 +425,8 @@ describe("customerAuthMiddleware", () => {
   });
 
   it("rejects admin JWT tokens", async () => {
-    const { customerAuthMiddleware } = await import("../../src/auth/customerAuthMiddleware.js");
+    const { requireClientAuth: customerAuthMiddleware } =
+      await import("../../src/auth/customerAuthMiddleware.js");
     const jwt = await import("jsonwebtoken");
 
     // Sign a token that does NOT have type: 'customer'
@@ -457,7 +459,8 @@ describe("customerAuthMiddleware", () => {
   });
 
   it("accepts valid customer token and attaches customerUser", async () => {
-    const { customerAuthMiddleware } = await import("../../src/auth/customerAuthMiddleware.js");
+    const { requireClientAuth: customerAuthMiddleware } =
+      await import("../../src/auth/customerAuthMiddleware.js");
     const { signCustomerAccessToken } = await import("../../src/auth/customerJwt.js");
 
     const token = signCustomerAccessToken({

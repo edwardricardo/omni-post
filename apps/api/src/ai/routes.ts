@@ -6,7 +6,7 @@ import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { AIService } from "./aiService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GetBrandVoiceQuery } from "../application/brand-voice/GetBrandVoiceQuery.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // ============================================================================
 // Zod Validation Schemas
@@ -346,7 +346,7 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/generate",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI"], summary: "Generate content with AI" },
     },
     async (request, reply) => handler.generateContent(request, reply)
@@ -354,14 +354,14 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post(
     "/analyze",
-    { preHandler: [authenticateMiddleware], schema: { tags: ["AI"], summary: "Analyze content" } },
+    { preHandler: [requireClientAuth], schema: { tags: ["AI"], summary: "Analyze content" } },
     async (request, reply) => handler.analyzeContent(request, reply)
   );
 
   fastify.post(
     "/optimize",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI"], summary: "Optimize content for platform" },
     },
     async (request, reply) => handler.optimizeContent(request, reply)
@@ -370,7 +370,7 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/predict",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI"], summary: "Estimate content performance" },
     },
     async (request, reply) => handler.predictPerformance(request, reply)
@@ -379,7 +379,7 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/variations",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI"], summary: "Generate content variations" },
     },
     async (request, reply) => handler.generateVariations(request, reply)
@@ -388,7 +388,7 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/smart-analysis",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI"], summary: "Combined content analysis" },
     },
     async (request, reply) => handler.smartAnalysis(request, reply)
@@ -398,7 +398,7 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete(
     "/cache",
-    { preHandler: [authenticateMiddleware], schema: { tags: ["AI"], summary: "Clear AI cache" } },
+    { preHandler: [requireClientAuth], schema: { tags: ["AI"], summary: "Clear AI cache" } },
     async (request, reply) => handler.clearCache(request, reply)
   );
 };

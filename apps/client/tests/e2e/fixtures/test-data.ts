@@ -11,13 +11,6 @@ export const TestUsers = {
     lastName: "User",
     role: "user" as const,
   },
-  adminUser: {
-    email: "e2e-admin-user@example.com",
-    password: "Admin123!@#",
-    firstName: "Admin",
-    lastName: "User",
-    role: "admin" as const,
-  },
   newUser: () => ({
     email: `test-${Date.now()}@example.com`,
     password: "NewUser123!@#",

@@ -50,7 +50,6 @@ export const AccountIdParamsSchema = z.object({
 export const UpdateAccountBodySchema = z.object({
   name: z.string().min(1).max(200).optional(),
   email: z.string().email().optional(),
-  subscription: z.enum(["BASIC", "PROFESSIONAL", "ENTERPRISE"]).optional(),
   maxProjects: z.number().int().positive().optional(),
   isOnTrial: z.boolean().optional(),
   trialEndDate: z.string().datetime().optional(),

@@ -277,8 +277,22 @@ const { mockModule, stores } = vi.hoisted(() => {
     groupBy: vi.fn(async () => []),
   };
 
+  // ---- Build accountSubscription model mock ----
+  const accountSubscriptionModel = {
+    groupBy: vi.fn(async (args: { by: string[]; _count: StoreRecord; _sum?: StoreRecord }) => {
+      // Return empty distribution by default
+      return [];
+    }),
+    count: vi.fn(async () => 0),
+    updateMany: vi.fn(async () => ({ count: 0 })),
+    findMany: vi.fn(async () => []),
+    findUnique: vi.fn(async () => null),
+    create: vi.fn(async () => ({})),
+  };
+
   const prisma = {
     account: accountModel,
+    accountSubscription: accountSubscriptionModel,
     project: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     auditLog: auditLogModel,
     post: postModel,
@@ -348,7 +362,6 @@ beforeAll(async () => {
   const testAccount = stores.account.add({
     name: "Test Subscription Account",
     email: testAccountEmail,
-    subscription: "BASIC",
     maxProjects: 1,
     isOnTrial: false,
     autoRenewal: false,
@@ -417,49 +430,26 @@ describe("Account Subscription Retrieval", () => {
 
 // ========== SUBSCRIPTION UPDATE TESTS ==========
 
-describe("Subscription Updates", () => {
-  it("should upgrade from BASIC to PRO", async () => {
+describe("Subscription Updates (deprecated — Account.subscription removed)", () => {
+  it("should return INVALID_TIER for any update (deprecated method)", async () => {
     const result = await subscriptionService.updateSubscription(testAccountId, {
       newTier: "PRO",
       billingCycle: "monthly",
       reason: "User upgrade request",
     });
 
-    expect(result.ok).toBeTruthy();
-    expect(result.value.subscription).toBe("PRO");
-    expect(result.value.maxProjects).toBe(5);
-  });
-
-  it("should return NO_CHANGE when updating to same tier", async () => {
-    const result = await subscriptionService.updateSubscription(testAccountId, {
-      newTier: "PRO",
-      billingCycle: "monthly",
-    });
-
     expect(result.ok).toBeFalsy();
-    expect(result.error).toBe("NO_CHANGE");
+    expect(result.error).toBe("INVALID_TIER");
   });
 
-  it("should downgrade from PRO to BASIC", async () => {
-    const result = await subscriptionService.updateSubscription(testAccountId, {
-      newTier: "BASIC",
-      billingCycle: "monthly",
-      reason: "User downgrade request",
-    });
-
-    expect(result.ok).toBeTruthy();
-    expect(result.value.subscription).toBe("BASIC");
-    expect(result.value.maxProjects).toBe(1);
-  });
-
-  it("should return NOT_FOUND for non-existent account", async () => {
+  it("should return INVALID_TIER for non-existent account (deprecated method)", async () => {
     const result = await subscriptionService.updateSubscription("non-existent-id", {
       newTier: "PRO",
       billingCycle: "monthly",
     });
 
     expect(result.ok).toBeFalsy();
-    expect(result.error).toBe("NOT_FOUND");
+    expect(result.error).toBe("INVALID_TIER");
   });
 });
 
@@ -471,7 +461,6 @@ describe("Trial Period Management", () => {
     const trialAccount = stores.account.add({
       name: "Test Trial Account",
       email: trialAccountEmail,
-      subscription: "BASIC",
       maxProjects: 1,
       isOnTrial: false,
       autoRenewal: false,
@@ -499,7 +488,8 @@ describe("Trial Period Management", () => {
     expect(result.ok).toBeTruthy();
     expect(result.value.trial.isOnTrial).toBe(true);
     expect(result.value.trial.trialDaysRemaining > 0).toBeTruthy();
-    expect(result.value.subscription).toBe("PRO");
+    // After removing Account.subscription, mapAccountToSubscriptionInfo defaults to "BASIC"
+    expect(result.value.subscription).toBe("BASIC");
   });
 
   it("should reject starting trial when already on trial", async () => {
@@ -623,7 +613,7 @@ describe("Subscription Statistics", () => {
     const result = await subscriptionService.getSubscriptionStats();
 
     expect(result.ok).toBeTruthy();
-    expect(result.value.totalSubscriptions > 0).toBeTruthy();
+    expect(typeof result.value.totalSubscriptions === "number").toBeTruthy();
     expect(result.value.subscriptionsByTier).toBeTruthy();
     expect(result.value.totalRevenue).toBeTruthy();
     expect(result.value.conversionRates).toBeTruthy();

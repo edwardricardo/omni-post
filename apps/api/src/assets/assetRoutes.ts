@@ -9,7 +9,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // Use case / query types (type-only imports)
@@ -136,7 +136,7 @@ class AssetRouteHandler extends BaseRouteHandler {
    * @description Extracts accountId from the authenticated user.
    */
   private getAccountId(request: FastifyRequest): string | null {
-    return request.user?.accountId ?? request.user?.id ?? null;
+    return request.customerUser?.accountId ?? request.customerUser?.id ?? null;
   }
 
   // --------------------------------------------------------------------------
@@ -560,7 +560,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/assets/tags",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "List asset tags" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.listTags(request, reply)
@@ -569,7 +569,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/assets/tags",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Create asset tag" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.createTag(request, reply)
@@ -578,7 +578,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/assets/tags/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Delete asset tag" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.deleteTag(request, reply)
@@ -589,7 +589,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/assets/folders",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "List asset folders" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.listFolders(request, reply)
@@ -598,7 +598,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/assets/folders",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Create asset folder" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.createFolder(request, reply)
@@ -609,7 +609,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/assets/import/google-drive",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Import file from Google Drive" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.importFromGoogleDrive(request, reply)
@@ -620,7 +620,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/assets",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "List media assets" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.listAssets(request, reply)
@@ -629,7 +629,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/assets",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Create media asset" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.createAsset(request, reply)
@@ -638,7 +638,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/assets/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Get media asset by ID" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getAsset(request, reply)
@@ -647,7 +647,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.patch(
     "/api/assets/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Update media asset" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.updateAsset(request, reply)
@@ -656,7 +656,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/assets/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Delete media asset" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.deleteAsset(request, reply)
@@ -665,7 +665,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/assets/:id/tags",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Tag media asset" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.tagAsset(request, reply)

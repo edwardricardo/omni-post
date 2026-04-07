@@ -70,10 +70,20 @@ prismaAny.post = { ...noopModel };
 prismaAny.channel = { ...noopModel };
 prismaAny.postContent = { ...noopModel };
 prismaAny.postMedia = { ...noopModel };
+prismaAny.accountSubscription = {
+  ...noopModel,
+  groupBy: vi.fn(async () => []),
+  updateMany: vi.fn(async () => ({ count: 0 })),
+};
 
 vi.mock("@infra/prisma", async (importOriginal) => {
   const original = await importOriginal<Record<string, unknown>>();
   return { ...original, prisma: mockPrisma.prisma };
+});
+
+vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
+  const { createAdminAuthMock } = await import("./helpers/mockAuthMiddleware.js");
+  return createAdminAuthMock();
 });
 
 vi.mock("../../src/lib/logger.js", () => {
@@ -98,9 +108,8 @@ vi.mock("../../src/lib/logger.js", () => {
 // Import SUT after mocks
 // ---------------------------------------------------------------------------
 
-const { createTestApp, createTestUsers, cleanupTestUsers, prisma } = await import(
-  "./subscriptionRoutes.test-helpers.js"
-);
+const { createTestApp, createTestUsers, cleanupTestUsers, prisma } =
+  await import("./subscriptionRoutes.test-helpers.js");
 
 // ---------------------------------------------------------------------------
 // Test suite

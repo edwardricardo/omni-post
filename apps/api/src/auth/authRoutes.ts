@@ -5,7 +5,7 @@ import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { PasswordSchema, UserRoleSchema } from "@packages/api-common";
 import { SecureSchemas } from "../security/inputValidation.js";
 import type { AuthService } from "./authService.js";
-import { authenticateMiddleware } from "./authMiddleware.js";
+import { requireClientAuth } from "./customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // ✅ Zod schemas for validation with security enhancement
@@ -44,7 +44,7 @@ class AuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Register new admin user
+   * Register new user (legacy admin registration endpoint at /auth/register)
    */
   async register(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -284,7 +284,7 @@ class AuthRouteHandler extends BaseRouteHandler {
     };
 
     // User info is attached by the authenticate middleware
-    return this.sendSuccess(ctx, { user: request.user }, 200);
+    return this.sendSuccess(ctx, { user: request.customerUser }, 200);
   }
 
   /**
@@ -297,7 +297,7 @@ class AuthRouteHandler extends BaseRouteHandler {
       ...this.getUserContext(request),
     };
 
-    const userId = request.user?.id;
+    const userId = request.customerUser?.id;
     if (!userId) {
       return this.sendError(ctx, 401, "Unauthorized");
     }
@@ -330,7 +330,7 @@ class AuthRouteHandler extends BaseRouteHandler {
       ...this.getUserContext(request),
     };
 
-    const userId = request.user?.id;
+    const userId = request.customerUser?.id;
     if (!userId) {
       return this.sendError(ctx, 401, "Unauthorized");
     }
@@ -411,7 +411,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/auth/me",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Auth"], summary: "Get current authenticated user" },
     },
     async (request, reply) => {
@@ -423,7 +423,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/auth/sessions",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Auth"], summary: "Get user sessions" },
     },
     async (request, reply) => {
@@ -435,7 +435,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/auth/revoke-all",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Auth"], summary: "Revoke all user sessions" },
     },
     async (request, reply) => {

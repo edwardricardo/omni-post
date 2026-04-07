@@ -28,6 +28,9 @@ import { setupSamlUseCases } from "./setupSamlUseCases.js";
 import { setupCustomReportUseCases } from "./setupCustomReportUseCases.js";
 import { setupCrmUseCases } from "./setupCrmUseCases.js";
 import { setupCustomerAuthUseCases } from "./setupCustomerAuthUseCases.js";
+import { setupReferralUseCases } from "./setupReferralUseCases.js";
+import { setupTrendUseCases } from "./setupTrendUseCases.js";
+import { setupRepurposeUseCases } from "./setupRepurposeUseCases.js";
 
 /**
  * @method setupUseCases
@@ -57,4 +60,7 @@ export function setupUseCases(container: Container): void {
   setupCustomReportUseCases(container);
   setupCrmUseCases(container);
   setupCustomerAuthUseCases(container);
+  setupReferralUseCases(container);
+  setupTrendUseCases(container);
+  setupRepurposeUseCases(container);
 }

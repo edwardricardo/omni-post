@@ -42,6 +42,17 @@ import { DispatchInboxSyncUseCase } from "../../application/inbox/DispatchInboxS
 import type { ChannelQueryForIngestion } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
 import type { QueuePort } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import { prisma } from "@infra/prisma";
+import { PrismaTriageMessageAdapter } from "../repositories/PrismaTriageMessageAdapter.js";
+import { PrismaTriageCrmAdapter } from "../repositories/PrismaTriageCrmAdapter.js";
+import {
+  TriageInboxMessageUseCase,
+  type TriageMessagePort,
+  type TriageAIPort,
+  type TriageCrmPort,
+} from "../../application/inbox/TriageInboxMessageUseCase.js";
+import type { AIService } from "../../ai/aiService.js";
+import type { BrandVoiceRepository } from "../../domain/repositories/BrandVoiceRepository.js";
 
 /**
  * Register social inbox commands, queries, and event handlers
@@ -227,6 +238,60 @@ export function setupInboxUseCases(container: Container): void {
       new InboxEventHandlers(
         container.resolve<CreateNotificationUseCase>(TOKENS.CreateNotificationUseCase)
       ),
+    true
+  );
+
+  // Inbox Triage — AI-powered message classification and reply suggestions
+  container.registerInstance<TriageMessagePort>(
+    TOKENS.TriageMessagePort,
+    new PrismaTriageMessageAdapter(prisma)
+  );
+  container.registerInstance<TriageCrmPort>(
+    TOKENS.TriageCrmPort,
+    new PrismaTriageCrmAdapter(prisma)
+  );
+  container.register<TriageAIPort>(
+    TOKENS.TriageAIPort,
+    () => {
+      const aiService = container.resolve<AIService>(TOKENS.AIService);
+      return {
+        async generateContent(
+          messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+          _options?: Record<string, unknown>
+        ): Promise<{ success: boolean; value?: string }> {
+          try {
+            const result = await aiService.generateContent(messages);
+            const value = result.content;
+            return { success: true, ...(value !== undefined && { value }) };
+          } catch {
+            return { success: false };
+          }
+        },
+      };
+    },
+    true
+  );
+  container.register<TriageInboxMessageUseCase>(
+    TOKENS.TriageInboxMessageUseCase,
+    () => {
+      const brandVoiceRepo = container.tryResolve<BrandVoiceRepository>(
+        TOKENS.BrandVoiceRepository
+      );
+      const brandVoiceResolver = brandVoiceRepo
+        ? async (accountId: string): Promise<string | undefined> => {
+            const bv = await brandVoiceRepo.findByAccountId(accountId);
+            return bv?.systemPrompt ?? undefined;
+          }
+        : undefined;
+
+      return new TriageInboxMessageUseCase(
+        container.resolve<TriageMessagePort>(TOKENS.TriageMessagePort),
+        container.resolve<TriageAIPort>(TOKENS.TriageAIPort),
+        container.resolve<TriageCrmPort>(TOKENS.TriageCrmPort),
+        brandVoiceResolver,
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      );
+    },
     true
   );
 }

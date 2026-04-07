@@ -19,7 +19,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "./authMiddleware.js";
+import { requireClientAuth } from "./customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { CreateApiKeyUseCase } from "../application/apiKeys/ApiKeyUseCases.js";
 import type { ValidateApiKeyUseCase } from "../application/apiKeys/ApiKeyUseCases.js";
@@ -269,7 +269,7 @@ export const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/api-keys",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["API Keys"], summary: "List API keys" },
     },
     (req, reply) => handler.list(req, reply)
@@ -277,7 +277,7 @@ export const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/api-keys",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["API Keys"], summary: "Create API key" },
     },
     (req, reply) => handler.create(req, reply)
@@ -285,7 +285,7 @@ export const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/api-keys/:id/rotate",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["API Keys"], summary: "Rotate API key" },
     },
     (req, reply) => handler.rotate(req, reply)
@@ -293,7 +293,7 @@ export const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete(
     "/api-keys/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["API Keys"], summary: "Deactivate API key" },
     },
     (req, reply) => handler.deactivate(req, reply)

@@ -10,7 +10,7 @@
  */
 import { FastifyInstance } from "fastify";
 import { ProviderOAuthHandler } from "./providerOAuthFlow.js";
-import { authenticateMiddleware } from "./authMiddleware.js";
+import { requireClientAuth } from "./customerAuthMiddleware.js";
 
 // Re-export for backward compatibility
 export { oauthProviders } from "./providerOAuthConfigs.js";
@@ -26,13 +26,9 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
   const handler = new ProviderOAuthHandler();
 
   // Requires auth: user must be logged in to initiate an OAuth connection
-  fastify.get(
-    "/auth/:provider",
-    { preHandler: [authenticateMiddleware] },
-    async (request, reply) => {
-      return handler.initiateOAuth(request, reply);
-    }
-  );
+  fastify.get("/auth/:provider", { preHandler: [requireClientAuth] }, async (request, reply) => {
+    return handler.initiateOAuth(request, reply);
+  });
 
   // Public: OAuth providers redirect here with the authorization code
   fastify.get("/auth/callback/:provider", async (request, reply) => {
@@ -42,7 +38,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
   // Requires auth: accountId is extracted from the authenticated session
   fastify.get(
     "/auth/connections/:projectId",
-    { preHandler: [authenticateMiddleware] },
+    { preHandler: [requireClientAuth] },
     async (request, reply) => {
       return handler.getConnections(request, reply);
     }
@@ -51,7 +47,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
   // Requires auth: ownership is verified before disconnecting
   fastify.delete(
     "/auth/connections/:connectionId",
-    { preHandler: [authenticateMiddleware] },
+    { preHandler: [requireClientAuth] },
     async (request, reply) => {
       return handler.disconnectProvider(request, reply);
     }

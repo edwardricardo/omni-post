@@ -13,7 +13,7 @@ export interface AccountUsageDto {
   aiCallsMade: number;
   storageGb: number;
   teamMemberCount: number;
-  plan: "BASIC" | "PRO" | "ENTERPRISE";
+  plan: string;
   postsLimit: number;
   channelsLimit: number;
   teamMembersLimit: number;
@@ -38,7 +38,7 @@ async function fetchUsage(accountId: string): Promise<AccountUsageDto> {
     aiCallsMade: 0,
     storageGb: 0,
     teamMemberCount: 0,
-    plan: "BASIC",
+    plan: "none",
     postsLimit: 10,
     channelsLimit: 3,
     teamMembersLimit: 5,

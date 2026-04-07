@@ -14,6 +14,9 @@ import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tansta
 // Types
 // ---------------------------------------------------------------------------
 
+export type InboxPriority = "URGENT" | "HIGH" | "NORMAL" | "LOW";
+export type InboxMessageType = "COMPLAINT" | "LEAD" | "QUESTION" | "FEEDBACK" | "SPAM";
+
 export interface ConversationListItem {
   id: string;
   externalId: string;
@@ -27,6 +30,8 @@ export interface ConversationListItem {
     createdAt: string;
     senderName: string;
   } | null;
+  priority?: InboxPriority;
+  messageType?: InboxMessageType;
   createdAt: string;
   updatedAt: string;
 }
@@ -44,6 +49,9 @@ export interface Message {
   isInternal: boolean;
   direction: "INBOUND" | "OUTBOUND";
   read: boolean;
+  priority?: InboxPriority;
+  messageType?: InboxMessageType;
+  suggestedReplies?: string[];
 }
 
 interface InboxFilters {

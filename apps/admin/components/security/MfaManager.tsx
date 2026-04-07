@@ -3,11 +3,18 @@
 /**
  * @file MfaManager.tsx
  * @description Admin MFA management panel for viewing user MFA status and performing
- * administrative actions such as force-disabling MFA and generating backup codes.
+ *   administrative actions. Uses CSS design tokens and reusable UI components.
+ * @layer presentation
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "@packages/ui";
+
 import { api } from "../../lib/apiClient";
+import { LoadingSpinner } from "../shared/LoadingSpinner";
+import { ActionButton } from "../ui/ActionButton";
+import { InputDialog } from "../ui/InputDialog";
+import { Badge } from "../ui/Badge";
 
 interface User {
   id: string;
@@ -18,12 +25,21 @@ interface User {
   backupCodesCount: number;
 }
 
+const ROLE_VARIANT: Record<string, "info" | "success" | "neutral"> = {
+  SUPER_ADMIN: "info",
+  ADMIN: "info",
+};
+
 export default function MfaManager() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [disableMfaDialogOpen, setDisableMfaDialogOpen] = useState(false);
+  const [disableMfaTarget, setDisableMfaTarget] = useState<{ id: string; name: string } | null>(
+    null
+  );
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -33,7 +49,7 @@ export default function MfaManager() {
       }
 
       const usersWithMfa: User[] = await Promise.all(
-        response.data.accounts.map(async (account) => {
+        response.accounts.map(async (account) => {
           let backupCodesCount = 0;
           if (account.mfaEnabled) {
             try {
@@ -42,7 +58,7 @@ export default function MfaManager() {
                 backupCodesCount = mfaResponse.mfa.backupCodesCount;
               }
             } catch {
-              // MFA status fetch failed — use default count
+              // MFA status fetch failed -- use default count
             }
           }
           return {
@@ -68,40 +84,35 @@ export default function MfaManager() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleForceDisableMfa = async (userId: string, reason: string) => {
+  const handleForceDisableMfa = useCallback(async (userId: string, reason: string) => {
     try {
       setActionLoading(userId);
-
       const response = await api.security.mfa.forceDisable(userId, reason);
       if (!response.ok) {
         throw new Error("Failed to disable MFA");
       }
-
-      // Update local state
       setUsers((prev) =>
         prev.map((user) =>
           user.id === userId ? { ...user, mfaEnabled: false, backupCodesCount: 0 } : user
         )
       );
-
-      alert("MFA disabled successfully");
+      toast({ title: "Success", description: "MFA disabled successfully" });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to disable MFA");
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to disable MFA",
+        variant: "destructive",
+      });
     } finally {
       setActionLoading(null);
     }
-  };
+  }, []);
 
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded-sm mb-4"></div>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 bg-gray-200 rounded-sm"></div>
-            ))}
-          </div>
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+        <div className="flex justify-center items-center h-32">
+          <LoadingSpinner size="lg" label="Loading MFA data..." />
         </div>
       </div>
     );
@@ -109,39 +120,42 @@ export default function MfaManager() {
 
   if (error) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <h3 className="text-red-800 font-medium">Error Loading MFA Manager</h3>
-          <p className="text-red-600 mt-1">{error}</p>
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+        <div
+          className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-4"
+          role="alert"
+        >
+          <h3 className="text-[var(--error)] font-medium">Error Loading MFA Manager</h3>
+          <p className="text-[var(--error)] mt-1 text-sm">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border">
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-900">
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
           Multi-Factor Authentication Management
         </h2>
-        <p className="text-gray-600">Manage MFA settings for admin users</p>
+        <p className="text-[var(--text-secondary)] text-sm">Manage MFA settings for admin users</p>
       </div>
 
-      {/* MFA Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="text-sm text-gray-600">Total Users</div>
-          <div className="text-2xl font-bold text-gray-900">{users.length}</div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="bg-[var(--bg-elevated)] p-4 rounded-lg">
+          <div className="text-sm text-[var(--text-secondary)]">Total Users</div>
+          <div className="text-2xl font-bold text-[var(--text-primary)]">{users.length}</div>
         </div>
-        <div className="bg-green-50 p-4 rounded-lg">
-          <div className="text-sm text-green-600">MFA Enabled</div>
-          <div className="text-2xl font-bold text-green-900">
+        <div className="bg-[var(--success-subtle)] p-4 rounded-lg">
+          <div className="text-sm text-[var(--success)]">MFA Enabled</div>
+          <div className="text-2xl font-bold text-[var(--text-primary)]">
             {users.filter((u) => u.mfaEnabled).length}
           </div>
         </div>
-        <div className="bg-red-50 p-4 rounded-lg">
-          <div className="text-sm text-red-600">MFA Disabled</div>
-          <div className="text-2xl font-bold text-red-900">
+        <div className="bg-[var(--error-subtle)] p-4 rounded-lg">
+          <div className="text-sm text-[var(--error)]">MFA Disabled</div>
+          <div className="text-2xl font-bold text-[var(--text-primary)]">
             {users.filter((u) => !u.mfaEnabled).length}
           </div>
         </div>
@@ -150,67 +164,50 @@ export default function MfaManager() {
       {/* User List */}
       <div className="space-y-4">
         {users.map((user) => (
-          <div key={user.id} className="border rounded-lg p-4">
+          <div key={user.id} className="border border-[var(--border-subtle)] rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-3">
                   <div>
-                    <h3 className="font-medium text-gray-900">{user.name}</h3>
-                    <p className="text-sm text-gray-600">{user.email}</p>
+                    <h3 className="font-medium text-[var(--text-primary)]">{user.name}</h3>
+                    <p className="text-sm text-[var(--text-secondary)]">{user.email}</p>
                   </div>
-                  <span
-                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.role === "SUPER_ADMIN"
-                        ? "bg-purple-100 text-purple-800"
-                        : user.role === "ADMIN"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {user.role}
-                  </span>
+                  <Badge variant={ROLE_VARIANT[user.role] ?? "neutral"}>{user.role}</Badge>
                 </div>
-                <div className="mt-2 flex items-center space-x-4">
-                  <span
-                    className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.mfaEnabled ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full mr-1 ${
-                        user.mfaEnabled ? "bg-green-500" : "bg-red-500"
-                      }`}
-                    ></div>
+                <div className="mt-2 flex items-center gap-4">
+                  <Badge variant={user.mfaEnabled ? "success" : "error"}>
                     MFA {user.mfaEnabled ? "Enabled" : "Disabled"}
-                  </span>
+                  </Badge>
                   {user.mfaEnabled && (
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs text-[var(--text-secondary)]">
                       {user.backupCodesCount} backup codes remaining
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <button
+              <div className="flex items-center gap-2">
+                <ActionButton
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setSelectedUser(user)}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-sm hover:bg-gray-50"
+                  aria-label={`View details for ${user.name}`}
                 >
                   View Details
-                </button>
+                </ActionButton>
                 {user.mfaEnabled && (
-                  <button
+                  <ActionButton
+                    variant="danger"
+                    size="sm"
                     onClick={() => {
-                      const reason = prompt("Please provide a reason for disabling MFA:");
-                      if (reason) {
-                        handleForceDisableMfa(user.id, reason);
-                      }
+                      setDisableMfaTarget({ id: user.id, name: user.name });
+                      setDisableMfaDialogOpen(true);
                     }}
-                    disabled={actionLoading === user.id}
-                    className="px-3 py-1 text-sm bg-red-600 text-white rounded-sm hover:bg-red-700 disabled:opacity-50"
+                    loading={actionLoading === user.id}
+                    aria-label={`Force disable MFA for ${user.name}`}
                   >
-                    {actionLoading === user.id ? "Disabling..." : "Force Disable"}
-                  </button>
+                    Force Disable
+                  </ActionButton>
                 )}
               </div>
             </div>
@@ -218,71 +215,79 @@ export default function MfaManager() {
         ))}
       </div>
 
-      {/* User Detail Modal */}
+      {/* Detail Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-[var(--bg-base)]/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-[var(--bg-surface)] rounded-lg max-w-md w-full p-6 border border-[var(--border-default)]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">MFA Details</h3>
-              <button
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">MFA Details</h3>
+              <ActionButton
+                variant="secondary"
+                size="sm"
                 onClick={() => setSelectedUser(null)}
-                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close modal"
               >
-                ✕
-              </button>
+                Close
+              </ActionButton>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700">User</label>
+                <span className="text-sm font-medium text-[var(--text-secondary)]">User</span>
                 <div className="mt-1">
-                  <div className="font-medium">{selectedUser.name}</div>
-                  <div className="text-sm text-gray-600">{selectedUser.email}</div>
-                  <div className="text-sm text-gray-600">Role: {selectedUser.role}</div>
+                  <div className="font-medium text-[var(--text-primary)]">{selectedUser.name}</div>
+                  <div className="text-sm text-[var(--text-secondary)]">{selectedUser.email}</div>
+                  <div className="text-sm text-[var(--text-secondary)]">
+                    Role: {selectedUser.role}
+                  </div>
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700">MFA Status</label>
+                <span className="text-sm font-medium text-[var(--text-secondary)]">MFA Status</span>
                 <div className="mt-1">
-                  <span
-                    className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
-                      selectedUser.mfaEnabled
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
+                  <Badge variant={selectedUser.mfaEnabled ? "success" : "error"}>
                     {selectedUser.mfaEnabled ? "Enabled" : "Disabled"}
-                  </span>
+                  </Badge>
                 </div>
               </div>
 
               {selectedUser.mfaEnabled && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Backup Codes</label>
-                  <div className="mt-1 text-sm text-gray-900">
+                  <span className="text-sm font-medium text-[var(--text-secondary)]">
+                    Backup Codes
+                  </span>
+                  <div className="mt-1 text-sm text-[var(--text-primary)]">
                     {selectedUser.backupCodesCount} codes remaining
                   </div>
                   {selectedUser.backupCodesCount < 3 && (
-                    <div className="text-sm text-amber-600 mt-1">
-                      ⚠️ Low backup codes - user should regenerate
+                    <div className="text-sm text-[var(--warning)] mt-1">
+                      Low backup codes - user should regenerate
                     </div>
                   )}
                 </div>
               )}
             </div>
-
-            <div className="mt-6 flex justify-end space-x-2">
-              <button
-                onClick={() => setSelectedUser(null)}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-sm hover:bg-gray-50"
-              >
-                Close
-              </button>
-            </div>
           </div>
         </div>
       )}
+      <InputDialog
+        open={disableMfaDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) setDisableMfaTarget(null);
+          setDisableMfaDialogOpen(open);
+        }}
+        title="Disable MFA"
+        description={disableMfaTarget ? `Force disable MFA for ${disableMfaTarget.name}` : ""}
+        inputLabel="Reason"
+        inputPlaceholder="e.g., User lost their authenticator device"
+        onConfirm={async (reason) => {
+          if (!disableMfaTarget || !reason.trim()) return;
+          await handleForceDisableMfa(disableMfaTarget.id, reason);
+          setDisableMfaTarget(null);
+          setDisableMfaDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -9,7 +9,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GenerateImageUseCase } from "../application/ai-image/GenerateImageUseCase.js";
 import type { ListGeneratedImagesQuery } from "../application/ai-image/ListGeneratedImagesQuery.js";
@@ -149,7 +149,7 @@ export const aiImageRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/ai/generate-image",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI Images"], summary: "Generate AI image from prompt" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.generateImage(request, reply)
@@ -159,7 +159,7 @@ export const aiImageRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/ai/generated-images",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["AI Images"], summary: "List generated images" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.listGeneratedImages(request, reply)

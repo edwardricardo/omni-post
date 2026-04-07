@@ -7,15 +7,8 @@
  */
 
 import { useState, useEffect } from "react";
+import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Switch,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -31,21 +24,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Textarea as _Textarea,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from "@packages/ui";
+import { Badge } from "@/components/ui/Badge";
+import { ActionButton } from "@/components/ui/ActionButton";
 import {
   Plus,
   Settings,
@@ -137,7 +118,7 @@ export function WebhookSubscriptions() {
   const fetchSubscriptions = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/webhooks/dashboard/subscriptions", {
+      const response = await fetch("/api/backend/api/webhooks/dashboard/subscriptions", {
         credentials: "include",
       });
 
@@ -157,7 +138,7 @@ export function WebhookSubscriptions() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects", {
+      const response = await fetch("/api/backend/projects", {
         credentials: "include",
       });
 
@@ -177,7 +158,7 @@ export function WebhookSubscriptions() {
 
   const createSubscription = async () => {
     try {
-      const response = await fetch("/api/webhooks/subscriptions", {
+      const response = await fetch("/api/backend/api/webhooks/subscriptions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -200,7 +181,7 @@ export function WebhookSubscriptions() {
 
   const toggleSubscription = async (id: string, isActive: boolean) => {
     try {
-      const response = await fetch(`/api/webhooks/subscriptions/${id}`, {
+      const response = await fetch(`/api/backend/api/webhooks/subscriptions/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -221,7 +202,7 @@ export function WebhookSubscriptions() {
 
   const deleteSubscription = async (id: string) => {
     try {
-      const response = await fetch(`/api/webhooks/subscriptions/${id}`, {
+      const response = await fetch(`/api/backend/api/webhooks/subscriptions/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -241,56 +222,41 @@ export function WebhookSubscriptions() {
   };
 
   const getProviderBadge = (provider: string) => {
-    const colors = {
-      X: "bg-black text-white",
-      INSTAGRAM: "bg-pink-100 text-pink-800",
-      FACEBOOK: "bg-blue-100 text-blue-800",
-      YOUTUBE: "bg-red-100 text-red-800",
-      TIKTOK: "bg-gray-100 text-gray-800",
+    const variantMap: Record<string, "info" | "error" | "neutral"> = {
+      X: "neutral",
+      INSTAGRAM: "error",
+      FACEBOOK: "info",
+      YOUTUBE: "error",
+      TIKTOK: "neutral",
     };
 
-    return (
-      <Badge
-        variant="outline"
-        className={colors[provider as keyof typeof colors] || "bg-gray-100 text-gray-800"}
-      >
-        {provider}
-      </Badge>
-    );
+    return <Badge variant={variantMap[provider] ?? "neutral"}>{provider}</Badge>;
   };
 
   const getHealthBadge = (successRate: number) => {
-    if (successRate >= 95)
-      return (
-        <Badge variant="default" className="bg-green-100 text-green-800">
-          Healthy
-        </Badge>
-      );
-    if (successRate >= 90)
-      return (
-        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-          Warning
-        </Badge>
-      );
-    return <Badge variant="destructive">Critical</Badge>;
+    if (successRate >= 95) return <Badge variant="success">Healthy</Badge>;
+    if (successRate >= 90) return <Badge variant="warning">Warning</Badge>;
+    return <Badge variant="error">Critical</Badge>;
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+      <div className="p-4">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Webhook Subscriptions</CardTitle>
-            <CardDescription>
+            <h3 className="text-base font-semibold text-[var(--text-primary)]">
+              Webhook Subscriptions
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)]">
               Manage your webhook subscriptions for real-time social media events
-            </CardDescription>
+            </p>
           </div>
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
-              <Button>
+              <ActionButton variant="primary">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Subscription
-              </Button>
+              </ActionButton>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -303,58 +269,65 @@ export function WebhookSubscriptions() {
 
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="provider">Provider</Label>
-                  <Select
+                  <label
+                    htmlFor="provider"
+                    className="block text-sm font-medium text-[var(--text-primary)] mb-1"
+                  >
+                    Provider
+                  </label>
+                  <select
+                    id="provider"
                     value={newSubscription.provider}
-                    onValueChange={(value) =>
+                    onChange={(e) =>
                       setNewSubscription((prev) => ({
                         ...prev,
-                        provider: value,
-                        eventTypes: [], // Reset event types when provider changes
+                        provider: e.target.value,
+                        eventTypes: [],
                       }))
                     }
+                    className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="X">X (Twitter)</SelectItem>
-                      <SelectItem value="INSTAGRAM">Instagram</SelectItem>
-                      <SelectItem value="FACEBOOK">Facebook</SelectItem>
-                      <SelectItem value="YOUTUBE">YouTube</SelectItem>
-                      <SelectItem value="TIKTOK">TikTok</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <option value="">Select a provider</option>
+                    <option value="X">X (Twitter)</option>
+                    <option value="INSTAGRAM">Instagram</option>
+                    <option value="FACEBOOK">Facebook</option>
+                    <option value="YOUTUBE">YouTube</option>
+                    <option value="TIKTOK">TikTok</option>
+                  </select>
                 </div>
 
                 <div>
-                  <Label htmlFor="project">Project (Optional)</Label>
-                  <Select
+                  <label
+                    htmlFor="project"
+                    className="block text-sm font-medium text-[var(--text-primary)] mb-1"
+                  >
+                    Project (Optional)
+                  </label>
+                  <select
+                    id="project"
                     value={newSubscription.projectId || ""}
-                    onValueChange={(value) =>
+                    onChange={(e) =>
                       setNewSubscription((prev) => ({
                         ...prev,
-                        ...(value && { projectId: value }),
+                        ...(e.target.value && { projectId: e.target.value }),
                       }))
                     }
+                    className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All projects" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All projects</SelectItem>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="">All projects</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {newSubscription.provider && (
                   <div>
-                    <Label>Event Types</Label>
+                    <span className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                      Event Types
+                    </span>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       {PROVIDER_EVENT_TYPES[
                         newSubscription.provider as keyof typeof PROVIDER_EVENT_TYPES
@@ -379,12 +352,12 @@ export function WebhookSubscriptions() {
                             }}
                             className="rounded"
                           />
-                          <Label htmlFor={eventType} className="text-sm">
+                          <label htmlFor={eventType} className="text-sm text-[var(--text-primary)]">
                             {eventType
                               .replace(/_/g, " ")
                               .toLowerCase()
                               .replace(/\b\w/g, (l) => l.toUpperCase())}
-                          </Label>
+                          </label>
                         </div>
                       ))}
                     </div>
@@ -394,82 +367,106 @@ export function WebhookSubscriptions() {
                 {(newSubscription.provider === "FACEBOOK" ||
                   newSubscription.provider === "INSTAGRAM") && (
                   <div>
-                    <Label htmlFor="verifyToken">Verify Token (Optional)</Label>
-                    <Input
+                    <label
+                      htmlFor="verifyToken"
+                      className="block text-sm font-medium text-[var(--text-primary)] mb-1"
+                    >
+                      Verify Token (Optional)
+                    </label>
+                    <input
                       id="verifyToken"
                       value={newSubscription.verifyToken || ""}
                       onChange={(e) =>
                         setNewSubscription((prev) => ({ ...prev, verifyToken: e.target.value }))
                       }
                       placeholder="Custom verification token"
+                      className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                     />
                   </div>
                 )}
               </div>
 
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                <ActionButton variant="secondary" onClick={() => setShowCreateDialog(false)}>
                   Cancel
-                </Button>
-                <Button
+                </ActionButton>
+                <ActionButton
+                  variant="primary"
                   onClick={createSubscription}
                   disabled={!newSubscription.provider || newSubscription.eventTypes.length === 0}
                 >
                   Create Subscription
-                </Button>
+                </ActionButton>
               </div>
             </DialogContent>
           </Dialog>
         </div>
-      </CardHeader>
-      <CardContent>
+      </div>
+      <div className="p-4 pt-0">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <LoadingSpinner size="lg" />
           </div>
         ) : error ? (
           <div className="text-center py-8">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={fetchSubscriptions} variant="outline">
+            <p className="text-[var(--error)] mb-4">{error}</p>
+            <ActionButton onClick={fetchSubscriptions} variant="secondary">
               Retry
-            </Button>
+            </ActionButton>
           </div>
         ) : subscriptions.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-[var(--text-secondary)]">
             <p className="mb-4">No webhook subscriptions configured</p>
-            <Button onClick={() => setShowCreateDialog(true)}>
+            <ActionButton variant="primary" onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Create your first subscription
-            </Button>
+            </ActionButton>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Provider</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Events</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Health</TableHead>
-                <TableHead>Last Event</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border-subtle)]">
+                <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                  Provider
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                  Project
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                  Events
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                  Status
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                  Health
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                  Last Event
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               {subscriptions.map((subscription) => (
-                <TableRow key={subscription.id}>
-                  <TableCell>{getProviderBadge(subscription.provider)}</TableCell>
-                  <TableCell>
+                <tr
+                  key={subscription.id}
+                  className="border-b border-[var(--border-subtle)] last:border-0"
+                >
+                  <td className="px-3 py-2">{getProviderBadge(subscription.provider)}</td>
+                  <td className="px-3 py-2">
                     {subscription.project ? (
                       <span className="text-sm">{subscription.project.name}</span>
                     ) : (
-                      <span className="text-sm text-gray-500">All projects</span>
+                      <span className="text-sm text-[var(--text-secondary)]">All projects</span>
                     )}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-1">
                       {subscription.eventTypes.slice(0, 2).map((eventType) => (
-                        <Badge key={eventType} variant="secondary" className="text-xs">
+                        <Badge key={eventType} variant="neutral" size="sm">
                           {eventType
                             .replace(/_/g, " ")
                             .toLowerCase()
@@ -477,46 +474,62 @@ export function WebhookSubscriptions() {
                         </Badge>
                       ))}
                       {subscription.eventTypes.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="neutral" size="sm">
                           +{subscription.eventTypes.length - 2} more
                         </Badge>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-3 py-2">
                     <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={subscription.isActive}
-                        onCheckedChange={(checked) => toggleSubscription(subscription.id, checked)}
-                      />
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={subscription.isActive}
+                        onClick={() => toggleSubscription(subscription.id, !subscription.isActive)}
+                        className={[
+                          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
+                          subscription.isActive ? "bg-[var(--accent)]" : "bg-[var(--bg-elevated)]",
+                        ].join(" ")}
+                      >
+                        <span
+                          className={[
+                            "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform",
+                            subscription.isActive ? "translate-x-4" : "translate-x-0",
+                          ].join(" ")}
+                        />
+                      </button>
                       <span className="text-sm">
                         {subscription.isActive ? "Active" : "Inactive"}
                       </span>
                     </div>
-                  </TableCell>
-                  <TableCell>{getHealthBadge(subscription.stats.successRate)}</TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-3 py-2">
+                    {getHealthBadge(Number(subscription.stats.successRate))}
+                  </td>
+                  <td className="px-3 py-2">
                     {subscription.lastEventAt ? (
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-[var(--text-secondary)]">
                         {formatDistanceToNow(new Date(subscription.lastEventAt), {
                           addSuffix: true,
                         })}
                       </span>
                     ) : (
-                      <span className="text-sm text-gray-400">Never</span>
+                      <span className="text-sm text-[var(--text-tertiary)]">Never</span>
                     )}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-3 py-2">
                     <div className="flex items-center space-x-2">
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button
-                            variant="ghost"
+                          <ActionButton
+                            variant="secondary"
                             size="sm"
                             onClick={() => setShowSetupDialog(subscription)}
                           >
                             <Settings className="h-4 w-4" />
-                          </Button>
+                          </ActionButton>
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl">
                           <DialogHeader>
@@ -528,48 +541,54 @@ export function WebhookSubscriptions() {
                           {showSetupDialog && (
                             <div className="space-y-4">
                               <div>
-                                <Label className="text-sm font-medium">Webhook URL</Label>
+                                <span className="text-sm font-medium text-[var(--text-primary)]">
+                                  Webhook URL
+                                </span>
                                 <div className="flex items-center space-x-2 mt-1">
-                                  <Input
+                                  <input
                                     value={subscription.webhookUrl}
                                     readOnly
-                                    className="bg-gray-50"
+                                    className="flex-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
                                   />
-                                  <Button
-                                    variant="outline"
+                                  <ActionButton
+                                    variant="secondary"
                                     size="sm"
                                     onClick={() => copyToClipboard(subscription.webhookUrl)}
                                   >
                                     <Copy className="h-4 w-4" />
-                                  </Button>
+                                  </ActionButton>
                                 </div>
                               </div>
 
                               {subscription.verifyToken && (
                                 <div>
-                                  <Label className="text-sm font-medium">Verification Token</Label>
+                                  <span className="text-sm font-medium text-[var(--text-primary)]">
+                                    Verification Token
+                                  </span>
                                   <div className="flex items-center space-x-2 mt-1">
-                                    <Input
+                                    <input
                                       value={subscription.verifyToken}
                                       readOnly
-                                      className="bg-gray-50"
+                                      className="flex-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
                                     />
-                                    <Button
-                                      variant="outline"
+                                    <ActionButton
+                                      variant="secondary"
                                       size="sm"
                                       onClick={() => copyToClipboard(subscription.verifyToken!)}
                                     >
                                       <Copy className="h-4 w-4" />
-                                    </Button>
+                                    </ActionButton>
                                   </div>
                                 </div>
                               )}
 
                               <div>
-                                <Label className="text-sm font-medium">Subscribed Events</Label>
+                                <span className="text-sm font-medium text-[var(--text-primary)]">
+                                  Subscribed Events
+                                </span>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                   {subscription.eventTypes.map((eventType) => (
-                                    <Badge key={eventType} variant="secondary">
+                                    <Badge key={eventType} variant="neutral">
                                       {eventType
                                         .replace(/_/g, " ")
                                         .toLowerCase()
@@ -580,31 +599,41 @@ export function WebhookSubscriptions() {
                               </div>
 
                               <div>
-                                <Label className="text-sm font-medium">Statistics</Label>
+                                <span className="text-sm font-medium text-[var(--text-primary)]">
+                                  Statistics
+                                </span>
                                 <div className="grid grid-cols-2 gap-4 mt-2">
                                   <div>
                                     <div className="text-2xl font-bold">
-                                      {subscription.stats.totalEvents.toLocaleString()}
+                                      {Number(subscription.stats.totalEvents).toLocaleString()}
                                     </div>
-                                    <div className="text-sm text-gray-600">Total Events</div>
+                                    <div className="text-sm text-[var(--text-secondary)]">
+                                      Total Events
+                                    </div>
                                   </div>
                                   <div>
                                     <div className="text-2xl font-bold">
-                                      {subscription.stats.recentEvents.toLocaleString()}
+                                      {Number(subscription.stats.recentEvents).toLocaleString()}
                                     </div>
-                                    <div className="text-sm text-gray-600">Last 24h</div>
+                                    <div className="text-sm text-[var(--text-secondary)]">
+                                      Last 24h
+                                    </div>
                                   </div>
                                   <div>
                                     <div className="text-2xl font-bold">
-                                      {subscription.stats.failedEvents.toLocaleString()}
+                                      {Number(subscription.stats.failedEvents).toLocaleString()}
                                     </div>
-                                    <div className="text-sm text-gray-600">Failed</div>
+                                    <div className="text-sm text-[var(--text-secondary)]">
+                                      Failed
+                                    </div>
                                   </div>
                                   <div>
-                                    <div className="text-2xl font-bold text-green-600">
-                                      {subscription.stats.successRate.toFixed(1)}%
+                                    <div className="text-2xl font-bold text-[var(--success)]">
+                                      {Number(subscription.stats.successRate).toFixed(1)}%
                                     </div>
-                                    <div className="text-sm text-gray-600">Success Rate</div>
+                                    <div className="text-sm text-[var(--text-secondary)]">
+                                      Success Rate
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -615,13 +644,9 @@ export function WebhookSubscriptions() {
 
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
+                          <ActionButton variant="danger" size="sm">
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </ActionButton>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
@@ -635,7 +660,7 @@ export function WebhookSubscriptions() {
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => deleteSubscription(subscription.id)}
-                              className="bg-red-600 hover:bg-red-700"
+                              className="bg-[var(--error)] hover:opacity-90"
                             >
                               Delete
                             </AlertDialogAction>
@@ -643,13 +668,13 @@ export function WebhookSubscriptions() {
                         </AlertDialogContent>
                       </AlertDialog>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

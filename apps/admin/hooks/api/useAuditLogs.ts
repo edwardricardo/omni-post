@@ -23,7 +23,7 @@ export function useAuditLogs(filters?: AuditLogFilters) {
         throw new Error("Failed to fetch audit logs");
       }
 
-      return response.data.logs;
+      return response.logs;
     },
     staleTime: 30_000, // 30 seconds — logs should be relatively fresh
     refetchInterval: 30_000, // Auto-refresh every 30 seconds

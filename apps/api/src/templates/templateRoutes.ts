@@ -17,7 +17,7 @@
  */
 import { FastifyPluginAsync } from "fastify";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { TemplateService } from "./templateService.js";
 import type { templateAnalytics as TemplateAnalyticsType } from "./templateAnalytics.js";
 import { TemplateRouteHandler } from "./TemplateHandlers.js";
@@ -35,7 +35,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/projects/:projectId/templates",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "List templates for project" },
     },
     (request, reply) => handler.getTemplates(request, reply)
@@ -44,7 +44,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/projects/:projectId/templates/:templateId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Get template by ID" },
     },
     (request, reply) => handler.getTemplate(request, reply)
@@ -53,7 +53,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/projects/:projectId/templates",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Create template" },
     },
     (request, reply) => handler.createTemplate(request, reply)
@@ -62,7 +62,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/projects/:projectId/templates/:templateId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Update template" },
     },
     (request, reply) => handler.updateTemplate(request, reply)
@@ -71,7 +71,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete(
     "/projects/:projectId/templates/:templateId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Delete template" },
     },
     (request, reply) => handler.deleteTemplate(request, reply)
@@ -82,7 +82,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/projects/:projectId/templates/:templateId/duplicate",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Duplicate template" },
     },
     (request, reply) => handler.duplicateTemplate(request, reply)
@@ -91,7 +91,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/projects/:projectId/templates/:templateId/compile",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Compile template" },
     },
     (request, reply) => handler.compileTemplate(request, reply)
@@ -100,7 +100,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/projects/:projectId/templates/:templateId/validate",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Validate template" },
     },
     (request, reply) => handler.validateTemplate(request, reply)
@@ -111,7 +111,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/projects/:projectId/templates/:templateId/versions",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "List template versions" },
     },
     (request, reply) => handler.getTemplateVersions(request, reply)
@@ -120,7 +120,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/projects/:projectId/templates/:templateId/versions",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Create template version" },
     },
     (request, reply) => handler.createTemplateVersion(request, reply)
@@ -129,7 +129,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/projects/:projectId/templates/:templateId/versions/:versionId/restore",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Restore template version" },
     },
     (request, reply) => handler.restoreTemplateVersion(request, reply)
@@ -140,7 +140,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/projects/:projectId/templates/analytics",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Get template analytics" },
     },
     (request, reply) => handler.getTemplateAnalytics(request, reply)
@@ -149,7 +149,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/projects/:projectId/templates/:templateId/usage",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Track template usage" },
     },
     (request, reply) => handler.trackTemplateUsage(request, reply)
@@ -160,7 +160,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/projects/:projectId/templates/ab-tests",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "List A/B tests" },
     },
     (request, reply) => handler.getABTests(request, reply)
@@ -169,7 +169,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/projects/:projectId/templates/ab-tests",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Create A/B test" },
     },
     (request, reply) => handler.createABTest(request, reply)
@@ -178,7 +178,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/projects/:projectId/templates/ab-tests/:testId/start",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Start A/B test" },
     },
     (request, reply) => handler.startABTest(request, reply)
@@ -187,7 +187,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/projects/:projectId/templates/ab-tests/:testId/stop",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Stop A/B test" },
     },
     (request, reply) => handler.stopABTest(request, reply)
@@ -196,7 +196,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/projects/:projectId/templates/ab-tests/:testId/results",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Get A/B test results" },
     },
     (request, reply) => handler.getABTestResults(request, reply)
@@ -207,7 +207,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/platforms/:platform/limits",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Get platform limits" },
     },
     (request, reply) => handler.getPlatformLimits(request, reply)
@@ -216,7 +216,7 @@ const templateRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/platforms",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Templates"], summary: "Get supported platforms" },
     },
     (request, reply) => handler.getSupportedPlatforms(request, reply)

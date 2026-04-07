@@ -13,7 +13,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { GetBrandKitQuery } from "../application/brand-kit/GetBrandKitQuery.js";
 import type { UpsertBrandKitUseCase } from "../application/brand-kit/UpsertBrandKitUseCase.js";
 import type { DeleteBrandKitUseCase } from "../application/brand-kit/DeleteBrandKitUseCase.js";
@@ -142,7 +142,7 @@ export const brandKitRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/brand-kit/:accountId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Brand Kit"], summary: "Get brand kit for account" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.get(request, reply)
@@ -151,7 +151,7 @@ export const brandKitRoutes: FastifyPluginAsync = async (app) => {
   app.put(
     "/api/brand-kit/:accountId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Brand Kit"], summary: "Upsert brand kit for account" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.upsert(request, reply)
@@ -160,7 +160,7 @@ export const brandKitRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/brand-kit/:accountId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Brand Kit"], summary: "Delete brand kit for account" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.delete(request, reply)

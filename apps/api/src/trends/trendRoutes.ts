@@ -21,7 +21,7 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { PrismaClient } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TrendAnalysisService } from "./trendAnalysisService.js";
 import {
   categorizeTrendingContent,
@@ -368,7 +368,7 @@ export const trendRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/trends/analysis",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Trends"], summary: "Retrieve trending content with optional filters" },
     },
     async (request, reply) => handler.getTrendingContent(request, reply)
@@ -378,7 +378,7 @@ export const trendRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/trends/viral",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Trends"], summary: "Analyze viral DNA of a content item" },
     },
     async (request, reply) => handler.analyzeViralContent(request, reply)
@@ -388,7 +388,7 @@ export const trendRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/trends/opportunities",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Trends"], summary: "Discover content opportunity gaps" },
     },
     async (request, reply) => handler.discoverOpportunities(request, reply)
@@ -398,7 +398,7 @@ export const trendRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/trends/predictions",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Trends"], summary: "Generate trend predictions" },
     },
     async (request, reply) => handler.generatePredictions(request, reply)
@@ -408,7 +408,7 @@ export const trendRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/trends/report",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Trends"], summary: "Generate a comprehensive trend report" },
     },
     async (request, reply) => handler.generateTrendReport(request, reply)

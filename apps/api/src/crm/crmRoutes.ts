@@ -15,7 +15,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { ConnectCrmUseCase } from "../application/crm/ConnectCrmUseCase.js";
 import type { DisconnectCrmUseCase } from "../application/crm/DisconnectCrmUseCase.js";
 import type { GetCrmConnectionsQuery } from "../application/crm/GetCrmConnectionsQuery.js";
@@ -194,7 +194,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/crm/connections",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "List CRM connections for account" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.listConnections(request, reply)
@@ -203,7 +203,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/crm/:platform/connect",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Connect a CRM platform" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.connect(request, reply)
@@ -212,7 +212,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/crm/:platform/sync",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Trigger CRM contact sync" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.triggerSync(request, reply)
@@ -221,7 +221,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/crm/:platform/disconnect",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Disconnect a CRM platform" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.disconnect(request, reply)
@@ -230,7 +230,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/crm/:platform/sync-logs",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Get CRM sync logs for platform" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.syncLogs(request, reply)
@@ -240,7 +240,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/crm/hubspot/authorize",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Get HubSpot OAuth authorization URL" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -262,7 +262,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/crm/salesforce/authorize",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Get Salesforce OAuth authorization URL" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {

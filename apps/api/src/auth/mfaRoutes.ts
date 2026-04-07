@@ -3,7 +3,8 @@ import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
 import type { MfaService } from "./mfaService.js";
-import { authenticateMiddleware, requireAdmin } from "./authMiddleware.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requireClientAuth } from "./customerAuthMiddleware.js";
 import type { AuditService } from "../audit/auditService.js";
 import type { AuthenticatedUser } from "./authService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
@@ -63,7 +64,7 @@ class MfaRouteHandler extends BaseRouteHandler {
   async getMfaStatus(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const userId = request.user?.id;
+    const userId = request.customerUser?.id;
     if (!userId) {
       return this.sendError(ctx, 401, "User not authenticated");
     }
@@ -85,8 +86,8 @@ class MfaRouteHandler extends BaseRouteHandler {
   async setupMfa(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const userId = request.user?.id;
-    const userEmail = request.user?.email;
+    const userId = request.customerUser?.id;
+    const userEmail = request.customerUser?.id;
 
     if (!userId || !userEmail) {
       return this.sendError(ctx, 401, "User not authenticated");
@@ -125,7 +126,7 @@ class MfaRouteHandler extends BaseRouteHandler {
   async verifyMfaSetup(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const userId = request.user?.id;
+    const userId = request.customerUser?.id;
     if (!userId) {
       return this.sendError(ctx, 401, "User not authenticated");
     }
@@ -216,7 +217,7 @@ class MfaRouteHandler extends BaseRouteHandler {
   async disableMfa(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const userId = request.user?.id;
+    const userId = request.customerUser?.id;
     if (!userId) {
       return this.sendError(ctx, 401, "User not authenticated");
     }
@@ -257,7 +258,7 @@ class MfaRouteHandler extends BaseRouteHandler {
   async regenerateBackupCodes(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const userId = request.user?.id;
+    const userId = request.customerUser?.id;
     if (!userId) {
       return this.sendError(ctx, 401, "User not authenticated");
     }
@@ -341,7 +342,7 @@ class MfaRouteHandler extends BaseRouteHandler {
 
     const { userId } = validated.value.params;
     const { reason } = validated.value.body;
-    const adminUserId = request.user?.id;
+    const adminUserId = request.auth?.user?.id;
 
     if (!adminUserId) {
       return this.sendError(ctx, 401, "Admin user ID not found");
@@ -390,21 +391,21 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
   const auditService = fastify.container!.resolve<AuditService>(TOKENS.AuditService);
   const handler = new MfaRouteHandler(mfaService, auditService);
 
-  // ✅ Get MFA status for current user
+  // ✅ Get MFA status for current customer user
   fastify.get(
     "/auth/mfa/status",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["MFA"], summary: "Get MFA status for current user" },
     },
     async (request, reply) => handler.getMfaStatus(request, reply)
   );
 
-  // ✅ Setup MFA for current user
+  // ✅ Setup MFA for current customer user
   fastify.post(
     "/auth/mfa/setup",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["MFA"], summary: "Setup MFA for current user" },
     },
     async (request, reply) => handler.setupMfa(request, reply)
@@ -414,31 +415,31 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/auth/mfa/verify-setup",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["MFA"], summary: "Verify MFA setup" },
     },
     async (request, reply) => handler.verifyMfaSetup(request, reply)
   );
 
-  // ✅ Verify MFA token (used during login flow)
+  // ✅ Verify MFA token (used during login flow — no auth required)
   fastify.post(
     "/auth/mfa/verify",
     { schema: { tags: ["MFA"], summary: "Verify MFA token during login" } },
     async (request, reply) => handler.verifyMfaToken(request, reply)
   );
 
-  // ✅ Disable MFA
+  // ✅ Disable MFA for current customer user
   fastify.post(
     "/auth/mfa/disable",
-    { preHandler: [authenticateMiddleware], schema: { tags: ["MFA"], summary: "Disable MFA" } },
+    { preHandler: [requireClientAuth], schema: { tags: ["MFA"], summary: "Disable MFA" } },
     async (request, reply) => handler.disableMfa(request, reply)
   );
 
-  // ✅ Regenerate backup codes
+  // ✅ Regenerate backup codes for current customer user
   fastify.post(
     "/auth/mfa/regenerate-backup-codes",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["MFA"], summary: "Regenerate backup codes" },
     },
     async (request, reply) => handler.regenerateBackupCodes(request, reply)
@@ -448,7 +449,7 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/users/:userId/mfa/status",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["MFA"], summary: "Admin: Get MFA status for a user" },
     },
     async (request, reply) => handler.getAdminMfaStatus(request, reply)
@@ -458,7 +459,7 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/users/:userId/mfa/force-disable",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["MFA"], summary: "Admin: Force disable MFA for a user" },
     },
     async (request, reply) => handler.adminForceDisableMfa(request, reply)

@@ -1,0 +1,42 @@
+/**
+ * @file useBillingStats.ts
+ * @description React Query hook for fetching aggregated billing statistics
+ *   including MRR, active subscriptions, and grandfathered revenue.
+ * @layer presentation
+ */
+
+import { useQuery } from "@tanstack/react-query";
+
+export interface BillingStats {
+  totalRevenue: number;
+  monthlyRecurringRevenue: number;
+  activeSubscriptions: number;
+  grandfatheredRevenue: number;
+}
+
+/**
+ * @function useBillingStats
+ * @description Fetches billing aggregates from the admin billing stats endpoint.
+ * @returns TanStack Query result with BillingStats data
+ */
+export function useBillingStats() {
+  return useQuery({
+    queryKey: ["billing", "stats"],
+    queryFn: async (): Promise<BillingStats> => {
+      const res = await fetch("/api/backend/admin/billing/stats", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.ok || !json.data) throw new Error("Failed to fetch billing stats");
+      const raw = json.data.stats ?? json.data;
+      return {
+        totalRevenue: raw.totalRevenue?.total ?? raw.totalRevenue ?? 0,
+        monthlyRecurringRevenue: raw.totalRevenue?.monthly ?? 0,
+        activeSubscriptions: raw.totalSubscriptions ?? 0,
+        grandfatheredRevenue: 0, // API doesn't break out grandfathered separately
+      };
+    },
+    staleTime: 120_000,
+  });
+}

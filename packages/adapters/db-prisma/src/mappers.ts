@@ -45,21 +45,21 @@ export function mapProviderToDB(provider: AppProvider): Provider {
 }
 
 /**
- * Maps database subscription tier to application SubscriptionTier
+ * @deprecated SubscriptionTier mapping no longer needed with AccountSubscription model.
  */
 export function mapSubscriptionTierFromDB(tier: PrismaSubscriptionTier): SubscriptionTier {
   return tier as SubscriptionTier;
 }
 
 /**
- * Maps application SubscriptionTier to database subscription tier
+ * @deprecated SubscriptionTier mapping no longer needed with AccountSubscription model.
  */
 export function mapSubscriptionTierToDB(tier: SubscriptionTier): PrismaSubscriptionTier {
   return tier as PrismaSubscriptionTier;
 }
 
 /**
- * Returns the maximum number of projects allowed for a subscription tier
+ * @deprecated Use AccountSubscription.maxProjects instead.
  */
 export function getMaxProjectsForTier(tier: SubscriptionTier): number {
   switch (tier) {

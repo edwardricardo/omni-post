@@ -34,10 +34,11 @@ export interface LoginCredentials {
 
 /**
  * Backend API response wrapper
+ * The API uses `data` field (from BaseRouteHandler.sendSuccess)
  */
 interface ApiResponse<T> {
   ok: boolean;
-  value?: T;
+  data?: T;
   error?: string;
 }
 
@@ -104,10 +105,10 @@ export async function authenticateAdmin(
     const data: ApiResponse<LoginResponseData> = await response.json();
 
     // Handle MFA requirement — preserve the token so the caller can resubmit
-    if (data.value?.requiresMfa) {
+    if (data.data?.requiresMfa) {
       return {
         status: "mfa_required",
-        mfaSessionToken: data.value.mfaSessionToken ?? "",
+        mfaSessionToken: data.data.mfaSessionToken ?? "",
       };
     }
 
@@ -120,14 +121,14 @@ export async function authenticateAdmin(
     }
 
     // Validate expected shape
-    if (!data.value?.user || !data.value?.tokens) {
+    if (!data.data?.user || !data.data?.tokens) {
       return { status: "error", error: "Invalid response from server" };
     }
 
     return {
       status: "success",
-      user: data.value.user,
-      tokens: data.value.tokens,
+      user: data.data.user,
+      tokens: data.data.tokens,
     };
   } catch (error) {
     return {
@@ -159,11 +160,11 @@ export async function verifyAccessToken(accessToken: string): Promise<AdminUserP
 
     const data: ApiResponse<UserResponseData> = await response.json();
 
-    if (!data.ok || !data.value?.user) {
+    if (!data.ok || !data.data?.user) {
       return null;
     }
 
-    return data.value.user;
+    return data.data.user;
   } catch (error) {
     log.error("Network or parsing error during token verification", error);
     return null;

@@ -51,6 +51,9 @@ export const QUEUE_NAMES = {
 
   /** Trend radar — fetch and score trending topics */
   TREND_RADAR: "trend-radar",
+
+  /** Auto-renewal — convert expired trials to paid subscriptions (daily cron) */
+  AUTO_RENEWAL: "auto-renewal",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

@@ -4,7 +4,7 @@ import type { ProviderRegistryService } from "./providerRegistry.js";
 import type { ProviderService } from "./providerService.js";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // Provider-specific schemas
 const ProviderCapabilitySchema = z.enum([
@@ -253,7 +253,7 @@ const providerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/providers/active",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Providers"], summary: "Get active providers" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -264,7 +264,7 @@ const providerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/providers/by-capability/:capability",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Providers"], summary: "Get providers by capability" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -275,7 +275,7 @@ const providerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/providers/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Providers"], summary: "Get provider details by ID" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -286,7 +286,7 @@ const providerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/providers/:id/health",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Providers"], summary: "Check provider health" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -297,7 +297,7 @@ const providerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/providers/health/all",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Providers"], summary: "Check all providers health" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -308,7 +308,7 @@ const providerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/providers/connections/:projectId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Providers"], summary: "Get provider connections for a project" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {

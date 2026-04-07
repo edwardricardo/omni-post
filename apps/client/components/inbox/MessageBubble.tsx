@@ -12,9 +12,11 @@ import type { Message } from "@/hooks/api/useInbox";
 
 interface MessageBubbleProps {
   message: Message;
+  /** Called when the user clicks a suggested reply chip */
+  onSelectReply?: (text: string) => void;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onSelectReply }: MessageBubbleProps) {
   const isOutbound = message.direction === "OUTBOUND";
   const timeAgo = formatDistanceToNow(new Date(message.createdAt), { addSuffix: true });
 
@@ -65,6 +67,22 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         >
           {timeAgo}
         </p>
+
+        {/* AI Suggested replies */}
+        {!isOutbound && message.suggestedReplies && message.suggestedReplies.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {message.suggestedReplies.map((reply, i) => (
+              <button
+                key={i}
+                onClick={() => onSelectReply?.(reply)}
+                className="text-xs px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
+                aria-label={`Use suggested reply: ${reply}`}
+              >
+                {reply}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

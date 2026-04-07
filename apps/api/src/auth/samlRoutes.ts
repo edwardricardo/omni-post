@@ -21,7 +21,7 @@ import { z } from "zod";
 import { SAML } from "@node-saml/node-saml";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { authenticateMiddleware, requireAdmin } from "./authMiddleware.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import type { ConfigureSamlUseCase } from "../application/auth/ConfigureSamlUseCase.js";
 import type { EnableSsoUseCase } from "../application/auth/EnableSsoUseCase.js";
 import type { DisableSsoUseCase } from "../application/auth/DisableSsoUseCase.js";
@@ -69,7 +69,7 @@ class SamlAdminHandler extends BaseRouteHandler {
 
   async getConfig(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.accountId ?? request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -85,7 +85,7 @@ class SamlAdminHandler extends BaseRouteHandler {
 
   async configure(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.accountId ?? request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -118,7 +118,7 @@ class SamlAdminHandler extends BaseRouteHandler {
 
   async enableSso(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.accountId ?? request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -135,7 +135,7 @@ class SamlAdminHandler extends BaseRouteHandler {
 
   async disableSso(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const accountId = request.user?.accountId ?? request.user?.id;
+    const accountId = request.auth?.user?.id;
 
     if (!accountId) {
       return this.sendError(ctx, 401, "Authentication required");
@@ -203,7 +203,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/saml/config",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Get SAML configuration" },
     },
     (request: FastifyRequest, reply: FastifyReply) => adminHandler.getConfig(request, reply)
@@ -212,7 +212,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   app.put(
     "/api/saml/config",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Configure IdP settings" },
     },
     (request: FastifyRequest, reply: FastifyReply) => adminHandler.configure(request, reply)
@@ -221,7 +221,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/saml/enable",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Enable SSO for account" },
     },
     (request: FastifyRequest, reply: FastifyReply) => adminHandler.enableSso(request, reply)
@@ -230,7 +230,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/saml/disable",
     {
-      preHandler: [authenticateMiddleware, requireAdmin],
+      preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Disable SSO for account" },
     },
     (request: FastifyRequest, reply: FastifyReply) => adminHandler.disableSso(request, reply)

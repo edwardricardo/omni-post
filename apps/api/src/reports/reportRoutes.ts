@@ -9,7 +9,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // Use case / query types (type-only imports)
@@ -323,7 +323,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/reports",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "Create scheduled report" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.createReport(request, reply)
@@ -332,7 +332,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   app.patch(
     "/api/reports/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "Update scheduled report" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.updateReport(request, reply)
@@ -341,7 +341,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/api/reports/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "Delete scheduled report" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.deleteReport(request, reply)
@@ -350,7 +350,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/api/reports/:id/generate",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "Generate report manually" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.generateReport(request, reply)
@@ -361,7 +361,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/reports",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "List scheduled reports" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.listReports(request, reply)
@@ -370,7 +370,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/api/reports/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "Get scheduled report by ID" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.getReport(request, reply)

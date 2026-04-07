@@ -9,7 +9,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { CreateCommentUseCase } from "../application/comments/CreateCommentUseCase.js";
 import type { EditCommentUseCase } from "../application/comments/EditCommentUseCase.js";
@@ -253,7 +253,7 @@ export const commentRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/posts/:postId/comments",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Comments"], summary: "Create a comment on a post" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.createComment(request, reply)
@@ -263,7 +263,7 @@ export const commentRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/posts/:postId/comments",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Comments"], summary: "List comments for a post" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.listComments(request, reply)
@@ -273,7 +273,7 @@ export const commentRoutes: FastifyPluginAsync = async (app) => {
   app.patch(
     "/comments/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Comments"], summary: "Edit a comment" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.editComment(request, reply)
@@ -283,7 +283,7 @@ export const commentRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/comments/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Comments"], summary: "Soft-delete a comment" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.deleteComment(request, reply)

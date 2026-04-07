@@ -14,15 +14,24 @@ import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/m
 
 const { mockPrisma } = createMockPrismaModule();
 
-// DashboardService uses post, channel, analytics, publishLog via prisma
+// DashboardService uses post, channel, analytics, publishLog, accountSubscription via prisma
 const extraModels = {
   post: buildModelMock(createStore()),
   channel: buildModelMock(createStore()),
   analytics: buildModelMock(createStore()),
   publishLog: buildModelMock(createStore()),
   adminUserPermission: buildModelMock(createStore()),
+  accountSubscription: {
+    ...buildModelMock(createStore()),
+    groupBy: vi.fn(async () => []),
+  },
 };
 Object.assign(mockPrisma.prisma, extraModels);
+
+vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
+  const { createAdminAuthMock } = await import("./helpers/mockAuthMiddleware.js");
+  return createAdminAuthMock();
+});
 
 vi.mock("@infra/prisma", async (importOriginal) => {
   const original = await importOriginal<Record<string, unknown>>();
@@ -57,9 +66,8 @@ const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 await import("./admin/adminTestHelper.js");
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
 const { MfaService } = await import("../../src/auth/mfaService.js");
-const { PrismaAdminUserRepository } = await import(
-  "../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
-);
+const { PrismaAdminUserRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
 
 // Ensure no Redis for unit tests
 setRedisInstance(null as never);
@@ -484,8 +492,10 @@ describe("dashboardRoutes Unit Tests", () => {
       const response = await app.inject({ method: "GET", url: "/admin/dashboard/stats" });
       const body = JSON.parse(response.body);
       expect(response.statusCode).toBe(401);
+      expect(body.ok).toBe(false);
       expect(body.error).toBeTruthy();
-      expect(typeof body.error).toBe("string");
+      expect(body.error.code).toBe("INVALID_TOKEN");
+      expect(typeof body.error.message).toBe("string");
     });
   });
 });

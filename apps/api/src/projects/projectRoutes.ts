@@ -5,7 +5,7 @@ import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-com
 import type { PrismaClient } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // Zod Schemas for Validation
 const CreateProjectBodySchema = z.object({
@@ -344,7 +344,7 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/accounts/:accountId/projects",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Projects"], summary: "Create project for account" },
     },
     async (request, reply) => handler.createProject(request, reply)
@@ -354,7 +354,7 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/accounts/:accountId/projects",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Projects"], summary: "List projects for account" },
     },
     async (request, reply) => handler.listProjects(request, reply)
@@ -364,7 +364,7 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/projects/:projectId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Projects"], summary: "Get project by ID" },
     },
     async (request, reply) => handler.getProject(request, reply)
@@ -374,7 +374,7 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/projects/:projectId/publish-logs",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Projects"], summary: "Get publish logs for project" },
     },
     async (request, reply) => handler.getPublishLogs(request, reply)
@@ -384,7 +384,7 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete(
     "/projects/:projectId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Projects"], summary: "Delete project" },
     },
     async (request, reply) => handler.deleteProject(request, reply)

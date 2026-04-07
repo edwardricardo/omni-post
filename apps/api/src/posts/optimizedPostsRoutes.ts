@@ -26,7 +26,7 @@ import {
 } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { PostsService } from "./postsService.js";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // Validation Schemas
 const GetOptimizedPostsQuerySchema = z.object({
@@ -154,7 +154,7 @@ export function registerOptimizedPostsRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/posts/optimized",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Posts"], summary: "Get optimized posts list for dashboard" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -169,7 +169,7 @@ export function registerOptimizedPostsRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/dashboard/stats",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Posts"], summary: "Get dashboard statistics" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -184,7 +184,7 @@ export function registerOptimizedPostsRoutes(fastify: FastifyInstance) {
   fastify.post(
     "/api/cache/warm/:accountId",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Posts"], summary: "Warm cache for a specific account" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {

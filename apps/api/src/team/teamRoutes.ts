@@ -8,7 +8,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { authenticateMiddleware } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { InviteTeamMemberUseCase } from "../application/team/InviteTeamMemberUseCase.js";
 import type { GetTeamMembersQuery } from "../application/team/GetTeamMembersQuery.js";
@@ -268,7 +268,7 @@ export const teamRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/team",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Team"], summary: "List all team members for an account" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.listMembers(request, reply)
@@ -277,7 +277,7 @@ export const teamRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/team/mention-search",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Team"], summary: "Search team members for @mention autocomplete" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.mentionSearch(request, reply)
@@ -286,7 +286,7 @@ export const teamRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/team/invite",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Team"], summary: "Invite a new team member" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.invite(request, reply)
@@ -295,7 +295,7 @@ export const teamRoutes: FastifyPluginAsync = async (app) => {
   app.patch(
     "/team/:id/role",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Team"], summary: "Update a team member role" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.updateRole(request, reply)
@@ -304,7 +304,7 @@ export const teamRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/team/:id",
     {
-      preHandler: [authenticateMiddleware],
+      preHandler: [requireClientAuth],
       schema: { tags: ["Team"], summary: "Remove a team member" },
     },
     (request: FastifyRequest, reply: FastifyReply) => handler.remove(request, reply)

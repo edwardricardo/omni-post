@@ -7,6 +7,12 @@
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
+
+vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
+  const { createAdminAuthMock } = await import("./helpers/mockAuthMiddleware.js");
+  return createAdminAuthMock();
+});
+
 import Fastify, { FastifyInstance } from "fastify";
 import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { registerWebhookDashboardRoutes } from "../../src/webhooks/webhookDashboardRoutes.js";
@@ -18,6 +24,14 @@ import { prisma } from "@infra/prisma";
 import { createTestContainer } from "../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { ok, err } from "@shared/types";
+import jwt from "jsonwebtoken";
+
+// Generate a valid JWT token structure for the mocked middleware to decode
+const testToken = jwt.sign(
+  { sub: "test-user-123", email: "test@example.com", role: "ADMIN", accountId: "test-account-123" },
+  "test-secret-for-mock",
+  { expiresIn: "1h" }
+);
 
 // Create a local authService instance for mocking (no global singleton)
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
@@ -230,7 +244,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/metrics",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       const body = JSON.parse(response.body);
@@ -249,7 +263,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/metrics?timeRange=7d",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -259,7 +273,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/metrics?provider=X",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -269,7 +283,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/metrics?projectId=123e4567-e89b-12d3-a456-426614174000",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -279,7 +293,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/metrics?status=COMPLETED",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -289,7 +303,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/metrics?timeRange=invalid",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -299,7 +313,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/metrics?provider=INVALID",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -309,7 +323,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/metrics?projectId=not-a-uuid",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -319,7 +333,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/metrics?status=INVALID",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -340,7 +354,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       const body = JSON.parse(response.body);
@@ -358,7 +372,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events?page=2",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -368,7 +382,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events?limit=50",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -378,7 +392,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events?provider=INSTAGRAM",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -388,7 +402,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events?status=FAILED",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -398,7 +412,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events?search=post",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -408,7 +422,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events?page=0",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -418,7 +432,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events?limit=101",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -428,7 +442,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events?provider=INVALID",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -449,7 +463,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events/123e4567-e89b-12d3-a456-426614174000",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       const body = JSON.parse(response.body);
@@ -467,7 +481,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/events/not-a-uuid",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -488,7 +502,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/subscriptions",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       const body = JSON.parse(response.body);
@@ -516,7 +530,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/dead-letter",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       const body = JSON.parse(response.body);
@@ -531,7 +545,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/dead-letter?page=2&limit=10",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -541,7 +555,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/dead-letter?provider=X",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -551,7 +565,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/dead-letter?page=-1",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -572,7 +586,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "POST",
         url: "/api/webhooks/dashboard/dead-letter/123e4567-e89b-12d3-a456-426614174000/retry",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       const body = JSON.parse(response.body);
@@ -587,7 +601,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "POST",
         url: "/api/webhooks/dashboard/dead-letter/not-a-uuid/retry",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -622,7 +636,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/export",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -636,7 +650,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/export?timeRange=7d",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -650,7 +664,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/export?provider=INSTAGRAM",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -660,7 +674,7 @@ describe("webhookDashboardRoutes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/webhooks/dashboard/export?timeRange=invalid",
-        headers: { authorization: "Bearer valid-token" },
+        headers: { authorization: `Bearer ${testToken}` },
       });
 
       expect(response.statusCode).toBe(400);

@@ -103,6 +103,11 @@ export const TOKENS = {
   TemplateService: Symbol.for("TemplateService"),
   TemplateAnalytics: Symbol.for("TemplateAnalytics"),
   SubscriptionService: Symbol.for("SubscriptionService"),
+
+  // Billing Use Cases (provider-based model)
+  CreateAccountSubscriptionUseCase: Symbol.for("CreateAccountSubscriptionUseCase"),
+  ChangeAccountSubscriptionUseCase: Symbol.for("ChangeAccountSubscriptionUseCase"),
+  UpdatePricingConfigUseCase: Symbol.for("UpdatePricingConfigUseCase"),
   WebhookDashboardService: Symbol.for("WebhookDashboardService"),
   RealtimeWebhookBroadcaster: Symbol.for("RealtimeWebhookBroadcaster"),
   ProviderService: Symbol.for("ProviderService"),
@@ -403,6 +408,33 @@ export const TOKENS = {
   GetTopPerformersContextUseCase: Symbol.for("GetTopPerformersContextUseCase"),
   GeneratePlatformVariantsUseCase: Symbol.for("GeneratePlatformVariantsUseCase"),
   GenerateContentCalendarUseCase: Symbol.for("GenerateContentCalendarUseCase"),
+
+  // Referral Use Cases
+  ConvertReferralRepository: Symbol.for("ConvertReferralRepository"),
+  GrantRewardRepository: Symbol.for("GrantRewardRepository"),
+  ReferralRepository: Symbol.for("ReferralRepository"),
+  ReferralCodeRepository: Symbol.for("ReferralCodeRepository"),
+  ConvertReferralUseCase: Symbol.for("ConvertReferralUseCase"),
+  GrantReferralRewardUseCase: Symbol.for("GrantReferralRewardUseCase"),
+  TrackReferralSignupUseCase: Symbol.for("TrackReferralSignupUseCase"),
+  GetOrCreateReferralCodeUseCase: Symbol.for("GetOrCreateReferralCodeUseCase"),
+
+  // Inbox Triage
+  TriageMessagePort: Symbol.for("TriageMessagePort"),
+  TriageAIPort: Symbol.for("TriageAIPort"),
+  TriageCrmPort: Symbol.for("TriageCrmPort"),
+  TriageInboxMessageUseCase: Symbol.for("TriageInboxMessageUseCase"),
+
+  // Trend Scoring
+  ScoreTrendAIPort: Symbol.for("ScoreTrendAIPort"),
+  ScoreTrendContextPort: Symbol.for("ScoreTrendContextPort"),
+  ScoreTrendRelevanceUseCase: Symbol.for("ScoreTrendRelevanceUseCase"),
+
+  // AI Repurpose Use Cases (Sprint 9)
+  ApproveRepurposeVariantUseCase: Symbol.for("ApproveRepurposeVariantUseCase"),
+  RejectRepurposeVariantUseCase: Symbol.for("RejectRepurposeVariantUseCase"),
+  DetectRepurposeCandidatesUseCase: Symbol.for("DetectRepurposeCandidatesUseCase"),
+  GenerateRepurposeVariantsUseCase: Symbol.for("GenerateRepurposeVariantsUseCase"),
 } as const;
 
 /**

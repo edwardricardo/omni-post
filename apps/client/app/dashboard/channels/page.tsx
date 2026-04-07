@@ -405,14 +405,20 @@ function ChannelsPageContent() {
                         <td className="px-6 py-4">
                           <div className="flex space-x-2">
                             <button
-                              className="text-blue-600 hover:text-blue-900 text-sm focus:outline-hidden focus:underline"
-                              aria-label={`Test connection for ${channel.accountName}`}
+                              disabled
+                              title="Coming soon"
+                              className="text-blue-600 text-sm opacity-50 cursor-not-allowed focus:outline-hidden"
+                              aria-label={`Test connection for ${channel.accountName} (coming soon)`}
+                              aria-disabled="true"
                             >
                               Test
                             </button>
                             <button
-                              className="text-green-600 hover:text-green-900 text-sm focus:outline-hidden focus:underline"
-                              aria-label={`Settings for ${channel.accountName}`}
+                              disabled
+                              title="Coming soon"
+                              className="text-green-600 text-sm opacity-50 cursor-not-allowed focus:outline-hidden"
+                              aria-label={`Settings for ${channel.accountName} (coming soon)`}
+                              aria-disabled="true"
                             >
                               Settings
                             </button>
@@ -662,6 +668,7 @@ function ChannelsPageContent() {
                     }}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     aria-label={`Connect ${selectedProvider.displayName} account`}
+                    title="OAuth flow — will redirect to provider authorization page"
                   >
                     Connect Account
                   </button>

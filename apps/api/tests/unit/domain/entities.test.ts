@@ -15,7 +15,6 @@ import {
   AccountId,
   ProjectId,
   Provider,
-  SUBSCRIPTION_TIER,
 } from "../../../src/domain/index.js";
 
 describe("Domain Entities", () => {
@@ -147,7 +146,6 @@ describe("Domain Entities", () => {
       if (result.ok) {
         expect(result.value.email).toBe("test@example.com");
         expect(result.value.name).toBe("Test User");
-        expect(result.value.subscription).toBe(SUBSCRIPTION_TIER.BASIC);
         expect(result.value.isOnTrial).toBeTruthy();
       }
     });
@@ -179,37 +177,6 @@ describe("Domain Entities", () => {
       expect(result.ok).toBeTruthy();
       if (result.ok) {
         expect(result.value.email).toBe("test@example.com");
-      }
-    });
-
-    it("should upgrade subscription", () => {
-      const result = Account.create({
-        email: "test@example.com",
-        name: "Test",
-      });
-
-      expect(result.ok).toBeTruthy();
-      if (result.ok) {
-        const account = result.value;
-        const upgradeResult = account.upgradeTo(SUBSCRIPTION_TIER.PRO);
-        expect(upgradeResult.ok).toBeTruthy();
-        expect(account.subscription).toBe(SUBSCRIPTION_TIER.PRO);
-        expect(account.isOnTrial).toBeFalsy();
-      }
-    });
-
-    it("should not allow upgrading to same or lower tier", () => {
-      const result = Account.create({
-        email: "test@example.com",
-        name: "Test",
-        subscription: SUBSCRIPTION_TIER.PRO,
-      });
-
-      expect(result.ok).toBeTruthy();
-      if (result.ok) {
-        const account = result.value;
-        const upgradeResult = account.upgradeTo(SUBSCRIPTION_TIER.BASIC);
-        expect(upgradeResult.ok).toBeFalsy();
       }
     });
 

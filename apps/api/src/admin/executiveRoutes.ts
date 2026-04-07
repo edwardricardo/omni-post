@@ -10,6 +10,8 @@ import { FastifyPluginAsync } from "fastify";
 import type { PrismaClient } from "@infra/prisma";
 import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { ExecutiveRouteHandler } from "./ExecutiveHandlers.js";
+import { ExecutiveAccountHandler } from "./ExecutiveAccountHandlers.js";
+import { requireAdmin } from "./auth/adminAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 /**
@@ -64,5 +66,15 @@ export const executiveRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getGdprData(request, reply)
   );
 
-  // Note: PUT /admin/accounts/:id is handled by accountLifecycleRoutes to avoid duplication
+  // PUT /admin/accounts/:id/settings - Update Account model (trial, maxProjects, billing)
+  // Separate from PUT /admin/accounts/:id which updates AdminUser in accountLifecycleRoutes
+  const accountHandler = new ExecutiveAccountHandler(prisma);
+  fastify.put(
+    "/admin/accounts/:id/settings",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["Admin Executive"], summary: "Update account settings (trial, billing)" },
+    },
+    async (request, reply) => accountHandler.updateAccount(request, reply)
+  );
 };

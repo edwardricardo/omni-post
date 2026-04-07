@@ -13,6 +13,7 @@ import { Account, type SubscriptionTierValue } from "../../domain/entities/Accou
 import { CustomerUser, CUSTOMER_ROLE } from "../../domain/entities/CustomerUser.js";
 import { randomBytes } from "crypto";
 import argon2 from "argon2";
+import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
 import { signCustomerAccessToken, signCustomerRefreshToken } from "../../auth/customerJwt.js";
 
 /** Error code union for this use case */
@@ -46,6 +47,7 @@ export class RegisterCustomerUseCase {
   constructor(
     private readonly customerUserRepo: CustomerUserRepository,
     private readonly accountRepo: AccountRepositoryPort,
+    private readonly accountSubscriptionPort?: AccountSubscriptionPort,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -114,6 +116,20 @@ export class RegisterCustomerUseCase {
       const saveAccountResult = await this.accountRepo.save(account);
       if (!saveAccountResult.ok) {
         return err("INTERNAL_ERROR");
+      }
+
+      // Create AccountSubscription for trial period
+      if (this.accountSubscriptionPort) {
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+        await this.accountSubscriptionPort.createForNewAccount({
+          accountId: account.id.toString(),
+          status: "TRIALING",
+          pricePerMonth: 0,
+          maxProjects: 3,
+          trialEndsAt,
+          billingCycle: "MONTHLY",
+        });
       }
 
       // Persist customer user

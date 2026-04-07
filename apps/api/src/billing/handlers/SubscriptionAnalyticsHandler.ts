@@ -121,10 +121,10 @@ export class SubscriptionAnalyticsHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const { format, tier, startDate, endDate } = validated.value.query;
+    const { format, status, startDate, endDate } = validated.value.query;
 
-    const filters: { tier?: string } = {};
-    if (tier) filters.tier = tier;
+    const filters: { status?: string } = {};
+    if (status) filters.status = status;
 
     const result = await this.subscriptionService.listAccountSubscriptions(
       filters as Parameters<SubscriptionService["listAccountSubscriptions"]>[0],
@@ -182,7 +182,7 @@ export class SubscriptionAnalyticsHandler extends BaseRouteHandler {
 
       this.logInfo(ctx, "Exported subscriptions as CSV", {
         count: filteredData.length,
-        filters: { tier, startDate, endDate },
+        filters: { status, startDate, endDate },
       });
       return reply.send(csv);
     }
@@ -190,12 +190,12 @@ export class SubscriptionAnalyticsHandler extends BaseRouteHandler {
     // JSON format
     this.logInfo(ctx, "Exported subscriptions as JSON", {
       count: filteredData.length,
-      filters: { tier, startDate, endDate },
+      filters: { status, startDate, endDate },
     });
     return this.sendSuccess(ctx, {
       data: filteredData,
       count: filteredData.length,
-      filters: { format, tier, startDate, endDate },
+      filters: { format, status, startDate, endDate },
       exportedAt: new Date().toISOString(),
     });
   }

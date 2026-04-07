@@ -72,7 +72,6 @@ export async function createTestUsers(timestamp: number): Promise<{
     data: {
       email: `account-${timestamp}@example.com`,
       name: "Test Account",
-      subscription: "BASIC",
     },
   });
 

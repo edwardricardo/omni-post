@@ -25,7 +25,8 @@ import {
 import type { ChannelCredentials } from "../domain/entities/Channel.js";
 import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
 import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
-import { authenticateMiddleware, requireSuperAdmin } from "../auth/authMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
+import { requireAdminAuth, requireSuperAdmin } from "../admin/auth/adminAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { PrismaClient } from "@infra/prisma";
 import { BlueskyClient } from "@providers/bluesky";
@@ -424,7 +425,7 @@ export const channelRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete(
     "/channels/:channelId/hard",
     {
-      preHandler: [authenticateMiddleware, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requireSuperAdmin],
       schema: { tags: ["Channels"], summary: "Hard-delete a channel permanently" },
     },
     (req, reply) => handler.hardDeleteChannel(req, reply)
