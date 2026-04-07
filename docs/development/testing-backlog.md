@@ -27,6 +27,18 @@ Single source of truth for testing debt.
 | Docker Compose test environment for integration tests | M      | Unlocks ~349 Category B files                        |
 | Install aws-sdk-client-mock for storage-s3            | S      | Push storage-s3 from 43% → 65%+                      |
 
+## P2.5 — Frontend: Unimplemented Features (no backend endpoint)
+
+| Item                       | App    | Notes                                                       |
+| -------------------------- | ------ | ----------------------------------------------------------- |
+| Trial Extend button        | admin  | No `POST /admin/billing/accounts/:id/trial/extend` endpoint |
+| Compliance GDPR config     | admin  | No compliance configuration endpoint                        |
+| Compliance Security config | admin  | No compliance configuration endpoint                        |
+| Channel Test Connection    | client | No `/channels/:id/test` or health check endpoint            |
+| Instagram Stories Save     | client | No dedicated stories save endpoint                          |
+| Instagram Stories Schedule | client | No dedicated stories schedule endpoint                      |
+| Instagram Stories Publish  | client | No dedicated stories publish endpoint                       |
+
 ## P3 — Deferred / Conditional
 
 | Item                                 | Condition                             | Notes                            |
