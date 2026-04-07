@@ -7,17 +7,18 @@
     "postinstall": "prisma generate",
     "prisma": "prisma",
     "generate": "prisma generate",
-    "migrate": "prisma migrate dev --name init",
+    "migrate": "prisma migrate deploy",
     "studio": "prisma studio",
     "seed": "tsx seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "7.4.1",
-    "@prisma/adapter-pg": "7.4.1",
+    "@prisma/adapter-pg": "7.6.0",
+    "@prisma/client": "7.6.0",
+    "argon2": "0.44.0",
     "dotenv": "17.2.2"
   },
   "devDependencies": {
-    "prisma": "7.4.1",
+    "prisma": "7.6.0",
     "tsx": "4.20.5"
   },
   "main": "src/index.ts",

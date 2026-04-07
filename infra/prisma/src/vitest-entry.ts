@@ -14,7 +14,6 @@
 // ── Enums (runtime values — imported from standalone generated file, no Prisma runtime) ──
 export {
   Provider,
-  SubscriptionTier,
   LogStatus,
   MediaKind,
   ThreadStrategy,

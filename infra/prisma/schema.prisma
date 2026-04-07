@@ -11,7 +11,6 @@ model Account {
   id                     String                  @id @default(uuid())
   email                  String                  @unique
   name                   String
-  subscription           SubscriptionTier        @default(BASIC)
   maxProjects            Int                     @default(1)
   isOnTrial              Boolean                 @default(true)
   trialStartDate         DateTime                @default(now())
@@ -57,6 +56,7 @@ model Account {
   integrationSubscriptions IntegrationSubscription[]
   samlConfiguration      SamlConfiguration?
   oidcConfiguration      OidcConfiguration?
+  isActive               Boolean            @default(true)
   ssoEnabled             Boolean            @default(false)
   ssoProvider            SsoProvider        @default(NONE)
   customReports          CustomReport[]
@@ -1059,12 +1059,6 @@ enum Provider {
   LINKEDIN
   BLUESKY
   THREADS
-}
-
-enum SubscriptionTier {
-  BASIC
-  PRO
-  ENTERPRISE
 }
 
 enum LogStatus {
@@ -2719,7 +2713,7 @@ model ProviderPricingTier {
   effectiveFrom         DateTime @default(now())
   createdAt             DateTime @default(now())
 
-  @@index([minProviders, isActive])
+  @@unique([minProviders, isActive])
 }
 
 model AccountPricingTier {
@@ -2731,7 +2725,7 @@ model AccountPricingTier {
   effectiveFrom DateTime @default(now())
   createdAt     DateTime @default(now())
 
-  @@index([minAccounts, isActive])
+  @@unique([minAccounts, isActive])
 }
 
 model ProviderBundle {
@@ -2767,6 +2761,7 @@ model AccountSubscription {
   bundleId               String?
   providers              Provider[]
   accountCount           Int                @default(1)
+  maxProjects            Int                @default(3)
   pricePerMonth          Decimal            @db.Decimal(10, 2)
   status                 SubscriptionStatus @default(TRIALING)
   externalSubscriptionId String?

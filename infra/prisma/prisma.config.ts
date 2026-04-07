@@ -1,12 +1,14 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import path from "path";
-import { defineConfig } from "prisma/config";
+import { defineConfig, env } from "prisma/config";
+
+// Load .env from project root (two levels up from infra/prisma/)
+dotenv.config({ path: path.join(__dirname, "../../.env") });
 
 export default defineConfig({
-  earlyAccess: true,
   schema: path.join(__dirname, "schema.prisma"),
   datasource: {
-    url: process.env.DATABASE_URL!,
+    url: env("DATABASE_URL"),
   },
   migrations: {
     seed: "npx tsx seed.ts",

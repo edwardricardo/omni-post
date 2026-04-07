@@ -48,10 +48,9 @@ export type {
   TemplateAnalytics,
 } from "../generated/prisma/client/client.js";
 
-// Re-export all enums (used as values: Provider.X, SubscriptionTier.PRO, etc.)
+// Re-export all enums (used as values: Provider.X, etc.)
 export {
   Provider,
-  SubscriptionTier,
   LogStatus,
   MediaKind,
   ThreadStrategy,
