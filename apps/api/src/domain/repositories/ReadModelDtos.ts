@@ -47,11 +47,10 @@ export type ProviderKind = "X" | "INSTAGRAM" | "FACEBOOK" | "YOUTUBE" | "TIKTOK"
 export type SubscriptionTierKind = "BASIC" | "PRO" | "ENTERPRISE";
 
 /**
- * Admin user roles.
- * Mirrors the Prisma `AdminRole` enum.
- * Also matches `AdminRole` from `@shared/types`.
+ * Admin user roles — now DB-driven via the Role table.
+ * Role names are stored as strings (e.g., "SUPER_ADMIN", "ADMIN", "SUPPORT").
  */
-export type AdminRoleKind = "SUPER_ADMIN" | "ADMIN" | "SUPPORT";
+export type AdminRoleKind = string;
 
 /**
  * Media asset kinds.

@@ -17,7 +17,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { adminAuthService } from "./AdminAuthService.js";
 import type { AuthContext, AuthErrorCode } from "./adminAuthTypes";
-import type { AdminRole } from "@shared/types";
+// AdminRole is now a string type (DB-driven via Role table)
 
 // ============================================================================
 // Augment Fastify Request with auth context
@@ -153,7 +153,7 @@ export async function requireAdminAuth(
  * fastify.addHook('onRequest', requireRole(['SUPER_ADMIN']));
  * ```
  */
-function requireRole(roles: AdminRole | AdminRole[]) {
+function requireRole(roles: string | string[]) {
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
 
   return async function (request: FastifyRequest, reply: FastifyReply): Promise<void> {

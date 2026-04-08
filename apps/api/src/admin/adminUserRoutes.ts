@@ -118,11 +118,15 @@ class AdminUserHandler extends BaseRouteHandler {
 
       const passwordHash = await hashPassword(temporaryPassword);
 
+      // Resolve role name to roleId
+      const roleRecord = await prisma.role.findUnique({ where: { name: role || "ADMIN" } });
+      const roleId = roleRecord?.id ?? "role-admin";
+
       const user = await prisma.adminUser.create({
         data: {
           email,
           name,
-          role,
+          roleId,
           passwordHash,
           mustChangePassword: true,
         },
@@ -130,11 +134,15 @@ class AdminUserHandler extends BaseRouteHandler {
           id: true,
           email: true,
           name: true,
-          role: true,
+          role: { select: { name: true } },
         },
       });
 
-      return this.sendSuccess(ctx, { user, temporaryPassword }, 201);
+      return this.sendSuccess(
+        ctx,
+        { user: { ...user, role: user.role.name }, temporaryPassword },
+        201
+      );
     } catch (error: unknown) {
       this.logError(ctx, "Failed to create admin user", {
         error: error instanceof Error ? error.message : String(error),
@@ -307,7 +315,7 @@ class AdminUserHandler extends BaseRouteHandler {
     try {
       const target = await prisma.adminUser.findUnique({
         where: { id },
-        select: { id: true, role: true, isActive: true },
+        select: { id: true, role: { select: { name: true } }, isActive: true },
       });
 
       if (!target) {
@@ -319,10 +327,15 @@ class AdminUserHandler extends BaseRouteHandler {
       }
 
       // Safety: cannot deactivate the last active SUPER_ADMIN
-      if (target.role === "SUPER_ADMIN") {
-        const activeSuperAdminCount = await prisma.adminUser.count({
-          where: { role: "SUPER_ADMIN", isActive: true },
+      if (target.role.name === "SUPER_ADMIN") {
+        const superAdminRole = await prisma.role.findUnique({
+          where: { name: "SUPER_ADMIN" },
         });
+        const activeSuperAdminCount = superAdminRole
+          ? await prisma.adminUser.count({
+              where: { roleId: superAdminRole.id, isActive: true },
+            })
+          : 0;
         if (activeSuperAdminCount <= 1) {
           return this.sendError(ctx, 400, "Cannot deactivate the last active SUPER_ADMIN");
         }

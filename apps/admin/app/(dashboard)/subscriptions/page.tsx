@@ -73,7 +73,10 @@ function SubscriptionsPageContent() {
   const [trialPerPage, setTrialPerPage] = useState(10);
   const [trialSearch, setTrialSearch] = useState("");
 
-  const allSubscriptions = (subscriptionData?.subscriptions as SubscriptionAccount[]) ?? [];
+  const allSubscriptions = useMemo(
+    () => (subscriptionData?.subscriptions as SubscriptionAccount[]) ?? [],
+    [subscriptionData?.subscriptions]
+  );
   const subscriptions = useMemo(() => {
     if (!subSearch) return allSubscriptions;
     const q = subSearch.toLowerCase();
@@ -87,7 +90,10 @@ function SubscriptionsPageContent() {
     [subscriptions, subPage, subPerPage]
   );
 
-  const allTrials = (subscriptionData?.trials as TrialAccount[]) ?? [];
+  const allTrials = useMemo(
+    () => (subscriptionData?.trials as TrialAccount[]) ?? [],
+    [subscriptionData?.trials]
+  );
   const trials = useMemo(() => {
     if (!trialSearch) return allTrials;
     const q = trialSearch.toLowerCase();

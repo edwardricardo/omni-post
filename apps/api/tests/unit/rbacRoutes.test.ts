@@ -316,7 +316,8 @@ describe("rbacRoutes Unit Tests", () => {
         headers: { authorization: `Bearer ${adminToken}` },
       });
 
-      expect(response.statusCode).toBe(400);
+      // ROLE_NOT_FOUND returns 404 (DB-backed roles)
+      expect(response.statusCode).toBe(404);
     });
 
     it("should reject without authentication", async () => {

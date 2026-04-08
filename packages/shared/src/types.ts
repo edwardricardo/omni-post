@@ -210,8 +210,8 @@ export const PROVIDER_NAMES: ProviderName[] = [
   "THREADS",
 ];
 
-/** Admin user roles matching the Prisma AdminRole enum */
-export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "SUPPORT";
+/** Admin user roles — now DB-driven via the Role table */
+export type AdminRole = string;
 
 /** Subscription status matching the Prisma SubscriptionStatus enum */
 export type SubscriptionStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "GRANDFATHERED";

@@ -61,11 +61,8 @@ class AuthRouteHandler extends BaseRouteHandler {
     const { body } = validationResult.value as { body: z.infer<typeof RegisterSchema> };
     const { email, password, name, role } = body;
 
-    // Register user through auth service (only pass role if it's an AdminRole)
-    let validRole: "ADMIN" | "SUPER_ADMIN" | undefined = undefined;
-    if (role === "ADMIN") validRole = "ADMIN";
-    if ((role as string) === "SUPER_ADMIN") validRole = "SUPER_ADMIN";
-    const result = await this.authService.registerAdmin(email, password, name, validRole);
+    // Register user through auth service with role name (DB-driven)
+    const result = await this.authService.registerAdmin(email, password, name, role || "ADMIN");
 
     // Handle result with error map
     await this.handleResult(ctx, result, {

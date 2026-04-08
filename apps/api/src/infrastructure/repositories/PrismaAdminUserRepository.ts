@@ -8,25 +8,32 @@
  * as part of the R1-A hexagonal architecture migration.
  */
 
-import type { PrismaClient, AdminUser } from "@infra/prisma";
+import type { PrismaClient, AdminUser, Role } from "@infra/prisma";
 import { ok, err } from "@shared/types";
 import type { Result } from "@shared/types";
 import type { AdminUserRepositoryPort } from "../../domain/repositories/AdminUserRepository.js";
 import type { AdminUserDto } from "../../domain/repositories/ReadModelDtos.js";
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** Prisma AdminUser row with the role relation eagerly loaded. */
+type AdminUserWithRole = AdminUser & { role: Role };
+
+// ---------------------------------------------------------------------------
 // Mapper
 // ---------------------------------------------------------------------------
 
 /**
- * Map a Prisma AdminUser row to the domain AdminUserDto.
+ * Map a Prisma AdminUser row (with role relation) to the domain AdminUserDto.
  *
- * Prisma enums (AdminRole) are represented as string values at runtime —
- * this cast is safe because AdminRoleKind is the exact same set of string
- * literals as the Prisma-generated AdminRole enum values.
+ * The Role table stores role names as strings ("SUPER_ADMIN", "ADMIN", etc.)
+ * and the DTO exposes the name directly via the `role` field.
  */
-function toDto(user: AdminUser): AdminUserDto {
-  return user as unknown as AdminUserDto;
+function toDto(user: AdminUserWithRole): AdminUserDto {
+  const { role: _roleRelation, roleId: _roleId, ...rest } = user;
+  return { ...rest, role: user.role.name } as unknown as AdminUserDto;
 }
 
 // ---------------------------------------------------------------------------
@@ -53,6 +60,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   ): Promise<Result<AdminUserDto, "NOT_FOUND" | "USER_INACTIVE">> {
     const user = await this.prisma.adminUser.findUnique({
       where: type === "email" ? { email: identifier.toLowerCase() } : { id: identifier },
+      include: { role: true },
     });
 
     if (!user) return err("NOT_FOUND");
@@ -67,6 +75,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   async findById(id: string): Promise<Result<AdminUserDto, "NOT_FOUND">> {
     const user = await this.prisma.adminUser.findUnique({
       where: { id },
+      include: { role: true },
     });
 
     if (!user) return err("NOT_FOUND");
@@ -80,6 +89,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   async findByEmail(email: string): Promise<Result<AdminUserDto, "NOT_FOUND">> {
     const user = await this.prisma.adminUser.findUnique({
       where: { email: email.toLowerCase() },
+      include: { role: true },
     });
 
     if (!user) return err("NOT_FOUND");
@@ -103,6 +113,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   async findManyByIds(ids: string[]): Promise<AdminUserDto[]> {
     const users = await this.prisma.adminUser.findMany({
       where: { id: { in: ids } },
+      include: { role: true },
     });
     return users.map(toDto);
   }

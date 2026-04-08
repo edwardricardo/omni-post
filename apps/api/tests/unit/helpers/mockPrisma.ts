@@ -164,24 +164,45 @@ function buildModelMock<T extends Record<string, unknown>>(
 ) {
   function resolveIncludes(
     record: Record<string, unknown>,
-    include?: Record<string, boolean | Record<string, unknown>>
+    include?: Record<string, boolean | Record<string, unknown>>,
+    select?: Record<string, boolean | Record<string, unknown>>
   ): Record<string, unknown> {
-    if (!include || !includeResolver) return { ...record };
-    return includeResolver({ ...record }, include);
+    // Merge include and select (relations in select look like { role: { select: ... } })
+    const merged: Record<string, boolean | Record<string, unknown>> = { ...include };
+    if (select) {
+      for (const [key, val] of Object.entries(select)) {
+        if (typeof val === "object" && val !== null) {
+          merged[key] = true; // Treat relation selects as includes
+        }
+      }
+    }
+    if (Object.keys(merged).length === 0 || !includeResolver) return { ...record };
+    return includeResolver({ ...record }, merged);
   }
 
   return {
-    create: vi.fn(async ({ data }: { data: Partial<T> }) => {
-      const now = new Date();
-      const record = {
-        [idField]: randomUUID(),
-        createdAt: now,
-        updatedAt: now,
-        ...defaults,
-        ...data,
-      } as T;
-      return store.add(record);
-    }),
+    create: vi.fn(
+      async ({
+        data,
+        include,
+        select,
+      }: {
+        data: Partial<T>;
+        include?: Record<string, boolean | Record<string, unknown>>;
+        select?: Record<string, boolean | Record<string, unknown>>;
+      }) => {
+        const now = new Date();
+        const record = {
+          [idField]: randomUUID(),
+          createdAt: now,
+          updatedAt: now,
+          ...defaults,
+          ...data,
+        } as T;
+        const saved = store.add(record);
+        return resolveIncludes(saved as Record<string, unknown>, include, select);
+      }
+    ),
 
     createMany: vi.fn(async ({ data }: { data: Partial<T>[] }) => {
       const now = new Date();
@@ -201,14 +222,16 @@ function buildModelMock<T extends Record<string, unknown>>(
       async ({
         where,
         include,
+        select,
       }: {
         where: Record<string, unknown>;
         include?: Record<string, boolean | Record<string, unknown>>;
+        select?: Record<string, boolean | Record<string, unknown>>;
       }) => {
         const entries = store.all();
         const found = entries.find((entry) => matchesWhere(entry, where)) ?? null;
         if (!found) return null;
-        return resolveIncludes(found, include);
+        return resolveIncludes(found, include, select);
       }
     ),
 
@@ -216,14 +239,16 @@ function buildModelMock<T extends Record<string, unknown>>(
       async ({
         where,
         include,
+        select,
       }: {
         where: Record<string, unknown>;
         include?: Record<string, boolean | Record<string, unknown>>;
+        select?: Record<string, boolean | Record<string, unknown>>;
       }) => {
         const entries = store.all();
         const found = entries.find((entry) => matchesWhere(entry, where)) ?? null;
         if (!found) return null;
-        return resolveIncludes(found, include);
+        return resolveIncludes(found, include, select);
       }
     ),
 
@@ -234,12 +259,14 @@ function buildModelMock<T extends Record<string, unknown>>(
         take,
         skip,
         include,
+        select,
       }: {
         where?: Record<string, unknown>;
         orderBy?: Record<string, string> | Record<string, string>[];
         take?: number;
         skip?: number;
         include?: Record<string, boolean | Record<string, unknown>>;
+        select?: Record<string, boolean | Record<string, unknown>>;
       } = {}) => {
         let results = where
           ? store.all().filter((entry) => matchesWhere(entry, where))
@@ -266,19 +293,31 @@ function buildModelMock<T extends Record<string, unknown>>(
         if (typeof skip === "number") results = results.slice(skip);
         if (typeof take === "number") results = results.slice(0, take);
 
-        return results.map((r) => resolveIncludes(r, include));
+        return results.map((r) => resolveIncludes(r, include, select));
       }
     ),
 
-    update: vi.fn(async ({ where, data }: { where: Record<string, unknown>; data: Partial<T> }) => {
-      // Find by any where field, not just id
-      const entries = store.all();
-      const found = entries.find((entry) => matchesWhere(entry, where));
-      if (!found) return null;
-      const id = found[idField] as string;
-      const updated = store.update(id, { ...data, updatedAt: new Date() } as Partial<T>);
-      return updated ?? null;
-    }),
+    update: vi.fn(
+      async ({
+        where,
+        data,
+        include,
+        select,
+      }: {
+        where: Record<string, unknown>;
+        data: Partial<T>;
+        include?: Record<string, boolean | Record<string, unknown>>;
+        select?: Record<string, boolean | Record<string, unknown>>;
+      }) => {
+        const entries = store.all();
+        const found = entries.find((entry) => matchesWhere(entry, where));
+        if (!found) return null;
+        const id = found[idField] as string;
+        const updated = store.update(id, { ...data, updatedAt: new Date() } as Partial<T>);
+        if (!updated) return null;
+        return resolveIncludes(updated as Record<string, unknown>, include, select);
+      }
+    ),
 
     updateMany: vi.fn(
       async ({ where, data }: { where: Record<string, unknown>; data: Partial<T> }) => {
@@ -423,6 +462,8 @@ export interface MockPrismaStores {
   webhookEvent: ModelStore<Record<string, unknown>>;
   webhookSubscription: ModelStore<Record<string, unknown>>;
   webhookDeadLetter: ModelStore<Record<string, unknown>>;
+  role: ModelStore<Record<string, unknown>>;
+  rolePermission: ModelStore<Record<string, unknown>>;
 }
 
 /**
@@ -441,6 +482,23 @@ export function createMockPrismaModule() {
     webhookEvent: createStore(),
     webhookSubscription: createStore(),
     webhookDeadLetter: createStore(),
+    role: createStore(),
+    rolePermission: createStore(),
+  };
+
+  // AdminUser include resolver: resolves include: { role: true }
+  const adminUserIncludeResolver: IncludeResolver = (record, include) => {
+    const result = { ...record };
+    if (include.role) {
+      const roleId = record.roleId as string | undefined;
+      if (roleId) {
+        const role = stores.role.all().find((r) => r.id === roleId) ?? null;
+        result.role = role ? { ...role } : null;
+      } else {
+        result.role = null;
+      }
+    }
+    return result;
   };
 
   // Session include resolver: resolves include: { user: true }
@@ -450,6 +508,43 @@ export function createMockPrismaModule() {
       const userId = record.userId as string;
       const user = stores.adminUser.all().find((u) => u.id === userId) ?? null;
       result.user = user ? { ...user } : null;
+    }
+    return result;
+  };
+
+  // AuditLog include resolver: resolves include/select: { user: ... }
+  const auditLogIncludeResolver: IncludeResolver = (record, include) => {
+    const result = { ...record };
+    if (include.user) {
+      const userId = record.userId as string | undefined;
+      if (userId) {
+        const rawUser = stores.adminUser.all().find((u) => u.id === userId);
+        if (rawUser) {
+          // Resolve user's role relation
+          const roleId = rawUser.roleId as string | undefined;
+          const role = roleId ? (stores.role.all().find((r) => r.id === roleId) ?? null) : null;
+          result.user = { ...rawUser, role: role ?? rawUser.role };
+        } else {
+          result.user = null;
+        }
+      } else {
+        result.user = null;
+      }
+    }
+    return result;
+  };
+
+  // Role include resolver: resolves include: { permissions: true, _count: ... }
+  const roleIncludeResolver: IncludeResolver = (record, include) => {
+    const result = { ...record };
+    if (include.permissions) {
+      const roleId = record.id as string;
+      result.permissions = stores.rolePermission.all().filter((rp) => rp.roleId === roleId);
+    }
+    if (include._count) {
+      const roleId = record.id as string;
+      const userCount = stores.adminUser.all().filter((u) => u.roleId === roleId).length;
+      result._count = { users: userCount };
     }
     return result;
   };
@@ -507,20 +602,22 @@ export function createMockPrismaModule() {
   } as Record<string, unknown>;
 
   const prisma = {
-    adminUser: buildModelMock(stores.adminUser, adminUserDefaults),
+    adminUser: buildModelMock(stores.adminUser, adminUserDefaults, "id", adminUserIncludeResolver),
     adminSession: buildModelMock(
       stores.adminSession,
       adminSessionDefaults,
       "id",
       sessionIncludeResolver
     ),
-    auditLog: buildModelMock(stores.auditLog, auditLogDefaults),
+    auditLog: buildModelMock(stores.auditLog, auditLogDefaults, "id", auditLogIncludeResolver),
     account: buildModelMock(stores.account),
     project: buildModelMock(stores.project),
     apiKey: buildModelMock(stores.apiKey),
     webhookEvent: buildModelMock(stores.webhookEvent),
     webhookSubscription: buildModelMock(stores.webhookSubscription),
     webhookDeadLetter: buildModelMock(stores.webhookDeadLetter),
+    role: buildModelMock(stores.role, {}, "id", roleIncludeResolver),
+    rolePermission: buildModelMock(stores.rolePermission),
     // Prisma client lifecycle methods
     $connect: vi.fn(async () => undefined),
     $disconnect: vi.fn(async () => undefined),
@@ -539,7 +636,132 @@ export function createMockPrismaModule() {
     // using importOriginal(). This object is merged in the test file.
   };
 
+  // Auto-seed the 3 system roles so that RBAC lookups work out-of-the-box.
+  // Tests that need different roles can clear and re-seed.
+  seedDefaultRoles(stores);
+
   return { mockPrisma: mockModule, stores, prisma };
+}
+
+// ---------------------------------------------------------------------------
+// Auto-seed system roles (called by createMockPrismaModule)
+// ---------------------------------------------------------------------------
+
+function seedDefaultRoles(s: MockPrismaStores): void {
+  const roles = [
+    {
+      id: "role-super-admin",
+      name: "SUPER_ADMIN",
+      level: 100,
+      description: "Full system access with all permissions",
+    },
+    {
+      id: "role-admin",
+      name: "ADMIN",
+      level: 50,
+      description: "Administrative access with content and user management capabilities",
+    },
+    {
+      id: "role-support",
+      name: "SUPPORT",
+      level: 10,
+      description: "Limited access for customer support operations",
+    },
+  ];
+
+  const allPerms = [
+    "user:create",
+    "user:read",
+    "user:update",
+    "user:delete",
+    "user:manage_roles",
+    "project:create",
+    "project:read",
+    "project:update",
+    "project:delete",
+    "content:create",
+    "content:read",
+    "content:update",
+    "content:delete",
+    "content:publish",
+    "analytics:read",
+    "analytics:export",
+    "system:configure",
+    "system:monitor",
+    "system:backup",
+    "audit:read",
+    "audit:export",
+    "billing:read",
+    "billing:manage",
+    "ai:use",
+    "ai:configure",
+    "support:read",
+    "support:respond",
+  ];
+
+  const adminPerms = [
+    "user:create",
+    "user:read",
+    "user:update",
+    "user:delete",
+    "project:create",
+    "project:read",
+    "project:update",
+    "project:delete",
+    "content:create",
+    "content:read",
+    "content:update",
+    "content:delete",
+    "content:publish",
+    "analytics:read",
+    "analytics:export",
+    "system:monitor",
+    "audit:read",
+    "billing:read",
+    "billing:manage",
+    "ai:use",
+    "support:read",
+    "support:respond",
+  ];
+
+  const supportPerms = [
+    "user:read",
+    "project:read",
+    "content:read",
+    "analytics:read",
+    "support:read",
+    "support:respond",
+    "ai:use",
+  ];
+
+  const permMap: Record<string, string[]> = {
+    SUPER_ADMIN: allPerms,
+    ADMIN: adminPerms,
+    SUPPORT: supportPerms,
+  };
+
+  for (const role of roles) {
+    s.role.add({
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      level: role.level,
+      isSystem: true,
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01"),
+    });
+
+    const perms = permMap[role.name] ?? [];
+    for (let i = 0; i < perms.length; i++) {
+      s.rolePermission.add({
+        id: `rp-${role.id}-${i}`,
+        roleId: role.id,
+        permission: perms[i],
+        createdAt: new Date("2024-01-01"),
+      });
+    }
+  }
 }
 
 // Re-export helpers for tests that need to extend the mock prisma with additional models

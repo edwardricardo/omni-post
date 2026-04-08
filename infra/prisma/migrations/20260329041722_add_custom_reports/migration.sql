@@ -1,18 +1,7 @@
 -- CreateEnum
 CREATE TYPE "ReportChartType" AS ENUM ('LINE', 'BAR', 'AREA', 'PIE', 'TABLE');
 
--- AlterEnum
--- This migration adds more than one value to an enum.
--- With PostgreSQL versions 11 and earlier, this is not possible
--- in a single migration. This can be worked around by creating
--- multiple migrations, each migration adding only one value to
--- the enum.
-
-
-ALTER TYPE "ReportFormat" ADD VALUE 'PDF';
-ALTER TYPE "ReportFormat" ADD VALUE 'XLSX';
-
--- CreateTable
+-- CreateTable (before enum alteration — uses pre-existing default)
 CREATE TABLE "CustomReport" (
     "id" TEXT NOT NULL,
     "accountId" TEXT NOT NULL,
@@ -34,13 +23,13 @@ CREATE TABLE "CustomReport" (
     CONSTRAINT "CustomReport_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+-- CreateTable (format default set to CSV first, then altered after enum expansion)
 CREATE TABLE "ReportSchedule" (
     "id" TEXT NOT NULL,
     "reportId" TEXT NOT NULL,
     "cronExpression" TEXT NOT NULL,
     "timezone" TEXT NOT NULL DEFAULT 'UTC',
-    "format" "ReportFormat" NOT NULL DEFAULT 'PDF',
+    "format" "ReportFormat" NOT NULL DEFAULT 'CSV',
     "recipients" TEXT[],
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "lastRunAt" TIMESTAMP(3),
@@ -49,6 +38,15 @@ CREATE TABLE "ReportSchedule" (
 
     CONSTRAINT "ReportSchedule_pkey" PRIMARY KEY ("id")
 );
+
+-- AlterEnum — add new values after tables are created with safe defaults
+COMMIT;
+ALTER TYPE "ReportFormat" ADD VALUE IF NOT EXISTS 'PDF';
+ALTER TYPE "ReportFormat" ADD VALUE IF NOT EXISTS 'XLSX';
+BEGIN;
+
+-- Now set the intended default for ReportSchedule.format
+ALTER TABLE "ReportSchedule" ALTER COLUMN "format" SET DEFAULT 'PDF';
 
 -- CreateIndex
 CREATE INDEX "CustomReport_accountId_idx" ON "CustomReport"("accountId");

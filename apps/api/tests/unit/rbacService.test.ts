@@ -1,6 +1,6 @@
 /**
  * @file rbacService.test.ts
- * @description Unit tests for RbacService — role-based access control,
+ * @description Unit tests for RbacService — DB-backed role-based access control,
  *              permissions, and role management. Uses in-memory mocks for
  *              both the AdminUserRepositoryPort and the Prisma client.
  * @layer test
@@ -10,6 +10,7 @@ import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 import { makeAdminUser, resetFactoryCounter } from "./helpers/factories.js";
 import { InMemoryAdminUserRepository } from "./helpers/InMemoryAdminUserRepository.js";
+import { seedSystemRoles, getRoleId } from "./helpers/seedSystemRoles.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup
@@ -94,6 +95,9 @@ const rbacService = new RbacService(inMemoryRepo);
 // ---------------------------------------------------------------------------
 
 function seedStores(): void {
+  // Seed system roles first
+  seedSystemRoles(stores);
+
   // Seed InMemoryAdminUserRepository (for repo.findById calls)
   inMemoryRepo.seed([superAdminUser, adminUser, supportUser]);
 
@@ -107,6 +111,7 @@ function seedStores(): void {
       email: user.email,
       name: user.name,
       role: user.role,
+      roleId: getRoleId(user.role),
       passwordHash: user.passwordHash,
       isActive: user.isActive,
       emailVerified: user.emailVerified,
@@ -132,31 +137,39 @@ describe("RbacService Tests", () => {
     inMemoryRepo.clear();
     stores.adminUser.clear();
     stores.auditLog.clear();
+    stores.role.clear();
+    stores.rolePermission.clear();
   });
 
   describe("hasPermission", () => {
-    it("should grant SUPER_ADMIN all permissions", () => {
-      const hasUserCreate = rbacService.hasPermission("SUPER_ADMIN", Permission.USER_CREATE);
-      const hasSystemBackup = rbacService.hasPermission("SUPER_ADMIN", Permission.SYSTEM_BACKUP);
+    it("should grant SUPER_ADMIN all permissions", async () => {
+      const hasUserCreate = await rbacService.hasPermission("SUPER_ADMIN", Permission.USER_CREATE);
+      const hasSystemBackup = await rbacService.hasPermission(
+        "SUPER_ADMIN",
+        Permission.SYSTEM_BACKUP
+      );
 
       expect(hasUserCreate).toBe(true);
       expect(hasSystemBackup).toBe(true);
     });
 
-    it("should grant ADMIN limited permissions", () => {
-      const hasUserCreate = rbacService.hasPermission("ADMIN", Permission.USER_CREATE);
-      const hasSystemBackup = rbacService.hasPermission("ADMIN", Permission.SYSTEM_BACKUP);
-      const hasSystemConfigure = rbacService.hasPermission("ADMIN", Permission.SYSTEM_CONFIGURE);
+    it("should grant ADMIN limited permissions", async () => {
+      const hasUserCreate = await rbacService.hasPermission("ADMIN", Permission.USER_CREATE);
+      const hasSystemBackup = await rbacService.hasPermission("ADMIN", Permission.SYSTEM_BACKUP);
+      const hasSystemConfigure = await rbacService.hasPermission(
+        "ADMIN",
+        Permission.SYSTEM_CONFIGURE
+      );
 
       expect(hasUserCreate).toBe(true);
       expect(hasSystemBackup).toBe(false);
       expect(hasSystemConfigure).toBe(false);
     });
 
-    it("should grant SUPPORT read-only permissions", () => {
-      const hasUserRead = rbacService.hasPermission("SUPPORT", Permission.USER_READ);
-      const hasUserCreate = rbacService.hasPermission("SUPPORT", Permission.USER_CREATE);
-      const hasUserDelete = rbacService.hasPermission("SUPPORT", Permission.USER_DELETE);
+    it("should grant SUPPORT read-only permissions", async () => {
+      const hasUserRead = await rbacService.hasPermission("SUPPORT", Permission.USER_READ);
+      const hasUserCreate = await rbacService.hasPermission("SUPPORT", Permission.USER_CREATE);
+      const hasUserDelete = await rbacService.hasPermission("SUPPORT", Permission.USER_DELETE);
 
       expect(hasUserRead).toBe(true);
       expect(hasUserCreate).toBe(false);
@@ -165,13 +178,13 @@ describe("RbacService Tests", () => {
   });
 
   describe("hasAnyPermission", () => {
-    it("should check multiple permissions correctly for ADMIN", () => {
-      const adminHasAnyUserPermission = rbacService.hasAnyPermission("ADMIN", [
+    it("should check multiple permissions correctly for ADMIN", async () => {
+      const adminHasAnyUserPermission = await rbacService.hasAnyPermission("ADMIN", [
         Permission.USER_CREATE,
         Permission.USER_UPDATE,
       ]);
 
-      const supportHasAnyUserPermission = rbacService.hasAnyPermission("SUPPORT", [
+      const supportHasAnyUserPermission = await rbacService.hasAnyPermission("SUPPORT", [
         Permission.USER_CREATE,
         Permission.USER_DELETE,
       ]);
@@ -182,14 +195,14 @@ describe("RbacService Tests", () => {
   });
 
   describe("hasAllPermissions", () => {
-    it("should check all permissions correctly", () => {
-      const adminHasAllContentPermissions = rbacService.hasAllPermissions("ADMIN", [
+    it("should check all permissions correctly", async () => {
+      const adminHasAllContentPermissions = await rbacService.hasAllPermissions("ADMIN", [
         Permission.CONTENT_CREATE,
         Permission.CONTENT_READ,
         Permission.CONTENT_UPDATE,
       ]);
 
-      const supportHasAllContentPermissions = rbacService.hasAllPermissions("SUPPORT", [
+      const supportHasAllContentPermissions = await rbacService.hasAllPermissions("SUPPORT", [
         Permission.CONTENT_CREATE,
         Permission.CONTENT_READ,
         Permission.CONTENT_UPDATE,
@@ -201,8 +214,8 @@ describe("RbacService Tests", () => {
   });
 
   describe("getUserPermissions", () => {
-    it("should return correct permissions object for ADMIN", () => {
-      const adminPermissions = rbacService.getUserPermissions(adminUser.id, "ADMIN");
+    it("should return correct permissions object for ADMIN", async () => {
+      const adminPermissions = await rbacService.getUserPermissions(adminUser.id, "ADMIN");
 
       expect(adminPermissions.userId).toBe(adminUser.id);
       expect(adminPermissions.role).toBe("ADMIN");
@@ -263,7 +276,7 @@ describe("RbacService Tests", () => {
       // Verify the mock prisma store was updated
       const updatedInStore = stores.adminUser.get(supportUser.id);
       expect(updatedInStore).toBeTruthy();
-      expect(updatedInStore?.role).toBe("ADMIN");
+      expect(updatedInStore?.roleId).toBe("role-admin");
 
       // Also update the in-memory repo to stay in sync for subsequent tests
       inMemoryRepo.update(supportUser.id, { role: "ADMIN" as const });
@@ -345,12 +358,12 @@ describe("RbacService Tests", () => {
   });
 
   describe("canModifyRole", () => {
-    it("should validate role hierarchy correctly", () => {
-      const superAdminCanModifyAdmin = rbacService.canModifyRole("SUPER_ADMIN", "ADMIN");
-      const superAdminCanModifySupport = rbacService.canModifyRole("SUPER_ADMIN", "SUPPORT");
-      const adminCanModifySupport = rbacService.canModifyRole("ADMIN", "SUPPORT");
-      const adminCanModifyAdmin = rbacService.canModifyRole("ADMIN", "ADMIN");
-      const supportCanModifyAdmin = rbacService.canModifyRole("SUPPORT", "ADMIN");
+    it("should validate role hierarchy correctly", async () => {
+      const superAdminCanModifyAdmin = await rbacService.canModifyRole("SUPER_ADMIN", "ADMIN");
+      const superAdminCanModifySupport = await rbacService.canModifyRole("SUPER_ADMIN", "SUPPORT");
+      const adminCanModifySupport = await rbacService.canModifyRole("ADMIN", "SUPPORT");
+      const adminCanModifyAdmin = await rbacService.canModifyRole("ADMIN", "ADMIN");
+      const supportCanModifyAdmin = await rbacService.canModifyRole("SUPPORT", "ADMIN");
 
       expect(superAdminCanModifyAdmin).toBe(true);
       expect(superAdminCanModifySupport).toBe(true);

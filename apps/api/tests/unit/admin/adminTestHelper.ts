@@ -66,13 +66,18 @@ export async function createTestAdminUser(options: {
     parallelism: 4,
   });
 
+  // Resolve role name to roleId for the Role table relation
+  const roleName = options.role || "ADMIN";
+  const roleRecord = await prisma.role.findUnique({ where: { name: roleName } });
+  const roleId = roleRecord?.id ?? `role-${roleName.toLowerCase().replace(/_/g, "-")}`;
+
   const user = await prisma.adminUser.create({
     data: {
       email: options.email.toLowerCase(),
       name: options.name,
       passwordHash,
       passwordHashAlgo: "argon2id",
-      role: options.role || "ADMIN",
+      roleId,
       isActive: true,
       emailVerified: true,
     },
@@ -82,10 +87,13 @@ export async function createTestAdminUser(options: {
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role,
+    role: roleName,
   });
 
-  return { user, token };
+  return {
+    user: { id: user.id, email: user.email, name: user.name, role: roleName },
+    token,
+  };
 }
 
 /**

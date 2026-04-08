@@ -62,9 +62,10 @@ export class AdminAuthService {
   ): Promise<Result<LoginResponse, AuthErrorCode>> {
     const { email, password, mfaToken, rememberMe = false } = request;
 
-    // Find user
+    // Find user (include role relation for profile mapping)
     const user = await prisma.adminUser.findUnique({
       where: { email: email.toLowerCase() },
+      include: { role: true },
     });
 
     if (!user) {
@@ -451,7 +452,7 @@ export class AdminAuthService {
         id: true,
         email: true,
         name: true,
-        role: true,
+        role: { select: { name: true } },
         isActive: true,
         emailVerified: true,
         mfaEnabled: true,
@@ -469,7 +470,8 @@ export class AdminAuthService {
       return err("USER_NOT_FOUND");
     }
 
-    return ok(user);
+    // Map role relation to role name string for the profile
+    return ok({ ...user, role: user.role.name });
   }
 
   /**

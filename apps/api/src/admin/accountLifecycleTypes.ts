@@ -62,7 +62,7 @@ export interface AccountStats {
   inactiveAccounts: number;
   emailVerifiedAccounts: number;
   mfaEnabledAccounts: number;
-  accountsByRole: Record<AdminRole, number>;
+  accountsByRole: Record<string, number>;
   recentLogins: number; // Last 7 days
   recentRegistrations: number; // Last 30 days
 }

@@ -329,6 +329,119 @@ async function main() {
     });
   }
 
+  // Upsert system roles and their permissions before creating the admin user
+  const systemRoles = [
+    {
+      id: "role-super-admin",
+      name: "SUPER_ADMIN",
+      description: "Full system access with all permissions",
+      level: 100,
+      isSystem: true,
+      permissions: [
+        "user:create",
+        "user:read",
+        "user:update",
+        "user:delete",
+        "user:manage_roles",
+        "project:create",
+        "project:read",
+        "project:update",
+        "project:delete",
+        "content:create",
+        "content:read",
+        "content:update",
+        "content:delete",
+        "content:publish",
+        "analytics:read",
+        "analytics:export",
+        "system:configure",
+        "system:monitor",
+        "system:backup",
+        "audit:read",
+        "audit:export",
+        "billing:read",
+        "billing:manage",
+        "ai:use",
+        "ai:configure",
+        "support:read",
+        "support:respond",
+      ],
+    },
+    {
+      id: "role-admin",
+      name: "ADMIN",
+      description: "Administrative access with content and user management capabilities",
+      level: 50,
+      isSystem: true,
+      permissions: [
+        "user:create",
+        "user:read",
+        "user:update",
+        "user:delete",
+        "project:create",
+        "project:read",
+        "project:update",
+        "project:delete",
+        "content:create",
+        "content:read",
+        "content:update",
+        "content:delete",
+        "content:publish",
+        "analytics:read",
+        "analytics:export",
+        "system:monitor",
+        "audit:read",
+        "billing:read",
+        "billing:manage",
+        "ai:use",
+        "support:read",
+        "support:respond",
+      ],
+    },
+    {
+      id: "role-support",
+      name: "SUPPORT",
+      description: "Limited access for customer support operations",
+      level: 10,
+      isSystem: true,
+      permissions: [
+        "user:read",
+        "project:read",
+        "content:read",
+        "analytics:read",
+        "support:read",
+        "support:respond",
+        "ai:use",
+      ],
+    },
+  ];
+
+  for (const roleDef of systemRoles) {
+    await prisma.role.upsert({
+      where: { id: roleDef.id },
+      update: {
+        description: roleDef.description,
+        level: roleDef.level,
+      },
+      create: {
+        id: roleDef.id,
+        name: roleDef.name,
+        description: roleDef.description,
+        level: roleDef.level,
+        isSystem: roleDef.isSystem,
+        isActive: true,
+      },
+    });
+
+    // Delete existing permissions and re-insert (idempotent)
+    await prisma.rolePermission.deleteMany({ where: { roleId: roleDef.id } });
+    for (const perm of roleDef.permissions) {
+      await prisma.rolePermission.create({
+        data: { roleId: roleDef.id, permission: perm },
+      });
+    }
+  }
+
   // Seed SUPER_ADMIN user for local development
   const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin123!";
   const hashedPassword = await argon2.hash(adminPassword, {
@@ -345,7 +458,7 @@ async function main() {
       email: "admin@omnipost.local",
       passwordHash: hashedPassword,
       name: "Edward",
-      role: "SUPER_ADMIN",
+      roleId: "role-super-admin",
       isActive: true,
     },
   });
@@ -442,7 +555,7 @@ async function main() {
     account,
     project,
     systemTemplates: systemTemplates.length,
-    adminUser: { email: adminUser.email, role: adminUser.role },
+    adminUser: { email: adminUser.email, roleId: adminUser.roleId },
     pricingTiers: providerTiers.length,
     accountTiers: accountTiers.length,
     bundles: bundles.length,

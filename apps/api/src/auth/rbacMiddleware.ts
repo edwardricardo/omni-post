@@ -15,12 +15,22 @@ function resolveRbacService(request: FastifyRequest): RbacService | null {
 }
 
 /**
+ * Resolve the authenticated user from either auth pattern:
+ * - Admin auth: request.auth.user (set by requireAdminAuth)
+ * - Client auth: request.user (set by requireClientAuth)
+ */
+function resolveUser(request: FastifyRequest) {
+  return request.auth?.user ?? request.user ?? null;
+}
+
+/**
  * Permission-based authorization middleware factory
  * More granular than role-based middleware
  */
 export function requirePermission(...permissions: Permission[]) {
   return async function permissionMiddleware(request: FastifyRequest, reply: FastifyReply) {
-    if (!request.user) {
+    const user = resolveUser(request);
+    if (!user) {
       return reply.code(401).send({
         error: "Authentication required",
         requiredPermissions: permissions,
@@ -32,11 +42,11 @@ export function requirePermission(...permissions: Permission[]) {
       return reply.code(500).send({ error: "RBAC service unavailable" });
     }
 
-    const userRole = request.user.role;
-    const hasPermission = rbacSvc.hasAnyPermission(userRole, permissions);
+    const userRole = user.role;
+    const hasPermission = await rbacSvc.hasAnyPermission(userRole, permissions);
 
     if (!hasPermission) {
-      const userPermissions = rbacSvc.getUserPermissions(request.user.id, userRole);
+      const userPermissions = await rbacSvc.getUserPermissions(user.id, userRole);
 
       return reply.code(403).send({
         error: "Insufficient permissions",
@@ -53,7 +63,8 @@ export function requirePermission(...permissions: Permission[]) {
  */
 export function requireAllPermissions(...permissions: Permission[]) {
   return async function allPermissionsMiddleware(request: FastifyRequest, reply: FastifyReply) {
-    if (!request.user) {
+    const user = resolveUser(request);
+    if (!user) {
       return reply.code(401).send({
         error: "Authentication required",
         requiredPermissions: permissions,
@@ -65,11 +76,11 @@ export function requireAllPermissions(...permissions: Permission[]) {
       return reply.code(500).send({ error: "RBAC service unavailable" });
     }
 
-    const userRole = request.user.role;
-    const hasAllPermissions = rbacSvc.hasAllPermissions(userRole, permissions);
+    const userRole = user.role;
+    const hasAllPerms = await rbacSvc.hasAllPermissions(userRole, permissions);
 
-    if (!hasAllPermissions) {
-      const userPermissions = rbacSvc.getUserPermissions(request.user.id, userRole);
+    if (!hasAllPerms) {
+      const userPermissions = await rbacSvc.getUserPermissions(user.id, userRole);
       const missingPermissions = permissions.filter(
         (p) => !userPermissions.permissions.includes(p)
       );
@@ -94,7 +105,8 @@ export function requireOwnershipOrPermission(
   fallbackPermission: Permission
 ) {
   return async function ownershipMiddleware(request: FastifyRequest, reply: FastifyReply) {
-    if (!request.user) {
+    const user = resolveUser(request);
+    if (!user) {
       return reply.code(401).send({
         error: "Authentication required",
       });
@@ -102,7 +114,7 @@ export function requireOwnershipOrPermission(
 
     try {
       const resourceOwnerId = await getResourceOwnerId(request);
-      const isOwner = request.user.id === resourceOwnerId;
+      const isOwner = user.id === resourceOwnerId;
 
       if (isOwner) {
         return; // Owner has access
@@ -114,9 +126,9 @@ export function requireOwnershipOrPermission(
         return reply.code(500).send({ error: "RBAC service unavailable" });
       }
 
-      const hasPermission = rbacSvc.hasPermission(request.user.role, fallbackPermission);
+      const hasPerm = await rbacSvc.hasPermission(user.role, fallbackPermission);
 
-      if (!hasPermission) {
+      if (!hasPerm) {
         return reply.code(403).send({
           error: "Access denied",
           reason: "Not resource owner and insufficient permissions",
@@ -139,13 +151,14 @@ export function requireContextPermission(
   permission: Permission
 ) {
   return async function contextPermissionMiddleware(request: FastifyRequest, reply: FastifyReply) {
-    if (!request.user) {
+    const user = resolveUser(request);
+    if (!user) {
       return reply.code(401).send({ error: "Authentication required" });
     }
 
     try {
       const context = await getContext(request);
-      const userRole = request.user.role;
+      const userRole = user.role;
 
       const rbacSvc = resolveRbacService(request);
       if (!rbacSvc) {
@@ -153,7 +166,7 @@ export function requireContextPermission(
       }
 
       // Check base permission
-      const hasBasePermission = rbacSvc.hasPermission(userRole, permission);
+      const hasBasePermission = await rbacSvc.hasPermission(userRole, permission);
 
       if (!hasBasePermission) {
         return reply.code(403).send({
@@ -177,7 +190,8 @@ export function requireContextPermission(
  */
 export function roleBasedRateLimit() {
   return async function roleRateLimitMiddleware(request: FastifyRequest, reply: FastifyReply) {
-    if (!request.user) {
+    const user = resolveUser(request);
+    if (!user) {
       return; // Skip rate limiting for unauthenticated users (handled by other middleware)
     }
 
@@ -187,12 +201,12 @@ export function roleBasedRateLimit() {
       SUPPORT: { requests: 200, window: 900 }, // 200 req/15min
     };
 
-    const userLimit = rateLimits[request.user.role as keyof typeof rateLimits];
+    const userLimit = rateLimits[user.role as keyof typeof rateLimits];
 
     if (userLimit) {
       reply.header("X-RateLimit-Limit", userLimit.requests.toString());
       reply.header("X-RateLimit-Window", userLimit.window.toString());
-      reply.header("X-RateLimit-Role", request.user.role);
+      reply.header("X-RateLimit-Role", user.role);
     }
   };
 }
@@ -202,13 +216,14 @@ export function roleBasedRateLimit() {
  */
 export function auditPermissionAccess(operation: string) {
   return async function auditMiddleware(request: FastifyRequest, reply: FastifyReply) {
-    if (!request.user) {
+    const user = resolveUser(request);
+    if (!user) {
       return;
     }
 
     const auditData = {
-      userId: request.user.id,
-      userRole: request.user.role,
+      userId: user.id,
+      userRole: user.role,
       operation,
       endpoint: request.url,
       method: request.method,
@@ -219,7 +234,7 @@ export function auditPermissionAccess(operation: string) {
 
     authLogger.info({ auditData }, "Permission access audit");
 
-    reply.header("X-Audit-Trail-Id", `audit_${Date.now()}_${request.user.id}`);
+    reply.header("X-Audit-Trail-Id", `audit_${Date.now()}_${user.id}`);
   };
 }
 
@@ -228,14 +243,15 @@ export function auditPermissionAccess(operation: string) {
  */
 export function debugPermissions() {
   return async function debugMiddleware(request: FastifyRequest, _reply: FastifyReply) {
-    if (process.env.NODE_ENV === "development" && request.user) {
+    const user = resolveUser(request);
+    if (process.env.NODE_ENV === "development" && user) {
       const rbacSvc = resolveRbacService(request);
       if (rbacSvc) {
-        const userPermissions = rbacSvc.getUserPermissions(request.user.id, request.user.role);
+        const userPermissions = await rbacSvc.getUserPermissions(user.id, user.role);
         authLogger.debug(
           {
-            email: request.user.email,
-            role: request.user.role,
+            email: user.email,
+            role: user.role,
             permissions: userPermissions.permissions,
           },
           "RBAC DEBUG: User permissions"

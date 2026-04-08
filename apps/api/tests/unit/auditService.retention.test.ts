@@ -58,7 +58,6 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@infra/prisma", () => ({
   prisma: mocks.prismaClient,
-  AdminRole: { ADMIN: "ADMIN", SUPPORT: "SUPPORT", SUPER_ADMIN: "SUPER_ADMIN" },
   Prisma: {},
 }));
 

@@ -8,7 +8,7 @@
  * - Proper cleanup in reverse dependency order
  */
 import { prisma } from "@infra/prisma";
-import type { AdminUser, Account, Project, Post, Channel, AdminRole } from "@infra/prisma";
+import type { AdminUser, Account, Project, Post, Channel } from "@infra/prisma";
 
 interface CreatedIds {
   adminUsers: string[];
@@ -58,7 +58,7 @@ export class TestDataFactory {
       data: {
         email: this.uniqueEmail("admin"),
         passwordHash: "$2b$10$testHash123456789012345678901234567890123456789012",
-        role: "ADMIN" as AdminRole,
+        roleId: "role-admin",
         ...overrides,
       },
     });

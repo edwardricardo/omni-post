@@ -7,8 +7,21 @@
  * Test Count: 28
  */
 
-import { describe, it, expect } from "vitest";
-import {
+import { describe, it, expect, vi } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import type { FastifyRequest, FastifyReply } from "fastify";
+import type { AuthenticatedUser } from "../../src/auth/authService.js";
+
+// Mock @infra/prisma with in-memory stores (includes seeded roles)
+const { mockPrisma } = createMockPrismaModule();
+
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
+// Import SUT after mocks
+const {
   requirePermission,
   requireAllPermissions,
   requireOwnershipOrPermission,
@@ -16,16 +29,14 @@ import {
   roleBasedRateLimit,
   auditPermissionAccess,
   debugPermissions,
-} from "../../src/auth/rbacMiddleware.js";
-import { RbacService, Permission } from "../../src/auth/rbacService.js";
-import { TOKENS } from "../../src/infrastructure/container/types.js";
-import type { FastifyRequest, FastifyReply } from "fastify";
-import type { AuthenticatedUser } from "../../src/auth/authService.js";
-import { prisma } from "@infra/prisma";
-import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+} = await import("../../src/auth/rbacMiddleware.js");
+const { RbacService, Permission } = await import("../../src/auth/rbacService.js");
+const { TOKENS } = await import("../../src/infrastructure/container/types.js");
+const { PrismaAdminUserRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
 
 // Create a local RbacService instance for use in request mocks
-const rbacService = new RbacService(new PrismaAdminUserRepository(prisma));
+const rbacService = new RbacService(new PrismaAdminUserRepository(mockPrisma.prisma as never));
 
 // Minimal container mock that resolves RbacService
 const mockContainer = {

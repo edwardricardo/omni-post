@@ -18,7 +18,6 @@ export {
   MediaKind,
   ThreadStrategy,
   TweetStatus,
-  AdminRole,
   ConnectionStatus,
   PublishingStatus,
   VersionChangeType,

@@ -169,10 +169,13 @@ export interface MfaStatus {
 }
 
 export interface RoleInfo {
+  id: string;
   role: string;
   permissions: string[];
   description: string;
   userCount: number;
+  isSystem: boolean;
+  level: number;
 }
 
 export interface UserPermissions {
@@ -408,6 +411,34 @@ export const api = {
 
       revokePermission: (role: string, permission: string) =>
         http<{ ok: boolean }>(`/admin/rbac/roles/${role}/permissions/${permission}`, {
+          method: "DELETE",
+        }),
+
+      createRole: (data: {
+        name: string;
+        description: string;
+        level: number;
+        permissions: string[];
+      }) =>
+        http<{ ok: boolean; role: unknown }>("/admin/rbac/roles", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+
+      updateRole: (roleId: string, data: { description?: string; level?: number }) =>
+        http<{ ok: boolean }>(`/admin/rbac/roles/${roleId}`, {
+          method: "PUT",
+          body: JSON.stringify(data),
+        }),
+
+      setRolePermissions: (roleId: string, permissions: string[]) =>
+        http<{ ok: boolean }>(`/admin/rbac/roles/${roleId}/permissions`, {
+          method: "PUT",
+          body: JSON.stringify({ permissions }),
+        }),
+
+      deleteRole: (roleId: string) =>
+        http<{ ok: boolean }>(`/admin/rbac/roles/${roleId}`, {
           method: "DELETE",
         }),
 

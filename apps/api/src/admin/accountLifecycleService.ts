@@ -101,14 +101,30 @@ export class AccountLifecycleService extends AuditableService {
           severity: "MEDIUM",
         },
         async () => {
+          // Resolve role by name (default to ADMIN)
+          const roleName = data.role || "ADMIN";
+          const roleRecord = await prisma.role.findUnique({ where: { name: roleName } });
+          if (!roleRecord) {
+            return await prisma.adminUser.create({
+              data: {
+                email: data.email.toLowerCase(),
+                passwordHash,
+                name: data.name,
+                roleId: "role-admin", // fallback to default role ID
+                emailVerified: true,
+              },
+              include: { role: true },
+            });
+          }
           return await prisma.adminUser.create({
             data: {
               email: data.email.toLowerCase(),
               passwordHash,
               name: data.name,
-              role: data.role || "ADMIN",
-              emailVerified: true, // Auto-verify admin accounts
+              roleId: roleRecord.id,
+              emailVerified: true,
             },
+            include: { role: true },
           });
         }
       );
@@ -123,7 +139,7 @@ export class AccountLifecycleService extends AuditableService {
           details: {
             email: user.email,
             name: user.name,
-            role: user.role,
+            role: user.role.name,
             createdBy: createdByUserId,
           },
         });
@@ -134,8 +150,9 @@ export class AccountLifecycleService extends AuditableService {
         adminLogger.info({ email: user.email }, "Welcome email would be sent");
       }
 
-      // Cast: Prisma AdminUser is structurally identical to AdminUserDto at runtime.
-      return ok(await this.mapUserToProfile(user as unknown as AdminUserDto));
+      // Map Prisma result (with role relation) to AdminUserDto shape
+      const userDto = { ...user, role: user.role.name } as unknown as AdminUserDto;
+      return ok(await this.mapUserToProfile(userDto));
     } catch (error: unknown) {
       adminLogger.error({ err: error }, "Account creation error");
       return err("DATABASE_ERROR");
@@ -232,12 +249,24 @@ export class AccountLifecycleService extends AuditableService {
           severity: "MEDIUM",
         },
         async () => {
+          // Extract role name and convert to roleId for the update
+          const { role: roleName, ...restData } = data;
+          const updateData: Record<string, unknown> = {
+            ...restData,
+            updatedAt: new Date(),
+          };
+          if (roleName) {
+            const roleRecord = await prisma.role.findUnique({
+              where: { name: roleName },
+            });
+            if (roleRecord) {
+              updateData.roleId = roleRecord.id;
+            }
+          }
           return await prisma.adminUser.update({
             where: { id: accountId },
-            data: {
-              ...data,
-              updatedAt: new Date(),
-            },
+            data: updateData,
+            include: { role: true },
           });
         }
       );
@@ -257,8 +286,14 @@ export class AccountLifecycleService extends AuditableService {
         });
       }
 
-      // Cast: Prisma AdminUser is structurally identical to AdminUserDto at runtime.
-      return ok(await this.mapUserToProfile(updatedUser as unknown as AdminUserDto));
+      // Map role relation to string for AdminUserDto compatibility
+      const userWithRole = updatedUser as unknown as Record<string, unknown>;
+      const roleName =
+        typeof userWithRole.role === "object" && userWithRole.role !== null
+          ? (userWithRole.role as { name: string }).name
+          : String(userWithRole.role ?? "ADMIN");
+      const userDto = { ...updatedUser, role: roleName } as unknown as AdminUserDto;
+      return ok(await this.mapUserToProfile(userDto));
     } catch (error: unknown) {
       adminLogger.error({ err: error }, "Update account error");
       return err("DATABASE_ERROR");

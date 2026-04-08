@@ -1,10 +1,22 @@
-import { prisma, AdminRole } from "@infra/prisma";
+/**
+ * @file rbacService.ts
+ * @description Role-based access control service. Permission checks are now
+ *              backed by the Role / RolePermission tables instead of a
+ *              hardcoded map. SUPER_ADMIN always receives all permissions
+ *              regardless of the DB contents.
+ * @layer application
+ */
+
+import { prisma } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import { AuditableService } from "../services/AuditableService";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
 import { authLogger } from "../lib/logger.js";
 
-// Permission definitions
+// ---------------------------------------------------------------------------
+// Permission enum — master list of all permissions in the system
+// ---------------------------------------------------------------------------
+
 export enum Permission {
   // User management
   USER_CREATE = "user:create",
@@ -52,81 +64,17 @@ export enum Permission {
   SUPPORT_RESPOND = "support:respond",
 }
 
-// Role permission mappings
-const RolePermissions: Record<string, Permission[]> = {
-  SUPER_ADMIN: [
-    // All permissions for super admin
-    ...Object.values(Permission),
-  ],
-
-  ADMIN: [
-    // User management
-    Permission.USER_CREATE,
-    Permission.USER_READ,
-    Permission.USER_UPDATE,
-    Permission.USER_DELETE,
-
-    // Project management
-    Permission.PROJECT_CREATE,
-    Permission.PROJECT_READ,
-    Permission.PROJECT_UPDATE,
-    Permission.PROJECT_DELETE,
-
-    // Content management
-    Permission.CONTENT_CREATE,
-    Permission.CONTENT_READ,
-    Permission.CONTENT_UPDATE,
-    Permission.CONTENT_DELETE,
-    Permission.CONTENT_PUBLISH,
-
-    // Analytics
-    Permission.ANALYTICS_READ,
-    Permission.ANALYTICS_EXPORT,
-
-    // System monitoring
-    Permission.SYSTEM_MONITOR,
-
-    // Audit read
-    Permission.AUDIT_READ,
-
-    // Billing
-    Permission.BILLING_READ,
-    Permission.BILLING_MANAGE,
-
-    // AI features
-    Permission.AI_USE,
-
-    // Support
-    Permission.SUPPORT_READ,
-    Permission.SUPPORT_RESPOND,
-  ],
-
-  SUPPORT: [
-    // Limited user read
-    Permission.USER_READ,
-
-    // Project read
-    Permission.PROJECT_READ,
-
-    // Content read
-    Permission.CONTENT_READ,
-
-    // Analytics read
-    Permission.ANALYTICS_READ,
-
-    // Support operations
-    Permission.SUPPORT_READ,
-    Permission.SUPPORT_RESPOND,
-
-    // Basic AI usage
-    Permission.AI_USE,
-  ],
-};
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 export interface RoleInfo {
+  id: string;
   role: string;
   permissions: Permission[];
   description: string;
+  level: number;
+  isSystem: boolean;
   userCount: number;
 }
 
@@ -137,70 +85,145 @@ export interface UserPermissions {
   canAccess: (permission: Permission) => boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Cache entry
+// ---------------------------------------------------------------------------
+
+interface CacheEntry {
+  permissions: Permission[];
+  expiry: number;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
 export class RbacService extends AuditableService {
+  private permissionCache = new Map<string, CacheEntry>();
+  private static CACHE_TTL = 60_000; // 60 seconds
+
   constructor(private readonly userRepo: AdminUserRepositoryPort) {
     super("RbacService");
   }
+
+  // -------------------------------------------------------------------------
+  // Permission cache
+  // -------------------------------------------------------------------------
+
   /**
-   * Check if a user has a specific permission
+   * Load permissions for a role from the DB (or cache).
+   * SUPER_ADMIN always gets every permission regardless of DB contents.
    */
-  hasPermission(userRole: string, permission: Permission): boolean {
-    const rolePermissions = RolePermissions[userRole] || [];
-    return rolePermissions.includes(permission);
+  private async loadRolePermissions(roleName: string): Promise<Permission[]> {
+    if (roleName === "SUPER_ADMIN") return Object.values(Permission);
+
+    const cached = this.permissionCache.get(roleName);
+    if (cached && cached.expiry > Date.now()) return cached.permissions;
+
+    const role = await prisma.role.findUnique({
+      where: { name: roleName },
+      include: { permissions: true },
+    });
+    if (!role) return [];
+
+    const perms = role.permissions
+      .map((rp) => rp.permission as Permission)
+      .filter((p) => Object.values(Permission).includes(p));
+
+    this.permissionCache.set(roleName, {
+      permissions: perms,
+      expiry: Date.now() + RbacService.CACHE_TTL,
+    });
+    return perms;
   }
 
   /**
-   * Check if a user has any of the specified permissions
+   * Invalidate the permission cache for a specific role or all roles.
    */
-  hasAnyPermission(userRole: string, permissions: Permission[]): boolean {
-    return permissions.some((permission) => this.hasPermission(userRole, permission));
+  invalidateCache(roleName?: string): void {
+    if (roleName) {
+      this.permissionCache.delete(roleName);
+    } else {
+      this.permissionCache.clear();
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Permission checks (async — hit cache / DB)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Check if a role has a specific permission.
+   */
+  async hasPermission(userRole: string, permission: Permission): Promise<boolean> {
+    if (userRole === "SUPER_ADMIN") return true;
+    const perms = await this.loadRolePermissions(userRole);
+    return perms.includes(permission);
   }
 
   /**
-   * Check if a user has all of the specified permissions
+   * Check if a role has any of the specified permissions.
    */
-  hasAllPermissions(userRole: string, permissions: Permission[]): boolean {
-    return permissions.every((permission) => this.hasPermission(userRole, permission));
+  async hasAnyPermission(userRole: string, permissions: Permission[]): Promise<boolean> {
+    if (userRole === "SUPER_ADMIN") return true;
+    const perms = await this.loadRolePermissions(userRole);
+    return permissions.some((p) => perms.includes(p));
   }
 
   /**
-   * Get all permissions for a user role
+   * Check if a role has all of the specified permissions.
    */
-  getUserPermissions(userId: string, userRole: string): UserPermissions {
-    const permissions = RolePermissions[userRole] || [];
+  async hasAllPermissions(userRole: string, permissions: Permission[]): Promise<boolean> {
+    if (userRole === "SUPER_ADMIN") return true;
+    const perms = await this.loadRolePermissions(userRole);
+    return permissions.every((p) => perms.includes(p));
+  }
+
+  /**
+   * Get all permissions for a user role.
+   */
+  async getUserPermissions(userId: string, userRole: string): Promise<UserPermissions> {
+    const permissions = await this.loadRolePermissions(userRole);
 
     return {
       userId,
       role: userRole,
       permissions,
-      canAccess: (permission: Permission) => this.hasPermission(userRole, permission),
+      canAccess: (permission: Permission) => permissions.includes(permission),
     };
   }
 
-  /**
-   * Get role information including user count
-   */
-  async getRoleInfo(role: string): Promise<Result<RoleInfo, "ROLE_NOT_FOUND" | "DATABASE_ERROR">> {
-    try {
-      if (!RolePermissions[role]) {
-        return err("ROLE_NOT_FOUND");
-      }
+  // -------------------------------------------------------------------------
+  // Role queries (DB-backed)
+  // -------------------------------------------------------------------------
 
-      const userCount = await prisma.adminUser.count({
-        where: { role: role as AdminRole },
+  /**
+   * Get role information including user count.
+   */
+  async getRoleInfo(
+    roleName: string
+  ): Promise<Result<RoleInfo, "ROLE_NOT_FOUND" | "DATABASE_ERROR">> {
+    try {
+      const role = await prisma.role.findUnique({
+        where: { name: roleName },
+        include: { permissions: true, _count: { select: { users: true } } },
       });
 
-      const roleDescriptions = {
-        SUPER_ADMIN: "Full system access with all permissions",
-        ADMIN: "Administrative access with content and user management capabilities",
-        SUPPORT: "Limited access for customer support operations",
-      };
+      if (!role) return err("ROLE_NOT_FOUND");
 
       return ok({
-        role,
-        permissions: RolePermissions[role],
-        description: roleDescriptions[role as keyof typeof roleDescriptions] || "Custom role",
-        userCount,
+        id: role.id,
+        role: role.name,
+        description: role.description,
+        level: role.level,
+        isSystem: role.isSystem,
+        permissions:
+          role.name === "SUPER_ADMIN"
+            ? Object.values(Permission)
+            : role.permissions
+                .map((rp) => rp.permission as Permission)
+                .filter((p) => Object.values(Permission).includes(p)),
+        userCount: role._count.users,
       });
     } catch (error: unknown) {
       authLogger.error({ err: error }, "Get role info error");
@@ -209,35 +232,49 @@ export class RbacService extends AuditableService {
   }
 
   /**
-   * Get all available roles and their information
+   * Get all available roles and their information.
    */
   async getAllRoles(): Promise<Result<RoleInfo[], "DATABASE_ERROR">> {
     try {
-      const roles = Object.keys(RolePermissions);
-      const roleInfoPromises = roles.map((role) => this.getRoleInfo(role));
-      const roleResults = await Promise.all(roleInfoPromises);
+      const roles = await prisma.role.findMany({
+        where: { isActive: true },
+        include: { permissions: true, _count: { select: { users: true } } },
+        orderBy: { level: "desc" },
+      });
 
-      const roleInfos: RoleInfo[] = [];
-      for (const result of roleResults) {
-        if (result.ok) {
-          roleInfos.push(result.value);
-        }
-      }
-
-      return ok(roleInfos);
+      return ok(
+        roles.map((r) => ({
+          id: r.id,
+          role: r.name,
+          description: r.description,
+          level: r.level,
+          isSystem: r.isSystem,
+          permissions:
+            r.name === "SUPER_ADMIN"
+              ? Object.values(Permission)
+              : r.permissions
+                  .map((rp) => rp.permission as Permission)
+                  .filter((p) => Object.values(Permission).includes(p)),
+          userCount: r._count.users,
+        }))
+      );
     } catch (error: unknown) {
       authLogger.error({ err: error }, "Get all roles error");
       return err("DATABASE_ERROR");
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Role mutations
+  // -------------------------------------------------------------------------
+
   /**
-   * Update user role (admin operation)
+   * Update user role (admin operation).
    */
   async updateUserRole(
     adminUserId: string,
     targetUserId: string,
-    newRole: string,
+    newRoleName: string,
     reason: string
   ): Promise<
     Result<
@@ -250,48 +287,36 @@ export class RbacService extends AuditableService {
     >
   > {
     try {
-      // Validate role
-      if (!RolePermissions[newRole]) {
-        return err("INVALID_ROLE");
-      }
+      // Validate role exists
+      const role = await prisma.role.findUnique({ where: { name: newRoleName } });
+      if (!role) return err("INVALID_ROLE");
 
       // Prevent self-modification
-      if (adminUserId === targetUserId) {
-        return err("CANNOT_MODIFY_SELF");
-      }
+      if (adminUserId === targetUserId) return err("CANNOT_MODIFY_SELF");
 
-      // ✅ Phase 1: Get admin user to check permissions using repository
+      // Get admin user to check permissions
       const adminUserResult = await this.userRepo.findById(adminUserId);
-
-      if (!adminUserResult.ok) {
-        return err("USER_NOT_FOUND");
-      }
+      if (!adminUserResult.ok) return err("USER_NOT_FOUND");
 
       const adminUser = adminUserResult.value;
 
       // Only SUPER_ADMIN can modify roles
-      if (adminUser.role !== "SUPER_ADMIN") {
-        return err("INSUFFICIENT_PERMISSIONS");
-      }
+      if (adminUser.role !== "SUPER_ADMIN") return err("INSUFFICIENT_PERMISSIONS");
 
-      // ✅ Phase 1: Get target user using repository
+      // Get target user
       const targetUserResult = await this.userRepo.findById(targetUserId);
-
-      if (!targetUserResult.ok) {
-        return err("USER_NOT_FOUND");
-      }
+      if (!targetUserResult.ok) return err("USER_NOT_FOUND");
 
       const targetUser = targetUserResult.value;
-
       const oldRole = targetUser.role;
 
       // Update user role
       await prisma.adminUser.update({
         where: { id: targetUserId },
-        data: { role: newRole as AdminRole },
+        data: { roleId: role.id },
       });
 
-      // Log the role change with resource tracking for auditability
+      // Log the role change
       await this.logResourceAction(adminUserId, {
         accountId: adminUser.id,
         action: "USER_ROLE_UPDATED",
@@ -302,7 +327,7 @@ export class RbacService extends AuditableService {
         details: {
           targetUserId,
           oldRole,
-          newRole,
+          newRole: newRoleName,
           reason,
           targetUserEmail: targetUser.email,
         },
@@ -316,9 +341,9 @@ export class RbacService extends AuditableService {
   }
 
   /**
-   * Get users by role
+   * Get users by role.
    */
-  async getUsersByRole(role: string): Promise<
+  async getUsersByRole(roleName: string): Promise<
     Result<
       Array<{
         id: string;
@@ -333,17 +358,16 @@ export class RbacService extends AuditableService {
     >
   > {
     try {
-      if (!RolePermissions[role]) {
-        return err("INVALID_ROLE");
-      }
+      const role = await prisma.role.findUnique({ where: { name: roleName } });
+      if (!role) return err("INVALID_ROLE");
 
       const users = await prisma.adminUser.findMany({
-        where: { role: role as AdminRole },
+        where: { roleId: role.id },
         select: {
           id: true,
           email: true,
           name: true,
-          role: true,
+          role: { select: { name: true } },
           isActive: true,
           lastLoginAt: true,
           createdAt: true,
@@ -351,15 +375,19 @@ export class RbacService extends AuditableService {
         orderBy: { createdAt: "desc" },
       });
 
-      return ok(users);
+      return ok(users.map((u) => ({ ...u, role: u.role.name })));
     } catch (error: unknown) {
       authLogger.error({ err: error }, "Get users by role error");
       return err("DATABASE_ERROR");
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Utilities
+  // -------------------------------------------------------------------------
+
   /**
-   * Get permission categories for UI organization
+   * Get permission categories for UI organization.
    */
   getPermissionCategories(): Record<string, Permission[]> {
     return {
@@ -397,19 +425,18 @@ export class RbacService extends AuditableService {
   }
 
   /**
-   * Validate role hierarchy (prevent privilege escalation)
+   * Validate role hierarchy (prevent privilege escalation).
+   * Now queries the DB for role levels.
    */
-  canModifyRole(adminRole: string, targetRole: string): boolean {
-    const roleHierarchy = {
-      SUPER_ADMIN: 3,
-      ADMIN: 2,
-      SUPPORT: 1,
-    };
+  async canModifyRole(adminRole: string, targetRole: string): Promise<boolean> {
+    const [adminRoleRecord, targetRoleRecord] = await Promise.all([
+      prisma.role.findUnique({ where: { name: adminRole } }),
+      prisma.role.findUnique({ where: { name: targetRole } }),
+    ]);
 
-    const adminLevel = roleHierarchy[adminRole as keyof typeof roleHierarchy] || 0;
-    const targetLevel = roleHierarchy[targetRole as keyof typeof roleHierarchy] || 0;
+    const adminLevel = adminRoleRecord?.level ?? 0;
+    const targetLevel = targetRoleRecord?.level ?? 0;
 
-    // Can only modify roles at or below your level
     return adminLevel >= targetLevel;
   }
 }

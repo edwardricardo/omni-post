@@ -59,7 +59,6 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@infra/prisma", () => ({
   prisma: mocks.prismaClient,
-  AdminRole: { ADMIN: "ADMIN", SUPPORT: "SUPPORT", SUPER_ADMIN: "SUPER_ADMIN" },
   Prisma: {},
 }));
 
@@ -77,7 +76,7 @@ const TEST_USER_1 = {
   id: "audit-test-user-001",
   email: "audit-test-user@example.com",
   name: "Audit Test User",
-  role: "ADMIN",
+  role: { name: "ADMIN" },
 };
 
 // ---------------------------------------------------------------------------

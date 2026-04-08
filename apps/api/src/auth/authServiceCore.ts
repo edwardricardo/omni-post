@@ -92,12 +92,16 @@ export class AuthServiceCore extends AuditableService {
       if (existingUserResult.ok) return err("EMAIL_EXISTS");
 
       const passwordHash = await this.hashPassword(password);
+      // Resolve roleId from role name
+      const roleRecord = await prisma.role.findUnique({ where: { name: role } });
+      if (!roleRecord) return err("VALIDATION_ERROR");
+
       const user = await prisma.adminUser.create({
         data: {
           email: email.toLowerCase(),
           passwordHash,
           name,
-          role,
+          roleId: roleRecord.id,
           emailVerified: true,
         },
       });
@@ -112,11 +116,13 @@ export class AuthServiceCore extends AuditableService {
         details: {
           email: user.email,
           name: user.name,
-          role: user.role,
+          role: roleRecord.name,
         },
       });
 
-      return ok(this.mapUserToAuthenticatedUser(user as unknown as AdminUserDto));
+      // Map Prisma result to AdminUserDto shape (role as string name)
+      const userDto = { ...user, role: roleRecord.name } as unknown as AdminUserDto;
+      return ok(this.mapUserToAuthenticatedUser(userDto));
     } catch (error: unknown) {
       authLogger.error({ err: error }, "Registration error");
       return err("DATABASE_ERROR");

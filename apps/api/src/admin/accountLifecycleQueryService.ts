@@ -88,7 +88,7 @@ export class AccountLifecycleQueryService extends AuditableService {
       const where: Record<string, unknown> = {};
 
       if (filters.role) {
-        where.role = filters.role;
+        where.role = { name: filters.role };
       }
 
       if (filters.isActive !== undefined) {
@@ -140,6 +140,7 @@ export class AccountLifecycleQueryService extends AuditableService {
         skip: offset,
         take: limit,
         include: {
+          role: true,
           sessions: {
             where: { isActive: true },
             orderBy: { createdAt: "desc" },
@@ -148,7 +149,9 @@ export class AccountLifecycleQueryService extends AuditableService {
         },
       });
 
-      const accounts = await Promise.all(users.map((user) => mapAdminUserToProfile(user)));
+      const accounts = await Promise.all(
+        users.map((user) => mapAdminUserToProfile({ ...user, role: user.role.name }))
+      );
 
       return ok({
         accounts,
@@ -186,19 +189,23 @@ export class AccountLifecycleQueryService extends AuditableService {
         prisma.adminUser.count({ where: { lastLoginAt: { gte: sevenDaysAgo } } }),
         prisma.adminUser.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
         prisma.adminUser.groupBy({
-          by: ["role"],
+          by: ["roleId"],
           _count: { id: true },
         }),
       ]);
 
-      const accountsByRole: Record<AdminRoleKind, number> = {
-        SUPER_ADMIN: 0,
-        ADMIN: 0,
-        SUPPORT: 0,
-      };
+      // Resolve role names from IDs
+      const roles = await prisma.role.findMany({ where: { isActive: true } });
+      const roleNameById = new Map(roles.map((r) => [r.id, r.name]));
+
+      const accountsByRole: Record<string, number> = {};
+      for (const role of roles) {
+        accountsByRole[role.name] = 0;
+      }
 
       roleStats.forEach((stat) => {
-        accountsByRole[stat.role] = stat._count.id;
+        const roleName = roleNameById.get(stat.roleId) ?? stat.roleId;
+        accountsByRole[roleName] = stat._count.id;
       });
 
       return ok({

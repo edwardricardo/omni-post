@@ -23,7 +23,7 @@ import {
 } from "../domain/billing/PricingCalculator.js";
 
 // ✅ Zod schemas for validation with security enhancement
-const AdminRoleSchema = z.enum(["SUPER_ADMIN", "ADMIN", "SUPPORT"]);
+const AdminRoleSchema = z.string().min(1);
 
 const CreateAccountSchema = z.object({
   body: z.object({

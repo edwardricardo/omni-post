@@ -1,6 +1,5 @@
 import { prisma } from "@infra/prisma";
-import { type Result } from "@shared/types";
-import type { AdminRole } from "@infra/prisma";
+import { type Result, type AdminRole } from "@shared/types";
 import { BaseService } from "../services/BaseService";
 
 export interface AuditLogEntry {
@@ -82,13 +81,18 @@ export class AuditService extends BaseService {
                 id: true,
                 email: true,
                 name: true,
-                role: true,
+                role: { select: { name: true } },
               },
             },
           },
         });
 
-        return auditLog as AuditLogEntry;
+        // Map role relation to string
+        const mapped = {
+          ...auditLog,
+          ...(auditLog.user && { user: { ...auditLog.user, role: auditLog.user.role.name } }),
+        };
+        return mapped as AuditLogEntry;
       }
     );
   }
@@ -143,7 +147,7 @@ export class AuditService extends BaseService {
                 id: true,
                 email: true,
                 name: true,
-                role: true,
+                role: { select: { name: true } },
               },
             },
           },
@@ -152,7 +156,11 @@ export class AuditService extends BaseService {
           skip: offset,
         });
 
-        return logs as AuditLogEntry[];
+        // Map role relation to string for each log entry
+        return logs.map((log) => ({
+          ...log,
+          ...(log.user && { user: { ...log.user, role: log.user.role.name } }),
+        })) as AuditLogEntry[];
       }
     );
   }

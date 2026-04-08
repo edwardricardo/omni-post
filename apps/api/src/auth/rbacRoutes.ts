@@ -1,9 +1,16 @@
-// ✅ Phase 6.3: Migrated to BaseRouteHandler Pattern
+/**
+ * @file rbacRoutes.ts
+ * @description RBAC API routes — role queries, permission checks, and
+ *              role CRUD endpoints (SUPER_ADMIN only).
+ * @layer infrastructure
+ */
+
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
 import { Permission } from "./rbacService.js";
 import type { RbacService } from "./rbacService.js";
+import { RoleManagementService } from "./roleManagementService.js";
 import {
   requireAdminAuth,
   requireSuperAdmin,
@@ -19,12 +26,22 @@ declare module "fastify" {
   }
 }
 
-// ✅ Zod schemas for validation
-const RoleSchema = z.enum(["SUPER_ADMIN", "ADMIN", "SUPPORT"]);
+// ---------------------------------------------------------------------------
+// Zod schemas
+// ---------------------------------------------------------------------------
 
 const RoleParamSchema = z.object({
   params: z.object({
-    role: RoleSchema,
+    role: z.string().min(1),
+  }),
+});
+
+// Role IDs are CUIDs, not UUIDs
+const RoleIdSchema = z.string().min(1).max(100);
+
+const RoleIdParamSchema = z.object({
+  params: z.object({
+    roleId: RoleIdSchema,
   }),
 });
 
@@ -39,7 +56,7 @@ const UpdateUserRoleSchema = z.object({
     userId: IdSchema,
   }),
   body: z.object({
-    role: RoleSchema,
+    role: z.string().min(1),
     reason: z.string().min(10).max(500),
   }),
 });
@@ -51,13 +68,47 @@ const CheckPermissionsSchema = z.object({
   }),
 });
 
-// ✅ BaseRouteHandler implementation
+const CreateRoleSchema = z.object({
+  body: z.object({
+    name: z.string().min(3).max(50),
+    description: z.string().min(0).max(500),
+    level: z.number().int().min(1).max(99),
+    permissions: z.array(z.string()).min(1),
+  }),
+});
+
+const UpdateRoleSchema = z.object({
+  params: z.object({ roleId: RoleIdSchema }),
+  body: z.object({
+    description: z.string().min(0).max(500).optional(),
+    level: z.number().int().min(1).max(99).optional(),
+  }),
+});
+
+const SetRolePermissionsSchema = z.object({
+  params: z.object({ roleId: RoleIdSchema }),
+  body: z.object({
+    permissions: z.array(z.string()).min(0),
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
+
 class RbacRouteHandler extends BaseRouteHandler {
   protected routeName = "rbac";
 
-  constructor(private rbacService: RbacService) {
+  constructor(
+    private rbacService: RbacService,
+    private roleManagement: RoleManagementService
+  ) {
     super();
   }
+
+  // -----------------------------------------------------------------------
+  // Permission queries
+  // -----------------------------------------------------------------------
 
   async getCurrentUserPermissions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -69,24 +120,90 @@ class RbacRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "User not authenticated");
     }
 
-    const userPermissions = this.rbacService.getUserPermissions(userId, userRole);
+    const userPermissions = await this.rbacService.getUserPermissions(userId, userRole);
 
     this.logInfo(ctx, "Retrieved user permissions", { userId, role: userRole });
     return this.sendSuccess(ctx, {
-      user: {
-        id: userId,
-        role: userRole,
-      },
+      user: { id: userId, role: userRole },
       permissions: userPermissions.permissions,
       permissionCategories: this.rbacService.getPermissionCategories(),
     });
   }
 
+  async checkPermissions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    const userRole = request.auth?.user?.role;
+    if (!userRole) {
+      return this.sendError(ctx, 401, "User not authenticated");
+    }
+
+    const validated = await this.validateRequest<z.infer<typeof CheckPermissionsSchema>>(ctx, {
+      body: CheckPermissionsSchema.shape.body,
+    });
+    if (!validated.ok) {
+      return this.sendError(ctx, 400, "Invalid request body");
+    }
+
+    const { permissions, requireAll = false } = validated.value.body;
+
+    const validPermissions = permissions.filter((p) =>
+      Object.values(Permission).includes(p as Permission)
+    );
+    if (validPermissions.length !== permissions.length) {
+      return this.sendError(ctx, 400, "Invalid permissions", {
+        invalid: permissions.filter((p) => !Object.values(Permission).includes(p as Permission)),
+      });
+    }
+
+    const permissionObjects = validPermissions as Permission[];
+    let hasAccess: boolean;
+
+    if (requireAll) {
+      hasAccess = await this.rbacService.hasAllPermissions(userRole, permissionObjects);
+    } else {
+      hasAccess = await this.rbacService.hasAnyPermission(userRole, permissionObjects);
+    }
+
+    const userPermissions = await this.rbacService.getUserPermissions(
+      request.auth?.user?.id ?? "",
+      userRole
+    );
+    const grantedPermissions = permissionObjects.filter((p) =>
+      userPermissions.permissions.includes(p)
+    );
+    const deniedPermissions = permissionObjects.filter(
+      (p) => !userPermissions.permissions.includes(p)
+    );
+
+    this.logInfo(ctx, "Permissions checked", {
+      hasAccess,
+      requireAll,
+      permissionsCount: permissionObjects.length,
+    });
+    return this.sendSuccess(ctx, {
+      hasAccess,
+      requireAll,
+      permissions: {
+        requested: permissionObjects,
+        granted: grantedPermissions,
+        denied: deniedPermissions,
+      },
+      user: {
+        role: userRole,
+        allPermissions: userPermissions.permissions,
+      },
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // Role queries
+  // -----------------------------------------------------------------------
+
   async getAllRoles(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
     const result = await this.rbacService.getAllRoles();
-
     if (!result.ok) {
       return this.sendError(ctx, 500, "Failed to fetch roles");
     }
@@ -105,13 +222,11 @@ class RbacRouteHandler extends BaseRouteHandler {
     const validated = await this.validateRequest<z.infer<typeof RoleParamSchema>>(ctx, {
       params: RoleParamSchema.shape.params,
     });
-
     if (!validated.ok) {
       return this.sendError(ctx, 400, "Invalid parameters");
     }
 
     const { role } = validated.value.params;
-
     const result = await this.rbacService.getRoleInfo(role);
 
     if (!result.ok) {
@@ -135,13 +250,11 @@ class RbacRouteHandler extends BaseRouteHandler {
     const validated = await this.validateRequest<z.infer<typeof RoleParamSchema>>(ctx, {
       params: RoleParamSchema.shape.params,
     });
-
     if (!validated.ok) {
       return this.sendError(ctx, 400, "Invalid parameters");
     }
 
     const { role } = validated.value.params;
-
     const result = await this.rbacService.getUsersByRole(role);
 
     if (!result.ok) {
@@ -160,11 +273,14 @@ class RbacRouteHandler extends BaseRouteHandler {
     });
   }
 
+  // -----------------------------------------------------------------------
+  // Role mutations
+  // -----------------------------------------------------------------------
+
   async updateUserRole(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
     const adminUserId = request.auth?.user?.id;
-
     if (!adminUserId) {
       return this.sendError(ctx, 401, "Admin user not authenticated");
     }
@@ -173,7 +289,6 @@ class RbacRouteHandler extends BaseRouteHandler {
       params: UpdateUserRoleSchema.shape.params,
       body: UpdateUserRoleSchema.shape.body,
     });
-
     if (!validated.ok) {
       return this.sendError(ctx, 400, "Invalid request");
     }
@@ -211,91 +326,157 @@ class RbacRouteHandler extends BaseRouteHandler {
     });
   }
 
-  async checkPermissions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async createRole(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const userRole = request.auth?.user?.role;
-
-    if (!userRole) {
-      return this.sendError(ctx, 401, "User not authenticated");
-    }
-
-    const validated = await this.validateRequest<z.infer<typeof CheckPermissionsSchema>>(ctx, {
-      body: CheckPermissionsSchema.shape.body,
+    const validated = await this.validateRequest<z.infer<typeof CreateRoleSchema>>(ctx, {
+      body: CreateRoleSchema.shape.body,
     });
-
     if (!validated.ok) {
-      return this.sendError(ctx, 400, "Invalid request body");
+      return this.sendError(ctx, 400, "Invalid request");
     }
 
-    const { permissions, requireAll = false } = validated.value.body;
-
-    // Validate permissions
-    const validPermissions = permissions.filter((p) =>
-      Object.values(Permission).includes(p as Permission)
-    );
-    if (validPermissions.length !== permissions.length) {
-      return this.sendError(ctx, 400, "Invalid permissions", {
-        invalid: permissions.filter((p) => !Object.values(Permission).includes(p as Permission)),
-      });
-    }
-
-    const permissionObjects = validPermissions as Permission[];
-    let hasAccess: boolean;
-
-    if (requireAll) {
-      hasAccess = this.rbacService.hasAllPermissions(userRole, permissionObjects);
-    } else {
-      hasAccess = this.rbacService.hasAnyPermission(userRole, permissionObjects);
-    }
-
-    const userPermissions = this.rbacService.getUserPermissions(
-      request.auth?.user?.id ?? "",
-      userRole
-    );
-    const grantedPermissions = permissionObjects.filter((p) =>
-      userPermissions.permissions.includes(p)
-    );
-    const deniedPermissions = permissionObjects.filter(
-      (p) => !userPermissions.permissions.includes(p)
-    );
-
-    this.logInfo(ctx, "Permissions checked", {
-      hasAccess,
-      requireAll,
-      permissionsCount: permissionObjects.length,
+    const result = await this.roleManagement.createRole({
+      ...validated.value.body,
+      permissions: validated.value.body.permissions as Permission[],
     });
-    return this.sendSuccess(ctx, {
-      hasAccess,
-      requireAll,
-      permissions: {
-        requested: permissionObjects,
-        granted: grantedPermissions,
-        denied: deniedPermissions,
-      },
-      user: {
-        role: userRole,
-        allPermissions: userPermissions.permissions,
-      },
-    });
+
+    if (!result.ok) {
+      const errorMap: Record<string, { status: number; message: string }> = {
+        INVALID_NAME: {
+          status: 400,
+          message: "Role name must be UPPER_SNAKE_CASE, 3-50 chars",
+        },
+        INVALID_PERMISSIONS: { status: 400, message: "One or more invalid permissions" },
+        DUPLICATE_NAME: { status: 409, message: "A role with this name already exists" },
+        LEVEL_TOO_HIGH: { status: 400, message: "Level must be less than 100" },
+        DATABASE_ERROR: { status: 500, message: "Database error occurred" },
+      };
+      const error = errorMap[result.error] || { status: 500, message: "Failed to create role" };
+      return this.sendError(ctx, error.status, error.message);
+    }
+
+    this.logInfo(ctx, "Role created", { name: validated.value.body.name });
+    return this.sendSuccess(ctx, { role: result.value }, 201);
   }
+
+  async updateRoleMetadata(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    const validated = await this.validateRequest<z.infer<typeof UpdateRoleSchema>>(ctx, {
+      params: UpdateRoleSchema.shape.params,
+      body: UpdateRoleSchema.shape.body,
+    });
+    if (!validated.ok) {
+      return this.sendError(ctx, 400, "Invalid request");
+    }
+
+    const result = await this.roleManagement.updateRole(
+      validated.value.params.roleId,
+      validated.value.body
+    );
+
+    if (!result.ok) {
+      const errorMap: Record<string, { status: number; message: string }> = {
+        ROLE_NOT_FOUND: { status: 404, message: "Role not found" },
+        CANNOT_MODIFY_SUPER_ADMIN: {
+          status: 403,
+          message: "Cannot modify SUPER_ADMIN role level",
+        },
+        LEVEL_TOO_HIGH: { status: 400, message: "Level must be less than 100" },
+        DATABASE_ERROR: { status: 500, message: "Database error occurred" },
+      };
+      const error = errorMap[result.error] || { status: 500, message: "Failed to update role" };
+      return this.sendError(ctx, error.status, error.message);
+    }
+
+    this.logInfo(ctx, "Role updated", { roleId: validated.value.params.roleId });
+    return this.sendSuccess(ctx, { role: result.value });
+  }
+
+  async setRolePermissions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    const validated = await this.validateRequest<z.infer<typeof SetRolePermissionsSchema>>(ctx, {
+      params: SetRolePermissionsSchema.shape.params,
+      body: SetRolePermissionsSchema.shape.body,
+    });
+    if (!validated.ok) {
+      return this.sendError(ctx, 400, "Invalid request");
+    }
+
+    const result = await this.roleManagement.setRolePermissions(
+      validated.value.params.roleId,
+      validated.value.body.permissions
+    );
+
+    if (!result.ok) {
+      const errorMap: Record<string, { status: number; message: string }> = {
+        ROLE_NOT_FOUND: { status: 404, message: "Role not found" },
+        CANNOT_MODIFY_SUPER_ADMIN: {
+          status: 403,
+          message: "Cannot modify SUPER_ADMIN permissions",
+        },
+        INVALID_PERMISSIONS: { status: 400, message: "One or more invalid permissions" },
+        DATABASE_ERROR: { status: 500, message: "Database error occurred" },
+      };
+      const error = errorMap[result.error] || {
+        status: 500,
+        message: "Failed to set role permissions",
+      };
+      return this.sendError(ctx, error.status, error.message);
+    }
+
+    this.logInfo(ctx, "Role permissions set", { roleId: validated.value.params.roleId });
+    return this.sendSuccess(ctx, { role: result.value });
+  }
+
+  async deleteRole(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    const validated = await this.validateRequest<z.infer<typeof RoleIdParamSchema>>(ctx, {
+      params: RoleIdParamSchema.shape.params,
+    });
+    if (!validated.ok) {
+      return this.sendError(ctx, 400, "Invalid parameters");
+    }
+
+    const result = await this.roleManagement.deleteRole(validated.value.params.roleId);
+
+    if (!result.ok) {
+      const errorMap: Record<string, { status: number; message: string }> = {
+        ROLE_NOT_FOUND: { status: 404, message: "Role not found" },
+        SYSTEM_ROLE: { status: 403, message: "Cannot delete a system role" },
+        ROLE_IN_USE: { status: 409, message: "Cannot delete a role with assigned users" },
+        DATABASE_ERROR: { status: 500, message: "Database error occurred" },
+      };
+      const error = errorMap[result.error] || { status: 500, message: "Failed to delete role" };
+      return this.sendError(ctx, error.status, error.message);
+    }
+
+    this.logInfo(ctx, "Role deleted", { roleId: validated.value.params.roleId });
+    return this.sendSuccess(ctx, { message: "Role deleted successfully" });
+  }
+
+  // -----------------------------------------------------------------------
+  // Hierarchy and status
+  // -----------------------------------------------------------------------
 
   async getHierarchy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
     const roles = await this.rbacService.getAllRoles();
-
     if (!roles.ok) {
       return this.sendError(ctx, 500, "Failed to fetch role hierarchy");
     }
 
-    const hierarchy = {
-      SUPER_ADMIN: { level: 3, name: "Super Administrator" },
-      ADMIN: { level: 2, name: "Administrator" },
-      SUPPORT: { level: 1, name: "Support Agent" },
-    };
+    // Build hierarchy from DB roles
+    const hierarchy: Record<string, { level: number; name: string }> = {};
+    for (const role of roles.value) {
+      hierarchy[role.role] = { level: role.level, name: role.description || role.role };
+    }
 
-    const permissionMatrix: Record<string, any> = {};
+    const permissionMatrix: Record<string, Permission[]> = {};
     for (const role of roles.value) {
       permissionMatrix[role.role] = role.permissions;
     }
@@ -308,10 +489,7 @@ class RbacRouteHandler extends BaseRouteHandler {
       hierarchy,
       permissionMatrix,
       roles: roles.value,
-      currentUser: {
-        role: currentUserRole,
-        canModifyRoles,
-      },
+      currentUser: { role: currentUserRole, canModifyRoles },
       permissionCategories: this.rbacService.getPermissionCategories(),
     });
   }
@@ -320,7 +498,6 @@ class RbacRouteHandler extends BaseRouteHandler {
     const ctx: RouteContext = { request, reply };
 
     const roles = await this.rbacService.getAllRoles();
-
     if (!roles.ok) {
       return this.sendError(ctx, 500, "Failed to fetch RBAC status");
     }
@@ -351,12 +528,16 @@ class RbacRouteHandler extends BaseRouteHandler {
   }
 }
 
-// ✅ PROPER Fastify v5.6.1 Plugin Implementation
+// ---------------------------------------------------------------------------
+// Plugin registration
+// ---------------------------------------------------------------------------
+
 const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   const rbacService = fastify.container!.resolve<RbacService>(TOKENS.RbacService);
-  const handler = new RbacRouteHandler(rbacService);
+  const roleManagement = new RoleManagementService(rbacService);
+  const handler = new RbacRouteHandler(rbacService, roleManagement);
 
-  // ✅ Get current user's permissions
+  // Permission queries
   fastify.get(
     "/auth/permissions",
     {
@@ -366,47 +547,6 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getCurrentUserPermissions(request, reply)
   );
 
-  // ✅ Get all available roles and permissions
-  fastify.get(
-    "/admin/rbac/roles",
-    {
-      preHandler: [requireAdminAuth, requireAdmin],
-      schema: { tags: ["RBAC"], summary: "Get all available roles and permissions" },
-    },
-    async (request, reply) => handler.getAllRoles(request, reply)
-  );
-
-  // ✅ Get specific role information
-  fastify.get(
-    "/admin/rbac/roles/:role",
-    {
-      preHandler: [requireAdminAuth, requireAdmin],
-      schema: { tags: ["RBAC"], summary: "Get specific role information" },
-    },
-    async (request, reply) => handler.getRoleInfo(request, reply)
-  );
-
-  // ✅ Get users by role
-  fastify.get(
-    "/admin/rbac/roles/:role/users",
-    {
-      preHandler: [requireAdminAuth, requirePermission(Permission.USER_READ)],
-      schema: { tags: ["RBAC"], summary: "Get users by role" },
-    },
-    async (request, reply) => handler.getUsersByRole(request, reply)
-  );
-
-  // ✅ Update user role
-  fastify.put(
-    "/admin/rbac/users/:userId/role",
-    {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
-      schema: { tags: ["RBAC"], summary: "Update user role" },
-    },
-    async (request, reply) => handler.updateUserRole(request, reply)
-  );
-
-  // ✅ Check specific permission for current user
   fastify.post(
     "/auth/permissions/check",
     {
@@ -416,7 +556,34 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.checkPermissions(request, reply)
   );
 
-  // ✅ Get permission hierarchy and role comparison
+  // Role queries
+  fastify.get(
+    "/admin/rbac/roles",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["RBAC"], summary: "Get all available roles and permissions" },
+    },
+    async (request, reply) => handler.getAllRoles(request, reply)
+  );
+
+  fastify.get(
+    "/admin/rbac/roles/:role",
+    {
+      preHandler: [requireAdminAuth, requireAdmin],
+      schema: { tags: ["RBAC"], summary: "Get specific role information" },
+    },
+    async (request, reply) => handler.getRoleInfo(request, reply)
+  );
+
+  fastify.get(
+    "/admin/rbac/roles/:role/users",
+    {
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_READ)],
+      schema: { tags: ["RBAC"], summary: "Get users by role" },
+    },
+    async (request, reply) => handler.getUsersByRole(request, reply)
+  );
+
   fastify.get(
     "/admin/rbac/hierarchy",
     {
@@ -426,7 +593,6 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getHierarchy(request, reply)
   );
 
-  // ✅ Get RBAC system status and statistics
   fastify.get(
     "/admin/rbac/status",
     {
@@ -434,6 +600,52 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["RBAC"], summary: "Get RBAC system status and statistics" },
     },
     async (request, reply) => handler.getStatus(request, reply)
+  );
+
+  // Role mutations (SUPER_ADMIN only)
+  fastify.put(
+    "/admin/rbac/users/:userId/role",
+    {
+      preHandler: [requireAdminAuth, requireSuperAdmin],
+      schema: { tags: ["RBAC"], summary: "Update user role" },
+    },
+    async (request, reply) => handler.updateUserRole(request, reply)
+  );
+
+  fastify.post(
+    "/admin/rbac/roles",
+    {
+      preHandler: [requireAdminAuth, requireSuperAdmin],
+      schema: { tags: ["RBAC"], summary: "Create a new role" },
+    },
+    async (request, reply) => handler.createRole(request, reply)
+  );
+
+  fastify.put(
+    "/admin/rbac/roles/:roleId",
+    {
+      preHandler: [requireAdminAuth, requireSuperAdmin],
+      schema: { tags: ["RBAC"], summary: "Update role metadata" },
+    },
+    async (request, reply) => handler.updateRoleMetadata(request, reply)
+  );
+
+  fastify.put(
+    "/admin/rbac/roles/:roleId/permissions",
+    {
+      preHandler: [requireAdminAuth, requireSuperAdmin],
+      schema: { tags: ["RBAC"], summary: "Set role permissions (bulk replace)" },
+    },
+    async (request, reply) => handler.setRolePermissions(request, reply)
+  );
+
+  fastify.delete(
+    "/admin/rbac/roles/:roleId",
+    {
+      preHandler: [requireAdminAuth, requireSuperAdmin],
+      schema: { tags: ["RBAC"], summary: "Delete a custom role" },
+    },
+    async (request, reply) => handler.deleteRole(request, reply)
   );
 };
 

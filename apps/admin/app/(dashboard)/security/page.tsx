@@ -12,6 +12,7 @@ import { useTranslations } from "next-intl";
 
 import { useSecurityOverview } from "@/hooks/api/useSecurity";
 import { useChangePassword } from "@/hooks/api/useChangePassword";
+import RbacManager from "@/components/security/RbacManager";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
@@ -96,62 +97,15 @@ function SecurityPageContent() {
         </div>
       </div>
 
-      {/* Permission Hierarchy */}
-      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 mb-3">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
-          Permission Hierarchy
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">Role Levels</h3>
-            <div className="space-y-2">
-              {Object.entries(data.rbacOverview.hierarchy)
-                .sort(([, a], [, b]) => b.level - a.level)
-                .map(([role, info]) => (
-                  <div
-                    key={role}
-                    className="flex items-center justify-between p-2 bg-[var(--bg-elevated)] rounded-md"
-                  >
-                    <span className="font-medium text-[var(--text-primary)]">{info.name}</span>
-                    <span className="text-sm text-[var(--text-secondary)]">Level {info.level}</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-          <div>
-            <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">
-              Permission Categories
-            </h3>
-            <div className="space-y-2">
-              {Object.entries(data.rbacOverview.permissionCategories).map(([category, perms]) => (
-                <div
-                  key={category}
-                  className="flex items-center justify-between p-2 bg-[var(--bg-elevated)] rounded-md"
-                >
-                  <span className="font-medium text-[var(--text-primary)]">{category}</span>
-                  <span className="text-sm text-[var(--text-secondary)]">
-                    {perms.length} permissions
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* Role-Based Access Control */}
+      <div className="mb-3">
+        <RbacManager />
       </div>
 
       {/* Quick Actions */}
       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
         <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link
-            href="/security/rbac"
-            className="p-3 border-2 border-dashed border-[var(--border-default)] rounded-lg text-center hover:border-[var(--accent)] hover:bg-[var(--accent-subtle)] transition-colors"
-          >
-            <div className="text-sm font-medium text-[var(--text-primary)]">Manage User Roles</div>
-            <div className="text-xs text-[var(--text-tertiary)] mt-1">
-              View and modify user permissions
-            </div>
-          </Link>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
             href="/security/mfa"
             className="p-3 border-2 border-dashed border-[var(--border-default)] rounded-lg text-center hover:border-[var(--success)] hover:bg-[var(--success-subtle)] transition-colors"

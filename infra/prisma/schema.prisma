@@ -77,12 +77,41 @@ model Account {
   @@index([deletedAt])
 }
 
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String   @default("")
+  level       Int      @default(1)
+  isSystem    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  users       AdminUser[]
+
+  @@index([isActive])
+}
+
+model RolePermission {
+  id         String   @id @default(cuid())
+  roleId     String
+  permission String
+  createdAt  DateTime @default(now())
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permission])
+  @@index([roleId])
+}
+
 model AdminUser {
   id                   String    @id @default(uuid())
   email                String    @unique
   passwordHash         String
   name                 String
-  role                 AdminRole @default(ADMIN)
+  roleId               String
+  role                 Role      @relation(fields: [roleId], references: [id])
   isActive             Boolean   @default(true)
   emailVerified        Boolean   @default(false)
   lastLoginAt          DateTime?
@@ -116,7 +145,7 @@ model AdminUser {
   // @@index([createdAt]) - REMOVED: Admin users rarely queried by creation date alone
 
   // @@index([email]) - REMOVED: Already unique indexed
-  @@index([role, isActive])
+  @@index([roleId, isActive])
   @@index([lastLoginAt])
   @@index([failedLoginAttempts, lockedUntil])
   @@index([passwordChangedAt])
@@ -1085,12 +1114,6 @@ enum TweetStatus {
   PUBLISHING
   PUBLISHED
   FAILED
-}
-
-enum AdminRole {
-  SUPER_ADMIN
-  ADMIN
-  SUPPORT
 }
 
 enum ConnectionStatus {
