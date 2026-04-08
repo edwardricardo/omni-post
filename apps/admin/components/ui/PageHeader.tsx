@@ -15,10 +15,10 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
-    <header className="mb-4 border-b border-[var(--border-subtle)] pb-4">
+    <header className="mb-3 border-b border-[var(--border-subtle)] pb-3">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">{title}</h1>
+          <h1 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h1>
           {description && (
             <p className="mt-1 text-sm text-[var(--text-secondary)]">{description}</p>
           )}

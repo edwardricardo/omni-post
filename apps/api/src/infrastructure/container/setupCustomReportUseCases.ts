@@ -18,7 +18,6 @@ import { GetCustomReportQuery } from "../../application/custom-reports/GetCustom
 import { RunCustomReportQuery } from "../../application/custom-reports/RunCustomReportQuery.js";
 import { ScheduleCustomReportUseCase } from "../../application/custom-reports/ScheduleCustomReportUseCase.js";
 import { PrismaAnalyticsAggregationQuery } from "../repositories/PrismaAnalyticsAggregationQuery.js";
-import type { AnalyticsAggregationQueryPort } from "../../domain/repositories/AnalyticsAggregationQueryPort.js";
 
 /**
  * Register all Custom Report use cases in the container

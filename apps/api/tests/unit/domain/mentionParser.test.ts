@@ -4,7 +4,7 @@
  *   Validates parsing, validation, plain text conversion, and deduplication.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { MentionParser } from "../../../src/domain/services/MentionParser.js";
 
 describe("MentionParser", () => {

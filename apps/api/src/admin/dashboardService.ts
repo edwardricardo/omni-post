@@ -124,6 +124,7 @@ export class DashboardService extends BaseService {
           name: account.name,
           isActive: account.isActive,
           createdAt: account.createdAt.toISOString(),
+          ...(account.phone && { phone: account.phone }),
           plan: {
             type: sub?.bundleId
               ? ("bundle" as const)

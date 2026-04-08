@@ -43,9 +43,9 @@ function TrendIndicator({ value, isPositive }: { value: number; isPositive: bool
 
 export function StatCard({ label, value, trend, icon }: StatCardProps) {
   return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
       <div className="flex items-start justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           {label}
         </span>
         {icon && (
@@ -54,8 +54,8 @@ export function StatCard({ label, value, trend, icon }: StatCardProps) {
           </span>
         )}
       </div>
-      <div className="mt-2 flex items-end gap-2">
-        <span className="text-2xl font-semibold text-[var(--text-primary)]">{value}</span>
+      <div className="mt-1 flex items-end gap-2">
+        <span className="text-xl font-semibold text-[var(--text-primary)]">{value}</span>
         {trend && <TrendIndicator value={trend.value} isPositive={trend.isPositive} />}
       </div>
     </div>

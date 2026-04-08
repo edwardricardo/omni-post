@@ -4,6 +4,7 @@
  * and mutating account properties such as name, role, and active status.
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { AdminRole } from "@shared/types";
 import { api } from "../../lib/apiClient";
 
 /**
@@ -27,7 +28,9 @@ export function useAccounts() {
 
 interface UpdateAccountData {
   name?: string;
-  role?: "SUPER_ADMIN" | "ADMIN" | "SUPPORT";
+  email?: string;
+  phone?: string;
+  role?: AdminRole;
   isActive?: boolean;
   emailVerified?: boolean;
 }

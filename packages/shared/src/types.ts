@@ -213,6 +213,15 @@ export const PROVIDER_NAMES: ProviderName[] = [
 /** Admin user roles matching the Prisma AdminRole enum */
 export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "SUPPORT";
 
+/** Subscription status matching the Prisma SubscriptionStatus enum */
+export type SubscriptionStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "GRANDFATHERED";
+
+/** Billing cycle matching the Prisma BillingCycle enum */
+export type BillingCycle = "MONTHLY" | "YEARLY";
+
+/** Plan type derived from AccountSubscription shape */
+export type PlanType = "custom" | "bundle" | "none";
+
 /** Domain-level analytics record for cross-platform analysis */
 export interface DomainAnalytics {
   id: string;

@@ -8,6 +8,7 @@
 "use client";
 
 import { useCallback } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { useDashboardStats } from "@/hooks/api/useDashboardStats";
@@ -41,7 +42,7 @@ function DashboardContent() {
       <div>
         <PageHeader title={t("dashboard")} />
         <div
-          className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-4"
+          className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-3"
           role="alert"
           aria-live="assertive"
         >
@@ -106,11 +107,11 @@ function DashboardContent() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Subscription Distribution */}
         <div
-          className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4"
+          className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3"
           role="region"
           aria-labelledby="chart-plans"
         >
-          <h2 id="chart-plans" className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+          <h2 id="chart-plans" className="text-sm font-semibold text-[var(--text-primary)] mb-4">
             Subscription Distribution
           </h2>
           <div className="space-y-4">
@@ -154,11 +155,11 @@ function DashboardContent() {
 
         {/* Revenue Breakdown */}
         <div
-          className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4"
+          className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3"
           role="region"
           aria-labelledby="chart-revenue"
         >
-          <h2 id="chart-revenue" className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+          <h2 id="chart-revenue" className="text-sm font-semibold text-[var(--text-primary)] mb-4">
             Revenue Breakdown
           </h2>
           <div className="space-y-4">
@@ -188,11 +189,11 @@ function DashboardContent() {
 
       {/* Quick Actions */}
       <div
-        className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4"
+        className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3"
         role="region"
         aria-labelledby="quick-actions"
       >
-        <h2 id="quick-actions" className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+        <h2 id="quick-actions" className="text-sm font-semibold text-[var(--text-primary)] mb-4">
           Quick Actions
         </h2>
         <nav aria-label="Quick action links">
@@ -200,18 +201,18 @@ function DashboardContent() {
             {[
               { href: "/accounts", title: "Manage Accounts", desc: "View and edit user accounts" },
               { href: "/subscriptions", title: "Subscriptions", desc: "Manage billing and trials" },
-              { href: "/executive", title: "Analytics", desc: "View detailed reports" },
+              { href: "/executive", title: "Executive", desc: "View detailed reports" },
               { href: "/webhooks", title: "System Logs", desc: "Monitor system activity" },
-            ].map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="p-4 border border-[var(--border-default)] rounded-lg hover:bg-[var(--bg-elevated)] transition-colors focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)]"
-                aria-label={link.title}
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="p-3 border border-[var(--border-default)] rounded-lg hover:bg-[var(--bg-elevated)] transition-colors focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)]"
+                aria-label={item.title}
               >
-                <div className="text-sm font-medium text-[var(--text-primary)]">{link.title}</div>
-                <div className="text-xs text-[var(--text-tertiary)] mt-1">{link.desc}</div>
-              </a>
+                <div className="text-sm font-medium text-[var(--text-primary)]">{item.title}</div>
+                <div className="text-xs text-[var(--text-tertiary)] mt-1">{item.desc}</div>
+              </Link>
             ))}
           </div>
         </nav>

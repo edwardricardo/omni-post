@@ -30,7 +30,7 @@ const ALLOWED_TYPES = new Set([
   "video/quicktime",
 ]);
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024;
+const _MAX_FILE_SIZE = 100 * 1024 * 1024;
 const SIGNATURE_EXPIRY_MS = 15 * 60 * 1000;
 
 export function createAzureBlobStorageAdapter(config: AzureStorageConfig): StoragePort {

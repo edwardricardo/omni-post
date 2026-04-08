@@ -81,8 +81,11 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
       }
 
       const data = await response.json();
-      setEvents(data.events);
-      setPagination((prev) => ({ ...prev, ...data.pagination }));
+      const payload = data.data ?? data;
+      setEvents(payload.events ?? []);
+      if (payload.pagination) {
+        setPagination((prev) => ({ ...prev, ...payload.pagination }));
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");

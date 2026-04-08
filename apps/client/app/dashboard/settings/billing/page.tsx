@@ -86,7 +86,7 @@ function calcBundle(bundlePrice: number, accounts: number): number {
 }
 
 export default function BillingPage() {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const [tab, setTab] = useState<"bundles" | "custom">("bundles");
   const [selectedProviders, setSelectedProviders] = useState<Set<string>>(
     new Set(["X", "INSTAGRAM"])

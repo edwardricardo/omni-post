@@ -30,9 +30,9 @@ const VARIANT_CLASSES: Record<NonNullable<ActionButtonProps["variant"]>, string>
 };
 
 const SIZE_CLASSES: Record<NonNullable<ActionButtonProps["size"]>, string> = {
-  sm: "h-7 px-2.5 text-xs",
-  md: "h-8 px-3 text-sm",
-  lg: "h-9 px-4 text-sm",
+  sm: "h-6 px-2 text-[11px]",
+  md: "h-7 px-2.5 text-xs",
+  lg: "h-8 px-3 text-sm",
 };
 
 function Spinner() {

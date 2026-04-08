@@ -6,22 +6,20 @@
  */
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { AlertTriangle, Download, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 
-import { useQueryClient } from "@tanstack/react-query";
 import { useSubscriptions } from "@/hooks/api/useSubscriptions";
-import { useEndTrial, useConvertTrial } from "@/hooks/api/useSubscriptionMutations";
 import { useBillingStats } from "@/hooks/api/useBillingStats";
-import { ChangePlanDialog } from "@/components/subscriptions/ChangePlanDialog";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { UsageMetricsPanel } from "@/components/settings/UsageMetricsPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
+import { Pagination } from "@/components/ui/Pagination";
 import { TabNav } from "@/components/ui/TabNav";
 import { StatCard } from "@/components/ui/StatCard";
 
@@ -63,30 +61,45 @@ const TRIAL_STATUS_VARIANT: Record<string, "success" | "warning" | "error"> = {
 
 function SubscriptionsPageContent() {
   const t = useTranslations("nav");
-  const queryClient = useQueryClient();
   const { data: subscriptionData, isLoading, error, refetch } = useSubscriptions();
   const { data: billingStats } = useBillingStats();
   const searchParams = useSearchParams();
   const selectedAccountId = searchParams.get("accountId");
   const [activeTab, setActiveTab] = useState("subscriptions");
+  const [subPage, setSubPage] = useState(1);
+  const [subPerPage, setSubPerPage] = useState(10);
+  const [subSearch, setSubSearch] = useState("");
+  const [trialPage, setTrialPage] = useState(1);
+  const [trialPerPage, setTrialPerPage] = useState(10);
+  const [trialSearch, setTrialSearch] = useState("");
 
-  // Trial mutation hooks
-  const convertTrial = useConvertTrial();
-  const endTrial = useEndTrial();
+  const allSubscriptions = (subscriptionData?.subscriptions as SubscriptionAccount[]) ?? [];
+  const subscriptions = useMemo(() => {
+    if (!subSearch) return allSubscriptions;
+    const q = subSearch.toLowerCase();
+    return allSubscriptions.filter(
+      (s) => s.name.toLowerCase().includes(q) || s.plan?.name?.toLowerCase().includes(q)
+    );
+  }, [allSubscriptions, subSearch]);
+  const subTotalPages = Math.max(1, Math.ceil(subscriptions.length / subPerPage));
+  const paginatedSubs = useMemo(
+    () => subscriptions.slice((subPage - 1) * subPerPage, subPage * subPerPage),
+    [subscriptions, subPage, subPerPage]
+  );
 
-  // Dialog state
-  const [changePlanOpen, setChangePlanOpen] = useState(false);
-  const [changePlanAccountId, setChangePlanAccountId] = useState("");
-  const [changePlanName, setChangePlanName] = useState("");
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancelTarget, setCancelTarget] = useState("");
-  const [convertOpen, setConvertOpen] = useState(false);
-  const [convertTarget, setConvertTarget] = useState("");
-  const [endTrialOpen, setEndTrialOpen] = useState(false);
-  const [endTrialTarget, setEndTrialTarget] = useState("");
-
-  const subscriptions = (subscriptionData?.subscriptions as SubscriptionAccount[]) ?? [];
-  const trials = (subscriptionData?.trials as TrialAccount[]) ?? [];
+  const allTrials = (subscriptionData?.trials as TrialAccount[]) ?? [];
+  const trials = useMemo(() => {
+    if (!trialSearch) return allTrials;
+    const q = trialSearch.toLowerCase();
+    return allTrials.filter(
+      (t) => t.name.toLowerCase().includes(q) || t.plan?.name?.toLowerCase().includes(q)
+    );
+  }, [allTrials, trialSearch]);
+  const trialTotalPages = Math.max(1, Math.ceil(trials.length / trialPerPage));
+  const paginatedTrials = useMemo(
+    () => trials.slice((trialPage - 1) * trialPerPage, trialPage * trialPerPage),
+    [trials, trialPage, trialPerPage]
+  );
   const stats = subscriptionData?.stats ?? {
     totalRevenue: 0,
     monthlyRevenue: 0,
@@ -98,7 +111,7 @@ function SubscriptionsPageContent() {
 
   const handleRefresh = useCallback(() => {
     refetch();
-  }, [refetch, queryClient]);
+  }, [refetch]);
 
   const formatDate = useCallback((dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -109,88 +122,26 @@ function SubscriptionsPageContent() {
     });
   }, []);
 
-  const handleCancel = useCallback(async () => {
+  const handleBillingExport = useCallback(async () => {
     try {
-      const res = await fetch(`/api/backend/admin/billing/accounts/${cancelTarget}/subscription`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch("/api/backend/admin/billing/export?format=csv", {
         credentials: "include",
-        body: JSON.stringify({ cancelAtPeriodEnd: true }),
       });
-      if (!res.ok) throw new Error("Failed to cancel subscription");
-      toast({ title: "Success", description: "Subscription cancelled" });
-      setCancelOpen(false);
-      await refetch();
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to cancel",
-        variant: "destructive",
-      });
+      if (!res.ok) {
+        toast({ title: "Error", description: "Export failed", variant: "destructive" });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `billing-export-${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Error", description: "Export failed", variant: "destructive" });
     }
-  }, [cancelTarget, refetch]);
-
-  const handleConvert = useCallback(async () => {
-    try {
-      await convertTrial.mutateAsync({ accountId: convertTarget });
-      toast({ title: "Success", description: "Trial converted to paid subscription" });
-      setConvertOpen(false);
-      await refetch();
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Conversion failed",
-        variant: "destructive",
-      });
-    }
-  }, [convertTarget, convertTrial, refetch]);
-
-  const handleEndTrial = useCallback(async () => {
-    try {
-      await endTrial.mutateAsync(endTrialTarget);
-      toast({ title: "Success", description: "Trial ended" });
-      setEndTrialOpen(false);
-      await refetch();
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to end trial",
-        variant: "destructive",
-      });
-    }
-  }, [endTrialTarget, endTrial, refetch]);
-
-  const handleAutoRenewals = useCallback(async () => {
-    try {
-      const res = await fetch("/api/backend/admin/billing/auto-renewals/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) throw new Error("Failed to process renewals");
-      const result = await res.json();
-      const data = result.data ?? result;
-      const processed = data.processed ?? 0;
-      const failed = data.failed ?? 0;
-      toast({
-        title: "Auto-Renewals Processed",
-        description:
-          processed > 0
-            ? `${processed} account${processed !== 1 ? "s" : ""} converted to paid${failed > 0 ? `, ${failed} failed` : ""}`
-            : "No accounts eligible for auto-renewal",
-      });
-      await refetch();
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Processing failed",
-        variant: "destructive",
-      });
-    }
-  }, [refetch]);
+  }, []);
 
   if (isLoading) {
     return (
@@ -226,32 +177,24 @@ function SubscriptionsPageContent() {
             <ActionButton variant="primary" size="sm" onClick={handleRefresh} loading={isLoading}>
               Refresh
             </ActionButton>
-            <ActionButton
-              variant="secondary"
-              size="sm"
-              onClick={handleAutoRenewals}
-              aria-label="Process automatic renewals"
-            >
-              Process Auto-Renewals
+            <ActionButton variant="secondary" size="sm" onClick={handleBillingExport}>
+              <Download className="h-3.5 w-3.5" />
+              Export
             </ActionButton>
           </div>
         }
       />
 
-      {/* Usage Metering */}
-      {selectedAccountId ? (
+      {/* Usage Metering — only shown when navigated with ?accountId=xxx */}
+      {selectedAccountId && (
         <div className="mb-4">
           <UsageMetricsPanel accountId={selectedAccountId} />
-        </div>
-      ) : (
-        <div className="mb-4 bg-[var(--bg-elevated)] border border-dashed border-[var(--border-default)] rounded-lg p-4 text-sm text-[var(--text-secondary)] text-center">
-          Select an account to view usage metrics.
         </div>
       )}
 
       {/* Stats */}
       <div
-        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4"
+        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-3"
         role="region"
         aria-label="Subscription statistics"
       >
@@ -266,10 +209,27 @@ function SubscriptionsPageContent() {
         <StatCard label="Conversion Rate" value={`${(stats.conversionRate ?? 0).toFixed(1)}%`} />
       </div>
 
+      {/* Expiring Trials Alert */}
+      {(stats?.expiringTrials ?? 0) > 0 && (
+        <div className="flex items-center gap-3 p-3 mb-3 rounded-lg bg-[var(--warning-subtle)] border border-[var(--warning)]/20">
+          <AlertTriangle className="h-4 w-4 text-[var(--warning)] shrink-0" />
+          <span className="text-sm text-[var(--warning)]">
+            {stats.expiringTrials} trial{stats.expiringTrials > 1 ? "s" : ""} expiring in the next 7
+            days
+          </span>
+          <button
+            className="ml-auto text-xs underline text-[var(--warning)] hover:text-[var(--warning)]/80"
+            onClick={() => setActiveTab("trials")}
+          >
+            View trials
+          </button>
+        </div>
+      )}
+
       {/* Billing MRR */}
       {billingStats && (
         <div
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4"
+          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3"
           role="region"
           aria-label="Billing statistics"
         >
@@ -289,194 +249,204 @@ function SubscriptionsPageContent() {
 
       <div className="mt-4">
         {activeTab === "subscriptions" && (
-          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-[var(--border-subtle)]">
-                <thead className="bg-[var(--bg-elevated)]">
-                  <tr>
-                    {["Account", "Plan", "Billing", "Revenue", "Next Bill", "Actions"].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)]">
-                  {subscriptions.map((sub) => (
-                    <tr key={sub.id} className="hover:bg-[var(--bg-elevated)] transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-[var(--text-primary)]">
-                          {sub.name}
-                        </div>
-                        <div className="text-sm text-[var(--text-secondary)]">{sub.email}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="info">{sub.plan?.name ?? "No Plan"}</Badge>
-                        <span className="text-xs text-[var(--text-tertiary)] ml-1">
-                          ({sub.billingCycle})
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={sub.autoRenewal ? "success" : "warning"}>
-                          {sub.autoRenewal ? "Auto-Renew" : "Manual"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-[var(--text-primary)]">
-                          ${sub.plan?.pricePerMonth ?? 0}/mo
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">
-                        {formatDate(sub.nextBillingDate)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <ActionButton
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => {
-                              setChangePlanAccountId(sub.id);
-                              setChangePlanName(sub.name);
-                              setChangePlanOpen(true);
-                            }}
-                            aria-label={`Change plan for ${sub.email}`}
-                          >
-                            Change Plan
-                          </ActionButton>
-                          <ActionButton
-                            variant="danger"
-                            size="sm"
-                            onClick={() => {
-                              setCancelTarget(sub.id);
-                              setCancelOpen(true);
-                            }}
-                            aria-label={`Cancel subscription for ${sub.email}`}
-                          >
-                            Cancel
-                          </ActionButton>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <>
+            <div className="relative mb-3 max-w-sm">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
+              <input
+                type="text"
+                value={subSearch}
+                onChange={(e) => {
+                  setSubSearch(e.target.value);
+                  setSubPage(1);
+                }}
+                placeholder="Search by name or plan..."
+                className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] py-1.5 pl-8 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              />
             </div>
-            {subscriptions.length === 0 && (
-              <div className="text-center py-12 text-[var(--text-secondary)]">
-                No active subscriptions found
+            <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-[var(--border-subtle)]">
+                  <thead className="bg-[var(--bg-elevated)]">
+                    <tr>
+                      {[
+                        "Account",
+                        "Plan",
+                        "Cycle",
+                        "Revenue",
+                        "Auto-Renew",
+                        "Next Bill",
+                        "Last Bill",
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          className="px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-subtle)]">
+                    {paginatedSubs.map((sub) => (
+                      <tr key={sub.id} className="hover:bg-[var(--bg-elevated)] transition-colors">
+                        <td className="px-3 py-2">
+                          <div className="text-sm font-medium text-[var(--text-primary)]">
+                            {sub.name}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge variant="info">{sub.plan?.name ?? "No Plan"}</Badge>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="text-sm text-[var(--text-primary)] capitalize">
+                            {sub.billingCycle}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="text-sm font-medium text-[var(--text-primary)]">
+                            ${Number(sub.plan?.pricePerMonth ?? 0).toLocaleString()}/mo
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge variant={sub.autoRenewal ? "success" : "warning"} size="sm">
+                            {sub.autoRenewal ? "Yes" : "No"}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-sm text-[var(--text-secondary)]">
+                          {formatDate(sub.nextBillingDate)}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-[var(--text-secondary)]">
+                          {formatDate(sub.lastBillingDate)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+              {subscriptions.length === 0 && (
+                <div className="text-center py-12 text-[var(--text-secondary)]">
+                  No active subscriptions found
+                </div>
+              )}
+            </div>
+            <Pagination
+              page={subPage}
+              totalPages={subTotalPages}
+              totalItems={subscriptions.length}
+              perPage={subPerPage}
+              onPageChange={setSubPage}
+              onPerPageChange={(n) => {
+                setSubPerPage(n);
+                setSubPage(1);
+              }}
+            />
+          </>
         )}
 
         {activeTab === "trials" && (
-          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-[var(--border-subtle)]">
-                <thead className="bg-[var(--bg-elevated)]">
-                  <tr>
-                    {[
-                      "Account",
-                      "Plan",
-                      "Status",
-                      "Days Left",
-                      "End Date",
-                      "Auto-Renew",
-                      "Actions",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)]">
-                  {trials.map((trial) => (
-                    <tr key={trial.id} className="hover:bg-[var(--bg-elevated)] transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-[var(--text-primary)]">
-                          {trial.name}
-                        </div>
-                        <div className="text-sm text-[var(--text-secondary)]">{trial.email}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="info">{trial.plan?.name ?? "No Plan"}</Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={TRIAL_STATUS_VARIANT[trial.status] ?? "neutral"}>
-                          {trial.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`text-sm font-medium ${
-                            trial.trialDaysRemaining <= 1
-                              ? "text-[var(--error)]"
-                              : trial.trialDaysRemaining <= 3
-                                ? "text-[var(--warning)]"
-                                : "text-[var(--success)]"
-                          }`}
-                        >
-                          {trial.trialDaysRemaining} days
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">
-                        {formatDate(trial.trialEndDate)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={trial.autoRenewal ? "success" : "neutral"}>
-                          {trial.autoRenewal ? "Yes" : "No"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        {trial.status === "ACTIVE" || trial.status === "EXPIRING" ? (
-                          <div className="flex gap-2">
-                            <ActionButton
-                              variant="primary"
-                              size="sm"
-                              onClick={() => {
-                                setConvertTarget(trial.id);
-                                setConvertOpen(true);
-                              }}
-                              loading={convertTrial.isPending && convertTarget === trial.id}
-                              aria-label={`Convert trial for ${trial.email}`}
-                            >
-                              Convert
-                            </ActionButton>
-                            <ActionButton
-                              variant="danger"
-                              size="sm"
-                              onClick={() => {
-                                setEndTrialTarget(trial.id);
-                                setEndTrialOpen(true);
-                              }}
-                              loading={endTrial.isPending && endTrialTarget === trial.id}
-                              aria-label={`End trial for ${trial.email}`}
-                            >
-                              End Trial
-                            </ActionButton>
-                          </div>
-                        ) : (
-                          <span className="text-[var(--text-tertiary)] text-sm">Expired</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <>
+            <div className="relative mb-3 max-w-sm">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
+              <input
+                type="text"
+                value={trialSearch}
+                onChange={(e) => {
+                  setTrialSearch(e.target.value);
+                  setTrialPage(1);
+                }}
+                placeholder="Search by name or plan..."
+                className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] py-1.5 pl-8 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              />
             </div>
-            {trials.length === 0 && (
-              <div className="text-center py-12 text-[var(--text-secondary)]">
-                No trial accounts found
+            <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-[var(--border-subtle)]">
+                  <thead className="bg-[var(--bg-elevated)]">
+                    <tr>
+                      {[
+                        "Account",
+                        "Plan",
+                        "Status",
+                        "Days Left",
+                        "Start Date",
+                        "End Date",
+                        "Auto-Renew",
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          className="px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-subtle)]">
+                    {paginatedTrials.map((trial) => (
+                      <tr
+                        key={trial.id}
+                        className="hover:bg-[var(--bg-elevated)] transition-colors"
+                      >
+                        <td className="px-3 py-2">
+                          <div className="text-sm font-medium text-[var(--text-primary)]">
+                            {trial.name}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge variant="info">{trial.plan?.name ?? "No Plan"}</Badge>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge variant={TRIAL_STATUS_VARIANT[trial.status] ?? "neutral"}>
+                            {trial.status}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`text-sm font-medium ${
+                              trial.trialDaysRemaining <= 1
+                                ? "text-[var(--error)]"
+                                : trial.trialDaysRemaining <= 3
+                                  ? "text-[var(--warning)]"
+                                  : "text-[var(--success)]"
+                            }`}
+                          >
+                            {trial.trialDaysRemaining} days
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-sm text-[var(--text-secondary)]">
+                          {formatDate(trial.trialStartDate)}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-[var(--text-secondary)]">
+                          {formatDate(trial.trialEndDate)}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge variant={trial.autoRenewal ? "success" : "neutral"} size="sm">
+                            {trial.autoRenewal ? "Yes" : "No"}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+              {trials.length === 0 && (
+                <div className="text-center py-12 text-[var(--text-secondary)]">
+                  No trial accounts found
+                </div>
+              )}
+            </div>
+            <Pagination
+              page={trialPage}
+              totalPages={trialTotalPages}
+              totalItems={trials.length}
+              perPage={trialPerPage}
+              onPageChange={setTrialPage}
+              onPerPageChange={(n) => {
+                setTrialPerPage(n);
+                setTrialPage(1);
+              }}
+            />
+          </>
         )}
 
         {activeTab === "billing" && (
@@ -488,41 +458,6 @@ function SubscriptionsPageContent() {
           </div>
         )}
       </div>
-
-      {/* Dialogs */}
-      <ChangePlanDialog
-        accountId={changePlanAccountId}
-        accountName={changePlanName}
-        open={changePlanOpen}
-        onOpenChange={setChangePlanOpen}
-        onSuccess={() => refetch()}
-      />
-      <ConfirmDialog
-        open={cancelOpen}
-        onOpenChange={setCancelOpen}
-        title="Cancel Subscription"
-        description="This will cancel the subscription at the end of the current billing period. The account will retain access until then."
-        variant="danger"
-        confirmLabel="Cancel Subscription"
-        onConfirm={handleCancel}
-      />
-      <ConfirmDialog
-        open={convertOpen}
-        onOpenChange={setConvertOpen}
-        title="Convert Trial"
-        description="This will convert the trial to a paid subscription immediately."
-        confirmLabel="Convert to Paid"
-        onConfirm={handleConvert}
-      />
-      <ConfirmDialog
-        open={endTrialOpen}
-        onOpenChange={setEndTrialOpen}
-        title="End Trial"
-        description="This will end the trial immediately. The account will lose access to trial features."
-        variant="danger"
-        confirmLabel="End Trial"
-        onConfirm={handleEndTrial}
-      />
     </div>
   );
 }

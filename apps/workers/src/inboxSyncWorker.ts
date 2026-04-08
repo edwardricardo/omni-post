@@ -25,7 +25,7 @@ import { pinterestAdapter } from "@providers/pinterest";
 import { linkedInAdapter } from "@providers/linkedin";
 import { blueskyAdapter } from "@providers/bluesky";
 import { prisma } from "@infra/prisma";
-import type { ProviderAdapter, ProviderComment } from "@ports/core";
+import type { ProviderAdapter } from "@ports/core";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "inbox-sync-worker" });
 

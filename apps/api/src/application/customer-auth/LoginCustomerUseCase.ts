@@ -125,7 +125,7 @@ export class LoginCustomerUseCase {
         accessToken,
         refreshToken,
       });
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       return err("INTERNAL_ERROR");
     }
   }

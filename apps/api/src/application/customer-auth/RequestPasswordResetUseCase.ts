@@ -86,7 +86,7 @@ export class RequestPasswordResetUseCase {
       }
 
       return ok({ message: responseMessage });
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       return err("INTERNAL_ERROR");
     }
   }

@@ -4,7 +4,7 @@
  * @layer test
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { buildEnhancedSystemPrompt } from "../../../src/application/ai/buildEnhancedSystemPrompt.js";
 

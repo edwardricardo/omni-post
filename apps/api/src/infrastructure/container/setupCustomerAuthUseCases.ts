@@ -11,7 +11,6 @@ import type { CustomerUserRepository } from "../../domain/repositories/CustomerU
 import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
-import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
 import { PrismaAccountSubscriptionAdapter } from "../repositories/PrismaAccountSubscriptionAdapter.js";
 import { PrismaCustomerUserRepository } from "../repositories/PrismaCustomerUserRepository.js";
 import {

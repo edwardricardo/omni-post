@@ -27,6 +27,7 @@ interface ConfirmDialogProps {
   variant?: "default" | "danger";
   onConfirm: () => void | Promise<void>;
   loading?: boolean;
+  children?: React.ReactNode;
 }
 
 /**

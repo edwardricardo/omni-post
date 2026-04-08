@@ -279,7 +279,7 @@ const { mockModule, stores } = vi.hoisted(() => {
 
   // ---- Build accountSubscription model mock ----
   const accountSubscriptionModel = {
-    groupBy: vi.fn(async (args: { by: string[]; _count: StoreRecord; _sum?: StoreRecord }) => {
+    groupBy: vi.fn(async (_args: { by: string[]; _count: StoreRecord; _sum?: StoreRecord }) => {
       // Return empty distribution by default
       return [];
     }),

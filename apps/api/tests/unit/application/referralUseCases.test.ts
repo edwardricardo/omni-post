@@ -4,7 +4,7 @@
  * @layer test
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import assert from "node:assert/strict";
 import { GetOrCreateReferralCodeUseCase } from "../../../src/application/referral/GetOrCreateReferralCodeUseCase.js";
 import { TrackReferralSignupUseCase } from "../../../src/application/referral/TrackReferralSignupUseCase.js";

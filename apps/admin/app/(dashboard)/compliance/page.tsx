@@ -39,7 +39,7 @@ function CompliancePageContent() {
   const { data, isLoading, error } = useCompliance();
   const [activeTab, setActiveTab] = useState("overview");
 
-  const metrics = data?.metrics ?? [];
+  const metrics = useMemo(() => data?.metrics ?? [], [data?.metrics]);
   const auditLogs = data?.auditLogs ?? [];
 
   const overallScore = useMemo(() => {
@@ -63,7 +63,7 @@ function CompliancePageContent() {
       <div>
         <PageHeader title={t("compliance")} />
         <div
-          className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-4"
+          className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-3"
           role="alert"
         >
           <h3 className="text-[var(--error)] font-medium">Error Loading Compliance Dashboard</h3>
@@ -81,9 +81,9 @@ function CompliancePageContent() {
       />
 
       {/* Overall Score */}
-      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 mb-4">
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 mb-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
             Overall Compliance Score
           </h2>
           <span className="text-2xl font-bold text-[var(--text-primary)]">{overallScore}%</span>
@@ -110,11 +110,11 @@ function CompliancePageContent() {
             {metrics.map((metric) => (
               <div
                 key={metric.id}
-                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4"
+                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)]">
                       {metric.name}
                     </h3>
                     <p className="text-sm text-[var(--text-secondary)]">{metric.description}</p>
@@ -154,7 +154,7 @@ function CompliancePageContent() {
         {activeTab === "audit" && (
           <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
             <div className="p-4 border-b border-[var(--border-subtle)]">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">
                 Recent Audit Events
               </h2>
             </div>
@@ -186,7 +186,7 @@ function CompliancePageContent() {
         )}
 
         {(activeTab === "gdpr" || activeTab === "security") && (
-          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
             <div className="text-center py-8">
               <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
                 {activeTab === "gdpr" ? "GDPR/Privacy Compliance" : "Security Compliance"}

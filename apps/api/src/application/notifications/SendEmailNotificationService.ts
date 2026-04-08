@@ -9,12 +9,7 @@
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import type { NotificationPreferenceRepository } from "../../domain/repositories/NotificationRepository.js";
 import type { NotificationTypeValue } from "../../domain/value-objects/NotificationType.js";
-import {
-  approvalRequestedEmail,
-  approvalDecisionEmail,
-  taskAssignedEmail,
-  mentionEmail,
-} from "./emailTemplates.js";
+import { approvalRequestedEmail, approvalDecisionEmail, mentionEmail } from "./emailTemplates.js";
 
 const EMAIL_ENABLED_TYPES: NotificationTypeValue[] = [
   "APPROVAL_REQUESTED",

@@ -6,7 +6,7 @@
  * @layer test
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 
 // We can't import from apps/client directly in api tests.

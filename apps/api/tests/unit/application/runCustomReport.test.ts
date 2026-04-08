@@ -5,7 +5,7 @@
  * @layer test
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { RunCustomReportQuery } from "../../../src/application/custom-reports/RunCustomReportQuery.js";
 import { ok, err } from "@shared/types";

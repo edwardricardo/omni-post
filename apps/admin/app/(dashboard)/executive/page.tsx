@@ -13,7 +13,6 @@ import { useExecutive } from "@/hooks/api/useExecutive";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { ActionButton } from "@/components/ui/ActionButton";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -57,7 +56,7 @@ function ExecutivePageContent() {
       <div>
         <PageHeader title={t("executive")} />
         <div
-          className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-4"
+          className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-3"
           role="alert"
         >
           <h3 className="text-[var(--error)] font-medium">Error Loading Executive Dashboard</h3>
@@ -118,8 +117,8 @@ function ExecutivePageContent() {
 
       {/* Business Health */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Business Health</h3>
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Business Health</h3>
           <div className="grid grid-cols-2 gap-4">
             {[
               { label: "New Customers", value: String(summary.growthMetrics.newCustomers) },
@@ -130,7 +129,7 @@ function ExecutivePageContent() {
               { label: "Feature Adoption", value: `${summary.growthMetrics.featureAdoption}%` },
               { label: "CSAT Score", value: String(summary.growthMetrics.customerSatisfaction) },
             ].map((item) => (
-              <div key={item.label} className="text-center p-4 bg-[var(--bg-elevated)] rounded-md">
+              <div key={item.label} className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
                 <div className="text-2xl font-bold text-[var(--text-primary)]">{item.value}</div>
                 <div className="text-sm text-[var(--text-secondary)]">{item.label}</div>
               </div>
@@ -138,8 +137,8 @@ function ExecutivePageContent() {
           </div>
         </div>
 
-        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
             Operational Excellence
           </h3>
           <div className="space-y-4">
@@ -209,30 +208,30 @@ function ExecutivePageContent() {
 
       {/* Financial Health */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
             Financial Health
           </h3>
           <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-4 bg-[var(--bg-elevated)] rounded-md">
+            <div className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
               <div className="text-2xl font-bold text-[var(--text-primary)]">
                 {formatCurrency(summary.businessMetrics.lifetimeValue)}
               </div>
               <div className="text-sm text-[var(--text-secondary)]">Customer LTV</div>
             </div>
-            <div className="text-center p-4 bg-[var(--bg-elevated)] rounded-md">
+            <div className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
               <div className="text-2xl font-bold text-[var(--text-primary)]">
                 {summary.businessMetrics.churnRate}%
               </div>
               <div className="text-sm text-[var(--text-secondary)]">Churn Rate</div>
             </div>
-            <div className="text-center p-4 bg-[var(--bg-elevated)] rounded-md">
+            <div className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
               <div className="text-2xl font-bold text-[var(--text-primary)]">
                 {summary.businessMetrics.revenueGrowth}%
               </div>
               <div className="text-sm text-[var(--text-secondary)]">Revenue Growth</div>
             </div>
-            <div className="text-center p-4 bg-[var(--bg-elevated)] rounded-md">
+            <div className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
               <div className="text-2xl font-bold text-[var(--text-primary)]">
                 {summary.growthMetrics.trialConversions.toFixed(1)}%
               </div>
@@ -242,8 +241,8 @@ function ExecutivePageContent() {
         </div>
 
         {/* Subscription Distribution */}
-        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
             Subscription Distribution
           </h3>
           <div className="space-y-3">
@@ -285,8 +284,8 @@ function ExecutivePageContent() {
 
       {/* Revenue & Growth Trends */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Revenue Trend</h3>
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Revenue Trend</h3>
           <div className="h-48 flex items-end justify-between gap-1">
             {summary.trends.revenue.map((value, index) => (
               <div
@@ -306,8 +305,8 @@ function ExecutivePageContent() {
           </div>
         </div>
 
-        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">User Growth</h3>
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">User Growth</h3>
           <div className="h-48 flex items-end justify-between gap-1">
             {summary.trends.users.map((value, index) => (
               <div

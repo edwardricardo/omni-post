@@ -75,7 +75,7 @@ export class RefreshCustomerTokenUseCase {
       const refreshToken = signCustomerRefreshToken(user.id, sessionId);
 
       return ok({ accessToken, refreshToken });
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       return err("INTERNAL_ERROR");
     }
   }

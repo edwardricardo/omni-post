@@ -4,6 +4,8 @@
  * JSON defaults and exposes methods for posts, admin dashboard stats, accounts, subscriptions,
  * analytics, and security (MFA/RBAC) endpoints.
  */
+import type { PlanType } from "@shared/types";
+
 const API_URL = "/api/backend";
 
 /**
@@ -67,11 +69,12 @@ export interface AccountSummary {
   id: string;
   email: string;
   name: string;
+  phone?: string;
   isActive: boolean;
   createdAt: string;
   lastLoginAt?: string | null;
   plan: {
-    type: "custom" | "bundle" | "none";
+    type: PlanType;
     name: string;
     status: string;
     providers: string[];

@@ -8,10 +8,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import type {
-  GeneratePlatformVariantsUseCase,
-  PlatformVariantsOutput,
-} from "./GeneratePlatformVariantsUseCase.js";
+import type { GeneratePlatformVariantsUseCase } from "./GeneratePlatformVariantsUseCase.js";
 
 export interface GenerateRepurposeInput {
   proposalId: string;

@@ -18,7 +18,6 @@ import {
   Home,
   FileText,
   BarChart3,
-  Layers,
   Menu,
   Inbox,
   Calendar,

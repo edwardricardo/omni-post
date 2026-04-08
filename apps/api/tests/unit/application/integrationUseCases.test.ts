@@ -64,7 +64,7 @@ function makeApiKey(overrides?: Partial<Record<string, unknown>>): IntegrationAp
   return result.value;
 }
 
-function makeMakeApiKey(overrides?: Partial<Record<string, unknown>>): IntegrationApiKey {
+function _makeMakeApiKey(overrides?: Partial<Record<string, unknown>>): IntegrationApiKey {
   const result = IntegrationApiKey.create({
     accountId: (overrides?.accountId as string) ?? "acc-001",
     platform: "MAKE",

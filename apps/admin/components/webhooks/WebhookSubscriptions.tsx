@@ -127,7 +127,8 @@ export function WebhookSubscriptions() {
       }
 
       const data = await response.json();
-      setSubscriptions(data);
+      const payload = data.data ?? data;
+      setSubscriptions(Array.isArray(payload) ? payload : (payload.subscriptions ?? []));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");

@@ -22,8 +22,8 @@ const VARIANT_CLASSES: Record<BadgeProps["variant"], string> = {
 };
 
 const SIZE_CLASSES: Record<NonNullable<BadgeProps["size"]>, string> = {
-  sm: "px-1.5 py-0.5 text-[10px]",
-  md: "px-2 py-0.5 text-xs",
+  sm: "px-1.5 py-px text-[10px]",
+  md: "px-1.5 py-px text-[11px]",
 };
 
 export function Badge({ variant, children, size = "md" }: BadgeProps) {

@@ -9,7 +9,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth/authContext";
 import { Button } from "@packages/ui";
-import { RefreshCw } from "lucide-react";
 
 interface RepurposeProposal {
   id: string;

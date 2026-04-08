@@ -65,6 +65,8 @@ const UpdateAccountStatusSchema = z.object({
   body: z.object({
     isActive: z.boolean().optional(),
     name: z.string().min(1).optional(),
+    email: z.string().email().optional(),
+    phone: z.string().min(1).optional(),
   }),
 });
 
@@ -578,11 +580,14 @@ class AccountLifecycleHandler extends BaseRouteHandler {
         data: {
           ...(body.isActive !== undefined && { isActive: body.isActive }),
           ...(body.name !== undefined && { name: body.name }),
+          ...(body.email !== undefined && { email: body.email }),
+          ...(body.phone !== undefined && { phone: body.phone }),
         },
         select: {
           id: true,
           email: true,
           name: true,
+          phone: true,
           isActive: true,
           updatedAt: true,
         },

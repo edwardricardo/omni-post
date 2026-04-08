@@ -1,12 +1,14 @@
 /**
  * @file schedulingRoutes.test.ts
- * @description Unit tests for schedulingRoutes. Uses mocked Prisma stores and
- *              a real Fastify instance to test HTTP endpoint behavior.
+ * @description Unit tests for admin scheduling routes and client scheduling routes.
+ *              Uses mocked Prisma stores and a real Fastify instance.
  *
- * Covers:
+ * Admin routes (schedulingRoutes):
  *   GET  /admin/posts/scheduled
  *   POST /admin/posts/:id/cancel
  *   POST /admin/posts/:id/reschedule
+ *
+ * Client routes (schedulingClientRoutes):
  *   GET  /api/scheduling/slots
  *   GET  /api/analytics/optimal-times
  *   GET  /api/scheduling/rules
@@ -51,6 +53,18 @@ vi.mock("@infra/prisma", async (importOriginal) => {
   return { ...original, prisma: mockPrisma.prisma };
 });
 
+vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
+  requireClientAuth: async (
+    request: { headers: { authorization?: string } },
+    reply: { code: (n: number) => { send: (b: unknown) => void } }
+  ) => {
+    const auth = request.headers.authorization;
+    if (!auth || !auth.startsWith("Bearer ")) {
+      reply.code(401).send({ ok: false, error: "Authentication required" });
+    }
+  },
+}));
+
 vi.mock("../../src/lib/logger.js", () => {
   const noop = vi.fn();
   const noopLogger = {
@@ -72,6 +86,7 @@ vi.mock("../../src/lib/logger.js", () => {
 const Fastify = (await import("fastify")).default;
 const fastifyCookie = (await import("@fastify/cookie")).default;
 const { schedulingRoutes } = await import("../../src/admin/schedulingRoutes.js");
+const { schedulingClientRoutes } = await import("../../src/scheduling/schedulingClientRoutes.js");
 const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
 const { generateAdminToken } = await import("./admin/adminTestHelper.js");
 
@@ -89,6 +104,7 @@ async function createTestApp() {
   app.decorate("container", container);
   await app.register(fastifyCookie);
   await app.register(schedulingRoutes);
+  await app.register(schedulingClientRoutes);
   await app.ready();
   return app;
 }

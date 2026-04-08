@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/Badge";
 // Constants & Types
 // ---------------------------------------------------------------------------
 
-import { PROVIDER_NAMES } from "@shared/types";
+import { PROVIDER_NAMES, type PlanType } from "@shared/types";
 
 const ALL_PROVIDERS = PROVIDER_NAMES.map((id) => ({ id, label: id }));
 
@@ -56,7 +56,7 @@ interface ChangePlanDialogProps {
   accountId: string;
   accountName: string;
   currentProviders?: string[];
-  currentPlanType?: "custom" | "bundle" | "none";
+  currentPlanType?: PlanType;
   currentBundleSlug?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;

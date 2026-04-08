@@ -7,7 +7,7 @@ import {
   type UpdateAccountInput,
 } from "@shared/types";
 import { prisma } from "@infra/prisma";
-import type { SubscriptionTier } from "@shared/types";
+
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:account");

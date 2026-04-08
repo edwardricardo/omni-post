@@ -107,7 +107,7 @@ describe("CrmConnection", () => {
     it("returns false when no tokenExpiresAt", () => {
       const result = CrmConnection.create(validInput);
       if (!result.ok) throw new Error("expected ok");
-      const conn = CrmConnection.reconstitute({
+      const _conn = CrmConnection.reconstitute({
         ...result.value.toJSON(),
         id: "c1",
         accessToken: "tok",

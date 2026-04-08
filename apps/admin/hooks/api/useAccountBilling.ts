@@ -4,11 +4,12 @@
  * @layer presentation
  */
 import { useQuery } from "@tanstack/react-query";
+import type { PlanType } from "@shared/types";
 
 export interface BillingData {
   accountId: string;
   accountName: string;
-  planType: "custom" | "bundle" | "none";
+  planType: PlanType;
   bundleInfo: { name: string; slug: string } | null;
   isGrandfathered: boolean;
   grandfathering: {

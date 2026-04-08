@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useCampaigns } from "@/hooks/api/useCampaigns";
 import type { CampaignDto } from "@/hooks/api/useCampaigns";
 import { CampaignCard } from "./CampaignCard";

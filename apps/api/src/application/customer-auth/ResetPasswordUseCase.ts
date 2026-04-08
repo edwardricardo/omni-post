@@ -91,7 +91,7 @@ export class ResetPasswordUseCase {
         return result;
       }
       return await doWork();
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       return err("INTERNAL_ERROR");
     }
   }

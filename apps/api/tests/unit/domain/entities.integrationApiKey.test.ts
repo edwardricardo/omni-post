@@ -4,7 +4,7 @@
  * @layer domain
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import assert from "node:assert/strict";
 import { IntegrationApiKey } from "../../../src/domain/entities/IntegrationApiKey.js";
 

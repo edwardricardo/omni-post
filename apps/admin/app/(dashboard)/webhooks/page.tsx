@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@packages/ui";
-import { AlertCircle, Activity, Zap, Clock, TrendingUp } from "lucide-react";
+import { AlertCircle, Activity } from "lucide-react";
 
 import { useWebhookMetrics } from "@/hooks/api/useWebhooks";
 import { WebhookMetrics } from "@/components/webhooks/WebhookMetrics";
@@ -78,7 +78,7 @@ function WebhookDashboardContent() {
         <PageHeader title={t("webhooks")} />
         <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center">
           <AlertCircle className="h-12 w-12 text-[var(--error)] mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
             Failed to load webhook dashboard
           </h3>
           <p className="text-[var(--text-secondary)] mb-4">
@@ -213,7 +213,7 @@ function WebhookDashboardContent() {
                         </div>
                         <div className="text-right">
                           <div
-                            className={`text-lg font-semibold ${getStatusColor(stats.successRate)}`}
+                            className={`text-sm font-semibold ${getStatusColor(stats.successRate)}`}
                           >
                             {Number(stats.successRate).toFixed(1)}%
                           </div>

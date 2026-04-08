@@ -340,7 +340,7 @@ async function main() {
 
   const adminUser = await prisma.adminUser.upsert({
     where: { email: "admin@omnipost.local" },
-    update: {},
+    update: { passwordHash: hashedPassword },
     create: {
       email: "admin@omnipost.local",
       passwordHash: hashedPassword,

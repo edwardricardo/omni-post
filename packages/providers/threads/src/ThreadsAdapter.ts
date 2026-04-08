@@ -26,7 +26,7 @@ import type {
   RenderError,
   PublishError,
 } from "@shared/types";
-import { ok, err, AppError } from "@shared/types";
+import { ok, err } from "@shared/types";
 
 const API_BASE = "https://graph.threads.net/v1.0";
 
@@ -137,7 +137,7 @@ export class ThreadsAdapter extends AbstractProviderAdapter<ThreadsCredentials> 
         publishedAt: new Date(),
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      const _message = error instanceof Error ? error.message : String(error);
       return err("NETWORK" as PublishError);
     }
   }

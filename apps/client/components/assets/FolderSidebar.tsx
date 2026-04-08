@@ -10,7 +10,6 @@ import { useState, useCallback } from "react";
 import { Button, Input } from "@packages/ui";
 import { Folder, FolderPlus } from "lucide-react";
 import { useAssetFolders, useCreateFolder } from "@/hooks/api/useAssets";
-import type { AssetFolderDto } from "@/hooks/api/useAssets";
 
 interface FolderSidebarProps {
   selectedFolderId: string | undefined;
