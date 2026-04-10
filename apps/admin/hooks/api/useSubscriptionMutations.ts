@@ -7,6 +7,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ApiError } from "@/lib/parseApiError";
 
 interface StartTrialParams {
   accountId: string;
@@ -32,8 +33,8 @@ export function useStartTrial() {
         body: JSON.stringify({ trialDays }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { message?: string }).message ?? "Failed to start trial");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },
@@ -56,8 +57,8 @@ export function useEndTrial() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { message?: string }).message ?? "Failed to end trial");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },
@@ -84,8 +85,8 @@ export function useConvertTrial() {
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { message?: string }).message ?? "Failed to convert trial");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },

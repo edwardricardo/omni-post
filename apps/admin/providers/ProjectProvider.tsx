@@ -14,6 +14,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { getErrorMessage } from "@/lib/parseApiError";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -213,7 +214,7 @@ export function ProjectProvider({
         setIsLoading(false);
       } catch (err) {
         if (cancelled) return;
-        setErrorMsg(err instanceof Error ? err.message : "Failed to load project context");
+        setErrorMsg(getErrorMessage(err));
         setIsLoading(false);
       }
     }

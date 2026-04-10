@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/Badge";
 // ---------------------------------------------------------------------------
 
 import { PROVIDER_NAMES, type PlanType } from "@shared/types";
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 
 const ALL_PROVIDERS = PROVIDER_NAMES.map((id) => ({ id, label: id }));
 
@@ -193,10 +194,11 @@ export function ChangePlanDialog({
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+        const body = await res.text().catch(() => "");
+        const apiErr = ApiError.fromResponse(res.status, body);
         toast({
           title: tc("error"),
-          description: (err as { message?: string }).message || tcp("failedChange"),
+          description: getErrorMessage(apiErr),
           variant: "destructive",
         });
         return;
@@ -217,7 +219,7 @@ export function ChangePlanDialog({
     } catch (e) {
       toast({
         title: tc("error"),
-        description: e instanceof Error ? e.message : tcp("failedChange"),
+        description: getErrorMessage(e),
         variant: "destructive",
       });
     } finally {

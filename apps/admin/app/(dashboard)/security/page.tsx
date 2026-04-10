@@ -10,6 +10,8 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useSecurityOverview } from "@/hooks/api/useSecurity";
 import { useChangePassword } from "@/hooks/api/useChangePassword";
 import RbacManager from "@/components/security/RbacManager";
@@ -36,6 +38,14 @@ function SecurityPageContent() {
   }
 
   if (error) {
+    if (isPermissionDenied(error)) {
+      return (
+        <div>
+          <PageHeader title={t("security")} />
+          <AccessDenied />
+        </div>
+      );
+    }
     return (
       <div>
         <PageHeader title={t("security")} />
@@ -44,7 +54,7 @@ function SecurityPageContent() {
           role="alert"
         >
           <h3 className="text-[var(--error)] font-medium">{ts("errorTitle")}</h3>
-          <p className="text-[var(--error)] mt-1 text-sm">{error.message}</p>
+          <p className="text-[var(--error)] mt-1 text-sm">{getErrorMessage(error)}</p>
         </div>
       </div>
     );
@@ -263,9 +273,7 @@ function ChangePasswordSection() {
         )}
         {changePassword.isError && (
           <p className="text-sm text-[var(--error)]" role="alert">
-            {changePassword.error instanceof Error
-              ? changePassword.error.message
-              : ts("changePassword.failed")}
+            {getErrorMessage(changePassword.error)}
           </p>
         )}
         <ActionButton variant="primary" size="sm" loading={changePassword.isPending} type="submit">

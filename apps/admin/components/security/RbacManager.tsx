@@ -13,6 +13,7 @@ import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
 
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 import { api, type RoleInfo } from "../../lib/apiClient";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import { InputDialog } from "../ui/InputDialog";
@@ -62,13 +63,13 @@ export default function RbacManager() {
   const fetchRoles = useCallback(async () => {
     try {
       const response = await api.security.rbac.getRoles();
-      if (!response.ok) throw new Error("Failed to fetch roles");
+      if (!response.ok) throw new ApiError(0, null, "Failed to fetch roles");
       setRoles(response.roles);
       if (response.roles.length > 0 && !selectedRole && response.roles[0]) {
         setSelectedRole(response.roles[0].role);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load roles");
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -77,7 +78,7 @@ export default function RbacManager() {
   const fetchRoleUsers = useCallback(async (role: string) => {
     try {
       const response = await api.security.rbac.getUsersByRole(role);
-      if (!response.ok) throw new Error("Failed to fetch role users");
+      if (!response.ok) throw new ApiError(0, null, "Failed to fetch role users");
       const rawUsers = (response.users || []) as RbacUser[];
       setRoleUsers(
         rawUsers.map((u) => ({
@@ -105,13 +106,13 @@ export default function RbacManager() {
     try {
       setActionLoading(userId);
       const response = await api.security.rbac.updateUserRole(userId, newRole, reason);
-      if (!response.ok) throw new Error("Failed to update user role");
+      if (!response.ok) throw new ApiError(0, null, "Failed to update user role");
       setRoleUsers((prev) => prev.filter((user) => user.id !== userId));
       toast({ title: "Success", description: "User role updated successfully" });
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : "Failed to update user role",
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {
@@ -129,7 +130,10 @@ export default function RbacManager() {
         method: "POST",
         credentials: "include",
       });
-      if (!res.ok) throw new Error(`Failed to ${user.isActive ? "deactivate" : "activate"} user`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       setRoleUsers((prev) =>
         prev.map((u) => (u.id === user.id ? { ...u, isActive: !u.isActive } : u))
       );
@@ -140,7 +144,7 @@ export default function RbacManager() {
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : "Action failed",
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {
@@ -153,14 +157,14 @@ export default function RbacManager() {
     if (!roleInfo) return;
     try {
       const response = await api.security.rbac.deleteRole(roleInfo.id);
-      if (!response.ok) throw new Error("Failed to delete role");
+      if (!response.ok) throw new ApiError(0, null, "Failed to delete role");
       toast({ title: "Success", description: `Role ${roleInfo.role} deleted` });
       setSelectedRole(null);
       await fetchRoles();
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : "Failed to delete role",
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     }
@@ -173,14 +177,14 @@ export default function RbacManager() {
       const response = await api.security.rbac.updateRole(roleInfo.id, {
         description: descriptionDraft.trim(),
       });
-      if (!response.ok) throw new Error("Failed to update description");
+      if (!response.ok) throw new ApiError(0, null, "Failed to update description");
       toast({ title: "Success", description: "Description updated" });
       setEditingDescription(false);
       await fetchRoles();
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : "Failed to update",
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     }

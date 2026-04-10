@@ -2,7 +2,9 @@
 import { FastifyPluginAsync } from "fastify";
 import type { SubscriptionService } from "./subscription/index.js";
 import type { ChangeAccountSubscriptionUseCase } from "../application/billing/ChangeAccountSubscriptionUseCase.js";
-import { requireAdminAuth, requireSuperAdmin } from "../admin/auth/adminAuthMiddleware.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "../auth/rbacService.js";
 import {
   SubscriptionPlanHandler,
   SubscriptionAccountHandler,
@@ -28,7 +30,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/plans",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Billing"], summary: "Get all available subscription plans" },
     },
     async (request, reply) => planHandler.getAllPlans(request, reply)
@@ -38,7 +40,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/plans/:tier",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Billing"], summary: "Get specific subscription plan" },
     },
     async (request, reply) => planHandler.getSpecificPlan(request, reply)
@@ -48,7 +50,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/accounts/:accountId/subscription",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Billing"], summary: "Get account subscription details" },
     },
     async (request, reply) => accountHandler.getAccountSubscription(request, reply)
@@ -58,7 +60,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/billing/accounts/:accountId/subscription",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_MANAGE)],
       schema: { tags: ["Billing"], summary: "Update account subscription" },
     },
     async (request, reply) => accountHandler.updateAccountSubscription(request, reply)
@@ -68,7 +70,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/subscriptions",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Billing"], summary: "List all account subscriptions" },
     },
     async (request, reply) => accountHandler.listSubscriptions(request, reply)
@@ -78,7 +80,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/stats",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Billing"], summary: "Get subscription statistics" },
     },
     async (request, reply) => analyticsHandler.getSubscriptionStats(request, reply)
@@ -88,7 +90,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/accounts/:accountId/validate-limits",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Billing"], summary: "Validate subscription limits for an account" },
     },
     async (request, reply) => accountHandler.validateLimits(request, reply)
@@ -98,7 +100,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/accounts/:accountId/suspend",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_MANAGE)],
       schema: { tags: ["Billing"], summary: "Suspend account subscription" },
     },
     async (request, reply) => accountHandler.suspendSubscription(request, reply)
@@ -108,7 +110,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/bulk/upgrade",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_MANAGE)],
       schema: { tags: ["Billing"], summary: "Bulk upgrade subscriptions" },
     },
     async (request, reply) => accountHandler.bulkUpgrade(request, reply)
@@ -120,7 +122,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/health",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Billing"], summary: "Subscription health check" },
     },
     async (request, reply) => analyticsHandler.getSubscriptionHealth(request, reply)
@@ -130,7 +132,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/export",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ANALYTICS_EXPORT)],
       schema: { tags: ["Billing"], summary: "Export subscription data" },
     },
     async (request, reply) => analyticsHandler.exportSubscriptions(request, reply)
@@ -140,7 +142,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/accounts/:accountId/trial/start",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_MANAGE)],
       schema: { tags: ["Billing"], summary: "Start trial for an account" },
     },
     async (request, reply) => trialHandler.startTrial(request, reply)
@@ -150,7 +152,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/accounts/:accountId/trial/end",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_MANAGE)],
       schema: { tags: ["Billing"], summary: "End trial for an account" },
     },
     async (request, reply) => trialHandler.endTrial(request, reply)
@@ -160,7 +162,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/accounts/:accountId/trial/convert",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_MANAGE)],
       schema: { tags: ["Billing"], summary: "Convert trial to paid subscription" },
     },
     async (request, reply) => trialHandler.convertTrial(request, reply)
@@ -170,7 +172,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/trials/expiring",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Billing"], summary: "Get expiring trials" },
     },
     async (request, reply) => trialHandler.getExpiringTrials(request, reply)
@@ -180,7 +182,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/billing/auto-renewals/process",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_MANAGE)],
       schema: { tags: ["Billing"], summary: "Process auto-renewals" },
     },
     async (request, reply) => trialHandler.processAutoRenewals(request, reply)
@@ -190,7 +192,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/billing/trials/stats",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Billing"], summary: "Get trial statistics" },
     },
     async (request, reply) => trialHandler.getTrialStats(request, reply)

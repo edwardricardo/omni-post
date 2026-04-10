@@ -7,7 +7,9 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { requireAdminAuth, requireAdmin } from "./auth/adminAuthMiddleware.js";
+import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "../auth/rbacService.js";
 import { prisma } from "@infra/prisma";
 
 // --- Zod Schemas ---
@@ -441,7 +443,7 @@ const pricingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/pricing/tiers",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Admin"], summary: "Get all pricing tiers and bundles" },
     },
     async (request, reply) => handler.getTiers(request, reply)
@@ -450,7 +452,7 @@ const pricingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/pricing/provider-tiers/:id",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.PRICING_MANAGE)],
       schema: { tags: ["Admin"], summary: "Update provider pricing tier" },
     },
     async (request, reply) => handler.updateProviderTier(request, reply)
@@ -459,7 +461,7 @@ const pricingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/pricing/account-tiers/:id",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.PRICING_MANAGE)],
       schema: { tags: ["Admin"], summary: "Update account pricing tier" },
     },
     async (request, reply) => handler.updateAccountTier(request, reply)
@@ -468,7 +470,7 @@ const pricingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/pricing/bundles/:id",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.PRICING_MANAGE)],
       schema: { tags: ["Admin"], summary: "Update provider bundle" },
     },
     async (request, reply) => handler.updateBundle(request, reply)
@@ -477,7 +479,7 @@ const pricingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/pricing/bundles",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.PRICING_MANAGE)],
       schema: { tags: ["Admin Pricing"], summary: "Create provider bundle" },
     },
     async (request, reply) => handler.createBundle(request, reply)
@@ -486,7 +488,7 @@ const pricingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete(
     "/admin/pricing/bundles/:id",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.PRICING_MANAGE)],
       schema: { tags: ["Admin Pricing"], summary: "Delete provider bundle" },
     },
     async (request, reply) => handler.deleteBundle(request, reply)
@@ -495,7 +497,7 @@ const pricingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/pricing/provider-tiers",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.PRICING_MANAGE)],
       schema: { tags: ["Admin Pricing"], summary: "Create provider pricing tier" },
     },
     async (request, reply) => handler.createProviderTier(request, reply)
@@ -504,7 +506,7 @@ const pricingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/pricing/account-tiers",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.PRICING_MANAGE)],
       schema: { tags: ["Admin Pricing"], summary: "Create account pricing tier" },
     },
     async (request, reply) => handler.createAccountTier(request, reply)
@@ -513,7 +515,7 @@ const pricingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.patch(
     "/admin/pricing/provider-tiers/:id/status",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.PRICING_MANAGE)],
       schema: { tags: ["Admin Pricing"], summary: "Toggle provider tier active status" },
     },
     async (request, reply) => handler.toggleProviderTierStatus(request, reply)
@@ -522,7 +524,7 @@ const pricingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.patch(
     "/admin/pricing/account-tiers/:id/status",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.PRICING_MANAGE)],
       schema: { tags: ["Admin Pricing"], summary: "Toggle account tier active status" },
     },
     async (request, reply) => handler.toggleAccountTierStatus(request, reply)

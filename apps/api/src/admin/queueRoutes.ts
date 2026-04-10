@@ -14,7 +14,9 @@ import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { Queue, Job } from "bullmq";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { requireAdminAuth, requireAdmin } from "./auth/adminAuthMiddleware.js";
+import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "../auth/rbacService.js";
 import { getRedisUrl } from "../lib/redis.js";
 import { createLogger } from "../lib/logger.js";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
@@ -279,7 +281,7 @@ export const queueRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/queue/stats",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)],
       schema: { tags: ["Admin Queues"], summary: "Get queue statistics" },
     },
     (req, rep) => handler.getStats(req, rep)
@@ -289,7 +291,7 @@ export const queueRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/queue/jobs",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)],
       schema: { tags: ["Admin Queues"], summary: "List queue jobs" },
     },
     (req, rep) => handler.listJobs(req, rep)
@@ -299,7 +301,7 @@ export const queueRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/queue/jobs/:id",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)],
       schema: { tags: ["Admin Queues"], summary: "Get job by ID" },
     },
     (req, rep) => handler.getJob(req, rep)
@@ -309,7 +311,7 @@ export const queueRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/queue/jobs/:id/retry",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)],
       schema: { tags: ["Admin Queues"], summary: "Retry failed job" },
     },
     (req, rep) => handler.retryJob(req, rep)
@@ -319,7 +321,7 @@ export const queueRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/queue/jobs/:id/remove",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)],
       schema: { tags: ["Admin Queues"], summary: "Remove job from queue" },
     },
     (req, rep) => handler.removeJob(req, rep)

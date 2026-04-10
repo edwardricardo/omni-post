@@ -2,7 +2,9 @@
 // DI: service resolved from container (no direct singleton import)
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { requireAdminAuth, requireAdmin } from "../admin/auth/adminAuthMiddleware.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "../auth/rbacService.js";
 import { BaseRouteHandler, RouteContext } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { WebhookDashboardService } from "./webhookDashboardService.js";
@@ -274,7 +276,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/metrics",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get webhook dashboard metrics" },
     },
     handler.getDashboardMetrics.bind(handler)
@@ -284,7 +286,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/events",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get recent webhook events with pagination" },
     },
     handler.getRecentEvents.bind(handler)
@@ -294,7 +296,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/events/:eventId",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get webhook event details" },
     },
     handler.getEventDetails.bind(handler)
@@ -304,7 +306,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/subscriptions",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get webhook subscriptions overview" },
     },
     handler.getSubscriptions.bind(handler)
@@ -314,7 +316,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/dead-letter",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get dead letter queue events" },
     },
     handler.getDeadLetterQueue.bind(handler)
@@ -324,7 +326,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.post(
     "/api/webhooks/dashboard/dead-letter/:eventId/retry",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Retry a dead letter event" },
     },
     handler.retryDeadLetterEvent.bind(handler)
@@ -334,7 +336,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/stream",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Stream real-time webhook events via SSE" },
     },
     handler.streamWebhookEvents.bind(handler)
@@ -344,7 +346,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/webhooks/dashboard/export",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Export webhook events as CSV" },
     },
     handler.exportWebhookEvents.bind(handler)

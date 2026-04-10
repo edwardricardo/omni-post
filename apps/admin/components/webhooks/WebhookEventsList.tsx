@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
@@ -80,7 +81,8 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch webhook events");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       const data = await response.json();
@@ -91,7 +93,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
       }
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +106,8 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch event details");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       const eventDetails = await response.json();
@@ -178,7 +181,8 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
       });
 
       if (!response.ok) {
-        throw new Error("Failed to export events");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       const blob = await response.blob();

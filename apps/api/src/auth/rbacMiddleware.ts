@@ -49,10 +49,11 @@ export function requirePermission(...permissions: Permission[]) {
       const userPermissions = await rbacSvc.getUserPermissions(user.id, userRole);
 
       return reply.code(403).send({
-        error: "Insufficient permissions",
-        required: permissions,
-        current: userPermissions.permissions,
-        message: `Access denied. Required permissions: ${permissions.join(", ")}`,
+        ok: false,
+        error: {
+          code: "PERMISSION_DENIED",
+          message: `Required permissions: ${permissions.join(", ")}`,
+        },
       });
     }
   };
@@ -86,11 +87,11 @@ export function requireAllPermissions(...permissions: Permission[]) {
       );
 
       return reply.code(403).send({
-        error: "Insufficient permissions",
-        required: permissions,
-        missing: missingPermissions,
-        current: userPermissions.permissions,
-        message: `Access denied. Missing permissions: ${missingPermissions.join(", ")}`,
+        ok: false,
+        error: {
+          code: "PERMISSION_DENIED",
+          message: `Missing permissions: ${missingPermissions.join(", ")}`,
+        },
       });
     }
   };
@@ -130,9 +131,11 @@ export function requireOwnershipOrPermission(
 
       if (!hasPerm) {
         return reply.code(403).send({
-          error: "Access denied",
-          reason: "Not resource owner and insufficient permissions",
-          requiredPermission: fallbackPermission,
+          ok: false,
+          error: {
+            code: "PERMISSION_DENIED",
+            message: `Required permission: ${fallbackPermission}`,
+          },
         });
       }
     } catch (error: unknown) {
@@ -170,9 +173,11 @@ export function requireContextPermission(
 
       if (!hasBasePermission) {
         return reply.code(403).send({
-          error: "Insufficient permissions",
-          required: permission,
-          context,
+          ok: false,
+          error: {
+            code: "PERMISSION_DENIED",
+            message: `Required permission: ${permission}`,
+          },
         });
       }
 

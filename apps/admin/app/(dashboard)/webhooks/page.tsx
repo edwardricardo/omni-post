@@ -26,6 +26,8 @@ import {
 } from "@packages/ui";
 import { AlertCircle, Activity } from "lucide-react";
 
+import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useWebhookMetrics } from "@/hooks/api/useWebhooks";
 import { WebhookMetrics } from "@/components/webhooks/WebhookMetrics";
 import { WebhookEventsList } from "@/components/webhooks/WebhookEventsList";
@@ -75,6 +77,14 @@ function WebhookDashboardContent() {
   }
 
   if (error) {
+    if (isPermissionDenied(error)) {
+      return (
+        <div>
+          <PageHeader title={t("webhooks")} />
+          <AccessDenied />
+        </div>
+      );
+    }
     return (
       <div>
         <PageHeader title={t("webhooks")} />
@@ -83,10 +93,8 @@ function WebhookDashboardContent() {
           <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
             {tw("errorTitle")}
           </h3>
-          <p className="text-[var(--text-secondary)] mb-4">
-            {error instanceof Error ? error.message : String(error)}
-          </p>
-          <ActionButton variant="primary" size="sm" onClick={handleRefresh}>
+          <p className="text-[var(--text-secondary)] mb-4">{getErrorMessage(error)}</p>
+          <ActionButton variant="primary" size="sm" onClick={handleRefresh} loading={isLoading}>
             {tc("retry")}
           </ActionButton>
         </div>

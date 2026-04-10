@@ -6,9 +6,9 @@
  */
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { Users, UserCheck, Shield, Headset, Copy, Check } from "lucide-react";
+import { Users, UserCheck, Shield, Headset, Copy, Check, Pencil } from "lucide-react";
 import { useCurrentUser } from "@/providers/AuthProvider";
 import {
   toast,
@@ -19,6 +19,8 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@packages/ui";
+import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { AccessDenied } from "@/components/shared/AccessDenied";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
@@ -31,8 +33,10 @@ import {
   useCreateAdminUser,
   useDeactivateAdminUser,
   useActivateAdminUser,
+  useUpdateAdminUser,
 } from "@/hooks/api/useAdminUsers";
 import type { AdminUser } from "@/hooks/api/useAdminUsers";
+import { api } from "@/lib/apiClient";
 
 const INPUT_CLASS =
   "w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
@@ -51,6 +55,7 @@ function AdminUsersContent() {
   const createMutation = useCreateAdminUser();
   const deactivateMutation = useDeactivateAdminUser();
   const activateMutation = useActivateAdminUser();
+  const updateMutation = useUpdateAdminUser();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: "", name: "", role: "ADMIN" });
@@ -59,6 +64,69 @@ function AdminUsersContent() {
   const [copiedPassword, setCopiedPassword] = useState(false);
 
   const [deactivateTarget, setDeactivateTarget] = useState<AdminUser | null>(null);
+  const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    role: "",
+    department: "",
+    team: "",
+  });
+  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
+
+  // Fetch available roles for the edit dialog
+  useEffect(() => {
+    api.security.rbac
+      .getRoles()
+      .then((res) => {
+        if (res.ok) {
+          setAvailableRoles(res.roles.map((r) => r.role));
+        }
+      })
+      .catch(() => {
+        /* roles will fall back to empty */
+      });
+  }, []);
+
+  const handleOpenEdit = useCallback((user: AdminUser) => {
+    setEditTarget(user);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: "",
+      team: "",
+    });
+  }, []);
+
+  const handleEditSubmit = useCallback(() => {
+    if (!editTarget) return;
+    const data: Record<string, string> = {};
+    if (editForm.name.trim() && editForm.name !== editTarget.name) data.name = editForm.name.trim();
+    if (editForm.email.trim() && editForm.email !== editTarget.email)
+      data.email = editForm.email.trim();
+    if (editForm.role && editForm.role !== editTarget.role) data.role = editForm.role;
+    if (editForm.department.trim()) data.department = editForm.department.trim();
+    if (editForm.team.trim()) data.team = editForm.team.trim();
+
+    if (Object.keys(data).length === 0) {
+      setEditTarget(null);
+      return;
+    }
+
+    updateMutation.mutate(
+      { id: editTarget.id, data },
+      {
+        onSuccess: () => {
+          toast({ title: tu("success.updated", { name: editForm.name }) });
+          setEditTarget(null);
+        },
+        onError: (err) => {
+          toast({ title: tc("error"), description: getErrorMessage(err), variant: "destructive" });
+        },
+      }
+    );
+  }, [editTarget, editForm, updateMutation, tu, tc]);
 
   // Stats
   const stats = useMemo(() => {
@@ -92,7 +160,7 @@ function AdminUsersContent() {
           toast({ title: tu("userCreated"), description: tu("success.created") });
         },
         onError: (err) => {
-          toast({ title: tc("error"), description: err.message, variant: "destructive" });
+          toast({ title: tc("error"), description: getErrorMessage(err), variant: "destructive" });
         },
       }
     );
@@ -109,7 +177,7 @@ function AdminUsersContent() {
         setDeactivateTarget(null);
       },
       onError: (err) => {
-        toast({ title: tc("error"), description: err.message, variant: "destructive" });
+        toast({ title: tc("error"), description: getErrorMessage(err), variant: "destructive" });
       },
     });
   }, [deactivateTarget, deactivateMutation]);
@@ -124,7 +192,7 @@ function AdminUsersContent() {
           });
         },
         onError: (err) => {
-          toast({ title: tc("error"), description: err.message, variant: "destructive" });
+          toast({ title: tc("error"), description: getErrorMessage(err), variant: "destructive" });
         },
       });
     },
@@ -158,6 +226,14 @@ function AdminUsersContent() {
   }
 
   if (error) {
+    if (isPermissionDenied(error)) {
+      return (
+        <div className="p-6">
+          <PageHeader title={tu("title")} />
+          <AccessDenied />
+        </div>
+      );
+    }
     return (
       <div className="p-6">
         <PageHeader title={tu("title")} />
@@ -166,8 +242,8 @@ function AdminUsersContent() {
           role="alert"
         >
           <h2 className="font-medium text-[var(--error)] mb-2">{tu("errorTitle")}</h2>
-          <p className="text-sm text-[var(--error)] mb-4">{error.message}</p>
-          <ActionButton variant="primary" onClick={() => refetch()}>
+          <p className="text-sm text-[var(--error)] mb-4">{getErrorMessage(error)}</p>
+          <ActionButton variant="primary" loading={isLoading} onClick={() => refetch()}>
             {tc("retry")}
           </ActionButton>
         </div>
@@ -213,8 +289,17 @@ function AdminUsersContent() {
       header: tu("table.actions"),
       render: (u: AdminUser) => (
         <div className="flex gap-1">
-          {hasPermission("user:update") && (
+          {hasPermission("user:manage") && (
             <>
+              <ActionButton
+                variant="secondary"
+                size="sm"
+                onClick={() => handleOpenEdit(u)}
+                disabled={u.role === "SUPER_ADMIN"}
+                aria-label={`${tc("edit")} ${u.name}`}
+              >
+                <Pencil className="h-3 w-3" />
+              </ActionButton>
               {u.isActive ? (
                 <ActionButton
                   variant="danger"
@@ -249,7 +334,7 @@ function AdminUsersContent() {
         title={tu("title")}
         description={tu("description")}
         actions={
-          hasPermission("user:create") ? (
+          hasPermission("user:manage") ? (
             <ActionButton variant="primary" size="sm" onClick={() => setInviteOpen(true)}>
               {tu("inviteUser")}
             </ActionButton>
@@ -396,6 +481,120 @@ function AdminUsersContent() {
           <DialogFooter>
             <ActionButton variant="primary" size="sm" onClick={() => setSuccessDialogOpen(false)}>
               {tu("done")}
+            </ActionButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog
+        open={editTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditTarget(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{tu("editTitle")}</DialogTitle>
+            <DialogDescription>{tu("editDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label
+                htmlFor="edit-name"
+                className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                {tu("name")}
+              </label>
+              <input
+                id="edit-name"
+                type="text"
+                className={INPUT_CLASS}
+                value={editForm.name}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit-email"
+                className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                {tu("email")}
+              </label>
+              <input
+                id="edit-email"
+                type="email"
+                className={INPUT_CLASS}
+                value={editForm.email}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit-role"
+                className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                {tu("role")}
+              </label>
+              <select
+                id="edit-role"
+                className={INPUT_CLASS}
+                value={editForm.role}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
+              >
+                {availableRoles
+                  .filter((r) => r !== "SUPER_ADMIN")
+                  .map((role) => (
+                    <option key={role} value={role}>
+                      {role.replace(/_/g, " ")}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="edit-department"
+                className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                {tu("department")}
+              </label>
+              <input
+                id="edit-department"
+                type="text"
+                className={INPUT_CLASS}
+                value={editForm.department}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, department: e.target.value }))}
+                placeholder="e.g., Engineering"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit-team"
+                className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                {tu("team")}
+              </label>
+              <input
+                id="edit-team"
+                type="text"
+                className={INPUT_CLASS}
+                value={editForm.team}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, team: e.target.value }))}
+                placeholder="e.g., Platform"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <ActionButton variant="secondary" size="sm" onClick={() => setEditTarget(null)}>
+              {tc("cancel")}
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              size="sm"
+              loading={updateMutation.isPending}
+              onClick={handleEditSubmit}
+            >
+              {tc("save")}
             </ActionButton>
           </DialogFooter>
         </DialogContent>

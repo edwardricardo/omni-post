@@ -5,6 +5,7 @@
  * analytics, and security (MFA/RBAC) endpoints.
  */
 import type { PlanType } from "@shared/types";
+import { ApiError } from "./parseApiError";
 
 const API_URL = "/api/backend";
 
@@ -22,8 +23,8 @@ async function http<T>(path: string, init?: RequestInit): Promise<{ ok: boolean 
     ...init,
   });
   if (!res.ok) {
-    const error = await res.text();
-    throw new Error(`HTTP ${res.status}: ${error}`);
+    const body = await res.text();
+    throw ApiError.fromResponse(res.status, body);
   }
   const json: { ok: boolean; data?: T } = await res.json();
   // Unwrap: merge `ok` + spread `data` so callers see { ok, ...fields }
@@ -347,27 +348,33 @@ export const api = {
 
     // MFA endpoints
     mfa: {
-      getStatus: () => http<{ ok: boolean; mfa: MfaStatus }>("/auth/mfa/status"),
+      getStatus: () => http<{ ok: boolean; mfa: MfaStatus }>("/admin/auth/mfa/status"),
 
       setup: () =>
-        http<{ ok: boolean; setup: unknown }>("/auth/mfa/setup", {
+        http<{
+          ok: boolean;
+          secret: string;
+          qrCodeUrl: string;
+          backupCodes: string[];
+        }>("/admin/auth/mfa/setup", {
           method: "POST",
+          body: JSON.stringify({}),
         }),
 
       verifySetup: (mfaToken: string) =>
-        http<{ ok: boolean; backupCodes: string[] }>("/auth/mfa/verify-setup", {
+        http<{ ok: boolean; backupCodes: string[] }>("/admin/auth/mfa/verify", {
           method: "POST",
           body: JSON.stringify({ token: mfaToken }),
         }),
 
       disable: (mfaToken: string) =>
-        http<{ ok: boolean }>("/auth/mfa/disable", {
+        http<{ ok: boolean }>("/admin/auth/mfa/disable", {
           method: "POST",
           body: JSON.stringify({ token: mfaToken }),
         }),
 
       regenerateBackupCodes: (mfaToken: string) =>
-        http<{ ok: boolean; backupCodes: string[] }>("/auth/mfa/regenerate-backup-codes", {
+        http<{ ok: boolean; backupCodes: string[] }>("/admin/auth/mfa/regenerate-backup-codes", {
           method: "POST",
           body: JSON.stringify({ token: mfaToken }),
         }),

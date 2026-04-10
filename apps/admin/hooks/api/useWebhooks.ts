@@ -4,6 +4,7 @@
  * subscriptions, and dead-letter queue data.
  */
 import { useQuery } from "@tanstack/react-query";
+import { ApiError } from "@/lib/parseApiError";
 
 interface DashboardMetrics {
   totalEvents: number;
@@ -49,7 +50,8 @@ export function useWebhookMetrics(timeRange: string, selectedProvider?: string) 
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch webhook metrics");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       const body = (await response.json()) as { ok: boolean; data: DashboardMetrics };

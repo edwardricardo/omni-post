@@ -1,4 +1,13 @@
 {
+  "errors": {
+    "permissionDenied": "Acceso Denegado",
+    "permissionDeniedDescription": "No tienes permiso para acceder a este recurso. Contacta a tu administrador si crees que esto es un error.",
+    "permissionDeniedAction": "No tienes permiso para realizar esta accion.",
+    "serverError": "Ocurrio un error inesperado en el servidor. Intentalo de nuevo mas tarde.",
+    "unknownError": "Algo salio mal. Intentalo de nuevo.",
+    "goBack": "Volver",
+    "goToDashboard": "Ir al Dashboard"
+  },
   "nav": {
     "dashboard": "Panel",
     "platform": "Plataforma",
@@ -613,14 +622,13 @@
       "failedSave": "Error al guardar permisos",
       "categories": {
         "userManagement": "Gestion de usuarios",
-        "projectManagement": "Gestion de proyectos",
-        "contentManagement": "Gestion de contenido",
+        "accountManagement": "Gestion de cuentas",
+        "billingSubscriptions": "Facturacion y suscripciones",
+        "pricing": "Precios",
         "analytics": "Analiticas",
-        "systemAdmin": "Administracion del sistema",
+        "system": "Sistema",
         "auditCompliance": "Auditoria y cumplimiento",
-        "billing": "Facturacion",
-        "aiFeatures": "Funciones de IA",
-        "support": "Soporte"
+        "webhooks": "Webhooks"
       }
     },
     "createRole": {
@@ -936,8 +944,13 @@
     "deactivateTitle": "Desactivar usuario",
     "deactivateDesc": "Esta seguro de que desea desactivar a {name}? Perdera acceso al panel de administracion.",
     "activate": "Activar",
+    "editTitle": "Editar usuario",
+    "editDescription": "Actualizar detalles y asignacion de rol del usuario.",
+    "department": "Departamento",
+    "team": "Equipo",
     "success": {
       "created": "Usuario admin creado",
+      "updated": "{name} actualizado exitosamente",
       "deactivated": "{name} desactivado",
       "activated": "{name} activado",
       "copied": "Contrasena copiada al portapapeles"

@@ -7,6 +7,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "@packages/ui";
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 
 interface ChangePasswordInput {
   currentPassword: string;
@@ -27,8 +28,8 @@ export function useChangePassword() {
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message ?? `HTTP ${res.status}`);
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },
@@ -38,7 +39,7 @@ export function useChangePassword() {
     onError: (err) => {
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Failed to change password",
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     },

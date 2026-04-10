@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AdminRole } from "@shared/types";
 import { api } from "../../lib/apiClient";
+import { ApiError } from "@/lib/parseApiError";
 
 /**
  * Hook to fetch account summary data
@@ -57,10 +58,8 @@ export function useUpdateAccount() {
       });
 
       if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to update account" }));
-        throw new Error((errorData as { message?: string }).message ?? "Failed to update account");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       return response.json() as Promise<UpdateAccountResponse>;

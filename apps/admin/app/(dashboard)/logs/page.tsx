@@ -18,6 +18,8 @@ import {
   Search,
   Download,
 } from "lucide-react";
+import { ApiError, isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useAuditLogs } from "@/hooks/api/useAuditLogs";
 import { useAuditStats } from "@/hooks/api/useAuditStats";
 import { useAdminUsers } from "@/hooks/api/useAdminUsers";
@@ -98,7 +100,8 @@ function LogsPageContent() {
         credentials: "include",
       });
       if (!res.ok) {
-        toast({ title: "Error", description: "Export failed", variant: "destructive" });
+        const body = await res.text().catch(() => "");
+        toast({ title: "Error", description: getErrorMessage(ApiError.fromResponse(res.status, body)), variant: "destructive" });
         return;
       }
       const blob = await res.blob();
@@ -108,8 +111,8 @@ function LogsPageContent() {
       a.download = `audit-logs-${new Date().toISOString().split("T")[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      toast({ title: "Error", description: "Export failed", variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" });
     }
   }, [filters.startDate, filters.endDate, filters.userId]);
 
@@ -125,13 +128,21 @@ function LogsPageContent() {
   }
 
   if (error) {
+    if (isPermissionDenied(error)) {
+      return (
+        <div className="p-6">
+          <PageHeader title={tl("title")} />
+          <AccessDenied />
+        </div>
+      );
+    }
     return (
       <div className="p-6">
         <PageHeader title={tl("title")} />
         <div className="rounded-lg border border-[var(--error)] bg-[var(--error-subtle)] p-6" role="alert">
           <h2 className="font-medium text-[var(--error)] mb-2">{tl("errorTitle")}</h2>
-          <p className="text-sm text-[var(--error)] mb-4">{error.message}</p>
-          <ActionButton variant="primary" onClick={() => refetch()}>
+          <p className="text-sm text-[var(--error)] mb-4">{getErrorMessage(error)}</p>
+          <ActionButton variant="primary" loading={isLoading} onClick={() => refetch()}>
             {tc("retry")}</ActionButton>
         </div>
       </div>

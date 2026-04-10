@@ -22,6 +22,7 @@ import {
 import { toast } from "@packages/ui";
 import { useTranslations } from "next-intl";
 
+import { getErrorMessage } from "@/lib/parseApiError";
 import { api } from "../../lib/apiClient";
 
 interface CreateRoleDialogProps {
@@ -91,7 +92,7 @@ export function CreateRoleDialog({ open, onOpenChange, onCreated }: CreateRoleDi
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : tcr("failedCreate"),
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {

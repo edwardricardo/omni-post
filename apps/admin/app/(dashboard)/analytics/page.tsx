@@ -9,6 +9,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useAnalytics } from "@/hooks/api/useAnalytics";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -92,6 +94,14 @@ function AnalyticsPageContent() {
   }
 
   if (error) {
+    if (isPermissionDenied(error)) {
+      return (
+        <div>
+          <PageHeader title={te("title")} />
+          <AccessDenied />
+        </div>
+      );
+    }
     return (
       <div>
         <PageHeader title={te("title")} />
@@ -100,7 +110,7 @@ function AnalyticsPageContent() {
           role="alert"
         >
           <h3 className="text-[var(--error)] font-medium">{te("errorTitle")}</h3>
-          <p className="text-[var(--error)] mt-1 text-sm">{error.message}</p>
+          <p className="text-[var(--error)] mt-1 text-sm">{getErrorMessage(error)}</p>
         </div>
       </div>
     );

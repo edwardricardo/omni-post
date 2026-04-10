@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { toast } from "@packages/ui";
 import { api } from "../../lib/apiClient";
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 
@@ -19,8 +20,8 @@ const INPUT_CLASS =
 
 interface MfaSetupData {
   secret: string;
-  otpauthUrl: string;
-  qrCode: string;
+  qrCodeUrl: string;
+  backupCodes: string[];
 }
 
 export function MfaSelfService() {
@@ -65,13 +66,16 @@ export function MfaSelfService() {
     try {
       setSetupLoading(true);
       const response = await api.security.mfa.setup();
-      if (!response.ok) throw new Error("Failed to start MFA setup");
-      const setup = response.setup as MfaSetupData;
-      setSetupData(setup);
+      if (!response.ok) throw new ApiError(0, null, "Failed to start MFA setup");
+      setSetupData({
+        secret: response.secret,
+        qrCodeUrl: response.qrCodeUrl,
+        backupCodes: response.backupCodes,
+      });
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : ms("setupFailed"),
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {
@@ -91,7 +95,7 @@ export function MfaSelfService() {
     try {
       setVerifyLoading(true);
       const response = await api.security.mfa.verifySetup(verifyCode.trim());
-      if (!response.ok) throw new Error("Invalid code");
+      if (!response.ok) throw new ApiError(0, null, "Invalid code");
       setMfaEnabled(true);
       setBackupCodes(response.backupCodes);
       setSetupData(null);
@@ -100,7 +104,7 @@ export function MfaSelfService() {
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : ms("verifyFailed"),
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {
@@ -120,7 +124,7 @@ export function MfaSelfService() {
     try {
       setDisableLoading(true);
       const response = await api.security.mfa.disable(disableCode.trim());
-      if (!response.ok) throw new Error("Invalid code");
+      if (!response.ok) throw new ApiError(0, null, "Invalid code");
       setMfaEnabled(false);
       setBackupCodesCount(0);
       setDisableCode("");
@@ -129,7 +133,7 @@ export function MfaSelfService() {
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : ms("disableFailed"),
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {
@@ -236,9 +240,9 @@ export function MfaSelfService() {
       {!mfaEnabled && setupData && (
         <div className="space-y-3">
           <p className="text-xs text-[var(--text-secondary)]">{ms("scanQr")}</p>
-          {setupData.qrCode && (
+          {setupData.qrCodeUrl && (
             <div className="flex justify-center rounded-lg border border-[var(--border-subtle)] bg-white p-3">
-              <img src={setupData.qrCode} alt="MFA QR code" className="h-40 w-40" />
+              <img src={setupData.qrCodeUrl} alt="MFA QR code" className="h-40 w-40" />
             </div>
           )}
           <div>

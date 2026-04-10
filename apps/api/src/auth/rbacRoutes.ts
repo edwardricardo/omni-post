@@ -11,11 +11,7 @@ import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-com
 import { Permission } from "./rbacService.js";
 import type { RbacService } from "./rbacService.js";
 import { RoleManagementService } from "./roleManagementService.js";
-import {
-  requireAdminAuth,
-  requireSuperAdmin,
-  requireAdmin,
-} from "../admin/auth/adminAuthMiddleware.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "./rbacMiddleware.js";
 import type { AuthenticatedUser } from "./authService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
@@ -73,7 +69,7 @@ const CreateRoleSchema = z.object({
     name: z.string().min(3).max(50),
     description: z.string().min(0).max(500),
     level: z.number().int().min(1).max(99),
-    permissions: z.array(z.string()).min(1),
+    permissions: z.array(z.string()).default([]),
   }),
 });
 
@@ -560,7 +556,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/rbac/roles",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_READ)],
       schema: { tags: ["RBAC"], summary: "Get all available roles and permissions" },
     },
     async (request, reply) => handler.getAllRoles(request, reply)
@@ -569,7 +565,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/rbac/roles/:role",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_READ)],
       schema: { tags: ["RBAC"], summary: "Get specific role information" },
     },
     async (request, reply) => handler.getRoleInfo(request, reply)
@@ -587,7 +583,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/rbac/hierarchy",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_READ)],
       schema: { tags: ["RBAC"], summary: "Get permission hierarchy and role comparison" },
     },
     async (request, reply) => handler.getHierarchy(request, reply)
@@ -596,7 +592,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/rbac/status",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_READ)],
       schema: { tags: ["RBAC"], summary: "Get RBAC system status and statistics" },
     },
     async (request, reply) => handler.getStatus(request, reply)
@@ -606,7 +602,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/rbac/users/:userId/role",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE_ROLES)],
       schema: { tags: ["RBAC"], summary: "Update user role" },
     },
     async (request, reply) => handler.updateUserRole(request, reply)
@@ -615,7 +611,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/rbac/roles",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE_ROLES)],
       schema: { tags: ["RBAC"], summary: "Create a new role" },
     },
     async (request, reply) => handler.createRole(request, reply)
@@ -624,7 +620,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/rbac/roles/:roleId",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE_ROLES)],
       schema: { tags: ["RBAC"], summary: "Update role metadata" },
     },
     async (request, reply) => handler.updateRoleMetadata(request, reply)
@@ -633,7 +629,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/rbac/roles/:roleId/permissions",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE_ROLES)],
       schema: { tags: ["RBAC"], summary: "Set role permissions (bulk replace)" },
     },
     async (request, reply) => handler.setRolePermissions(request, reply)
@@ -642,7 +638,7 @@ const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete(
     "/admin/rbac/roles/:roleId",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE_ROLES)],
       schema: { tags: ["RBAC"], summary: "Delete a custom role" },
     },
     async (request, reply) => handler.deleteRole(request, reply)

@@ -9,7 +9,9 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { ZodError } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { AdminAuthService } from "./AdminAuthService.js";
-import { requireAdminAuth, requireSuperAdmin, rateLimit } from "./adminAuthMiddleware";
+import { requireAdminAuth, rateLimit } from "./adminAuthMiddleware";
+import { requirePermission } from "../../auth/rbacMiddleware.js";
+import { Permission } from "../../auth/rbacService.js";
 import { TOKENS } from "../../infrastructure/container/types.js";
 import {
   loginSchema,
@@ -297,14 +299,6 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
     if (!request.auth) {
       return this.sendError(ctx, 401, "Authentication required");
     }
-
-    const validation = mfaSetupSchema.safeParse(request.body);
-
-    if (!validation.success) {
-      return this.sendValidationError(ctx, validation.error);
-    }
-
-    // Future: require current password confirmation before MFA setup
 
     const result = await this.adminAuthService.setupMfa(request.auth.user.id);
 
@@ -613,7 +607,7 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/auth/sessions/revoke-all",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)],
       schema: { tags: ["Admin Auth"], summary: "Revoke all sessions" },
     },
     async (request, reply) => handler.revokeSession(request, reply)

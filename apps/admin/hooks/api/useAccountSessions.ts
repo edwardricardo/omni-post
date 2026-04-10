@@ -7,6 +7,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ApiError } from "@/lib/parseApiError";
 
 interface AccountSession {
   id: string;
@@ -28,7 +29,10 @@ export function useAccountSessions(accountId: string | null) {
       const res = await fetch(`/api/backend/admin/accounts/${accountId}/sessions`, {
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to fetch sessions");
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       const json = (await res.json()) as {
         ok?: boolean;
         data?: { sessions?: AccountSession[] };
@@ -52,7 +56,10 @@ export function useRevokeAccountSessions() {
         method: "POST",
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to revoke sessions");
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       return res.json();
     },
     onSuccess: (_data, accountId) => {

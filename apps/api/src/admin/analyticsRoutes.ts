@@ -11,7 +11,8 @@ import type { PrismaClient } from "@infra/prisma";
 import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { AnalyticsRouteHandler } from "./AnalyticsHandlers.js";
 import { AnalyticsAccountHandler } from "./AnalyticsAccountHandlers.js";
-import { requireAdmin } from "./auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 /**
@@ -30,7 +31,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/api/admin/analytics/metrics",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ANALYTICS_READ)],
       schema: { tags: ["Admin Analytics"], summary: "Get analytics dashboard KPIs" },
     },
     async (request, reply) => handler.getAnalyticsMetrics(request, reply)
@@ -40,7 +41,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/api/admin/compliance/metrics",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)],
       schema: { tags: ["Admin Analytics"], summary: "Get compliance metrics" },
     },
     async (request, reply) => handler.getComplianceMetrics(request, reply)
@@ -50,7 +51,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/api/admin/compliance/audit-logs",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)],
       schema: { tags: ["Admin Analytics"], summary: "Get compliance audit logs" },
     },
     async (request, reply) => handler.getComplianceAuditLogs(request, reply)
@@ -60,7 +61,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/api/admin/compliance/gdpr",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)],
       schema: { tags: ["Admin Analytics"], summary: "Get GDPR compliance data" },
     },
     async (request, reply) => handler.getGdprData(request, reply)
@@ -72,7 +73,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/accounts/:id/settings",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin Analytics"], summary: "Update account settings (trial, billing)" },
     },
     async (request, reply) => accountHandler.updateAccount(request, reply)

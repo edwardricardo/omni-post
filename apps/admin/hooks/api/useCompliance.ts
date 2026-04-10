@@ -4,6 +4,7 @@
  * Transforms backend compliance data into frontend-ready ComplianceMetric and AuditEvent shapes.
  */
 import { useQuery } from "@tanstack/react-query";
+import { ApiError } from "@/lib/parseApiError";
 
 interface ComplianceMetric {
   id: string;
@@ -95,13 +96,13 @@ export function useCompliance() {
       ]);
 
       if (!metricsResponse.ok) {
-        const text = await metricsResponse.text().catch(() => "Unknown error");
-        throw new Error(`HTTP ${metricsResponse.status}: ${text}`);
+        const body = await metricsResponse.text().catch(() => "");
+        throw ApiError.fromResponse(metricsResponse.status, body);
       }
 
       if (!auditLogsResponse.ok) {
-        const text = await auditLogsResponse.text().catch(() => "Unknown error");
-        throw new Error(`HTTP ${auditLogsResponse.status}: ${text}`);
+        const body = await auditLogsResponse.text().catch(() => "");
+        throw ApiError.fromResponse(auditLogsResponse.status, body);
       }
 
       const metricsBody = (await metricsResponse.json()) as {

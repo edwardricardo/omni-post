@@ -10,7 +10,9 @@ import type {
   ResetPasswordRequest,
   AccountFilters,
 } from "./accountLifecycleService.js";
-import { requireAdminAuth, requireAdmin, requireSuperAdmin } from "./auth/adminAuthMiddleware.js";
+import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "../auth/rbacService.js";
 import { removeUndefinedProperties } from "../utils/typeUtils.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { TOKENS } from "../infrastructure/container/types.js";
@@ -887,7 +889,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/accounts",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin"], summary: "Create admin account" },
     },
     async (request, reply) => handler.createAccount(request, reply)
@@ -897,7 +899,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/accounts",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_READ)],
       schema: { tags: ["Admin"], summary: "List accounts with filters" },
     },
     async (request, reply) => handler.listAccounts(request, reply)
@@ -907,7 +909,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/accounts/stats",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_READ)],
       schema: { tags: ["Admin"], summary: "Get account statistics" },
     },
     async (request, reply) => handler.getAccountStats(request, reply)
@@ -917,7 +919,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/accounts/:accountId",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_READ)],
       schema: { tags: ["Admin"], summary: "Get account by ID" },
     },
     async (request, reply) => handler.getAccount(request, reply)
@@ -927,7 +929,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/accounts/:accountId",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin"], summary: "Update account" },
     },
     async (request, reply) => handler.updateAccount(request, reply)
@@ -937,7 +939,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/accounts/:accountId/status",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin"], summary: "Update account active status" },
     },
     async (request, reply) => handler.updateAccountStatus(request, reply)
@@ -947,7 +949,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/accounts/:accountId/billing",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_READ)],
       schema: { tags: ["Admin"], summary: "Get account billing breakdown" },
     },
     async (request, reply) => handler.getAccountBilling(request, reply)
@@ -957,7 +959,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/accounts/:accountId/suspend",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin"], summary: "Suspend account" },
     },
     async (request, reply) => handler.suspendAccount(request, reply)
@@ -967,7 +969,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/accounts/:accountId/reactivate",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin"], summary: "Reactivate account" },
     },
     async (request, reply) => handler.reactivateAccount(request, reply)
@@ -977,7 +979,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/accounts/:accountId/reset-password",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin"], summary: "Reset account password" },
     },
     async (request, reply) => handler.resetPassword(request, reply)
@@ -987,7 +989,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete(
     "/admin/accounts/:accountId",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin"], summary: "Delete account" },
     },
     async (request, reply) => handler.deleteAccount(request, reply)
@@ -997,7 +999,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/accounts/:accountId/sessions",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_READ)],
       schema: { tags: ["Admin"], summary: "Get account sessions" },
     },
     async (request, reply) => handler.getAccountSessions(request, reply)
@@ -1007,7 +1009,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/accounts/:accountId/revoke-sessions",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin"], summary: "Revoke all account sessions" },
     },
     async (request, reply) => handler.revokeAllSessions(request, reply)
@@ -1017,7 +1019,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.patch(
     "/admin/accounts/:accountId/grandfathering",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.BILLING_MANAGE)],
       schema: { tags: ["Admin"], summary: "Adjust grandfathering expiry date" },
     },
     async (request, reply) => handler.updateGrandfathering(request, reply)
@@ -1027,7 +1029,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/accounts/bulk/suspend",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin"], summary: "Bulk suspend accounts" },
     },
     async (request, reply) => handler.bulkSuspend(request, reply)
@@ -1037,7 +1039,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/accounts/bulk/reactivate",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
       schema: { tags: ["Admin"], summary: "Bulk reactivate accounts" },
     },
     async (request, reply) => handler.bulkReactivate(request, reply)

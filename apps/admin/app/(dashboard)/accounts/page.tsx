@@ -13,6 +13,8 @@ import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { Eye, EyeOff, Pencil, KeyRound } from "lucide-react";
 
+import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccounts, useUpdateAccount } from "@/hooks/api/useAccounts";
 import { useResetAccountPassword } from "@/hooks/api/useResetAccountPassword";
@@ -193,7 +195,7 @@ function AccountsPageContent() {
       } catch (err) {
         toast({
           title: tc("error"),
-          description: err instanceof Error ? err.message : "Bulk action failed",
+          description: getErrorMessage(err),
           variant: "destructive",
         });
       }
@@ -265,7 +267,7 @@ function AccountsPageContent() {
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : "Update failed",
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     }
@@ -288,7 +290,7 @@ function AccountsPageContent() {
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : "Create failed",
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     }
@@ -322,15 +324,24 @@ function AccountsPageContent() {
   }
 
   if (error) {
+    if (isPermissionDenied(error)) {
+      return (
+        <div>
+          <PageHeader title={t("accounts")} />
+          <AccessDenied />
+        </div>
+      );
+    }
     return (
       <div>
         <PageHeader title={t("accounts")} />
         <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
-          <div className="text-sm text-[var(--error)]">Error: {error.message}</div>
+          <div className="text-sm text-[var(--error)]">Error: {getErrorMessage(error)}</div>
           <ActionButton
             variant="primary"
             size="sm"
             onClick={handleRefresh}
+            loading={isLoading}
             className="ml-4"
             aria-label={ta("retryLoading")}
           >
@@ -356,7 +367,7 @@ function AccountsPageContent() {
             >
               {tc("refresh")}
             </ActionButton>
-            {hasPermission("user:create") && (
+            {hasPermission("user:manage") && (
               <ActionButton
                 variant="secondary"
                 size="sm"
@@ -438,7 +449,7 @@ function AccountsPageContent() {
                 : ta("bulkActions.selectedPlural", { count: selectedAccounts.size })}
             </span>
             <div className="flex gap-2">
-              {hasPermission("user:update") && (
+              {hasPermission("user:manage") && (
                 <>
                   <ActionButton
                     variant="primary"

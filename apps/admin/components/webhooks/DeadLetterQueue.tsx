@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
@@ -94,7 +95,8 @@ export function DeadLetterQueue() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch dead letter events");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       const data = await response.json();
@@ -105,7 +107,7 @@ export function DeadLetterQueue() {
       }
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -122,13 +124,14 @@ export function DeadLetterQueue() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to retry event");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       // Refresh the list
       await fetchDeadLetterEvents();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to retry event");
+      setError(getErrorMessage(err));
     }
   };
 
@@ -141,12 +144,13 @@ export function DeadLetterQueue() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to retry all events");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       await fetchDeadLetterEvents();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to retry all events");
+      setError(getErrorMessage(err));
     }
   };
 

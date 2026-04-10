@@ -12,6 +12,7 @@ import { Clock, Play, Settings2 } from "lucide-react";
 import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
 
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -146,7 +147,10 @@ export function ScheduledJobsPanel() {
           credentials: "include",
           body: JSON.stringify({}),
         });
-        if (!res.ok) throw new Error("Failed to run job");
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          throw ApiError.fromResponse(res.status, body);
+        }
         const result = await res.json();
         const data = result.data ?? result;
         toast({
@@ -160,7 +164,7 @@ export function ScheduledJobsPanel() {
       } catch (err) {
         toast({
           title: tc("error"),
-          description: err instanceof Error ? err.message : tj("jobFailed"),
+          description: getErrorMessage(err),
           variant: "destructive",
         });
       } finally {

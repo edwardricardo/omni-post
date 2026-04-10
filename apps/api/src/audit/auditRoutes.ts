@@ -11,7 +11,9 @@ import {
   type ColumnDefinition,
 } from "@packages/api-common";
 import type { AuditService } from "./auditService.js";
-import { requireAdminAuth, requireSuperAdmin } from "../admin/auth/adminAuthMiddleware.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "../auth/rbacService.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
@@ -419,52 +421,58 @@ const auditRoutes: FastifyPluginAsync = async (fastify) => {
   const handler = new AuditRouteHandler(auditService);
 
   // ✅ Get audit logs with filtering
-  fastify.get("/admin/audit/logs", { preHandler: [requireAdminAuth] }, async (request, reply) =>
-    handler.getAuditLogs(request, reply)
+  fastify.get(
+    "/admin/audit/logs",
+    { preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)] },
+    async (request, reply) => handler.getAuditLogs(request, reply)
   );
 
   // ✅ Get audit log statistics
-  fastify.get("/admin/audit/stats", { preHandler: [requireAdminAuth] }, async (request, reply) =>
-    handler.getAuditStats(request, reply)
+  fastify.get(
+    "/admin/audit/stats",
+    { preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)] },
+    async (request, reply) => handler.getAuditStats(request, reply)
   );
 
   // ✅ Get audit logs for a specific user
   fastify.get(
     "/admin/audit/users/:userId/logs",
-    { preHandler: [requireAdminAuth] },
+    { preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)] },
     async (request, reply) => handler.getUserLogs(request, reply)
   );
 
   // ✅ Get audit logs for a specific resource
   fastify.get(
     "/admin/audit/resources/:resource/logs",
-    { preHandler: [requireAdminAuth] },
+    { preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)] },
     async (request, reply) => handler.getResourceLogs(request, reply)
   );
 
   // ✅ Manual audit log creation (for special cases)
   fastify.post(
     "/admin/audit/logs",
-    { preHandler: [requireAdminAuth, requireSuperAdmin] },
+    { preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_EXPORT)] },
     async (request, reply) => handler.createAuditLog(request, reply)
   );
 
   // ✅ Cleanup old audit logs (data retention)
   fastify.post(
     "/admin/audit/cleanup",
-    { preHandler: [requireAdminAuth, requireSuperAdmin] },
+    { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
     async (request, reply) => handler.cleanupAuditLogs(request, reply)
   );
 
   // ✅ Get current user's audit logs (self-service)
-  fastify.get("/admin/audit/my-logs", { preHandler: [requireAdminAuth] }, async (request, reply) =>
-    handler.getMyLogs(request, reply)
+  fastify.get(
+    "/admin/audit/my-logs",
+    { preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)] },
+    async (request, reply) => handler.getMyLogs(request, reply)
   );
 
   // ✅ Export audit logs (for compliance)
   fastify.get(
     "/admin/audit/export",
-    { preHandler: [requireAdminAuth, requireSuperAdmin] },
+    { preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_EXPORT)] },
     async (request, reply) => handler.exportAuditLogs(request, reply)
   );
 };

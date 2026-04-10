@@ -524,7 +524,7 @@ describe("rbacRoutes Unit Tests", () => {
         url: "/auth/permissions/check",
         headers: { authorization: `Bearer ${superAdminToken}` },
         payload: {
-          permissions: ["user:read", "user:create"],
+          permissions: ["user:read", "user:manage"],
           requireAll: true,
         },
       });

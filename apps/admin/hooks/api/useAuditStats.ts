@@ -6,6 +6,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
+import { ApiError } from "@/lib/parseApiError";
 
 export interface AuditStats {
   totalLogs: number;
@@ -26,7 +27,10 @@ export function useAuditStats() {
       const res = await fetch("/api/backend/admin/audit/stats", {
         credentials: "include",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       const json = await res.json();
       const stats = json.data?.stats ?? json.data ?? {};
       return {

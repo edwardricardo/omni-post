@@ -7,6 +7,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
+import { ApiError } from "@/lib/parseApiError";
 
 export interface UsageMetricsDto {
   accountId: string;
@@ -24,7 +25,10 @@ async function fetchUsageMetrics(
   month: number
 ): Promise<UsageMetricsDto> {
   const res = await fetch(`/api/backend/accounts/${accountId}/usage?year=${year}&month=${month}`);
-  if (!res.ok) throw new Error("Failed to fetch usage metrics");
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw ApiError.fromResponse(res.status, body);
+  }
   const json = (await res.json()) as { ok: boolean; data?: UsageMetricsDto };
   if (!json.data) throw new Error("No data returned");
   return json.data;

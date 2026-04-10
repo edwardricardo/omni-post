@@ -12,6 +12,8 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 
+import { ApiError, isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useSubscriptions } from "@/hooks/api/useSubscriptions";
 import { useBillingStats } from "@/hooks/api/useBillingStats";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
@@ -145,7 +147,9 @@ function SubscriptionsPageContent() {
         credentials: "include",
       });
       if (!res.ok) {
-        toast({ title: tc("error"), description: ts("exportFailed"), variant: "destructive" });
+        const body = await res.text().catch(() => "");
+        const err = ApiError.fromResponse(res.status, body);
+        toast({ title: tc("error"), description: getErrorMessage(err), variant: "destructive" });
         return;
       }
       const blob = await res.blob();
@@ -155,8 +159,8 @@ function SubscriptionsPageContent() {
       a.download = `billing-export-${new Date().toISOString().split("T")[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      toast({ title: tc("error"), description: ts("exportFailed"), variant: "destructive" });
+    } catch (e) {
+      toast({ title: tc("error"), description: getErrorMessage(e), variant: "destructive" });
     }
   }, [tc, ts]);
 
@@ -172,14 +176,28 @@ function SubscriptionsPageContent() {
   }
 
   if (error) {
+    if (isPermissionDenied(error)) {
+      return (
+        <div>
+          <PageHeader title={t("subscriptions")} />
+          <AccessDenied />
+        </div>
+      );
+    }
     return (
       <div>
         <PageHeader title={t("subscriptions")} />
         <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
           <div className="text-sm text-[var(--error)]">
-            {tc("error")}: {error.message}
+            {tc("error")}: {getErrorMessage(error)}
           </div>
-          <ActionButton variant="primary" size="sm" onClick={handleRefresh} className="ml-4">
+          <ActionButton
+            variant="primary"
+            size="sm"
+            onClick={handleRefresh}
+            loading={isLoading}
+            className="ml-4"
+          >
             {tc("retry")}
           </ActionButton>
         </div>

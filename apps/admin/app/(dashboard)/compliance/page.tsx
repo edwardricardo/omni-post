@@ -9,12 +9,15 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useCompliance } from "@/hooks/api/useCompliance";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { TabNav } from "@/components/ui/TabNav";
 import { ActionButton } from "@/components/ui/ActionButton";
+import { Pagination } from "@/components/ui/Pagination";
 
 const TAB_KEYS = ["overview", "gdpr", "security", "audit"] as const;
 
@@ -34,6 +37,8 @@ function CompliancePageContent() {
   const tc = useTranslations("common");
   const { data, isLoading, error } = useCompliance();
   const [activeTab, setActiveTab] = useState("overview");
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPerPage, setAuditPerPage] = useState(25);
 
   const tabs = useMemo(
     () =>
@@ -45,7 +50,12 @@ function CompliancePageContent() {
   );
 
   const metrics = useMemo(() => data?.metrics ?? [], [data?.metrics]);
-  const auditLogs = data?.auditLogs ?? [];
+  const auditLogs = useMemo(() => data?.auditLogs ?? [], [data?.auditLogs]);
+  const auditTotalPages = Math.max(1, Math.ceil(auditLogs.length / auditPerPage));
+  const paginatedAuditLogs = useMemo(
+    () => auditLogs.slice((auditPage - 1) * auditPerPage, auditPage * auditPerPage),
+    [auditLogs, auditPage, auditPerPage]
+  );
 
   const overallScore = useMemo(() => {
     if (metrics.length === 0) return 0;
@@ -64,6 +74,14 @@ function CompliancePageContent() {
   }
 
   if (error) {
+    if (isPermissionDenied(error)) {
+      return (
+        <div>
+          <PageHeader title={tco("title")} />
+          <AccessDenied />
+        </div>
+      );
+    }
     return (
       <div>
         <PageHeader title={tco("title")} />
@@ -72,7 +90,7 @@ function CompliancePageContent() {
           role="alert"
         >
           <h3 className="text-[var(--error)] font-medium">{tco("errorTitle")}</h3>
-          <p className="text-[var(--error)] mt-1 text-sm">{error.message}</p>
+          <p className="text-[var(--error)] mt-1 text-sm">{getErrorMessage(error)}</p>
         </div>
       </div>
     );
@@ -169,7 +187,7 @@ function CompliancePageContent() {
               </h2>
             </div>
             <div className="divide-y divide-[var(--border-subtle)]">
-              {auditLogs.map((log) => (
+              {paginatedAuditLogs.map((log) => (
                 <div key={log.id} className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
@@ -195,6 +213,19 @@ function CompliancePageContent() {
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="p-3 border-t border-[var(--border-subtle)]">
+              <Pagination
+                page={auditPage}
+                totalPages={auditTotalPages}
+                totalItems={auditLogs.length}
+                perPage={auditPerPage}
+                onPageChange={setAuditPage}
+                onPerPageChange={(n) => {
+                  setAuditPerPage(n);
+                  setAuditPage(1);
+                }}
+              />
             </div>
           </div>
         )}

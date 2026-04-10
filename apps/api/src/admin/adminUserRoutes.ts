@@ -9,7 +9,9 @@ import { z } from "zod";
 import { randomBytes } from "node:crypto";
 import argon2 from "argon2";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
-import { requireAdminAuth, requireAdmin, requireSuperAdmin } from "./auth/adminAuthMiddleware.js";
+import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "../auth/rbacService.js";
 import { prisma } from "@infra/prisma";
 
 // --- Zod Schemas ---
@@ -28,7 +30,7 @@ const CreateAdminUserSchema = z.object({
 const UpdateAdminUserSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   email: z.string().email().max(255).optional(),
-  role: z.enum(["ADMIN", "SUPPORT"]).optional(),
+  role: z.string().min(1).max(50).optional(),
   department: z.string().max(200).nullable().optional(),
   team: z.string().max(200).nullable().optional(),
 });
@@ -269,7 +271,13 @@ class AdminUserHandler extends BaseRouteHandler {
       const data: Record<string, unknown> = {};
       if (updates.name !== undefined) data.name = updates.name;
       if (updates.email !== undefined) data.email = updates.email;
-      if (updates.role !== undefined) data.role = updates.role;
+      if (updates.role !== undefined) {
+        const roleRecord = await prisma.role.findUnique({ where: { name: updates.role } });
+        if (!roleRecord) {
+          return this.sendError(ctx, 400, `Invalid role: ${updates.role}`);
+        }
+        data.roleId = roleRecord.id;
+      }
       if (updates.department !== undefined) data.department = updates.department;
       if (updates.team !== undefined) data.team = updates.team;
 
@@ -431,7 +439,7 @@ const adminUserRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/users",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_READ)],
       schema: { tags: ["Admin Users"], summary: "List all admin users" },
     },
     async (request, reply) => handler.listUsers(request, reply)
@@ -440,7 +448,7 @@ const adminUserRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/users",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE)],
       schema: { tags: ["Admin Users"], summary: "Create admin user" },
     },
     async (request, reply) => handler.createUser(request, reply)
@@ -449,7 +457,7 @@ const adminUserRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/users/:id",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_READ)],
       schema: { tags: ["Admin Users"], summary: "Get admin user detail" },
     },
     async (request, reply) => handler.getUserDetail(request, reply)
@@ -458,7 +466,7 @@ const adminUserRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     "/admin/users/:id",
     {
-      preHandler: [requireAdminAuth, requireAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE)],
       schema: { tags: ["Admin Users"], summary: "Update admin user" },
     },
     async (request, reply) => handler.updateUser(request, reply)
@@ -467,7 +475,7 @@ const adminUserRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/users/:id/deactivate",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE)],
       schema: { tags: ["Admin Users"], summary: "Deactivate admin user" },
     },
     async (request, reply) => handler.deactivateUser(request, reply)
@@ -476,7 +484,7 @@ const adminUserRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/users/:id/activate",
     {
-      preHandler: [requireAdminAuth, requireSuperAdmin],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE)],
       schema: { tags: ["Admin Users"], summary: "Activate admin user" },
     },
     async (request, reply) => handler.activateUser(request, reply)

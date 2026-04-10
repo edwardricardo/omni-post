@@ -12,26 +12,20 @@ import { Save, ShieldAlert, ChevronRight, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 import { api, type RoleInfo } from "../../lib/apiClient";
 import { ActionButton } from "../ui/ActionButton";
 
 /** Permission category keys mapped to their individual permissions */
 const CATEGORY_KEYS: Record<string, string[]> = {
-  userManagement: ["user:create", "user:read", "user:update", "user:delete", "user:manage_roles"],
-  projectManagement: ["project:create", "project:read", "project:update", "project:delete"],
-  contentManagement: [
-    "content:create",
-    "content:read",
-    "content:update",
-    "content:delete",
-    "content:publish",
-  ],
+  userManagement: ["user:read", "user:manage", "user:manage_roles"],
+  accountManagement: ["account:read", "account:manage"],
+  billingSubscriptions: ["billing:read", "billing:manage"],
+  pricing: ["pricing:manage"],
   analytics: ["analytics:read", "analytics:export"],
-  systemAdmin: ["system:configure", "system:monitor", "system:backup"],
+  system: ["system:configure", "system:monitor"],
   auditCompliance: ["audit:read", "audit:export"],
-  billing: ["billing:read", "billing:manage"],
-  aiFeatures: ["ai:use", "ai:configure"],
-  support: ["support:read", "support:respond"],
+  webhooks: ["webhook:manage"],
 };
 
 interface PermissionGridProps {
@@ -68,13 +62,13 @@ export function PermissionGrid({ role, onPermissionsSaved }: PermissionGridProps
     setSaving(true);
     try {
       const response = await api.security.rbac.setRolePermissions(role.id, editedPermissions);
-      if (!response.ok) throw new Error("Failed to save permissions");
+      if (!response.ok) throw new ApiError(0, null, "Failed to save permissions");
       toast({ title: tc("success"), description: tp("successSaved") });
       onPermissionsSaved();
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : tp("failedSave"),
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {

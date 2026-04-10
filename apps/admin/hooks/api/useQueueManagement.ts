@@ -7,6 +7,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@packages/ui";
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 
 export interface QueueStats {
   total: number;
@@ -45,7 +46,10 @@ export function useQueueStats() {
       const res = await fetch("/api/backend/admin/queue/stats", {
         credentials: "include",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       const json = await res.json();
       return json.data?.stats ?? json.data ?? {};
     },
@@ -65,7 +69,10 @@ export function useFailedJobs() {
       const res = await fetch("/api/backend/admin/queue/jobs?types=failed&start=0&end=50", {
         credentials: "include",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       const json = await res.json();
       return json.data?.items ?? json.data?.jobs ?? [];
     },
@@ -86,7 +93,10 @@ export function useRetryJob() {
         method: "POST",
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to retry job");
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -96,7 +106,7 @@ export function useRetryJob() {
     onError: (err) => {
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Failed to retry job",
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     },

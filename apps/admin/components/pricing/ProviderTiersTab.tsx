@@ -17,6 +17,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@packages/ui";
+import { getErrorMessage } from "@/lib/parseApiError";
 import { DataTable } from "@/components/ui/DataTable";
 import { ActionButton } from "@/components/ui/ActionButton";
 
@@ -79,7 +80,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
           onError: (err) => {
             toast({
               title: tc("error"),
-              description: err instanceof Error ? err.message : tp("toasts.tierUpdateFailed"),
+              description: getErrorMessage(err),
               variant: "destructive",
             });
           },
@@ -107,7 +108,11 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
             });
           },
           onError: (err) => {
-            toast({ title: tc("error"), description: err.message, variant: "destructive" });
+            toast({
+              title: tc("error"),
+              description: getErrorMessage(err),
+              variant: "destructive",
+            });
           },
         }
       );
@@ -135,7 +140,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
           setNewPrice(0);
         },
         onError: (err) => {
-          toast({ title: tc("error"), description: err.message, variant: "destructive" });
+          toast({ title: tc("error"), description: getErrorMessage(err), variant: "destructive" });
         },
       }
     );

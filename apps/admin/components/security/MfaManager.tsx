@@ -12,6 +12,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
 
+import { getErrorMessage } from "@/lib/parseApiError";
 import { api } from "../../lib/apiClient";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import { ActionButton } from "../ui/ActionButton";
@@ -79,7 +80,7 @@ export default function MfaManager() {
 
       setUsers(usersWithMfa);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load users");
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -105,7 +106,7 @@ export default function MfaManager() {
     } catch (err) {
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Failed to disable MFA",
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {

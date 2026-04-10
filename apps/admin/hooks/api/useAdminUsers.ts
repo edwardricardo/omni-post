@@ -7,6 +7,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ApiError } from "@/lib/parseApiError";
 
 export interface AdminUser {
   id: string;
@@ -38,7 +39,10 @@ export function useAdminUsers() {
       const res = await fetch("/api/backend/admin/users", {
         credentials: "include",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       const json = (await res.json()) as { ok: boolean; data?: AdminUsersResponse };
       if (!json.ok || !json.data) throw new Error("Failed to fetch admin users");
       return json.data.users;
@@ -67,8 +71,8 @@ export function useCreateAdminUser() {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error((err as { error?: string }).error ?? "Failed to create user");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       const json = (await res.json()) as { ok: boolean; data?: CreateAdminUserResponse };
       if (!json.ok || !json.data) throw new Error("Unexpected response");
@@ -92,8 +96,8 @@ export function useDeactivateAdminUser() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error((err as { error?: string }).error ?? "Failed to deactivate user");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },
@@ -115,8 +119,8 @@ export function useActivateAdminUser() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error((err as { error?: string }).error ?? "Failed to activate user");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },
@@ -147,8 +151,8 @@ export function useUpdateAdminUser() {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error((err as { error?: string }).error ?? "Failed to update user");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },

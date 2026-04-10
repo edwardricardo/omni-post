@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@packages/ui";
 import { useAccountBilling } from "@/hooks/api/useAccountBilling";
 import { useAccountSessions, useRevokeAccountSessions } from "@/hooks/api/useAccountSessions";
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { ActionButton } from "@/components/ui/ActionButton";
@@ -59,8 +60,8 @@ export function AccountBillingPanel({
         body: JSON.stringify({ effectiveAt: new Date(grandfatherDate).toISOString() }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error(err.error || "Failed to update");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       toast({ title: tb("updated"), description: tb("grandfatheringAdjusted") });
       setAdjustingGrandfathering(false);
@@ -68,7 +69,7 @@ export function AccountBillingPanel({
     } catch (e) {
       toast({
         title: tc("error"),
-        description: e instanceof Error ? e.message : "Failed",
+        description: getErrorMessage(e),
         variant: "destructive",
       });
     } finally {
@@ -87,7 +88,7 @@ export function AccountBillingPanel({
   if (error) {
     return (
       <div className="py-4 text-sm text-[var(--error)]" role="alert">
-        {tb("failedBilling")} {error.message}
+        {tb("failedBilling")} {getErrorMessage(error)}
       </div>
     );
   }
@@ -323,7 +324,7 @@ export function AccountBillingPanel({
                   onError: (err) => {
                     toast({
                       title: tc("error"),
-                      description: err instanceof Error ? err.message : tb("failedRevoke"),
+                      description: getErrorMessage(err),
                       variant: "destructive",
                     });
                   },

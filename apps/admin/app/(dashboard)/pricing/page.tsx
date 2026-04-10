@@ -18,6 +18,8 @@ import {
 } from "@packages/ui";
 import { PROVIDER_NAMES } from "@shared/types";
 
+import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { AccessDenied } from "@/components/shared/AccessDenied";
 import {
   usePricingTiers,
   useUpdateBundle,
@@ -120,7 +122,7 @@ function PricingPageContent() {
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : tp("toasts.updateFailed"),
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     }
@@ -146,7 +148,7 @@ function PricingPageContent() {
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : tp("toasts.createFailed"),
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     }
@@ -162,7 +164,7 @@ function PricingPageContent() {
     } catch (err) {
       toast({
         title: tc("error"),
-        description: err instanceof Error ? err.message : tp("toasts.deleteFailed"),
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     }
@@ -186,14 +188,28 @@ function PricingPageContent() {
   }
 
   if (error) {
+    if (isPermissionDenied(error)) {
+      return (
+        <div>
+          <PageHeader title={t("pricing")} />
+          <AccessDenied />
+        </div>
+      );
+    }
     return (
       <div>
         <PageHeader title={t("pricing")} />
         <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
           <div className="text-sm text-[var(--error)]">
-            {tc("error")}: {error.message}
+            {tc("error")}: {getErrorMessage(error)}
           </div>
-          <ActionButton variant="primary" size="sm" onClick={handleRefresh} className="ml-4">
+          <ActionButton
+            variant="primary"
+            size="sm"
+            onClick={handleRefresh}
+            loading={isLoading}
+            className="ml-4"
+          >
             {tc("retry")}
           </ActionButton>
         </div>

@@ -8,6 +8,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
@@ -126,7 +127,8 @@ export function WebhookSubscriptions() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch subscriptions");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       const data = await response.json();
@@ -134,7 +136,7 @@ export function WebhookSubscriptions() {
       setSubscriptions(Array.isArray(payload) ? payload : (payload.subscriptions ?? []));
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -172,14 +174,15 @@ export function WebhookSubscriptions() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create subscription");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       await fetchSubscriptions();
       setShowCreateDialog(false);
       setNewSubscription({ provider: "", eventTypes: [] });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create subscription");
+      setError(getErrorMessage(err));
     }
   };
 
@@ -195,12 +198,13 @@ export function WebhookSubscriptions() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update subscription");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       await fetchSubscriptions();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update subscription");
+      setError(getErrorMessage(err));
     }
   };
 
@@ -212,12 +216,13 @@ export function WebhookSubscriptions() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete subscription");
+        const body = await response.text().catch(() => "");
+        throw ApiError.fromResponse(response.status, body);
       }
 
       await fetchSubscriptions();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete subscription");
+      setError(getErrorMessage(err));
     }
   };
 

@@ -7,6 +7,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ApiError } from "@/lib/parseApiError";
 
 export interface ProviderTier {
   id: string;
@@ -56,7 +57,10 @@ export function usePricingTiers() {
       const res = await fetch("/api/backend/admin/pricing/tiers", {
         credentials: "include",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       const json = await res.json();
       if (!json.ok || !json.data) throw new Error("Failed to fetch pricing tiers");
       return json.data;
@@ -79,7 +83,10 @@ export function useUpdateProviderTier() {
         credentials: "include",
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pricing", "tiers"] }),
@@ -100,7 +107,10 @@ export function useUpdateAccountTier() {
         credentials: "include",
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pricing", "tiers"] }),
@@ -121,7 +131,10 @@ export function useUpdateBundle() {
         credentials: "include",
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
+      }
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pricing", "tiers"] }),
@@ -151,8 +164,8 @@ export function useCreateBundle() {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error(err.error || "Failed to create bundle");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },
@@ -181,8 +194,8 @@ export function useCreateProviderTier() {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error((err as { error?: string }).error ?? "Failed to create provider tier");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },
@@ -211,8 +224,8 @@ export function useCreateAccountTier() {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error((err as { error?: string }).error ?? "Failed to create account tier");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },
@@ -246,8 +259,8 @@ export function useToggleTierStatus() {
         body: JSON.stringify({ isActive }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error((err as { error?: string }).error ?? "Failed to toggle tier status");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },
@@ -270,8 +283,8 @@ export function useDeleteBundle() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        throw new Error(err.error || "Failed to delete bundle");
+        const body = await res.text().catch(() => "");
+        throw ApiError.fromResponse(res.status, body);
       }
       return res.json();
     },

@@ -18,50 +18,36 @@ import { authLogger } from "../lib/logger.js";
 // ---------------------------------------------------------------------------
 
 export enum Permission {
-  // User management
-  USER_CREATE = "user:create",
+  // Admin user management
   USER_READ = "user:read",
-  USER_UPDATE = "user:update",
-  USER_DELETE = "user:delete",
+  USER_MANAGE = "user:manage",
   USER_MANAGE_ROLES = "user:manage_roles",
 
-  // Project management
-  PROJECT_CREATE = "project:create",
-  PROJECT_READ = "project:read",
-  PROJECT_UPDATE = "project:update",
-  PROJECT_DELETE = "project:delete",
+  // Customer account management
+  ACCOUNT_READ = "account:read",
+  ACCOUNT_MANAGE = "account:manage",
 
-  // Content management
-  CONTENT_CREATE = "content:create",
-  CONTENT_READ = "content:read",
-  CONTENT_UPDATE = "content:update",
-  CONTENT_DELETE = "content:delete",
-  CONTENT_PUBLISH = "content:publish",
+  // Billing & subscriptions
+  BILLING_READ = "billing:read",
+  BILLING_MANAGE = "billing:manage",
 
-  // Analytics access
+  // Pricing configuration
+  PRICING_MANAGE = "pricing:manage",
+
+  // Analytics & monitoring
   ANALYTICS_READ = "analytics:read",
   ANALYTICS_EXPORT = "analytics:export",
 
   // System administration
   SYSTEM_CONFIGURE = "system:configure",
   SYSTEM_MONITOR = "system:monitor",
-  SYSTEM_BACKUP = "system:backup",
 
-  // Audit and compliance
+  // Audit & compliance
   AUDIT_READ = "audit:read",
   AUDIT_EXPORT = "audit:export",
 
-  // Billing and subscriptions
-  BILLING_READ = "billing:read",
-  BILLING_MANAGE = "billing:manage",
-
-  // AI features
-  AI_USE = "ai:use",
-  AI_CONFIGURE = "ai:configure",
-
-  // Support operations
-  SUPPORT_READ = "support:read",
-  SUPPORT_RESPOND = "support:respond",
+  // Webhooks
+  WEBHOOK_MANAGE = "webhook:manage",
 }
 
 // ---------------------------------------------------------------------------
@@ -392,35 +378,17 @@ export class RbacService extends AuditableService {
   getPermissionCategories(): Record<string, Permission[]> {
     return {
       "User Management": [
-        Permission.USER_CREATE,
         Permission.USER_READ,
-        Permission.USER_UPDATE,
-        Permission.USER_DELETE,
+        Permission.USER_MANAGE,
         Permission.USER_MANAGE_ROLES,
       ],
-      "Project Management": [
-        Permission.PROJECT_CREATE,
-        Permission.PROJECT_READ,
-        Permission.PROJECT_UPDATE,
-        Permission.PROJECT_DELETE,
-      ],
-      "Content Management": [
-        Permission.CONTENT_CREATE,
-        Permission.CONTENT_READ,
-        Permission.CONTENT_UPDATE,
-        Permission.CONTENT_DELETE,
-        Permission.CONTENT_PUBLISH,
-      ],
+      "Account Management": [Permission.ACCOUNT_READ, Permission.ACCOUNT_MANAGE],
+      "Billing & Subscriptions": [Permission.BILLING_READ, Permission.BILLING_MANAGE],
+      Pricing: [Permission.PRICING_MANAGE],
       Analytics: [Permission.ANALYTICS_READ, Permission.ANALYTICS_EXPORT],
-      "System Administration": [
-        Permission.SYSTEM_CONFIGURE,
-        Permission.SYSTEM_MONITOR,
-        Permission.SYSTEM_BACKUP,
-      ],
+      System: [Permission.SYSTEM_CONFIGURE, Permission.SYSTEM_MONITOR],
       "Audit & Compliance": [Permission.AUDIT_READ, Permission.AUDIT_EXPORT],
-      Billing: [Permission.BILLING_READ, Permission.BILLING_MANAGE],
-      "AI Features": [Permission.AI_USE, Permission.AI_CONFIGURE],
-      Support: [Permission.SUPPORT_READ, Permission.SUPPORT_RESPOND],
+      Webhooks: [Permission.WEBHOOK_MANAGE],
     };
   }
 

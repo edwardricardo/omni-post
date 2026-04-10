@@ -1,4 +1,13 @@
 {
+  "errors": {
+    "permissionDenied": "Access Denied",
+    "permissionDeniedDescription": "You don't have permission to access this resource. Contact your administrator if you believe this is an error.",
+    "permissionDeniedAction": "You don't have permission to perform this action.",
+    "serverError": "An unexpected server error occurred. Please try again later.",
+    "unknownError": "Something went wrong. Please try again.",
+    "goBack": "Go Back",
+    "goToDashboard": "Go to Dashboard"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "platform": "Platform",
@@ -613,14 +622,13 @@
       "failedSave": "Failed to save permissions",
       "categories": {
         "userManagement": "User Management",
-        "projectManagement": "Project Management",
-        "contentManagement": "Content Management",
+        "accountManagement": "Account Management",
+        "billingSubscriptions": "Billing & Subscriptions",
+        "pricing": "Pricing",
         "analytics": "Analytics",
-        "systemAdmin": "System Administration",
+        "system": "System",
         "auditCompliance": "Audit & Compliance",
-        "billing": "Billing",
-        "aiFeatures": "AI Features",
-        "support": "Support"
+        "webhooks": "Webhooks"
       }
     },
     "createRole": {
@@ -936,8 +944,13 @@
     "deactivateTitle": "Deactivate User",
     "deactivateDesc": "Are you sure you want to deactivate {name}? They will lose access to the admin dashboard.",
     "activate": "Activate",
+    "editTitle": "Edit User",
+    "editDescription": "Update user details and role assignment.",
+    "department": "Department",
+    "team": "Team",
     "success": {
       "created": "Admin user created",
+      "updated": "{name} updated successfully",
       "deactivated": "{name} deactivated",
       "activated": "{name} activated",
       "copied": "Password copied to clipboard"

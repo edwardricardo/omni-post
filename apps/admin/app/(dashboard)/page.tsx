@@ -11,6 +11,8 @@ import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useDashboardStats } from "@/hooks/api/useDashboardStats";
 import { DonutChart, HorizontalBarChart } from "@/components/charts";
 import type { DonutChartDatum } from "@/components/charts";
@@ -68,6 +70,14 @@ function DashboardContent() {
   }
 
   if (error) {
+    if (isPermissionDenied(error)) {
+      return (
+        <div>
+          <PageHeader title={t("dashboard")} />
+          <AccessDenied />
+        </div>
+      );
+    }
     return (
       <div>
         <PageHeader title={t("dashboard")} />
@@ -76,13 +86,12 @@ function DashboardContent() {
           role="alert"
           aria-live="assertive"
         >
-          <div className="text-[var(--error)]">
-            {error instanceof Error ? error.message : String(error)}
-          </div>
+          <div className="text-[var(--error)]">{getErrorMessage(error)}</div>
           <ActionButton
             variant="danger"
             size="sm"
             onClick={handleRefresh}
+            loading={loading}
             className="mt-2"
             aria-label={td("retryLoading")}
           >
