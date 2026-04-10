@@ -1,16 +1,16 @@
 /**
- * Executive Account Handlers
+ * Analytics Account Handlers
  *
  * Handles account management endpoints for administrators.
- * Extracted from ExecutiveHandlers.ts to keep files under 800 lines.
+ * Extracted from AnalyticsHandlers.ts to keep files under 800 lines.
  *
- * @module admin/ExecutiveAccountHandlers
+ * @module admin/AnalyticsAccountHandlers
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { PrismaClient } from "@infra/prisma";
 import type { AuthenticatedUser } from "../auth/authService.js";
-import { AccountIdParamsSchema, UpdateAccountBodySchema } from "./executiveSchemas.js";
+import { AccountIdParamsSchema, UpdateAccountBodySchema } from "./analyticsSchemas.js";
 
 // Extend Fastify request type to include user
 declare module "fastify" {
@@ -20,11 +20,11 @@ declare module "fastify" {
 }
 
 /**
- * Executive Account Route Handler
+ * Analytics Account Route Handler
  * Provides account update and management endpoints for administrators
  */
-export class ExecutiveAccountHandler extends BaseRouteHandler {
-  protected routeName = "executive-account";
+export class AnalyticsAccountHandler extends BaseRouteHandler {
+  protected routeName = "analytics-account";
 
   constructor(private readonly prisma: PrismaClient) {
     super();

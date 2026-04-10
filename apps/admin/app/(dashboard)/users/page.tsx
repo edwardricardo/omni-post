@@ -7,7 +7,9 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Users, UserCheck, Shield, Headset, Copy, Check } from "lucide-react";
+import { useCurrentUser } from "@/providers/AuthProvider";
 import {
   toast,
   Dialog,
@@ -42,6 +44,9 @@ const ROLE_BADGE_VARIANT: Record<string, "info" | "success" | "neutral"> = {
 };
 
 function AdminUsersContent() {
+  const tu = useTranslations("users");
+  const tc = useTranslations("common");
+  const { hasPermission } = useCurrentUser();
   const { data: users, isLoading, error, refetch } = useAdminUsers();
   const createMutation = useCreateAdminUser();
   const deactivateMutation = useDeactivateAdminUser();
@@ -69,8 +74,8 @@ function AdminUsersContent() {
   const handleInviteSubmit = useCallback(() => {
     if (!inviteForm.email.trim() || !inviteForm.name.trim()) {
       toast({
-        title: "Validation",
-        description: "Email and name are required",
+        title: tc("error"),
+        description: tu("errors.validation"),
         variant: "destructive",
       });
       return;
@@ -84,10 +89,10 @@ function AdminUsersContent() {
           setTempPassword(data.temporaryPassword);
           setSuccessDialogOpen(true);
           setCopiedPassword(false);
-          toast({ title: "Success", description: "Admin user created" });
+          toast({ title: tu("userCreated"), description: tu("success.created") });
         },
         onError: (err) => {
-          toast({ title: "Error", description: err.message, variant: "destructive" });
+          toast({ title: tc("error"), description: err.message, variant: "destructive" });
         },
       }
     );
@@ -97,11 +102,14 @@ function AdminUsersContent() {
     if (!deactivateTarget) return;
     deactivateMutation.mutate(deactivateTarget.id, {
       onSuccess: () => {
-        toast({ title: "Success", description: `${deactivateTarget.name} deactivated` });
+        toast({
+          title: tu("deactivateTitle"),
+          description: tu("success.deactivated", { name: deactivateTarget.name }),
+        });
         setDeactivateTarget(null);
       },
       onError: (err) => {
-        toast({ title: "Error", description: err.message, variant: "destructive" });
+        toast({ title: tc("error"), description: err.message, variant: "destructive" });
       },
     });
   }, [deactivateTarget, deactivateMutation]);
@@ -110,10 +118,13 @@ function AdminUsersContent() {
     (user: AdminUser) => {
       activateMutation.mutate(user.id, {
         onSuccess: () => {
-          toast({ title: "Success", description: `${user.name} activated` });
+          toast({
+            title: tu("activate"),
+            description: tu("success.activated", { name: user.name }),
+          });
         },
         onError: (err) => {
-          toast({ title: "Error", description: err.message, variant: "destructive" });
+          toast({ title: tc("error"), description: err.message, variant: "destructive" });
         },
       });
     },
@@ -125,11 +136,11 @@ function AdminUsersContent() {
     try {
       await navigator.clipboard.writeText(tempPassword);
       setCopiedPassword(true);
-      toast({ title: "Copied", description: "Password copied to clipboard" });
+      toast({ title: tu("success.copied"), description: tu("success.copied") });
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to copy — please select and copy manually",
+        title: tc("error"),
+        description: tu("errors.copyFailed"),
         variant: "destructive",
       });
     }
@@ -138,9 +149,9 @@ function AdminUsersContent() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <PageHeader title="Admin Users" />
+        <PageHeader title={tu("title")} />
         <div className="flex justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-12">
-          <LoadingSpinner size="lg" label="Loading admin users..." />
+          <LoadingSpinner size="lg" label={tu("loadingUsers")} />
         </div>
       </div>
     );
@@ -149,15 +160,15 @@ function AdminUsersContent() {
   if (error) {
     return (
       <div className="p-6">
-        <PageHeader title="Admin Users" />
+        <PageHeader title={tu("title")} />
         <div
           className="rounded-lg border border-[var(--error)] bg-[var(--error-subtle)] p-6"
           role="alert"
         >
-          <h2 className="font-medium text-[var(--error)] mb-2">Error Loading Users</h2>
+          <h2 className="font-medium text-[var(--error)] mb-2">{tu("errorTitle")}</h2>
           <p className="text-sm text-[var(--error)] mb-4">{error.message}</p>
           <ActionButton variant="primary" onClick={() => refetch()}>
-            Retry
+            {tc("retry")}
           </ActionButton>
         </div>
       </div>
@@ -167,7 +178,7 @@ function AdminUsersContent() {
   const columns = [
     {
       key: "name",
-      header: "Name",
+      header: tu("table.name"),
       render: (u: AdminUser) => (
         <div>
           <div className="font-medium text-[var(--text-primary)]">{u.name}</div>
@@ -177,51 +188,55 @@ function AdminUsersContent() {
     },
     {
       key: "role",
-      header: "Role",
+      header: tu("table.role"),
       render: (u: AdminUser) => (
         <Badge variant={ROLE_BADGE_VARIANT[u.role] ?? "neutral"}>{u.role.replace(/_/g, " ")}</Badge>
       ),
     },
     {
       key: "lastLogin",
-      header: "Last Login",
+      header: tu("table.lastLogin"),
       render: (u: AdminUser) =>
-        u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : "Never",
+        u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : tc("never"),
     },
     {
       key: "status",
-      header: "Status",
+      header: tu("table.status"),
       render: (u: AdminUser) => (
         <Badge variant={u.isActive ? "success" : "error"}>
-          {u.isActive ? "Active" : "Inactive"}
+          {u.isActive ? tc("active") : tc("inactive")}
         </Badge>
       ),
     },
     {
       key: "actions",
-      header: "Actions",
+      header: tu("table.actions"),
       render: (u: AdminUser) => (
         <div className="flex gap-1">
-          {u.isActive ? (
-            <ActionButton
-              variant="danger"
-              size="sm"
-              onClick={() => setDeactivateTarget(u)}
-              disabled={u.role === "SUPER_ADMIN"}
-              aria-label={`Deactivate ${u.name}`}
-            >
-              Deactivate
-            </ActionButton>
-          ) : (
-            <ActionButton
-              variant="primary"
-              size="sm"
-              onClick={() => handleActivate(u)}
-              loading={activateMutation.isPending}
-              aria-label={`Activate ${u.name}`}
-            >
-              Activate
-            </ActionButton>
+          {hasPermission("user:update") && (
+            <>
+              {u.isActive ? (
+                <ActionButton
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setDeactivateTarget(u)}
+                  disabled={u.role === "SUPER_ADMIN"}
+                  aria-label={`${tu("deactivate")} ${u.name}`}
+                >
+                  {tu("deactivate")}
+                </ActionButton>
+              ) : (
+                <ActionButton
+                  variant="primary"
+                  size="sm"
+                  onClick={() => handleActivate(u)}
+                  loading={activateMutation.isPending}
+                  aria-label={`${tu("activate")} ${u.name}`}
+                >
+                  {tu("activate")}
+                </ActionButton>
+              )}
+            </>
           )}
         </div>
       ),
@@ -231,21 +246,39 @@ function AdminUsersContent() {
   return (
     <div className="p-6">
       <PageHeader
-        title="Admin Users"
-        description="Manage admin dashboard user accounts and access"
+        title={tu("title")}
+        description={tu("description")}
         actions={
-          <ActionButton variant="primary" size="sm" onClick={() => setInviteOpen(true)}>
-            Invite User
-          </ActionButton>
+          hasPermission("user:create") ? (
+            <ActionButton variant="primary" size="sm" onClick={() => setInviteOpen(true)}>
+              {tu("inviteUser")}
+            </ActionButton>
+          ) : undefined
         }
       />
 
       {/* Stats */}
       <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total Users" value={stats.total} icon={<Users className="h-4 w-4" />} />
-        <StatCard label="Active" value={stats.active} icon={<UserCheck className="h-4 w-4" />} />
-        <StatCard label="Admins" value={stats.admins} icon={<Shield className="h-4 w-4" />} />
-        <StatCard label="Support" value={stats.support} icon={<Headset className="h-4 w-4" />} />
+        <StatCard
+          label={tu("stats.totalUsers")}
+          value={stats.total}
+          icon={<Users className="h-4 w-4" />}
+        />
+        <StatCard
+          label={tu("stats.active")}
+          value={stats.active}
+          icon={<UserCheck className="h-4 w-4" />}
+        />
+        <StatCard
+          label={tu("stats.admins")}
+          value={stats.admins}
+          icon={<Shield className="h-4 w-4" />}
+        />
+        <StatCard
+          label={tu("stats.support")}
+          value={stats.support}
+          icon={<Headset className="h-4 w-4" />}
+        />
       </div>
 
       {/* Users Table */}
@@ -254,17 +287,15 @@ function AdminUsersContent() {
         data={users ?? []}
         isLoading={isLoading}
         rowKey={(u) => u.id}
-        emptyMessage="No admin users found"
+        emptyMessage={tc("noData")}
       />
 
       {/* Invite User Dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Invite Admin User</DialogTitle>
-            <DialogDescription>
-              Create a new admin account with a temporary password.
-            </DialogDescription>
+            <DialogTitle>{tu("inviteTitle")}</DialogTitle>
+            <DialogDescription>{tu("inviteDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -272,7 +303,7 @@ function AdminUsersContent() {
                 htmlFor="invite-email"
                 className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Email
+                {tu("email")}
               </label>
               <input
                 id="invite-email"
@@ -288,7 +319,7 @@ function AdminUsersContent() {
                 htmlFor="invite-name"
                 className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Name
+                {tu("name")}
               </label>
               <input
                 id="invite-name"
@@ -304,7 +335,7 @@ function AdminUsersContent() {
                 htmlFor="invite-role"
                 className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Role
+                {tu("role")}
               </label>
               <select
                 id="invite-role"
@@ -319,7 +350,7 @@ function AdminUsersContent() {
           </div>
           <DialogFooter>
             <ActionButton variant="secondary" size="sm" onClick={() => setInviteOpen(false)}>
-              Cancel
+              {tc("cancel")}
             </ActionButton>
             <ActionButton
               variant="primary"
@@ -327,7 +358,7 @@ function AdminUsersContent() {
               loading={createMutation.isPending}
               onClick={handleInviteSubmit}
             >
-              Create User
+              {tu("createUser")}
             </ActionButton>
           </DialogFooter>
         </DialogContent>
@@ -337,14 +368,12 @@ function AdminUsersContent() {
       <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>User Created</DialogTitle>
-            <DialogDescription>
-              Share this temporary password with the new user. It will not be shown again.
-            </DialogDescription>
+            <DialogTitle>{tu("userCreated")}</DialogTitle>
+            <DialogDescription>{tu("tempPasswordDesc")}</DialogDescription>
           </DialogHeader>
           <div className="mt-2">
             <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
-              Temporary Password
+              {tu("tempPassword")}
             </label>
             <div className="flex items-center gap-2">
               <code className="flex-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 font-mono text-sm text-[var(--text-primary)] select-all">
@@ -366,7 +395,7 @@ function AdminUsersContent() {
           </div>
           <DialogFooter>
             <ActionButton variant="primary" size="sm" onClick={() => setSuccessDialogOpen(false)}>
-              Done
+              {tu("done")}
             </ActionButton>
           </DialogFooter>
         </DialogContent>
@@ -378,13 +407,9 @@ function AdminUsersContent() {
         onOpenChange={(open) => {
           if (!open) setDeactivateTarget(null);
         }}
-        title="Deactivate User"
-        description={
-          deactivateTarget
-            ? `Are you sure you want to deactivate ${deactivateTarget.name}? They will lose access to the admin dashboard.`
-            : ""
-        }
-        confirmLabel="Deactivate"
+        title={tu("deactivateTitle")}
+        description={deactivateTarget ? tu("deactivateDesc", { name: deactivateTarget.name }) : ""}
+        confirmLabel={tu("deactivate")}
         variant="danger"
         onConfirm={handleDeactivateConfirm}
         loading={deactivateMutation.isPending}

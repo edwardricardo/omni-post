@@ -67,7 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
       { translationKey: "accounts", href: "/accounts", icon: Users },
       { translationKey: "subscriptions", href: "/subscriptions", icon: CreditCard },
       { translationKey: "pricing", href: "/pricing", icon: Gauge },
-      { translationKey: "executive", href: "/executive", icon: TrendingUp },
+      { translationKey: "analytics", href: "/analytics", icon: TrendingUp },
     ],
   },
   {
@@ -78,6 +78,7 @@ const NAV_GROUPS: NavGroup[] = [
       { translationKey: "logs", href: "/logs", icon: ScrollText },
       { translationKey: "webhooks", href: "/webhooks", icon: Webhook },
       { translationKey: "maintenance", href: "/maintenance", icon: Wrench },
+      { translationKey: "users", href: "/users", icon: UserCog },
     ],
   },
 ];
@@ -221,6 +222,7 @@ function CollapsibleGroup({
 export function SidebarNav({ userName, userRole }: SidebarNavProps) {
   const pathname = usePathname();
   const t = useTranslations("nav");
+  const tc = useTranslations("common");
   const locale = useLocale();
   const { theme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
@@ -230,16 +232,19 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
 
   // Build translation map for items
   const itemLabels: Record<string, string> = {
+    platform: t("platform"),
+    operations: t("operations"),
     dashboard: t("dashboard"),
     accounts: t("accounts"),
     subscriptions: t("subscriptions"),
     pricing: t("pricing"),
-    executive: t("executive"),
+    analytics: t("analytics"),
     security: t("security"),
     compliance: t("compliance"),
     logs: t("logs"),
     webhooks: t("webhooks"),
     maintenance: t("maintenance"),
+    users: t("users"),
   };
 
   return (
@@ -307,20 +312,6 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
 
       {/* Bottom actions */}
       <div className="border-t border-[var(--sidebar-border)] px-3 py-3 space-y-1">
-        {/* Admin Users */}
-        {!collapsed && (
-          <Link
-            href="/users"
-            className={[
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              "text-[var(--text-secondary)] hover:bg-[var(--sidebar-item-hover)] hover:text-[var(--text-primary)]",
-            ].join(" ")}
-          >
-            <UserCog className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden="true" />
-            <span>Admin Users</span>
-          </Link>
-        )}
-
         {/* Help & Docs */}
         {!collapsed && (
           <Link
@@ -331,7 +322,7 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
             ].join(" ")}
           >
             <HelpCircle className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden="true" />
-            <span>Help & Docs</span>
+            <span>{t("helpDocs")}</span>
           </Link>
         )}
 
@@ -347,7 +338,7 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
                   ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold"
                   : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]",
               ].join(" ")}
-              aria-label="Switch to English"
+              aria-label={t("switchToEnglish")}
             >
               EN
             </button>
@@ -361,7 +352,7 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
                   ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold"
                   : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]",
               ].join(" ")}
-              aria-label="Cambiar a Espanol"
+              aria-label={t("switchToSpanish")}
             >
               ES
             </button>
@@ -399,7 +390,7 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
         <button
           type="button"
           onClick={toggleTheme}
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label={theme === "dark" ? t("switchToLight") : t("switchToDark")}
           className={[
             "flex items-center gap-3 rounded-md px-3 py-2 w-full text-sm font-medium transition-colors",
             "text-[var(--text-secondary)] hover:bg-[var(--sidebar-item-hover)] hover:text-[var(--text-primary)]",
@@ -410,14 +401,14 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
           ) : (
             <Moon className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden="true" />
           )}
-          {!collapsed && <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
+          {!collapsed && <span>{theme === "dark" ? t("lightMode") : t("darkMode")}</span>}
         </button>
 
         {/* Logout */}
         <form action="/api/clear-session" method="GET">
           <button
             type="submit"
-            aria-label="Logout"
+            aria-label={tc("logout")}
             className={[
               "flex items-center gap-3 rounded-md px-3 py-2 w-full text-sm font-medium transition-colors",
               "text-[var(--error)] hover:bg-[var(--error-subtle)] hover:text-[var(--error)]",
@@ -425,7 +416,7 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
             ].join(" ")}
           >
             <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {!collapsed && <span>Logout</span>}
+            {!collapsed && <span>{tc("logout")}</span>}
           </button>
         </form>
       </div>

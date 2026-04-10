@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   toast,
@@ -35,13 +35,6 @@ import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
-const TABS = [
-  { key: "providers", label: "Provider Tiers" },
-  { key: "accounts", label: "Account Tiers" },
-  { key: "bundles", label: "Bundles" },
-  { key: "mrr", label: "MRR Dashboard" },
-];
-
 const EMPTY_BUNDLE_FORM: BundleFormData = {
   name: "",
   slug: "",
@@ -62,8 +55,20 @@ interface BundleFormData {
 
 function PricingPageContent() {
   const t = useTranslations("nav");
+  const tp = useTranslations("pricing");
+  const tc = useTranslations("common");
   const { data, isLoading, error, refetch } = usePricingTiers();
   const [activeTab, setActiveTab] = useState("providers");
+
+  const tabs = useMemo(
+    () => [
+      { key: "providers", label: tp("tabs.providerTiers") },
+      { key: "accounts", label: tp("tabs.accountTiers") },
+      { key: "bundles", label: tp("tabs.bundles") },
+      { key: "mrr", label: tp("tabs.mrrDashboard") },
+    ],
+    [tp]
+  );
 
   // Bundle CRUD state
   const [editingBundleId, setEditingBundleId] = useState<string | null>(null);
@@ -109,17 +114,17 @@ function PricingPageContent() {
           sortOrder: Number(bundleForm.sortOrder),
         },
       });
-      toast({ title: "Success", description: "Bundle updated" });
+      toast({ title: tc("success"), description: tp("toasts.bundleUpdated") });
       setEditingBundleId(null);
       setBundleForm(EMPTY_BUNDLE_FORM);
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Update failed",
+        title: tc("error"),
+        description: err instanceof Error ? err.message : tp("toasts.updateFailed"),
         variant: "destructive",
       });
     }
-  }, [editingBundleId, bundleForm, updateBundle]);
+  }, [editingBundleId, bundleForm, updateBundle, tc, tp]);
 
   const handleCreateBundle = useCallback(async () => {
     if (!bundleForm.name || !bundleForm.slug) return;
@@ -135,33 +140,33 @@ function PricingPageContent() {
         pricePerAccountMonth: Number(bundleForm.pricePerAccountMonth),
         sortOrder: Number(bundleForm.sortOrder),
       });
-      toast({ title: "Success", description: "Bundle created" });
+      toast({ title: tc("success"), description: tp("toasts.bundleCreated") });
       setShowCreateBundle(false);
       setBundleForm(EMPTY_BUNDLE_FORM);
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Create failed",
+        title: tc("error"),
+        description: err instanceof Error ? err.message : tp("toasts.createFailed"),
         variant: "destructive",
       });
     }
-  }, [bundleForm, createBundle]);
+  }, [bundleForm, createBundle, tc, tp]);
 
   const handleDeleteBundle = useCallback(async () => {
     if (!deleteBundleTarget) return;
     try {
       await deleteBundle.mutateAsync(deleteBundleTarget);
-      toast({ title: "Success", description: "Bundle deleted" });
+      toast({ title: tc("success"), description: tp("toasts.bundleDeleted") });
       setDeleteBundleOpen(false);
       setDeleteBundleTarget("");
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Delete failed",
+        title: tc("error"),
+        description: err instanceof Error ? err.message : tp("toasts.deleteFailed"),
         variant: "destructive",
       });
     }
-  }, [deleteBundleTarget, deleteBundle]);
+  }, [deleteBundleTarget, deleteBundle, tc, tp]);
 
   const handleCancelBundleEdit = useCallback(() => {
     setEditingBundleId(null);
@@ -174,7 +179,7 @@ function PricingPageContent() {
       <div>
         <PageHeader title={t("pricing")} />
         <div className="flex justify-center items-center h-64">
-          <LoadingSpinner size="lg" label="Loading pricing tiers..." />
+          <LoadingSpinner size="lg" label={tp("loading")} />
         </div>
       </div>
     );
@@ -185,9 +190,11 @@ function PricingPageContent() {
       <div>
         <PageHeader title={t("pricing")} />
         <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
-          <div className="text-sm text-[var(--error)]">Error: {error.message}</div>
+          <div className="text-sm text-[var(--error)]">
+            {tc("error")}: {error.message}
+          </div>
           <ActionButton variant="primary" size="sm" onClick={handleRefresh} className="ml-4">
-            Retry
+            {tc("retry")}
           </ActionButton>
         </div>
       </div>
@@ -206,15 +213,15 @@ function PricingPageContent() {
     <div>
       <PageHeader
         title={t("pricing")}
-        description="Configure provider tiers, account discounts, and bundles. Price changes trigger grandfathering for existing customers."
+        description={tp("description")}
         actions={
           <ActionButton variant="primary" size="sm" onClick={handleRefresh} loading={isLoading}>
-            Refresh
+            {tc("refresh")}
           </ActionButton>
         }
       />
 
-      <TabNav tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <TabNav tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       <div className="mt-4">
         {activeTab === "providers" && (
@@ -233,9 +240,9 @@ function PricingPageContent() {
                   setBundleForm(EMPTY_BUNDLE_FORM);
                   setShowCreateBundle(true);
                 }}
-                aria-label="Create new bundle"
+                aria-label={tp("bundles.newBundle")}
               >
-                New Bundle
+                {tp("bundles.newBundle")}
               </ActionButton>
             </div>
 
@@ -262,26 +269,29 @@ function PricingPageContent() {
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-[var(--text-primary)]">{bundle.name}</h3>
                     <Badge variant={bundle.isActive ? "success" : "neutral"}>
-                      {bundle.isActive ? "Active" : "Inactive"}
+                      {bundle.isActive ? tp("bundles.active") : tp("bundles.inactive")}
                     </Badge>
                   </div>
                   <p className="text-sm text-[var(--text-secondary)]">{bundle.description}</p>
                   <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                    Providers: {bundle.providers.join(", ")}
+                    {tp("bundles.providers")}: {bundle.providers.join(", ")}
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="font-mono font-semibold text-[var(--text-primary)]">
-                    ${Number(bundle.pricePerAccountMonth).toFixed(2)}/account/mo
+                    $
+                    {tp("bundles.perAccountMonth", {
+                      price: Number(bundle.pricePerAccountMonth).toFixed(2),
+                    })}
                   </span>
                   <div className="flex gap-2">
                     <ActionButton
                       variant="secondary"
                       size="sm"
                       onClick={() => handleEditBundle(bundle)}
-                      aria-label={`Edit bundle ${bundle.name}`}
+                      aria-label={`${tc("edit")} ${bundle.name}`}
                     >
-                      Edit
+                      {tc("edit")}
                     </ActionButton>
                     <ActionButton
                       variant="danger"
@@ -290,9 +300,9 @@ function PricingPageContent() {
                         setDeleteBundleTarget(bundle.id);
                         setDeleteBundleOpen(true);
                       }}
-                      aria-label={`Delete bundle ${bundle.name}`}
+                      aria-label={`${tc("delete")} ${bundle.name}`}
                     >
-                      Delete
+                      {tc("delete")}
                     </ActionButton>
                   </div>
                 </div>
@@ -301,7 +311,7 @@ function PricingPageContent() {
 
             {bundles.length === 0 && (
               <div className="text-center py-12 text-[var(--text-secondary)]" role="status">
-                No bundles configured yet.
+                {tp("bundles.noBundles")}
               </div>
             )}
           </div>
@@ -310,11 +320,11 @@ function PricingPageContent() {
         {activeTab === "mrr" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard
-              label="Active Bundles"
+              label={tp("mrr.activeBundles")}
               value={String(bundles.filter((b) => b.isActive).length)}
             />
-            <StatCard label="Bundle Base MRR" value={`$${totalMRR.toFixed(2)}`} />
-            <StatCard label="Total Provider Tiers" value={String(providerTiers.length)} />
+            <StatCard label={tp("mrr.bundleBaseMrr")} value={`$${totalMRR.toFixed(2)}`} />
+            <StatCard label={tp("mrr.totalProviderTiers")} value={String(providerTiers.length)} />
           </div>
         )}
       </div>
@@ -322,10 +332,10 @@ function PricingPageContent() {
       <ConfirmDialog
         open={deleteBundleOpen}
         onOpenChange={setDeleteBundleOpen}
-        title="Delete Bundle"
-        description="This will permanently delete this bundle. Existing subscribers will be grandfathered."
+        title={tp("bundles.deleteTitle")}
+        description={tp("bundles.deleteDescription")}
         variant="danger"
-        confirmLabel="Delete Bundle"
+        confirmLabel={tp("bundles.deleteConfirm")}
         onConfirm={handleDeleteBundle}
         loading={deleteBundle.isPending}
       />
@@ -359,6 +369,9 @@ function BundleFormDialog({
   isEdit,
   loading,
 }: BundleFormDialogProps) {
+  const tp = useTranslations("pricing");
+  const tc = useTranslations("common");
+
   const providerList =
     typeof form.providers === "string"
       ? form.providers
@@ -379,10 +392,10 @@ function BundleFormDialog({
       <DialogContent className="max-w-lg overflow-hidden bg-[var(--bg-surface)] border-[var(--border-default)] p-0 gap-0 rounded-lg">
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-[var(--border-subtle)]">
           <DialogTitle className="text-base font-semibold text-[var(--text-primary)]">
-            {isEdit ? "Edit Bundle" : "New Bundle"}
+            {isEdit ? tp("bundles.editBundle") : tp("bundles.newBundle")}
           </DialogTitle>
           <DialogDescription className="text-sm text-[var(--text-secondary)]">
-            {isEdit ? "Update bundle details and providers" : "Create a new provider bundle"}
+            {isEdit ? tp("bundles.updateDescription") : tp("bundles.createDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -393,7 +406,7 @@ function BundleFormDialog({
                 htmlFor="bundle-name"
                 className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
               >
-                Name
+                {tp("bundles.name")}
               </label>
               <input
                 id="bundle-name"
@@ -408,7 +421,7 @@ function BundleFormDialog({
                 htmlFor="bundle-slug"
                 className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
               >
-                Slug
+                {tp("bundles.slug")}
               </label>
               <input
                 id="bundle-slug"
@@ -426,7 +439,7 @@ function BundleFormDialog({
                 htmlFor="bundle-price"
                 className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
               >
-                Price / Account / Month
+                {tp("bundles.priceLabel")}
               </label>
               <input
                 id="bundle-price"
@@ -445,7 +458,7 @@ function BundleFormDialog({
                 htmlFor="bundle-order"
                 className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
               >
-                Sort Order
+                {tp("bundles.sortOrder")}
               </label>
               <input
                 id="bundle-order"
@@ -463,7 +476,7 @@ function BundleFormDialog({
               htmlFor="bundle-desc"
               className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
             >
-              Description
+              {tp("bundles.descriptionLabel")}
             </label>
             <input
               id="bundle-desc"
@@ -477,7 +490,7 @@ function BundleFormDialog({
           {/* Provider selection */}
           <div>
             <span className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-              Providers ({providerList.length} selected)
+              {tp("bundles.providersSelected", { count: providerList.length })}
             </span>
             <div className="grid grid-cols-3 gap-1.5">
               {PROVIDER_NAMES.map((provider) => {
@@ -505,10 +518,10 @@ function BundleFormDialog({
         {/* Footer */}
         <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-6 py-4 flex justify-end gap-2">
           <ActionButton variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc("cancel")}
           </ActionButton>
           <ActionButton variant="primary" size="sm" onClick={onSave} loading={loading}>
-            {isEdit ? "Save Changes" : "Create Bundle"}
+            {isEdit ? tp("bundles.saveChanges") : tp("bundles.createBundle")}
           </ActionButton>
         </div>
       </DialogContent>

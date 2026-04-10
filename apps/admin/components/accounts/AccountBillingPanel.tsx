@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Pencil, Clock, CalendarDays, Monitor } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@packages/ui";
@@ -31,6 +32,8 @@ export function AccountBillingPanel({
   lastLoginAt,
   editingAccount,
 }: AccountBillingPanelProps) {
+  const tb = useTranslations("accounts.billing");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useAccountBilling(accountId);
   const { data: sessions } = useAccountSessions(accountId);
@@ -59,12 +62,12 @@ export function AccountBillingPanel({
         const err = await res.json().catch(() => ({ error: "Failed" }));
         throw new Error(err.error || "Failed to update");
       }
-      toast({ title: "Updated", description: "Grandfathering expiry adjusted" });
+      toast({ title: tb("updated"), description: tb("grandfatheringAdjusted") });
       setAdjustingGrandfathering(false);
       queryClient.invalidateQueries({ queryKey: ["account", "billing", accountId] });
     } catch (e) {
       toast({
-        title: "Error",
+        title: tc("error"),
         description: e instanceof Error ? e.message : "Failed",
         variant: "destructive",
       });
@@ -76,7 +79,7 @@ export function AccountBillingPanel({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-6">
-        <LoadingSpinner size="sm" label="Loading billing data..." />
+        <LoadingSpinner size="sm" label={tb("loadingBilling")} />
       </div>
     );
   }
@@ -84,7 +87,7 @@ export function AccountBillingPanel({
   if (error) {
     return (
       <div className="py-4 text-sm text-[var(--error)]" role="alert">
-        Failed to load billing data: {error.message}
+        {tb("failedBilling")} {error.message}
       </div>
     );
   }
@@ -95,15 +98,15 @@ export function AccountBillingPanel({
     <div className="mt-4 space-y-4">
       {/* Plan Type + Grandfathering Badges + Edit Plan */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-semibold text-[var(--text-primary)]">Billing</span>
-        {data.planType === "custom" && <Badge variant="info">Custom Plan</Badge>}
+        <span className="text-sm font-semibold text-[var(--text-primary)]">{tb("title")}</span>
+        {data.planType === "custom" && <Badge variant="info">{tb("customPlan")}</Badge>}
         {data.planType === "bundle" && data.bundleInfo && (
-          <Badge variant="success">Bundle: {data.bundleInfo.name}</Badge>
+          <Badge variant="success">{tb("bundleName", { name: data.bundleInfo.name })}</Badge>
         )}
-        {data.planType === "none" && <Badge variant="neutral">No Active Plan</Badge>}
+        {data.planType === "none" && <Badge variant="neutral">{tb("noPlan")}</Badge>}
         {data.isGrandfathered && data.grandfathering && (
           <Badge variant="warning">
-            Grandfathered
+            {tb("grandfathered")}
             {data.grandfathering.expiresAt
               ? ` until ${new Date(data.grandfathering.expiresAt).toLocaleDateString()}`
               : ""}
@@ -115,17 +118,17 @@ export function AccountBillingPanel({
           onClick={() => setChangePlanOpen(true)}
           className="ml-auto"
           disabled={editingAccount}
-          title={editingAccount ? "Finish editing the account first" : "Change subscription plan"}
+          title={editingAccount ? tb("finishEditing") : tb("changePlan")}
         >
           <Pencil className="h-3 w-3" />
-          Edit Plan
+          {tb("editPlan")}
         </ActionButton>
       </div>
 
       {/* Last Login */}
       <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
         <Clock className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
-        <span>Last Login:</span>
+        <span>{tb("lastLogin")}</span>
         <span className="font-medium text-[var(--text-primary)]">
           {lastLoginAt
             ? new Date(lastLoginAt).toLocaleDateString("en-US", {
@@ -133,7 +136,7 @@ export function AccountBillingPanel({
                 month: "short",
                 day: "numeric",
               })
-            : "Never"}
+            : tc("never")}
         </span>
       </div>
 
@@ -142,11 +145,11 @@ export function AccountBillingPanel({
         <div className="flex items-center gap-2 rounded-lg border border-[var(--accent)] border-opacity-30 bg-[var(--accent-subtle)] p-3">
           <Clock className="h-4 w-4 text-[var(--accent)]" />
           <span className="text-sm text-[var(--text-primary)]">
-            Trial: {data.trial.daysRemaining} days remaining
+            {tb("trialRemaining", { days: data.trial.daysRemaining })}
           </span>
           {data.trial.trialEndDate && (
             <span className="ml-auto text-xs text-[var(--text-tertiary)]">
-              Ends {new Date(data.trial.trialEndDate).toLocaleDateString()}
+              {tb("trialEnds", { date: new Date(data.trial.trialEndDate).toLocaleDateString() })}
             </span>
           )}
         </div>
@@ -157,13 +160,16 @@ export function AccountBillingPanel({
         <div className="rounded-lg border border-[var(--warning)] border-opacity-30 bg-[var(--warning-subtle)] p-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-[var(--text-secondary)]">
-              Locked at{" "}
+              {tb("lockedAt")}{" "}
               <span className="font-semibold text-[var(--text-primary)]">
-                ${Number(data.grandfathering.lockedPrice).toFixed(2)}/mo
+                ${Number(data.grandfathering.lockedPrice).toFixed(2)}
+                {tb("perMonth")}
               </span>{" "}
-              (current list: ${Number(data.grandfathering.currentListPrice).toFixed(2)}/mo — saving{" "}
+              ({tb("currentList")}${Number(data.grandfathering.currentListPrice).toFixed(2)}
+              {tb("perMonth")} — {tb("saving")}{" "}
               <span className="font-semibold text-[var(--success)]">
-                ${Number(data.grandfathering.savingsFromGrandfathering).toFixed(2)}/mo
+                ${Number(data.grandfathering.savingsFromGrandfathering).toFixed(2)}
+                {tb("perMonth")}
               </span>
               )
             </p>
@@ -176,7 +182,7 @@ export function AccountBillingPanel({
                 className="ml-2 text-xs text-[var(--accent)] hover:underline"
               >
                 <CalendarDays className="mr-1 inline h-3 w-3" />
-                Adjust
+                {tb("adjust")}
               </button>
             )}
           </div>
@@ -196,14 +202,14 @@ export function AccountBillingPanel({
                 loading={savingGrandfathering}
                 disabled={savingGrandfathering || !grandfatherDate}
               >
-                Save
+                {tc("save")}
               </ActionButton>
               <ActionButton
                 variant="secondary"
                 size="sm"
                 onClick={() => setAdjustingGrandfathering(false)}
               >
-                Cancel
+                {tc("cancel")}
               </ActionButton>
             </div>
           )}
@@ -213,20 +219,20 @@ export function AccountBillingPanel({
       {/* Provider Breakdown */}
       <div>
         <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-          Provider Breakdown
+          {tb("providerBreakdown")}
         </h3>
         {data.providers.length === 0 ? (
-          <p className="text-sm text-[var(--text-tertiary)]">No providers connected.</p>
+          <p className="text-sm text-[var(--text-tertiary)]">{tb("noProviders")}</p>
         ) : (
           <div className="overflow-hidden rounded-lg border border-[var(--border-subtle)]">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="bg-[var(--bg-elevated)]">
                   <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-                    Platform
+                    {tb("platform")}
                   </th>
                   <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-                    Price/Provider
+                    {tb("pricePerProvider")}
                   </th>
                 </tr>
               </thead>
@@ -250,22 +256,22 @@ export function AccountBillingPanel({
       {/* Calculation Summary */}
       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
         <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-          Calculation
+          {tb("calculation")}
         </h3>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-          <span className="text-[var(--text-secondary)]">Unique providers</span>
+          <span className="text-[var(--text-secondary)]">{tb("uniqueProviders")}</span>
           <span className="text-right text-[var(--text-primary)]">
             {data.calculation.providerCount}
           </span>
 
-          <span className="text-[var(--text-secondary)]">Base price/account</span>
+          <span className="text-[var(--text-secondary)]">{tb("basePrice")}</span>
           <span className="text-right font-mono text-[var(--text-primary)]">
             ${Number(data.calculation.basePrice).toFixed(2)}
           </span>
 
           {data.calculation.savings > 0 && (
             <>
-              <span className="text-[var(--text-secondary)]">Volume savings</span>
+              <span className="text-[var(--text-secondary)]">{tb("volumeSavings")}</span>
               <span className="text-right font-mono text-[var(--success)]">
                 -${Number(data.calculation.savings).toFixed(2)}
               </span>
@@ -273,7 +279,7 @@ export function AccountBillingPanel({
           )}
 
           <span className="border-t border-[var(--border-subtle)] pt-1 font-medium text-[var(--text-primary)]">
-            Total monthly
+            {tb("totalMonthly")}
           </span>
           <span className="border-t border-[var(--border-subtle)] pt-1 text-right font-mono font-semibold text-[var(--text-primary)]">
             ${Number(data.calculation.totalMonthly).toFixed(2)}
@@ -288,9 +294,10 @@ export function AccountBillingPanel({
             <span className="font-semibold text-[var(--accent)]">
               {data.cheaperBundle.bundle.name}
             </span>{" "}
-            would save{" "}
+            {tb("wouldSave")}{" "}
             <span className="font-semibold text-[var(--success)]">
-              ${Number(data.cheaperBundle.savings).toFixed(2)}/mo
+              ${Number(data.cheaperBundle.savings).toFixed(2)}
+              {tb("perMonth")}
             </span>{" "}
             (bundle: ${Number(data.cheaperBundle.bundleTotal).toFixed(2)} vs custom: $
             {Number(data.cheaperBundle.customTotal).toFixed(2)})
@@ -303,7 +310,7 @@ export function AccountBillingPanel({
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-              Active Sessions ({sessions.length})
+              {tb("activeSessions", { count: sessions.length })}
             </h3>
             <ActionButton
               variant="danger"
@@ -311,21 +318,21 @@ export function AccountBillingPanel({
               onClick={() => {
                 revokeSessions.mutate(accountId, {
                   onSuccess: () => {
-                    toast({ title: "Success", description: "All sessions revoked" });
+                    toast({ title: tc("success"), description: tb("sessionsRevoked") });
                   },
                   onError: (err) => {
                     toast({
-                      title: "Error",
-                      description: err instanceof Error ? err.message : "Failed to revoke sessions",
+                      title: tc("error"),
+                      description: err instanceof Error ? err.message : tb("failedRevoke"),
                       variant: "destructive",
                     });
                   },
                 });
               }}
               loading={revokeSessions.isPending}
-              aria-label="Revoke all sessions"
+              aria-label={tb("revokeAllLabel")}
             >
-              Revoke All
+              {tb("revokeAll")}
             </ActionButton>
           </div>
           <div className="space-y-1">
@@ -339,7 +346,7 @@ export function AccountBillingPanel({
                   className="text-[var(--text-primary)] truncate max-w-[200px]"
                   title={session.userAgent ?? undefined}
                 >
-                  {session.userAgent ? session.userAgent.slice(0, 40) : "Unknown device"}
+                  {session.userAgent ? session.userAgent.slice(0, 40) : tb("unknownDevice")}
                 </span>
                 <span className="text-[var(--text-tertiary)]">{session.ipAddress ?? "N/A"}</span>
                 <span className="ml-auto text-[var(--text-tertiary)]">

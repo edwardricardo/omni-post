@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
@@ -60,6 +61,9 @@ interface DeadLetterEvent {
 }
 
 export function DeadLetterQueue() {
+  const td = useTranslations("webhooks.deadLetter");
+  const te = useTranslations("webhooks.events");
+  const tc = useTranslations("common");
   const [events, setEvents] = useState<DeadLetterEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<DeadLetterEvent | null>(null);
   const [pagination, setPagination] = useState({
@@ -188,11 +192,9 @@ export function DeadLetterQueue() {
           <div>
             <h3 className="flex items-center space-x-2 text-base font-semibold text-[var(--text-primary)]">
               <AlertTriangle className="h-5 w-5 text-[var(--error)]" />
-              <span>Dead Letter Queue</span>
+              <span>{td("title")}</span>
             </h3>
-            <p className="text-sm text-[var(--text-secondary)]">
-              Failed webhook events that require manual intervention
-            </p>
+            <p className="text-sm text-[var(--text-secondary)]">{td("description")}</p>
           </div>
           <div className="flex items-center space-x-2">
             {events.length > 0 && (
@@ -200,27 +202,26 @@ export function DeadLetterQueue() {
                 <AlertDialogTrigger asChild>
                   <ActionButton variant="secondary" size="sm">
                     <RotateCcw className="h-4 w-4 mr-2" />
-                    Retry All
+                    {td("retryAll")}
                   </ActionButton>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Retry All Failed Events</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will attempt to reprocess all failed events in the dead letter queue. Are
-                      you sure you want to continue?
-                    </AlertDialogDescription>
+                    <AlertDialogTitle>{td("retryAllTitle")}</AlertDialogTitle>
+                    <AlertDialogDescription>{td("retryAllDescription")}</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={bulkRetryAll}>Retry All Events</AlertDialogAction>
+                    <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
+                    <AlertDialogAction onClick={bulkRetryAll}>
+                      {td("retryAllEvents")}
+                    </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             )}
             <ActionButton onClick={fetchDeadLetterEvents} variant="secondary" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </ActionButton>
           </div>
         </div>
@@ -230,7 +231,7 @@ export function DeadLetterQueue() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-tertiary)] h-4 w-4" />
             <input
-              placeholder="Search by error or event type..."
+              placeholder={td("searchPlaceholder")}
               value={filters.search}
               onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
               className="w-full pl-10 pr-3 py-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
@@ -242,7 +243,7 @@ export function DeadLetterQueue() {
             onChange={(e) => setFilters((prev) => ({ ...prev, provider: e.target.value }))}
             className="w-40 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           >
-            <option value="all">All Providers</option>
+            <option value="all">{tc("allProviders")}</option>
             <option value="X">X (Twitter)</option>
             <option value="INSTAGRAM">Instagram</option>
             <option value="FACEBOOK">Facebook</option>
@@ -260,14 +261,14 @@ export function DeadLetterQueue() {
           <div className="text-center py-8">
             <p className="text-[var(--error)] mb-4">{error}</p>
             <ActionButton onClick={fetchDeadLetterEvents} variant="secondary">
-              Retry
+              {tc("retry")}
             </ActionButton>
           </div>
         ) : events.length === 0 ? (
           <div className="text-center py-8 text-[var(--text-secondary)]">
             <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-[var(--text-tertiary)]" />
-            <p className="text-lg font-medium mb-2">No failed events</p>
-            <p>All webhook events are processing successfully!</p>
+            <p className="text-lg font-medium mb-2">{td("noFailed")}</p>
+            <p>{td("allProcessing")}</p>
           </div>
         ) : (
           <>
@@ -275,25 +276,25 @@ export function DeadLetterQueue() {
               <thead>
                 <tr className="border-b border-[var(--border-subtle)]">
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Provider
+                    {td("table.provider")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Event Type
+                    {td("table.eventType")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Failure Reason
+                    {td("table.failureReason")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Retry Count
+                    {td("table.retryCount")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    First Failed
+                    {td("table.firstFailed")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Status
+                    {td("table.status")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Actions
+                    {td("table.actions")}
                   </th>
                 </tr>
               </thead>
@@ -319,7 +320,7 @@ export function DeadLetterQueue() {
                     </td>
                     <td className="px-3 py-2">
                       <Badge variant={event.retryCount >= 5 ? "error" : "warning"}>
-                        {event.retryCount} retries
+                        {td("retries", { count: event.retryCount })}
                       </Badge>
                     </td>
                     <td className="px-3 py-2">
@@ -329,9 +330,9 @@ export function DeadLetterQueue() {
                     </td>
                     <td className="px-3 py-2">
                       {event.resolvedAt ? (
-                        <Badge variant="success">Resolved</Badge>
+                        <Badge variant="success">{td("resolved")}</Badge>
                       ) : (
-                        <Badge variant="error">Failed</Badge>
+                        <Badge variant="error">{te("failed")}</Badge>
                       )}
                     </td>
                     <td className="px-3 py-2">
@@ -348,36 +349,50 @@ export function DeadLetterQueue() {
                           </DialogTrigger>
                           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
-                              <DialogTitle>Dead Letter Event Details</DialogTitle>
+                              <DialogTitle>{td("details.title")}</DialogTitle>
                               <DialogDescription>
-                                Event ID:{" "}
-                                {selectedEvent?.originalEvent?.eventId || selectedEvent?.id}
+                                {td("details.eventId", {
+                                  id:
+                                    selectedEvent?.originalEvent?.eventId ||
+                                    selectedEvent?.id ||
+                                    "",
+                                })}
                               </DialogDescription>
                             </DialogHeader>
                             {selectedEvent && (
                               <div className="space-y-6">
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="text-sm font-medium">Provider</label>
+                                    <label className="text-sm font-medium">
+                                      {td("details.provider")}
+                                    </label>
                                     <p>{getProviderBadge(selectedEvent.provider)}</p>
                                   </div>
                                   <div>
-                                    <label className="text-sm font-medium">Event Type</label>
+                                    <label className="text-sm font-medium">
+                                      {td("details.eventType")}
+                                    </label>
                                     <p className="text-sm">
                                       {formatEventType(selectedEvent.eventType)}
                                     </p>
                                   </div>
                                   <div>
-                                    <label className="text-sm font-medium">Retry Count</label>
-                                    <p className="text-sm">{selectedEvent.retryCount} attempts</p>
+                                    <label className="text-sm font-medium">
+                                      {td("details.retryCount")}
+                                    </label>
+                                    <p className="text-sm">
+                                      {td("details.attempts", { count: selectedEvent.retryCount })}
+                                    </p>
                                   </div>
                                   <div>
-                                    <label className="text-sm font-medium">Status</label>
+                                    <label className="text-sm font-medium">
+                                      {td("details.status")}
+                                    </label>
                                     <p className="text-sm">
                                       {selectedEvent.resolvedAt ? (
-                                        <Badge variant="success">Resolved</Badge>
+                                        <Badge variant="success">{td("resolved")}</Badge>
                                       ) : (
-                                        <Badge variant="error">Failed</Badge>
+                                        <Badge variant="error">{te("failed")}</Badge>
                                       )}
                                     </p>
                                   </div>
@@ -385,7 +400,7 @@ export function DeadLetterQueue() {
 
                                 <div>
                                   <label className="text-sm font-medium text-[var(--error)]">
-                                    Failure Reason
+                                    {td("details.failureReason")}
                                   </label>
                                   <p className="text-sm bg-[var(--error-subtle)] p-3 rounded-sm border text-[var(--error)]">
                                     {selectedEvent.failureReason}
@@ -394,7 +409,7 @@ export function DeadLetterQueue() {
 
                                 <div>
                                   <label className="text-sm font-medium text-[var(--error)]">
-                                    Final Error
+                                    {td("details.finalError")}
                                   </label>
                                   <pre className="text-xs bg-[var(--error-subtle)] p-3 rounded-sm border text-[var(--error)] overflow-x-auto">
                                     {selectedEvent.finalError}
@@ -403,22 +418,30 @@ export function DeadLetterQueue() {
 
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div>
-                                    <label className="font-medium">First Failed At</label>
+                                    <label className="font-medium">
+                                      {td("details.firstFailedAt")}
+                                    </label>
                                     <p>{new Date(selectedEvent.firstFailedAt).toLocaleString()}</p>
                                   </div>
                                   <div>
-                                    <label className="font-medium">Last Retry At</label>
+                                    <label className="font-medium">
+                                      {td("details.lastRetryAt")}
+                                    </label>
                                     <p>{new Date(selectedEvent.lastRetryAt).toLocaleString()}</p>
                                   </div>
                                   {selectedEvent.resolvedAt && (
                                     <>
                                       <div>
-                                        <label className="font-medium">Resolved At</label>
+                                        <label className="font-medium">
+                                          {td("details.resolvedAt")}
+                                        </label>
                                         <p>{new Date(selectedEvent.resolvedAt).toLocaleString()}</p>
                                       </div>
                                       {selectedEvent.resolvedBy && (
                                         <div>
-                                          <label className="font-medium">Resolved By</label>
+                                          <label className="font-medium">
+                                            {td("details.resolvedBy")}
+                                          </label>
                                           <p>{selectedEvent.resolvedBy}</p>
                                         </div>
                                       )}
@@ -427,14 +450,18 @@ export function DeadLetterQueue() {
                                 </div>
 
                                 <div>
-                                  <label className="text-sm font-medium">Request Headers</label>
+                                  <label className="text-sm font-medium">
+                                    {td("details.requestHeaders")}
+                                  </label>
                                   <pre className="text-xs bg-[var(--bg-elevated)] p-3 rounded-sm border overflow-x-auto">
                                     {JSON.stringify(selectedEvent.headers, null, 2)}
                                   </pre>
                                 </div>
 
                                 <div>
-                                  <label className="text-sm font-medium">Payload</label>
+                                  <label className="text-sm font-medium">
+                                    {td("details.payload")}
+                                  </label>
                                   <pre className="text-xs bg-[var(--bg-elevated)] p-3 rounded-sm border overflow-x-auto max-h-64">
                                     {JSON.stringify(selectedEvent.payload, null, 2)}
                                   </pre>
@@ -453,16 +480,15 @@ export function DeadLetterQueue() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Retry Failed Event</AlertDialogTitle>
+                                <AlertDialogTitle>{td("retryTitle")}</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  This will attempt to reprocess the failed webhook event. Are you
-                                  sure you want to retry this event?
+                                  {td("retryDescription")}
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
                                 <AlertDialogAction onClick={() => retryEvent(event.id)}>
-                                  Retry Event
+                                  {td("retryEvent")}
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -478,9 +504,11 @@ export function DeadLetterQueue() {
             {/* Pagination */}
             <div className="flex items-center justify-between mt-6">
               <div className="text-sm text-[var(--text-secondary)]">
-                Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-                {pagination.total} failed events
+                {td("pagination.showing", {
+                  from: (pagination.page - 1) * pagination.limit + 1,
+                  to: Math.min(pagination.page * pagination.limit, pagination.total),
+                  total: pagination.total,
+                })}
               </div>
               <div className="flex items-center space-x-2">
                 <ActionButton
@@ -490,10 +518,10 @@ export function DeadLetterQueue() {
                   disabled={pagination.page === 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  Previous
+                  {tc("previous")}
                 </ActionButton>
                 <span className="text-sm">
-                  Page {pagination.page} of {pagination.pages}
+                  {tc("page", { current: pagination.page, total: pagination.pages })}
                 </span>
                 <ActionButton
                   variant="secondary"
@@ -501,7 +529,7 @@ export function DeadLetterQueue() {
                   onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
                   disabled={pagination.page === pagination.pages}
                 >
-                  Next
+                  {tc("next")}
                   <ChevronRight className="h-4 w-4" />
                 </ActionButton>
               </div>

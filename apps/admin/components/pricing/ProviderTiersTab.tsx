@@ -6,6 +6,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import {
   toast,
@@ -35,6 +36,8 @@ interface ProviderTiersTabProps {
 }
 
 export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
+  const tp = useTranslations("pricing");
+  const tc = useTranslations("common");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string | number | null>>({});
   const [createOpen, setCreateOpen] = useState(false);
@@ -70,20 +73,20 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
         { id, data },
         {
           onSuccess: () => {
-            toast({ title: "Updated", description: "Provider tier saved" });
+            toast({ title: tc("success"), description: tp("toasts.tierUpdated") });
             setEditingId(null);
           },
           onError: (err) => {
             toast({
-              title: "Error",
-              description: err instanceof Error ? err.message : "Failed to save",
+              title: tc("error"),
+              description: err instanceof Error ? err.message : tp("toasts.tierUpdateFailed"),
               variant: "destructive",
             });
           },
         }
       );
     },
-    [editForm, mutation]
+    [editForm, mutation, tc, tp]
   );
 
   const handleCancel = useCallback(() => {
@@ -97,24 +100,26 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
         {
           onSuccess: () => {
             toast({
-              title: "Updated",
-              description: `Tier ${tier.isActive ? "deactivated" : "activated"}`,
+              title: tc("success"),
+              description: tier.isActive
+                ? tp("toasts.tierDeactivated")
+                : tp("toasts.tierActivated"),
             });
           },
           onError: (err) => {
-            toast({ title: "Error", description: err.message, variant: "destructive" });
+            toast({ title: tc("error"), description: err.message, variant: "destructive" });
           },
         }
       );
     },
-    [toggleMutation]
+    [toggleMutation, tc, tp]
   );
 
   const handleCreateSubmit = useCallback(() => {
     if (newPrice <= 0) {
       toast({
-        title: "Validation",
-        description: "Price must be greater than 0",
+        title: tp("toasts.validationError"),
+        description: tp("priceMustBePositive"),
         variant: "destructive",
       });
       return;
@@ -123,23 +128,23 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
       { minProviders: newMin, maxProviders: newMax, pricePerProviderMonth: newPrice },
       {
         onSuccess: () => {
-          toast({ title: "Success", description: "Provider tier created" });
+          toast({ title: tc("success"), description: tp("toasts.tierCreated") });
           setCreateOpen(false);
           setNewMin(1);
           setNewMax(null);
           setNewPrice(0);
         },
         onError: (err) => {
-          toast({ title: "Error", description: err.message, variant: "destructive" });
+          toast({ title: tc("error"), description: err.message, variant: "destructive" });
         },
       }
     );
-  }, [newMin, newMax, newPrice, createMutation]);
+  }, [newMin, newMax, newPrice, createMutation, tc, tp]);
 
   const columns = [
     {
       key: "minProviders",
-      header: "Min Providers",
+      header: tp("providerTiers.minProviders"),
       render: (t: ProviderTier) =>
         editingId === t.id ? (
           <input
@@ -156,7 +161,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
     },
     {
       key: "maxProviders",
-      header: "Max Providers",
+      header: tp("providerTiers.maxProviders"),
       render: (t: ProviderTier) =>
         editingId === t.id ? (
           <input
@@ -173,12 +178,12 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
         ) : t.maxProviders !== null ? (
           String(t.maxProviders)
         ) : (
-          "No limit"
+          tp("accountTiers.noLimit")
         ),
     },
     {
       key: "price",
-      header: "Price/Provider/Month",
+      header: tp("providerTiers.pricePerMonth"),
       render: (t: ProviderTier) =>
         editingId === t.id ? (
           <input
@@ -201,7 +206,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
     },
     {
       key: "status",
-      header: "Active",
+      header: tc("active"),
       render: (t: ProviderTier) => (
         <button
           type="button"
@@ -211,7 +216,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
           disabled={toggleMutation.isPending}
           className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:opacity-50"
           style={{ backgroundColor: t.isActive ? "var(--success)" : "var(--border-strong)" }}
-          aria-label={`${t.isActive ? "Deactivate" : "Activate"} tier`}
+          aria-label={t.isActive ? tp("deactivateTier") : tp("activateTier")}
         >
           <span
             className="pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
@@ -222,7 +227,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
     },
     {
       key: "actions",
-      header: "Actions",
+      header: tc("actions"),
       render: (t: ProviderTier) =>
         editingId === t.id ? (
           <div className="flex gap-1">
@@ -232,15 +237,15 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
               loading={mutation.isPending}
               onClick={() => handleSave(t.id)}
             >
-              Save
+              {tc("save")}
             </ActionButton>
             <ActionButton variant="secondary" size="sm" onClick={handleCancel}>
-              Cancel
+              {tc("cancel")}
             </ActionButton>
           </div>
         ) : (
           <ActionButton variant="secondary" size="sm" onClick={() => handleEdit(t)}>
-            Edit
+            {tc("edit")}
           </ActionButton>
         ),
     },
@@ -249,10 +254,12 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Provider Tiers</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+          {tp("providerTiers.title")}
+        </h3>
         <ActionButton variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="h-3.5 w-3.5" />
-          New Tier
+          {tp("newTier")}
         </ActionButton>
       </div>
 
@@ -261,17 +268,15 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
         data={tiers}
         isLoading={isLoading}
         rowKey={(t) => t.id}
-        emptyMessage="No provider tiers configured"
+        emptyMessage={tp("noProviderTiers")}
       />
 
       {/* Create Provider Tier Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>New Provider Tier</DialogTitle>
-            <DialogDescription>
-              Define a new pricing tier based on provider count.
-            </DialogDescription>
+            <DialogTitle>{tp("newProviderTier")}</DialogTitle>
+            <DialogDescription>{tp("newProviderTierDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -279,7 +284,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
                 htmlFor="new-pt-min"
                 className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Min Providers
+                {tp("providerTiers.minProviders")}
               </label>
               <input
                 id="new-pt-min"
@@ -295,7 +300,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
                 htmlFor="new-pt-max"
                 className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Max Providers (optional)
+                {tp("providerTiers.maxProviders")} {tp("maxOptional")}
               </label>
               <input
                 id="new-pt-max"
@@ -310,7 +315,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
                 htmlFor="new-pt-price"
                 className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Price per Provider/Month
+                {tp("pricePerProviderMonth")}
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-sm text-[var(--text-tertiary)]">
@@ -330,7 +335,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
           </div>
           <DialogFooter>
             <ActionButton variant="secondary" size="sm" onClick={() => setCreateOpen(false)}>
-              Cancel
+              {tc("cancel")}
             </ActionButton>
             <ActionButton
               variant="primary"
@@ -338,7 +343,7 @@ export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
               loading={createMutation.isPending}
               onClick={handleCreateSubmit}
             >
-              Create Tier
+              {tp("createTier")}
             </ActionButton>
           </DialogFooter>
         </DialogContent>

@@ -20,6 +20,8 @@ import { ActionButton } from "@/components/ui/ActionButton";
 
 function SecurityPageContent() {
   const t = useTranslations("nav");
+  const ts = useTranslations("security");
+  const tc = useTranslations("common");
   const { data, isLoading, error } = useSecurityOverview();
 
   if (isLoading) {
@@ -27,7 +29,7 @@ function SecurityPageContent() {
       <div>
         <PageHeader title={t("security")} />
         <div className="flex justify-center items-center h-64">
-          <LoadingSpinner size="lg" label="Loading security data..." />
+          <LoadingSpinner size="lg" label={tc("loading")} />
         </div>
       </div>
     );
@@ -41,7 +43,7 @@ function SecurityPageContent() {
           className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-3"
           role="alert"
         >
-          <h3 className="text-[var(--error)] font-medium">Error Loading Security Dashboard</h3>
+          <h3 className="text-[var(--error)] font-medium">{ts("errorTitle")}</h3>
           <p className="text-[var(--error)] mt-1 text-sm">{error.message}</p>
         </div>
       </div>
@@ -52,28 +54,42 @@ function SecurityPageContent() {
     return (
       <div>
         <PageHeader title={t("security")} />
-        <div className="text-center text-[var(--text-secondary)]">No security data available</div>
+        <div className="text-center text-[var(--text-secondary)]">{ts("noData")}</div>
       </div>
     );
   }
 
   return (
     <div>
-      <PageHeader title={t("security")} description="Monitor and manage system security settings" />
+      <PageHeader title={t("security")} description={ts("description")} />
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-        <StatCard label="Security Status" value={data.securityStats.status.toUpperCase()} />
         <StatCard
-          label="MFA Adoption"
+          label={ts("overview.securityStatus")}
+          value={
+            data.securityStats.status === "healthy"
+              ? tc("healthy")
+              : data.securityStats.status === "warning"
+                ? tc("warning")
+                : tc("critical")
+          }
+        />
+        <StatCard
+          label={ts("overview.mfaAdoption")}
           value={`${Number(data.mfaOverview.enablementRate).toFixed(0)}%`}
         />
-        <StatCard label="Active Roles" value={String(data.securityStats.statistics.totalRoles)} />
+        <StatCard
+          label={ts("overview.activeRoles")}
+          value={String(data.securityStats.statistics.totalRoles)}
+        />
       </div>
 
       {/* Role Distribution */}
       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 mb-3">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Role Distribution</h2>
+        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+          {ts("roleDistribution")}
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {data.securityStats.statistics.roleDistribution.map((role) => (
             <div key={role.role} className="border border-[var(--border-subtle)] rounded-lg p-3">
@@ -90,7 +106,7 @@ function SecurityPageContent() {
                 />
               </div>
               <div className="text-sm text-[var(--text-secondary)] mt-1">
-                {role.userCount} users
+                {ts("rbac.userCount", { count: role.userCount })}
               </div>
             </div>
           ))}
@@ -104,24 +120,30 @@ function SecurityPageContent() {
 
       {/* Quick Actions */}
       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Quick Actions</h2>
+        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+          {ts("quickActions.title")}
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
             href="/security/mfa"
             className="p-3 border-2 border-dashed border-[var(--border-default)] rounded-lg text-center hover:border-[var(--success)] hover:bg-[var(--success-subtle)] transition-colors"
           >
-            <div className="text-sm font-medium text-[var(--text-primary)]">MFA Settings</div>
+            <div className="text-sm font-medium text-[var(--text-primary)]">
+              {ts("quickActions.mfaSettings")}
+            </div>
             <div className="text-xs text-[var(--text-tertiary)] mt-1">
-              Configure multi-factor authentication
+              {ts("quickActions.mfaSettingsDesc")}
             </div>
           </Link>
           <Link
             href="/compliance"
             className="p-3 border-2 border-dashed border-[var(--border-default)] rounded-lg text-center hover:border-[var(--info)] hover:bg-[var(--info-subtle)] transition-colors"
           >
-            <div className="text-sm font-medium text-[var(--text-primary)]">Security Audit</div>
+            <div className="text-sm font-medium text-[var(--text-primary)]">
+              {ts("quickActions.securityAudit")}
+            </div>
             <div className="text-xs text-[var(--text-tertiary)] mt-1">
-              Review security logs and events
+              {ts("quickActions.securityAuditDesc")}
             </div>
           </Link>
         </div>
@@ -134,6 +156,7 @@ function SecurityPageContent() {
 }
 
 function ChangePasswordSection() {
+  const ts = useTranslations("security");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -146,19 +169,19 @@ function ChangePasswordSection() {
       setValidationError("");
 
       if (newPassword !== confirmPassword) {
-        setValidationError("Passwords do not match");
+        setValidationError(ts("changePassword.passwordsMismatch"));
         return;
       }
       if (newPassword.length < 12) {
-        setValidationError("Password must be at least 12 characters");
+        setValidationError(ts("changePassword.minLength"));
         return;
       }
       if (!/[A-Z]/.test(newPassword)) {
-        setValidationError("Password must contain at least one uppercase letter");
+        setValidationError(ts("changePassword.requireUppercase"));
         return;
       }
       if (!/[0-9]/.test(newPassword)) {
-        setValidationError("Password must contain at least one number");
+        setValidationError(ts("changePassword.requireNumber"));
         return;
       }
 
@@ -173,7 +196,7 @@ function ChangePasswordSection() {
         }
       );
     },
-    [currentPassword, newPassword, confirmPassword, changePassword]
+    [currentPassword, newPassword, confirmPassword, changePassword, ts]
   );
 
   const inputClass =
@@ -181,14 +204,16 @@ function ChangePasswordSection() {
 
   return (
     <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 mt-4">
-      <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Change Password</h2>
+      <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+        {ts("changePassword.title")}
+      </h2>
       <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
         <div>
           <label
             htmlFor="current-password"
             className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
           >
-            Current Password
+            {ts("changePassword.currentPassword")}
           </label>
           <input
             id="current-password"
@@ -204,7 +229,7 @@ function ChangePasswordSection() {
             htmlFor="new-password"
             className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
           >
-            New Password
+            {ts("changePassword.newPassword")}
           </label>
           <input
             id="new-password"
@@ -220,7 +245,7 @@ function ChangePasswordSection() {
             htmlFor="confirm-password"
             className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
           >
-            Confirm New Password
+            {ts("changePassword.confirmPassword")}
           </label>
           <input
             id="confirm-password"
@@ -240,11 +265,11 @@ function ChangePasswordSection() {
           <p className="text-sm text-[var(--error)]" role="alert">
             {changePassword.error instanceof Error
               ? changePassword.error.message
-              : "Failed to change password"}
+              : ts("changePassword.failed")}
           </p>
         )}
         <ActionButton variant="primary" size="sm" loading={changePassword.isPending} type="submit">
-          Change Password
+          {ts("changePassword.button")}
         </ActionButton>
       </form>
     </div>

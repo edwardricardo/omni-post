@@ -20,6 +20,7 @@ import {
   Label,
 } from "@packages/ui";
 import { toast } from "@packages/ui";
+import { useTranslations } from "next-intl";
 
 import { api } from "../../lib/apiClient";
 
@@ -34,6 +35,8 @@ interface CreateRoleDialogProps {
  * @description Modal form for creating a new custom role with name, description, and level.
  */
 export function CreateRoleDialog({ open, onOpenChange, onCreated }: CreateRoleDialogProps) {
+  const tcr = useTranslations("security.createRole");
+  const tc = useTranslations("common");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [level, setLevel] = useState(50);
@@ -57,16 +60,16 @@ export function CreateRoleDialog({ open, onOpenChange, onCreated }: CreateRoleDi
     const trimmedName = name.trim().toUpperCase().replace(/\s+/g, "_");
     if (!trimmedName || !description.trim()) {
       toast({
-        title: "Validation Error",
-        description: "Name and description are required",
+        title: tcr("validationError"),
+        description: tcr("nameRequired"),
         variant: "destructive",
       });
       return;
     }
     if (level < 1 || level > 99) {
       toast({
-        title: "Validation Error",
-        description: "Level must be between 1 and 99",
+        title: tcr("validationError"),
+        description: tcr("levelRange"),
         variant: "destructive",
       });
       return;
@@ -81,62 +84,58 @@ export function CreateRoleDialog({ open, onOpenChange, onCreated }: CreateRoleDi
         permissions: [],
       });
       if (!response.ok) throw new Error("Failed to create role");
-      toast({ title: "Success", description: `Role ${trimmedName} created` });
+      toast({ title: tc("success"), description: tcr("created", { name: trimmedName }) });
       resetForm();
       onOpenChange(false);
       onCreated();
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to create role",
+        title: tc("error"),
+        description: err instanceof Error ? err.message : tcr("failedCreate"),
         variant: "destructive",
       });
     } finally {
       setSaving(false);
     }
-  }, [name, description, level, resetForm, onOpenChange, onCreated]);
+  }, [name, description, level, resetForm, onOpenChange, onCreated, tcr, tc]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Custom Role</DialogTitle>
-          <DialogDescription>
-            Define a new role with a name, description, and hierarchy level (1-99).
-          </DialogDescription>
+          <DialogTitle>{tcr("title")}</DialogTitle>
+          <DialogDescription>{tcr("description")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div>
             <Label htmlFor="role-name" className="text-xs">
-              Name
+              {tcr("nameLabel")}
             </Label>
             <Input
               id="role-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="EDITOR"
+              placeholder={tcr("namePlaceholder")}
               disabled={saving}
               className="uppercase"
             />
-            <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
-              UPPER_SNAKE_CASE, e.g. CONTENT_EDITOR
-            </p>
+            <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">{tcr("nameHint")}</p>
           </div>
           <div>
             <Label htmlFor="role-description" className="text-xs">
-              Description
+              {tcr("descriptionLabel")}
             </Label>
             <Input
               id="role-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Can edit and publish content"
+              placeholder={tcr("descriptionPlaceholder")}
               disabled={saving}
             />
           </div>
           <div>
             <Label htmlFor="role-level" className="text-xs">
-              Level (1 = lowest, 99 = highest)
+              {tcr("levelLabel")}
             </Label>
             <Input
               id="role-level"
@@ -151,10 +150,10 @@ export function CreateRoleDialog({ open, onOpenChange, onCreated }: CreateRoleDi
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleCreate} disabled={saving || !name.trim() || !description.trim()}>
-            {saving ? "Creating..." : "Create Role"}
+            {saving ? tcr("creating") : tcr("createButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

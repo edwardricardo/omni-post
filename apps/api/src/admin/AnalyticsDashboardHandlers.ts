@@ -1,39 +1,39 @@
 /**
- * Executive Dashboard Handlers
+ * Analytics Dashboard Handlers
  *
- * Handles executive dashboard KPI and compliance metrics endpoints.
- * Extracted from ExecutiveHandlers.ts to keep files under 800 lines.
+ * Handles analytics dashboard KPI and compliance metrics endpoints.
+ * Extracted from AnalyticsHandlers.ts to keep files under 800 lines.
  *
- * @module admin/ExecutiveDashboardHandlers
+ * @module admin/AnalyticsDashboardHandlers
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { PrismaClient } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
-import { ExecutiveMetricsQuerySchema } from "./executiveSchemas.js";
+import { AnalyticsMetricsQuerySchema } from "./analyticsSchemas.js";
 
 /**
- * Executive Dashboard Route Handler
- * Provides executive dashboard KPI and compliance status endpoints
+ * Analytics Dashboard Route Handler
+ * Provides analytics dashboard KPI and compliance status endpoints
  */
-export class ExecutiveDashboardHandler extends BaseRouteHandler {
-  protected routeName = "executive-dashboard";
+export class AnalyticsDashboardHandler extends BaseRouteHandler {
+  protected routeName = "analytics-dashboard";
 
   constructor(private readonly prisma: PrismaClient) {
     super();
   }
 
   /**
-   * GET /api/admin/executive/metrics
-   * Executive dashboard KPIs (total posts, channels, engagement rates, etc.)
+   * GET /api/admin/analytics/metrics
+   * Analytics dashboard KPIs (total posts, channels, engagement rates, etc.)
    */
-  async getExecutiveMetrics(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async getAnalyticsMetrics(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    this.logInfo(ctx, "Fetching executive dashboard metrics");
+    this.logInfo(ctx, "Fetching analytics dashboard metrics");
 
     // Validate query parameters
-    const validated = await this.validateQuery(ctx, ExecutiveMetricsQuerySchema);
+    const validated = await this.validateQuery(ctx, AnalyticsMetricsQuerySchema);
     if (!validated.ok) {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
@@ -124,7 +124,7 @@ export class ExecutiveDashboardHandler extends BaseRouteHandler {
 
       const successRate = totalPosts > 0 ? (publishedPosts / totalPosts) * 100 : 0;
 
-      this.logInfo(ctx, "Executive metrics fetched successfully", {
+      this.logInfo(ctx, "Analytics metrics fetched successfully", {
         totalAccounts,
         totalPosts,
         publishedPosts,
@@ -167,8 +167,8 @@ export class ExecutiveDashboardHandler extends BaseRouteHandler {
         generatedAt: new Date(),
       });
     } catch (error) {
-      this.logError(ctx, "Failed to fetch executive metrics", { error });
-      return this.sendError(ctx, 500, "Failed to fetch executive metrics");
+      this.logError(ctx, "Failed to fetch analytics metrics", { error });
+      return this.sendError(ctx, 500, "Failed to fetch analytics metrics");
     }
   }
 

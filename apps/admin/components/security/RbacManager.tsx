@@ -8,8 +8,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "@packages/ui";
+import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { api, type RoleInfo } from "../../lib/apiClient";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
@@ -36,6 +38,9 @@ const ROLE_VARIANT: Record<string, "info" | "success" | "neutral"> = {
 };
 
 export default function RbacManager() {
+  const tr = useTranslations("security.rbac");
+  const tc = useTranslations("common");
+  const { hasPermission } = useCurrentUser();
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [roleUsers, setRoleUsers] = useState<RbacUser[]>([]);
@@ -105,7 +110,7 @@ export default function RbacManager() {
       toast({ title: "Success", description: "User role updated successfully" });
     } catch (err) {
       toast({
-        title: "Error",
+        title: tc("error"),
         description: err instanceof Error ? err.message : "Failed to update user role",
         variant: "destructive",
       });
@@ -134,7 +139,7 @@ export default function RbacManager() {
       });
     } catch (err) {
       toast({
-        title: "Error",
+        title: tc("error"),
         description: err instanceof Error ? err.message : "Action failed",
         variant: "destructive",
       });
@@ -154,7 +159,7 @@ export default function RbacManager() {
       await fetchRoles();
     } catch (err) {
       toast({
-        title: "Error",
+        title: tc("error"),
         description: err instanceof Error ? err.message : "Failed to delete role",
         variant: "destructive",
       });
@@ -174,7 +179,7 @@ export default function RbacManager() {
       await fetchRoles();
     } catch (err) {
       toast({
-        title: "Error",
+        title: tc("error"),
         description: err instanceof Error ? err.message : "Failed to update",
         variant: "destructive",
       });
@@ -185,7 +190,7 @@ export default function RbacManager() {
     return (
       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
         <div className="flex justify-center items-center h-32">
-          <LoadingSpinner size="lg" label="Loading RBAC data..." />
+          <LoadingSpinner size="lg" label={tc("loading")} />
         </div>
       </div>
     );
@@ -198,7 +203,7 @@ export default function RbacManager() {
           className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-4"
           role="alert"
         >
-          <h3 className="text-[var(--error)] font-medium">Error Loading RBAC Manager</h3>
+          <h3 className="text-[var(--error)] font-medium">{tr("errorTitle")}</h3>
           <p className="text-[var(--error)] mt-1 text-sm">{error}</p>
         </div>
       </div>
@@ -212,10 +217,8 @@ export default function RbacManager() {
   return (
     <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
       <div className="mb-4">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-          Role-Based Access Control
-        </h2>
-        <p className="text-[var(--text-secondary)] text-xs">Manage user roles and permissions</p>
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">{tr("managerTitle")}</h2>
+        <p className="text-[var(--text-secondary)] text-xs">{tr("managerDescription")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -245,7 +248,7 @@ export default function RbacManager() {
                 <div className="flex items-center justify-between mb-1">
                   <Badge variant={ROLE_VARIANT[role.role] ?? "neutral"}>{role.role}</Badge>
                   <span className="text-xs text-[var(--text-secondary)]">
-                    {role.userCount} users
+                    {tr("userCount", { count: role.userCount })}
                   </span>
                 </div>
                 <div className="text-xs text-[var(--text-secondary)]">{role.description}</div>
@@ -268,7 +271,7 @@ export default function RbacManager() {
                   </h3>
                   <div className="flex items-center gap-2">
                     <Badge variant={ROLE_VARIANT[selectedRoleInfo.role] ?? "neutral"}>
-                      {selectedRoleInfo.userCount} users
+                      {tr("userCount", { count: selectedRoleInfo.userCount })}
                     </Badge>
                     <span className="text-[11px] text-[var(--text-tertiary)]">
                       Level {selectedRoleInfo.level}
@@ -337,11 +340,11 @@ export default function RbacManager() {
               {/* Users table */}
               <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
                 <h3 className="text-xs font-semibold text-[var(--text-primary)] mb-3">
-                  Users with {selectedRoleInfo.role} role
+                  {tr("usersWithRole", { role: selectedRoleInfo.role })}
                 </h3>
                 {roleUsers.length === 0 ? (
                   <div className="text-center text-[var(--text-secondary)] text-xs py-8">
-                    No users found with this role
+                    {tr("noUsers")}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -360,7 +363,7 @@ export default function RbacManager() {
                             </p>
                           </div>
                           <Badge variant={user.isActive ? "success" : "error"} size="sm">
-                            {user.isActive ? "Active" : "Inactive"}
+                            {user.isActive ? tc("active") : tc("inactive")}
                           </Badge>
                         </div>
                         {user.role === "SUPER_ADMIN" ? (
@@ -369,31 +372,33 @@ export default function RbacManager() {
                           </span>
                         ) : (
                           <div className="flex items-center gap-2 shrink-0">
-                            <select
-                              className="text-xs border border-[var(--border-default)] rounded-md px-1.5 py-1 bg-[var(--bg-surface)] text-[var(--text-primary)]"
-                              defaultValue={user.role}
-                              onChange={(e) => {
-                                if (e.target.value !== user.role) {
-                                  setPendingRoleChange({
-                                    userId: user.id,
-                                    newRole: e.target.value,
-                                    userName: user.name,
-                                    originalRole: user.role,
-                                  });
-                                  setRoleDialogOpen(true);
-                                }
-                              }}
-                              disabled={actionLoading === user.id}
-                              aria-label={`Change role for ${user.name}`}
-                            >
-                              {roles
-                                .filter((r) => r.role !== "SUPER_ADMIN")
-                                .map((role) => (
-                                  <option key={role.role} value={role.role}>
-                                    {role.role}
-                                  </option>
-                                ))}
-                            </select>
+                            {hasPermission("user:manage_roles") && (
+                              <select
+                                className="text-xs border border-[var(--border-default)] rounded-md px-1.5 py-1 bg-[var(--bg-surface)] text-[var(--text-primary)]"
+                                defaultValue={user.role}
+                                onChange={(e) => {
+                                  if (e.target.value !== user.role) {
+                                    setPendingRoleChange({
+                                      userId: user.id,
+                                      newRole: e.target.value,
+                                      userName: user.name,
+                                      originalRole: user.role,
+                                    });
+                                    setRoleDialogOpen(true);
+                                  }
+                                }}
+                                disabled={actionLoading === user.id}
+                                aria-label={`Change role for ${user.name}`}
+                              >
+                                {roles
+                                  .filter((r) => r.role !== "SUPER_ADMIN")
+                                  .map((role) => (
+                                    <option key={role.role} value={role.role}>
+                                      {role.role}
+                                    </option>
+                                  ))}
+                              </select>
+                            )}
                             <button
                               className="text-xs px-2 py-1 rounded-md border border-[var(--border-default)] hover:bg-[var(--bg-overlay)] text-[var(--text-secondary)] disabled:opacity-40"
                               disabled={actionLoading === user.id}

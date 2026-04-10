@@ -47,12 +47,6 @@ interface TrialAccount {
   status: string;
 }
 
-const TABS = [
-  { key: "subscriptions", label: "Active Subscriptions" },
-  { key: "trials", label: "Trial Accounts" },
-  { key: "billing", label: "Billing Events" },
-];
-
 const TRIAL_STATUS_VARIANT: Record<string, "success" | "warning" | "error"> = {
   ACTIVE: "success",
   EXPIRING: "warning",
@@ -61,6 +55,8 @@ const TRIAL_STATUS_VARIANT: Record<string, "success" | "warning" | "error"> = {
 
 function SubscriptionsPageContent() {
   const t = useTranslations("nav");
+  const ts = useTranslations("subscriptions");
+  const tc = useTranslations("common");
   const { data: subscriptionData, isLoading, error, refetch } = useSubscriptions();
   const { data: billingStats } = useBillingStats();
   const searchParams = useSearchParams();
@@ -115,18 +111,33 @@ function SubscriptionsPageContent() {
     conversionRate: 0,
   };
 
+  const tabs = useMemo(
+    () => [
+      {
+        key: "subscriptions",
+        label: ts("tabs.activeSubscriptions", { count: subscriptions.length }),
+      },
+      { key: "trials", label: ts("tabs.trialAccounts", { count: trials.length }) },
+      { key: "billing", label: ts("tabs.billingEvents") },
+    ],
+    [ts, subscriptions.length, trials.length]
+  );
+
   const handleRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
 
-  const formatDate = useCallback((dateString: string | null) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }, []);
+  const formatDate = useCallback(
+    (dateString: string | null) => {
+      if (!dateString) return ts("na");
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    },
+    [ts]
+  );
 
   const handleBillingExport = useCallback(async () => {
     try {
@@ -134,7 +145,7 @@ function SubscriptionsPageContent() {
         credentials: "include",
       });
       if (!res.ok) {
-        toast({ title: "Error", description: "Export failed", variant: "destructive" });
+        toast({ title: tc("error"), description: ts("exportFailed"), variant: "destructive" });
         return;
       }
       const blob = await res.blob();
@@ -145,16 +156,16 @@ function SubscriptionsPageContent() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      toast({ title: "Error", description: "Export failed", variant: "destructive" });
+      toast({ title: tc("error"), description: ts("exportFailed"), variant: "destructive" });
     }
-  }, []);
+  }, [tc, ts]);
 
   if (isLoading) {
     return (
       <div>
         <PageHeader title={t("subscriptions")} />
         <div className="flex justify-center items-center h-64">
-          <LoadingSpinner size="lg" label="Loading subscriptions..." />
+          <LoadingSpinner size="lg" label={ts("loadingSubscriptions")} />
         </div>
       </div>
     );
@@ -165,9 +176,11 @@ function SubscriptionsPageContent() {
       <div>
         <PageHeader title={t("subscriptions")} />
         <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
-          <div className="text-sm text-[var(--error)]">Error: {error.message}</div>
+          <div className="text-sm text-[var(--error)]">
+            {tc("error")}: {error.message}
+          </div>
           <ActionButton variant="primary" size="sm" onClick={handleRefresh} className="ml-4">
-            Retry
+            {tc("retry")}
           </ActionButton>
         </div>
       </div>
@@ -181,11 +194,11 @@ function SubscriptionsPageContent() {
         actions={
           <div className="flex gap-2">
             <ActionButton variant="primary" size="sm" onClick={handleRefresh} loading={isLoading}>
-              Refresh
+              {tc("refresh")}
             </ActionButton>
             <ActionButton variant="secondary" size="sm" onClick={handleBillingExport}>
               <Download className="h-3.5 w-3.5" />
-              Export
+              {tc("export")}
             </ActionButton>
           </div>
         }
@@ -204,15 +217,24 @@ function SubscriptionsPageContent() {
         role="region"
         aria-label="Subscription statistics"
       >
-        <StatCard label="Total Revenue" value={`$${(stats.totalRevenue ?? 0).toLocaleString()}`} />
         <StatCard
-          label="Monthly Revenue"
+          label={ts("stats.totalRevenue")}
+          value={`$${(stats.totalRevenue ?? 0).toLocaleString()}`}
+        />
+        <StatCard
+          label={ts("stats.monthlyRevenue")}
           value={`$${(stats.monthlyRevenue ?? 0).toLocaleString()}`}
         />
-        <StatCard label="Active Subscriptions" value={String(stats.activeSubscriptions ?? 0)} />
-        <StatCard label="Active Trials" value={String(stats.activeTrials ?? 0)} />
-        <StatCard label="Expiring Trials" value={String(stats.expiringTrials ?? 0)} />
-        <StatCard label="Conversion Rate" value={`${(stats.conversionRate ?? 0).toFixed(1)}%`} />
+        <StatCard
+          label={ts("stats.activeSubscriptions")}
+          value={String(stats.activeSubscriptions ?? 0)}
+        />
+        <StatCard label={ts("stats.activeTrials")} value={String(stats.activeTrials ?? 0)} />
+        <StatCard label={ts("stats.expiringTrials")} value={String(stats.expiringTrials ?? 0)} />
+        <StatCard
+          label={ts("stats.conversionRate")}
+          value={`${(stats.conversionRate ?? 0).toFixed(1)}%`}
+        />
       </div>
 
       {/* Expiring Trials Alert */}
@@ -220,14 +242,13 @@ function SubscriptionsPageContent() {
         <div className="flex items-center gap-3 p-3 mb-3 rounded-lg bg-[var(--warning-subtle)] border border-[var(--warning)]/20">
           <AlertTriangle className="h-4 w-4 text-[var(--warning)] shrink-0" />
           <span className="text-sm text-[var(--warning)]">
-            {stats.expiringTrials} trial{stats.expiringTrials > 1 ? "s" : ""} expiring in the next 7
-            days
+            {ts("expiringWarning", { count: stats.expiringTrials })}
           </span>
           <button
             className="ml-auto text-xs underline text-[var(--warning)] hover:text-[var(--warning)]/80"
             onClick={() => setActiveTab("trials")}
           >
-            View trials
+            {ts("viewTrials")}
           </button>
         </div>
       )}
@@ -240,18 +261,18 @@ function SubscriptionsPageContent() {
           aria-label="Billing statistics"
         >
           <StatCard
-            label="MRR"
+            label={ts("mrrStat")}
             value={`$${(billingStats.monthlyRecurringRevenue ?? 0).toLocaleString()}`}
           />
           <StatCard
-            label="Grandfathered Revenue"
+            label={ts("grandfatheredRevenue")}
             value={`$${(billingStats.grandfatheredRevenue ?? 0).toLocaleString()}`}
           />
         </div>
       )}
 
       {/* Tabs */}
-      <TabNav tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <TabNav tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       <div className="mt-4">
         {activeTab === "subscriptions" && (
@@ -265,7 +286,7 @@ function SubscriptionsPageContent() {
                   setSubSearch(e.target.value);
                   setSubPage(1);
                 }}
-                placeholder="Search by name or plan..."
+                placeholder={ts("searchPlaceholder")}
                 className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] py-1.5 pl-8 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
             </div>
@@ -275,13 +296,13 @@ function SubscriptionsPageContent() {
                   <thead className="bg-[var(--bg-elevated)]">
                     <tr>
                       {[
-                        "Account",
-                        "Plan",
-                        "Cycle",
-                        "Revenue",
-                        "Auto-Renew",
-                        "Next Bill",
-                        "Last Bill",
+                        ts("table.account"),
+                        ts("table.plan"),
+                        ts("table.billing"),
+                        ts("table.revenue"),
+                        ts("table.autoRenew"),
+                        ts("table.nextBill"),
+                        ts("lastBill"),
                       ].map((h) => (
                         <th
                           key={h}
@@ -301,7 +322,7 @@ function SubscriptionsPageContent() {
                           </div>
                         </td>
                         <td className="px-3 py-2">
-                          <Badge variant="info">{sub.plan?.name ?? "No Plan"}</Badge>
+                          <Badge variant="info">{sub.plan?.name ?? ts("noPlan")}</Badge>
                         </td>
                         <td className="px-3 py-2">
                           <span className="text-sm text-[var(--text-primary)] capitalize">
@@ -310,12 +331,14 @@ function SubscriptionsPageContent() {
                         </td>
                         <td className="px-3 py-2">
                           <div className="text-sm font-medium text-[var(--text-primary)]">
-                            ${Number(sub.plan?.pricePerMonth ?? 0).toLocaleString()}/mo
+                            {ts("perMonth", {
+                              amount: Number(sub.plan?.pricePerMonth ?? 0).toLocaleString(),
+                            })}
                           </div>
                         </td>
                         <td className="px-3 py-2">
                           <Badge variant={sub.autoRenewal ? "success" : "warning"} size="sm">
-                            {sub.autoRenewal ? "Yes" : "No"}
+                            {sub.autoRenewal ? tc("yes") : tc("no")}
                           </Badge>
                         </td>
                         <td className="px-3 py-2 text-sm text-[var(--text-secondary)]">
@@ -331,7 +354,7 @@ function SubscriptionsPageContent() {
               </div>
               {subscriptions.length === 0 && (
                 <div className="text-center py-12 text-[var(--text-secondary)]">
-                  No active subscriptions found
+                  {ts("noSubscriptions")}
                 </div>
               )}
             </div>
@@ -360,7 +383,7 @@ function SubscriptionsPageContent() {
                   setTrialSearch(e.target.value);
                   setTrialPage(1);
                 }}
-                placeholder="Search by name or plan..."
+                placeholder={ts("searchPlaceholder")}
                 className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] py-1.5 pl-8 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
             </div>
@@ -370,13 +393,13 @@ function SubscriptionsPageContent() {
                   <thead className="bg-[var(--bg-elevated)]">
                     <tr>
                       {[
-                        "Account",
-                        "Plan",
-                        "Status",
-                        "Days Left",
-                        "Start Date",
-                        "End Date",
-                        "Auto-Renew",
+                        ts("table.account"),
+                        ts("table.plan"),
+                        ts("table.status"),
+                        ts("table.daysRemaining"),
+                        ts("startDate"),
+                        ts("table.endDate"),
+                        ts("table.autoRenew"),
                       ].map((h) => (
                         <th
                           key={h}
@@ -399,7 +422,7 @@ function SubscriptionsPageContent() {
                           </div>
                         </td>
                         <td className="px-3 py-2">
-                          <Badge variant="info">{trial.plan?.name ?? "No Plan"}</Badge>
+                          <Badge variant="info">{trial.plan?.name ?? ts("noPlan")}</Badge>
                         </td>
                         <td className="px-3 py-2">
                           <Badge variant={TRIAL_STATUS_VARIANT[trial.status] ?? "neutral"}>
@@ -416,7 +439,7 @@ function SubscriptionsPageContent() {
                                   : "text-[var(--success)]"
                             }`}
                           >
-                            {trial.trialDaysRemaining} days
+                            {ts("days", { count: trial.trialDaysRemaining })}
                           </span>
                         </td>
                         <td className="px-3 py-2 text-sm text-[var(--text-secondary)]">
@@ -427,7 +450,7 @@ function SubscriptionsPageContent() {
                         </td>
                         <td className="px-3 py-2">
                           <Badge variant={trial.autoRenewal ? "success" : "neutral"} size="sm">
-                            {trial.autoRenewal ? "Yes" : "No"}
+                            {trial.autoRenewal ? tc("yes") : tc("no")}
                           </Badge>
                         </td>
                       </tr>
@@ -437,7 +460,7 @@ function SubscriptionsPageContent() {
               </div>
               {trials.length === 0 && (
                 <div className="text-center py-12 text-[var(--text-secondary)]">
-                  No trial accounts found
+                  {ts("noTrials")}
                 </div>
               )}
             </div>
@@ -457,10 +480,10 @@ function SubscriptionsPageContent() {
 
         {activeTab === "billing" && (
           <div className="text-center py-12 text-[var(--text-secondary)] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-            <div className="text-lg mb-2 text-[var(--text-primary)]">Billing Events</div>
-            <div>
-              This section will show recent billing events, payments, and transaction history.
+            <div className="text-lg mb-2 text-[var(--text-primary)]">
+              {ts("billingEventsTitle")}
             </div>
+            <div>{ts("billingEventsDesc")}</div>
           </div>
         )}
       </div>

@@ -6,7 +6,9 @@
  *   is not yet available.
  * @layer presentation
  */
+"use client";
 
+import { useTranslations } from "next-intl";
 import type { QueueStats } from "@/hooks/api/useQueueManagement";
 
 /** All BullMQ queue names from packages/adapters/queue-bullmq/src/constants.ts */
@@ -51,29 +53,19 @@ const DOT_COLORS: Record<ReturnType<typeof getOverallHealth>, string> = {
   failed: "bg-[var(--error)]",
 };
 
-const DOT_LABELS: Record<ReturnType<typeof getOverallHealth>, string> = {
-  healthy: "Healthy",
-  delayed: "Delayed jobs detected",
-  failed: "Failed jobs detected",
-};
-
-/**
- * @function formatQueueLabel
- * @description Converts a kebab-case queue name to a human-readable label.
- */
-function formatQueueLabel(name: string): string {
-  return name
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
 /**
  * @function QueueHealthPanel
  * @description Grid of all BullMQ queues with status indicator dots.
  */
 export function QueueHealthPanel({ stats }: QueueHealthPanelProps) {
+  const tm = useTranslations("maintenance");
   const health = getOverallHealth(stats);
+
+  const DOT_LABELS: Record<ReturnType<typeof getOverallHealth>, string> = {
+    healthy: tm("healthLabels.healthy"),
+    delayed: tm("healthLabels.delayed"),
+    failed: tm("healthLabels.failed"),
+  };
 
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -90,7 +82,7 @@ export function QueueHealthPanel({ stats }: QueueHealthPanelProps) {
             role="status"
           />
           <span className="text-sm text-[var(--text-primary)] truncate">
-            {formatQueueLabel(name)}
+            {tm(`queues.${name}`)}
           </span>
         </div>
       ))}

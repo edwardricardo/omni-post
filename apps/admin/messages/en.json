@@ -5,7 +5,7 @@
     "accounts": "Accounts",
     "subscriptions": "Subscriptions",
     "pricing": "Pricing",
-    "executive": "Executive",
+    "analytics": "Analytics",
     "operations": "Operations",
     "security": "Security",
     "compliance": "Compliance",
@@ -13,7 +13,15 @@
     "webhooks": "Webhooks",
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar",
-    "maintenance": "Maintenance"
+    "maintenance": "Maintenance",
+    "users": "Admin Users",
+    "helpDocs": "Help & Docs",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode",
+    "switchToEnglish": "Switch to English",
+    "switchToSpanish": "Switch to Spanish"
   },
   "common": {
     "save": "Save",
@@ -56,7 +64,14 @@
     "errorId": "Error ID: {id}",
     "healthy": "Healthy",
     "warning": "Warning",
-    "critical": "Critical"
+    "critical": "Critical",
+    "success": "Success",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "optional": "Optional",
+    "info": "Info",
+    "show": "Show"
   },
   "auth": {
     "title": "Admin Login",
@@ -108,7 +123,8 @@
         "enterprise": "Enterprise",
         "monthlySubscriptions": "Monthly Subscriptions",
         "yearlySubscriptions": "Yearly Subscriptions",
-        "totalMrr": "Total MRR"
+        "totalMrr": "Total MRR",
+        "noData": "No data available"
       },
       "quickActions": {
         "title": "Quick Actions",
@@ -196,6 +212,64 @@
       "projectsUsed": "Projects Used",
       "projectsRemaining": "Projects Remaining",
       "utilization": "Utilization %"
+    },
+    "editForm": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "optional": "Optional",
+      "active": "Active",
+      "onTrial": "On Trial",
+      "trialEndDate": "Trial End Date",
+      "autoRenewal": "Auto-Renewal"
+    },
+    "resetPassword": {
+      "title": "Reset Customer Password",
+      "description": "Enter a new password (minimum 8 characters).",
+      "placeholder": "New password",
+      "button": "Reset Password"
+    },
+    "billing": {
+      "title": "Billing",
+      "customPlan": "Custom Plan",
+      "bundleName": "Bundle: {name}",
+      "noPlan": "No Active Plan",
+      "grandfathered": "Grandfathered",
+      "lastLogin": "Last Login:",
+      "trialRemaining": "Trial: {days} days remaining",
+      "trialEnds": "Ends {date}",
+      "providerBreakdown": "Provider Breakdown",
+      "noProviders": "No providers connected.",
+      "platform": "Platform",
+      "pricePerProvider": "Price/Provider",
+      "calculation": "Calculation",
+      "uniqueProviders": "Unique providers",
+      "basePrice": "Base price/account",
+      "volumeSavings": "Volume savings",
+      "totalMonthly": "Total monthly",
+      "editPlan": "Edit Plan",
+      "finishEditing": "Finish editing the account first",
+      "changePlan": "Change subscription plan",
+      "activeSessions": "Active Sessions ({count})",
+      "revokeAll": "Revoke All",
+      "revokeAllLabel": "Revoke all sessions",
+      "unknownDevice": "Unknown device",
+      "adjust": "Adjust",
+      "loadingBilling": "Loading billing data...",
+      "failedBilling": "Failed to load billing data:",
+      "updated": "Updated",
+      "grandfatheringAdjusted": "Grandfathering expiry adjusted",
+      "sessionsRevoked": "All sessions revoked",
+      "failedRevoke": "Failed to revoke sessions",
+      "lockedAt": "Locked at",
+      "wouldSave": "would save",
+      "perMonth": "/mo",
+      "currentList": "current list:",
+      "saving": "saving"
+    },
+    "detail": {
+      "email": "Email:",
+      "phone": "Phone:"
     }
   },
   "subscriptions": {
@@ -244,16 +318,51 @@
     "noSubscriptions": "No active subscriptions found",
     "noTrials": "No trial accounts found",
     "billingEventsTitle": "Billing Events",
-    "billingEventsDesc": "This section will show recent billing events, payments, and transaction history."
+    "billingEventsDesc": "This section will show recent billing events, payments, and transaction history.",
+    "searchPlaceholder": "Search by name or plan...",
+    "lastBill": "Last Bill",
+    "noPlan": "No Plan",
+    "mrrStat": "MRR",
+    "grandfatheredRevenue": "Grandfathered Revenue",
+    "expiringWarning": "{count} trial{count, plural, one {} other {s}} expiring in the next 7 days",
+    "viewTrials": "View trials",
+    "startDate": "Start Date",
+    "exportFailed": "Export failed",
+    "na": "N/A"
+  },
+  "changePlan": {
+    "title": "Edit Plan",
+    "customTab": "Custom",
+    "bundleTab": "Bundle",
+    "selectPlatforms": "Select platforms for this account",
+    "chooseBundle": "Choose a pre-configured bundle",
+    "noActiveBundles": "No active bundles",
+    "perAccountMo": "per account/mo",
+    "perMonth": "/month",
+    "providers": "provider",
+    "providersPlural": "providers",
+    "providersIncluded": "included",
+    "selectPlanPrompt": "Select a plan to see pricing",
+    "savePlan": "Save Plan",
+    "planUpdated": "Plan updated",
+    "customApplied": "Custom plan applied with {count} providers",
+    "bundleApplied": "Bundle {name} applied",
+    "failedLoad": "Failed to load pricing",
+    "failedChange": "Failed to change plan"
   },
   "pricing": {
     "title": "Pricing Management",
     "description": "Configure provider tiers, account discounts, and bundles. Price changes trigger grandfathering for existing customers.",
+    "loading": "Loading pricing tiers...",
+    "retry": "Retry",
     "tabs": {
       "providers": "providers",
       "accounts": "accounts",
       "bundles": "bundles",
-      "mrr": "MRR Dashboard"
+      "mrr": "MRR Dashboard",
+      "providerTiers": "Provider Tiers",
+      "accountTiers": "Account Tiers",
+      "mrrDashboard": "MRR Dashboard"
     },
     "providerTiers": {
       "title": "Provider Pricing Tiers",
@@ -269,21 +378,73 @@
       "noLimit": "No limit"
     },
     "bundles": {
-      "perAccountMonth": "{price}/account/mo"
+      "perAccountMonth": "{price}/account/mo",
+      "newBundle": "New Bundle",
+      "editBundle": "Edit Bundle",
+      "noBundles": "No bundles configured yet.",
+      "active": "Active",
+      "inactive": "Inactive",
+      "name": "Name",
+      "slug": "Slug",
+      "priceLabel": "Price / Account / Month",
+      "sortOrder": "Sort Order",
+      "descriptionLabel": "Description",
+      "providers": "Providers",
+      "providersSelected": "Providers ({count} selected)",
+      "saveChanges": "Save Changes",
+      "createBundle": "Create Bundle",
+      "deleteTitle": "Delete Bundle",
+      "deleteDescription": "This will permanently delete this bundle. Existing subscribers will be grandfathered.",
+      "deleteConfirm": "Delete Bundle",
+      "updateDescription": "Update bundle details and providers",
+      "createDescription": "Create a new provider bundle"
     },
     "mrr": {
       "monthlyRecurringRevenue": "Monthly Recurring Revenue",
       "activeSubscriptions": "Active Subscriptions",
       "grandfatheredRevenue": "Grandfathered Revenue",
       "noActiveSubscriptions": "No active subscriptions yet",
-      "grandfatheredDesc": "Revenue at old prices during notification window"
-    }
+      "grandfatheredDesc": "Revenue at old prices during notification window",
+      "activeBundles": "Active Bundles",
+      "bundleBaseMrr": "Bundle Base MRR",
+      "totalProviderTiers": "Total Provider Tiers"
+    },
+    "toasts": {
+      "bundleUpdated": "Bundle updated",
+      "bundleCreated": "Bundle created",
+      "bundleDeleted": "Bundle deleted",
+      "updateFailed": "Update failed",
+      "createFailed": "Create failed",
+      "deleteFailed": "Delete failed",
+      "tierUpdated": "Tier saved",
+      "tierCreated": "Tier created",
+      "tierActivated": "Tier activated",
+      "tierDeactivated": "Tier deactivated",
+      "tierUpdateFailed": "Failed to save tier",
+      "tierCreateFailed": "Failed to create tier",
+      "tierToggleFailed": "Failed to toggle tier status",
+      "validationError": "Validation error"
+    },
+    "noProviderTiers": "No provider tiers configured",
+    "noAccountTiers": "No account tiers configured",
+    "newProviderTier": "New Provider Tier",
+    "newProviderTierDesc": "Define a new pricing tier based on provider count.",
+    "newAccountTier": "New Account Tier",
+    "newAccountTierDesc": "Define a new pricing tier based on account count.",
+    "pricePerProviderMonth": "Price per Provider/Month",
+    "newTier": "New Tier",
+    "createTier": "Create Tier",
+    "priceMustBePositive": "Price must be greater than 0",
+    "multiplierMustBePositive": "Multiplier must be greater than 0",
+    "maxOptional": "(optional)",
+    "deactivateTier": "Deactivate tier",
+    "activateTier": "Activate tier"
   },
-  "executive": {
-    "title": "Executive Dashboard",
+  "analytics": {
+    "title": "Analytics Dashboard",
     "description": "High-level business metrics and KPIs",
-    "errorTitle": "Error Loading Executive Dashboard",
-    "noData": "No executive data available",
+    "errorTitle": "Error Loading Analytics Dashboard",
+    "noData": "No analytics data available",
     "timeRange": {
       "last7d": "Last 7 days",
       "last30d": "Last 30 days",
@@ -316,8 +477,29 @@
     },
     "trends": {
       "revenueTrend": "Revenue Trend",
-      "userGrowth": "User Growth"
-    }
+      "userGrowth": "User Growth",
+      "noData": "No trend data available yet"
+    },
+    "channels": {
+      "title": "Channel Distribution",
+      "noData": "No channel data available"
+    },
+    "platform": {
+      "totalAccounts": "Total Accounts",
+      "activeAccounts": "Active Accounts",
+      "activeTrials": "Active Trials",
+      "totalProjects": "Total Projects",
+      "totalChannels": "Total Channels",
+      "postsPublished": "Posts Published"
+    },
+    "financialHealth": {
+      "title": "Financial Health",
+      "customerLtv": "Customer LTV",
+      "churnRate": "Churn Rate",
+      "revenueGrowth": "Revenue Growth",
+      "trialConversion": "Trial Conversion"
+    },
+    "subscriptionDistribution": "Subscription Distribution"
   },
   "security": {
     "title": "Security Dashboard",
@@ -383,7 +565,80 @@
         "status": "MFA Status",
         "backupCodes": "Backup Codes",
         "codesRemaining": "{count} codes remaining"
+      },
+      "self": {
+        "title": "Your MFA",
+        "notSetUp": "Not Set Up",
+        "active": "MFA is active on your account. {count} backup codes remaining.",
+        "setupPrompt": "Protect your admin account with time-based one-time passwords (TOTP).",
+        "setupButton": "Setup MFA",
+        "disableButton": "Disable MFA",
+        "disablePrompt": "Enter your current TOTP code to disable MFA.",
+        "totpCode": "TOTP Code",
+        "confirmDisable": "Confirm Disable",
+        "scanQr": "Scan the QR code with your authenticator app (Google Authenticator, Authy, etc).",
+        "manualKey": "Manual entry key",
+        "verificationCode": "Verification Code",
+        "verifyPlaceholder": "Enter 6-digit code",
+        "verifyEnable": "Verify & Enable",
+        "backupCodesWarning": "Save these backup codes securely. They will not be shown again.",
+        "savedCodes": "I have saved my codes",
+        "setupFailed": "Failed to start MFA setup",
+        "enterCode": "Enter the 6-digit code from your authenticator app",
+        "mfaEnabledSuccess": "MFA enabled successfully",
+        "verifyFailed": "Failed to verify code",
+        "enterTotpToDisable": "Enter your current TOTP code to disable MFA",
+        "mfaDisabledSuccess": "MFA disabled",
+        "disableFailed": "Failed to disable MFA"
       }
+    },
+    "changePassword": {
+      "title": "Change Password",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "button": "Change Password",
+      "passwordsMismatch": "Passwords do not match",
+      "minLength": "Password must be at least 12 characters",
+      "requireUppercase": "Password must contain at least one uppercase letter",
+      "requireNumber": "Password must contain at least one number",
+      "failed": "Failed to change password"
+    },
+    "permissions": {
+      "title": "Permissions ({count})",
+      "unsavedChanges": "Unsaved changes",
+      "savePermissions": "Save Permissions",
+      "superAdminNote": "SUPER_ADMIN always has all permissions",
+      "successSaved": "Permissions updated successfully",
+      "failedSave": "Failed to save permissions",
+      "categories": {
+        "userManagement": "User Management",
+        "projectManagement": "Project Management",
+        "contentManagement": "Content Management",
+        "analytics": "Analytics",
+        "systemAdmin": "System Administration",
+        "auditCompliance": "Audit & Compliance",
+        "billing": "Billing",
+        "aiFeatures": "AI Features",
+        "support": "Support"
+      }
+    },
+    "createRole": {
+      "title": "Create Custom Role",
+      "description": "Define a new role with a name, description, and hierarchy level (1-99).",
+      "nameLabel": "Name",
+      "namePlaceholder": "EDITOR",
+      "nameHint": "UPPER_SNAKE_CASE, e.g. CONTENT_EDITOR",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Can edit and publish content",
+      "levelLabel": "Level (1 = lowest, 99 = highest)",
+      "creating": "Creating...",
+      "createButton": "Create Role",
+      "validationError": "Validation Error",
+      "nameRequired": "Name and description are required",
+      "levelRange": "Level must be between 1 and 99",
+      "created": "Role {name} created",
+      "failedCreate": "Failed to create role"
     }
   },
   "compliance": {
@@ -647,5 +902,440 @@
     "storage": "Storage",
     "teamMembers": "Team Members",
     "unlimited": "{value}{unit} (unlimited)"
+  },
+  "users": {
+    "title": "Admin Users",
+    "description": "Manage admin dashboard user accounts and access",
+    "loadingUsers": "Loading admin users...",
+    "errorTitle": "Error Loading Users",
+    "stats": {
+      "totalUsers": "Total Users",
+      "active": "Active",
+      "admins": "Admins",
+      "support": "Support"
+    },
+    "inviteUser": "Invite User",
+    "inviteTitle": "Invite Admin User",
+    "inviteDescription": "Create a new admin account with a temporary password.",
+    "email": "Email",
+    "name": "Name",
+    "role": "Role",
+    "createUser": "Create User",
+    "userCreated": "User Created",
+    "tempPasswordDesc": "Share this temporary password with the new user. It will not be shown again.",
+    "tempPassword": "Temporary Password",
+    "done": "Done",
+    "table": {
+      "name": "Name",
+      "role": "Role",
+      "lastLogin": "Last Login",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "deactivate": "Deactivate",
+    "deactivateTitle": "Deactivate User",
+    "deactivateDesc": "Are you sure you want to deactivate {name}? They will lose access to the admin dashboard.",
+    "activate": "Activate",
+    "success": {
+      "created": "Admin user created",
+      "deactivated": "{name} deactivated",
+      "activated": "{name} activated",
+      "copied": "Password copied to clipboard"
+    },
+    "errors": {
+      "validation": "Email and name are required",
+      "copyFailed": "Failed to copy — please select and copy manually"
+    }
+  },
+  "logs": {
+    "title": "Audit Logs",
+    "description": "Track all system events and user activities (auto-refreshes every 30s)",
+    "loadingLogs": "Loading audit logs...",
+    "errorTitle": "Error Loading Logs",
+    "exportCsv": "Export CSV",
+    "stats": {
+      "totalEvents": "Total Events",
+      "successRate": "Success Rate",
+      "failedEvents": "Failed Events",
+      "uniqueUsers": "Unique Users"
+    },
+    "searchPlaceholder": "Search by ID, action, or resource...",
+    "allActions": "All Actions",
+    "allResults": "All Results",
+    "success": "Success",
+    "failed": "Failed",
+    "table": {
+      "timestamp": "Timestamp",
+      "action": "Action",
+      "user": "User",
+      "resource": "Resource",
+      "result": "Result",
+      "details": "Details"
+    },
+    "noResults": "No logs found matching your criteria",
+    "system": "System",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "ipAddress": "IP Address"
+  },
+  "maintenance": {
+    "title": "Maintenance",
+    "description": "Queue monitoring and operations",
+    "loadingData": "Loading maintenance data...",
+    "queueOverview": "Queue Overview",
+    "scheduledJobs": "Scheduled Jobs",
+    "failedJobs": "Failed Jobs",
+    "queueHealth": "Queue Health",
+    "stats": {
+      "activeJobs": "Active Jobs",
+      "waiting": "Waiting",
+      "completed": "Completed",
+      "failed": "Failed",
+      "delayed": "Delayed"
+    },
+    "jobs": {
+      "runNow": "Run Now",
+      "schedule": "Schedule",
+      "confirmRun": "Run Job Manually",
+      "confirmRunDesc": "This will execute the {name} immediately. Are you sure?",
+      "cronSchedule": "Cron Schedule",
+      "customCron": "Or custom cron",
+      "selectSchedule": "Select schedule...",
+      "scheduleUpdated": "Schedule Updated",
+      "scheduleUpdatedDesc": "New schedule: {schedule}. Takes effect on next worker restart.",
+      "neverExecuted": "Never executed",
+      "lastRunOk": "Last run: OK",
+      "lastRunFailed": "Last run: Failed",
+      "manualNotAvailable": "Manual trigger not available for {key}",
+      "jobCompleted": "Job Completed",
+      "processedFailed": "{processed} processed, {failed} failed",
+      "autoRenewalName": "Auto-Renewal Processing",
+      "autoRenewalDesc": "Converts expired trials with autoRenewal=true to paid subscriptions",
+      "analyticsName": "Analytics Ingestion",
+      "analyticsDesc": "Fetches analytics data from all connected provider channels",
+      "inboxSyncName": "Inbox Sync",
+      "inboxSyncDesc": "Syncs social inbox messages from connected providers",
+      "cronPresets": {
+        "everyHour": "Every hour",
+        "every6Hours": "Every 6 hours",
+        "dailyMidnight": "Daily at midnight UTC",
+        "daily2am": "Daily at 2:00 AM UTC",
+        "daily6am": "Daily at 6:00 AM UTC",
+        "every12Hours": "Every 12 hours",
+        "weeklySunday": "Weekly (Sunday midnight)"
+      }
+    },
+    "healthLabels": {
+      "healthy": "Healthy",
+      "delayed": "Delayed jobs detected",
+      "failed": "Failed jobs detected"
+    },
+    "queues": {
+      "publish": "Publish",
+      "webhook-processing": "Webhook Processing",
+      "webhook-dead-letter": "Webhook Dead Letter",
+      "dead-letter-queue": "Dead Letter Queue",
+      "integration-events": "Integration Events",
+      "failed-operations-dlq": "Failed Operations DLQ",
+      "analytics-aggregation": "Analytics Aggregation",
+      "report-generation": "Report Generation",
+      "recurring-posts": "Recurring Posts",
+      "inbox-sync": "Inbox Sync",
+      "detect-repurpose": "Detect Repurpose",
+      "generate-repurpose": "Generate Repurpose",
+      "triage-inbox": "Triage Inbox",
+      "trend-radar": "Trend Radar",
+      "auto-renewal": "Auto Renewal"
+    },
+    "failedJobsTable": {
+      "noFailed": "No failed jobs",
+      "queue": "Queue",
+      "jobId": "Job ID",
+      "error": "Error",
+      "failedAt": "Failed At",
+      "attempts": "Attempts",
+      "retry": "Retry",
+      "retryTitle": "Retry Failed Job",
+      "retryDesc": "Retry job {id}? It will be re-queued for processing."
+    }
+  },
+  "help": {
+    "title": "Help & Documentation",
+    "subtitle": "What every feature does and how to use it",
+    "whatItShows": "What it shows",
+    "whatYouCanDo": "What you can do",
+    "keyConcepts": "Key concepts",
+    "dashboard": {
+      "title": "Dashboard Overview",
+      "shows": [
+        "Total accounts, active trials, revenue, and today's logins",
+        "Subscription distribution chart",
+        "Revenue breakdown (monthly vs yearly)",
+        "Quick-action links to common tasks"
+      ],
+      "actions": ["Refresh live metrics", "Navigate to any section via quick actions"],
+      "concepts": [
+        {
+          "term": "MRR",
+          "definition": "Monthly Recurring Revenue — the predictable revenue each month from active subscriptions"
+        },
+        {
+          "term": "Active Trials",
+          "definition": "Accounts currently in a free trial period before converting to paid"
+        }
+      ]
+    },
+    "accounts": {
+      "title": "Accounts",
+      "shows": [
+        "All tenant accounts with plan, status, and usage",
+        "Trial status with days remaining",
+        "Project utilization percentage"
+      ],
+      "actions": [
+        "Create new accounts",
+        "Edit account details (name, email, trial settings)",
+        "Suspend or activate accounts (single and bulk)",
+        "View billing breakdown per account",
+        "Reset customer passwords",
+        "Export account data to CSV"
+      ],
+      "concepts": [
+        {
+          "term": "Account",
+          "definition": "A tenant organization that owns projects and subscribes to a plan"
+        },
+        { "term": "Utilization", "definition": "Percentage of allowed projects currently in use" }
+      ]
+    },
+    "subscriptions": {
+      "title": "Subscriptions",
+      "shows": [
+        "Active subscriptions with plan, billing cycle, and revenue",
+        "Trial accounts with days remaining and auto-renewal status",
+        "Revenue stats and conversion rates"
+      ],
+      "actions": [
+        "Change subscription plans (custom or bundle)",
+        "Process auto-renewals for expiring trials",
+        "Convert, extend, or end trials",
+        "Export subscription data"
+      ],
+      "concepts": [
+        {
+          "term": "Auto-Renewal",
+          "definition": "Automatically converts a trial to a paid subscription when it expires"
+        },
+        {
+          "term": "Grandfathering",
+          "definition": "Existing subscribers keep their old price when pricing changes"
+        }
+      ]
+    },
+    "pricing": {
+      "title": "Pricing Configuration",
+      "shows": [
+        "Provider pricing tiers (volume-based)",
+        "Account volume discounts",
+        "Pre-configured bundles with included providers",
+        "MRR dashboard with revenue metrics"
+      ],
+      "actions": [
+        "View and edit provider tier pricing",
+        "View account volume discount multipliers",
+        "Create, edit, and delete bundles",
+        "Toggle bundle active/inactive status"
+      ],
+      "concepts": [
+        {
+          "term": "Provider Tier",
+          "definition": "Price per provider per month, varies by how many providers an account uses"
+        },
+        {
+          "term": "Bundle",
+          "definition": "A pre-configured package of providers at a fixed price per account per month"
+        },
+        {
+          "term": "Volume Discount",
+          "definition": "Multiplier applied to pricing based on the number of accounts"
+        }
+      ]
+    },
+    "analytics": {
+      "title": "Analytics Dashboard",
+      "shows": [
+        "High-level KPIs: revenue, MRR, active users, uptime",
+        "Business health metrics: new customers, trial conversion, feature adoption",
+        "Operational metrics: security score, error rate, support tickets",
+        "Revenue and user growth trends"
+      ],
+      "actions": [
+        "Filter by time range (7d, 30d, 90d)",
+        "Monitor business and operational health at a glance"
+      ],
+      "concepts": [
+        {
+          "term": "LTV:CAC",
+          "definition": "Lifetime Value to Customer Acquisition Cost ratio — measures return on acquisition spend"
+        },
+        {
+          "term": "Churn Rate",
+          "definition": "Percentage of subscribers who cancel within a given period"
+        }
+      ]
+    },
+    "security": {
+      "title": "Security",
+      "shows": [
+        "Security status overview with MFA adoption rate",
+        "Role distribution and permission hierarchy",
+        "Active roles with user counts"
+      ],
+      "actions": [
+        "Manage roles: create custom roles, edit permissions, delete unused roles",
+        "Manage MFA: view user MFA status, force-disable MFA",
+        "Change your admin password",
+        "View and edit permission grids per role"
+      ],
+      "concepts": [
+        {
+          "term": "RBAC",
+          "definition": "Role-Based Access Control — users get permissions through their assigned role"
+        },
+        {
+          "term": "MFA",
+          "definition": "Multi-Factor Authentication — requires a second verification step beyond password"
+        },
+        {
+          "term": "Permission",
+          "definition": "A specific action a user can perform, e.g. user:create, billing:manage"
+        }
+      ]
+    },
+    "compliance": {
+      "title": "Compliance",
+      "shows": [
+        "Overall compliance score",
+        "GDPR/Privacy compliance status",
+        "Security compliance metrics",
+        "Recent audit events"
+      ],
+      "actions": [
+        "Monitor compliance scores across frameworks",
+        "Review audit logs for compliance events",
+        "Configure compliance settings per framework"
+      ],
+      "concepts": [
+        {
+          "term": "Compliance Score",
+          "definition": "Percentage of requirements met across regulatory frameworks"
+        },
+        {
+          "term": "GDPR",
+          "definition": "General Data Protection Regulation — EU privacy law governing personal data handling"
+        }
+      ]
+    },
+    "webhooks": {
+      "title": "Webhooks",
+      "shows": [
+        "Real-time webhook event processing metrics",
+        "Success rate, processing time, and failure counts",
+        "Provider performance breakdown",
+        "Event type distribution and timeline"
+      ],
+      "actions": [
+        "Monitor webhook health and performance",
+        "View and search individual webhook events",
+        "Manage webhook subscriptions per provider",
+        "Retry failed events from the dead letter queue",
+        "Pause/resume live timeline updates"
+      ],
+      "concepts": [
+        {
+          "term": "Webhook",
+          "definition": "An HTTP callback triggered by an event on a social media platform"
+        },
+        {
+          "term": "Dead Letter Queue",
+          "definition": "Failed webhook events that exhausted retry attempts and need manual intervention"
+        }
+      ]
+    },
+    "users": {
+      "title": "Admin Users",
+      "shows": [
+        "All admin dashboard users with role and status",
+        "Login activity and account status"
+      ],
+      "actions": [
+        "Invite new admin users with temporary passwords",
+        "Activate or deactivate admin accounts",
+        "View user details and last login"
+      ],
+      "concepts": [
+        {
+          "term": "Admin User",
+          "definition": "A person with access to this admin dashboard, separate from tenant accounts"
+        },
+        {
+          "term": "Temporary Password",
+          "definition": "A one-time password generated when creating a new admin user"
+        }
+      ]
+    },
+    "maintenance": {
+      "title": "Maintenance",
+      "shows": [
+        "Queue overview: active, waiting, completed, failed, and delayed jobs",
+        "Scheduled background jobs with last execution status",
+        "Failed jobs table with error details",
+        "Queue health indicators for all 15 BullMQ queues"
+      ],
+      "actions": [
+        "Retry failed jobs",
+        "Manually trigger scheduled jobs (e.g., auto-renewal processing)",
+        "Edit cron schedules for background jobs",
+        "Refresh queue statistics"
+      ],
+      "concepts": [
+        {
+          "term": "BullMQ",
+          "definition": "The job queue system used for background processing (publishing, analytics, inbox sync)"
+        },
+        {
+          "term": "Dead Letter Queue",
+          "definition": "A queue where jobs that failed all retry attempts are stored for manual review"
+        },
+        {
+          "term": "Cron Schedule",
+          "definition": "A time-based pattern defining when a job runs automatically (e.g., '0 2 * * *' = daily at 2 AM)"
+        }
+      ]
+    },
+    "logs": {
+      "title": "Audit Logs",
+      "shows": [
+        "All system events with timestamps, actions, users, and results",
+        "Success/failure rates and unique user counts",
+        "Filterable by action type, result status, and date range"
+      ],
+      "actions": [
+        "Search logs by ID, action, or resource",
+        "Filter by action type, success/failure, and date range",
+        "Export audit logs to CSV",
+        "Auto-refreshes every 30 seconds"
+      ],
+      "concepts": [
+        {
+          "term": "Audit Log",
+          "definition": "A record of every significant action taken in the system, including who did it and when"
+        },
+        {
+          "term": "Correlation ID",
+          "definition": "A unique identifier that links related events across services for debugging"
+        }
+      ]
+    }
   }
 }

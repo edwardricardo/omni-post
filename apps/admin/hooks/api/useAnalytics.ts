@@ -1,12 +1,12 @@
 /**
- * @file useExecutive.ts
- * @description TanStack Query hook for fetching executive summary data by combining
- * three API sources: executive metrics, dashboard stats, and billing stats.
+ * @file useAnalytics.ts
+ * @description TanStack Query hook for fetching analytics summary data by combining
+ * three API sources: analytics metrics, dashboard stats, and billing stats.
  * @layer presentation
  */
 import { useQuery } from "@tanstack/react-query";
 
-export interface ExecutiveSummary {
+export interface AnalyticsSummary {
   businessMetrics: {
     totalRevenue: number;
     monthlyRecurringRevenue: number;
@@ -65,22 +65,22 @@ function computeDateRange(timeRange: "7d" | "30d" | "90d"): { startDate: string;
   return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
 }
 
-export function useExecutive(timeRange: "7d" | "30d" | "90d" = "30d") {
+export function useAnalytics(timeRange: "7d" | "30d" | "90d" = "30d") {
   return useQuery({
-    queryKey: ["executive", "summary", timeRange],
-    queryFn: async (): Promise<ExecutiveSummary> => {
+    queryKey: ["analytics", "summary", timeRange],
+    queryFn: async (): Promise<AnalyticsSummary> => {
       const { startDate, endDate } = computeDateRange(timeRange);
       const params = new URLSearchParams({ startDate, endDate });
 
       // Fetch all 3 sources in parallel
-      const [executive, dashboard, billing] = await Promise.all([
-        fetchJSON(`/api/backend/api/admin/executive/metrics?${params.toString()}`),
+      const [analytics, dashboard, billing] = await Promise.all([
+        fetchJSON(`/api/backend/api/admin/analytics/metrics?${params.toString()}`),
         fetchJSON("/api/backend/admin/dashboard/stats"),
         fetchJSON("/api/backend/admin/billing/stats"),
       ]);
 
       // Extract nested data
-      const exec = executive as Record<string, unknown>;
+      const exec = analytics as Record<string, unknown>;
       const accounts = (exec.accounts ?? {}) as Record<string, number>;
       const projects = (exec.projects ?? {}) as Record<string, number>;
       const posts = (exec.posts ?? {}) as Record<string, number>;

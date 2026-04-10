@@ -1,18 +1,21 @@
 /**
  * @file page.tsx
- * @description Executive dashboard page with high-level business, operational, and growth
+ * @description Analytics dashboard page with high-level business, operational, and growth
  *   metrics. Uses CSS design tokens and reusable UI components.
  * @layer page
  */
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import { useExecutive } from "@/hooks/api/useExecutive";
+import { useAnalytics } from "@/hooks/api/useAnalytics";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { DonutChart, TrendAreaChart } from "@/components/charts";
+import type { DonutChartDatum } from "@/components/charts";
+import { useChartColors } from "@/hooks/useChartColors";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -31,21 +34,58 @@ function formatNumber(num: number): string {
   return num.toString();
 }
 
-function ExecutivePageContent() {
-  const t = useTranslations("nav");
+const PROVIDER_COLORS: Record<string, string> = {
+  x: "#1DA1F2",
+  instagram: "#E4405F",
+  facebook: "#1877F2",
+  youtube: "#FF0000",
+  tiktok: "#000000",
+  threads: "#000000",
+};
+
+function AnalyticsPageContent() {
+  const te = useTranslations("analytics");
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
-  const { data: summary, isLoading, error } = useExecutive(timeRange);
+  const { data: summary, isLoading, error } = useAnalytics(timeRange);
+  const colors = useChartColors();
 
   const handleTimeRangeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setTimeRange(e.target.value as "7d" | "30d" | "90d");
   }, []);
 
+  const subscriptionChartData: DonutChartDatum[] = useMemo(() => {
+    const subs = summary?.platformMetrics?.subscriptions;
+    if (!subs) return [];
+    return Object.entries(subs)
+      .filter(([, count]) => Number(count) > 0)
+      .map(([status, count]) => ({
+        name: status
+          .toLowerCase()
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase()),
+        value: Number(count),
+        color: colors.subscriptionColors[status] ?? colors.accent,
+      }));
+  }, [summary?.platformMetrics?.subscriptions, colors]);
+
+  const channelChartData: DonutChartDatum[] = useMemo(() => {
+    const channels = summary?.platformMetrics?.channelsByProvider;
+    if (!channels) return [];
+    return Object.entries(channels)
+      .filter(([, count]) => count > 0)
+      .map(([provider, count]) => ({
+        name: provider.charAt(0).toUpperCase() + provider.slice(1),
+        value: count,
+        color: PROVIDER_COLORS[provider.toLowerCase()] ?? colors.accent,
+      }));
+  }, [summary?.platformMetrics?.channelsByProvider, colors]);
+
   if (isLoading) {
     return (
       <div>
-        <PageHeader title={t("executive")} />
+        <PageHeader title={te("title")} />
         <div className="flex justify-center items-center h-64">
-          <LoadingSpinner size="lg" label="Loading executive data..." />
+          <LoadingSpinner size="lg" label={te("title")} />
         </div>
       </div>
     );
@@ -54,12 +94,12 @@ function ExecutivePageContent() {
   if (error) {
     return (
       <div>
-        <PageHeader title={t("executive")} />
+        <PageHeader title={te("title")} />
         <div
           className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-3"
           role="alert"
         >
-          <h3 className="text-[var(--error)] font-medium">Error Loading Executive Dashboard</h3>
+          <h3 className="text-[var(--error)] font-medium">{te("errorTitle")}</h3>
           <p className="text-[var(--error)] mt-1 text-sm">{error.message}</p>
         </div>
       </div>
@@ -69,8 +109,8 @@ function ExecutivePageContent() {
   if (!summary) {
     return (
       <div>
-        <PageHeader title={t("executive")} />
-        <div className="text-center text-[var(--text-secondary)]">No executive data available</div>
+        <PageHeader title={te("title")} />
+        <div className="text-center text-[var(--text-secondary)]">{te("noData")}</div>
       </div>
     );
   }
@@ -78,8 +118,8 @@ function ExecutivePageContent() {
   return (
     <div>
       <PageHeader
-        title={t("executive")}
-        description="High-level business metrics and KPIs"
+        title={te("title")}
+        description={te("description")}
         actions={
           <select
             value={timeRange}
@@ -87,9 +127,9 @@ function ExecutivePageContent() {
             className="border border-[var(--border-default)] rounded-md px-3 py-1 text-sm bg-[var(--bg-surface)] text-[var(--text-primary)]"
             aria-label="Select time range"
           >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
+            <option value="7d">{te("timeRange.last7d")}</option>
+            <option value="30d">{te("timeRange.last30d")}</option>
+            <option value="90d">{te("timeRange.last90d")}</option>
           </select>
         }
       />
@@ -97,7 +137,7 @@ function ExecutivePageContent() {
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard
-          label="Total Revenue"
+          label={te("kpi.totalRevenue")}
           value={formatCurrency(summary.businessMetrics.totalRevenue)}
           trend={{
             value: summary.businessMetrics.revenueGrowth,
@@ -105,29 +145,43 @@ function ExecutivePageContent() {
           }}
         />
         <StatCard
-          label="Monthly Recurring Revenue"
+          label={te("kpi.mrr")}
           value={formatCurrency(summary.businessMetrics.monthlyRecurringRevenue)}
         />
         <StatCard
-          label="Active Users"
+          label={te("kpi.activeUsers")}
           value={formatNumber(summary.operationalMetrics.activeUsers)}
         />
-        <StatCard label="System Uptime" value={`${summary.operationalMetrics.systemUptime}%`} />
+        <StatCard
+          label={te("kpi.systemUptime")}
+          value={`${summary.operationalMetrics.systemUptime}%`}
+        />
       </div>
 
       {/* Business Health */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Business Health</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
+            {te("businessHealth.title")}
+          </h3>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "New Customers", value: String(summary.growthMetrics.newCustomers) },
               {
-                label: "Trial Conversion",
+                label: te("businessHealth.newCustomers"),
+                value: String(summary.growthMetrics.newCustomers),
+              },
+              {
+                label: te("businessHealth.trialConversion"),
                 value: `${Number(summary.growthMetrics.trialConversions).toFixed(2)}%`,
               },
-              { label: "Feature Adoption", value: `${summary.growthMetrics.featureAdoption}%` },
-              { label: "CSAT Score", value: String(summary.growthMetrics.customerSatisfaction) },
+              {
+                label: te("businessHealth.featureAdoption"),
+                value: `${summary.growthMetrics.featureAdoption}%`,
+              },
+              {
+                label: te("businessHealth.csatScore"),
+                value: String(summary.growthMetrics.customerSatisfaction),
+              },
             ].map((item) => (
               <div key={item.label} className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
                 <div className="text-2xl font-bold text-[var(--text-primary)]">{item.value}</div>
@@ -139,11 +193,13 @@ function ExecutivePageContent() {
 
         <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
           <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-            Operational Excellence
+            {te("operational.title")}
           </h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">Security Score</span>
+              <span className="text-sm text-[var(--text-secondary)]">
+                {te("operational.securityScore")}
+              </span>
               <div className="flex items-center gap-2">
                 <div className="w-24 bg-[var(--bg-elevated)] rounded-full h-2">
                   <div
@@ -157,21 +213,27 @@ function ExecutivePageContent() {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">Error Rate</span>
+              <span className="text-sm text-[var(--text-secondary)]">
+                {te("operational.errorRate")}
+              </span>
               <span className="text-sm font-medium text-[var(--success)]">
                 {summary.operationalMetrics.errorRate}%
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">Data Processed</span>
+              <span className="text-sm text-[var(--text-secondary)]">
+                {te("operational.dataProcessed")}
+              </span>
               <span className="text-sm font-medium text-[var(--text-primary)]">
                 {formatNumber(summary.operationalMetrics.dataProcessed)}B
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">Support Tickets</span>
+              <span className="text-sm text-[var(--text-secondary)]">
+                {te("operational.supportTickets")}
+              </span>
               <span className="text-sm font-medium text-[var(--text-primary)]">
-                {summary.growthMetrics.supportTickets} open
+                {te("operational.open", { count: summary.growthMetrics.supportTickets })}
               </span>
             </div>
           </div>
@@ -181,27 +243,27 @@ function ExecutivePageContent() {
       {/* Platform Overview */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
         <StatCard
-          label="Total Accounts"
+          label={te("platform.totalAccounts")}
           value={formatNumber(summary.platformMetrics?.totalAccounts ?? 0)}
         />
         <StatCard
-          label="Active Accounts"
+          label={te("platform.activeAccounts")}
           value={formatNumber(summary.platformMetrics?.activeAccounts ?? 0)}
         />
         <StatCard
-          label="Active Trials"
+          label={te("platform.activeTrials")}
           value={String(summary.platformMetrics?.trialsActive ?? 0)}
         />
         <StatCard
-          label="Total Projects"
+          label={te("platform.totalProjects")}
           value={formatNumber(summary.platformMetrics?.totalProjects ?? 0)}
         />
         <StatCard
-          label="Total Channels"
+          label={te("platform.totalChannels")}
           value={formatNumber(summary.platformMetrics?.totalChannels ?? 0)}
         />
         <StatCard
-          label="Posts Published"
+          label={te("platform.postsPublished")}
           value={formatNumber(summary.platformMetrics?.postsPublished ?? 0)}
         />
       </div>
@@ -210,120 +272,96 @@ function ExecutivePageContent() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
           <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-            Financial Health
+            {te("financialHealth.title")}
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
               <div className="text-2xl font-bold text-[var(--text-primary)]">
                 {formatCurrency(summary.businessMetrics.lifetimeValue)}
               </div>
-              <div className="text-sm text-[var(--text-secondary)]">Customer LTV</div>
+              <div className="text-sm text-[var(--text-secondary)]">
+                {te("financialHealth.customerLtv")}
+              </div>
             </div>
             <div className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
               <div className="text-2xl font-bold text-[var(--text-primary)]">
                 {summary.businessMetrics.churnRate}%
               </div>
-              <div className="text-sm text-[var(--text-secondary)]">Churn Rate</div>
+              <div className="text-sm text-[var(--text-secondary)]">
+                {te("financialHealth.churnRate")}
+              </div>
             </div>
             <div className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
               <div className="text-2xl font-bold text-[var(--text-primary)]">
                 {summary.businessMetrics.revenueGrowth}%
               </div>
-              <div className="text-sm text-[var(--text-secondary)]">Revenue Growth</div>
+              <div className="text-sm text-[var(--text-secondary)]">
+                {te("financialHealth.revenueGrowth")}
+              </div>
             </div>
             <div className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
               <div className="text-2xl font-bold text-[var(--text-primary)]">
                 {summary.growthMetrics.trialConversions.toFixed(1)}%
               </div>
-              <div className="text-sm text-[var(--text-secondary)]">Trial Conversion</div>
+              <div className="text-sm text-[var(--text-secondary)]">
+                {te("financialHealth.trialConversion")}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Subscription Distribution */}
-        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-            Subscription Distribution
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+            {te("subscriptionDistribution")}
           </h3>
-          <div className="space-y-3">
-            {Object.entries(summary.platformMetrics?.subscriptions ?? {}).map(([status, count]) => {
-              const total = Object.values(summary.platformMetrics?.subscriptions ?? {}).reduce(
-                (s, v) => s + Number(v),
-                0
-              );
-              const pct = total > 0 ? ((Number(count) / total) * 100).toFixed(1) : "0.0";
-              const colorMap: Record<string, string> = {
-                ACTIVE: "bg-[var(--success)]",
-                TRIALING: "bg-[var(--warning)]",
-                GRANDFATHERED: "bg-[var(--accent)]",
-                CANCELED: "bg-[var(--error)]",
-                PAST_DUE: "bg-[var(--error)]",
-              };
-              return (
-                <div key={status} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-3 h-3 rounded-sm ${colorMap[status] ?? "bg-[var(--text-tertiary)]"}`}
-                    />
-                    <span className="text-sm text-[var(--text-secondary)] capitalize">
-                      {status.toLowerCase().replace("_", " ")}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-medium text-[var(--text-primary)]">
-                      {Number(count)}
-                    </span>
-                    <span className="text-xs text-[var(--text-tertiary)] ml-2">{pct}%</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <DonutChart
+            data={subscriptionChartData}
+            height={280}
+            emptyMessage={te("subscriptionDistribution")}
+          />
+        </div>
+      </div>
+
+      {/* Channel Distribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+            {te("channels.title")}
+          </h3>
+          <DonutChart data={channelChartData} height={280} emptyMessage={te("channels.noData")} />
         </div>
       </div>
 
       {/* Revenue & Growth Trends */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Revenue Trend</h3>
-          <div className="h-48 flex items-end justify-between gap-1">
-            {summary.trends.revenue.map((value, index) => (
-              <div
-                key={index}
-                className="flex-1 bg-[var(--accent)] rounded-t opacity-80 hover:opacity-100 transition-opacity"
-                style={{
-                  height: `${(value / (summary.trends.revenue.length > 0 ? Math.max(...summary.trends.revenue) : 1)) * 100}%`,
-                  minHeight: "8px",
-                }}
-              />
-            ))}
-          </div>
-          <div className="flex justify-between mt-2 text-xs text-[var(--text-tertiary)]">
-            {summary.trends.revenue.map((value, index) => (
-              <span key={index}>{formatCurrency(value)}</span>
-            ))}
-          </div>
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+            {te("trends.revenueTrend")}
+          </h3>
+          <TrendAreaChart
+            data={(summary?.trends?.revenue ?? []).map((v, i) => ({
+              label: `P${i + 1}`,
+              value: v,
+            }))}
+            height={192}
+            color={colors.accent}
+            formatValue={(v) => `$${v.toLocaleString()}`}
+            emptyMessage={te("trends.noData")}
+          />
         </div>
 
-        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">User Growth</h3>
-          <div className="h-48 flex items-end justify-between gap-1">
-            {summary.trends.users.map((value, index) => (
-              <div
-                key={index}
-                className="flex-1 bg-[var(--success)] rounded-t opacity-80 hover:opacity-100 transition-opacity"
-                style={{
-                  height: `${(value / (summary.trends.users.length > 0 ? Math.max(...summary.trends.users) : 1)) * 100}%`,
-                  minHeight: "8px",
-                }}
-              />
-            ))}
-          </div>
-          <div className="flex justify-between mt-2 text-xs text-[var(--text-tertiary)]">
-            {summary.trends.users.map((value, index) => (
-              <span key={index}>{formatNumber(value)}</span>
-            ))}
-          </div>
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+            {te("trends.userGrowth")}
+          </h3>
+          <TrendAreaChart
+            data={(summary?.trends?.users ?? []).map((v, i) => ({ label: `P${i + 1}`, value: v }))}
+            height={192}
+            color={colors.success}
+            formatValue={(v) => v.toLocaleString()}
+            emptyMessage={te("trends.noData")}
+          />
         </div>
       </div>
     </div>
@@ -331,5 +369,5 @@ function ExecutivePageContent() {
 }
 
 export default function Page() {
-  return <ExecutivePageContent />;
+  return <AnalyticsPageContent />;
 }

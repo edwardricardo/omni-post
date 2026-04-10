@@ -9,6 +9,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   toast,
   Dialog,
@@ -93,6 +94,8 @@ export function ChangePlanDialog({
   onOpenChange,
   onSuccess,
 }: ChangePlanDialogProps) {
+  const tcp = useTranslations("changePlan");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<"custom" | "bundle">("custom");
   const [selectedProviders, setSelectedProviders] = useState<string[]>([]);
@@ -135,7 +138,7 @@ export function ChangePlanDialog({
           }
         })
         .catch(() =>
-          toast({ title: "Error", description: "Failed to load pricing", variant: "destructive" })
+          toast({ title: tc("error"), description: tcp("failedLoad"), variant: "destructive" })
         )
         .finally(() => setLoadingTiers(false));
     }
@@ -190,21 +193,21 @@ export function ChangePlanDialog({
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: "Request failed" }));
+        const err = await res.json().catch(() => ({}));
         toast({
-          title: "Error",
-          description: (err as { message?: string }).message || "Failed to change plan",
+          title: tc("error"),
+          description: (err as { message?: string }).message || tcp("failedChange"),
           variant: "destructive",
         });
         return;
       }
 
       toast({
-        title: "Plan updated",
+        title: tcp("planUpdated"),
         description:
           tab === "custom"
-            ? `${selectedProviders.length} provider custom plan applied to ${accountName}`
-            : `${selectedBundle?.name ?? "Bundle"} plan applied to ${accountName}`,
+            ? tcp("customApplied", { count: selectedProviders.length })
+            : tcp("bundleApplied", { name: selectedBundle?.name ?? "Bundle" }),
       });
       await queryClient.refetchQueries({ queryKey: ["account", "billing", accountId] });
       queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
@@ -213,8 +216,8 @@ export function ChangePlanDialog({
       onSuccess();
     } catch (e) {
       toast({
-        title: "Error",
-        description: e instanceof Error ? e.message : "Failed",
+        title: tc("error"),
+        description: e instanceof Error ? e.message : tcp("failedChange"),
         variant: "destructive",
       });
     } finally {
@@ -231,6 +234,8 @@ export function ChangePlanDialog({
     onOpenChange,
     onSuccess,
     queryClient,
+    tc,
+    tcp,
   ]);
 
   return (
@@ -239,7 +244,7 @@ export function ChangePlanDialog({
         {/* ── Header ── */}
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-[var(--border-subtle)]">
           <DialogTitle className="text-base font-semibold text-[var(--text-primary)]">
-            Edit Plan
+            {tcp("title")}
           </DialogTitle>
           <DialogDescription className="mt-1 text-sm text-[var(--text-secondary)]">
             {accountName}
@@ -260,7 +265,7 @@ export function ChangePlanDialog({
             ].join(" ")}
           >
             <Layers className="h-4 w-4" />
-            Custom
+            {tcp("customTab")}
           </button>
           <button
             type="button"
@@ -274,7 +279,7 @@ export function ChangePlanDialog({
             ].join(" ")}
           >
             <Package className="h-4 w-4" />
-            Bundle
+            {tcp("bundleTab")}
           </button>
         </div>
 
@@ -293,9 +298,7 @@ export function ChangePlanDialog({
             /* ── Custom tab ── */
             <div>
               <div className="flex items-baseline justify-between mb-4">
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Select platforms for this account
-                </p>
+                <p className="text-sm text-[var(--text-secondary)]">{tcp("selectPlatforms")}</p>
                 <span className="text-xs font-medium text-[var(--text-tertiary)]">
                   {selectedProviders.length} / {ALL_PROVIDERS.length}
                 </span>
@@ -351,14 +354,14 @@ export function ChangePlanDialog({
           ) : (
             /* ── Bundle tab ── */
             <div>
-              <p className="text-sm text-[var(--text-secondary)] mb-4">
-                Choose a pre-configured bundle
-              </p>
+              <p className="text-sm text-[var(--text-secondary)] mb-4">{tcp("chooseBundle")}</p>
 
               {!tiersData || tiersData.bundles.length === 0 ? (
                 <div className="py-10 text-center">
                   <Package className="mx-auto h-8 w-8 text-[var(--text-tertiary)]" />
-                  <p className="mt-2 text-sm text-[var(--text-tertiary)]">No active bundles</p>
+                  <p className="mt-2 text-sm text-[var(--text-tertiary)]">
+                    {tcp("noActiveBundles")}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-2.5">
@@ -406,7 +409,7 @@ export function ChangePlanDialog({
                               ${Number(bundle.pricePerAccountMonth).toFixed(0)}
                             </span>
                             <span className="block text-[10px] text-[var(--text-tertiary)]">
-                              per account/mo
+                              {tcp("perAccountMo")}
                             </span>
                           </div>
                         </div>
@@ -429,29 +432,32 @@ export function ChangePlanDialog({
                   <span className="text-xl font-bold font-mono text-[var(--text-primary)]">
                     ${displayPrice.toFixed(2)}
                   </span>
-                  <span className="ml-1 text-sm text-[var(--text-tertiary)]">/month</span>
+                  <span className="ml-1 text-sm text-[var(--text-tertiary)]">
+                    {tcp("perMonth")}
+                  </span>
                   {tab === "custom" && selectedProviders.length > 0 && (
                     <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                      {selectedProviders.length} provider{selectedProviders.length !== 1 ? "s" : ""}{" "}
+                      {selectedProviders.length}{" "}
+                      {selectedProviders.length !== 1 ? tcp("providersPlural") : tcp("providers")}{" "}
                       &times; ${perProvider.toFixed(2)}
                     </p>
                   )}
                   {tab === "bundle" && selectedBundle && (
                     <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                      {selectedBundle.name} &middot; {selectedBundle.providers.length} providers
-                      included
+                      {selectedBundle.name} &middot; {selectedBundle.providers.length}{" "}
+                      {tcp("providersIncluded")}
                     </p>
                   )}
                 </>
               ) : (
-                <p className="text-sm text-[var(--text-tertiary)]">Select a plan to see pricing</p>
+                <p className="text-sm text-[var(--text-tertiary)]">{tcp("selectPlanPrompt")}</p>
               )}
             </div>
 
             {/* Buttons */}
             <div className="flex items-center gap-2">
               <ActionButton variant="secondary" size="md" onClick={() => onOpenChange(false)}>
-                Cancel
+                {tc("cancel")}
               </ActionButton>
               <ActionButton
                 variant="primary"
@@ -460,7 +466,7 @@ export function ChangePlanDialog({
                 disabled={!isValid}
                 onClick={handleApply}
               >
-                Save Plan
+                {tcp("savePlan")}
               </ActionButton>
             </div>
           </div>

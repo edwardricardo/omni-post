@@ -7,8 +7,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Clock, Play, Settings2 } from "lucide-react";
 import { toast } from "@packages/ui";
+import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
@@ -22,9 +24,9 @@ interface LastRunInfo {
 
 interface ScheduledJob {
   key: string;
-  name: string;
+  nameKey: string;
   pattern: string;
-  description: string;
+  descKey: string;
   auditAction: string;
   lastRun: LastRunInfo | null;
 }
@@ -32,44 +34,53 @@ interface ScheduledJob {
 const JOB_DEFINITIONS = [
   {
     key: "auto-renewal",
-    name: "Auto-Renewal Processing",
+    nameKey: "autoRenewalName" as const,
     pattern: "0 2 * * *",
-    description: "Converts expired trials with autoRenewal=true to paid subscriptions",
+    descKey: "autoRenewalDesc" as const,
     auditAction: "AUTO_RENEWAL_BATCH",
   },
   {
     key: "analytics-ingest",
-    name: "Analytics Ingestion",
+    nameKey: "analyticsName" as const,
     pattern: "0 */6 * * *",
-    description: "Fetches analytics data from all connected provider channels",
+    descKey: "analyticsDesc" as const,
     auditAction: "ANALYTICS_INGEST",
   },
   {
     key: "inbox-sync",
-    name: "Inbox Sync",
+    nameKey: "inboxSyncName" as const,
     pattern: "*/30 * * * *",
-    description: "Syncs social inbox messages from connected providers",
+    descKey: "inboxSyncDesc" as const,
     auditAction: "INBOX_SYNC",
   },
 ];
 
 const CRON_PRESETS = [
-  { label: "Every hour", value: "0 * * * *" },
-  { label: "Every 6 hours", value: "0 */6 * * *" },
-  { label: "Daily at midnight UTC", value: "0 0 * * *" },
-  { label: "Daily at 2:00 AM UTC", value: "0 2 * * *" },
-  { label: "Daily at 6:00 AM UTC", value: "0 6 * * *" },
-  { label: "Every 12 hours", value: "0 */12 * * *" },
-  { label: "Weekly (Sunday midnight)", value: "0 0 * * 0" },
+  { translationKey: "everyHour", value: "0 * * * *" },
+  { translationKey: "every6Hours", value: "0 */6 * * *" },
+  { translationKey: "dailyMidnight", value: "0 0 * * *" },
+  { translationKey: "daily2am", value: "0 2 * * *" },
+  { translationKey: "daily6am", value: "0 6 * * *" },
+  { translationKey: "every12Hours", value: "0 */12 * * *" },
+  { translationKey: "weeklySunday", value: "0 0 * * 0" },
 ];
 
-function describeCron(pattern: string): string {
-  const preset = CRON_PRESETS.find((p) => p.value === pattern);
-  if (preset) return preset.label;
-  return `Custom: ${pattern}`;
-}
+/** describeCron is now inside the component to access translations */
 
 export function ScheduledJobsPanel() {
+  const tj = useTranslations("maintenance.jobs");
+  const tc = useTranslations("common");
+  const { hasPermission } = useCurrentUser();
+  const canConfigure = hasPermission("system:configure");
+
+  const describeCron = useCallback(
+    (pattern: string): string => {
+      const preset = CRON_PRESETS.find((p) => p.value === pattern);
+      if (preset) return tj(`cronPresets.${preset.translationKey}`);
+      return `Custom: ${pattern}`;
+    },
+    [tj]
+  );
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
   const [editingJob, setEditingJob] = useState<string | null>(null);
   const [newPattern, setNewPattern] = useState("");
@@ -125,7 +136,7 @@ export function ScheduledJobsPanel() {
         if (jobKey === "auto-renewal") {
           endpoint = "/api/backend/admin/billing/auto-renewals/process";
         } else {
-          toast({ title: "Info", description: `Manual trigger not available for ${jobKey}` });
+          toast({ title: tc("info"), description: tj("manualNotAvailable", { key: jobKey }) });
           setRunningJob(null);
           return;
         }
@@ -139,14 +150,17 @@ export function ScheduledJobsPanel() {
         const result = await res.json();
         const data = result.data ?? result;
         toast({
-          title: "Job Completed",
-          description: `${data.processed ?? 0} processed, ${data.failed ?? 0} failed`,
+          title: tj("jobCompleted"),
+          description: tj("processedFailed", {
+            processed: data.processed ?? 0,
+            failed: data.failed ?? 0,
+          }),
         });
         await fetchJobs();
       } catch (err) {
         toast({
-          title: "Error",
-          description: err instanceof Error ? err.message : "Job failed",
+          title: tc("error"),
+          description: err instanceof Error ? err.message : tj("jobFailed"),
           variant: "destructive",
         });
       } finally {
@@ -154,7 +168,7 @@ export function ScheduledJobsPanel() {
         setConfirmRun(null);
       }
     },
-    [fetchJobs]
+    [fetchJobs, tj, tc]
   );
 
   const handleSavePattern = useCallback(
@@ -163,8 +177,8 @@ export function ScheduledJobsPanel() {
       try {
         setJobs((prev) => prev.map((j) => (j.key === jobKey ? { ...j, pattern: newPattern } : j)));
         toast({
-          title: "Schedule Updated",
-          description: `New schedule: ${describeCron(newPattern)}. Takes effect on next worker restart.`,
+          title: tj("scheduleUpdated"),
+          description: tj("scheduleUpdatedDesc", { schedule: describeCron(newPattern) }),
         });
         setEditingJob(null);
         setNewPattern("");
@@ -172,7 +186,7 @@ export function ScheduledJobsPanel() {
         setSavingPattern(false);
       }
     },
-    [newPattern]
+    [newPattern, tj, describeCron]
   );
 
   return (
@@ -186,17 +200,19 @@ export function ScheduledJobsPanel() {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">{job.name}</h3>
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                    {tj(job.nameKey)}
+                  </h3>
                   <Badge variant="info" size="sm">
                     <Clock className="h-3 w-3 mr-1 inline" />
                     {describeCron(job.pattern)}
                   </Badge>
                 </div>
-                <p className="text-xs text-[var(--text-tertiary)]">{job.description}</p>
+                <p className="text-xs text-[var(--text-tertiary)]">{tj(job.descKey)}</p>
                 {job.lastRun && (
                   <div className="flex items-center gap-2 mt-1.5">
                     <Badge variant={job.lastRun.success ? "success" : "error"} size="sm">
-                      {job.lastRun.success ? "Last run: OK" : "Last run: Failed"}
+                      {job.lastRun.success ? tj("lastRunOk") : tj("lastRunFailed")}
                     </Badge>
                     <span className="text-[10px] text-[var(--text-tertiary)]">
                       {new Date(job.lastRun.timestamp).toLocaleString()} — {job.lastRun.detail}
@@ -206,7 +222,7 @@ export function ScheduledJobsPanel() {
                 {!job.lastRun && (
                   <div className="mt-1.5">
                     <Badge variant="neutral" size="sm">
-                      Never executed
+                      {tj("neverExecuted")}
                     </Badge>
                   </div>
                 )}
@@ -218,7 +234,7 @@ export function ScheduledJobsPanel() {
                         htmlFor={`cron-${job.key}`}
                         className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
                       >
-                        Cron Schedule
+                        {tj("cronSchedule")}
                       </label>
                       <select
                         id={`cron-${job.key}`}
@@ -226,10 +242,10 @@ export function ScheduledJobsPanel() {
                         onChange={(e) => setNewPattern(e.target.value)}
                         className="w-full px-3 py-2 border border-[var(--border-default)] rounded-md bg-[var(--bg-surface)] text-[var(--text-primary)] text-sm"
                       >
-                        <option value="">Select schedule...</option>
+                        <option value="">{tj("selectSchedule")}</option>
                         {CRON_PRESETS.map((p) => (
                           <option key={p.value} value={p.value}>
-                            {p.label} ({p.value})
+                            {tj(`cronPresets.${p.translationKey}`)} ({p.value})
                           </option>
                         ))}
                       </select>
@@ -239,7 +255,7 @@ export function ScheduledJobsPanel() {
                         htmlFor={`cron-custom-${job.key}`}
                         className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
                       >
-                        Or custom cron
+                        {tj("customCron")}
                       </label>
                       <input
                         id={`cron-custom-${job.key}`}
@@ -257,7 +273,7 @@ export function ScheduledJobsPanel() {
                       loading={savingPattern}
                       disabled={!newPattern}
                     >
-                      Save
+                      {tc("save")}
                     </ActionButton>
                     <ActionButton
                       variant="secondary"
@@ -267,36 +283,38 @@ export function ScheduledJobsPanel() {
                         setNewPattern("");
                       }}
                     >
-                      Cancel
+                      {tc("cancel")}
                     </ActionButton>
                   </div>
                 )}
               </div>
 
-              <div className="flex gap-2 shrink-0">
-                <ActionButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setEditingJob(editingJob === job.key ? null : job.key);
-                    setNewPattern(job.pattern);
-                  }}
-                  aria-label={`Edit schedule for ${job.name}`}
-                >
-                  <Settings2 className="h-3.5 w-3.5" />
-                  Schedule
-                </ActionButton>
-                <ActionButton
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setConfirmRun(job.key)}
-                  loading={runningJob === job.key}
-                  aria-label={`Run ${job.name} now`}
-                >
-                  <Play className="h-3.5 w-3.5" />
-                  Run Now
-                </ActionButton>
-              </div>
+              {canConfigure && (
+                <div className="flex gap-2 shrink-0">
+                  <ActionButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setEditingJob(editingJob === job.key ? null : job.key);
+                      setNewPattern(job.pattern);
+                    }}
+                    aria-label={`Edit schedule for ${tj(job.nameKey)}`}
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                    {tj("schedule")}
+                  </ActionButton>
+                  <ActionButton
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setConfirmRun(job.key)}
+                    loading={runningJob === job.key}
+                    aria-label={`Run ${tj(job.nameKey)} now`}
+                  >
+                    <Play className="h-3.5 w-3.5" />
+                    {tj("runNow")}
+                  </ActionButton>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -307,9 +325,11 @@ export function ScheduledJobsPanel() {
         onOpenChange={(open) => {
           if (!open) setConfirmRun(null);
         }}
-        title="Run Job Manually"
-        description={`This will execute the ${jobs.find((j) => j.key === confirmRun)?.name ?? "job"} immediately. Are you sure?`}
-        confirmLabel="Run Now"
+        title={tj("confirmRun")}
+        description={tj("confirmRunDesc", {
+          name: confirmRun ? tj(jobs.find((j) => j.key === confirmRun)?.nameKey ?? "job") : "job",
+        })}
+        confirmLabel={tj("runNow")}
         onConfirm={async () => {
           if (confirmRun) await handleRunJob(confirmRun);
         }}

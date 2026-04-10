@@ -16,12 +16,7 @@ import { Badge } from "@/components/ui/Badge";
 import { TabNav } from "@/components/ui/TabNav";
 import { ActionButton } from "@/components/ui/ActionButton";
 
-const TABS = [
-  { key: "overview", label: "Overview" },
-  { key: "gdpr", label: "GDPR/Privacy" },
-  { key: "security", label: "Security" },
-  { key: "audit", label: "Audit Logs" },
-];
+const TAB_KEYS = ["overview", "gdpr", "security", "audit"] as const;
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "error" | "neutral"> = {
   compliant: "success",
@@ -35,9 +30,19 @@ const RESULT_VARIANT: Record<string, "success" | "error"> = {
 };
 
 function CompliancePageContent() {
-  const t = useTranslations("nav");
+  const tco = useTranslations("compliance");
+  const tc = useTranslations("common");
   const { data, isLoading, error } = useCompliance();
   const [activeTab, setActiveTab] = useState("overview");
+
+  const tabs = useMemo(
+    () =>
+      TAB_KEYS.map((key) => ({
+        key,
+        label: tco(`tabs.${key}`),
+      })),
+    [tco]
+  );
 
   const metrics = useMemo(() => data?.metrics ?? [], [data?.metrics]);
   const auditLogs = data?.auditLogs ?? [];
@@ -50,9 +55,9 @@ function CompliancePageContent() {
   if (isLoading) {
     return (
       <div>
-        <PageHeader title={t("compliance")} />
+        <PageHeader title={tco("title")} />
         <div className="flex justify-center items-center h-64">
-          <LoadingSpinner size="lg" label="Loading compliance data..." />
+          <LoadingSpinner size="lg" label={tco("title")} />
         </div>
       </div>
     );
@@ -61,12 +66,12 @@ function CompliancePageContent() {
   if (error) {
     return (
       <div>
-        <PageHeader title={t("compliance")} />
+        <PageHeader title={tco("title")} />
         <div
           className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-3"
           role="alert"
         >
-          <h3 className="text-[var(--error)] font-medium">Error Loading Compliance Dashboard</h3>
+          <h3 className="text-[var(--error)] font-medium">{tco("errorTitle")}</h3>
           <p className="text-[var(--error)] mt-1 text-sm">{error.message}</p>
         </div>
       </div>
@@ -75,16 +80,13 @@ function CompliancePageContent() {
 
   return (
     <div>
-      <PageHeader
-        title={t("compliance")}
-        description="Monitor regulatory compliance and security standards"
-      />
+      <PageHeader title={tco("title")} description={tco("description")} />
 
       {/* Overall Score */}
       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            Overall Compliance Score
+            {tco("overallScore")}
           </h2>
           <span className="text-2xl font-bold text-[var(--text-primary)]">{overallScore}%</span>
         </div>
@@ -102,7 +104,7 @@ function CompliancePageContent() {
         </div>
       </div>
 
-      <TabNav tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <TabNav tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       <div className="mt-4">
         {activeTab === "overview" && (
@@ -120,12 +122,20 @@ function CompliancePageContent() {
                     <p className="text-sm text-[var(--text-secondary)]">{metric.description}</p>
                   </div>
                   <Badge variant={STATUS_VARIANT[metric.status] ?? "neutral"}>
-                    {metric.status.toUpperCase().replace("-", " ")}
+                    {metric.status === "compliant"
+                      ? tc("healthy")
+                      : metric.status === "warning"
+                        ? tc("warning")
+                        : metric.status === "non-compliant"
+                          ? tc("critical")
+                          : metric.status}
                   </Badge>
                 </div>
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-[var(--text-secondary)]">Compliance Score</span>
+                    <span className="text-sm text-[var(--text-secondary)]">
+                      {tco("complianceScore")}
+                    </span>
                     <span className="text-sm font-medium text-[var(--text-primary)]">
                       {metric.score}%
                     </span>
@@ -144,7 +154,7 @@ function CompliancePageContent() {
                   </div>
                 </div>
                 <div className="text-xs text-[var(--text-tertiary)]">
-                  Last checked: {new Date(metric.lastChecked).toLocaleString()}
+                  {tco("lastChecked", { date: new Date(metric.lastChecked).toLocaleString() })}
                 </div>
               </div>
             ))}
@@ -155,7 +165,7 @@ function CompliancePageContent() {
           <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
             <div className="p-4 border-b border-[var(--border-subtle)]">
               <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-                Recent Audit Events
+                {tco("audit.title")}
               </h2>
             </div>
             <div className="divide-y divide-[var(--border-subtle)]">
@@ -165,7 +175,11 @@ function CompliancePageContent() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <Badge variant={RESULT_VARIANT[log.result] ?? "neutral"}>
-                          {log.result.toUpperCase()}
+                          {log.result === "success"
+                            ? tc("success")
+                            : log.result === "failure"
+                              ? tc("error")
+                              : log.result}
                         </Badge>
                         <span className="font-medium text-[var(--text-primary)]">
                           {log.action.replace("_", " ")}
@@ -189,13 +203,13 @@ function CompliancePageContent() {
           <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
             <div className="text-center py-8">
               <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
-                {activeTab === "gdpr" ? "GDPR/Privacy Compliance" : "Security Compliance"}
+                {activeTab === "gdpr" ? tco("gdprTitle") : tco("securityTitle")}
               </h3>
               <p className="text-[var(--text-secondary)] mb-4">
-                Detailed {activeTab} compliance metrics and controls coming soon
+                {tco("comingSoon", { tab: activeTab })}
               </p>
               <ActionButton variant="primary" size="sm">
-                Configure {activeTab.toUpperCase()} Settings
+                {tco("configureSettings", { tab: activeTab.toUpperCase() })}
               </ActionButton>
             </div>
           </div>

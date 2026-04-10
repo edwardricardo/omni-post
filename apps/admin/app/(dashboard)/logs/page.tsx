@@ -7,6 +7,8 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { Pagination } from "@/components/ui/Pagination";
+import { useTranslations } from "next-intl";
 import {
   RefreshCw,
   List,
@@ -27,6 +29,12 @@ import { ActionButton } from "@/components/ui/ActionButton";
 import { toast } from "@packages/ui";
 
 function LogsPageContent() {
+  const tl = useTranslations("logs");
+  const tc = useTranslations("common");
+
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+
   const [filters, setFilters] = useState({
     search: "",
     action: "all",
@@ -69,6 +77,12 @@ function LogsPageContent() {
     });
   }, [logs, filters]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / perPage));
+  const paginatedLogs = useMemo(
+    () => filteredLogs.slice((page - 1) * perPage, page * perPage),
+    [filteredLogs, page, perPage]
+  );
+
   const actions = useMemo(() => {
     if (!logs) return [];
     return Array.from(new Set(logs.map((l) => l.action)));
@@ -102,9 +116,9 @@ function LogsPageContent() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <PageHeader title="Audit Logs" />
+        <PageHeader title={tl("title")} />
         <div className="flex justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-12">
-          <LoadingSpinner size="lg" label="Loading audit logs..." />
+          <LoadingSpinner size="lg" label={tl("loadingLogs")} />
         </div>
       </div>
     );
@@ -113,13 +127,12 @@ function LogsPageContent() {
   if (error) {
     return (
       <div className="p-6">
-        <PageHeader title="Audit Logs" />
+        <PageHeader title={tl("title")} />
         <div className="rounded-lg border border-[var(--error)] bg-[var(--error-subtle)] p-6" role="alert">
-          <h2 className="font-medium text-[var(--error)] mb-2">Error Loading Logs</h2>
+          <h2 className="font-medium text-[var(--error)] mb-2">{tl("errorTitle")}</h2>
           <p className="text-sm text-[var(--error)] mb-4">{error.message}</p>
           <ActionButton variant="primary" onClick={() => refetch()}>
-            Retry
-          </ActionButton>
+            {tc("retry")}</ActionButton>
         </div>
       </div>
     );
@@ -128,13 +141,13 @@ function LogsPageContent() {
   return (
     <div className="p-6">
       <PageHeader
-        title="Audit Logs"
-        description="Track all system events and user activities (auto-refreshes every 30s)"
+        title={tl("title")}
+        description={tl("description")}
         actions={
           <div className="flex items-center gap-2">
             <ActionButton variant="secondary" onClick={handleExport}>
               <Download className="h-3.5 w-3.5" />
-              Export CSV
+              {tl("exportCsv")}
             </ActionButton>
             <ActionButton
               variant="secondary"
@@ -142,7 +155,7 @@ function LogsPageContent() {
               disabled={isLoading}
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              Refresh
+              {tc("refresh")}
             </ActionButton>
           </div>
         }
@@ -151,22 +164,22 @@ function LogsPageContent() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard
-          label="Total Logs"
+          label={tl("stats.totalEvents")}
           value={auditStats?.totalLogs ?? 0}
           icon={<List className="h-5 w-5" />}
         />
         <StatCard
-          label="Today"
+          label={tl("stats.failedEvents")}
           value={auditStats?.todayLogs ?? 0}
           icon={<Calendar className="h-5 w-5" />}
         />
         <StatCard
-          label="Unique Users"
+          label={tl("stats.uniqueUsers")}
           value={auditStats?.uniqueUsers ?? 0}
           icon={<Users className="h-5 w-5" />}
         />
         <StatCard
-          label="Success Rate"
+          label={tl("stats.successRate")}
           value={`${(auditStats?.successRate ?? 100).toFixed(0)}%`}
           icon={<CheckCircle2 className="h-5 w-5" />}
         />
@@ -180,7 +193,7 @@ function LogsPageContent() {
               htmlFor="log-search"
               className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
             >
-              Search
+              {tc("search")}
             </label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
@@ -189,7 +202,7 @@ function LogsPageContent() {
                 type="text"
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                placeholder="Search by ID, action, or resource..."
+                placeholder={tl("searchPlaceholder")}
                 className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] py-2 pl-8 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               />
             </div>
@@ -199,7 +212,7 @@ function LogsPageContent() {
               htmlFor="action-filter"
               className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
             >
-              Action
+              {tl("table.action")}
             </label>
             <select
               id="action-filter"
@@ -207,7 +220,7 @@ function LogsPageContent() {
               onChange={(e) => setFilters({ ...filters, action: e.target.value })}
               className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             >
-              <option value="all">All Actions</option>
+              <option value="all">{tl("allActions")}</option>
               {actions.map((action) => (
                 <option key={action} value={action}>
                   {action}
@@ -220,7 +233,7 @@ function LogsPageContent() {
               htmlFor="result-filter"
               className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
             >
-              Result
+              {tl("table.result")}
             </label>
             <select
               id="result-filter"
@@ -228,9 +241,9 @@ function LogsPageContent() {
               onChange={(e) => setFilters({ ...filters, result: e.target.value })}
               className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             >
-              <option value="all">All Results</option>
-              <option value="success">Success</option>
-              <option value="failure">Failure</option>
+              <option value="all">{tl("allResults")}</option>
+              <option value="success">{tl("success")}</option>
+              <option value="failure">{tl("failed")}</option>
             </select>
           </div>
           <div>
@@ -238,7 +251,7 @@ function LogsPageContent() {
               htmlFor="user-filter"
               className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
             >
-              User
+              {tl("table.user")}
             </label>
             <select
               id="user-filter"
@@ -246,7 +259,7 @@ function LogsPageContent() {
               onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
               className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             >
-              <option value="">All Users</option>
+              <option value="">{tl("table.user")}</option>
               {adminUsers?.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name} ({user.role})
@@ -259,7 +272,7 @@ function LogsPageContent() {
               htmlFor="start-date-filter"
               className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
             >
-              From
+              {tl("dateFrom")}
             </label>
             <input
               id="start-date-filter"
@@ -274,7 +287,7 @@ function LogsPageContent() {
               htmlFor="end-date-filter"
               className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
             >
-              To
+              {tl("dateTo")}
             </label>
             <input
               id="end-date-filter"
@@ -297,36 +310,36 @@ function LogsPageContent() {
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
                 >
-                  Action
+                  {tl("table.action")}
                 </th>
                 <th
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
                 >
-                  Resource
+                  {tl("table.resource")}
                 </th>
                 <th
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
                 >
-                  Result
+                  {tl("table.result")}
                 </th>
                 <th
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
                 >
-                  IP Address
+                  {tl("ipAddress")}
                 </th>
                 <th
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]"
                 >
-                  Date
+                  {tl("table.timestamp")}
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-subtle)]">
-              {filteredLogs.map((log) => (
+              {paginatedLogs.map((log) => (
                 <tr
                   key={log.id}
                   className="transition-colors hover:bg-[var(--bg-elevated)]"
@@ -339,7 +352,7 @@ function LogsPageContent() {
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">
                     <Badge variant={log.success ? "success" : "error"}>
-                      {log.success ? "Success" : "Failed"}
+                      {log.success ? tl("success") : tl("failed")}
                     </Badge>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-[var(--text-tertiary)]">
@@ -356,10 +369,22 @@ function LogsPageContent() {
 
         {filteredLogs.length === 0 && !isLoading && (
           <div className="py-12 text-center text-sm text-[var(--text-secondary)]">
-            No logs found matching your criteria
+            {tl("noResults")}
           </div>
         )}
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={filteredLogs.length}
+        perPage={perPage}
+        onPageChange={setPage}
+        onPerPageChange={(n) => {
+          setPerPage(n);
+          setPage(1);
+        }}
+      />
     </div>
   );
 }

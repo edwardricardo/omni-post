@@ -1,22 +1,22 @@
 /**
- * Executive Compliance Handlers
+ * Analytics Compliance Handlers
  *
  * Handles compliance audit log and GDPR data endpoints.
- * Extracted from ExecutiveHandlers.ts to keep files under 800 lines.
+ * Extracted from AnalyticsHandlers.ts to keep files under 800 lines.
  *
- * @module admin/ExecutiveComplianceHandlers
+ * @module admin/AnalyticsComplianceHandlers
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { PrismaClient, Prisma } from "@infra/prisma";
-import { ComplianceAuditLogsQuerySchema, GdprQuerySchema } from "./executiveSchemas.js";
+import { ComplianceAuditLogsQuerySchema, GdprQuerySchema } from "./analyticsSchemas.js";
 
 /**
- * Executive Compliance Route Handler
+ * Analytics Compliance Route Handler
  * Provides compliance audit log queries and GDPR data views
  */
-export class ExecutiveComplianceHandler extends BaseRouteHandler {
-  protected routeName = "executive-compliance";
+export class AnalyticsComplianceHandler extends BaseRouteHandler {
+  protected routeName = "analytics-compliance";
 
   constructor(private readonly prisma: PrismaClient) {
     super();
@@ -98,7 +98,7 @@ export class ExecutiveComplianceHandler extends BaseRouteHandler {
               id: true,
               name: true,
               email: true,
-              role: true,
+              role: { select: { name: true } },
             },
           },
         },
@@ -115,7 +115,7 @@ export class ExecutiveComplianceHandler extends BaseRouteHandler {
               id: log.user.id,
               name: log.user.name,
               email: log.user.email,
-              role: log.user.role,
+              role: log.user.role.name,
             }
           : null,
         action: log.action,

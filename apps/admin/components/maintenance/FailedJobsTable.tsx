@@ -7,7 +7,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AlertTriangle, RotateCw } from "lucide-react";
+import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
@@ -25,6 +27,8 @@ interface FailedJobsTableProps {
  * @description Renders a data table of failed jobs with per-row retry action.
  */
 export function FailedJobsTable({ jobs, onRetry, isRetrying }: FailedJobsTableProps) {
+  const tf = useTranslations("maintenance.failedJobsTable");
+  const { hasPermission } = useCurrentUser();
   const [confirmJobId, setConfirmJobId] = useState<string | null>(null);
 
   const handleConfirmRetry = useCallback(() => {
@@ -38,7 +42,7 @@ export function FailedJobsTable({ jobs, onRetry, isRetrying }: FailedJobsTablePr
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-12">
         <AlertTriangle className="h-8 w-8 text-[var(--text-tertiary)] mb-2" />
-        <p className="text-sm text-[var(--text-secondary)]">No failed jobs</p>
+        <p className="text-sm text-[var(--text-secondary)]">{tf("noFailed")}</p>
       </div>
     );
   }
@@ -50,22 +54,22 @@ export function FailedJobsTable({ jobs, onRetry, isRetrying }: FailedJobsTablePr
           <thead>
             <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
               <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-                Queue
+                {tf("queue")}
               </th>
               <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-                Job ID
+                {tf("jobId")}
               </th>
               <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-                Error
+                {tf("error")}
               </th>
               <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-                Failed At
+                {tf("failedAt")}
               </th>
               <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-                Attempts
+                {tf("attempts")}
               </th>
               <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
-                Actions
+                {tf("retry")}
               </th>
             </tr>
           </thead>
@@ -93,15 +97,17 @@ export function FailedJobsTable({ jobs, onRetry, isRetrying }: FailedJobsTablePr
                   {job.attemptsMade}
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <ActionButton
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setConfirmJobId(job.id)}
-                    aria-label={`Retry job ${job.id}`}
-                  >
-                    <RotateCw className="h-3 w-3" />
-                    Retry
-                  </ActionButton>
+                  {hasPermission("system:configure") && (
+                    <ActionButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setConfirmJobId(job.id)}
+                      aria-label={`Retry job ${job.id}`}
+                    >
+                      <RotateCw className="h-3 w-3" />
+                      {tf("retry")}
+                    </ActionButton>
+                  )}
                 </td>
               </tr>
             ))}
@@ -114,9 +120,9 @@ export function FailedJobsTable({ jobs, onRetry, isRetrying }: FailedJobsTablePr
         onOpenChange={(open) => {
           if (!open) setConfirmJobId(null);
         }}
-        title="Retry Failed Job"
-        description={`Retry job ${confirmJobId ?? ""}? It will be re-queued for processing.`}
-        confirmLabel="Retry"
+        title={tf("retryTitle")}
+        description={tf("retryDesc", { id: confirmJobId ?? "" })}
+        confirmLabel={tf("retry")}
         onConfirm={handleConfirmRetry}
         loading={isRetrying}
       />

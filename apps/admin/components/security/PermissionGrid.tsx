@@ -8,35 +8,30 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { Save, ShieldAlert } from "lucide-react";
+import { Save, ShieldAlert, ChevronRight, ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 
 import { api, type RoleInfo } from "../../lib/apiClient";
 import { ActionButton } from "../ui/ActionButton";
 
-/** Permission categories with their individual permissions */
-const PERMISSION_CATEGORIES: Record<string, string[]> = {
-  "User Management": [
-    "user:create",
-    "user:read",
-    "user:update",
-    "user:delete",
-    "user:manage_roles",
-  ],
-  "Project Management": ["project:create", "project:read", "project:update", "project:delete"],
-  "Content Management": [
+/** Permission category keys mapped to their individual permissions */
+const CATEGORY_KEYS: Record<string, string[]> = {
+  userManagement: ["user:create", "user:read", "user:update", "user:delete", "user:manage_roles"],
+  projectManagement: ["project:create", "project:read", "project:update", "project:delete"],
+  contentManagement: [
     "content:create",
     "content:read",
     "content:update",
     "content:delete",
     "content:publish",
   ],
-  Analytics: ["analytics:read", "analytics:export"],
-  "System Administration": ["system:configure", "system:monitor", "system:backup"],
-  "Audit & Compliance": ["audit:read", "audit:export"],
-  Billing: ["billing:read", "billing:manage"],
-  "AI Features": ["ai:use", "ai:configure"],
-  Support: ["support:read", "support:respond"],
+  analytics: ["analytics:read", "analytics:export"],
+  systemAdmin: ["system:configure", "system:monitor", "system:backup"],
+  auditCompliance: ["audit:read", "audit:export"],
+  billing: ["billing:read", "billing:manage"],
+  aiFeatures: ["ai:use", "ai:configure"],
+  support: ["support:read", "support:respond"],
 };
 
 interface PermissionGridProps {
@@ -45,6 +40,8 @@ interface PermissionGridProps {
 }
 
 export function PermissionGrid({ role, onPermissionsSaved }: PermissionGridProps) {
+  const tp = useTranslations("security.permissions");
+  const tc = useTranslations("common");
   const isSuperAdmin = role.role === "SUPER_ADMIN";
   const [editedPermissions, setEditedPermissions] = useState<string[]>(role.permissions);
   const [saving, setSaving] = useState(false);
@@ -72,31 +69,62 @@ export function PermissionGrid({ role, onPermissionsSaved }: PermissionGridProps
     try {
       const response = await api.security.rbac.setRolePermissions(role.id, editedPermissions);
       if (!response.ok) throw new Error("Failed to save permissions");
-      toast({ title: "Success", description: "Permissions updated successfully" });
+      toast({ title: tc("success"), description: tp("successSaved") });
       onPermissionsSaved();
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to save permissions",
+        title: tc("error"),
+        description: err instanceof Error ? err.message : tp("failedSave"),
         variant: "destructive",
       });
     } finally {
       setSaving(false);
     }
-  }, [role.id, editedPermissions, onPermissionsSaved]);
+  }, [role.id, editedPermissions, onPermissionsSaved, tc, tp]);
 
-  const allPermissions = useMemo(() => Object.values(PERMISSION_CATEGORIES).flat(), []);
+  const allPermissions = useMemo(() => Object.values(CATEGORY_KEYS).flat(), []);
+  const categories = useMemo(
+    () =>
+      Object.entries(CATEGORY_KEYS).map(([key, permissions]) => ({
+        key,
+        label: tp(`categories.${key}`),
+        permissions,
+      })),
+    [tp]
+  );
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
+    () => new Set(Object.keys(CATEGORY_KEYS).slice(1))
+  );
+
+  const toggleCategory = useCallback((category: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }, []);
+
+  const getCategoryCount = useCallback(
+    (permissions: string[]) => {
+      if (isSuperAdmin) return permissions.length;
+      return permissions.filter((p) => editedPermissions.includes(p)).length;
+    },
+    [isSuperAdmin, editedPermissions]
+  );
 
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-sm font-medium text-[var(--text-secondary)]">
-          Permissions ({editedPermissions.length})
+          {tp("title", { count: editedPermissions.length })}
         </h4>
         {!isSuperAdmin && (
           <div className="flex items-center gap-2">
             {isDirty && (
-              <span className="text-[11px] text-[var(--warning)] font-medium">Unsaved changes</span>
+              <span className="text-[11px] text-[var(--warning)] font-medium">
+                {tp("unsavedChanges")}
+              </span>
             )}
             <ActionButton
               size="sm"
@@ -106,7 +134,7 @@ export function PermissionGrid({ role, onPermissionsSaved }: PermissionGridProps
               onClick={handleSave}
             >
               <Save className="h-3 w-3" />
-              Save Permissions
+              {tp("savePermissions")}
             </ActionButton>
           </div>
         )}
@@ -115,46 +143,71 @@ export function PermissionGrid({ role, onPermissionsSaved }: PermissionGridProps
       {isSuperAdmin && (
         <div className="flex items-center gap-1.5 mb-2 text-[11px] text-[var(--text-tertiary)]">
           <ShieldAlert className="h-3 w-3" />
-          SUPER_ADMIN always has all permissions
+          {tp("superAdminNote")}
         </div>
       )}
 
-      <div className="space-y-3">
-        {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
-          <div key={category}>
-            <p className="text-xs font-medium text-[var(--text-secondary)] mb-1">{category}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-              {permissions.map((permission) => {
-                const checked = isSuperAdmin
-                  ? allPermissions.includes(permission)
-                  : editedPermissions.includes(permission);
-                return (
-                  <label
-                    key={permission}
-                    className={[
-                      "flex items-center gap-1.5 text-xs px-2 py-1 rounded-md border",
-                      "border-[var(--border-subtle)] bg-[var(--bg-surface)]",
-                      isSuperAdmin
-                        ? "opacity-60 cursor-not-allowed"
-                        : "cursor-pointer hover:bg-[var(--bg-elevated)]",
-                    ].join(" ")}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={isSuperAdmin}
-                      onChange={() => handleToggle(permission)}
-                      className="h-3 w-3 rounded border-[var(--border-default)] accent-[var(--accent)]"
-                    />
-                    <span className="text-[var(--text-primary)] truncate">
-                      {permission.split(":")[1]?.replace(/_/g, " ") ?? permission}
-                    </span>
-                  </label>
-                );
-              })}
+      <div className="space-y-1">
+        {categories.map(({ key, label, permissions }) => {
+          const collapsed = collapsedCategories.has(key);
+          const activeCount = getCategoryCount(permissions);
+
+          return (
+            <div key={key} className="rounded-md border border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => toggleCategory(key)}
+                aria-expanded={!collapsed}
+                className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left hover:bg-[var(--bg-elevated)] rounded-md transition-colors"
+              >
+                {collapsed ? (
+                  <ChevronRight className="h-3 w-3 text-[var(--text-tertiary)] shrink-0" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 text-[var(--text-tertiary)] shrink-0" />
+                )}
+                <span className="text-xs font-medium text-[var(--text-secondary)] flex-1">
+                  {label}
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary)]">
+                  {activeCount}/{permissions.length}
+                </span>
+              </button>
+
+              {!collapsed && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 px-2.5 pb-2">
+                  {permissions.map((permission) => {
+                    const checked = isSuperAdmin
+                      ? allPermissions.includes(permission)
+                      : editedPermissions.includes(permission);
+                    return (
+                      <label
+                        key={permission}
+                        className={[
+                          "flex items-center gap-1.5 text-xs px-2 py-1 rounded-md border",
+                          "border-[var(--border-subtle)] bg-[var(--bg-surface)]",
+                          isSuperAdmin
+                            ? "opacity-60 cursor-not-allowed"
+                            : "cursor-pointer hover:bg-[var(--bg-elevated)]",
+                        ].join(" ")}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={isSuperAdmin}
+                          onChange={() => handleToggle(permission)}
+                          className="h-3 w-3 rounded border-[var(--border-default)] accent-[var(--accent)]"
+                        />
+                        <span className="text-[var(--text-primary)] truncate">
+                          {permission.split(":")[1]?.replace(/_/g, " ") ?? permission}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

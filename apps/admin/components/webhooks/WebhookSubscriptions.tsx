@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
@@ -104,6 +105,8 @@ const PROVIDER_EVENT_TYPES = {
 };
 
 export function WebhookSubscriptions() {
+  const tsp = useTranslations("webhooks.subscriptionsPanel");
+  const tc = useTranslations("common");
   const [subscriptions, setSubscriptions] = useState<WebhookSubscription[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showSetupDialog, setShowSetupDialog] = useState<WebhookSubscription | null>(null);
@@ -245,27 +248,20 @@ export function WebhookSubscriptions() {
       <div className="p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-[var(--text-primary)]">
-              Webhook Subscriptions
-            </h3>
-            <p className="text-sm text-[var(--text-secondary)]">
-              Manage your webhook subscriptions for real-time social media events
-            </p>
+            <h3 className="text-base font-semibold text-[var(--text-primary)]">{tsp("title")}</h3>
+            <p className="text-sm text-[var(--text-secondary)]">{tsp("description")}</p>
           </div>
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
               <ActionButton variant="primary">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Subscription
+                {tsp("addSubscription")}
               </ActionButton>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create Webhook Subscription</DialogTitle>
-                <DialogDescription>
-                  Set up a new webhook subscription to receive real-time events from social media
-                  platforms.
-                </DialogDescription>
+                <DialogTitle>{tsp("createTitle")}</DialogTitle>
+                <DialogDescription>{tsp("createDescription")}</DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
@@ -274,7 +270,7 @@ export function WebhookSubscriptions() {
                     htmlFor="provider"
                     className="block text-sm font-medium text-[var(--text-primary)] mb-1"
                   >
-                    Provider
+                    {tsp("provider")}
                   </label>
                   <select
                     id="provider"
@@ -288,7 +284,7 @@ export function WebhookSubscriptions() {
                     }
                     className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                   >
-                    <option value="">Select a provider</option>
+                    <option value="">{tsp("selectProvider")}</option>
                     <option value="X">X (Twitter)</option>
                     <option value="INSTAGRAM">Instagram</option>
                     <option value="FACEBOOK">Facebook</option>
@@ -302,7 +298,7 @@ export function WebhookSubscriptions() {
                     htmlFor="project"
                     className="block text-sm font-medium text-[var(--text-primary)] mb-1"
                   >
-                    Project (Optional)
+                    {tsp("projectOptional")}
                   </label>
                   <select
                     id="project"
@@ -315,7 +311,7 @@ export function WebhookSubscriptions() {
                     }
                     className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                   >
-                    <option value="">All projects</option>
+                    <option value="">{tsp("allProjects")}</option>
                     {projects.map((project) => (
                       <option key={project.id} value={project.id}>
                         {project.name}
@@ -327,7 +323,7 @@ export function WebhookSubscriptions() {
                 {newSubscription.provider && (
                   <div>
                     <span className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                      Event Types
+                      {tsp("eventTypes")}
                     </span>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       {PROVIDER_EVENT_TYPES[
@@ -372,7 +368,7 @@ export function WebhookSubscriptions() {
                       htmlFor="verifyToken"
                       className="block text-sm font-medium text-[var(--text-primary)] mb-1"
                     >
-                      Verify Token (Optional)
+                      {tsp("verifyToken")}
                     </label>
                     <input
                       id="verifyToken"
@@ -380,7 +376,7 @@ export function WebhookSubscriptions() {
                       onChange={(e) =>
                         setNewSubscription((prev) => ({ ...prev, verifyToken: e.target.value }))
                       }
-                      placeholder="Custom verification token"
+                      placeholder={tsp("verifyTokenPlaceholder")}
                       className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                     />
                   </div>
@@ -389,14 +385,14 @@ export function WebhookSubscriptions() {
 
               <div className="flex justify-end space-x-2">
                 <ActionButton variant="secondary" onClick={() => setShowCreateDialog(false)}>
-                  Cancel
+                  {tc("cancel")}
                 </ActionButton>
                 <ActionButton
                   variant="primary"
                   onClick={createSubscription}
                   disabled={!newSubscription.provider || newSubscription.eventTypes.length === 0}
                 >
-                  Create Subscription
+                  {tsp("createSubscription")}
                 </ActionButton>
               </div>
             </DialogContent>
@@ -412,15 +408,15 @@ export function WebhookSubscriptions() {
           <div className="text-center py-8">
             <p className="text-[var(--error)] mb-4">{error}</p>
             <ActionButton onClick={fetchSubscriptions} variant="secondary">
-              Retry
+              {tc("retry")}
             </ActionButton>
           </div>
         ) : subscriptions.length === 0 ? (
           <div className="text-center py-8 text-[var(--text-secondary)]">
-            <p className="mb-4">No webhook subscriptions configured</p>
+            <p className="mb-4">{tsp("noSubscriptions")}</p>
             <ActionButton variant="primary" onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Create your first subscription
+              {tsp("createFirst")}
             </ActionButton>
           </div>
         ) : (
@@ -428,25 +424,25 @@ export function WebhookSubscriptions() {
             <thead>
               <tr className="border-b border-[var(--border-subtle)]">
                 <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                  Provider
+                  {tsp("table.provider")}
                 </th>
                 <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                  Project
+                  {tsp("table.project")}
                 </th>
                 <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                  Events
+                  {tsp("table.events")}
                 </th>
                 <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                  Status
+                  {tsp("table.status")}
                 </th>
                 <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                  Health
+                  {tsp("table.health")}
                 </th>
                 <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                  Last Event
+                  {tsp("table.lastEvent")}
                 </th>
                 <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                  Actions
+                  {tsp("table.actions")}
                 </th>
               </tr>
             </thead>
@@ -461,7 +457,9 @@ export function WebhookSubscriptions() {
                     {subscription.project ? (
                       <span className="text-sm">{subscription.project.name}</span>
                     ) : (
-                      <span className="text-sm text-[var(--text-secondary)]">All projects</span>
+                      <span className="text-sm text-[var(--text-secondary)]">
+                        {tsp("allProjects")}
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -476,7 +474,7 @@ export function WebhookSubscriptions() {
                       ))}
                       {subscription.eventTypes.length > 2 && (
                         <Badge variant="neutral" size="sm">
-                          +{subscription.eventTypes.length - 2} more
+                          {tsp("moreEvents", { count: subscription.eventTypes.length - 2 })}
                         </Badge>
                       )}
                     </div>
@@ -502,7 +500,7 @@ export function WebhookSubscriptions() {
                         />
                       </button>
                       <span className="text-sm">
-                        {subscription.isActive ? "Active" : "Inactive"}
+                        {subscription.isActive ? tc("active") : tc("inactive")}
                       </span>
                     </div>
                   </td>
@@ -517,7 +515,7 @@ export function WebhookSubscriptions() {
                         })}
                       </span>
                     ) : (
-                      <span className="text-sm text-[var(--text-tertiary)]">Never</span>
+                      <span className="text-sm text-[var(--text-tertiary)]">{tc("never")}</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -534,16 +532,16 @@ export function WebhookSubscriptions() {
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl">
                           <DialogHeader>
-                            <DialogTitle>Webhook Setup Instructions</DialogTitle>
+                            <DialogTitle>{tsp("setupTitle")}</DialogTitle>
                             <DialogDescription>
-                              Configure {subscription.provider} to send webhooks to your endpoint
+                              {tsp("setupDescription", { provider: subscription.provider })}
                             </DialogDescription>
                           </DialogHeader>
                           {showSetupDialog && (
                             <div className="space-y-4">
                               <div>
                                 <span className="text-sm font-medium text-[var(--text-primary)]">
-                                  Webhook URL
+                                  {tsp("webhookUrl")}
                                 </span>
                                 <div className="flex items-center space-x-2 mt-1">
                                   <input
@@ -564,7 +562,7 @@ export function WebhookSubscriptions() {
                               {subscription.verifyToken && (
                                 <div>
                                   <span className="text-sm font-medium text-[var(--text-primary)]">
-                                    Verification Token
+                                    {tsp("verificationToken")}
                                   </span>
                                   <div className="flex items-center space-x-2 mt-1">
                                     <input
@@ -585,7 +583,7 @@ export function WebhookSubscriptions() {
 
                               <div>
                                 <span className="text-sm font-medium text-[var(--text-primary)]">
-                                  Subscribed Events
+                                  {tsp("subscribedEvents")}
                                 </span>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                   {subscription.eventTypes.map((eventType) => (
@@ -601,7 +599,7 @@ export function WebhookSubscriptions() {
 
                               <div>
                                 <span className="text-sm font-medium text-[var(--text-primary)]">
-                                  Statistics
+                                  {tsp("statistics")}
                                 </span>
                                 <div className="grid grid-cols-2 gap-4 mt-2">
                                   <div>
@@ -609,7 +607,7 @@ export function WebhookSubscriptions() {
                                       {Number(subscription.stats.totalEvents).toLocaleString()}
                                     </div>
                                     <div className="text-sm text-[var(--text-secondary)]">
-                                      Total Events
+                                      {tsp("totalEvents")}
                                     </div>
                                   </div>
                                   <div>
@@ -617,7 +615,7 @@ export function WebhookSubscriptions() {
                                       {Number(subscription.stats.recentEvents).toLocaleString()}
                                     </div>
                                     <div className="text-sm text-[var(--text-secondary)]">
-                                      Last 24h
+                                      {tsp("last24h")}
                                     </div>
                                   </div>
                                   <div>
@@ -625,7 +623,7 @@ export function WebhookSubscriptions() {
                                       {Number(subscription.stats.failedEvents).toLocaleString()}
                                     </div>
                                     <div className="text-sm text-[var(--text-secondary)]">
-                                      Failed
+                                      {tsp("failedEvents")}
                                     </div>
                                   </div>
                                   <div>
@@ -633,7 +631,7 @@ export function WebhookSubscriptions() {
                                       {Number(subscription.stats.successRate).toFixed(1)}%
                                     </div>
                                     <div className="text-sm text-[var(--text-secondary)]">
-                                      Success Rate
+                                      {tsp("successRate")}
                                     </div>
                                   </div>
                                 </div>
@@ -651,19 +649,18 @@ export function WebhookSubscriptions() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Webhook Subscription</AlertDialogTitle>
+                            <AlertDialogTitle>{tsp("deleteTitle")}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete this webhook subscription? This action
-                              cannot be undone.
+                              {tsp("deleteDescription")}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => deleteSubscription(subscription.id)}
                               className="bg-[var(--error)] hover:opacity-90"
                             >
-                              Delete
+                              {tc("delete")}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>

@@ -9,6 +9,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
+import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { Eye, EyeOff, Pencil, KeyRound } from "lucide-react";
 
@@ -52,7 +53,10 @@ function buildFilters(
 }
 
 function AccountsPageContent() {
+  const { hasPermission } = useCurrentUser();
   const t = useTranslations("nav");
+  const ta = useTranslations("accounts");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const { data: accountsData, isLoading, error, refetch } = useAccounts();
   const updateAccount = useUpdateAccount();
@@ -182,13 +186,13 @@ function AccountsPageContent() {
         const data = await res.json();
         const result = data.data ?? data;
         toast({
-          title: "Success",
+          title: tc("success"),
           description: `${result.successful ?? ids.length} ${action}d, ${result.failed ?? 0} failed`,
         });
         await refetch();
       } catch (err) {
         toast({
-          title: "Error",
+          title: tc("error"),
           description: err instanceof Error ? err.message : "Bulk action failed",
           variant: "destructive",
         });
@@ -256,11 +260,11 @@ function AccountsPageContent() {
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["account", "billing", editingId] });
       queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-      toast({ title: "Success", description: "Account updated" });
+      toast({ title: tc("success"), description: "Account updated" });
       setEditingId(null);
     } catch (err) {
       toast({
-        title: "Error",
+        title: tc("error"),
         description: err instanceof Error ? err.message : "Update failed",
         variant: "destructive",
       });
@@ -277,13 +281,13 @@ function AccountsPageContent() {
         body: JSON.stringify(createForm),
       });
       if (!res.ok) throw new Error("Failed to create account");
-      toast({ title: "Success", description: "Account created" });
+      toast({ title: tc("success"), description: "Account created" });
       setShowCreate(false);
       setCreateForm({ name: "", email: "" });
       await refetch();
     } catch (err) {
       toast({
-        title: "Error",
+        title: tc("error"),
         description: err instanceof Error ? err.message : "Create failed",
         variant: "destructive",
       });
@@ -294,21 +298,24 @@ function AccountsPageContent() {
     refetch();
   }, [refetch]);
 
-  const formatDate = useCallback((dateString: string | null | undefined) => {
-    if (!dateString) return "Never";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }, []);
+  const formatDate = useCallback(
+    (dateString: string | null | undefined) => {
+      if (!dateString) return tc("never");
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    },
+    [tc]
+  );
 
   if (isLoading) {
     return (
       <div>
         <PageHeader title={t("accounts")} />
         <div className="flex justify-center items-center h-64">
-          <LoadingSpinner size="lg" label="Loading accounts..." />
+          <LoadingSpinner size="lg" label={ta("loadingAccounts")} />
         </div>
       </div>
     );
@@ -325,9 +332,9 @@ function AccountsPageContent() {
             size="sm"
             onClick={handleRefresh}
             className="ml-4"
-            aria-label="Retry loading accounts"
+            aria-label={ta("retryLoading")}
           >
-            Retry
+            {tc("retry")}
           </ActionButton>
         </div>
       </div>
@@ -345,18 +352,20 @@ function AccountsPageContent() {
               size="sm"
               onClick={handleRefresh}
               loading={isLoading}
-              aria-label="Refresh accounts data"
+              aria-label={ta("refreshData")}
             >
-              Refresh
+              {tc("refresh")}
             </ActionButton>
-            <ActionButton
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowCreate(true)}
-              aria-label="Create new account"
-            >
-              Create Account
-            </ActionButton>
+            {hasPermission("user:create") && (
+              <ActionButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowCreate(true)}
+                aria-label={ta("createAccount")}
+              >
+                {ta("createAccount")}
+              </ActionButton>
+            )}
           </div>
         }
       />
@@ -366,23 +375,25 @@ function AccountsPageContent() {
         <div
           className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 mb-4"
           role="region"
-          aria-label="Create new account"
+          aria-label={ta("createAccount")}
         >
-          <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">New Account</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+            {ta("createAccount")}
+          </h2>
           <div className="flex items-end gap-4">
             <div>
               <label
                 htmlFor="create-name"
                 className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
               >
-                Name
+                {tc("name")}
               </label>
               <input
                 id="create-name"
                 type="text"
                 value={createForm.name}
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Account name"
+                placeholder={tc("name")}
                 className="px-3 py-2 border border-[var(--border-default)] rounded-md bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)]"
               />
             </div>
@@ -391,7 +402,7 @@ function AccountsPageContent() {
                 htmlFor="create-email"
                 className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
               >
-                Email
+                {tc("email")}
               </label>
               <input
                 id="create-email"
@@ -403,10 +414,10 @@ function AccountsPageContent() {
               />
             </div>
             <ActionButton variant="primary" size="sm" onClick={handleCreateAccount}>
-              Create
+              {tc("create")}
             </ActionButton>
             <ActionButton variant="secondary" size="sm" onClick={() => setShowCreate(false)}>
-              Cancel
+              {tc("cancel")}
             </ActionButton>
           </div>
         </div>
@@ -417,30 +428,40 @@ function AccountsPageContent() {
         <div
           className="bg-[var(--accent-subtle)] border border-[var(--accent)] rounded-lg p-4 mb-4"
           role="region"
-          aria-label="Bulk actions"
+          aria-label={ta("bulkActions.title")}
           aria-live="polite"
         >
           <div className="flex items-center justify-between">
             <span className="text-sm text-[var(--accent)]" role="status">
-              {selectedAccounts.size} account{selectedAccounts.size !== 1 ? "s" : ""} selected
+              {selectedAccounts.size === 1
+                ? ta("bulkActions.selected", { count: selectedAccounts.size })
+                : ta("bulkActions.selectedPlural", { count: selectedAccounts.size })}
             </span>
             <div className="flex gap-2">
-              <ActionButton
-                variant="primary"
-                size="sm"
-                onClick={() => handleBulkAction("activate")}
-              >
-                Activate
-              </ActionButton>
-              <ActionButton variant="danger" size="sm" onClick={() => handleBulkAction("suspend")}>
-                Suspend
-              </ActionButton>
+              {hasPermission("user:update") && (
+                <>
+                  <ActionButton
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleBulkAction("activate")}
+                  >
+                    {ta("bulkActions.activate")}
+                  </ActionButton>
+                  <ActionButton
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleBulkAction("suspend")}
+                  >
+                    {ta("bulkActions.suspend")}
+                  </ActionButton>
+                </>
+              )}
               <ActionButton
                 variant="secondary"
                 size="sm"
                 onClick={() => handleBulkAction("export")}
               >
-                Export
+                {ta("bulkActions.export")}
               </ActionButton>
             </div>
           </div>
@@ -454,7 +475,7 @@ function AccountsPageContent() {
         aria-labelledby="filters-heading"
       >
         <h2 id="filters-heading" className="sr-only">
-          Filter accounts
+          {ta("filterAccounts")}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -462,7 +483,7 @@ function AccountsPageContent() {
               htmlFor="search-input"
               className="block text-sm font-medium text-[var(--text-secondary)] mb-2"
             >
-              Search
+              {tc("search")}
             </label>
             <input
               id="search-input"
@@ -472,9 +493,9 @@ function AccountsPageContent() {
                 setFilters((prev) => buildFilters(prev, { search: e.target.value }));
                 setPage(1);
               }}
-              placeholder="Search by email or name..."
+              placeholder={ta("searchPlaceholder")}
               className="w-full px-3 py-2 border border-[var(--border-default)] rounded-md bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)]"
-              aria-label="Search accounts by email or name"
+              aria-label={ta("searchLabel")}
             />
           </div>
           <div>
@@ -482,7 +503,7 @@ function AccountsPageContent() {
               htmlFor="status-filter"
               className="block text-sm font-medium text-[var(--text-secondary)] mb-2"
             >
-              Status
+              {tc("status")}
             </label>
             <select
               id="status-filter"
@@ -501,12 +522,12 @@ function AccountsPageContent() {
                 });
               }}
               className="w-full px-3 py-2 border border-[var(--border-default)] rounded-md bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)]"
-              aria-label="Filter by account status"
+              aria-label={ta("filterByStatus")}
             >
-              <option value="">All Statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="TRIAL">On Trial</option>
-              <option value="SUSPENDED">Suspended</option>
+              <option value="">{ta("allStatuses")}</option>
+              <option value="ACTIVE">{tc("active")}</option>
+              <option value="TRIAL">{ta("onTrial")}</option>
+              <option value="SUSPENDED">{ta("badges.suspended")}</option>
             </select>
           </div>
           <div>
@@ -514,7 +535,7 @@ function AccountsPageContent() {
               htmlFor="sort-by-select"
               className="block text-sm font-medium text-[var(--text-secondary)] mb-2"
             >
-              Sort By
+              {ta("sortBy")}
             </label>
             <select
               id="sort-by-select"
@@ -529,13 +550,13 @@ function AccountsPageContent() {
                 );
               }}
               className="w-full px-3 py-2 border border-[var(--border-default)] rounded-md bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)]"
-              aria-label="Sort accounts"
+              aria-label={ta("sortAccounts")}
             >
-              <option value="createdAt-desc">Newest First</option>
-              <option value="createdAt-asc">Oldest First</option>
-              <option value="email-asc">Email A-Z</option>
-              <option value="email-desc">Email Z-A</option>
-              <option value="lastLoginAt-desc">Last Login</option>
+              <option value="createdAt-desc">{ta("newestFirst")}</option>
+              <option value="createdAt-asc">{ta("oldestFirst")}</option>
+              <option value="email-asc">{ta("emailAZ")}</option>
+              <option value="email-desc">{ta("emailZA")}</option>
+              <option value="lastLoginAt-desc">{ta("lastLogin")}</option>
             </select>
           </div>
         </div>
@@ -556,44 +577,44 @@ function AccountsPageContent() {
                     checked={selectedAccounts.size === accounts.length && accounts.length > 0}
                     onChange={(e) => handleSelectAll(e.target.checked)}
                     className="rounded border-[var(--border-default)]"
-                    aria-label="Select all accounts"
+                    aria-label={ta("selectAll")}
                   />
                 </th>
                 <th
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
                 >
-                  Account
+                  {ta("table.account")}
                 </th>
                 <th
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
                 >
-                  Plan
+                  {tc("plan")}
                 </th>
                 <th
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
                 >
-                  Status
+                  {tc("status")}
                 </th>
                 <th
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
                 >
-                  Usage
+                  {ta("table.usage")}
                 </th>
                 <th
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
                 >
-                  Last Login
+                  {ta("table.lastLogin")}
                 </th>
                 <th
                   scope="col"
                   className="px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
                 >
-                  Actions
+                  {tc("actions")}
                 </th>
               </tr>
             </thead>
@@ -615,7 +636,7 @@ function AccountsPageContent() {
                         {account.name}
                       </div>
                       <div className="text-xs text-[var(--text-tertiary)]">
-                        Created {formatDate(account.createdAt)}
+                        {ta("created", { date: formatDate(account.createdAt) })}
                       </div>
                     </td>
                     <td className="px-3 py-2">
@@ -626,8 +647,10 @@ function AccountsPageContent() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="text-sm text-[var(--text-primary)]">
-                        {account.usage.projectsUsed} /{" "}
-                        {account.usage.projectsUsed + account.usage.projectsRemaining} projects
+                        {ta("projects", {
+                          used: account.usage.projectsUsed,
+                          total: account.usage.projectsUsed + account.usage.projectsRemaining,
+                        })}
                       </div>
                       <div className="w-full bg-[var(--bg-elevated)] rounded-full h-2 mt-1">
                         <div
@@ -645,8 +668,8 @@ function AccountsPageContent() {
                           onClick={() => handleView(account.id)}
                           className="p-1.5 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                           aria-expanded={expandedId === account.id}
-                          aria-label={expandedId === account.id ? "Hide details" : "View details"}
-                          title={expandedId === account.id ? "Hide" : "View details"}
+                          aria-label={ta("actions.viewDetails", { email: account.email })}
+                          title={ta("actions.viewDetails", { email: account.email })}
                         >
                           {expandedId === account.id ? (
                             <EyeOff className="h-4 w-4" />
@@ -657,16 +680,16 @@ function AccountsPageContent() {
                         <button
                           onClick={() => handleEdit(account)}
                           className="p-1.5 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                          aria-label={`Edit ${account.name}`}
-                          title="Edit"
+                          aria-label={ta("actions.editAccount", { email: account.email })}
+                          title={tc("edit")}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setResetPasswordId(account.id)}
                           className="p-1.5 rounded-md hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                          aria-label="Reset customer password"
-                          title="Reset password"
+                          aria-label={ta("resetPassword.title")}
+                          title={ta("resetPassword.button")}
                         >
                           <KeyRound className="h-4 w-4" />
                         </button>
@@ -691,7 +714,9 @@ function AccountsPageContent() {
                       <td colSpan={7} className="px-3 py-3 bg-[var(--bg-elevated)]">
                         <div className="mb-3 flex items-center gap-4 text-sm text-[var(--text-secondary)]">
                           <span>
-                            <span className="font-medium text-[var(--text-tertiary)]">Email:</span>{" "}
+                            <span className="font-medium text-[var(--text-tertiary)]">
+                              {ta("detail.email")}
+                            </span>{" "}
                             {account.email}
                           </span>
                           {account.phone && (
@@ -699,7 +724,7 @@ function AccountsPageContent() {
                               <span className="text-[var(--border-default)]">|</span>
                               <span>
                                 <span className="font-medium text-[var(--text-tertiary)]">
-                                  Phone:
+                                  {ta("detail.phone")}
                                 </span>{" "}
                                 {account.phone}
                               </span>
@@ -724,7 +749,7 @@ function AccountsPageContent() {
         </div>
         {accounts.length === 0 && !isLoading && (
           <div className="text-center py-12 text-[var(--text-secondary)]" role="status">
-            No accounts found matching your criteria
+            {ta("noResults")}
           </div>
         )}
       </div>
@@ -746,16 +771,16 @@ function AccountsPageContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-subtle)] p-6 w-full max-w-sm shadow-lg">
             <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-              Reset Customer Password
+              {ta("resetPassword.title")}
             </h2>
             <p className="text-sm text-[var(--text-secondary)] mb-4">
-              Enter a new password (minimum 8 characters).
+              {ta("resetPassword.description")}
             </p>
             <input
               type="password"
               value={resetPasswordValue}
               onChange={(e) => setResetPasswordValue(e.target.value)}
-              placeholder="New password"
+              placeholder={ta("resetPassword.placeholder")}
               className="w-full mb-4 rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
               minLength={8}
               autoFocus
@@ -769,7 +794,7 @@ function AccountsPageContent() {
                   setResetPasswordValue("");
                 }}
               >
-                Cancel
+                {tc("cancel")}
               </ActionButton>
               <ActionButton
                 variant="primary"
@@ -788,7 +813,7 @@ function AccountsPageContent() {
                   );
                 }}
               >
-                Reset Password
+                {ta("resetPassword.button")}
               </ActionButton>
             </div>
           </div>

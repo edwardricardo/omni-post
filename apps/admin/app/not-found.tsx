@@ -6,8 +6,11 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export default function NotFound() {
+  const t = useTranslations("notFound");
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--bg-base)]">
       <div className="text-center max-w-md p-8">
@@ -16,15 +19,13 @@ export default function NotFound() {
             <span className="text-[var(--accent)] text-2xl font-bold">404</span>
           </div>
         </div>
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">Page Not Found</h2>
-        <p className="text-[var(--text-secondary)] mb-4">
-          The page you are looking for does not exist or has been moved.
-        </p>
+        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">{t("title")}</h2>
+        <p className="text-[var(--text-secondary)] mb-4">{t("description")}</p>
         <Link
           href="/"
           className="inline-flex items-center justify-center rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] transition-colors"
         >
-          Go Home
+          {t("goHome")}
         </Link>
       </div>
     </div>

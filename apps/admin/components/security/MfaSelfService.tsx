@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { toast } from "@packages/ui";
 import { api } from "../../lib/apiClient";
@@ -23,6 +24,8 @@ interface MfaSetupData {
 }
 
 export function MfaSelfService() {
+  const ms = useTranslations("security.mfa.self");
+  const tc = useTranslations("common");
   const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null);
   const [backupCodesCount, setBackupCodesCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -67,8 +70,8 @@ export function MfaSelfService() {
       setSetupData(setup);
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to start MFA setup",
+        title: tc("error"),
+        description: err instanceof Error ? err.message : ms("setupFailed"),
         variant: "destructive",
       });
     } finally {
@@ -79,8 +82,8 @@ export function MfaSelfService() {
   const handleVerify = useCallback(async () => {
     if (!verifyCode.trim()) {
       toast({
-        title: "Validation",
-        description: "Enter the 6-digit code from your authenticator app",
+        title: tc("error"),
+        description: ms("enterCode"),
         variant: "destructive",
       });
       return;
@@ -93,11 +96,11 @@ export function MfaSelfService() {
       setBackupCodes(response.backupCodes);
       setSetupData(null);
       setVerifyCode("");
-      toast({ title: "Success", description: "MFA enabled successfully" });
+      toast({ title: tc("success"), description: ms("mfaEnabledSuccess") });
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to verify code",
+        title: tc("error"),
+        description: err instanceof Error ? err.message : ms("verifyFailed"),
         variant: "destructive",
       });
     } finally {
@@ -108,8 +111,8 @@ export function MfaSelfService() {
   const handleDisable = useCallback(async () => {
     if (!disableCode.trim()) {
       toast({
-        title: "Validation",
-        description: "Enter your current TOTP code to disable MFA",
+        title: tc("error"),
+        description: ms("enterTotpToDisable"),
         variant: "destructive",
       });
       return;
@@ -122,11 +125,11 @@ export function MfaSelfService() {
       setBackupCodesCount(0);
       setDisableCode("");
       setShowDisable(false);
-      toast({ title: "Success", description: "MFA disabled" });
+      toast({ title: tc("success"), description: ms("mfaDisabledSuccess") });
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to disable MFA",
+        title: tc("error"),
+        description: err instanceof Error ? err.message : ms("disableFailed"),
         variant: "destructive",
       });
     } finally {
@@ -154,35 +157,33 @@ export function MfaSelfService() {
           ) : (
             <ShieldOff className="h-4 w-4 text-[var(--text-tertiary)]" />
           )}
-          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Your MFA</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">{ms("title")}</h3>
         </div>
         <Badge variant={mfaEnabled ? "success" : "warning"}>
-          {mfaEnabled ? "Enabled" : "Not Set Up"}
+          {mfaEnabled ? tc("active") : ms("notSetUp")}
         </Badge>
       </div>
 
       {mfaEnabled && !showDisable && (
         <div className="space-y-2">
           <p className="text-xs text-[var(--text-secondary)]">
-            MFA is active on your account. {backupCodesCount} backup codes remaining.
+            {ms("active", { count: backupCodesCount })}
           </p>
           <ActionButton variant="danger" size="sm" onClick={() => setShowDisable(true)}>
-            Disable MFA
+            {ms("disableButton")}
           </ActionButton>
         </div>
       )}
 
       {mfaEnabled && showDisable && (
         <div className="space-y-3">
-          <p className="text-xs text-[var(--text-secondary)]">
-            Enter your current TOTP code to disable MFA.
-          </p>
+          <p className="text-xs text-[var(--text-secondary)]">{ms("disablePrompt")}</p>
           <div>
             <label
               htmlFor="disable-mfa-code"
               className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
             >
-              TOTP Code
+              {ms("totpCode")}
             </label>
             <input
               id="disable-mfa-code"
@@ -202,7 +203,7 @@ export function MfaSelfService() {
               loading={disableLoading}
               onClick={handleDisable}
             >
-              Confirm Disable
+              {ms("confirmDisable")}
             </ActionButton>
             <ActionButton
               variant="secondary"
@@ -212,7 +213,7 @@ export function MfaSelfService() {
                 setDisableCode("");
               }}
             >
-              Cancel
+              {tc("cancel")}
             </ActionButton>
           </div>
         </div>
@@ -220,25 +221,21 @@ export function MfaSelfService() {
 
       {!mfaEnabled && !setupData && (
         <div className="space-y-2">
-          <p className="text-xs text-[var(--text-secondary)]">
-            Protect your admin account with time-based one-time passwords (TOTP).
-          </p>
+          <p className="text-xs text-[var(--text-secondary)]">{ms("setupPrompt")}</p>
           <ActionButton
             variant="primary"
             size="sm"
             loading={setupLoading}
             onClick={handleStartSetup}
           >
-            Setup MFA
+            {ms("setupButton")}
           </ActionButton>
         </div>
       )}
 
       {!mfaEnabled && setupData && (
         <div className="space-y-3">
-          <p className="text-xs text-[var(--text-secondary)]">
-            Scan the QR code with your authenticator app (Google Authenticator, Authy, etc).
-          </p>
+          <p className="text-xs text-[var(--text-secondary)]">{ms("scanQr")}</p>
           {setupData.qrCode && (
             <div className="flex justify-center rounded-lg border border-[var(--border-subtle)] bg-white p-3">
               <img src={setupData.qrCode} alt="MFA QR code" className="h-40 w-40" />
@@ -246,7 +243,7 @@ export function MfaSelfService() {
           )}
           <div>
             <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
-              Manual entry key
+              {ms("manualKey")}
             </label>
             <code className="block rounded border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 py-1 font-mono text-xs text-[var(--text-primary)] select-all break-all">
               {setupData.secret}
@@ -257,7 +254,7 @@ export function MfaSelfService() {
               htmlFor="verify-mfa-code"
               className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
             >
-              Verification Code
+              {ms("verificationCode")}
             </label>
             <input
               id="verify-mfa-code"
@@ -267,7 +264,7 @@ export function MfaSelfService() {
               className={INPUT_CLASS}
               value={verifyCode}
               onChange={(e) => setVerifyCode(e.target.value)}
-              placeholder="Enter 6-digit code"
+              placeholder={ms("verifyPlaceholder")}
             />
           </div>
           <div className="flex gap-2">
@@ -277,7 +274,7 @@ export function MfaSelfService() {
               loading={verifyLoading}
               onClick={handleVerify}
             >
-              Verify & Enable
+              {ms("verifyEnable")}
             </ActionButton>
             <ActionButton
               variant="secondary"
@@ -287,7 +284,7 @@ export function MfaSelfService() {
                 setVerifyCode("");
               }}
             >
-              Cancel
+              {tc("cancel")}
             </ActionButton>
           </div>
         </div>
@@ -297,7 +294,7 @@ export function MfaSelfService() {
       {backupCodes && backupCodes.length > 0 && (
         <div className="mt-3 rounded-lg border border-[var(--warning)] border-opacity-30 bg-[var(--warning-subtle)] p-3">
           <p className="text-xs font-medium text-[var(--warning)] mb-2">
-            Save these backup codes securely. They will not be shown again.
+            {ms("backupCodesWarning")}
           </p>
           <div className="grid grid-cols-2 gap-1">
             {backupCodes.map((code) => (
@@ -315,7 +312,7 @@ export function MfaSelfService() {
             className="mt-2"
             onClick={() => setBackupCodes(null)}
           >
-            I have saved my codes
+            {ms("savedCodes")}
           </ActionButton>
         </div>
       )}

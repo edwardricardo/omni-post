@@ -1,11 +1,11 @@
 /**
- * Admin Executive Schemas
+ * Admin Analytics Schemas
  *
- * Zod validation schemas for executive dashboard and compliance endpoints.
- * Centralizes all input validation for executive metrics, compliance audit logs,
+ * Zod validation schemas for analytics dashboard and compliance endpoints.
+ * Centralizes all input validation for analytics metrics, compliance audit logs,
  * GDPR data requests, and account update operations.
  *
- * @module admin/executiveSchemas
+ * @module admin/analyticsSchemas
  */
 import { z } from "zod";
 import { IdSchema } from "@packages/api-common";
@@ -62,7 +62,7 @@ export const UpdateAccountBodySchema = z.object({
 /**
  * Query schema for executive metrics filtering
  */
-export const ExecutiveMetricsQuerySchema = z.object({
+export const AnalyticsMetricsQuerySchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   provider: z.enum(["X", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "TIKTOK"]).optional(),

@@ -8,7 +8,9 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
+import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { api } from "../../lib/apiClient";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
@@ -31,6 +33,9 @@ const ROLE_VARIANT: Record<string, "info" | "success" | "neutral"> = {
 };
 
 export default function MfaManager() {
+  const tm = useTranslations("security.mfa");
+  const tc = useTranslations("common");
+  const { hasPermission } = useCurrentUser();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +117,7 @@ export default function MfaManager() {
     return (
       <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
         <div className="flex justify-center items-center h-32">
-          <LoadingSpinner size="lg" label="Loading MFA data..." />
+          <LoadingSpinner size="lg" label={tc("loading")} />
         </div>
       </div>
     );
@@ -125,7 +130,7 @@ export default function MfaManager() {
           className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-4"
           role="alert"
         >
-          <h3 className="text-[var(--error)] font-medium">Error Loading MFA Manager</h3>
+          <h3 className="text-[var(--error)] font-medium">{tm("errorTitle")}</h3>
           <p className="text-[var(--error)] mt-1 text-sm">{error}</p>
         </div>
       </div>
@@ -135,26 +140,24 @@ export default function MfaManager() {
   return (
     <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-          Multi-Factor Authentication Management
-        </h2>
-        <p className="text-[var(--text-secondary)] text-sm">Manage MFA settings for admin users</p>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">{tm("managerTitle")}</h2>
+        <p className="text-[var(--text-secondary)] text-sm">{tm("managerDescription")}</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <div className="bg-[var(--bg-elevated)] p-4 rounded-lg">
-          <div className="text-sm text-[var(--text-secondary)]">Total Users</div>
+          <div className="text-sm text-[var(--text-secondary)]">{tm("totalUsers")}</div>
           <div className="text-2xl font-bold text-[var(--text-primary)]">{users.length}</div>
         </div>
         <div className="bg-[var(--success-subtle)] p-4 rounded-lg">
-          <div className="text-sm text-[var(--success)]">MFA Enabled</div>
+          <div className="text-sm text-[var(--success)]">{tm("mfaEnabled")}</div>
           <div className="text-2xl font-bold text-[var(--text-primary)]">
             {users.filter((u) => u.mfaEnabled).length}
           </div>
         </div>
         <div className="bg-[var(--error-subtle)] p-4 rounded-lg">
-          <div className="text-sm text-[var(--error)]">MFA Disabled</div>
+          <div className="text-sm text-[var(--error)]">{tm("mfaDisabled")}</div>
           <div className="text-2xl font-bold text-[var(--text-primary)]">
             {users.filter((u) => !u.mfaEnabled).length}
           </div>
@@ -176,11 +179,11 @@ export default function MfaManager() {
                 </div>
                 <div className="mt-2 flex items-center gap-4">
                   <Badge variant={user.mfaEnabled ? "success" : "error"}>
-                    MFA {user.mfaEnabled ? "Enabled" : "Disabled"}
+                    {tm("mfaStatus", { status: user.mfaEnabled ? tm("enabled") : tm("disabled") })}
                   </Badge>
                   {user.mfaEnabled && (
                     <span className="text-xs text-[var(--text-secondary)]">
-                      {user.backupCodesCount} backup codes remaining
+                      {tm("backupCodes", { count: user.backupCodesCount })}
                     </span>
                   )}
                 </div>
@@ -193,9 +196,9 @@ export default function MfaManager() {
                   onClick={() => setSelectedUser(user)}
                   aria-label={`View details for ${user.name}`}
                 >
-                  View Details
+                  {tm("viewDetails")}
                 </ActionButton>
-                {user.mfaEnabled && (
+                {user.mfaEnabled && hasPermission("user:manage_roles") && (
                   <ActionButton
                     variant="danger"
                     size="sm"
@@ -206,7 +209,7 @@ export default function MfaManager() {
                     loading={actionLoading === user.id}
                     aria-label={`Force disable MFA for ${user.name}`}
                   >
-                    Force Disable
+                    {tm("forceDisable")}
                   </ActionButton>
                 )}
               </div>
@@ -220,34 +223,40 @@ export default function MfaManager() {
         <div className="fixed inset-0 bg-[var(--bg-base)]/50 flex items-center justify-center p-4 z-50">
           <div className="bg-[var(--bg-surface)] rounded-lg max-w-md w-full p-6 border border-[var(--border-default)]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[var(--text-primary)]">MFA Details</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+                {tm("details.title")}
+              </h3>
               <ActionButton
                 variant="secondary"
                 size="sm"
                 onClick={() => setSelectedUser(null)}
-                aria-label="Close modal"
+                aria-label={tc("close")}
               >
-                Close
+                {tc("close")}
               </ActionButton>
             </div>
 
             <div className="space-y-4">
               <div>
-                <span className="text-sm font-medium text-[var(--text-secondary)]">User</span>
+                <span className="text-sm font-medium text-[var(--text-secondary)]">
+                  {tm("details.user")}
+                </span>
                 <div className="mt-1">
                   <div className="font-medium text-[var(--text-primary)]">{selectedUser.name}</div>
                   <div className="text-sm text-[var(--text-secondary)]">{selectedUser.email}</div>
                   <div className="text-sm text-[var(--text-secondary)]">
-                    Role: {selectedUser.role}
+                    {tm("details.role", { role: selectedUser.role })}
                   </div>
                 </div>
               </div>
 
               <div>
-                <span className="text-sm font-medium text-[var(--text-secondary)]">MFA Status</span>
+                <span className="text-sm font-medium text-[var(--text-secondary)]">
+                  {tm("details.status")}
+                </span>
                 <div className="mt-1">
                   <Badge variant={selectedUser.mfaEnabled ? "success" : "error"}>
-                    {selectedUser.mfaEnabled ? "Enabled" : "Disabled"}
+                    {selectedUser.mfaEnabled ? tm("enabled") : tm("disabled")}
                   </Badge>
                 </div>
               </div>
@@ -255,15 +264,13 @@ export default function MfaManager() {
               {selectedUser.mfaEnabled && (
                 <div>
                   <span className="text-sm font-medium text-[var(--text-secondary)]">
-                    Backup Codes
+                    {tm("details.backupCodes")}
                   </span>
                   <div className="mt-1 text-sm text-[var(--text-primary)]">
-                    {selectedUser.backupCodesCount} codes remaining
+                    {tm("details.codesRemaining", { count: selectedUser.backupCodesCount })}
                   </div>
                   {selectedUser.backupCodesCount < 3 && (
-                    <div className="text-sm text-[var(--warning)] mt-1">
-                      Low backup codes - user should regenerate
-                    </div>
+                    <div className="text-sm text-[var(--warning)] mt-1">{tm("lowBackupCodes")}</div>
                   )}
                 </div>
               )}

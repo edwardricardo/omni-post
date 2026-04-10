@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
@@ -46,6 +47,8 @@ interface WebhookEventsListProps {
 }
 
 export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsListProps) {
+  const te = useTranslations("webhooks.events");
+  const tc = useTranslations("common");
   const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<WebhookEvent | null>(null);
   const [pagination, setPagination] = useState({
@@ -130,15 +133,15 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "COMPLETED":
-        return <Badge variant="success">Completed</Badge>;
+        return <Badge variant="success">{te("completed")}</Badge>;
       case "PROCESSING":
-        return <Badge variant="info">Processing</Badge>;
+        return <Badge variant="info">{te("processing")}</Badge>;
       case "FAILED":
-        return <Badge variant="error">Failed</Badge>;
+        return <Badge variant="error">{te("failed")}</Badge>;
       case "RETRYING":
-        return <Badge variant="warning">Retrying</Badge>;
+        return <Badge variant="warning">{te("retrying")}</Badge>;
       case "DEAD_LETTER":
-        return <Badge variant="error">Dead Letter</Badge>;
+        return <Badge variant="error">{te("deadLetter")}</Badge>;
       default:
         return <Badge variant="neutral">{status}</Badge>;
     }
@@ -197,19 +200,17 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-[var(--text-primary)]">Webhook Events</h3>
-            <p className="text-sm text-[var(--text-secondary)]">
-              Recent webhook events and their processing status
-            </p>
+            <h3 className="text-base font-semibold text-[var(--text-primary)]">{te("title")}</h3>
+            <p className="text-sm text-[var(--text-secondary)]">{te("description")}</p>
           </div>
           <div className="flex items-center space-x-2">
             <ActionButton onClick={exportEvents} variant="secondary" size="sm">
               <Download className="h-4 w-4 mr-2" />
-              Export
+              {tc("export")}
             </ActionButton>
             <ActionButton onClick={fetchEvents} variant="secondary" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {tc("refresh")}
             </ActionButton>
           </div>
         </div>
@@ -219,7 +220,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-tertiary)] h-4 w-4" />
             <input
-              placeholder="Search events..."
+              placeholder={te("searchPlaceholder")}
               value={filters.search}
               onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
               className="w-full pl-10 pr-3 py-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
@@ -231,12 +232,12 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
             onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
             className="w-32 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           >
-            <option value="all">All Status</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="PROCESSING">Processing</option>
-            <option value="FAILED">Failed</option>
-            <option value="RETRYING">Retrying</option>
-            <option value="DEAD_LETTER">Dead Letter</option>
+            <option value="all">{te("allStatus")}</option>
+            <option value="COMPLETED">{te("completed")}</option>
+            <option value="PROCESSING">{te("processing")}</option>
+            <option value="FAILED">{te("failed")}</option>
+            <option value="RETRYING">{te("retrying")}</option>
+            <option value="DEAD_LETTER">{te("deadLetter")}</option>
           </select>
         </div>
       </div>
@@ -249,12 +250,12 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
           <div className="text-center py-8">
             <p className="text-[var(--error)] mb-4">{error}</p>
             <ActionButton onClick={fetchEvents} variant="secondary">
-              Retry
+              {tc("retry")}
             </ActionButton>
           </div>
         ) : events.length === 0 ? (
           <div className="text-center py-8 text-[var(--text-secondary)]">
-            <p>No webhook events found</p>
+            <p>{te("noEvents")}</p>
           </div>
         ) : (
           <>
@@ -262,25 +263,25 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
               <thead>
                 <tr className="border-b border-[var(--border-subtle)]">
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Event
+                    {te("table.event")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Provider
+                    {te("table.provider")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Type
+                    {te("table.type")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Status
+                    {te("table.status")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Processing Time
+                    {te("table.processingTime")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Received
+                    {te("table.received")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
-                    Actions
+                    {te("table.actions")}
                   </th>
                 </tr>
               </thead>
@@ -295,7 +296,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                         <p className="font-medium text-sm">{event.eventId}</p>
                         {event.retryCount > 0 && (
                           <p className="text-xs text-[var(--warning)]">
-                            Retried {event.retryCount} times
+                            {te("retried", { count: event.retryCount })}
                           </p>
                         )}
                       </div>
@@ -340,35 +341,43 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                           <DialogHeader>
-                            <DialogTitle>Webhook Event Details</DialogTitle>
+                            <DialogTitle>{te("details.title")}</DialogTitle>
                             <DialogDescription>
-                              Event ID: {selectedEvent?.eventId}
+                              {te("details.eventId", { id: selectedEvent?.eventId ?? "" })}
                             </DialogDescription>
                           </DialogHeader>
                           {selectedEvent && (
                             <div className="space-y-4">
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                  <label className="text-sm font-medium">Provider</label>
+                                  <label className="text-sm font-medium">
+                                    {te("details.provider")}
+                                  </label>
                                   <p>{getProviderBadge(selectedEvent.provider)}</p>
                                 </div>
                                 <div>
-                                  <label className="text-sm font-medium">Status</label>
+                                  <label className="text-sm font-medium">
+                                    {te("details.status")}
+                                  </label>
                                   <p>{getStatusBadge(selectedEvent.status)}</p>
                                 </div>
                                 <div>
-                                  <label className="text-sm font-medium">Event Type</label>
+                                  <label className="text-sm font-medium">
+                                    {te("details.eventType")}
+                                  </label>
                                   <p className="text-sm">
                                     {formatEventType(selectedEvent.eventType)}
                                   </p>
                                 </div>
                                 <div>
-                                  <label className="text-sm font-medium">Verified</label>
+                                  <label className="text-sm font-medium">
+                                    {te("details.verified")}
+                                  </label>
                                   <p className="text-sm">
                                     {selectedEvent.verified ? (
-                                      <Badge variant="success">Verified</Badge>
+                                      <Badge variant="success">{te("details.verified")}</Badge>
                                     ) : (
-                                      <Badge variant="error">Not Verified</Badge>
+                                      <Badge variant="error">{te("details.notVerified")}</Badge>
                                     )}
                                   </p>
                                 </div>
@@ -377,7 +386,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                               {selectedEvent.lastError && (
                                 <div>
                                   <label className="text-sm font-medium text-[var(--error)]">
-                                    Last Error
+                                    {te("details.lastError")}
                                   </label>
                                   <p className="text-sm bg-[var(--error-subtle)] p-2 rounded-sm border">
                                     {selectedEvent.lastError}
@@ -387,23 +396,25 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
 
                               <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
-                                  <label className="font-medium">Received At</label>
+                                  <label className="font-medium">{te("details.receivedAt")}</label>
                                   <p>{new Date(selectedEvent.receivedAt).toLocaleString()}</p>
                                 </div>
                                 {selectedEvent.processedAt && (
                                   <div>
-                                    <label className="font-medium">Processed At</label>
+                                    <label className="font-medium">
+                                      {te("details.processedAt")}
+                                    </label>
                                     <p>{new Date(selectedEvent.processedAt).toLocaleString()}</p>
                                   </div>
                                 )}
                                 {selectedEvent.nextRetryAt && (
                                   <div>
-                                    <label className="font-medium">Next Retry</label>
+                                    <label className="font-medium">{te("details.nextRetry")}</label>
                                     <p>{new Date(selectedEvent.nextRetryAt).toLocaleString()}</p>
                                   </div>
                                 )}
                                 <div>
-                                  <label className="font-medium">Retry Count</label>
+                                  <label className="font-medium">{te("details.retryCount")}</label>
                                   <p>{selectedEvent.retryCount}</p>
                                 </div>
                               </div>
@@ -412,14 +423,22 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                                 selectedEvent.postId ||
                                 selectedEvent.channelId) && (
                                 <div>
-                                  <label className="text-sm font-medium">Related Entities</label>
+                                  <label className="text-sm font-medium">
+                                    {te("details.relatedEntities")}
+                                  </label>
                                   <div className="text-sm space-y-1">
                                     {selectedEvent.projectId && (
-                                      <p>Project: {selectedEvent.projectId}</p>
+                                      <p>
+                                        {te("details.project", { id: selectedEvent.projectId })}
+                                      </p>
                                     )}
-                                    {selectedEvent.postId && <p>Post: {selectedEvent.postId}</p>}
+                                    {selectedEvent.postId && (
+                                      <p>{te("details.post", { id: selectedEvent.postId })}</p>
+                                    )}
                                     {selectedEvent.channelId && (
-                                      <p>Channel: {selectedEvent.channelId}</p>
+                                      <p>
+                                        {te("details.channel", { id: selectedEvent.channelId })}
+                                      </p>
                                     )}
                                   </div>
                                 </div>
@@ -437,9 +456,11 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
             {/* Pagination */}
             <div className="flex items-center justify-between mt-6">
               <div className="text-sm text-[var(--text-secondary)]">
-                Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-                {pagination.total} events
+                {te("pagination.showing", {
+                  from: (pagination.page - 1) * pagination.limit + 1,
+                  to: Math.min(pagination.page * pagination.limit, pagination.total),
+                  total: pagination.total,
+                })}
               </div>
               <div className="flex items-center space-x-2">
                 <ActionButton
@@ -449,10 +470,10 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                   disabled={pagination.page === 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  Previous
+                  {tc("previous")}
                 </ActionButton>
                 <span className="text-sm">
-                  Page {pagination.page} of {pagination.pages}
+                  {tc("page", { current: pagination.page, total: pagination.pages })}
                 </span>
                 <ActionButton
                   variant="secondary"
@@ -460,7 +481,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                   onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
                   disabled={pagination.page === pagination.pages}
                 >
-                  Next
+                  {tc("next")}
                   <ChevronRight className="h-4 w-4" />
                 </ActionButton>
               </div>

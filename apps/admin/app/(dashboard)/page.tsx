@@ -7,11 +7,14 @@
  */
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { useDashboardStats } from "@/hooks/api/useDashboardStats";
+import { DonutChart, HorizontalBarChart } from "@/components/charts";
+import type { DonutChartDatum } from "@/components/charts";
+import { useChartColors } from "@/hooks/useChartColors";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
@@ -20,7 +23,34 @@ import { Badge } from "@/components/ui/Badge";
 
 function DashboardContent() {
   const t = useTranslations("nav");
+  const td = useTranslations("pages.dashboard");
+  const tc = useTranslations("common");
   const { data: stats, isLoading: loading, error, refetch } = useDashboardStats();
+  const colors = useChartColors();
+
+  const subscriptionChartData: DonutChartDatum[] = useMemo(() => {
+    const subs = stats?.subscriptions;
+    if (!subs) return [];
+    const entries: Array<[string, number, string]> = [
+      ["Active", subs.ACTIVE ?? 0, colors.success],
+      ["Trialing", subs.TRIALING ?? 0, colors.warning],
+      ["Grandfathered", subs.GRANDFATHERED ?? 0, colors.accent],
+      ["Canceled", subs.CANCELED ?? 0, colors.error],
+      ["Past Due", subs.PAST_DUE ?? 0, colors.error],
+    ];
+    return entries
+      .filter(([, value]) => value > 0)
+      .map(([name, value, color]) => ({ name, value, color }));
+  }, [stats?.subscriptions, colors]);
+
+  const revenueChartData = useMemo(() => {
+    const rev = stats?.revenue;
+    if (!rev) return [];
+    return [
+      { name: td("charts.monthlySubscriptions"), value: rev.monthly ?? 0, color: colors.accent },
+      { name: td("charts.yearlySubscriptions"), value: rev.yearly ?? 0, color: colors.success },
+    ];
+  }, [stats?.revenue, colors, td]);
 
   const handleRefresh = useCallback(() => {
     refetch();
@@ -31,7 +61,7 @@ function DashboardContent() {
       <div>
         <PageHeader title={t("dashboard")} />
         <div className="flex justify-center items-center h-64">
-          <LoadingSpinner size="lg" label="Loading dashboard data..." />
+          <LoadingSpinner size="lg" label={td("loadingData")} />
         </div>
       </div>
     );
@@ -54,9 +84,9 @@ function DashboardContent() {
             size="sm"
             onClick={handleRefresh}
             className="mt-2"
-            aria-label="Retry loading dashboard"
+            aria-label={td("retryLoading")}
           >
-            Retry
+            {tc("retry")}
           </ActionButton>
         </div>
       </div>
@@ -65,8 +95,6 @@ function DashboardContent() {
 
   if (!stats) return null;
 
-  const monthlyRevenue = stats.revenue?.monthly ?? 0;
-  const yearlyRevenue = stats.revenue?.yearly ?? 0;
   const totalRevenue = stats.revenue?.total ?? 0;
 
   return (
@@ -76,16 +104,16 @@ function DashboardContent() {
         actions={
           <div className="flex items-center gap-2">
             <Badge variant={loading ? "warning" : "success"}>
-              {loading ? "Updating..." : "Live"}
+              {loading ? tc("updating") : tc("live")}
             </Badge>
             <ActionButton
               variant="primary"
               size="sm"
               onClick={handleRefresh}
               loading={loading}
-              aria-label="Refresh dashboard data"
+              aria-label={td("refreshData")}
             >
-              Refresh
+              {tc("refresh")}
             </ActionButton>
           </div>
         }
@@ -95,95 +123,57 @@ function DashboardContent() {
       <div
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4"
         role="region"
-        aria-label="Dashboard statistics"
+        aria-label={td("stats.title")}
       >
-        <StatCard label="Total Accounts" value={stats?.accounts?.total?.toLocaleString() ?? "0"} />
-        <StatCard label="Active Trials" value={String(stats?.accounts?.trialsActive ?? 0)} />
-        <StatCard label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} />
-        <StatCard label="Today's Logins" value={String(stats?.activity?.loginsToday ?? 0)} />
+        <StatCard
+          label={td("stats.totalAccounts")}
+          value={stats?.accounts?.total?.toLocaleString() ?? "0"}
+        />
+        <StatCard
+          label={td("stats.activeTrials")}
+          value={String(stats?.accounts?.trialsActive ?? 0)}
+        />
+        <StatCard label={td("stats.totalRevenue")} value={`$${totalRevenue.toLocaleString()}`} />
+        <StatCard
+          label={td("stats.todayLogins")}
+          value={String(stats?.activity?.loginsToday ?? 0)}
+        />
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Subscription Distribution */}
-        <div
-          className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3"
-          role="region"
-          aria-labelledby="chart-plans"
-        >
-          <h2 id="chart-plans" className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-            Subscription Distribution
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+            {td("charts.subscriptionDistribution")}
           </h2>
-          <div className="space-y-4">
-            {(["ACTIVE", "TRIALING", "GRANDFATHERED", "CANCELED", "PAST_DUE"] as const).map(
-              (status) => {
-                const count = stats?.subscriptions?.[status] ?? 0;
-                const total = Object.values(stats?.subscriptions ?? {}).reduce(
-                  (sum, v) => sum + (v ?? 0),
-                  0
-                );
-                const pct = total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
-                const colorMap: Record<string, string> = {
-                  ACTIVE: "bg-[var(--success)]",
-                  TRIALING: "bg-[var(--warning)]",
-                  GRANDFATHERED: "bg-[var(--accent)]",
-                  CANCELED: "bg-[var(--error)]",
-                  PAST_DUE: "bg-[var(--error)]",
-                };
-                return (
-                  <div key={status} className="flex justify-between items-center">
-                    <div className="flex items-center">
-                      <div
-                        className={`w-3 h-3 ${colorMap[status] ?? "bg-[var(--text-tertiary)]"} rounded-sm mr-2`}
-                      />
-                      <span className="text-sm text-[var(--text-secondary)] capitalize">
-                        {status.toLowerCase().replace("_", " ")}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-[var(--text-primary)]">
-                        {count}
-                      </div>
-                      <div className="text-xs text-[var(--text-tertiary)]">{pct}%</div>
-                    </div>
-                  </div>
-                );
-              }
-            )}
-          </div>
+          <DonutChart
+            data={subscriptionChartData}
+            height={280}
+            emptyMessage={td("charts.subscriptionDistribution")}
+          />
         </div>
 
         {/* Revenue Breakdown */}
-        <div
-          className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3"
-          role="region"
-          aria-labelledby="chart-revenue"
-        >
-          <h2 id="chart-revenue" className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-            Revenue Breakdown
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+            {td("charts.revenueBreakdown")}
           </h2>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--text-secondary)]">Monthly Subscriptions</span>
-              <span className="text-sm font-semibold text-[var(--text-primary)]">
-                ${monthlyRevenue.toLocaleString()}
+          <HorizontalBarChart
+            data={revenueChartData}
+            height={140}
+            formatValue={(v) => `$${v.toLocaleString()}`}
+          />
+          {stats?.revenue?.total !== undefined && (
+            <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex justify-between">
+              <span className="text-sm font-medium text-[var(--text-secondary)]">
+                {td("charts.totalMrr")}
+              </span>
+              <span className="text-sm font-bold text-[var(--text-primary)]">
+                ${(stats.revenue.total ?? 0).toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--text-secondary)]">Yearly Subscriptions</span>
-              <span className="text-sm font-semibold text-[var(--text-primary)]">
-                ${yearlyRevenue.toLocaleString()}
-              </span>
-            </div>
-            <div className="border-t border-[var(--border-subtle)] pt-2">
-              <div className="flex justify-between items-center">
-                <span className="text-base font-medium text-[var(--text-primary)]">Total MRR</span>
-                <span className="text-base font-bold text-[var(--success)]">
-                  ${totalRevenue.toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -194,15 +184,31 @@ function DashboardContent() {
         aria-labelledby="quick-actions"
       >
         <h2 id="quick-actions" className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-          Quick Actions
+          {td("quickActions.title")}
         </h2>
-        <nav aria-label="Quick action links">
+        <nav aria-label={td("quickActions.title")}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { href: "/accounts", title: "Manage Accounts", desc: "View and edit user accounts" },
-              { href: "/subscriptions", title: "Subscriptions", desc: "Manage billing and trials" },
-              { href: "/executive", title: "Executive", desc: "View detailed reports" },
-              { href: "/webhooks", title: "System Logs", desc: "Monitor system activity" },
+              {
+                href: "/accounts",
+                title: td("quickActions.manageAccounts"),
+                desc: td("quickActions.manageAccountsDesc"),
+              },
+              {
+                href: "/subscriptions",
+                title: td("quickActions.subscriptions"),
+                desc: td("quickActions.subscriptionsDesc"),
+              },
+              {
+                href: "/analytics",
+                title: td("quickActions.analytics"),
+                desc: td("quickActions.analyticsDesc"),
+              },
+              {
+                href: "/webhooks",
+                title: td("quickActions.systemLogs"),
+                desc: td("quickActions.systemLogsDesc"),
+              },
             ].map((item) => (
               <Link
                 key={item.href}

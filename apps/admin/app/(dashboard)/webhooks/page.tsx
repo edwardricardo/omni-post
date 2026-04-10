@@ -40,6 +40,8 @@ import { StatCard } from "@/components/ui/StatCard";
 
 function WebhookDashboardContent() {
   const t = useTranslations("nav");
+  const tw = useTranslations("webhooks");
+  const tc = useTranslations("common");
   const [timeRange, setTimeRange] = useState("24h");
   const [selectedProvider, setSelectedProvider] = useState<string>("all");
   const [activeTab, setActiveTab] = useState("overview");
@@ -66,7 +68,7 @@ function WebhookDashboardContent() {
       <div>
         <PageHeader title={t("webhooks")} />
         <div className="flex items-center justify-center h-64">
-          <LoadingSpinner size="lg" label="Loading webhook data..." />
+          <LoadingSpinner size="lg" label={tc("loading")} />
         </div>
       </div>
     );
@@ -79,13 +81,13 @@ function WebhookDashboardContent() {
         <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center">
           <AlertCircle className="h-12 w-12 text-[var(--error)] mx-auto mb-4" />
           <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
-            Failed to load webhook dashboard
+            {tw("errorTitle")}
           </h3>
           <p className="text-[var(--text-secondary)] mb-4">
             {error instanceof Error ? error.message : String(error)}
           </p>
           <ActionButton variant="primary" size="sm" onClick={handleRefresh}>
-            Retry
+            {tc("retry")}
           </ActionButton>
         </div>
       </div>
@@ -96,15 +98,15 @@ function WebhookDashboardContent() {
     <div className="space-y-4">
       <PageHeader
         title={t("webhooks")}
-        description="Monitor and manage your webhook integrations"
+        description={tw("description")}
         actions={
           <div className="flex items-center gap-2">
             <Select value={selectedProvider} onValueChange={setSelectedProvider}>
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="All Providers" />
+                <SelectValue placeholder={tc("allProviders")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Providers</SelectItem>
+                <SelectItem value="all">{tc("allProviders")}</SelectItem>
                 <SelectItem value="X">X (Twitter)</SelectItem>
                 <SelectItem value="INSTAGRAM">Instagram</SelectItem>
                 <SelectItem value="FACEBOOK">Facebook</SelectItem>
@@ -118,11 +120,11 @@ function WebhookDashboardContent() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1h">Last Hour</SelectItem>
-                <SelectItem value="6h">Last 6 Hours</SelectItem>
-                <SelectItem value="24h">Last 24 Hours</SelectItem>
-                <SelectItem value="7d">Last 7 Days</SelectItem>
-                <SelectItem value="30d">Last 30 Days</SelectItem>
+                <SelectItem value="1h">{tw("timeRange.lastHour")}</SelectItem>
+                <SelectItem value="6h">{tw("timeRange.last6Hours")}</SelectItem>
+                <SelectItem value="24h">{tw("timeRange.last24Hours")}</SelectItem>
+                <SelectItem value="7d">{tw("timeRange.last7Days")}</SelectItem>
+                <SelectItem value="30d">{tw("timeRange.last30Days")}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -134,7 +136,7 @@ function WebhookDashboardContent() {
               aria-label="Refresh webhook data"
             >
               <Activity className="h-3.5 w-3.5" aria-hidden="true" />
-              Refresh
+              {tc("refresh")}
             </ActionButton>
           </div>
         }
@@ -143,24 +145,33 @@ function WebhookDashboardContent() {
       {/* Key Metrics */}
       {metrics && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Events" value={Number(metrics.totalEvents).toLocaleString()} />
-          <StatCard label="Success Rate" value={`${Number(metrics.successRate).toFixed(1)}%`} />
           <StatCard
-            label="Avg Processing Time"
+            label={tw("metrics.totalEvents")}
+            value={Number(metrics.totalEvents).toLocaleString()}
+          />
+          <StatCard
+            label={tw("metrics.successRate")}
+            value={`${Number(metrics.successRate).toFixed(1)}%`}
+          />
+          <StatCard
+            label={tw("metrics.avgProcessingTime")}
             value={`${Number(metrics.avgProcessingTime).toFixed(0)}ms`}
           />
-          <StatCard label="Failed Events" value={Number(metrics.failedEvents).toLocaleString()} />
+          <StatCard
+            label={tw("metrics.failedEvents")}
+            value={Number(metrics.failedEvents).toLocaleString()}
+          />
         </div>
       )}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="dead-letter">Dead Letter</TabsTrigger>
+          <TabsTrigger value="overview">{tw("tabs.overview")}</TabsTrigger>
+          <TabsTrigger value="events">{tw("tabs.events")}</TabsTrigger>
+          <TabsTrigger value="subscriptions">{tw("tabs.subscriptions")}</TabsTrigger>
+          <TabsTrigger value="analytics">{tw("tabs.analytics")}</TabsTrigger>
+          <TabsTrigger value="dead-letter">{tw("tabs.deadLetter")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -188,10 +199,8 @@ function WebhookDashboardContent() {
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle>Provider Performance</CardTitle>
-                  <CardDescription>
-                    Webhook processing statistics by social media platform
-                  </CardDescription>
+                  <CardTitle>{tw("providerPerformance.title")}</CardTitle>
+                  <CardDescription>{tw("providerPerformance.description")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -229,8 +238,8 @@ function WebhookDashboardContent() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Event Types</CardTitle>
-                  <CardDescription>Distribution of webhook events by type</CardDescription>
+                  <CardTitle>{tw("eventTypes.title")}</CardTitle>
+                  <CardDescription>{tw("eventTypes.description")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">

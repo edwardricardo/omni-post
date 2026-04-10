@@ -7,6 +7,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw, Timer } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -35,6 +36,9 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 // ---------------------------------------------------------------------------
 
 export default function MaintenancePage() {
+  const tm = useTranslations("maintenance");
+  const tc = useTranslations("common");
+
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQueueStats();
 
   const { data: failedJobs, isLoading: jobsLoading, refetch: refetchJobs } = useFailedJobs();
@@ -58,9 +62,9 @@ export default function MaintenancePage() {
   if (statsLoading && jobsLoading) {
     return (
       <div>
-        <PageHeader title="Maintenance" description="Queue monitoring and operations" />
+        <PageHeader title={tm("title")} description={tm("description")} />
         <div className="flex h-64 items-center justify-center">
-          <LoadingSpinner size="lg" label="Loading maintenance data..." />
+          <LoadingSpinner size="lg" label={tm("loadingData")} />
         </div>
       </div>
     );
@@ -79,12 +83,12 @@ export default function MaintenancePage() {
   return (
     <div>
       <PageHeader
-        title="Maintenance"
-        description="Queue monitoring and operations"
+        title={tm("title")}
+        description={tm("description")}
         actions={
           <ActionButton variant="secondary" size="sm" onClick={handleRefresh}>
             <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
+            {tc("refresh")}
           </ActionButton>
         }
       />
@@ -92,33 +96,41 @@ export default function MaintenancePage() {
       {/* Section 1 - Queue Overview */}
       <section className="mb-8" aria-labelledby="queue-overview-heading">
         <SectionHeading>
-          <span id="queue-overview-heading">Queue Overview</span>
+          <span id="queue-overview-heading">{tm("queueOverview")}</span>
         </SectionHeading>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
           <StatCard
-            label="Active Jobs"
+            label={tm("stats.activeJobs")}
             value={activeJobs}
             icon={<Activity className="h-4 w-4" />}
           />
-          <StatCard label="Waiting" value={waitingJobs} icon={<Clock className="h-4 w-4" />} />
           <StatCard
-            label="Completed"
+            label={tm("stats.waiting")}
+            value={waitingJobs}
+            icon={<Clock className="h-4 w-4" />}
+          />
+          <StatCard
+            label={tm("stats.completed")}
             value={completedJobs}
             icon={<CheckCircle2 className="h-4 w-4" />}
           />
           <StatCard
-            label="Failed"
+            label={tm("stats.failed")}
             value={failedCount}
             icon={<AlertTriangle className="h-4 w-4" />}
           />
-          <StatCard label="Delayed" value={delayedJobs} icon={<Timer className="h-4 w-4" />} />
+          <StatCard
+            label={tm("stats.delayed")}
+            value={delayedJobs}
+            icon={<Timer className="h-4 w-4" />}
+          />
         </div>
       </section>
 
       {/* Section 2 - Scheduled Jobs */}
       <section className="mb-8" aria-labelledby="scheduled-jobs-heading">
         <SectionHeading>
-          <span id="scheduled-jobs-heading">Scheduled Jobs</span>
+          <span id="scheduled-jobs-heading">{tm("scheduledJobs")}</span>
         </SectionHeading>
         <ScheduledJobsPanel />
       </section>
@@ -126,7 +138,7 @@ export default function MaintenancePage() {
       {/* Section 3 - Failed Jobs */}
       <section className="mb-8" aria-labelledby="failed-jobs-heading">
         <SectionHeading>
-          <span id="failed-jobs-heading">Failed Jobs</span>
+          <span id="failed-jobs-heading">{tm("failedJobs")}</span>
         </SectionHeading>
         <FailedJobsTable
           jobs={failedJobs ?? []}
@@ -138,7 +150,7 @@ export default function MaintenancePage() {
       {/* Section 4 - Queue Health */}
       <section aria-labelledby="queue-health-heading">
         <SectionHeading>
-          <span id="queue-health-heading">Queue Health</span>
+          <span id="queue-health-heading">{tm("queueHealth")}</span>
         </SectionHeading>
         <QueueHealthPanel stats={stats} />
       </section>

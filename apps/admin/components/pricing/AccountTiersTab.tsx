@@ -6,6 +6,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import {
   toast,
@@ -35,6 +36,8 @@ interface AccountTiersTabProps {
 }
 
 export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
+  const tp = useTranslations("pricing");
+  const tc = useTranslations("common");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string | number | null>>({});
   const [createOpen, setCreateOpen] = useState(false);
@@ -68,20 +71,20 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
         { id, data },
         {
           onSuccess: () => {
-            toast({ title: "Updated", description: "Account tier saved" });
+            toast({ title: tc("success"), description: tp("toasts.tierUpdated") });
             setEditingId(null);
           },
           onError: (err) => {
             toast({
-              title: "Error",
-              description: err instanceof Error ? err.message : "Failed to save",
+              title: tc("error"),
+              description: err instanceof Error ? err.message : tp("toasts.tierUpdateFailed"),
               variant: "destructive",
             });
           },
         }
       );
     },
-    [editForm, mutation]
+    [editForm, mutation, tc, tp]
   );
 
   const handleCancel = useCallback(() => {
@@ -95,24 +98,26 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
         {
           onSuccess: () => {
             toast({
-              title: "Updated",
-              description: `Tier ${tier.isActive ? "deactivated" : "activated"}`,
+              title: tc("success"),
+              description: tier.isActive
+                ? tp("toasts.tierDeactivated")
+                : tp("toasts.tierActivated"),
             });
           },
           onError: (err) => {
-            toast({ title: "Error", description: err.message, variant: "destructive" });
+            toast({ title: tc("error"), description: err.message, variant: "destructive" });
           },
         }
       );
     },
-    [toggleMutation]
+    [toggleMutation, tc, tp]
   );
 
   const handleCreateSubmit = useCallback(() => {
     if (newMultiplier <= 0) {
       toast({
-        title: "Validation",
-        description: "Multiplier must be greater than 0",
+        title: tp("toasts.validationError"),
+        description: tp("multiplierMustBePositive"),
         variant: "destructive",
       });
       return;
@@ -121,23 +126,23 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
       { minAccounts: newMin, maxAccounts: newMax, multiplier: newMultiplier },
       {
         onSuccess: () => {
-          toast({ title: "Success", description: "Account tier created" });
+          toast({ title: tc("success"), description: tp("toasts.tierCreated") });
           setCreateOpen(false);
           setNewMin(1);
           setNewMax(null);
           setNewMultiplier(1);
         },
         onError: (err) => {
-          toast({ title: "Error", description: err.message, variant: "destructive" });
+          toast({ title: tc("error"), description: err.message, variant: "destructive" });
         },
       }
     );
-  }, [newMin, newMax, newMultiplier, createMutation]);
+  }, [newMin, newMax, newMultiplier, createMutation, tc, tp]);
 
   const columns = [
     {
       key: "minAccounts",
-      header: "Min Accounts",
+      header: tp("accountTiers.minAccounts"),
       render: (t: AccountTier) =>
         editingId === t.id ? (
           <input
@@ -154,7 +159,7 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
     },
     {
       key: "maxAccounts",
-      header: "Max Accounts",
+      header: tp("accountTiers.maxAccounts"),
       render: (t: AccountTier) =>
         editingId === t.id ? (
           <input
@@ -171,12 +176,12 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
         ) : t.maxAccounts !== null ? (
           String(t.maxAccounts)
         ) : (
-          "No limit"
+          tp("accountTiers.noLimit")
         ),
     },
     {
       key: "multiplier",
-      header: "Multiplier",
+      header: tp("accountTiers.multiplier"),
       render: (t: AccountTier) =>
         editingId === t.id ? (
           <input
@@ -196,7 +201,7 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
     },
     {
       key: "status",
-      header: "Active",
+      header: tc("active"),
       render: (t: AccountTier) => (
         <button
           type="button"
@@ -206,7 +211,7 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
           disabled={toggleMutation.isPending}
           className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:opacity-50"
           style={{ backgroundColor: t.isActive ? "var(--success)" : "var(--border-strong)" }}
-          aria-label={`${t.isActive ? "Deactivate" : "Activate"} tier`}
+          aria-label={t.isActive ? tp("deactivateTier") : tp("activateTier")}
         >
           <span
             className="pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
@@ -217,7 +222,7 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
     },
     {
       key: "actions",
-      header: "Actions",
+      header: tc("actions"),
       render: (t: AccountTier) =>
         editingId === t.id ? (
           <div className="flex gap-1">
@@ -227,15 +232,15 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
               loading={mutation.isPending}
               onClick={() => handleSave(t.id)}
             >
-              Save
+              {tc("save")}
             </ActionButton>
             <ActionButton variant="secondary" size="sm" onClick={handleCancel}>
-              Cancel
+              {tc("cancel")}
             </ActionButton>
           </div>
         ) : (
           <ActionButton variant="secondary" size="sm" onClick={() => handleEdit(t)}>
-            Edit
+            {tc("edit")}
           </ActionButton>
         ),
     },
@@ -244,10 +249,12 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Account Tiers</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+          {tp("accountTiers.title")}
+        </h3>
         <ActionButton variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="h-3.5 w-3.5" />
-          New Tier
+          {tp("newTier")}
         </ActionButton>
       </div>
 
@@ -256,15 +263,15 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
         data={tiers}
         isLoading={isLoading}
         rowKey={(t) => t.id}
-        emptyMessage="No account tiers configured"
+        emptyMessage={tp("noAccountTiers")}
       />
 
       {/* Create Account Tier Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>New Account Tier</DialogTitle>
-            <DialogDescription>Define a new pricing tier based on account count.</DialogDescription>
+            <DialogTitle>{tp("newAccountTier")}</DialogTitle>
+            <DialogDescription>{tp("newAccountTierDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -272,7 +279,7 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
                 htmlFor="new-at-min"
                 className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Min Accounts
+                {tp("accountTiers.minAccounts")}
               </label>
               <input
                 id="new-at-min"
@@ -288,7 +295,7 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
                 htmlFor="new-at-max"
                 className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Max Accounts (optional)
+                {tp("accountTiers.maxAccounts")} {tp("maxOptional")}
               </label>
               <input
                 id="new-at-max"
@@ -303,7 +310,7 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
                 htmlFor="new-at-multiplier"
                 className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Multiplier
+                {tp("accountTiers.multiplier")}
               </label>
               <input
                 id="new-at-multiplier"
@@ -318,7 +325,7 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
           </div>
           <DialogFooter>
             <ActionButton variant="secondary" size="sm" onClick={() => setCreateOpen(false)}>
-              Cancel
+              {tc("cancel")}
             </ActionButton>
             <ActionButton
               variant="primary"
@@ -326,7 +333,7 @@ export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
               loading={createMutation.isPending}
               onClick={handleCreateSubmit}
             >
-              Create Tier
+              {tp("createTier")}
             </ActionButton>
           </DialogFooter>
         </DialogContent>

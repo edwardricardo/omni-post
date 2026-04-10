@@ -65,7 +65,7 @@ import { accountLifecycleRoutes } from "./admin/accountLifecycleRoutes.js";
 import { pricingRoutes } from "./admin/pricingRoutes.js";
 import { adminUserRoutes } from "./admin/adminUserRoutes.js";
 import { adminAuthRoutes } from "./admin/auth/adminAuthRoutes.js";
-import { executiveRoutes } from "./admin/executiveRoutes.js";
+import { analyticsRoutes as adminAnalyticsRoutes } from "./admin/analyticsRoutes.js";
 import { schedulingRoutes } from "./admin/schedulingRoutes.js";
 import { schedulingClientRoutes } from "./scheduling/schedulingClientRoutes.js";
 import { queueRoutes } from "./admin/queueRoutes.js";
@@ -394,7 +394,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(pricingRoutes);
   await typedApp.register(adminUserRoutes);
   await typedApp.register(adminAuthRoutes);
-  await typedApp.register(executiveRoutes);
+  await typedApp.register(adminAnalyticsRoutes);
   await typedApp.register(schedulingRoutes);
   await typedApp.register(queueRoutes);
   await typedApp.register(subscriptionRoutes);

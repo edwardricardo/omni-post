@@ -6,7 +6,8 @@
  */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   LayoutDashboard,
   Users,
@@ -17,6 +18,8 @@ import {
   FileText,
   Webhook,
   UserCog,
+  Wrench,
+  ScrollText,
   ChevronDown,
   ChevronUp,
   type LucideIcon,
@@ -36,262 +39,19 @@ interface HelpSection {
   concepts: { term: string; definition: string }[];
 }
 
-const HELP_SECTIONS: HelpSection[] = [
-  {
-    id: "dashboard",
-    icon: LayoutDashboard,
-    title: "Dashboard Overview",
-    shows: [
-      "Monthly Recurring Revenue (MRR) and total revenue breakdown",
-      "Active accounts and trial counts",
-      "Plan distribution across custom, bundle, trial, and no-plan categories",
-      "Revenue split between monthly and yearly subscriptions",
-    ],
-    actions: [
-      "Refresh data to get the latest metrics",
-      "Navigate to detail pages via Quick Actions cards",
-    ],
-    concepts: [
-      {
-        term: "MRR",
-        definition:
-          "Monthly Recurring Revenue -- the total predictable revenue earned per month from all active subscriptions.",
-      },
-    ],
-  },
-  {
-    id: "accounts",
-    icon: Users,
-    title: "Accounts",
-    shows: [
-      "All customer accounts with subscription, trial, and usage information",
-      "Account status (active, suspended, trial)",
-      "Subscription tier and billing details per account",
-    ],
-    actions: [
-      "View and edit account details",
-      "View billing breakdown for each account",
-      "Change subscription plan",
-      "Suspend or activate accounts",
-      "Extend trial periods for trial accounts",
-    ],
-    concepts: [
-      {
-        term: "Grandfathered",
-        definition:
-          "A customer locked into an old price after a price increase. They keep paying the original rate until they change plans.",
-      },
-    ],
-  },
-  {
-    id: "subscriptions",
-    icon: CreditCard,
-    title: "Subscriptions",
-    shows: [
-      "Active, trial, and cancelled subscriptions",
-      "Revenue metrics and subscription counts",
-      "Trial conversion rates and expiration dates",
-    ],
-    actions: [
-      "Cancel subscriptions",
-      "Convert trial accounts to paid plans",
-      "Change subscription plans for existing customers",
-      "Process auto-renewals",
-    ],
-    concepts: [
-      {
-        term: "MRR",
-        definition: "Monthly Recurring Revenue -- the total predictable revenue earned per month.",
-      },
-      {
-        term: "Churn",
-        definition: "Customers who cancelled their subscription within a given period.",
-      },
-    ],
-  },
-  {
-    id: "pricing",
-    icon: TrendingUp,
-    title: "Pricing Configuration",
-    shows: [
-      "Provider tiers with volume-based pricing",
-      "Account tiers with multi-account discounts",
-      "Predefined bundles combining providers and accounts",
-    ],
-    actions: ["Create, edit, and deactivate provider tiers", "Create, edit, and delete bundles"],
-    concepts: [
-      {
-        term: "Provider Tiers",
-        definition:
-          "Price per social platform, often with volume discounts as more channels are added.",
-      },
-      {
-        term: "Account Tiers",
-        definition:
-          "Discount structure for customers managing multiple accounts on the same platform.",
-      },
-      {
-        term: "Bundles",
-        definition:
-          "Predefined packages that combine provider tiers and account tiers at a fixed price.",
-      },
-      {
-        term: "Grandfathering",
-        definition:
-          "Existing customers keep their old price when a price increase is applied to new customers.",
-      },
-    ],
-  },
-  {
-    id: "executive",
-    icon: BarChart3,
-    title: "Executive Dashboard",
-    shows: [
-      "Business KPIs and growth metrics",
-      "Compliance overview and health scores",
-      "Revenue trends and customer lifetime value",
-    ],
-    actions: [],
-    concepts: [
-      {
-        term: "MRR",
-        definition: "Monthly Recurring Revenue.",
-      },
-      {
-        term: "Churn",
-        definition: "Rate of customers cancelling their subscriptions.",
-      },
-      {
-        term: "LTV",
-        definition:
-          "Lifetime Value -- the average revenue earned per customer over the entire duration of their subscription.",
-      },
-      {
-        term: "CAC",
-        definition:
-          "Customer Acquisition Cost -- how much it costs on average to acquire a new paying customer.",
-      },
-    ],
-  },
-  {
-    id: "security",
-    icon: Shield,
-    title: "Security",
-    shows: [
-      "RBAC overview showing roles and permissions",
-      "MFA status for all admin users",
-      "Permission hierarchy and access levels",
-    ],
-    actions: [
-      "Change user roles",
-      "Enable or disable MFA for admin users",
-      "View the full permissions matrix",
-    ],
-    concepts: [
-      {
-        term: "RBAC",
-        definition:
-          "Role-Based Access Control -- permissions are assigned to roles, and roles are assigned to users.",
-      },
-      {
-        term: "MFA",
-        definition:
-          "Multi-Factor Authentication -- requires a second verification step (e.g. TOTP code) in addition to a password.",
-      },
-      {
-        term: "Roles",
-        definition:
-          "SUPER_ADMIN has full access, ADMIN can manage accounts and subscriptions, SUPPORT has view-only access.",
-      },
-    ],
-  },
-  {
-    id: "compliance",
-    icon: FileText,
-    title: "Compliance",
-    shows: [
-      "Audit log summary with recent activity",
-      "Compliance score and health indicators",
-      "GDPR status and data retention policies",
-    ],
-    actions: [],
-    concepts: [
-      {
-        term: "Audit Logs",
-        definition:
-          "A tamper-proof record of every action performed in the admin portal, including who did what and when.",
-      },
-      {
-        term: "GDPR",
-        definition:
-          "General Data Protection Regulation -- European Union law governing how personal data is collected, stored, and processed.",
-      },
-      {
-        term: "Retention",
-        definition:
-          "How long data (logs, user records, media) is kept before being automatically deleted or archived.",
-      },
-    ],
-  },
-  {
-    id: "webhooks",
-    icon: Webhook,
-    title: "Webhooks",
-    shows: [
-      "Webhook delivery metrics and success rates",
-      "Event timeline with delivery status",
-      "Active subscriptions and endpoint configuration",
-      "Dead letter queue for failed deliveries",
-    ],
-    actions: [
-      "Monitor delivery success and failure rates",
-      "Retry failed webhook events",
-      "Manage webhook subscriptions and endpoints",
-    ],
-    concepts: [
-      {
-        term: "Webhooks",
-        definition:
-          "HTTP POST notifications sent to external systems when events occur (e.g. subscription created, post published).",
-      },
-      {
-        term: "Dead Letter Queue",
-        definition:
-          "A holding area for webhook deliveries that failed after all retry attempts. These require manual attention.",
-      },
-    ],
-  },
-  {
-    id: "admin-users",
-    icon: UserCog,
-    title: "Admin Users",
-    shows: [
-      "All admin portal users with their roles and account status",
-      "Last login time and MFA enrollment status",
-    ],
-    actions: [
-      "Invite new admin users",
-      "Change user roles",
-      "Deactivate or reactivate admin accounts",
-    ],
-    concepts: [
-      {
-        term: "SUPER_ADMIN",
-        definition:
-          "Full access to all features, settings, and user management. Only one SUPER_ADMIN should exist.",
-      },
-      {
-        term: "ADMIN",
-        definition:
-          "Can manage customer accounts, subscriptions, and pricing. Cannot manage other admin users.",
-      },
-      {
-        term: "SUPPORT",
-        definition:
-          "Read-only access with limited editing capabilities. Intended for customer support agents.",
-      },
-    ],
-  },
+/** Translation keys in the help namespace, mapped to their icons. */
+const SECTION_KEYS: { key: string; id: string; icon: LucideIcon }[] = [
+  { key: "dashboard", id: "dashboard", icon: LayoutDashboard },
+  { key: "accounts", id: "accounts", icon: Users },
+  { key: "subscriptions", id: "subscriptions", icon: CreditCard },
+  { key: "pricing", id: "pricing", icon: TrendingUp },
+  { key: "analytics", id: "analytics", icon: BarChart3 },
+  { key: "security", id: "security", icon: Shield },
+  { key: "compliance", id: "compliance", icon: FileText },
+  { key: "webhooks", id: "webhooks", icon: Webhook },
+  { key: "users", id: "admin-users", icon: UserCog },
+  { key: "maintenance", id: "maintenance", icon: Wrench },
+  { key: "logs", id: "logs", icon: ScrollText },
 ];
 
 // ---------------------------------------------------------------------------
@@ -302,9 +62,19 @@ interface AccordionSectionProps {
   section: HelpSection;
   isOpen: boolean;
   onToggle: () => void;
+  labelShows: string;
+  labelActions: string;
+  labelConcepts: string;
 }
 
-function AccordionSection({ section, isOpen, onToggle }: AccordionSectionProps) {
+function AccordionSection({
+  section,
+  isOpen,
+  onToggle,
+  labelShows,
+  labelActions,
+  labelConcepts,
+}: AccordionSectionProps) {
   const Icon = section.icon;
   const sectionHeadingId = `help-heading-${section.id}`;
   const sectionContentId = `help-content-${section.id}`;
@@ -347,7 +117,7 @@ function AccordionSection({ section, isOpen, onToggle }: AccordionSectionProps) 
           {/* What it shows */}
           <div>
             <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-tertiary)] mb-2">
-              What it shows
+              {labelShows}
             </h3>
             <ul className="space-y-1.5">
               {section.shows.map((item) => (
@@ -369,7 +139,7 @@ function AccordionSection({ section, isOpen, onToggle }: AccordionSectionProps) 
           {section.actions.length > 0 && (
             <div>
               <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-tertiary)] mb-2">
-                What you can do
+                {labelActions}
               </h3>
               <ul className="space-y-1.5">
                 {section.actions.map((item) => (
@@ -392,7 +162,7 @@ function AccordionSection({ section, isOpen, onToggle }: AccordionSectionProps) 
           {section.concepts.length > 0 && (
             <div className="rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)] p-4">
               <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
-                Key concepts
+                {labelConcepts}
               </h3>
               <dl className="space-y-2">
                 {section.concepts.map((concept) => (
@@ -418,6 +188,20 @@ function AccordionSection({ section, isOpen, onToggle }: AccordionSectionProps) 
 
 function HelpContent() {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const th = useTranslations("help");
+
+  const sections: HelpSection[] = useMemo(
+    () =>
+      SECTION_KEYS.map(({ key, id, icon }) => ({
+        id,
+        icon,
+        title: th(`${key}.title`),
+        shows: th.raw(`${key}.shows`) as string[],
+        actions: th.raw(`${key}.actions`) as string[],
+        concepts: th.raw(`${key}.concepts`) as { term: string; definition: string }[],
+      })),
+    [th]
+  );
 
   const handleToggle = useCallback((sectionId: string) => {
     setOpenSections((prev) => ({
@@ -426,20 +210,24 @@ function HelpContent() {
     }));
   }, []);
 
+  const labelShows = th("whatItShows");
+  const labelActions = th("whatYouCanDo");
+  const labelConcepts = th("keyConcepts");
+
   return (
     <div className="p-6">
-      <PageHeader
-        title="Help & Documentation"
-        description="What every feature does and how to use it"
-      />
+      <PageHeader title={th("title")} description={th("subtitle")} />
 
       <div className="space-y-3" role="region" aria-label="Help sections">
-        {HELP_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <AccordionSection
             key={section.id}
             section={section}
             isOpen={openSections[section.id] === true}
             onToggle={() => handleToggle(section.id)}
+            labelShows={labelShows}
+            labelActions={labelActions}
+            labelConcepts={labelConcepts}
           />
         ))}
       </div>

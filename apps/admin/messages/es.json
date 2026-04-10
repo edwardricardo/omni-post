@@ -5,7 +5,7 @@
     "accounts": "Cuentas",
     "subscriptions": "Suscripciones",
     "pricing": "Precios",
-    "executive": "Ejecutivo",
+    "analytics": "Analiticas",
     "operations": "Operaciones",
     "security": "Seguridad",
     "compliance": "Cumplimiento",
@@ -13,7 +13,15 @@
     "webhooks": "Webhooks",
     "expandSidebar": "Expandir barra lateral",
     "collapseSidebar": "Contraer barra lateral",
-    "maintenance": "Mantenimiento"
+    "maintenance": "Mantenimiento",
+    "users": "Usuarios Admin",
+    "helpDocs": "Ayuda y Docs",
+    "lightMode": "Modo claro",
+    "darkMode": "Modo oscuro",
+    "switchToLight": "Cambiar a modo claro",
+    "switchToDark": "Cambiar a modo oscuro",
+    "switchToEnglish": "Cambiar a ingles",
+    "switchToSpanish": "Cambiar a espanol"
   },
   "common": {
     "save": "Guardar",
@@ -35,7 +43,7 @@
     "close": "Cerrar",
     "previous": "Anterior",
     "next": "Siguiente",
-    "live": "En vivo",
+    "live": "En linea",
     "updating": "Actualizando...",
     "showing": "Mostrando",
     "never": "Nunca",
@@ -56,7 +64,14 @@
     "errorId": "ID de error: {id}",
     "healthy": "Saludable",
     "warning": "Advertencia",
-    "critical": "Critico"
+    "critical": "Critico",
+    "success": "Exito",
+    "name": "Nombre",
+    "email": "Correo electronico",
+    "phone": "Telefono",
+    "optional": "Opcional",
+    "info": "Informacion",
+    "show": "Mostrar"
   },
   "auth": {
     "title": "Inicio de sesion",
@@ -108,7 +123,8 @@
         "enterprise": "Empresarial",
         "monthlySubscriptions": "Suscripciones mensuales",
         "yearlySubscriptions": "Suscripciones anuales",
-        "totalMrr": "MRR Total"
+        "totalMrr": "MRR Total",
+        "noData": "Sin datos disponibles"
       },
       "quickActions": {
         "title": "Acciones rapidas",
@@ -196,6 +212,64 @@
       "projectsUsed": "Proyectos usados",
       "projectsRemaining": "Proyectos restantes",
       "utilization": "Utilizacion %"
+    },
+    "editForm": {
+      "name": "Nombre",
+      "email": "Correo electronico",
+      "phone": "Telefono",
+      "optional": "Opcional",
+      "active": "Activo",
+      "onTrial": "En prueba",
+      "trialEndDate": "Fecha fin de prueba",
+      "autoRenewal": "Renovacion automatica"
+    },
+    "resetPassword": {
+      "title": "Restablecer contrasena del cliente",
+      "description": "Ingrese una nueva contrasena (minimo 8 caracteres).",
+      "placeholder": "Nueva contrasena",
+      "button": "Restablecer contrasena"
+    },
+    "billing": {
+      "title": "Facturacion",
+      "customPlan": "Plan personalizado",
+      "bundleName": "Paquete: {name}",
+      "noPlan": "Sin plan activo",
+      "grandfathered": "Precio anterior",
+      "lastLogin": "Ultimo acceso:",
+      "trialRemaining": "Prueba: {days} dias restantes",
+      "trialEnds": "Termina el {date}",
+      "providerBreakdown": "Desglose por proveedor",
+      "noProviders": "Sin proveedores conectados.",
+      "platform": "Plataforma",
+      "pricePerProvider": "Precio/Proveedor",
+      "calculation": "Calculo",
+      "uniqueProviders": "Proveedores unicos",
+      "basePrice": "Precio base/cuenta",
+      "volumeSavings": "Descuento por volumen",
+      "totalMonthly": "Total mensual",
+      "editPlan": "Editar plan",
+      "finishEditing": "Termine de editar la cuenta primero",
+      "changePlan": "Cambiar plan de suscripcion",
+      "activeSessions": "Sesiones activas ({count})",
+      "revokeAll": "Revocar todas",
+      "revokeAllLabel": "Revocar todas las sesiones",
+      "unknownDevice": "Dispositivo desconocido",
+      "adjust": "Ajustar",
+      "loadingBilling": "Cargando datos de facturacion...",
+      "failedBilling": "Error al cargar datos de facturacion:",
+      "updated": "Actualizado",
+      "grandfatheringAdjusted": "Fecha de precio anterior ajustada",
+      "sessionsRevoked": "Todas las sesiones revocadas",
+      "failedRevoke": "Error al revocar sesiones",
+      "lockedAt": "Bloqueado en",
+      "wouldSave": "ahorraria",
+      "perMonth": "/mes",
+      "currentList": "lista actual:",
+      "saving": "ahorrando"
+    },
+    "detail": {
+      "email": "Correo:",
+      "phone": "Telefono:"
     }
   },
   "subscriptions": {
@@ -244,16 +318,51 @@
     "noSubscriptions": "No se encontraron suscripciones activas",
     "noTrials": "No se encontraron cuentas de prueba",
     "billingEventsTitle": "Eventos de facturacion",
-    "billingEventsDesc": "Esta seccion mostrara eventos de facturacion recientes, pagos e historial de transacciones."
+    "billingEventsDesc": "Esta seccion mostrara eventos de facturacion recientes, pagos e historial de transacciones.",
+    "searchPlaceholder": "Buscar por nombre o plan...",
+    "lastBill": "Ultima factura",
+    "noPlan": "Sin plan",
+    "mrrStat": "MRR",
+    "grandfatheredRevenue": "Ingresos con precio anterior",
+    "expiringWarning": "{count} prueba{count, plural, one {} other {s}} por vencer en los proximos 7 dias",
+    "viewTrials": "Ver pruebas",
+    "startDate": "Fecha de inicio",
+    "exportFailed": "Error al exportar",
+    "na": "N/A"
+  },
+  "changePlan": {
+    "title": "Editar plan",
+    "customTab": "Personalizado",
+    "bundleTab": "Paquete",
+    "selectPlatforms": "Seleccione plataformas para esta cuenta",
+    "chooseBundle": "Elija un paquete preconfigurado",
+    "noActiveBundles": "Sin paquetes activos",
+    "perAccountMo": "por cuenta/mes",
+    "perMonth": "/mes",
+    "providers": "proveedor",
+    "providersPlural": "proveedores",
+    "providersIncluded": "incluidos",
+    "selectPlanPrompt": "Seleccione un plan para ver precios",
+    "savePlan": "Guardar plan",
+    "planUpdated": "Plan actualizado",
+    "customApplied": "Plan personalizado aplicado con {count} proveedores",
+    "bundleApplied": "Paquete {name} aplicado",
+    "failedLoad": "Error al cargar precios",
+    "failedChange": "Error al cambiar plan"
   },
   "pricing": {
     "title": "Gestion de precios",
     "description": "Configure niveles de proveedores, descuentos por volumen y paquetes. Los cambios de precio activan el resguardo de precios para clientes existentes.",
+    "loading": "Cargando niveles de precios...",
+    "retry": "Reintentar",
     "tabs": {
-      "providers": "proveedores",
-      "accounts": "cuentas",
-      "bundles": "paquetes",
-      "mrr": "Panel MRR"
+      "providers": "Proveedores",
+      "accounts": "Cuentas",
+      "bundles": "Paquetes",
+      "mrr": "Panel MRR",
+      "providerTiers": "Niveles de Proveedor",
+      "accountTiers": "Niveles de Cuenta",
+      "mrrDashboard": "Panel MRR"
     },
     "providerTiers": {
       "title": "Niveles de precios por proveedor",
@@ -266,24 +375,76 @@
       "minAccounts": "Min cuentas",
       "maxAccounts": "Max cuentas",
       "multiplier": "Multiplicador",
-      "noLimit": "Sin limite"
+      "noLimit": "Sin limites"
     },
     "bundles": {
-      "perAccountMonth": "{price}/cuenta/mes"
+      "perAccountMonth": "{price}/cuenta/mes",
+      "newBundle": "Nuevo paquete",
+      "editBundle": "Editar paquete",
+      "noBundles": "No hay paquetes configurados.",
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "name": "Nombre",
+      "slug": "Slug",
+      "priceLabel": "Precio / Cuenta / Mes",
+      "sortOrder": "Orden",
+      "descriptionLabel": "Descripcion",
+      "providers": "Proveedores",
+      "providersSelected": "Proveedores ({count} seleccionados)",
+      "saveChanges": "Guardar cambios",
+      "createBundle": "Crear paquete",
+      "deleteTitle": "Eliminar paquete",
+      "deleteDescription": "Esto eliminara permanentemente este paquete. Los suscriptores existentes mantendran su precio anterior.",
+      "deleteConfirm": "Eliminar paquete",
+      "updateDescription": "Actualizar detalles y proveedores del paquete",
+      "createDescription": "Crear un nuevo paquete de proveedores"
     },
     "mrr": {
       "monthlyRecurringRevenue": "Ingresos recurrentes mensuales",
       "activeSubscriptions": "Suscripciones activas",
       "grandfatheredRevenue": "Ingresos con precio anterior",
       "noActiveSubscriptions": "Aun no hay suscripciones activas",
-      "grandfatheredDesc": "Ingresos a precios anteriores durante el periodo de notificacion"
-    }
+      "grandfatheredDesc": "Ingresos a precios anteriores durante el periodo de notificacion",
+      "activeBundles": "Paquetes activos",
+      "bundleBaseMrr": "MRR base de paquetes",
+      "totalProviderTiers": "Niveles de proveedor totales"
+    },
+    "toasts": {
+      "bundleUpdated": "Paquete actualizado",
+      "bundleCreated": "Paquete creado",
+      "bundleDeleted": "Paquete eliminado",
+      "updateFailed": "Error al actualizar",
+      "createFailed": "Error al crear",
+      "deleteFailed": "Error al eliminar",
+      "tierUpdated": "Nivel guardado",
+      "tierCreated": "Nivel creado",
+      "tierActivated": "Nivel activado",
+      "tierDeactivated": "Nivel desactivado",
+      "tierUpdateFailed": "Error al guardar nivel",
+      "tierCreateFailed": "Error al crear nivel",
+      "tierToggleFailed": "Error al cambiar estado del nivel",
+      "validationError": "Error de validacion"
+    },
+    "noProviderTiers": "No hay niveles de proveedor configurados",
+    "noAccountTiers": "No hay niveles de cuenta configurados",
+    "newProviderTier": "Nuevo nivel de proveedor",
+    "newProviderTierDesc": "Defina un nuevo nivel de precios basado en la cantidad de proveedores.",
+    "newAccountTier": "Nuevo nivel de cuenta",
+    "newAccountTierDesc": "Defina un nuevo nivel de precios basado en la cantidad de cuentas.",
+    "pricePerProviderMonth": "Precio por proveedor/mes",
+    "newTier": "Nuevo nivel",
+    "createTier": "Crear nivel",
+    "priceMustBePositive": "El precio debe ser mayor que 0",
+    "multiplierMustBePositive": "El multiplicador debe ser mayor que 0",
+    "maxOptional": "(opcional)",
+    "deactivateTier": "Desactivar nivel",
+    "activateTier": "Activar nivel"
   },
-  "executive": {
-    "title": "Panel ejecutivo",
+  "analytics": {
+    "title": "Panel de analiticas",
     "description": "Metricas de negocio de alto nivel y KPIs",
-    "errorTitle": "Error al cargar el panel ejecutivo",
-    "noData": "No hay datos ejecutivos disponibles",
+    "errorTitle": "Error al cargar el panel de analiticas",
+    "noData": "No hay datos de analiticas disponibles",
     "timeRange": {
       "last7d": "Ultimos 7 dias",
       "last30d": "Ultimos 30 dias",
@@ -316,8 +477,29 @@
     },
     "trends": {
       "revenueTrend": "Tendencia de ingresos",
-      "userGrowth": "Crecimiento de usuarios"
-    }
+      "userGrowth": "Crecimiento de usuarios",
+      "noData": "Sin datos de tendencia disponibles"
+    },
+    "channels": {
+      "title": "Distribucion de canales",
+      "noData": "Sin datos de canales disponibles"
+    },
+    "platform": {
+      "totalAccounts": "Cuentas totales",
+      "activeAccounts": "Cuentas activas",
+      "activeTrials": "Pruebas activas",
+      "totalProjects": "Proyectos totales",
+      "totalChannels": "Canales totales",
+      "postsPublished": "Publicaciones realizadas"
+    },
+    "financialHealth": {
+      "title": "Salud financiera",
+      "customerLtv": "LTV del cliente",
+      "churnRate": "Tasa de abandono",
+      "revenueGrowth": "Crecimiento de ingresos",
+      "trialConversion": "Conversion de pruebas"
+    },
+    "subscriptionDistribution": "Distribucion de suscripciones"
   },
   "security": {
     "title": "Panel de seguridad",
@@ -383,7 +565,80 @@
         "status": "Estado MFA",
         "backupCodes": "Codigos de respaldo",
         "codesRemaining": "{count} codigos restantes"
+      },
+      "self": {
+        "title": "Tu MFA",
+        "notSetUp": "No configurado",
+        "active": "MFA esta activo en tu cuenta. {count} codigos de respaldo restantes.",
+        "setupPrompt": "Protege tu cuenta de administrador con contrasenas de un solo uso basadas en tiempo (TOTP).",
+        "setupButton": "Configurar MFA",
+        "disableButton": "Deshabilitar MFA",
+        "disablePrompt": "Ingresa tu codigo TOTP actual para deshabilitar MFA.",
+        "totpCode": "Codigo TOTP",
+        "confirmDisable": "Confirmar deshabilitacion",
+        "scanQr": "Escanea el codigo QR con tu aplicacion de autenticacion (Google Authenticator, Authy, etc).",
+        "manualKey": "Clave de ingreso manual",
+        "verificationCode": "Codigo de verificacion",
+        "verifyPlaceholder": "Ingrese codigo de 6 digitos",
+        "verifyEnable": "Verificar y habilitar",
+        "backupCodesWarning": "Guarda estos codigos de respaldo de forma segura. No se mostraran de nuevo.",
+        "savedCodes": "He guardado mis codigos",
+        "setupFailed": "Error al iniciar configuracion MFA",
+        "enterCode": "Ingresa el codigo de 6 digitos de tu aplicacion de autenticacion",
+        "mfaEnabledSuccess": "MFA habilitado exitosamente",
+        "verifyFailed": "Error al verificar codigo",
+        "enterTotpToDisable": "Ingresa tu codigo TOTP actual para deshabilitar MFA",
+        "mfaDisabledSuccess": "MFA deshabilitado",
+        "disableFailed": "Error al deshabilitar MFA"
       }
+    },
+    "changePassword": {
+      "title": "Cambiar contrasena",
+      "currentPassword": "Contrasena actual",
+      "newPassword": "Nueva contrasena",
+      "confirmPassword": "Confirmar nueva contrasena",
+      "button": "Cambiar contrasena",
+      "passwordsMismatch": "Las contrasenas no coinciden",
+      "minLength": "La contrasena debe tener al menos 12 caracteres",
+      "requireUppercase": "La contrasena debe contener al menos una letra mayuscula",
+      "requireNumber": "La contrasena debe contener al menos un numero",
+      "failed": "Error al cambiar la contrasena"
+    },
+    "permissions": {
+      "title": "Permisos ({count})",
+      "unsavedChanges": "Cambios sin guardar",
+      "savePermissions": "Guardar permisos",
+      "superAdminNote": "SUPER_ADMIN siempre tiene todos los permisos",
+      "successSaved": "Permisos actualizados exitosamente",
+      "failedSave": "Error al guardar permisos",
+      "categories": {
+        "userManagement": "Gestion de usuarios",
+        "projectManagement": "Gestion de proyectos",
+        "contentManagement": "Gestion de contenido",
+        "analytics": "Analiticas",
+        "systemAdmin": "Administracion del sistema",
+        "auditCompliance": "Auditoria y cumplimiento",
+        "billing": "Facturacion",
+        "aiFeatures": "Funciones de IA",
+        "support": "Soporte"
+      }
+    },
+    "createRole": {
+      "title": "Crear rol personalizado",
+      "description": "Defina un nuevo rol con nombre, descripcion y nivel jerarquico (1-99).",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "EDITOR",
+      "nameHint": "UPPER_SNAKE_CASE, ej. CONTENT_EDITOR",
+      "descriptionLabel": "Descripcion",
+      "descriptionPlaceholder": "Puede editar y publicar contenido",
+      "levelLabel": "Nivel (1 = mas bajo, 99 = mas alto)",
+      "creating": "Creando...",
+      "createButton": "Crear rol",
+      "validationError": "Error de validacion",
+      "nameRequired": "El nombre y la descripcion son requeridos",
+      "levelRange": "El nivel debe estar entre 1 y 99",
+      "created": "Rol {name} creado",
+      "failedCreate": "Error al crear rol"
     }
   },
   "compliance": {
@@ -647,5 +902,446 @@
     "storage": "Almacenamiento",
     "teamMembers": "Miembros del equipo",
     "unlimited": "{value}{unit} (ilimitado)"
+  },
+  "users": {
+    "title": "Usuarios Admin",
+    "description": "Gestionar cuentas y acceso de usuarios del panel de administracion",
+    "loadingUsers": "Cargando usuarios admin...",
+    "errorTitle": "Error al cargar usuarios",
+    "stats": {
+      "totalUsers": "Usuarios totales",
+      "active": "Activos",
+      "admins": "Administradores",
+      "support": "Soporte"
+    },
+    "inviteUser": "Invitar usuario",
+    "inviteTitle": "Invitar usuario admin",
+    "inviteDescription": "Crear una nueva cuenta admin con contrasena temporal.",
+    "email": "Correo electronico",
+    "name": "Nombre",
+    "role": "Rol",
+    "createUser": "Crear usuario",
+    "userCreated": "Usuario creado",
+    "tempPasswordDesc": "Comparta esta contrasena temporal con el nuevo usuario. No se mostrara de nuevo.",
+    "tempPassword": "Contrasena temporal",
+    "done": "Listo",
+    "table": {
+      "name": "Nombre",
+      "role": "Rol",
+      "lastLogin": "Ultimo acceso",
+      "status": "Estado",
+      "actions": "Acciones"
+    },
+    "deactivate": "Desactivar",
+    "deactivateTitle": "Desactivar usuario",
+    "deactivateDesc": "Esta seguro de que desea desactivar a {name}? Perdera acceso al panel de administracion.",
+    "activate": "Activar",
+    "success": {
+      "created": "Usuario admin creado",
+      "deactivated": "{name} desactivado",
+      "activated": "{name} activado",
+      "copied": "Contrasena copiada al portapapeles"
+    },
+    "errors": {
+      "validation": "El correo y nombre son requeridos",
+      "copyFailed": "Error al copiar — por favor seleccione y copie manualmente"
+    }
+  },
+  "logs": {
+    "title": "Registros de auditoria",
+    "description": "Seguimiento de todos los eventos del sistema y actividades de usuarios (actualizacion automatica cada 30s)",
+    "loadingLogs": "Cargando registros de auditoria...",
+    "errorTitle": "Error al cargar registros",
+    "exportCsv": "Exportar CSV",
+    "stats": {
+      "totalEvents": "Eventos totales",
+      "successRate": "Tasa de exito",
+      "failedEvents": "Eventos fallidos",
+      "uniqueUsers": "Usuarios unicos"
+    },
+    "searchPlaceholder": "Buscar por ID, accion o recurso...",
+    "allActions": "Todas las acciones",
+    "allResults": "Todos los resultados",
+    "success": "Exitoso",
+    "failed": "Fallido",
+    "table": {
+      "timestamp": "Fecha/Hora",
+      "action": "Accion",
+      "user": "Usuario",
+      "resource": "Recurso",
+      "result": "Resultado",
+      "details": "Detalles"
+    },
+    "noResults": "No se encontraron registros que coincidan con sus criterios",
+    "system": "Sistema",
+    "dateFrom": "Desde",
+    "dateTo": "Hasta",
+    "ipAddress": "Direccion IP"
+  },
+  "maintenance": {
+    "title": "Mantenimiento",
+    "description": "Monitoreo de colas y operaciones",
+    "loadingData": "Cargando datos de mantenimiento...",
+    "queueOverview": "Resumen de colas",
+    "scheduledJobs": "Trabajos programados",
+    "failedJobs": "Trabajos fallidos",
+    "queueHealth": "Salud de colas",
+    "stats": {
+      "activeJobs": "Trabajos activos",
+      "waiting": "En espera",
+      "completed": "Completados",
+      "failed": "Fallidos",
+      "delayed": "Retrasados"
+    },
+    "jobs": {
+      "runNow": "Ejecutar ahora",
+      "schedule": "Programar",
+      "confirmRun": "Ejecutar trabajo manualmente",
+      "confirmRunDesc": "Esto ejecutara {name} inmediatamente. Esta seguro?",
+      "cronSchedule": "Programacion cron",
+      "customCron": "O cron personalizado",
+      "selectSchedule": "Seleccionar programacion...",
+      "scheduleUpdated": "Programacion actualizada",
+      "scheduleUpdatedDesc": "Nueva programacion: {schedule}. Toma efecto en el proximo reinicio del worker.",
+      "neverExecuted": "Nunca ejecutado",
+      "lastRunOk": "Ultima ejecucion: OK",
+      "lastRunFailed": "Ultima ejecucion: Fallida",
+      "manualNotAvailable": "Ejecucion manual no disponible para {key}",
+      "jobCompleted": "Trabajo completado",
+      "processedFailed": "{processed} procesados, {failed} fallidos",
+      "autoRenewalName": "Procesamiento de renovacion automatica",
+      "autoRenewalDesc": "Convierte pruebas vencidas con renovacion automatica a suscripciones pagadas",
+      "analyticsName": "Ingesta de analiticas",
+      "analyticsDesc": "Obtiene datos de analiticas de todos los canales de proveedores conectados",
+      "inboxSyncName": "Sincronizacion de bandeja",
+      "inboxSyncDesc": "Sincroniza mensajes de bandeja social de proveedores conectados",
+      "cronPresets": {
+        "everyHour": "Cada hora",
+        "every6Hours": "Cada 6 horas",
+        "dailyMidnight": "Diario a medianoche UTC",
+        "daily2am": "Diario a las 2:00 AM UTC",
+        "daily6am": "Diario a las 6:00 AM UTC",
+        "every12Hours": "Cada 12 horas",
+        "weeklySunday": "Semanal (domingo medianoche)"
+      }
+    },
+    "healthLabels": {
+      "healthy": "Saludable",
+      "delayed": "Trabajos retrasados detectados",
+      "failed": "Trabajos fallidos detectados"
+    },
+    "queues": {
+      "publish": "Publicacion",
+      "webhook-processing": "Procesamiento de Webhooks",
+      "webhook-dead-letter": "Webhooks Fallidos",
+      "dead-letter-queue": "Cola de Errores",
+      "integration-events": "Eventos de Integracion",
+      "failed-operations-dlq": "Operaciones Fallidas",
+      "analytics-aggregation": "Agregacion de Analiticas",
+      "report-generation": "Generacion de Reportes",
+      "recurring-posts": "Publicaciones Recurrentes",
+      "inbox-sync": "Sincronizacion de Bandeja",
+      "detect-repurpose": "Detectar Reutilizacion",
+      "generate-repurpose": "Generar Reutilizacion",
+      "triage-inbox": "Triaje de Bandeja",
+      "trend-radar": "Radar de Tendencias",
+      "auto-renewal": "Renovacion Automatica"
+    },
+    "failedJobsTable": {
+      "noFailed": "Sin trabajos fallidos",
+      "queue": "Cola",
+      "jobId": "ID de trabajo",
+      "error": "Error",
+      "failedAt": "Fallido el",
+      "attempts": "Intentos",
+      "retry": "Reintentar",
+      "retryTitle": "Reintentar trabajo fallido",
+      "retryDesc": "Reintentar trabajo {id}? Sera re-encolado para procesamiento."
+    }
+  },
+  "help": {
+    "title": "Ayuda y documentacion",
+    "subtitle": "Que hace cada funcion y como usarla",
+    "whatItShows": "Que muestra",
+    "whatYouCanDo": "Que puede hacer",
+    "keyConcepts": "Conceptos clave",
+    "dashboard": {
+      "title": "Vista general del panel",
+      "shows": [
+        "Cuentas totales, pruebas activas, ingresos e inicios de sesion de hoy",
+        "Grafico de distribucion de suscripciones",
+        "Desglose de ingresos (mensual vs anual)",
+        "Enlaces rapidos a tareas comunes"
+      ],
+      "actions": [
+        "Actualizar metricas en vivo",
+        "Navegar a cualquier seccion via acciones rapidas"
+      ],
+      "concepts": [
+        {
+          "term": "MRR",
+          "definition": "Ingresos Recurrentes Mensuales — los ingresos predecibles cada mes de suscripciones activas"
+        },
+        {
+          "term": "Pruebas activas",
+          "definition": "Cuentas actualmente en periodo de prueba gratuita antes de convertirse a pago"
+        }
+      ]
+    },
+    "accounts": {
+      "title": "Cuentas",
+      "shows": [
+        "Todas las cuentas de inquilinos con plan, estado y uso",
+        "Estado de prueba con dias restantes",
+        "Porcentaje de utilizacion de proyectos"
+      ],
+      "actions": [
+        "Crear nuevas cuentas",
+        "Editar detalles de cuenta (nombre, correo, configuracion de prueba)",
+        "Suspender o activar cuentas (individual y masivo)",
+        "Ver desglose de facturacion por cuenta",
+        "Restablecer contrasenas de clientes",
+        "Exportar datos de cuentas a CSV"
+      ],
+      "concepts": [
+        {
+          "term": "Cuenta",
+          "definition": "Una organizacion inquilina que posee proyectos y esta suscrita a un plan"
+        },
+        {
+          "term": "Utilizacion",
+          "definition": "Porcentaje de proyectos permitidos actualmente en uso"
+        }
+      ]
+    },
+    "subscriptions": {
+      "title": "Suscripciones",
+      "shows": [
+        "Suscripciones activas con plan, ciclo de facturacion e ingresos",
+        "Cuentas de prueba con dias restantes y estado de renovacion automatica",
+        "Estadisticas de ingresos y tasas de conversion"
+      ],
+      "actions": [
+        "Cambiar planes de suscripcion (personalizado o paquete)",
+        "Procesar renovaciones automaticas para pruebas por vencer",
+        "Convertir, extender o finalizar pruebas",
+        "Exportar datos de suscripciones"
+      ],
+      "concepts": [
+        {
+          "term": "Renovacion automatica",
+          "definition": "Convierte automaticamente una prueba a suscripcion paga cuando expira"
+        },
+        {
+          "term": "Precio anterior",
+          "definition": "Los suscriptores existentes mantienen su precio anterior cuando cambian los precios"
+        }
+      ]
+    },
+    "pricing": {
+      "title": "Configuracion de precios",
+      "shows": [
+        "Niveles de precios de proveedores (basados en volumen)",
+        "Descuentos por volumen de cuentas",
+        "Paquetes preconfigurados con proveedores incluidos",
+        "Panel MRR con metricas de ingresos"
+      ],
+      "actions": [
+        "Ver y editar precios de niveles de proveedor",
+        "Ver multiplicadores de descuento por volumen",
+        "Crear, editar y eliminar paquetes",
+        "Activar/desactivar paquetes"
+      ],
+      "concepts": [
+        {
+          "term": "Nivel de proveedor",
+          "definition": "Precio por proveedor por mes, varia segun cuantos proveedores usa una cuenta"
+        },
+        {
+          "term": "Paquete",
+          "definition": "Un paquete preconfigurado de proveedores a un precio fijo por cuenta por mes"
+        },
+        {
+          "term": "Descuento por volumen",
+          "definition": "Multiplicador aplicado a los precios basado en el numero de cuentas"
+        }
+      ]
+    },
+    "analytics": {
+      "title": "Panel de analiticas",
+      "shows": [
+        "KPIs de alto nivel: ingresos, MRR, usuarios activos, disponibilidad",
+        "Metricas de salud del negocio: nuevos clientes, conversion de pruebas, adopcion de funciones",
+        "Metricas operativas: puntaje de seguridad, tasa de errores, tickets de soporte",
+        "Tendencias de ingresos y crecimiento de usuarios"
+      ],
+      "actions": [
+        "Filtrar por rango de tiempo (7d, 30d, 90d)",
+        "Monitorear salud del negocio y operativa de un vistazo"
+      ],
+      "concepts": [
+        {
+          "term": "LTV:CAC",
+          "definition": "Relacion entre el Valor de Vida del Cliente y el Costo de Adquisicion — mide el retorno de la inversion en adquisicion"
+        },
+        {
+          "term": "Tasa de abandono",
+          "definition": "Porcentaje de suscriptores que cancelan dentro de un periodo dado"
+        }
+      ]
+    },
+    "security": {
+      "title": "Seguridad",
+      "shows": [
+        "Vista general del estado de seguridad con tasa de adopcion MFA",
+        "Distribucion de roles y jerarquia de permisos",
+        "Roles activos con conteo de usuarios"
+      ],
+      "actions": [
+        "Gestionar roles: crear roles personalizados, editar permisos, eliminar roles sin uso",
+        "Gestionar MFA: ver estado MFA de usuarios, deshabilitar MFA forzosamente",
+        "Cambiar su contrasena de administrador",
+        "Ver y editar grillas de permisos por rol"
+      ],
+      "concepts": [
+        {
+          "term": "RBAC",
+          "definition": "Control de Acceso Basado en Roles — los usuarios obtienen permisos a traves de su rol asignado"
+        },
+        {
+          "term": "MFA",
+          "definition": "Autenticacion Multifactor — requiere un segundo paso de verificacion ademas de la contrasena"
+        },
+        {
+          "term": "Permiso",
+          "definition": "Una accion especifica que un usuario puede realizar, ej. user:create, billing:manage"
+        }
+      ]
+    },
+    "compliance": {
+      "title": "Cumplimiento",
+      "shows": [
+        "Puntaje general de cumplimiento",
+        "Estado de cumplimiento GDPR/Privacidad",
+        "Metricas de cumplimiento de seguridad",
+        "Eventos de auditoria recientes"
+      ],
+      "actions": [
+        "Monitorear puntajes de cumplimiento entre marcos regulatorios",
+        "Revisar registros de auditoria para eventos de cumplimiento",
+        "Configurar ajustes de cumplimiento por marco"
+      ],
+      "concepts": [
+        {
+          "term": "Puntaje de cumplimiento",
+          "definition": "Porcentaje de requisitos cumplidos entre marcos regulatorios"
+        },
+        {
+          "term": "GDPR",
+          "definition": "Reglamento General de Proteccion de Datos — ley de privacidad de la UE que regula el manejo de datos personales"
+        }
+      ]
+    },
+    "webhooks": {
+      "title": "Webhooks",
+      "shows": [
+        "Metricas de procesamiento de eventos webhook en tiempo real",
+        "Tasa de exito, tiempo de procesamiento y conteo de fallos",
+        "Desglose de rendimiento por proveedor",
+        "Distribucion de tipos de eventos y linea de tiempo"
+      ],
+      "actions": [
+        "Monitorear salud y rendimiento de webhooks",
+        "Ver y buscar eventos webhook individuales",
+        "Gestionar suscripciones webhook por proveedor",
+        "Reintentar eventos fallidos desde la cola de errores",
+        "Pausar/reanudar actualizaciones en vivo"
+      ],
+      "concepts": [
+        {
+          "term": "Webhook",
+          "definition": "Una llamada HTTP activada por un evento en una plataforma de redes sociales"
+        },
+        {
+          "term": "Cola de errores",
+          "definition": "Eventos webhook fallidos que agotaron los reintentos y necesitan intervencion manual"
+        }
+      ]
+    },
+    "users": {
+      "title": "Usuarios admin",
+      "shows": [
+        "Todos los usuarios del panel admin con rol y estado",
+        "Actividad de inicio de sesion y estado de cuenta"
+      ],
+      "actions": [
+        "Invitar nuevos usuarios admin con contrasenas temporales",
+        "Activar o desactivar cuentas de administrador",
+        "Ver detalles de usuario y ultimo inicio de sesion"
+      ],
+      "concepts": [
+        {
+          "term": "Usuario admin",
+          "definition": "Una persona con acceso a este panel de administracion, separado de las cuentas de inquilinos"
+        },
+        {
+          "term": "Contrasena temporal",
+          "definition": "Una contrasena de un solo uso generada al crear un nuevo usuario admin"
+        }
+      ]
+    },
+    "maintenance": {
+      "title": "Mantenimiento",
+      "shows": [
+        "Vista general de colas: trabajos activos, en espera, completados, fallidos y retrasados",
+        "Trabajos programados con estado de ultima ejecucion",
+        "Tabla de trabajos fallidos con detalles de error",
+        "Indicadores de salud de las 15 colas BullMQ"
+      ],
+      "actions": [
+        "Reintentar trabajos fallidos",
+        "Ejecutar manualmente trabajos programados (ej. procesamiento de renovacion automatica)",
+        "Editar programaciones cron de trabajos en segundo plano",
+        "Actualizar estadisticas de colas"
+      ],
+      "concepts": [
+        {
+          "term": "BullMQ",
+          "definition": "El sistema de colas de trabajo usado para procesamiento en segundo plano (publicacion, analiticas, sincronizacion de bandeja)"
+        },
+        {
+          "term": "Cola de errores",
+          "definition": "Una cola donde los trabajos que fallaron todos los reintentos se almacenan para revision manual"
+        },
+        {
+          "term": "Programacion Cron",
+          "definition": "Un patron basado en tiempo que define cuando un trabajo se ejecuta automaticamente (ej. '0 2 * * *' = diario a las 2 AM)"
+        }
+      ]
+    },
+    "logs": {
+      "title": "Registros de auditoria",
+      "shows": [
+        "Todos los eventos del sistema con marcas de tiempo, acciones, usuarios y resultados",
+        "Tasas de exito/fallo y conteo de usuarios unicos",
+        "Filtrable por tipo de accion, estado de resultado y rango de fechas"
+      ],
+      "actions": [
+        "Buscar registros por ID, accion o recurso",
+        "Filtrar por tipo de accion, exito/fallo y rango de fechas",
+        "Exportar registros de auditoria a CSV",
+        "Actualizacion automatica cada 30 segundos"
+      ],
+      "concepts": [
+        {
+          "term": "Registro de auditoria",
+          "definition": "Un registro de cada accion significativa tomada en el sistema, incluyendo quien la realizo y cuando"
+        },
+        {
+          "term": "ID de correlacion",
+          "definition": "Un identificador unico que vincula eventos relacionados entre servicios para depuracion"
+        }
+      ]
+    }
   }
 }

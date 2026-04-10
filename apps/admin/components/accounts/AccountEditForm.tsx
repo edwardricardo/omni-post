@@ -3,7 +3,9 @@
  * @description Inline edit form for account properties (name, active, trial, auto-renewal).
  * @layer presentation
  */
+"use client";
 
+import { useTranslations } from "next-intl";
 import { ActionButton } from "@/components/ui/ActionButton";
 
 interface EditFormData {
@@ -31,6 +33,9 @@ export function AccountEditForm({
   onSave,
   onCancel,
 }: AccountEditFormProps) {
+  const te = useTranslations("accounts.editForm");
+  const tc = useTranslations("common");
+
   const inputClass =
     "px-3 py-2 border border-[var(--border-default)] rounded-md bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)]";
 
@@ -41,7 +46,7 @@ export function AccountEditForm({
           htmlFor={`edit-name-${accountId}`}
           className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
         >
-          Name
+          {te("name")}
         </label>
         <input
           id={`edit-name-${accountId}`}
@@ -56,7 +61,7 @@ export function AccountEditForm({
           htmlFor={`edit-email-${accountId}`}
           className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
         >
-          Email
+          {te("email")}
         </label>
         <input
           id={`edit-email-${accountId}`}
@@ -71,14 +76,14 @@ export function AccountEditForm({
           htmlFor={`edit-phone-${accountId}`}
           className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
         >
-          Phone
+          {te("phone")}
         </label>
         <input
           id={`edit-phone-${accountId}`}
           type="tel"
           value={editForm.phone}
           onChange={(e) => onFormChange((prev) => ({ ...prev, phone: e.target.value }))}
-          placeholder="Optional"
+          placeholder={te("optional")}
           className={inputClass}
         />
       </div>
@@ -94,7 +99,7 @@ export function AccountEditForm({
           htmlFor={`edit-active-${accountId}`}
           className="text-sm text-[var(--text-secondary)]"
         >
-          Active
+          {te("active")}
         </label>
       </div>
       <div className="flex items-center gap-2">
@@ -106,7 +111,7 @@ export function AccountEditForm({
           className="rounded border-[var(--border-default)]"
         />
         <label htmlFor={`edit-trial-${accountId}`} className="text-sm text-[var(--text-secondary)]">
-          On Trial
+          {te("onTrial")}
         </label>
       </div>
       {editForm.isOnTrial && (
@@ -115,7 +120,7 @@ export function AccountEditForm({
             htmlFor={`edit-trial-end-${accountId}`}
             className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
           >
-            Trial End Date
+            {te("trialEndDate")}
           </label>
           <input
             id={`edit-trial-end-${accountId}`}
@@ -138,14 +143,14 @@ export function AccountEditForm({
           htmlFor={`edit-autorenewal-${accountId}`}
           className="text-sm text-[var(--text-secondary)]"
         >
-          Auto-Renewal
+          {te("autoRenewal")}
         </label>
       </div>
       <ActionButton variant="primary" size="sm" onClick={onSave}>
-        Save
+        {tc("save")}
       </ActionButton>
       <ActionButton variant="secondary" size="sm" onClick={onCancel}>
-        Cancel
+        {tc("cancel")}
       </ActionButton>
     </div>
   );

@@ -69,12 +69,12 @@ class AdminUserHandler extends BaseRouteHandler {
     const ctx: RouteContext = { request, reply };
 
     try {
-      const users = await prisma.adminUser.findMany({
+      const rawUsers = await prisma.adminUser.findMany({
         select: {
           id: true,
           email: true,
           name: true,
-          role: true,
+          role: { select: { name: true } },
           isActive: true,
           mfaEnabled: true,
           lastLoginAt: true,
@@ -82,6 +82,11 @@ class AdminUserHandler extends BaseRouteHandler {
         },
         orderBy: { createdAt: "asc" },
       });
+
+      const users = rawUsers.map((u) => ({
+        ...u,
+        role: u.role.name,
+      }));
 
       return this.sendSuccess(ctx, { users });
     } catch (error: unknown) {
@@ -197,10 +202,14 @@ class AdminUserHandler extends BaseRouteHandler {
         return this.sendError(ctx, 404, "Admin user not found");
       }
 
-      const { _count, ...userData } = user;
+      const { _count, role, ...userData } = user;
       return this.sendSuccess(ctx, {
         user: {
           ...userData,
+          role:
+            typeof role === "object" && role !== null && "name" in role
+              ? (role as { name: string }).name
+              : role,
           sessionsCount: _count.sessions,
         },
       });
@@ -264,14 +273,14 @@ class AdminUserHandler extends BaseRouteHandler {
       if (updates.department !== undefined) data.department = updates.department;
       if (updates.team !== undefined) data.team = updates.team;
 
-      const updated = await prisma.adminUser.update({
+      const raw = await prisma.adminUser.update({
         where: { id },
         data,
         select: {
           id: true,
           email: true,
           name: true,
-          role: true,
+          role: { select: { name: true } },
           isActive: true,
           department: true,
           team: true,
@@ -279,7 +288,7 @@ class AdminUserHandler extends BaseRouteHandler {
         },
       });
 
-      return this.sendSuccess(ctx, { user: updated });
+      return this.sendSuccess(ctx, { user: { ...raw, role: raw.role.name } });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       if (msg.includes("Record to update not found")) {
@@ -341,19 +350,19 @@ class AdminUserHandler extends BaseRouteHandler {
         }
       }
 
-      const updated = await prisma.adminUser.update({
+      const raw = await prisma.adminUser.update({
         where: { id },
         data: { isActive: false },
         select: {
           id: true,
           email: true,
           name: true,
-          role: true,
+          role: { select: { name: true } },
           isActive: true,
         },
       });
 
-      return this.sendSuccess(ctx, { user: updated });
+      return this.sendSuccess(ctx, { user: { ...raw, role: raw.role.name } });
     } catch (error: unknown) {
       this.logError(ctx, "Failed to deactivate admin user", {
         error: error instanceof Error ? error.message : String(error),
@@ -392,19 +401,19 @@ class AdminUserHandler extends BaseRouteHandler {
         return this.sendError(ctx, 400, "User is already active");
       }
 
-      const updated = await prisma.adminUser.update({
+      const raw = await prisma.adminUser.update({
         where: { id },
         data: { isActive: true },
         select: {
           id: true,
           email: true,
           name: true,
-          role: true,
+          role: { select: { name: true } },
           isActive: true,
         },
       });
 
-      return this.sendSuccess(ctx, { user: updated });
+      return this.sendSuccess(ctx, { user: { ...raw, role: raw.role.name } });
     } catch (error: unknown) {
       this.logError(ctx, "Failed to activate admin user", {
         error: error instanceof Error ? error.message : String(error),
