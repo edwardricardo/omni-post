@@ -570,6 +570,17 @@ async function start() {
     outboxRelay.start();
     outboxCleaner.start();
 
+    // Gateway switch processor — BullMQ worker for reminder/suspend jobs
+    const { GatewaySwitchProcessor } = await import("./billing/gatewaySwitchProcessor.js");
+    const switchProcessorRedis = createRedisConnection();
+    switchProcessorRedis.on("error", () => {});
+    const _gatewaySwitchProcessor = new GatewaySwitchProcessor(
+      switchProcessorRedis,
+      app.container!.resolve(TOKENS.PrismaClient),
+      app.container!.resolve(TOKENS.EmailPort)
+    );
+    logger.info("GatewaySwitchProcessor started");
+
     // DLQ archival — daily (Sprint D)
     const { DlqArchivalService: _DlqArchivalType } =
       await import("./webhooks/DlqArchivalService.js");
