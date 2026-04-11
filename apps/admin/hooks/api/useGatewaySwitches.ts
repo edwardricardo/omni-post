@@ -104,7 +104,7 @@ export function useGatewaySwitches(filters: GatewaySwitchFilters = {}) {
         page: String(page),
         limit: String(limit),
       });
-      const url = `/api/backend/admin/billing/gateway-switches?${params.toString()}`;
+      const url = `/api/backend/api/admin/billing/gateway-switches?${params.toString()}`;
       const json = await fetchJson<GatewaySwitchListResponse>(url);
       return json.data;
     },
@@ -121,7 +121,7 @@ export function useGatewaySwitchDetail(id: string | null) {
     queryKey: ["gateway-switches", "detail", id],
     queryFn: async () => {
       const json = await fetchJson<GatewaySwitchDetailResponse>(
-        `/api/backend/admin/billing/gateway-switches/${id}`
+        `/api/backend/api/admin/billing/gateway-switches/${id}`
       );
       return json.data;
     },
@@ -143,7 +143,7 @@ export function useExtendSwitchDeadline() {
   return useMutation({
     mutationFn: async ({ id, extraHours }: { id: string; extraHours: number }) => {
       const json = await fetchJson<ExtendDeadlineResponse>(
-        `/api/backend/admin/billing/gateway-switches/${id}/extend`,
+        `/api/backend/api/admin/billing/gateway-switches/${id}/extend`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -171,7 +171,7 @@ export function useForceCompleteSwitch() {
   return useMutation({
     mutationFn: async (id: string) => {
       await fetchJson<{ ok: boolean }>(
-        `/api/backend/admin/billing/gateway-switches/${id}/force-complete`,
+        `/api/backend/api/admin/billing/gateway-switches/${id}/force-complete`,
         { method: "POST" }
       );
     },
@@ -194,7 +194,7 @@ export function useForceSuspendSwitch() {
   return useMutation({
     mutationFn: async (id: string) => {
       await fetchJson<{ ok: boolean }>(
-        `/api/backend/admin/billing/gateway-switches/${id}/force-suspend`,
+        `/api/backend/api/admin/billing/gateway-switches/${id}/force-suspend`,
         { method: "POST" }
       );
     },

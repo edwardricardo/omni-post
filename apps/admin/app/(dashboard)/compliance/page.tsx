@@ -36,13 +36,12 @@ const RESULT_VARIANT: Record<string, "success" | "error"> = {
 };
 
 /** Maps compliance check categories to tab keys for click navigation. */
-const CATEGORY_TAB_MAP: Record<string, string> = {
-  gdpr: "gdpr",
-  privacy: "gdpr",
-  security: "security",
-  breach: "breaches",
-  audit: "audit",
-};
+const SECURITY_KEYS = new Set(["session_timeout", "login_protection"]);
+
+function checkKeyToTab(key: string): string {
+  if (SECURITY_KEYS.has(key)) return "security";
+  return "gdpr";
+}
 
 function CompliancePageContent() {
   const tco = useTranslations("compliance");
@@ -75,9 +74,8 @@ function CompliancePageContent() {
     return Math.round(metrics.reduce((acc, m) => acc + m.score, 0) / metrics.length);
   }, [metrics]);
 
-  const handleCheckClick = useCallback((category: string) => {
-    const tab = CATEGORY_TAB_MAP[category.toLowerCase()];
-    if (tab) setActiveTab(tab);
+  const handleCheckClick = useCallback((key: string) => {
+    setActiveTab(checkKeyToTab(key));
   }, []);
 
   if (isLoading) {
@@ -207,23 +205,23 @@ function CompliancePageContent() {
                   </h3>
                   <div className="flex gap-3 text-xs">
                     <span className="text-[var(--success)]">
-                      {tco("score.passing")}: {scoreData.checks.filter((c) => c.passed).length}
+                      {tco("score.passing")}: {scoreData.checks.filter((c) => c.passing).length}
                     </span>
                     <span className="text-[var(--error)]">
-                      {tco("score.failing")}: {scoreData.checks.filter((c) => !c.passed).length}
+                      {tco("score.failing")}: {scoreData.checks.filter((c) => !c.passing).length}
                     </span>
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   {scoreData.checks.map((check) => (
                     <button
-                      key={check.id}
+                      key={check.key}
                       type="button"
-                      onClick={() => handleCheckClick(check.category)}
-                      disabled={check.passed}
+                      onClick={() => handleCheckClick(check.key)}
+                      disabled={check.passing}
                       className={[
                         "w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-sm transition-colors",
-                        check.passed
+                        check.passing
                           ? "text-[var(--text-secondary)] cursor-default"
                           : "text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer",
                       ].join(" ")}
@@ -231,12 +229,12 @@ function CompliancePageContent() {
                       <span
                         className={[
                           "flex-shrink-0 h-4 w-4 rounded-full flex items-center justify-center text-[10px]",
-                          check.passed
+                          check.passing
                             ? "bg-[var(--success-subtle)] text-[var(--success)]"
                             : "bg-[var(--error-subtle)] text-[var(--error)]",
                         ].join(" ")}
                       >
-                        {check.passed ? "\u2713" : "\u2717"}
+                        {check.passing ? "\u2713" : "\u2717"}
                       </span>
                       <span>{check.label}</span>
                     </button>

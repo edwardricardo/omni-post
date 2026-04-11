@@ -307,10 +307,11 @@ export function useUpdateSecuritySettings() {
 // ---------------------------------------------------------------------------
 
 export interface ComplianceCheck {
-  id: string;
+  key: string;
   label: string;
-  passed: boolean;
-  category: string;
+  weight: number;
+  passing: boolean;
+  detail?: string;
 }
 
 export interface ComplianceScoreData {
