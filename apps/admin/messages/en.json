@@ -81,7 +81,11 @@
     "phone": "Phone",
     "optional": "Optional",
     "info": "Info",
-    "show": "Show"
+    "show": "Show",
+    "all": "All",
+    "date": "Date",
+    "description": "Description",
+    "resolved": "Resolved"
   },
   "auth": {
     "title": "Admin Login",
@@ -675,6 +679,7 @@
       "overview": "Overview",
       "gdpr": "GDPR/Privacy",
       "security": "Security",
+      "breaches": "Breaches",
       "audit": "Audit Logs"
     },
     "audit": {
@@ -684,7 +689,75 @@
     "gdprTitle": "GDPR/Privacy Compliance",
     "securityTitle": "Security Compliance",
     "comingSoon": "Detailed {tab} compliance metrics and controls coming soon",
-    "configureSettings": "Configure {tab} Settings"
+    "configureSettings": "Configure {tab} Settings",
+    "gdpr": {
+      "privacyPolicyUrl": "Privacy Policy URL",
+      "termsOfServiceUrl": "Terms of Service URL",
+      "cookiePolicyUrl": "Cookie Policy URL",
+      "dpoType": "DPO Type",
+      "internal": "Internal (Email)",
+      "external": "External (Service URL)",
+      "dpoEmail": "DPO Email",
+      "dpoUrl": "DPO Service URL",
+      "dataRetentionDays": "Data Retention (days)",
+      "auditLogRetentionDays": "Audit Log Retention (days)",
+      "autoDelete": "Auto-delete expired data",
+      "autoDeleteWarning": "Enabling this permanently deletes data on schedule",
+      "dsarResponseDays": "DSAR Response Deadline (days)",
+      "dsarResponseHelper": "15 = Brazil/LGPD \u00b7 30 = GDPR \u00b7 45 = US/CCPA",
+      "defaultJurisdiction": "Default Jurisdiction",
+      "enableErasure": "Right to Erasure",
+      "enableExport": "Data Export",
+      "enableBreachNotification": "Breach Notification",
+      "lastUpdated": "Last updated by {user} at {date}",
+      "settingsSaved": "GDPR settings saved successfully"
+    },
+    "security": {
+      "require2FA": "Require Two-Factor Authentication",
+      "sessionTimeout": "Session Timeout",
+      "maxLoginAttempts": "Max Login Attempts",
+      "passwordMinLength": "Minimum Password Length",
+      "requireUppercase": "Require Uppercase Letter",
+      "requireSpecialChar": "Require Special Character",
+      "ipAllowlistEnabled": "IP Allowlist",
+      "ipAllowlistHelper": "Enter one IP address or CIDR range per line",
+      "settingsSaved": "Security settings saved successfully"
+    },
+    "dsar": {
+      "title": "Data Subject Access Requests",
+      "email": "Email",
+      "type": "Type",
+      "jurisdiction": "Jurisdiction",
+      "status": "Status",
+      "deadline": "Deadline",
+      "acknowledge": "Acknowledge",
+      "complete": "Complete",
+      "reject": "Reject",
+      "rejectReason": "Rejection Reason",
+      "exportUrl": "Export URL (optional)",
+      "daysLeft": "{days} days left",
+      "overdue": "Overdue"
+    },
+    "breaches": {
+      "title": "Breach Reports",
+      "reportBreach": "Report Breach",
+      "severity": "Severity",
+      "affected": "Affected Users",
+      "notifications": "Notifications",
+      "notSent": "Not sent",
+      "sent": "Sent",
+      "sendNotifications": "Send Notifications",
+      "markResolved": "Mark Resolved",
+      "discoveredAt": "Discovered At",
+      "dataTypes": "Data Types Affected",
+      "breachReported": "Breach report created",
+      "notificationsSent": "Notifications sent successfully"
+    },
+    "score": {
+      "title": "Compliance Checklist",
+      "passing": "Passing",
+      "failing": "Failing"
+    }
   },
   "webhooks": {
     "title": "Webhook Dashboard",

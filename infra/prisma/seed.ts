@@ -428,7 +428,7 @@ async function main() {
     create: {
       email: "admin@omnipost.local",
       passwordHash: hashedPassword,
-      name: "Edward",
+      name: "SuperAdmin",
       roleId: "role-super-admin",
       isActive: true,
     },
@@ -780,6 +780,37 @@ async function seedTestAccounts() {
   }
 
   console.log(`Test accounts seeded: ${testAccounts.length}`);
+
+  // ─── Compliance Settings (Sprint C) ───────────────────────────────────────
+  await prisma.gdprSettings.upsert({
+    where: { id: "gdpr-singleton" },
+    update: {},
+    create: {
+      id: "gdpr-singleton",
+      dpoType: "INTERNAL",
+      dataRetentionDays: 365,
+      auditLogRetentionDays: 90,
+      dsarResponseDays: 30,
+      defaultJurisdiction: "GDPR",
+      enableRightToErasure: true,
+      enableDataExport: true,
+      enableDataAccess: true,
+      enableBreachNotification: true,
+    },
+  });
+  console.log("GdprSettings seeded");
+
+  await prisma.securitySettings.upsert({
+    where: { id: "security-singleton" },
+    update: {},
+    create: {
+      id: "security-singleton",
+      sessionTimeoutMinutes: 1440,
+      maxLoginAttempts: 5,
+      passwordMinLength: 8,
+    },
+  });
+  console.log("SecuritySettings seeded");
 }
 
 main().finally(() => prisma.$disconnect());

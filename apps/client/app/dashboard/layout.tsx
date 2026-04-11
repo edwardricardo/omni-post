@@ -29,6 +29,7 @@ import {
   ClipboardList,
   Megaphone,
   Puzzle,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -49,6 +50,7 @@ const navigation = [
   { name: "Channels", href: "/dashboard/channels", icon: Share2 },
   { name: "Integrations", href: "/dashboard/integrations", icon: Puzzle },
   { name: "Settings", href: "/dashboard/settings/brand-voice", icon: Settings },
+  { name: "Privacy", href: "/dashboard/settings/privacy", icon: Shield },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

@@ -1,25 +1,28 @@
 /**
  * @file page.tsx
- * @description Compliance dashboard page presenting GDPR, security, and audit status metrics.
- *   Uses CSS design tokens and reusable UI components.
+ * @description Compliance dashboard page with five tabs: Overview (metrics + checklist),
+ *   GDPR (settings + DSAR), Security (settings), Breaches (reports), and Audit (logs).
  * @layer page
  */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 
 import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
 import { AccessDenied } from "@/components/shared/AccessDenied";
-import { useCompliance } from "@/hooks/api/useCompliance";
+import { useCompliance, useComplianceScore } from "@/hooks/api/useCompliance";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { TabNav } from "@/components/ui/TabNav";
-import { ActionButton } from "@/components/ui/ActionButton";
 import { Pagination } from "@/components/ui/Pagination";
+import { GdprSettingsForm } from "@/components/compliance/GdprSettingsForm";
+import { DsarTable } from "@/components/compliance/DsarTable";
+import { SecuritySettingsForm } from "@/components/compliance/SecuritySettingsForm";
+import { BreachTable } from "@/components/compliance/BreachTable";
 
-const TAB_KEYS = ["overview", "gdpr", "security", "audit"] as const;
+const TAB_KEYS = ["overview", "gdpr", "security", "breaches", "audit"] as const;
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "error" | "neutral"> = {
   compliant: "success",
@@ -32,10 +35,20 @@ const RESULT_VARIANT: Record<string, "success" | "error"> = {
   failure: "error",
 };
 
+/** Maps compliance check categories to tab keys for click navigation. */
+const CATEGORY_TAB_MAP: Record<string, string> = {
+  gdpr: "gdpr",
+  privacy: "gdpr",
+  security: "security",
+  breach: "breaches",
+  audit: "audit",
+};
+
 function CompliancePageContent() {
   const tco = useTranslations("compliance");
   const tc = useTranslations("common");
   const { data, isLoading, error } = useCompliance();
+  const { data: scoreData } = useComplianceScore();
   const [activeTab, setActiveTab] = useState("overview");
   const [auditPage, setAuditPage] = useState(1);
   const [auditPerPage, setAuditPerPage] = useState(25);
@@ -61,6 +74,11 @@ function CompliancePageContent() {
     if (metrics.length === 0) return 0;
     return Math.round(metrics.reduce((acc, m) => acc + m.score, 0) / metrics.length);
   }, [metrics]);
+
+  const handleCheckClick = useCallback((category: string) => {
+    const tab = CATEGORY_TAB_MAP[category.toLowerCase()];
+    if (tab) setActiveTab(tab);
+  }, []);
 
   if (isLoading) {
     return (
@@ -126,56 +144,135 @@ function CompliancePageContent() {
 
       <div className="mt-4">
         {activeTab === "overview" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {metrics.map((metric) => (
-              <div
-                key={metric.id}
-                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                      {metric.name}
-                    </h3>
-                    <p className="text-sm text-[var(--text-secondary)]">{metric.description}</p>
+          <div className="space-y-6">
+            {/* Metric Cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {metrics.map((metric) => (
+                <div
+                  key={metric.id}
+                  className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                        {metric.name}
+                      </h3>
+                      <p className="text-sm text-[var(--text-secondary)]">{metric.description}</p>
+                    </div>
+                    <Badge variant={STATUS_VARIANT[metric.status] ?? "neutral"}>
+                      {metric.status === "compliant"
+                        ? tc("healthy")
+                        : metric.status === "warning"
+                          ? tc("warning")
+                          : metric.status === "non-compliant"
+                            ? tc("critical")
+                            : metric.status}
+                    </Badge>
                   </div>
-                  <Badge variant={STATUS_VARIANT[metric.status] ?? "neutral"}>
-                    {metric.status === "compliant"
-                      ? tc("healthy")
-                      : metric.status === "warning"
-                        ? tc("warning")
-                        : metric.status === "non-compliant"
-                          ? tc("critical")
-                          : metric.status}
-                  </Badge>
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-[var(--text-secondary)]">
+                        {tco("complianceScore")}
+                      </span>
+                      <span className="text-sm font-medium text-[var(--text-primary)]">
+                        {metric.score}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-[var(--bg-elevated)] rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          metric.score >= 90
+                            ? "bg-[var(--success)]"
+                            : metric.score >= 75
+                              ? "bg-[var(--warning)]"
+                              : "bg-[var(--error)]"
+                        }`}
+                        style={{ width: `${metric.score}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="text-xs text-[var(--text-tertiary)]">
+                    {tco("lastChecked", { date: new Date(metric.lastChecked).toLocaleString() })}
+                  </div>
                 </div>
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-[var(--text-secondary)]">
-                      {tco("complianceScore")}
+              ))}
+            </div>
+
+            {/* Compliance Checklist */}
+            {scoreData && (
+              <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                    {tco("score.title")}
+                  </h3>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-[var(--success)]">
+                      {tco("score.passing")}: {scoreData.checks.filter((c) => c.passed).length}
                     </span>
-                    <span className="text-sm font-medium text-[var(--text-primary)]">
-                      {metric.score}%
+                    <span className="text-[var(--error)]">
+                      {tco("score.failing")}: {scoreData.checks.filter((c) => !c.passed).length}
                     </span>
-                  </div>
-                  <div className="w-full bg-[var(--bg-elevated)] rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        metric.score >= 90
-                          ? "bg-[var(--success)]"
-                          : metric.score >= 75
-                            ? "bg-[var(--warning)]"
-                            : "bg-[var(--error)]"
-                      }`}
-                      style={{ width: `${metric.score}%` }}
-                    />
                   </div>
                 </div>
-                <div className="text-xs text-[var(--text-tertiary)]">
-                  {tco("lastChecked", { date: new Date(metric.lastChecked).toLocaleString() })}
+                <div className="space-y-1.5">
+                  {scoreData.checks.map((check) => (
+                    <button
+                      key={check.id}
+                      type="button"
+                      onClick={() => handleCheckClick(check.category)}
+                      disabled={check.passed}
+                      className={[
+                        "w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-sm transition-colors",
+                        check.passed
+                          ? "text-[var(--text-secondary)] cursor-default"
+                          : "text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer",
+                      ].join(" ")}
+                    >
+                      <span
+                        className={[
+                          "flex-shrink-0 h-4 w-4 rounded-full flex items-center justify-center text-[10px]",
+                          check.passed
+                            ? "bg-[var(--success-subtle)] text-[var(--success)]"
+                            : "bg-[var(--error-subtle)] text-[var(--error)]",
+                        ].join(" ")}
+                      >
+                        {check.passed ? "\u2713" : "\u2717"}
+                      </span>
+                      <span>{check.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+          </div>
+        )}
+
+        {activeTab === "gdpr" && (
+          <div className="space-y-6">
+            <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
+                {tco("gdprTitle")}
+              </h2>
+              <GdprSettingsForm />
+            </div>
+            <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+              <DsarTable />
+            </div>
+          </div>
+        )}
+
+        {activeTab === "security" && (
+          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
+              {tco("securityTitle")}
+            </h2>
+            <SecuritySettingsForm />
+          </div>
+        )}
+
+        {activeTab === "breaches" && (
+          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+            <BreachTable />
           </div>
         )}
 
@@ -226,22 +323,6 @@ function CompliancePageContent() {
                   setAuditPage(1);
                 }}
               />
-            </div>
-          </div>
-        )}
-
-        {(activeTab === "gdpr" || activeTab === "security") && (
-          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
-            <div className="text-center py-8">
-              <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
-                {activeTab === "gdpr" ? tco("gdprTitle") : tco("securityTitle")}
-              </h3>
-              <p className="text-[var(--text-secondary)] mb-4">
-                {tco("comingSoon", { tab: activeTab })}
-              </p>
-              <ActionButton variant="primary" size="sm">
-                {tco("configureSettings", { tab: activeTab.toUpperCase() })}
-              </ActionButton>
             </div>
           </div>
         )}

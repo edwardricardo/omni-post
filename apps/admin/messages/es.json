@@ -81,7 +81,11 @@
     "phone": "Telefono",
     "optional": "Opcional",
     "info": "Informacion",
-    "show": "Mostrar"
+    "show": "Mostrar",
+    "all": "Todos",
+    "date": "Fecha",
+    "description": "Descripcion",
+    "resolved": "Resuelto"
   },
   "auth": {
     "title": "Inicio de sesion",
@@ -675,6 +679,7 @@
       "overview": "General",
       "gdpr": "GDPR/Privacidad",
       "security": "Seguridad",
+      "breaches": "Brechas",
       "audit": "Registros de auditoria"
     },
     "audit": {
@@ -684,7 +689,75 @@
     "gdprTitle": "Cumplimiento GDPR/Privacidad",
     "securityTitle": "Cumplimiento de seguridad",
     "comingSoon": "Metricas y controles detallados de cumplimiento {tab} proximamente",
-    "configureSettings": "Configurar ajustes de {tab}"
+    "configureSettings": "Configurar ajustes de {tab}",
+    "gdpr": {
+      "privacyPolicyUrl": "URL de politica de privacidad",
+      "termsOfServiceUrl": "URL de terminos de servicio",
+      "cookiePolicyUrl": "URL de politica de cookies",
+      "dpoType": "Tipo de DPO",
+      "internal": "Interno (Email)",
+      "external": "Externo (URL de servicio)",
+      "dpoEmail": "Email del DPO",
+      "dpoUrl": "URL del servicio DPO",
+      "dataRetentionDays": "Retencion de datos (dias)",
+      "auditLogRetentionDays": "Retencion de registros de auditoria (dias)",
+      "autoDelete": "Eliminar automaticamente datos expirados",
+      "autoDeleteWarning": "Habilitar esto eliminara permanentemente los datos segun el cronograma",
+      "dsarResponseDays": "Plazo de respuesta DSAR (dias)",
+      "dsarResponseHelper": "15 = Brasil/LGPD \u00b7 30 = GDPR \u00b7 45 = EE.UU./CCPA",
+      "defaultJurisdiction": "Jurisdiccion predeterminada",
+      "enableErasure": "Derecho al olvido",
+      "enableExport": "Exportacion de datos",
+      "enableBreachNotification": "Notificacion de brechas",
+      "lastUpdated": "Ultima actualizacion por {user} el {date}",
+      "settingsSaved": "Configuracion GDPR guardada exitosamente"
+    },
+    "security": {
+      "require2FA": "Requerir autenticacion de dos factores",
+      "sessionTimeout": "Tiempo de espera de sesion",
+      "maxLoginAttempts": "Intentos maximos de inicio de sesion",
+      "passwordMinLength": "Longitud minima de contrasena",
+      "requireUppercase": "Requerir letra mayuscula",
+      "requireSpecialChar": "Requerir caracter especial",
+      "ipAllowlistEnabled": "Lista blanca de IP",
+      "ipAllowlistHelper": "Ingrese una direccion IP o rango CIDR por linea",
+      "settingsSaved": "Configuracion de seguridad guardada exitosamente"
+    },
+    "dsar": {
+      "title": "Solicitudes de acceso de sujetos de datos",
+      "email": "Correo electronico",
+      "type": "Tipo",
+      "jurisdiction": "Jurisdiccion",
+      "status": "Estado",
+      "deadline": "Fecha limite",
+      "acknowledge": "Acusar recibo",
+      "complete": "Completar",
+      "reject": "Rechazar",
+      "rejectReason": "Motivo de rechazo",
+      "exportUrl": "URL de exportacion (opcional)",
+      "daysLeft": "{days} dias restantes",
+      "overdue": "Vencido"
+    },
+    "breaches": {
+      "title": "Reportes de brechas",
+      "reportBreach": "Reportar brecha",
+      "severity": "Severidad",
+      "affected": "Usuarios afectados",
+      "notifications": "Notificaciones",
+      "notSent": "No enviadas",
+      "sent": "Enviadas",
+      "sendNotifications": "Enviar notificaciones",
+      "markResolved": "Marcar como resuelto",
+      "discoveredAt": "Descubierto el",
+      "dataTypes": "Tipos de datos afectados",
+      "breachReported": "Reporte de brecha creado",
+      "notificationsSent": "Notificaciones enviadas exitosamente"
+    },
+    "score": {
+      "title": "Lista de verificacion de cumplimiento",
+      "passing": "Aprobados",
+      "failing": "Fallidos"
+    }
   },
   "webhooks": {
     "title": "Panel de webhooks",

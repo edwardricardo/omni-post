@@ -78,6 +78,7 @@ model Account {
   gatewaySwitchAt        DateTime?
   gatewaySwitchEvents    GatewaySwitchEvent[]
   billingEvents          BillingEvent[]
+  dsarRequests           DsarRequest[]
 
   @@index([isOnTrial, trialEndDate])
   @@index([nextBillingDate])
@@ -2898,6 +2899,135 @@ model BillingEvent {
   account Account? @relation(fields: [accountId], references: [id])
 
   @@index([gatewayProvider, createdAt])
+}
+
+// ─── Compliance (Sprint C — GDPR/LGPD/CCPA/PIPEDA) ─────────────────────────
+
+enum DpoType {
+  INTERNAL
+  EXTERNAL
+}
+
+enum DsarRequestType {
+  EXPORT
+  DELETION
+  ACCESS
+}
+
+enum DsarStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  EXPIRED
+}
+
+enum JurisdictionType {
+  GDPR
+  LGPD
+  CCPA
+  PIPEDA
+  OTHER
+}
+
+model GdprSettings {
+  id                       String           @id @default(cuid())
+  privacyPolicyUrl         String?
+  cookiePolicyUrl          String?
+  termsOfServiceUrl        String?
+  dpoType                  DpoType          @default(INTERNAL)
+  dpoEmail                 String?
+  dpoUrl                   String?
+  dataRetentionDays        Int              @default(365)
+  auditLogRetentionDays    Int              @default(90)
+  enableAutoDataDeletion   Boolean          @default(false)
+  dsarResponseDays         Int              @default(30)
+  defaultJurisdiction      JurisdictionType @default(GDPR)
+  enableRightToErasure     Boolean          @default(true)
+  enableDataExport         Boolean          @default(true)
+  enableDataAccess         Boolean          @default(true)
+  enableBreachNotification Boolean          @default(true)
+  updatedAt                DateTime         @updatedAt
+  updatedBy                String?
+}
+
+model SecuritySettings {
+  id                    String   @id @default(cuid())
+  require2FA            Boolean  @default(false)
+  sessionTimeoutMinutes Int      @default(1440)
+  maxLoginAttempts      Int      @default(5)
+  passwordMinLength     Int      @default(8)
+  requireUppercase      Boolean  @default(false)
+  requireSpecialChar    Boolean  @default(false)
+  ipAllowlistEnabled    Boolean  @default(false)
+  ipAllowlist           String[]
+  updatedAt             DateTime @updatedAt
+  updatedBy             String?
+}
+
+model ConsentRecord {
+  id             String    @id @default(cuid())
+  userId         String?
+  accountId      String?
+  consentType    String
+  consentVersion String
+  acceptedAt     DateTime  @default(now())
+  ipAddress      String?
+  userAgent      String?
+  withdrawn      Boolean   @default(false)
+  withdrawnAt    DateTime?
+
+  @@index([userId, consentType])
+  @@index([accountId])
+}
+
+model DsarRequest {
+  id                String           @id @default(cuid())
+  accountId         String?
+  requestorEmail    String
+  requestorName     String?
+  type              DsarRequestType
+  jurisdiction      JurisdictionType @default(GDPR)
+  status            DsarStatus       @default(PENDING)
+  deadlineAt        DateTime
+  requestedAt       DateTime         @default(now())
+  acknowledgedAt    DateTime?
+  completedAt       DateTime?
+  completedBy       String?
+  rejectedAt        DateTime?
+  rejectedBy        String?
+  rejectionReason   String?
+  exportUrl         String?
+  exportExpiresAt   DateTime?
+  notes             String?
+  ipAddress         String?
+  verificationToken String?          @unique
+
+  account Account? @relation(fields: [accountId], references: [id])
+
+  @@index([status, deadlineAt])
+  @@index([requestorEmail])
+}
+
+model DataBreachReport {
+  id                   String   @id @default(cuid())
+  title                String
+  description          String
+  discoveredAt         DateTime
+  reportedAt           DateTime @default(now())
+  reportedBy           String
+  affectedUserCount    Int?
+  dataTypesAffected    String[]
+  severity             String
+  notificationSentAt   DateTime?
+  notificationSentBy   String?
+  regulatoryReportedAt DateTime?
+  regulatoryReportedTo String?
+  resolved             Boolean  @default(false)
+  resolvedAt           DateTime?
+  internalNotes        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 // ─── Referral Program (Sprint 8) ────────────────────────────────────────────

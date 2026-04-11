@@ -38,6 +38,8 @@ import { ThreadAnalytics } from "../../analytics/threadAnalytics.js";
 // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
 import type { ApiMetrics } from "../../metrics/apiMetrics.js";
 import { createPostsService } from "../../posts/postsService.js";
+import { ComplianceService } from "../../compliance/ComplianceService.js";
+import { DataRetentionService } from "../../compliance/DataRetentionService.js";
 import { DatabaseOptimizer } from "../../database/DatabaseOptimizer.js";
 import { RedisCacheManager } from "@adapters/cache-redis";
 import { dbLogger } from "../../lib/logger.js";
@@ -124,6 +126,21 @@ export function setupServices(
   container.registerInstance(TOKENS.TemplateAnalytics, templateAnalytics);
   container.registerInstance(TOKENS.SubscriptionService, subscriptionService);
   container.registerInstance(TOKENS.WebhookDashboardService, webhookDashboardService);
+
+  // Compliance (Sprint C)
+  container.register<ComplianceService>(
+    TOKENS.ComplianceService,
+    () => {
+      const emailPort = container.resolve<EmailPort>(TOKENS.EmailPort);
+      return new ComplianceService(emailPort);
+    },
+    true
+  );
+  container.register<DataRetentionService>(
+    TOKENS.DataRetentionService,
+    () => new DataRetentionService(),
+    true
+  );
 
   // Register RealtimeWebhookBroadcaster (F4D — SSE stream integration)
   container.register<RealtimeWebhookBroadcaster>(

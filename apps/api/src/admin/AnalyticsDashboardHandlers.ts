@@ -232,11 +232,22 @@ export class AnalyticsDashboardHandler extends BaseRouteHandler {
           ? ((auditLogsLast30Days - failedActionsLast30Days) / auditLogsLast30Days) * 100
           : 100;
 
-      const complianceScore = Math.round(
-        successRate * 0.6 +
-          (uniqueUsersLast30Days.length > 0 ? 100 : 0) * 0.2 +
-          (totalAuditLogs > 0 ? 100 : 0) * 0.2
-      );
+      // Compliance score delegated to ComplianceService (Sprint C)
+      let complianceScore = 0;
+      try {
+        const { ComplianceService } = await import("../compliance/ComplianceService.js");
+        const { ResendEmailAdapter } =
+          await import("../infrastructure/adapters/ResendEmailAdapter.js");
+        const svc = new ComplianceService(new ResendEmailAdapter());
+        const scoreResult = await svc.getComplianceScore();
+        complianceScore = scoreResult.score;
+      } catch {
+        complianceScore = Math.round(
+          successRate * 0.6 +
+            (uniqueUsersLast30Days.length > 0 ? 100 : 0) * 0.2 +
+            (totalAuditLogs > 0 ? 100 : 0) * 0.2
+        );
+      }
 
       this.logInfo(ctx, "Compliance metrics fetched successfully", {
         totalAuditLogs,

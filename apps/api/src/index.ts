@@ -73,6 +73,7 @@ import { subscriptionRoutes } from "./billing/subscriptionRoutes.js";
 import { clientBillingRoutes } from "./billing/clientBillingRoutes.js";
 import { adminBillingRoutes } from "./billing/adminBillingRoutes.js";
 import { billingWebhookRoutes } from "./billing/billingWebhookRoutes.js";
+import { complianceRoutes } from "./compliance/complianceRoutes.js";
 import { registerOAuthRoutes } from "./auth/providerOAuth.js";
 import { setupContainer } from "./infrastructure/container/setup.js";
 import { TOKENS } from "./infrastructure/container/types.js";
@@ -406,6 +407,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(subscriptionRoutes);
   await typedApp.register(clientBillingRoutes);
   await typedApp.register(adminBillingRoutes);
+  await typedApp.register(complianceRoutes);
   await typedApp.register(analyticsRoutes);
   await typedApp.register(aiRoutes);
 
