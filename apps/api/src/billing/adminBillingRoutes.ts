@@ -6,7 +6,6 @@
  */
 
 import type { FastifyPluginAsync } from "fastify";
-import { prisma } from "@infra/prisma";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
@@ -43,54 +42,12 @@ export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const { status, page, limit } = parsed.data;
-      const offset = (page - 1) * limit;
-
-      const where: Record<string, unknown> = status && status !== "ALL" ? { status } : {};
-
-      const [events, total] = await Promise.all([
-        prisma.gatewaySwitchEvent.findMany({
-          where,
-          include: {
-            account: { select: { id: true, name: true, email: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          skip: offset,
-          take: limit,
-        }),
-        prisma.gatewaySwitchEvent.count({ where }),
-      ]);
-
-      // Stat counts
-      const [scheduled, pendingCheckout, suspended, completed30d] = await Promise.all([
-        prisma.gatewaySwitchEvent.count({
-          where: { status: "SCHEDULED" },
-        }),
-        prisma.gatewaySwitchEvent.count({
-          where: { status: "PENDING_CHECKOUT" },
-        }),
-        prisma.gatewaySwitchEvent.count({
-          where: { status: "SUSPENDED" },
-        }),
-        prisma.gatewaySwitchEvent.count({
-          where: {
-            status: "COMPLETED",
-            completedAt: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-            },
-          },
-        }),
-      ]);
-
-      return reply.send({
-        ok: true,
-        data: {
-          events,
-          total,
-          page,
-          limit,
-          stats: { scheduled, pendingCheckout, suspended, completed30d },
-        },
+      const data = await gatewayService.listGatewaySwitches({
+        status,
+        page,
+        limit,
       });
+      return reply.send({ ok: true, data });
     }
   );
 
@@ -106,12 +63,7 @@ export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const { id } = request.params as { id: string };
-      const event = await prisma.gatewaySwitchEvent.findUnique({
-        where: { id },
-        include: {
-          account: { select: { id: true, name: true, email: true } },
-        },
-      });
+      const event = await gatewayService.getGatewaySwitchById(id);
 
       if (!event) {
         return reply.code(404).send({ error: "Switch event not found" });
@@ -141,9 +93,7 @@ export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
         });
       }
 
-      const switchEvent = await prisma.gatewaySwitchEvent.findUnique({
-        where: { id },
-      });
+      const switchEvent = await gatewayService.getGatewaySwitchById(id);
       if (!switchEvent) {
         return reply.code(404).send({ error: "Switch event not found" });
       }

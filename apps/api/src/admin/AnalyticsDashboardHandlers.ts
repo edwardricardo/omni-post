@@ -238,7 +238,7 @@ export class AnalyticsDashboardHandler extends BaseRouteHandler {
         const { ComplianceService } = await import("../compliance/ComplianceService.js");
         const { ResendEmailAdapter } =
           await import("../infrastructure/adapters/ResendEmailAdapter.js");
-        const svc = new ComplianceService(new ResendEmailAdapter());
+        const svc = new ComplianceService(this.prisma, new ResendEmailAdapter());
         const scoreResult = await svc.getComplianceScore();
         complianceScore = scoreResult.score;
       } catch {

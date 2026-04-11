@@ -7,7 +7,7 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import type { IGatewayAdapterRegistry } from "../infrastructure/billing/GatewayAdapterRegistry.js";
 import type { GatewaySwitchJobService } from "./GatewaySwitchJobService.js";
 import type { EmailPort } from "../domain/repositories/EmailPort.js";
@@ -52,6 +52,7 @@ function mapGatewayToAdapterProvider(gateway: "STRIPE" | "PADDLE"): GatewayProvi
 
 export class GatewayBillingService {
   constructor(
+    private readonly prisma: PrismaClient,
     private readonly registry: IGatewayAdapterRegistry,
     private readonly switchJobService: GatewaySwitchJobService,
     private readonly emailPort: EmailPort
@@ -69,7 +70,7 @@ export class GatewayBillingService {
     requestedByUserId?: string
   ): Promise<Result<SwitchInitiatedResult, SwitchError>> {
     try {
-      const account = await prisma.account.findUnique({
+      const account = await this.prisma.account.findUnique({
         where: { id: accountId },
       });
       if (!account) return err("ACCOUNT_NOT_FOUND");
@@ -78,7 +79,7 @@ export class GatewayBillingService {
       if (account.gatewayProvider === targetGateway) return err("SAME_GATEWAY");
       if (account.pendingGatewaySwitch) return err("SWITCH_ALREADY_PENDING");
 
-      const subscription = await prisma.accountSubscription.findFirst({
+      const subscription = await this.prisma.accountSubscription.findFirst({
         where: {
           accountId,
           status: { in: ["ACTIVE", "TRIALING"] },
@@ -112,8 +113,8 @@ export class GatewayBillingService {
 
       // Persist everything in a single transaction
       const fromGateway = account.gatewayProvider;
-      const [switchEvent] = await prisma.$transaction([
-        prisma.gatewaySwitchEvent.create({
+      const [switchEvent] = await this.prisma.$transaction([
+        this.prisma.gatewaySwitchEvent.create({
           data: {
             accountId,
             fromGateway,
@@ -122,7 +123,7 @@ export class GatewayBillingService {
             status: "SCHEDULED",
           },
         }),
-        prisma.account.update({
+        this.prisma.account.update({
           where: { id: accountId },
           data: {
             pendingGatewayProvider: targetGateway,
@@ -130,11 +131,11 @@ export class GatewayBillingService {
             gatewaySwitchAt: switchDate,
           },
         }),
-        prisma.accountSubscription.update({
+        this.prisma.accountSubscription.update({
           where: { id: subscription.id },
           data: { cancelAtPeriodEnd: true },
         }),
-        prisma.auditLog.create({
+        this.prisma.auditLog.create({
           data: {
             action: "GATEWAY_SWITCH_INITIATED",
             resource: "account",
@@ -169,19 +170,19 @@ export class GatewayBillingService {
    */
   async cancelPendingSwitch(accountId: string): Promise<Result<{ cancelled: true }, SwitchError>> {
     try {
-      const account = await prisma.account.findUnique({
+      const account = await this.prisma.account.findUnique({
         where: { id: accountId },
       });
       if (!account) return err("ACCOUNT_NOT_FOUND");
       if (!account.pendingGatewaySwitch) return err("SWITCH_NOT_FOUND");
 
-      const switchEvent = await prisma.gatewaySwitchEvent.findFirst({
+      const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
         where: { accountId, status: "SCHEDULED" },
         orderBy: { createdAt: "desc" },
       });
       if (!switchEvent) return err("SWITCH_NOT_FOUND");
 
-      const subscription = await prisma.accountSubscription.findFirst({
+      const subscription = await this.prisma.accountSubscription.findFirst({
         where: {
           accountId,
           status: { in: ["ACTIVE", "TRIALING"] },
@@ -200,8 +201,8 @@ export class GatewayBillingService {
         });
       }
 
-      await prisma.$transaction([
-        prisma.account.update({
+      await this.prisma.$transaction([
+        this.prisma.account.update({
           where: { id: accountId },
           data: {
             pendingGatewayProvider: null,
@@ -211,13 +212,13 @@ export class GatewayBillingService {
         }),
         ...(subscription
           ? [
-              prisma.accountSubscription.update({
+              this.prisma.accountSubscription.update({
                 where: { id: subscription.id },
                 data: { cancelAtPeriodEnd: false },
               }),
             ]
           : []),
-        prisma.gatewaySwitchEvent.update({
+        this.prisma.gatewaySwitchEvent.update({
           where: { id: switchEvent.id },
           data: { status: "CANCELLED", cancelledAt: new Date() },
         }),
@@ -246,7 +247,7 @@ export class GatewayBillingService {
     try {
       if (extraHours > 72) return err("MAX_EXTENSION_EXCEEDED");
 
-      const switchEvent = await prisma.gatewaySwitchEvent.findFirst({
+      const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
         where: { accountId, status: "PENDING_CHECKOUT" },
         orderBy: { createdAt: "desc" },
       });
@@ -255,7 +256,7 @@ export class GatewayBillingService {
       const base = switchEvent.extendedUntil ?? switchEvent.scheduledFor;
       const newDeadline = new Date(base.getTime() + extraHours * 60 * 60 * 1000);
 
-      await prisma.gatewaySwitchEvent.update({
+      await this.prisma.gatewaySwitchEvent.update({
         where: { id: switchEvent.id },
         data: { extendedUntil: newDeadline, extendedBy: adminUserId },
       });
@@ -276,7 +277,7 @@ export class GatewayBillingService {
    */
   async handleSubscriptionCanceled(accountId: string): Promise<Result<void, SwitchError>> {
     try {
-      const account = await prisma.account.findUnique({
+      const account = await this.prisma.account.findUnique({
         where: { id: accountId },
       });
       if (!account) return err("ACCOUNT_NOT_FOUND");
@@ -286,26 +287,26 @@ export class GatewayBillingService {
         return ok(undefined);
       }
 
-      const switchEvent = await prisma.gatewaySwitchEvent.findFirst({
+      const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
         where: { accountId, status: "SCHEDULED" },
         orderBy: { createdAt: "desc" },
       });
       if (!switchEvent) return ok(undefined);
 
-      const subscription = await prisma.accountSubscription.findFirst({
+      const subscription = await this.prisma.accountSubscription.findFirst({
         where: { accountId },
         orderBy: { createdAt: "desc" },
       });
 
       // Transition: SCHEDULED → PENDING_CHECKOUT
-      await prisma.$transaction([
-        prisma.gatewaySwitchEvent.update({
+      await this.prisma.$transaction([
+        this.prisma.gatewaySwitchEvent.update({
           where: { id: switchEvent.id },
           data: { status: "PENDING_CHECKOUT" },
         }),
         ...(subscription
           ? [
-              prisma.accountSubscription.update({
+              this.prisma.accountSubscription.update({
                 where: { id: subscription.id },
                 data: { status: "CANCELED" },
               }),
@@ -346,12 +347,12 @@ export class GatewayBillingService {
     newGatewaySubscriptionId: string
   ): Promise<Result<void, SwitchError>> {
     try {
-      const account = await prisma.account.findUnique({
+      const account = await this.prisma.account.findUnique({
         where: { id: accountId },
       });
       if (!account) return err("ACCOUNT_NOT_FOUND");
 
-      const switchEvent = await prisma.gatewaySwitchEvent.findFirst({
+      const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
         where: { accountId, status: "PENDING_CHECKOUT" },
         orderBy: { createdAt: "desc" },
       });
@@ -363,8 +364,8 @@ export class GatewayBillingService {
 
       const targetGateway = switchEvent.toGateway;
 
-      await prisma.$transaction([
-        prisma.account.update({
+      await this.prisma.$transaction([
+        this.prisma.account.update({
           where: { id: accountId },
           data: {
             gatewayProvider: targetGateway,
@@ -374,7 +375,7 @@ export class GatewayBillingService {
             gatewaySwitchAt: null,
           },
         }),
-        prisma.accountSubscription.updateMany({
+        this.prisma.accountSubscription.updateMany({
           where: { accountId },
           data: {
             gatewayProvider: targetGateway,
@@ -383,11 +384,11 @@ export class GatewayBillingService {
             cancelAtPeriodEnd: false,
           },
         }),
-        prisma.gatewaySwitchEvent.update({
+        this.prisma.gatewaySwitchEvent.update({
           where: { id: switchEvent.id },
           data: { status: "COMPLETED", completedAt: new Date() },
         }),
-        prisma.auditLog.create({
+        this.prisma.auditLog.create({
           data: {
             action: "GATEWAY_SWITCH_COMPLETED",
             resource: "account",
@@ -425,18 +426,18 @@ export class GatewayBillingService {
     adminUserId: string
   ): Promise<Result<void, SwitchError>> {
     try {
-      const switchEvent = await prisma.gatewaySwitchEvent.findUnique({
+      const switchEvent = await this.prisma.gatewaySwitchEvent.findUnique({
         where: { id: switchEventId },
       });
       if (!switchEvent) return err("SWITCH_NOT_FOUND");
       if (switchEvent.status !== "PENDING_CHECKOUT") return err("INVALID_STATUS");
 
-      await prisma.$transaction([
-        prisma.gatewaySwitchEvent.update({
+      await this.prisma.$transaction([
+        this.prisma.gatewaySwitchEvent.update({
           where: { id: switchEventId },
           data: { status: "COMPLETED", completedAt: new Date() },
         }),
-        prisma.account.update({
+        this.prisma.account.update({
           where: { id: switchEvent.accountId },
           data: {
             gatewayProvider: switchEvent.toGateway,
@@ -445,7 +446,7 @@ export class GatewayBillingService {
             gatewaySwitchAt: null,
           },
         }),
-        prisma.auditLog.create({
+        this.prisma.auditLog.create({
           data: {
             action: "GATEWAY_SWITCH_FORCE_COMPLETED",
             resource: "account",
@@ -480,22 +481,22 @@ export class GatewayBillingService {
     adminUserId: string
   ): Promise<Result<void, SwitchError>> {
     try {
-      const switchEvent = await prisma.gatewaySwitchEvent.findUnique({
+      const switchEvent = await this.prisma.gatewaySwitchEvent.findUnique({
         where: { id: switchEventId },
       });
       if (!switchEvent) return err("SWITCH_NOT_FOUND");
       if (switchEvent.status !== "PENDING_CHECKOUT") return err("INVALID_STATUS");
 
-      await prisma.$transaction([
-        prisma.accountSubscription.updateMany({
+      await this.prisma.$transaction([
+        this.prisma.accountSubscription.updateMany({
           where: { accountId: switchEvent.accountId },
           data: { status: "CANCELED" },
         }),
-        prisma.gatewaySwitchEvent.update({
+        this.prisma.gatewaySwitchEvent.update({
           where: { id: switchEventId },
           data: { status: "SUSPENDED", suspendedAt: new Date() },
         }),
-        prisma.auditLog.create({
+        this.prisma.auditLog.create({
           data: {
             action: "GATEWAY_SWITCH_FORCE_SUSPENDED",
             resource: "account",
@@ -513,7 +514,7 @@ export class GatewayBillingService {
       await this.switchJobService.cancelJobs(switchEvent.accountId);
 
       // Notify account
-      const account = await prisma.account.findUnique({
+      const account = await this.prisma.account.findUnique({
         where: { id: switchEvent.accountId },
         select: { email: true },
       });
@@ -553,7 +554,7 @@ export class GatewayBillingService {
     >
   > {
     try {
-      const account = await prisma.account.findUnique({
+      const account = await this.prisma.account.findUnique({
         where: { id: accountId },
         select: {
           gatewayProvider: true,
@@ -564,7 +565,7 @@ export class GatewayBillingService {
 
       let pendingSwitch = null;
       if (account.pendingGatewaySwitch) {
-        const switchEvent = await prisma.gatewaySwitchEvent.findFirst({
+        const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
           where: {
             accountId,
             status: { in: ["SCHEDULED", "PENDING_CHECKOUT"] },
@@ -604,7 +605,7 @@ export class GatewayBillingService {
     cancelUrl: string
   ): Promise<Result<{ url: string }, SwitchError>> {
     try {
-      const account = await prisma.account.findUnique({
+      const account = await this.prisma.account.findUnique({
         where: { id: accountId },
       });
       if (!account) return err("ACCOUNT_NOT_FOUND");
@@ -622,7 +623,7 @@ export class GatewayBillingService {
         });
         customerId = customerResult.externalCustomerId;
 
-        await prisma.account.update({
+        await this.prisma.account.update({
           where: { id: accountId },
           data: {
             gatewayCustomerId: customerId,
@@ -655,7 +656,7 @@ export class GatewayBillingService {
     returnUrl: string
   ): Promise<Result<{ url: string }, SwitchError>> {
     try {
-      const account = await prisma.account.findUnique({
+      const account = await this.prisma.account.findUnique({
         where: { id: accountId },
       });
       if (!account) return err("ACCOUNT_NOT_FOUND");
@@ -674,5 +675,180 @@ export class GatewayBillingService {
       logger.error({ err: error, accountId }, "Failed to get billing portal URL");
       return err("GATEWAY_ERROR");
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Webhook Event Processing (idempotency + routing)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * @method resolveAccountIdByCustomer
+   * @description Looks up accountId from a gateway customer ID.
+   */
+  async resolveAccountIdByCustomer(
+    gatewayCustomerId: string,
+    provider: GatewayProviderType
+  ): Promise<string | null> {
+    if (!gatewayCustomerId) return null;
+    const providerEnum = provider === "stripe" ? "STRIPE" : "PADDLE";
+    const account = await this.prisma.account.findFirst({
+      where: {
+        gatewayCustomerId,
+        gatewayProvider: providerEnum as "STRIPE" | "PADDLE",
+      },
+      select: { id: true },
+    });
+    return account?.id ?? null;
+  }
+
+  /**
+   * @method checkBillingEventIdempotency
+   * @description Returns true if the event was already processed (skip it).
+   *   Creates or retrieves the BillingEvent record for tracking.
+   */
+  async checkBillingEventIdempotency(
+    eventId: string,
+    provider: GatewayProviderType,
+    eventType: string,
+    domainEvent: string,
+    data: Record<string, unknown>
+  ): Promise<{ skip: boolean; recordId: string | null }> {
+    const gatewayEventId = eventId || `${provider}-${eventType}-${Date.now()}`;
+    const providerEnum = provider === "stripe" ? ("STRIPE" as const) : ("PADDLE" as const);
+
+    const existing = await this.prisma.billingEvent.findUnique({
+      where: { gatewayEventId },
+      select: { id: true, processed: true },
+    });
+
+    if (existing?.processed) {
+      return { skip: true, recordId: existing.id };
+    }
+
+    const record = await this.prisma.billingEvent.upsert({
+      where: { gatewayEventId },
+      create: {
+        gatewayEventId,
+        gatewayProvider: providerEnum,
+        eventType: domainEvent,
+        rawEventType: eventType,
+        payload: data as object,
+        processed: false,
+      },
+      update: {},
+    });
+
+    return { skip: false, recordId: record.id };
+  }
+
+  /**
+   * @method markBillingEventProcessed
+   * @description Marks a BillingEvent as successfully processed.
+   */
+  async markBillingEventProcessed(recordId: string): Promise<void> {
+    await this.prisma.billingEvent.update({
+      where: { id: recordId },
+      data: { processed: true, processedAt: new Date() },
+    });
+  }
+
+  /**
+   * @method markBillingEventError
+   * @description Records a processing error on a BillingEvent.
+   */
+  async markBillingEventError(recordId: string, error: string): Promise<void> {
+    await this.prisma.billingEvent.update({
+      where: { id: recordId },
+      data: { error },
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Query Methods (used by admin routes)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * @method getAvailablePlans
+   * @description Returns active provider bundles for the public plans endpoint.
+   */
+  async getAvailablePlans() {
+    const plans = await this.prisma.providerBundle.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        providers: true,
+        pricePerAccountMonth: true,
+        sortOrder: true,
+      },
+    });
+    return plans.map((p) => ({
+      ...p,
+      pricePerAccountMonth: Number(p.pricePerAccountMonth),
+    }));
+  }
+
+  /**
+   * @method listGatewaySwitches
+   * @description Lists gateway switch events with pagination and stats.
+   */
+  async listGatewaySwitches(filters: { status?: string; page: number; limit: number }) {
+    const where: Record<string, unknown> =
+      filters.status && filters.status !== "ALL" ? { status: filters.status } : {};
+    const offset = (filters.page - 1) * filters.limit;
+
+    const [events, total, scheduled, pendingCheckout, suspended, completed30d] = await Promise.all([
+      this.prisma.gatewaySwitchEvent.findMany({
+        where,
+        include: {
+          account: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: offset,
+        take: filters.limit,
+      }),
+      this.prisma.gatewaySwitchEvent.count({ where }),
+      this.prisma.gatewaySwitchEvent.count({
+        where: { status: "SCHEDULED" },
+      }),
+      this.prisma.gatewaySwitchEvent.count({
+        where: { status: "PENDING_CHECKOUT" },
+      }),
+      this.prisma.gatewaySwitchEvent.count({
+        where: { status: "SUSPENDED" },
+      }),
+      this.prisma.gatewaySwitchEvent.count({
+        where: {
+          status: "COMPLETED",
+          completedAt: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          },
+        },
+      }),
+    ]);
+
+    return {
+      events,
+      total,
+      page: filters.page,
+      limit: filters.limit,
+      stats: { scheduled, pendingCheckout, suspended, completed30d },
+    };
+  }
+
+  /**
+   * @method getGatewaySwitchById
+   * @description Returns a single gateway switch event by ID.
+   */
+  async getGatewaySwitchById(id: string) {
+    return this.prisma.gatewaySwitchEvent.findUnique({
+      where: { id },
+      include: {
+        account: { select: { id: true, name: true, email: true } },
+      },
+    });
   }
 }

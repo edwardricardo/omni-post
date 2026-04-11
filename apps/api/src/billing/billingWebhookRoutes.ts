@@ -4,11 +4,11 @@
  *   These routes require raw body access for signature verification and
  *   must be registered BEFORE any JWT auth middleware in index.ts.
  *   Uses scoped addContentTypeParser so only webhook routes receive raw Buffer.
+ *   All DB access delegated to GatewayBillingService — zero direct prisma imports.
  * @layer infrastructure
  */
 
 import type { FastifyPluginAsync, FastifyBaseLogger } from "fastify";
-import { prisma } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { IGatewayAdapterRegistry } from "../infrastructure/billing/GatewayAdapterRegistry.js";
 import type { GatewayBillingService } from "./GatewayBillingService.js";
@@ -33,19 +33,6 @@ function extractSubscriptionId(
   return ((data.subscription_id ?? data.id) as string) ?? "";
 }
 
-async function resolveAccountId(
-  gatewayCustomerId: string,
-  provider: GatewayProviderType
-): Promise<string | null> {
-  if (!gatewayCustomerId) return null;
-  const providerEnum = provider === "stripe" ? "STRIPE" : "PADDLE";
-  const account = await prisma.account.findFirst({
-    where: { gatewayCustomerId, gatewayProvider: providerEnum },
-    select: { id: true },
-  });
-  return account?.id ?? null;
-}
-
 async function routeBillingEvent(
   provider: GatewayProviderType,
   eventId: string,
@@ -60,40 +47,26 @@ async function routeBillingEvent(
     return;
   }
 
-  // --- Idempotency check ---
-  const gatewayEventId = eventId || `${provider}-${eventType}-${Date.now()}`;
-  const providerEnum = provider === "stripe" ? ("STRIPE" as const) : ("PADDLE" as const);
+  // --- Idempotency check (delegated to service) ---
+  const { skip, recordId } = await service.checkBillingEventIdempotency(
+    eventId,
+    provider,
+    eventType,
+    domainEvent,
+    data
+  );
 
-  const existing = await prisma.billingEvent.findUnique({
-    where: { gatewayEventId },
-    select: { id: true, processed: true },
-  });
-
-  if (existing?.processed) {
-    log.info({ gatewayEventId, provider }, "Duplicate billing webhook event — skipping");
+  if (skip) {
+    log.info({ gatewayEventId: eventId, provider }, "Duplicate billing webhook event — skipping");
     return;
   }
-
-  const billingEventRecord = await prisma.billingEvent.upsert({
-    where: { gatewayEventId },
-    create: {
-      gatewayEventId,
-      gatewayProvider: providerEnum,
-      eventType: domainEvent,
-      rawEventType: eventType,
-      payload: data as object,
-      processed: false,
-    },
-    update: {},
-  });
-  // --- End idempotency check ---
 
   const customerId = extractCustomerId(data, provider);
   let processingError: string | undefined;
 
   switch (domainEvent) {
     case "subscription.canceled": {
-      const accountId = await resolveAccountId(customerId, provider);
+      const accountId = await service.resolveAccountIdByCustomer(customerId, provider);
       if (!accountId) {
         log.warn(
           { provider, customerId },
@@ -114,7 +87,7 @@ async function routeBillingEvent(
 
     case "subscription.activated": {
       const subscriptionId = extractSubscriptionId(data, provider);
-      const accountId = await resolveAccountId(customerId, provider);
+      const accountId = await service.resolveAccountIdByCustomer(customerId, provider);
       if (!accountId) {
         log.warn(
           { provider, customerId },
@@ -141,16 +114,12 @@ async function routeBillingEvent(
   }
 
   // Mark as processed (or record error)
-  if (processingError) {
-    await prisma.billingEvent.update({
-      where: { id: billingEventRecord.id },
-      data: { error: processingError },
-    });
-  } else {
-    await prisma.billingEvent.update({
-      where: { id: billingEventRecord.id },
-      data: { processed: true, processedAt: new Date() },
-    });
+  if (recordId) {
+    if (processingError) {
+      await service.markBillingEventError(recordId, processingError);
+    } else {
+      await service.markBillingEventProcessed(recordId);
+    }
   }
 }
 
@@ -199,11 +168,7 @@ export const billingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         const domainEvent = adapter.mapEventType(event.type);
 
         request.log.info(
-          {
-            provider: "stripe",
-            eventType: event.type,
-            domainEvent,
-          },
+          { provider: "stripe", eventType: event.type, domainEvent },
           "Stripe billing webhook received"
         );
 
@@ -221,7 +186,6 @@ export const billingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: "Invalid signature" });
       }
 
-      // Always return 200 — Stripe retries on non-200
       return reply.code(200).send({ received: true });
     }
   );
@@ -253,11 +217,7 @@ export const billingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         const domainEvent = adapter.mapEventType(event.type);
 
         request.log.info(
-          {
-            provider: "paddle",
-            eventType: event.type,
-            domainEvent,
-          },
+          { provider: "paddle", eventType: event.type, domainEvent },
           "Paddle billing webhook received"
         );
 

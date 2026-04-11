@@ -6,7 +6,6 @@
  */
 
 import type { FastifyPluginAsync } from "fastify";
-import { prisma } from "@infra/prisma";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GatewayBillingService } from "./GatewayBillingService.js";
@@ -120,29 +119,8 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (_request, reply) => {
-      const plans = await prisma.providerBundle.findMany({
-        where: { isActive: true },
-        orderBy: { sortOrder: "asc" },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          providers: true,
-          pricePerAccountMonth: true,
-          sortOrder: true,
-        },
-      });
-
-      return reply.send({
-        ok: true,
-        data: {
-          plans: plans.map((p) => ({
-            ...p,
-            pricePerAccountMonth: Number(p.pricePerAccountMonth),
-          })),
-        },
-      });
+      const plans = await gatewayService.getAvailablePlans();
+      return reply.send({ ok: true, data: { plans } });
     }
   );
 

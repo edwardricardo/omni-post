@@ -132,19 +132,26 @@ export function setupServices(
   container.register<ComplianceService>(
     TOKENS.ComplianceService,
     () => {
+      const p = container.resolve<import("@infra/prisma").PrismaClient>(TOKENS.PrismaClient);
       const emailPort = container.resolve<EmailPort>(TOKENS.EmailPort);
-      return new ComplianceService(emailPort);
+      return new ComplianceService(p, emailPort);
     },
     true
   );
   container.register<DlqArchivalService>(
     TOKENS.DlqArchivalService,
-    () => new DlqArchivalService(),
+    () =>
+      new DlqArchivalService(
+        container.resolve<import("@infra/prisma").PrismaClient>(TOKENS.PrismaClient)
+      ),
     true
   );
   container.register<DataRetentionService>(
     TOKENS.DataRetentionService,
-    () => new DataRetentionService(),
+    () =>
+      new DataRetentionService(
+        container.resolve<import("@infra/prisma").PrismaClient>(TOKENS.PrismaClient)
+      ),
     true
   );
 

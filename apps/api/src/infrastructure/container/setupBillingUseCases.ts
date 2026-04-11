@@ -18,6 +18,7 @@ import {
 import { GatewayBillingService } from "../../billing/GatewayBillingService.js";
 import { GatewaySwitchJobService } from "../../billing/GatewaySwitchJobService.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { PrismaClient } from "@infra/prisma";
 import { createRedisConnection } from "../../lib/redis.js";
 
 export function setupBillingUseCases(container: Container): void {
@@ -44,6 +45,7 @@ export function setupBillingUseCases(container: Container): void {
     TOKENS.GatewayBillingService,
     () =>
       new GatewayBillingService(
+        container.resolve<PrismaClient>(TOKENS.PrismaClient),
         container.resolve<GatewayAdapterRegistry>(TOKENS.GatewayAdapterRegistry),
         container.resolve<GatewaySwitchJobService>(TOKENS.GatewaySwitchJobService),
         container.resolve<EmailPort>(TOKENS.EmailPort)

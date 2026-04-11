@@ -7,7 +7,7 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import crypto from "crypto";
 import type { EmailPort } from "../domain/repositories/EmailPort.js";
 import { logger } from "../lib/logger.js";
@@ -55,16 +55,19 @@ const JURISDICTION_DAYS: Record<string, number> = {
 // ─── Service ────────────────────────────────────────────────────────────────
 
 export class ComplianceService {
-  constructor(private readonly emailPort: EmailPort) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly emailPort: EmailPort
+  ) {}
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Settings (singleton upsert)
   // ═══════════════════════════════════════════════════════════════════════════
 
   async getGdprSettings() {
-    const settings = await prisma.gdprSettings.findFirst();
+    const settings = await this.prisma.gdprSettings.findFirst();
     if (settings) return settings;
-    return prisma.gdprSettings.create({
+    return this.prisma.gdprSettings.create({
       data: { id: "gdpr-singleton" },
     });
   }
@@ -93,12 +96,12 @@ export class ComplianceService {
       }
 
       const existing = await this.getGdprSettings();
-      const updated = await prisma.gdprSettings.update({
+      const updated = await this.prisma.gdprSettings.update({
         where: { id: existing.id },
         data: { ...data, updatedBy, updatedAt: new Date() },
       });
 
-      await prisma.auditLog.create({
+      await this.prisma.auditLog.create({
         data: {
           action: "GDPR_SETTINGS_UPDATED",
           resource: "gdpr_settings",
@@ -117,9 +120,9 @@ export class ComplianceService {
   }
 
   async getSecuritySettings() {
-    const settings = await prisma.securitySettings.findFirst();
+    const settings = await this.prisma.securitySettings.findFirst();
     if (settings) return settings;
-    return prisma.securitySettings.create({
+    return this.prisma.securitySettings.create({
       data: { id: "security-singleton" },
     });
   }
@@ -145,12 +148,12 @@ export class ComplianceService {
       }
 
       const existing = await this.getSecuritySettings();
-      const updated = await prisma.securitySettings.update({
+      const updated = await this.prisma.securitySettings.update({
         where: { id: existing.id },
         data: { ...data, updatedBy, updatedAt: new Date() },
       });
 
-      await prisma.auditLog.create({
+      await this.prisma.auditLog.create({
         data: {
           action: "SECURITY_SETTINGS_UPDATED",
           resource: "security_settings",
@@ -176,7 +179,7 @@ export class ComplianceService {
     const [gdpr, security, recentAuditCount] = await Promise.all([
       this.getGdprSettings(),
       this.getSecuritySettings(),
-      prisma.auditLog.count({
+      this.prisma.auditLog.count({
         where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
       }),
     ]);
@@ -269,21 +272,21 @@ export class ComplianceService {
     if (filters.type) where.type = filters.type;
 
     const [requests, total] = await Promise.all([
-      prisma.dsarRequest.findMany({
+      this.prisma.dsarRequest.findMany({
         where,
         include: { account: { select: { id: true, name: true, email: true } } },
         orderBy: { requestedAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.dsarRequest.count({ where }),
+      this.prisma.dsarRequest.count({ where }),
     ]);
 
     return { requests, total, page, limit };
   }
 
   async getDsarById(id: string) {
-    return prisma.dsarRequest.findUnique({
+    return this.prisma.dsarRequest.findUnique({
       where: { id },
       include: { account: { select: { id: true, name: true, email: true } } },
     });
@@ -291,15 +294,15 @@ export class ComplianceService {
 
   async acknowledgeDsar(id: string, adminId: string): Promise<Result<unknown, ComplianceError>> {
     try {
-      const dsar = await prisma.dsarRequest.findUnique({ where: { id } });
+      const dsar = await this.prisma.dsarRequest.findUnique({ where: { id } });
       if (!dsar) return err("NOT_FOUND");
 
-      const updated = await prisma.dsarRequest.update({
+      const updated = await this.prisma.dsarRequest.update({
         where: { id },
         data: { status: "IN_PROGRESS", acknowledgedAt: new Date() },
       });
 
-      await prisma.auditLog.create({
+      await this.prisma.auditLog.create({
         data: {
           action: "DSAR_ACKNOWLEDGED",
           resource: "dsar_request",
@@ -322,10 +325,10 @@ export class ComplianceService {
     exportUrl?: string
   ): Promise<Result<unknown, ComplianceError>> {
     try {
-      const dsar = await prisma.dsarRequest.findUnique({ where: { id } });
+      const dsar = await this.prisma.dsarRequest.findUnique({ where: { id } });
       if (!dsar) return err("NOT_FOUND");
 
-      const updated = await prisma.dsarRequest.update({
+      const updated = await this.prisma.dsarRequest.update({
         where: { id },
         data: {
           status: "COMPLETED",
@@ -338,7 +341,7 @@ export class ComplianceService {
         },
       });
 
-      await prisma.auditLog.create({
+      await this.prisma.auditLog.create({
         data: {
           action: "DSAR_COMPLETED",
           resource: "dsar_request",
@@ -361,10 +364,10 @@ export class ComplianceService {
     reason: string
   ): Promise<Result<unknown, ComplianceError>> {
     try {
-      const dsar = await prisma.dsarRequest.findUnique({ where: { id } });
+      const dsar = await this.prisma.dsarRequest.findUnique({ where: { id } });
       if (!dsar) return err("NOT_FOUND");
 
-      const updated = await prisma.dsarRequest.update({
+      const updated = await this.prisma.dsarRequest.update({
         where: { id },
         data: {
           status: "REJECTED",
@@ -374,7 +377,7 @@ export class ComplianceService {
         },
       });
 
-      await prisma.auditLog.create({
+      await this.prisma.auditLog.create({
         data: {
           action: "DSAR_REJECTED",
           resource: "dsar_request",
@@ -402,7 +405,7 @@ export class ComplianceService {
   }): Promise<Result<{ id: string; deadlineAt: Date; message: string }, ComplianceError>> {
     try {
       // Rate limit: max 3 pending per email
-      const pendingCount = await prisma.dsarRequest.count({
+      const pendingCount = await this.prisma.dsarRequest.count({
         where: {
           requestorEmail: data.requestorEmail,
           status: { in: ["PENDING", "IN_PROGRESS"] },
@@ -415,7 +418,7 @@ export class ComplianceService {
       const daysToRespond = JURISDICTION_DAYS[jurisdiction] ?? gdprSettings.dsarResponseDays;
       const deadlineAt = new Date(Date.now() + daysToRespond * 24 * 60 * 60 * 1000);
 
-      const request = await prisma.dsarRequest.create({
+      const request = await this.prisma.dsarRequest.create({
         data: {
           requestorEmail: data.requestorEmail,
           ...(data.requestorName !== undefined && {
@@ -430,7 +433,7 @@ export class ComplianceService {
         },
       });
 
-      await prisma.auditLog.create({
+      await this.prisma.auditLog.create({
         data: {
           action: "DSAR_SUBMITTED",
           resource: "dsar_request",
@@ -466,13 +469,13 @@ export class ComplianceService {
     if (filters.resolved !== undefined) where.resolved = filters.resolved;
 
     const [reports, total] = await Promise.all([
-      prisma.dataBreachReport.findMany({
+      this.prisma.dataBreachReport.findMany({
         where,
         orderBy: { reportedAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.dataBreachReport.count({ where }),
+      this.prisma.dataBreachReport.count({ where }),
     ]);
 
     return { reports, total, page, limit };
@@ -490,7 +493,7 @@ export class ComplianceService {
     reportedBy: string
   ): Promise<Result<unknown, ComplianceError>> {
     try {
-      const report = await prisma.dataBreachReport.create({
+      const report = await this.prisma.dataBreachReport.create({
         data: {
           title: data.title,
           description: data.description,
@@ -504,7 +507,7 @@ export class ComplianceService {
         },
       });
 
-      await prisma.auditLog.create({
+      await this.prisma.auditLog.create({
         data: {
           action: "BREACH_REPORTED",
           resource: "data_breach",
@@ -527,12 +530,12 @@ export class ComplianceService {
     adminId: string
   ): Promise<Result<{ notified: number; errors: number }, ComplianceError>> {
     try {
-      const breach = await prisma.dataBreachReport.findUnique({
+      const breach = await this.prisma.dataBreachReport.findUnique({
         where: { id: breachId },
       });
       if (!breach) return err("NOT_FOUND");
 
-      const accounts = await prisma.account.findMany({
+      const accounts = await this.prisma.account.findMany({
         where: { isActive: true },
         select: { email: true },
       });
@@ -553,7 +556,7 @@ export class ComplianceService {
         }
       }
 
-      await prisma.dataBreachReport.update({
+      await this.prisma.dataBreachReport.update({
         where: { id: breachId },
         data: {
           notificationSentAt: new Date(),
@@ -561,7 +564,7 @@ export class ComplianceService {
         },
       });
 
-      await prisma.auditLog.create({
+      await this.prisma.auditLog.create({
         data: {
           action: "BREACH_NOTIFICATIONS_SENT",
           resource: "data_breach",

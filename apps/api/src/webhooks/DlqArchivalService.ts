@@ -6,10 +6,11 @@
  * @layer application
  */
 
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { logger } from "../lib/logger.js";
 
 export class DlqArchivalService {
+  constructor(private readonly prisma: PrismaClient) {}
   /**
    * @method archiveResolvedEvents
    * @description Soft-archives resolved WebhookDeadLetter events older than retentionDays.
@@ -17,7 +18,7 @@ export class DlqArchivalService {
   async archiveResolvedEvents(retentionDays: number): Promise<{ archived: number }> {
     const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
-    const result = await prisma.webhookDeadLetter.updateMany({
+    const result = await this.prisma.webhookDeadLetter.updateMany({
       where: {
         resolvedAt: { not: null, lt: cutoff },
         archivedAt: null,
@@ -42,7 +43,7 @@ export class DlqArchivalService {
   async flagStaleEvents(staleAfterDays: number): Promise<{ stale: number; eventIds: string[] }> {
     const cutoff = new Date(Date.now() - staleAfterDays * 24 * 60 * 60 * 1000);
 
-    const staleEvents = await prisma.webhookDeadLetter.findMany({
+    const staleEvents = await this.prisma.webhookDeadLetter.findMany({
       where: {
         resolvedAt: null,
         archivedAt: null,
