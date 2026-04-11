@@ -85,15 +85,36 @@ export class OutboxRelay {
             where: { id: row.id },
             data: { publishedAt: new Date() },
           });
-        } catch {
-          const nextRetryMs = Math.pow(2, row.retryCount + 1) * 1000;
-          await this.options.prisma.outboxEvent.update({
-            where: { id: row.id },
-            data: {
-              retryCount: row.retryCount + 1,
-              nextRetryAt: new Date(Date.now() + nextRetryMs),
-            },
-          });
+        } catch (error) {
+          const newRetryCount = row.retryCount + 1;
+          if (newRetryCount >= 5) {
+            // Move to dead letter — event exhausted all retries
+            await this.options.prisma.outboxDeadLetter.create({
+              data: {
+                originalEventId: row.id,
+                eventType: row.eventType,
+                aggregateId: row.aggregateId,
+                payload: row.payload as object,
+                failureReason: error instanceof Error ? error.message : "Max retries exhausted",
+                retryCount: newRetryCount,
+                firstFailedAt: row.createdAt,
+              },
+            });
+            // Mark as terminal — prevents future relay attempts
+            await this.options.prisma.outboxEvent.update({
+              where: { id: row.id },
+              data: { publishedAt: new Date() },
+            });
+          } else {
+            const nextRetryMs = Math.pow(2, newRetryCount) * 1000;
+            await this.options.prisma.outboxEvent.update({
+              where: { id: row.id },
+              data: {
+                retryCount: newRetryCount,
+                nextRetryAt: new Date(Date.now() + nextRetryMs),
+              },
+            });
+          }
         }
       }
     } finally {

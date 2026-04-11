@@ -74,6 +74,7 @@ import { clientBillingRoutes } from "./billing/clientBillingRoutes.js";
 import { adminBillingRoutes } from "./billing/adminBillingRoutes.js";
 import { billingWebhookRoutes } from "./billing/billingWebhookRoutes.js";
 import { complianceRoutes } from "./compliance/complianceRoutes.js";
+import { outboxAdminRoutes } from "./outbox/outboxAdminRoutes.js";
 import { registerOAuthRoutes } from "./auth/providerOAuth.js";
 import { setupContainer } from "./infrastructure/container/setup.js";
 import { TOKENS } from "./infrastructure/container/types.js";
@@ -408,6 +409,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(clientBillingRoutes);
   await typedApp.register(adminBillingRoutes);
   await typedApp.register(complianceRoutes);
+  await typedApp.register(outboxAdminRoutes);
   await typedApp.register(analyticsRoutes);
   await typedApp.register(aiRoutes);
 
@@ -567,6 +569,20 @@ async function start() {
     const outboxCleaner = app.container!.resolve<OutboxCleaner>(TOKENS.OutboxCleaner);
     outboxRelay.start();
     outboxCleaner.start();
+
+    // DLQ archival — daily (Sprint D)
+    const { DlqArchivalService: _DlqArchivalType } =
+      await import("./webhooks/DlqArchivalService.js");
+    const dlqArchival = app.container!.resolve<InstanceType<typeof _DlqArchivalType>>(
+      TOKENS.DlqArchivalService
+    );
+    setInterval(
+      () => {
+        dlqArchival.archiveResolvedEvents(90).catch(() => {});
+        dlqArchival.flagStaleEvents(30).catch(() => {});
+      },
+      24 * 60 * 60 * 1000
+    );
 
     const port = parseInt(process.env.PORT || "3000");
     const host = process.env.HOST || "0.0.0.0";

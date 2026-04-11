@@ -1564,12 +1564,31 @@ model WebhookDeadLetter {
   lastRetryAt   DateTime
   resolvedAt    DateTime?
   resolvedBy    String? // Admin user who resolved
+  archivedAt    DateTime? // soft archive — null = active
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([provider, eventType])
   @@index([firstFailedAt])
+  @@index([resolvedAt])
+}
+
+// ─── Outbox Dead Letter (Sprint D) ──────────────────────────────────────────
+
+model OutboxDeadLetter {
+  id              String    @id @default(cuid())
+  originalEventId String    @unique
+  eventType       String
+  aggregateId     String
+  payload         Json
+  failureReason   String
+  retryCount      Int
+  firstFailedAt   DateTime
+  archivedAt      DateTime  @default(now())
+  resolvedAt      DateTime?
+  resolvedBy      String?
+
   @@index([resolvedAt])
 }
 

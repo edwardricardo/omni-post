@@ -40,6 +40,13 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import {
+  useDlqMetrics,
+  useOutboxDeadLetter,
+  useRetryOutboxDlq,
+  useResolveOutboxDlq,
+} from "@/hooks/api/useWebhooks";
+import { ChevronDown, ChevronUp, Archive, Inbox } from "lucide-react";
 
 interface DeadLetterEvent {
   id: string;
@@ -79,6 +86,13 @@ export function DeadLetterQueue() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [outboxExpanded, setOutboxExpanded] = useState(false);
+  const [outboxPage, setOutboxPage] = useState(1);
+
+  const { data: dlqMetrics } = useDlqMetrics();
+  const { data: outboxData, isLoading: outboxLoading } = useOutboxDeadLetter(outboxPage);
+  const retryOutbox = useRetryOutboxDlq();
+  const resolveOutbox = useResolveOutboxDlq();
 
   const fetchDeadLetterEvents = useCallback(async () => {
     try {
@@ -227,6 +241,36 @@ export function DeadLetterQueue() {
               <RefreshCw className="h-4 w-4 mr-2" />
               {tc("refresh")}
             </ActionButton>
+          </div>
+        </div>
+
+        {/* Metrics bar */}
+        <div className="grid grid-cols-4 gap-3">
+          <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+            <p className="text-xs font-medium text-[var(--text-secondary)]">Unresolved</p>
+            <p className="text-lg font-semibold text-[var(--error)]">
+              {dlqMetrics ? dlqMetrics.unresolvedTotal : "-"}
+            </p>
+          </div>
+          <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+            <p className="text-xs font-medium text-[var(--text-secondary)]">Oldest</p>
+            <p className="text-lg font-semibold text-[var(--text-primary)]">
+              {dlqMetrics?.oldestUnresolvedAt
+                ? formatDistanceToNow(new Date(dlqMetrics.oldestUnresolvedAt), { addSuffix: true })
+                : "-"}
+            </p>
+          </div>
+          <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+            <p className="text-xs font-medium text-[var(--text-secondary)]">Archived</p>
+            <p className="text-lg font-semibold text-[var(--text-primary)]">
+              {dlqMetrics ? dlqMetrics.archivedTotal : "-"}
+            </p>
+          </div>
+          <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+            <p className="text-xs font-medium text-[var(--text-secondary)]">Outbox DLQ</p>
+            <p className="text-lg font-semibold text-[var(--text-primary)]">
+              {dlqMetrics ? dlqMetrics.outboxDlqTotal : "-"}
+            </p>
           </div>
         </div>
 
@@ -539,6 +583,145 @@ export function DeadLetterQueue() {
               </div>
             </div>
           </>
+        )}
+      </div>
+
+      {/* Outbox Dead Letter collapsible section */}
+      <div className="border-t border-[var(--border-subtle)]">
+        <button
+          type="button"
+          onClick={() => setOutboxExpanded((prev) => !prev)}
+          className="flex w-full items-center justify-between p-4 text-left hover:bg-[var(--bg-elevated)] transition-colors"
+        >
+          <div className="flex items-center space-x-2">
+            <Inbox className="h-5 w-5 text-[var(--text-secondary)]" />
+            <span className="text-base font-semibold text-[var(--text-primary)]">
+              Outbox Dead Letter
+            </span>
+            {outboxData?.total != null && (
+              <Badge variant={outboxData.total > 0 ? "error" : "success"}>{outboxData.total}</Badge>
+            )}
+          </div>
+          {outboxExpanded ? (
+            <ChevronUp className="h-4 w-4 text-[var(--text-secondary)]" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
+          )}
+        </button>
+
+        {outboxExpanded && (
+          <div className="p-4 pt-0">
+            {outboxLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <LoadingSpinner size="md" />
+              </div>
+            ) : !outboxData?.items?.length ? (
+              <div className="text-center py-6 text-[var(--text-secondary)]">
+                <Archive className="h-10 w-10 mx-auto mb-3 text-[var(--text-tertiary)]" />
+                <p className="text-sm">No outbox dead-letter entries</p>
+              </div>
+            ) : (
+              <>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border-subtle)]">
+                      <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                        Date
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                        Event Type
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                        Aggregate ID
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                        Retries
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium text-[var(--text-secondary)]">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {outboxData.items.map(
+                      (item: {
+                        id: string;
+                        createdAt: string;
+                        eventType: string;
+                        aggregateId: string;
+                        retryCount: number;
+                      }) => (
+                        <tr
+                          key={item.id}
+                          className="border-b border-[var(--border-subtle)] last:border-0"
+                        >
+                          <td className="px-3 py-2 text-[var(--text-secondary)]">
+                            {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                          </td>
+                          <td className="px-3 py-2">{item.eventType}</td>
+                          <td className="px-3 py-2">
+                            <span
+                              className="font-mono text-xs text-[var(--text-secondary)]"
+                              title={item.aggregateId}
+                            >
+                              {item.aggregateId.slice(0, 12)}...
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Badge variant={item.retryCount >= 5 ? "error" : "warning"}>
+                              {item.retryCount}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center space-x-2">
+                              <ActionButton
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => retryOutbox.mutate(item.id)}
+                                disabled={retryOutbox.isPending}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </ActionButton>
+                              <ActionButton
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => resolveOutbox.mutate(item.id)}
+                                disabled={resolveOutbox.isPending}
+                              >
+                                Resolve
+                              </ActionButton>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+
+                {outboxData.total > outboxData.limit && (
+                  <div className="flex items-center justify-end mt-4 space-x-2">
+                    <ActionButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setOutboxPage((p) => Math.max(1, p - 1))}
+                      disabled={outboxPage <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </ActionButton>
+                    <span className="text-sm text-[var(--text-secondary)]">Page {outboxPage}</span>
+                    <ActionButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setOutboxPage((p) => p + 1)}
+                      disabled={outboxPage * outboxData.limit >= outboxData.total}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </ActionButton>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -570,6 +570,61 @@ export class WebhookDashboardService extends BaseService {
     );
   }
 
+  async retryAllDeadLetterEvents(userId?: string) {
+    return this.execute(
+      { operation: "retryAllDeadLetterEvents", userId: userId ?? "system", metadata: {} },
+      async () => {
+        let total = 0;
+        let queued = 0;
+        let failed = 0;
+
+        // Process in batches to avoid loading entire table into memory
+        const BATCH_SIZE = 50;
+        let hasMore = true;
+
+        while (hasMore) {
+          const batch = await prisma.webhookDeadLetter.findMany({
+            where: { resolvedAt: null },
+            take: BATCH_SIZE,
+            select: { id: true },
+          });
+
+          if (batch.length === 0) {
+            hasMore = false;
+            break;
+          }
+
+          total += batch.length;
+
+          for (const event of batch) {
+            try {
+              const updateData: Record<string, unknown> = {
+                resolvedAt: new Date(),
+              };
+              if (userId) {
+                updateData.resolvedBy = userId;
+              }
+
+              await prisma.webhookDeadLetter.update({
+                where: { id: event.id },
+                data: updateData,
+              });
+              queued++;
+            } catch {
+              failed++;
+            }
+          }
+
+          if (batch.length < BATCH_SIZE) {
+            hasMore = false;
+          }
+        }
+
+        return { total, queued, failed };
+      }
+    );
+  }
+
   async exportWebhookEvents(accountId: string, query: DashboardQueryParams) {
     return this.execute(
       { operation: "exportWebhookEvents", userId: accountId, metadata: { query } },
@@ -641,6 +696,90 @@ export class WebhookDashboardService extends BaseService {
         ].join("\n");
 
         return { csv, count: events.length, timeRange: query.timeRange };
+      }
+    );
+  }
+
+  async getDlqMetrics() {
+    return this.execute(
+      { operation: "getDlqMetrics", userId: "system", metadata: {} },
+      async () => {
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        const [
+          unresolvedTotal,
+          resolvedTotal,
+          archivedTotal,
+          oldestUnresolved,
+          byProvider,
+          byEventType,
+          outboxDlqTotal,
+        ] = await Promise.all([
+          prisma.webhookDeadLetter.count({
+            where: { resolvedAt: null, archivedAt: null },
+          }),
+          prisma.webhookDeadLetter.count({
+            where: { resolvedAt: { not: null } },
+          }),
+          prisma.webhookDeadLetter.count({
+            where: { archivedAt: { not: null } },
+          }),
+          prisma.webhookDeadLetter.findFirst({
+            where: { resolvedAt: null, archivedAt: null },
+            orderBy: { firstFailedAt: "asc" },
+            select: { firstFailedAt: true },
+          }),
+          prisma.webhookDeadLetter.groupBy({
+            by: ["provider"],
+            where: { resolvedAt: null, archivedAt: null },
+            _count: { id: true },
+          }),
+          prisma.webhookDeadLetter.groupBy({
+            by: ["eventType"],
+            where: { resolvedAt: null, archivedAt: null },
+            _count: { id: true },
+          }),
+          prisma.outboxDeadLetter.count({ where: { resolvedAt: null } }),
+        ]);
+
+        // Last 7 days trend
+        const recentCreated = await prisma.webhookDeadLetter.groupBy({
+          by: ["createdAt"],
+          where: { createdAt: { gte: sevenDaysAgo } },
+          _count: { id: true },
+        });
+
+        const dayMap = new Map<string, { created: number; resolved: number }>();
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const key = d.toISOString().split("T")[0] ?? "";
+          dayMap.set(key, { created: 0, resolved: 0 });
+        }
+        for (const row of recentCreated) {
+          const key = row.createdAt.toISOString().split("T")[0] ?? "";
+          const existing = dayMap.get(key);
+          if (existing) existing.created += row._count.id;
+        }
+
+        return {
+          unresolvedTotal,
+          resolvedTotal,
+          archivedTotal,
+          oldestUnresolvedAt: oldestUnresolved?.firstFailedAt ?? null,
+          byProvider: byProvider.map((r) => ({
+            provider: r.provider,
+            count: r._count.id,
+          })),
+          byEventType: byEventType.map((r) => ({
+            eventType: r.eventType,
+            count: r._count.id,
+          })),
+          last7Days: Array.from(dayMap.entries())
+            .sort()
+            .map(([date, data]) => ({ date, ...data })),
+          outboxDlqTotal,
+        };
       }
     );
   }

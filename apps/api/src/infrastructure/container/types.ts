@@ -408,6 +408,9 @@ export const TOKENS = {
   ComplianceService: Symbol.for("ComplianceService"),
   DataRetentionService: Symbol.for("DataRetentionService"),
 
+  // DLQ Lifecycle (Sprint D)
+  DlqArchivalService: Symbol.for("DlqArchivalService"),
+
   // Report Sharing (Sprint 6 — Batch 3)
   EnableReportSharingUseCase: Symbol.for("EnableReportSharingUseCase"),
   DisableReportSharingUseCase: Symbol.for("DisableReportSharingUseCase"),

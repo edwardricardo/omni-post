@@ -40,6 +40,7 @@ import type { ApiMetrics } from "../../metrics/apiMetrics.js";
 import { createPostsService } from "../../posts/postsService.js";
 import { ComplianceService } from "../../compliance/ComplianceService.js";
 import { DataRetentionService } from "../../compliance/DataRetentionService.js";
+import { DlqArchivalService } from "../../webhooks/DlqArchivalService.js";
 import { DatabaseOptimizer } from "../../database/DatabaseOptimizer.js";
 import { RedisCacheManager } from "@adapters/cache-redis";
 import { dbLogger } from "../../lib/logger.js";
@@ -134,6 +135,11 @@ export function setupServices(
       const emailPort = container.resolve<EmailPort>(TOKENS.EmailPort);
       return new ComplianceService(emailPort);
     },
+    true
+  );
+  container.register<DlqArchivalService>(
+    TOKENS.DlqArchivalService,
+    () => new DlqArchivalService(),
     true
   );
   container.register<DataRetentionService>(

@@ -175,6 +175,18 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
     return this.sendSuccess(ctx, result);
   }
 
+  async retryAllDeadLetterEvents(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    const userId = request.auth?.user?.id;
+
+    if (!userId) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    const result = await this.service.retryAllDeadLetterEvents(userId);
+    return this.sendSuccess(ctx, result);
+  }
+
   async streamWebhookEvents(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
     const accountId = request.auth?.user?.id;
@@ -322,7 +334,30 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
     handler.getDeadLetterQueue.bind(handler)
   );
 
-  // Retry dead letter event
+  // DLQ metrics
+  fastify.get(
+    "/api/webhooks/dashboard/dead-letter/metrics",
+    {
+      preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
+      schema: { tags: ["Webhooks"], summary: "Get DLQ metrics and trends" },
+    },
+    async (_request, reply) => {
+      const metrics = await service.getDlqMetrics();
+      return reply.send({ ok: true, data: metrics });
+    }
+  );
+
+  // Retry ALL dead letter events (bulk)
+  fastify.post(
+    "/api/webhooks/dashboard/dead-letter/retry-all",
+    {
+      preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
+      schema: { tags: ["Webhooks"], summary: "Retry all unresolved dead letter events" },
+    },
+    handler.retryAllDeadLetterEvents.bind(handler)
+  );
+
+  // Retry single dead letter event
   fastify.post(
     "/api/webhooks/dashboard/dead-letter/:eventId/retry",
     {
