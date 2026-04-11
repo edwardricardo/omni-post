@@ -161,6 +161,7 @@ export class PaddlePaymentAdapter implements IPaymentAdapter {
     if (!event) throw new Error("Invalid Paddle webhook signature");
     const raw = event as unknown as Record<string, unknown>;
     return {
+      id: (raw.eventId ?? raw.event_id ?? raw.notificationId ?? "") as string,
       type: raw.eventType as string,
       data: raw.data as Record<string, unknown>,
     };

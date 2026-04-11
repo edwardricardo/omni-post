@@ -46,30 +46,6 @@ const PROVIDER_OPTIONS = [
   "BLUESKY",
 ] as const;
 
-const BUNDLES = [
-  {
-    name: "Creator",
-    slug: "creator",
-    providers: ["X", "INSTAGRAM", "YOUTUBE"],
-    price: 25,
-    description: "For content creators and influencers",
-  },
-  {
-    name: "Social Pro",
-    slug: "social-pro",
-    providers: ["X", "INSTAGRAM", "FACEBOOK", "LINKEDIN"],
-    price: 32,
-    description: "For brands managing multiple channels",
-  },
-  {
-    name: "Agency Full",
-    slug: "agency-full",
-    providers: PROVIDER_OPTIONS as unknown as string[],
-    price: 55,
-    description: "All 10 platforms for full-service agencies",
-  },
-] as const;
-
 const PROVIDER_TIERS = [
   { min: 1, max: 1, price: 12 },
   { min: 2, max: 3, price: 10 },
@@ -445,7 +421,12 @@ export default function BillingPage() {
   const checkout = useCheckout();
   const portal = useBillingPortal();
   const { data: gatewayStatus } = useGatewayStatus();
-  const { data: remotePlans, isLoading: plansLoading } = useAvailablePlans();
+  const {
+    data: remotePlans,
+    isLoading: plansLoading,
+    isError: plansError,
+    refetch: refetchPlans,
+  } = useAvailablePlans();
 
   // Use active gateway or default to stripe for checkout
   const checkoutGateway: GatewayProvider =
@@ -553,11 +534,22 @@ export default function BillingPage() {
                 </div>
               ))}
             </>
+          ) : plansError ? (
+            <div className="col-span-3 rounded-lg border border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-950/30 p-6 text-center">
+              <p className="text-sm text-red-800 dark:text-red-200">
+                Failed to load plans. Please try again.
+              </p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => refetchPlans()}>
+                Retry
+              </Button>
+            </div>
+          ) : !remotePlans?.length ? (
+            <div className="col-span-3 rounded-lg border bg-card p-6 text-center">
+              <p className="text-sm text-muted-foreground">No plans available at this time.</p>
+            </div>
           ) : (
-            (remotePlans ?? BUNDLES).map((bundle: BillingPlan | (typeof BUNDLES)[number]) => {
-              const price =
-                "pricePerAccountMonth" in bundle ? bundle.pricePerAccountMonth : bundle.price;
-              const total = calcBundle(price, accountCount);
+            remotePlans.map((bundle: BillingPlan) => {
+              const total = calcBundle(bundle.pricePerAccountMonth, accountCount);
               return (
                 <div key={bundle.slug} className="rounded-lg border bg-card p-5">
                   <h3 className="text-lg font-semibold">{bundle.name}</h3>

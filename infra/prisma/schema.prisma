@@ -77,6 +77,7 @@ model Account {
   pendingGatewaySwitch   Boolean            @default(false)
   gatewaySwitchAt        DateTime?
   gatewaySwitchEvents    GatewaySwitchEvent[]
+  billingEvents          BillingEvent[]
 
   @@index([isOnTrial, trialEndDate])
   @@index([nextBillingDate])
@@ -2879,6 +2880,24 @@ model GatewaySwitchEvent {
   @@index([accountId])
   @@index([status])
   @@index([scheduledFor])
+}
+
+model BillingEvent {
+  id              String          @id @default(cuid())
+  accountId       String?
+  gatewayProvider GatewayProvider
+  gatewayEventId  String          @unique
+  eventType       String
+  rawEventType    String
+  payload         Json
+  processed       Boolean         @default(false)
+  processedAt     DateTime?
+  error           String?
+  createdAt       DateTime        @default(now())
+
+  account Account? @relation(fields: [accountId], references: [id])
+
+  @@index([gatewayProvider, createdAt])
 }
 
 // ─── Referral Program (Sprint 8) ────────────────────────────────────────────

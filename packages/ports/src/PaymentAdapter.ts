@@ -31,6 +31,7 @@ export type BillingDomainEvent =
   | "trial.ending_soon";
 
 export interface WebhookEvent {
+  id: string;
   type: string;
   data: Record<string, unknown>;
 }

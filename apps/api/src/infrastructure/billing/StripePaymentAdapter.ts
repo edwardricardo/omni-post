@@ -168,7 +168,11 @@ export class StripePaymentAdapter implements IPaymentAdapter {
       params.signature,
       this.webhookSecret
     );
-    return { type: event.type, data: event.data.object as unknown as Record<string, unknown> };
+    return {
+      id: event.id,
+      type: event.type,
+      data: event.data.object as unknown as Record<string, unknown>,
+    };
   }
 
   mapEventType(type: string): BillingDomainEvent | null {

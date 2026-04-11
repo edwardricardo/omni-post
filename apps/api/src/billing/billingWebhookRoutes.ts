@@ -48,6 +48,7 @@ async function resolveAccountId(
 
 async function routeBillingEvent(
   provider: GatewayProviderType,
+  eventId: string,
   eventType: string,
   domainEvent: BillingDomainEvent | null,
   data: Record<string, unknown>,
@@ -59,7 +60,36 @@ async function routeBillingEvent(
     return;
   }
 
+  // --- Idempotency check ---
+  const gatewayEventId = eventId || `${provider}-${eventType}-${Date.now()}`;
+  const providerEnum = provider === "stripe" ? ("STRIPE" as const) : ("PADDLE" as const);
+
+  const existing = await prisma.billingEvent.findUnique({
+    where: { gatewayEventId },
+    select: { id: true, processed: true },
+  });
+
+  if (existing?.processed) {
+    log.info({ gatewayEventId, provider }, "Duplicate billing webhook event — skipping");
+    return;
+  }
+
+  const billingEventRecord = await prisma.billingEvent.upsert({
+    where: { gatewayEventId },
+    create: {
+      gatewayEventId,
+      gatewayProvider: providerEnum,
+      eventType: domainEvent,
+      rawEventType: eventType,
+      payload: data as object,
+      processed: false,
+    },
+    update: {},
+  });
+  // --- End idempotency check ---
+
   const customerId = extractCustomerId(data, provider);
+  let processingError: string | undefined;
 
   switch (domainEvent) {
     case "subscription.canceled": {
@@ -73,6 +103,7 @@ async function routeBillingEvent(
       }
       const result = await service.handleSubscriptionCanceled(accountId);
       if (!result.ok) {
+        processingError = result.error;
         log.error(
           { provider, accountId, error: result.error },
           "Error processing subscription.canceled"
@@ -93,6 +124,7 @@ async function routeBillingEvent(
       }
       const result = await service.handleCheckoutCompleted(accountId, customerId, subscriptionId);
       if (!result.ok) {
+        processingError = result.error;
         log.error(
           { provider, accountId, error: result.error },
           "Error processing subscription.activated"
@@ -106,6 +138,19 @@ async function routeBillingEvent(
         { provider, domainEvent, eventType },
         "Billing event not handled by gateway switch service"
       );
+  }
+
+  // Mark as processed (or record error)
+  if (processingError) {
+    await prisma.billingEvent.update({
+      where: { id: billingEventRecord.id },
+      data: { error: processingError },
+    });
+  } else {
+    await prisma.billingEvent.update({
+      where: { id: billingEventRecord.id },
+      data: { processed: true, processedAt: new Date() },
+    });
   }
 }
 
@@ -164,6 +209,7 @@ export const billingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
 
         await routeBillingEvent(
           "stripe",
+          event.id,
           event.type,
           domainEvent,
           event.data,
@@ -217,6 +263,7 @@ export const billingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
 
         await routeBillingEvent(
           "paddle",
+          event.id,
           event.type,
           domainEvent,
           event.data,
