@@ -126,3 +126,93 @@ export function useCancelGatewaySwitch() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Plans, Checkout & Portal
+// ---------------------------------------------------------------------------
+
+export interface BillingPlan {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  providers: string[];
+  pricePerAccountMonth: number;
+  sortOrder: number;
+}
+
+/**
+ * Fetches active billing plans (public, no auth).
+ */
+export function useAvailablePlans() {
+  return useQuery({
+    queryKey: ["billing", "plans"],
+    queryFn: async (): Promise<BillingPlan[]> => {
+      const res = await fetch("/api/backend/api/billing/plans", {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to fetch plans");
+      const json = (await res.json()) as {
+        ok: boolean;
+        data?: { plans: BillingPlan[] };
+      };
+      return json.data?.plans ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Creates a checkout session and redirects to the gateway.
+ */
+export function useCheckout() {
+  return useMutation({
+    mutationFn: async (params: { gatewayProvider: GatewayProvider }): Promise<{ url: string }> => {
+      const res = await fetch("/api/backend/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(params),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as Record<string, string>).error ?? "Checkout failed");
+      }
+      const json = (await res.json()) as {
+        ok: boolean;
+        data?: { url: string };
+      };
+      if (!json.data?.url) throw new Error("No checkout URL returned");
+      return { url: json.data.url };
+    },
+    onSuccess: ({ url }) => {
+      window.location.href = url;
+    },
+  });
+}
+
+/**
+ * Redirects to the gateway's billing portal (manage subscription, invoices).
+ */
+export function useBillingPortal() {
+  return useMutation({
+    mutationFn: async (): Promise<{ url: string }> => {
+      const res = await fetch("/api/backend/api/billing/portal", {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as Record<string, string>).error ?? "Portal unavailable");
+      }
+      const json = (await res.json()) as {
+        ok: boolean;
+        data?: { url: string };
+      };
+      if (!json.data?.url) throw new Error("No portal URL returned");
+      return { url: json.data.url };
+    },
+    onSuccess: ({ url }) => {
+      window.location.href = url;
+    },
+  });
+}

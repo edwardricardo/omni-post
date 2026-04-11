@@ -76,6 +76,13 @@ export interface IPaymentAdapter {
 
   getSubscriptionDetails(params: { externalSubscriptionId: string }): Promise<SubscriptionDetails>;
 
+  createCheckoutSession(params: {
+    externalCustomerId: string;
+    successUrl: string;
+    cancelUrl: string;
+    metadata?: Record<string, string>;
+  }): Promise<{ url: string }>;
+
   createBillingPortalSession(params: {
     externalCustomerId: string;
     returnUrl: string;

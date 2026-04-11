@@ -72,6 +72,7 @@ import { queueRoutes } from "./admin/queueRoutes.js";
 import { subscriptionRoutes } from "./billing/subscriptionRoutes.js";
 import { clientBillingRoutes } from "./billing/clientBillingRoutes.js";
 import { adminBillingRoutes } from "./billing/adminBillingRoutes.js";
+import { billingWebhookRoutes } from "./billing/billingWebhookRoutes.js";
 import { registerOAuthRoutes } from "./auth/providerOAuth.js";
 import { setupContainer } from "./infrastructure/container/setup.js";
 import { TOKENS } from "./infrastructure/container/types.js";
@@ -381,6 +382,9 @@ async function createApp(): Promise<FastifyInstance> {
   // Register health routes first (no authentication required)
   const { healthRoutes } = await import("./health/healthRoutes.js");
   await typedApp.register(healthRoutes, { redis, cacheManager });
+
+  // Billing webhooks — no auth, raw body (must be before auth middleware)
+  await typedApp.register(billingWebhookRoutes);
 
   // Register all route modules
   await typedApp.register(authRoutes);

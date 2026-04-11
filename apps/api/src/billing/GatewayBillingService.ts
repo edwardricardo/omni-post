@@ -591,4 +591,88 @@ export class GatewayBillingService {
       return err("DATABASE_ERROR");
     }
   }
+
+  /**
+   * @method createCheckoutSession
+   * @description Creates a checkout session on the specified gateway.
+   *   If the account has no gateway customer, creates one first.
+   */
+  async createCheckoutSession(
+    accountId: string,
+    gatewayProvider: GatewayProviderType,
+    successUrl: string,
+    cancelUrl: string
+  ): Promise<Result<{ url: string }, SwitchError>> {
+    try {
+      const account = await prisma.account.findUnique({
+        where: { id: accountId },
+      });
+      if (!account) return err("ACCOUNT_NOT_FOUND");
+
+      const adapter = this.registry.getAdapter(gatewayProvider);
+      const targetGateway = gatewayProvider === "stripe" ? "STRIPE" : "PADDLE";
+
+      // Get or create gateway customer
+      let customerId = account.gatewayCustomerId;
+      if (!customerId || account.gatewayProvider !== targetGateway) {
+        const customerResult = await adapter.createCustomer({
+          email: account.email,
+          name: account.name,
+          metadata: { accountId },
+        });
+        customerId = customerResult.externalCustomerId;
+
+        await prisma.account.update({
+          where: { id: accountId },
+          data: {
+            gatewayCustomerId: customerId,
+            gatewayProvider: targetGateway,
+          },
+        });
+      }
+
+      const session = await adapter.createCheckoutSession({
+        externalCustomerId: customerId,
+        successUrl,
+        cancelUrl,
+        metadata: { accountId },
+      });
+
+      return ok({ url: session.url });
+    } catch (error) {
+      logger.error({ err: error, accountId }, "Failed to create checkout session");
+      return err("GATEWAY_ERROR");
+    }
+  }
+
+  /**
+   * @method getBillingPortalUrl
+   * @description Returns a URL to the gateway's billing portal for managing
+   *   subscriptions, payment methods, and invoices.
+   */
+  async getBillingPortalUrl(
+    accountId: string,
+    returnUrl: string
+  ): Promise<Result<{ url: string }, SwitchError>> {
+    try {
+      const account = await prisma.account.findUnique({
+        where: { id: accountId },
+      });
+      if (!account) return err("ACCOUNT_NOT_FOUND");
+      if (!account.gatewayCustomerId) return err("NO_ACTIVE_SUBSCRIPTION");
+
+      const adapter = this.registry.getAdapter(
+        mapGatewayToAdapterProvider(account.gatewayProvider)
+      );
+      const portal = await adapter.createBillingPortalSession({
+        externalCustomerId: account.gatewayCustomerId,
+        returnUrl,
+      });
+
+      return ok({ url: portal.url });
+    } catch (error) {
+      logger.error({ err: error, accountId }, "Failed to get billing portal URL");
+      return err("GATEWAY_ERROR");
+    }
+  }
 }

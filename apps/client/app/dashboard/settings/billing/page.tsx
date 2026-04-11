@@ -7,7 +7,8 @@
 
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/authContext";
 import {
   Button,
@@ -22,8 +23,11 @@ import {
   useGatewayStatus,
   useInitiateGatewaySwitch,
   useCancelGatewaySwitch,
+  useAvailablePlans,
+  useCheckout,
+  useBillingPortal,
 } from "@/hooks/api/useBilling";
-import type { GatewayProvider } from "@/hooks/api/useBilling";
+import type { GatewayProvider, BillingPlan } from "@/hooks/api/useBilling";
 
 // ---------------------------------------------------------------------------
 // Plan configuration constants
@@ -428,12 +432,39 @@ function GatewaySection() {
 
 export default function BillingPage() {
   const { user: _user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [tab, setTab] = useState<"bundles" | "custom">("bundles");
   const [selectedProviders, setSelectedProviders] = useState<Set<string>>(
     new Set(["X", "INSTAGRAM"])
   );
   const [accountCount, setAccountCount] = useState(1);
   const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
+
+  // Checkout + portal hooks
+  const checkout = useCheckout();
+  const portal = useBillingPortal();
+  const { data: gatewayStatus } = useGatewayStatus();
+  const { data: remotePlans, isLoading: plansLoading } = useAvailablePlans();
+
+  // Use active gateway or default to stripe for checkout
+  const checkoutGateway: GatewayProvider =
+    (gatewayStatus?.gatewayProvider as GatewayProvider) ?? "stripe";
+
+  // Success/cancel banners from gateway redirect
+  const isSuccess = searchParams.get("success") === "true";
+  const isCanceled = searchParams.get("canceled") === "true";
+
+  useEffect(() => {
+    if (isSuccess || isCanceled) {
+      const timer = setTimeout(() => {
+        router.replace("/dashboard/settings/billing");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, isCanceled, router]);
+
+  const hasActiveSubscription = gatewayStatus && !gatewayStatus.pendingSwitch;
 
   const toggleProvider = useCallback((p: string) => {
     setSelectedProviders((prev) => {
@@ -458,8 +489,41 @@ export default function BillingPage() {
         <p className="text-sm text-muted-foreground mt-1">Manage your subscription and plan</p>
       </div>
 
+      {/* Success/Cancel banners after gateway redirect */}
+      {isSuccess && (
+        <div className="rounded-lg border border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/30 p-4 mb-4">
+          <p className="text-sm font-medium text-green-800 dark:text-green-200">
+            Subscription activated successfully!
+          </p>
+        </div>
+      )}
+      {isCanceled && (
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950/30 p-4 mb-4">
+          <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+            Payment canceled. You can try again anytime.
+          </p>
+        </div>
+      )}
+
       {/* Gateway switching section */}
       <GatewaySection />
+
+      {/* Manage Billing button (only when active subscription) */}
+      {hasActiveSubscription && (
+        <div className="mb-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => portal.mutate()}
+            disabled={portal.isPending}
+          >
+            {portal.isPending ? "Opening portal..." : "Manage Billing"}
+          </Button>
+          <p className="text-xs text-muted-foreground mt-1">
+            View invoices, update payment method, or manage your subscription.
+          </p>
+        </div>
+      )}
 
       <div className="flex border-b mb-6">
         {(["bundles", "custom"] as const).map((t) => (
@@ -478,37 +542,52 @@ export default function BillingPage() {
 
       {tab === "bundles" && (
         <div className="grid sm:grid-cols-3 gap-4 mb-6">
-          {BUNDLES.map((bundle) => {
-            const total = calcBundle(bundle.price, accountCount);
-            return (
-              <div key={bundle.slug} className="rounded-lg border bg-card p-5">
-                <h3 className="text-lg font-semibold">{bundle.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{bundle.description}</p>
-                <div className="mt-4">
-                  <span className="text-3xl font-bold">${total}</span>
-                  <span className="text-muted-foreground">/mo</span>
+          {plansLoading ? (
+            <>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="rounded-lg border bg-card p-5 animate-pulse">
+                  <div className="h-5 bg-muted rounded w-24" />
+                  <div className="h-3 bg-muted rounded w-40 mt-2" />
+                  <div className="h-8 bg-muted rounded w-20 mt-4" />
+                  <div className="h-8 bg-muted rounded w-full mt-4" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {bundle.providers.length} platforms, {accountCount} account
-                  {accountCount > 1 ? "s" : ""}
-                </p>
-                <ul className="mt-3 space-y-1">
-                  {bundle.providers.map((p) => (
-                    <li key={p} className="text-xs text-muted-foreground flex items-center gap-1">
-                      <span className="text-green-600">&#10003;</span> {p}
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full mt-4"
-                  variant="outline"
-                  onClick={() => alert("Please contact support to change your plan.")}
-                >
-                  Contact support
-                </Button>
-              </div>
-            );
-          })}
+              ))}
+            </>
+          ) : (
+            (remotePlans ?? BUNDLES).map((bundle: BillingPlan | (typeof BUNDLES)[number]) => {
+              const price =
+                "pricePerAccountMonth" in bundle ? bundle.pricePerAccountMonth : bundle.price;
+              const total = calcBundle(price, accountCount);
+              return (
+                <div key={bundle.slug} className="rounded-lg border bg-card p-5">
+                  <h3 className="text-lg font-semibold">{bundle.name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{bundle.description ?? ""}</p>
+                  <div className="mt-4">
+                    <span className="text-3xl font-bold">${total}</span>
+                    <span className="text-muted-foreground">/mo</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {bundle.providers.length} platforms, {accountCount} account
+                    {accountCount > 1 ? "s" : ""}
+                  </p>
+                  <ul className="mt-3 space-y-1">
+                    {bundle.providers.map((p: string) => (
+                      <li key={p} className="text-xs text-muted-foreground flex items-center gap-1">
+                        <span className="text-green-600">&#10003;</span> {p}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    className="w-full mt-4"
+                    disabled={checkout.isPending}
+                    onClick={() => checkout.mutate({ gatewayProvider: checkoutGateway })}
+                  >
+                    {checkout.isPending ? "Redirecting..." : "Subscribe"}
+                  </Button>
+                </div>
+              );
+            })
+          )}
         </div>
       )}
 
@@ -579,10 +658,10 @@ export default function BillingPage() {
             {selectedProviders.size > 0 && (
               <Button
                 className="w-full mt-4"
-                variant="outline"
-                onClick={() => alert("Please contact support to start a trial.")}
+                disabled={checkout.isPending}
+                onClick={() => checkout.mutate({ gatewayProvider: checkoutGateway })}
               >
-                Contact support to start a trial
+                {checkout.isPending ? "Redirecting..." : "Subscribe"}
               </Button>
             )}
           </div>

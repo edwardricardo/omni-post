@@ -6,6 +6,7 @@
  */
 
 import type { FastifyPluginAsync } from "fastify";
+import { prisma } from "@infra/prisma";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GatewayBillingService } from "./GatewayBillingService.js";
@@ -103,6 +104,118 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
         };
         const status = statusMap[result.error] ?? 500;
         return reply.code(status).send({ error: result.error });
+      }
+
+      return reply.send({ ok: true, data: result.value });
+    }
+  );
+
+  // GET /api/billing/plans — public, no auth required
+  fastify.get(
+    "/api/billing/plans",
+    {
+      schema: {
+        tags: ["Billing"],
+        summary: "Get available billing plans (public)",
+      },
+    },
+    async (_request, reply) => {
+      const plans = await prisma.providerBundle.findMany({
+        where: { isActive: true },
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          providers: true,
+          pricePerAccountMonth: true,
+          sortOrder: true,
+        },
+      });
+
+      return reply.send({
+        ok: true,
+        data: {
+          plans: plans.map((p) => ({
+            ...p,
+            pricePerAccountMonth: Number(p.pricePerAccountMonth),
+          })),
+        },
+      });
+    }
+  );
+
+  // POST /api/billing/checkout — create checkout session
+  fastify.post(
+    "/api/billing/checkout",
+    {
+      preHandler: [requireClientAuth],
+      schema: {
+        tags: ["Billing"],
+        summary: "Create a checkout session on the selected gateway",
+      },
+    },
+    async (request, reply) => {
+      const body = request.body as {
+        gatewayProvider?: string;
+      };
+      const gatewayProvider = body.gatewayProvider;
+      if (gatewayProvider !== "stripe" && gatewayProvider !== "paddle") {
+        return reply.code(400).send({
+          error: "VALIDATION_ERROR",
+          message: "gatewayProvider must be 'stripe' or 'paddle'",
+        });
+      }
+
+      const accountId = request.customerUser!.accountId;
+      const clientUrl = process.env.CLIENT_APP_URL ?? "http://localhost:3001";
+      const successUrl = `${clientUrl}/dashboard/settings/billing?success=true`;
+      const cancelUrl = `${clientUrl}/dashboard/settings/billing?canceled=true`;
+
+      const result = await gatewayService.createCheckoutSession(
+        accountId,
+        gatewayProvider,
+        successUrl,
+        cancelUrl
+      );
+
+      if (!result.ok) {
+        const statusMap: Record<string, number> = {
+          ACCOUNT_NOT_FOUND: 404,
+          GATEWAY_ERROR: 502,
+        };
+        return reply.code(statusMap[result.error] ?? 500).send({ error: result.error });
+      }
+
+      return reply.send({ ok: true, data: result.value });
+    }
+  );
+
+  // GET /api/billing/portal — redirect to gateway billing portal
+  fastify.get(
+    "/api/billing/portal",
+    {
+      preHandler: [requireClientAuth],
+      schema: {
+        tags: ["Billing"],
+        summary: "Get billing portal URL",
+      },
+    },
+    async (request, reply) => {
+      const accountId = request.customerUser!.accountId;
+      const clientUrl = process.env.CLIENT_APP_URL ?? "http://localhost:3001";
+      const returnUrl = `${clientUrl}/dashboard/settings/billing`;
+
+      const result = await gatewayService.getBillingPortalUrl(accountId, returnUrl);
+
+      if (!result.ok) {
+        const statusMap: Record<string, number> = {
+          ACCOUNT_NOT_FOUND: 404,
+          NO_ACTIVE_SUBSCRIPTION: 400,
+          GATEWAY_ERROR: 502,
+        };
+        return reply.code(statusMap[result.error] ?? 500).send({ error: result.error });
       }
 
       return reply.send({ ok: true, data: result.value });

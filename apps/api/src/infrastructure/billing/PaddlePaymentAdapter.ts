@@ -126,6 +126,20 @@ export class PaddlePaymentAdapter implements IPaymentAdapter {
     };
   }
 
+  async createCheckoutSession(params: {
+    externalCustomerId: string;
+    successUrl: string;
+    cancelUrl: string;
+    metadata?: Record<string, string>;
+  }): Promise<{ url: string }> {
+    const token = await this.paddle.customers.generateAuthToken(params.externalCustomerId);
+    const raw = token as unknown as Record<string, unknown>;
+    const customerToken = raw.token as string;
+    return {
+      url: `https://checkout.paddle.com/subscribe?customer_token=${customerToken}&success_url=${encodeURIComponent(params.successUrl)}&cancel_url=${encodeURIComponent(params.cancelUrl)}`,
+    };
+  }
+
   async createBillingPortalSession(params: {
     externalCustomerId: string;
     returnUrl: string;

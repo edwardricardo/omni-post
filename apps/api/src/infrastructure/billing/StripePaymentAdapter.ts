@@ -129,6 +129,25 @@ export class StripePaymentAdapter implements IPaymentAdapter {
     };
   }
 
+  async createCheckoutSession(params: {
+    externalCustomerId: string;
+    successUrl: string;
+    cancelUrl: string;
+    metadata?: Record<string, string>;
+  }): Promise<{ url: string }> {
+    const session = await this.stripe.checkout.sessions.create({
+      customer: params.externalCustomerId,
+      success_url: params.successUrl,
+      cancel_url: params.cancelUrl,
+      mode: "subscription",
+      ...(params.metadata !== undefined && { metadata: params.metadata }),
+    });
+    if (!session.url) {
+      throw new Error("Stripe checkout session did not return a URL");
+    }
+    return { url: session.url };
+  }
+
   async createBillingPortalSession(params: {
     externalCustomerId: string;
     returnUrl: string;
