@@ -11,6 +11,7 @@ import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { PrismaClient } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
 import { AnalyticsMetricsQuerySchema } from "./analyticsSchemas.js";
+import type { ComplianceService } from "../compliance/ComplianceService.js";
 
 /**
  * Analytics Dashboard Route Handler
@@ -19,7 +20,10 @@ import { AnalyticsMetricsQuerySchema } from "./analyticsSchemas.js";
 export class AnalyticsDashboardHandler extends BaseRouteHandler {
   protected routeName = "analytics-dashboard";
 
-  constructor(private readonly prisma: PrismaClient) {
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly complianceService?: ComplianceService
+  ) {
     super();
   }
 
@@ -232,16 +236,12 @@ export class AnalyticsDashboardHandler extends BaseRouteHandler {
           ? ((auditLogsLast30Days - failedActionsLast30Days) / auditLogsLast30Days) * 100
           : 100;
 
-      // Compliance score delegated to ComplianceService (Sprint C)
+      // Compliance score from injected ComplianceService (Sprint DI)
       let complianceScore = 0;
-      try {
-        const { ComplianceService } = await import("../compliance/ComplianceService.js");
-        const { ResendEmailAdapter } =
-          await import("../infrastructure/adapters/ResendEmailAdapter.js");
-        const svc = new ComplianceService(this.prisma, new ResendEmailAdapter());
-        const scoreResult = await svc.getComplianceScore();
+      if (this.complianceService) {
+        const scoreResult = await this.complianceService.getComplianceScore();
         complianceScore = scoreResult.score;
-      } catch {
+      } else {
         complianceScore = Math.round(
           successRate * 0.6 +
             (uniqueUsersLast30Days.length > 0 ? 100 : 0) * 0.2 +

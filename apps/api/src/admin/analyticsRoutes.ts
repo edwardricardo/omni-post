@@ -25,7 +25,10 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
     throw new Error("DI container not available");
   }
   const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
-  const handler = new AnalyticsRouteHandler(prisma);
+  const complianceService = container.resolve<
+    import("../compliance/ComplianceService.js").ComplianceService
+  >(TOKENS.ComplianceService);
+  const handler = new AnalyticsRouteHandler(prisma, complianceService);
 
   // GET /api/admin/analytics/metrics - Analytics dashboard KPIs
   fastify.get(

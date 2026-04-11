@@ -595,6 +595,19 @@ async function start() {
       24 * 60 * 60 * 1000
     );
 
+    // Data retention cleanup — daily (Sprint C)
+    const { DataRetentionService: _DataRetentionType } =
+      await import("./compliance/DataRetentionService.js");
+    const dataRetention = app.container!.resolve<InstanceType<typeof _DataRetentionType>>(
+      TOKENS.DataRetentionService
+    );
+    setInterval(
+      () => {
+        dataRetention.runRetentionCleanup().catch(() => {});
+      },
+      24 * 60 * 60 * 1000
+    );
+
     const port = parseInt(process.env.PORT || "3000");
     const host = process.env.HOST || "0.0.0.0";
 

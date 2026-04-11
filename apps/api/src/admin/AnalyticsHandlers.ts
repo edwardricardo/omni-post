@@ -13,6 +13,7 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler } from "@packages/api-common";
 import type { PrismaClient } from "@infra/prisma";
+import type { ComplianceService } from "../compliance/ComplianceService.js";
 import { AnalyticsDashboardHandler } from "./AnalyticsDashboardHandlers.js";
 import { AnalyticsComplianceHandler } from "./AnalyticsComplianceHandlers.js";
 import { AnalyticsAccountHandler } from "./AnalyticsAccountHandlers.js";
@@ -28,9 +29,9 @@ export class AnalyticsRouteHandler extends BaseRouteHandler {
   private readonly complianceHandler: AnalyticsComplianceHandler;
   private readonly accountHandler: AnalyticsAccountHandler;
 
-  constructor(prisma: PrismaClient) {
+  constructor(prisma: PrismaClient, complianceService?: ComplianceService) {
     super();
-    this.dashboardHandler = new AnalyticsDashboardHandler(prisma);
+    this.dashboardHandler = new AnalyticsDashboardHandler(prisma, complianceService);
     this.complianceHandler = new AnalyticsComplianceHandler(prisma);
     this.accountHandler = new AnalyticsAccountHandler(prisma);
   }
