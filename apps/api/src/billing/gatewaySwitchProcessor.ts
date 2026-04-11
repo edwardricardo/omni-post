@@ -9,7 +9,7 @@
 import { Worker, type Job } from "bullmq";
 import type { Redis } from "ioredis";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import type { EmailPort } from "../domain/repositories/EmailPort.js";
 import { logger } from "../lib/logger.js";
 
@@ -24,6 +24,7 @@ export class GatewaySwitchProcessor {
 
   constructor(
     redisConnection: Redis,
+    private readonly prisma: PrismaClient,
     private readonly emailPort: EmailPort
   ) {
     this.worker = new Worker<SwitchJobData>(
@@ -59,7 +60,7 @@ export class GatewaySwitchProcessor {
     const { accountId, type } = job.data;
 
     // Verify switch is still PENDING_CHECKOUT
-    const switchEvent = await prisma.gatewaySwitchEvent.findFirst({
+    const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
       where: { accountId, status: "PENDING_CHECKOUT" },
       orderBy: { createdAt: "desc" },
     });
@@ -77,7 +78,7 @@ export class GatewaySwitchProcessor {
   }
 
   private async processReminder(accountId: string, switchEventId: string): Promise<void> {
-    const account = await prisma.account.findUnique({
+    const account = await this.prisma.account.findUnique({
       where: { id: accountId },
       select: { email: true, pendingGatewayProvider: true },
     });
@@ -90,7 +91,7 @@ export class GatewaySwitchProcessor {
       });
     }
 
-    await prisma.gatewaySwitchEvent.update({
+    await this.prisma.gatewaySwitchEvent.update({
       where: { id: switchEventId },
       data: { reminderSentAt: new Date() },
     });
@@ -98,7 +99,7 @@ export class GatewaySwitchProcessor {
 
   private async processSuspend(accountId: string, switchEventId: string): Promise<void> {
     // Re-check deadline (may have been extended)
-    const switchEvent = await prisma.gatewaySwitchEvent.findUnique({
+    const switchEvent = await this.prisma.gatewaySwitchEvent.findUnique({
       where: { id: switchEventId },
     });
     if (!switchEvent || switchEvent.status !== "PENDING_CHECKOUT") return;
@@ -109,16 +110,16 @@ export class GatewaySwitchProcessor {
       return;
     }
 
-    await prisma.$transaction([
-      prisma.accountSubscription.updateMany({
+    await this.prisma.$transaction([
+      this.prisma.accountSubscription.updateMany({
         where: { accountId },
         data: { status: "CANCELED" },
       }),
-      prisma.gatewaySwitchEvent.update({
+      this.prisma.gatewaySwitchEvent.update({
         where: { id: switchEventId },
         data: { status: "SUSPENDED", suspendedAt: new Date() },
       }),
-      prisma.auditLog.create({
+      this.prisma.auditLog.create({
         data: {
           action: "GATEWAY_SWITCH_AUTO_SUSPENDED",
           resource: "account",
@@ -130,7 +131,7 @@ export class GatewaySwitchProcessor {
     ]);
 
     // Notify account
-    const account = await prisma.account.findUnique({
+    const account = await this.prisma.account.findUnique({
       where: { id: accountId },
       select: { email: true },
     });
