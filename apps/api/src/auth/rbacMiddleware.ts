@@ -46,8 +46,6 @@ export function requirePermission(...permissions: Permission[]) {
     const hasPermission = await rbacSvc.hasAnyPermission(userRole, permissions);
 
     if (!hasPermission) {
-      const userPermissions = await rbacSvc.getUserPermissions(user.id, userRole);
-
       return reply.code(403).send({
         ok: false,
         error: {
@@ -160,7 +158,7 @@ export function requireContextPermission(
     }
 
     try {
-      const context = await getContext(request);
+      await getContext(request);
       const userRole = user.role;
 
       const rbacSvc = resolveRbacService(request);

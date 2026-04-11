@@ -399,6 +399,11 @@ export const TOKENS = {
   // Payment Billing (Sprint 6 — Batch 5)
   PaymentAdapter: Symbol.for("PaymentAdapter"),
 
+  // Gateway Switching (Sprint B)
+  GatewayAdapterRegistry: Symbol.for("GatewayAdapterRegistry"),
+  GatewayBillingService: Symbol.for("GatewayBillingService"),
+  GatewaySwitchJobService: Symbol.for("GatewaySwitchJobService"),
+
   // Report Sharing (Sprint 6 — Batch 3)
   EnableReportSharingUseCase: Symbol.for("EnableReportSharingUseCase"),
   DisableReportSharingUseCase: Symbol.for("DisableReportSharingUseCase"),

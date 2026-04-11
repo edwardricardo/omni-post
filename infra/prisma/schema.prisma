@@ -71,6 +71,12 @@ model Account {
   referralCode           ReferralCode?
   repurposeProposals     RepurposeProposal[]
   trendRadarResults      TrendRadarResult[]
+  gatewayProvider        GatewayProvider    @default(STRIPE)
+  gatewayCustomerId      String?
+  pendingGatewayProvider GatewayProvider?
+  pendingGatewaySwitch   Boolean            @default(false)
+  gatewaySwitchAt        DateTime?
+  gatewaySwitchEvents    GatewaySwitchEvent[]
 
   @@index([isOnTrial, trialEndDate])
   @@index([nextBillingDate])
@@ -2794,6 +2800,8 @@ model AccountSubscription {
   currentPeriodEnd       DateTime?
   trialEndsAt            DateTime?
   cancelAtPeriodEnd      Boolean            @default(false)
+  gatewayProvider        GatewayProvider    @default(STRIPE)
+  gatewaySubscriptionId  String?            @unique
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 
@@ -2830,6 +2838,47 @@ enum SubscriptionStatus {
 enum BillingCycle {
   MONTHLY
   YEARLY
+}
+
+// ─── Gateway Switching (Sprint B) ───────────────────────────────────────────
+
+enum GatewayProvider {
+  STRIPE
+  PADDLE
+}
+
+enum SwitchStatus {
+  SCHEDULED
+  PENDING_CHECKOUT
+  COMPLETED
+  CANCELLED
+  SUSPENDED
+  EXPIRED
+}
+
+model GatewaySwitchEvent {
+  id             String          @id @default(cuid())
+  accountId      String
+  fromGateway    GatewayProvider
+  toGateway      GatewayProvider
+  requestedAt    DateTime        @default(now())
+  scheduledFor   DateTime
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  reminderSentAt DateTime?
+  suspendedAt    DateTime?
+  extendedUntil  DateTime?
+  extendedBy     String?
+  status         SwitchStatus    @default(SCHEDULED)
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([status])
+  @@index([scheduledFor])
 }
 
 // ─── Referral Program (Sprint 8) ────────────────────────────────────────────

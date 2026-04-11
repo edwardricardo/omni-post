@@ -20,7 +20,6 @@ import {
   changePasswordSchema,
   resetPasswordRequestSchema,
   resetPasswordConfirmSchema,
-  mfaSetupSchema,
   mfaVerifySchema,
   mfaDisableSchema,
   revokeSessionSchema,

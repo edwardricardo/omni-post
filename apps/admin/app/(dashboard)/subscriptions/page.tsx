@@ -7,7 +7,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { AlertTriangle, Download, Search } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Download, RefreshCw, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
@@ -15,6 +16,7 @@ import { toast } from "@packages/ui";
 import { ApiError, isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useSubscriptions } from "@/hooks/api/useSubscriptions";
+import { useEndTrial, useConvertTrial } from "@/hooks/api/useSubscriptionMutations";
 import { useBillingStats } from "@/hooks/api/useBillingStats";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { UsageMetricsPanel } from "@/components/settings/UsageMetricsPanel";
@@ -61,6 +63,95 @@ function SubscriptionsPageContent() {
   const tc = useTranslations("common");
   const { data: subscriptionData, isLoading, error, refetch } = useSubscriptions();
   const { data: billingStats } = useBillingStats();
+  const queryClient = useQueryClient();
+  const endTrialMutation = useEndTrial();
+  const convertTrialMutation = useConvertTrial();
+  const [renewalProcessing, setRenewalProcessing] = useState(false);
+
+  const handleEndTrial = useCallback(
+    (accountId: string) => {
+      endTrialMutation.mutate(
+        { accountId, reason: "Ended by admin" },
+        {
+          onSuccess: () => {
+            toast({ title: ts("endTrialSuccess") });
+            refetch();
+          },
+          onError: (e) => {
+            toast({
+              title: ts("endTrialError"),
+              description: getErrorMessage(e),
+              variant: "destructive",
+            });
+          },
+        }
+      );
+    },
+    [endTrialMutation, ts, refetch]
+  );
+
+  const handleConvertTrial = useCallback(
+    (accountId: string) => {
+      convertTrialMutation.mutate(
+        { accountId },
+        {
+          onSuccess: () => {
+            toast({ title: ts("convertTrialSuccess") });
+            refetch();
+          },
+          onError: (e) => {
+            toast({
+              title: ts("convertTrialError"),
+              description: getErrorMessage(e),
+              variant: "destructive",
+            });
+          },
+        }
+      );
+    },
+    [convertTrialMutation, ts, refetch]
+  );
+
+  const handleAutoRenewals = useCallback(async () => {
+    setRenewalProcessing(true);
+    try {
+      const res = await fetch("/api/backend/admin/billing/auto-renewals/process", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        const apiErr = ApiError.fromResponse(res.status, body);
+        toast({ title: tc("error"), description: getErrorMessage(apiErr), variant: "destructive" });
+        return;
+      }
+      const result = await res.json();
+      const data = result.data ?? result;
+      const processed = data.processed ?? 0;
+      const failed = data.failed ?? 0;
+      if (processed > 0) {
+        toast({
+          title: ts("processAutoRenewals"),
+          description:
+            failed > 0
+              ? ts("autoRenewProcessedWithFailed", { processed, failed })
+              : ts("autoRenewProcessed", { processed }),
+        });
+      } else {
+        toast({ title: ts("processAutoRenewals"), description: ts("noEligibleRenewals") });
+      }
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["billingStats"] });
+    } catch (e) {
+      toast({ title: tc("error"), description: getErrorMessage(e), variant: "destructive" });
+    } finally {
+      setRenewalProcessing(false);
+    }
+  }, [ts, tc, refetch, queryClient]);
+
   const searchParams = useSearchParams();
   const selectedAccountId = searchParams.get("accountId");
   const [activeTab, setActiveTab] = useState("subscriptions");
@@ -162,7 +253,7 @@ function SubscriptionsPageContent() {
     } catch (e) {
       toast({ title: tc("error"), description: getErrorMessage(e), variant: "destructive" });
     }
-  }, [tc, ts]);
+  }, [tc]);
 
   if (isLoading) {
     return (
@@ -211,7 +302,16 @@ function SubscriptionsPageContent() {
         title={t("subscriptions")}
         actions={
           <div className="flex gap-2">
-            <ActionButton variant="primary" size="sm" onClick={handleRefresh} loading={isLoading}>
+            <ActionButton
+              variant="primary"
+              size="sm"
+              onClick={handleAutoRenewals}
+              loading={renewalProcessing}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              {ts("processAutoRenewals")}
+            </ActionButton>
+            <ActionButton variant="secondary" size="sm" onClick={handleRefresh} loading={isLoading}>
               {tc("refresh")}
             </ActionButton>
             <ActionButton variant="secondary" size="sm" onClick={handleBillingExport}>
@@ -418,6 +518,7 @@ function SubscriptionsPageContent() {
                         ts("startDate"),
                         ts("table.endDate"),
                         ts("table.autoRenew"),
+                        ts("actions"),
                       ].map((h) => (
                         <th
                           key={h}
@@ -470,6 +571,26 @@ function SubscriptionsPageContent() {
                           <Badge variant={trial.autoRenewal ? "success" : "neutral"} size="sm">
                             {trial.autoRenewal ? tc("yes") : tc("no")}
                           </Badge>
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          <div className="flex items-center gap-1">
+                            <ActionButton
+                              variant="danger"
+                              size="sm"
+                              loading={endTrialMutation.isPending}
+                              onClick={() => handleEndTrial(trial.id)}
+                            >
+                              {ts("endTrial")}
+                            </ActionButton>
+                            <ActionButton
+                              variant="primary"
+                              size="sm"
+                              loading={convertTrialMutation.isPending}
+                              onClick={() => handleConvertTrial(trial.id)}
+                            >
+                              {ts("convertToPaid")}
+                            </ActionButton>
+                          </div>
                         </td>
                       </tr>
                     ))}

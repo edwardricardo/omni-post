@@ -143,7 +143,7 @@ export function ChangePlanDialog({
         )
         .finally(() => setLoadingTiers(false));
     }
-  }, [open, currentProviders, currentPlanType, currentBundleSlug, tiersData]);
+  }, [open, currentProviders, currentPlanType, currentBundleSlug, tiersData, tc, tcp]);
 
   const toggleProvider = useCallback((id: string) => {
     setSelectedProviders((prev) =>
@@ -232,7 +232,6 @@ export function ChangePlanDialog({
     selectedBundleId,
     selectedBundle,
     accountId,
-    accountName,
     onOpenChange,
     onSuccess,
     queryClient,

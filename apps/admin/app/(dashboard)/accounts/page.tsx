@@ -202,7 +202,7 @@ function AccountsPageContent() {
       setSelectedAccounts(new Set());
       setShowActions(false);
     },
-    [accounts, selectedAccounts, refetch]
+    [accounts, selectedAccounts, refetch, tc]
   );
 
   const handleView = useCallback((accountId: string) => {
@@ -271,7 +271,7 @@ function AccountsPageContent() {
         variant: "destructive",
       });
     }
-  }, [editingId, editForm, updateAccount, queryClient, refetch]);
+  }, [editingId, editForm, updateAccount, queryClient, refetch, tc]);
 
   const handleCreateAccount = useCallback(async () => {
     if (!createForm.name || !createForm.email) return;
@@ -294,7 +294,7 @@ function AccountsPageContent() {
         variant: "destructive",
       });
     }
-  }, [createForm, refetch]);
+  }, [createForm, refetch, tc]);
 
   const handleRefresh = useCallback(() => {
     refetch();

@@ -54,6 +54,9 @@ export const QUEUE_NAMES = {
 
   /** Auto-renewal — convert expired trials to paid subscriptions (daily cron) */
   AUTO_RENEWAL: "auto-renewal",
+
+  /** Gateway switch — reminder + suspend jobs for gateway transitions */
+  GATEWAY_SWITCH: "gateway-switch",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

@@ -14,6 +14,7 @@
     "accounts": "Accounts",
     "subscriptions": "Subscriptions",
     "pricing": "Pricing",
+    "gatewaySwitches": "Gateway Switches",
     "analytics": "Analytics",
     "operations": "Operations",
     "security": "Security",
@@ -337,7 +338,18 @@
     "viewTrials": "View trials",
     "startDate": "Start Date",
     "exportFailed": "Export failed",
-    "na": "N/A"
+    "na": "N/A",
+    "endTrial": "End Trial",
+    "convertToPaid": "Convert to Paid",
+    "endTrialSuccess": "Trial ended successfully",
+    "endTrialError": "Failed to end trial",
+    "convertTrialSuccess": "Trial converted to paid subscription",
+    "convertTrialError": "Failed to convert trial",
+    "autoRenewProcessed": "{processed} account(s) converted to paid",
+    "autoRenewProcessedWithFailed": "{processed} account(s) converted to paid, {failed} failed",
+    "noEligibleRenewals": "No accounts eligible for auto-renewal",
+    "autoRenewError": "Failed to process auto-renewals",
+    "actions": "Actions"
   },
   "changePlan": {
     "title": "Edit Plan",
@@ -1350,5 +1362,59 @@
         }
       ]
     }
+  },
+  "gatewaySwitches": {
+    "title": "Gateway Switch Management",
+    "description": "Monitor and manage payment gateway transitions",
+    "stats": {
+      "scheduled": "Scheduled",
+      "pendingCheckout": "Pending Checkout",
+      "suspended": "Suspended",
+      "completed30d": "Completed (30d)"
+    },
+    "table": {
+      "account": "Account",
+      "fromTo": "From / To",
+      "requestedAt": "Requested",
+      "scheduledFor": "Scheduled For",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "SCHEDULED": "Scheduled",
+      "PENDING_CHECKOUT": "Pending Checkout",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled",
+      "SUSPENDED": "Suspended",
+      "EXPIRED": "Expired"
+    },
+    "actions": {
+      "viewDetail": "View Detail",
+      "extend": "Extend Deadline",
+      "forceComplete": "Force Complete",
+      "forceSuspend": "Force Suspend"
+    },
+    "detail": {
+      "title": "Switch Detail",
+      "timeline": "Timeline",
+      "currentDeadline": "Current Deadline",
+      "switchRequested": "Switch requested",
+      "periodEnded": "Period ended",
+      "reminderSent": "Reminder sent",
+      "checkoutCompleted": "Checkout completed",
+      "accountSuspended": "Account suspended",
+      "switchCancelled": "Switch cancelled",
+      "autoSuspension": "Auto suspension"
+    },
+    "extendDialog": {
+      "title": "Extend Checkout Deadline",
+      "currentDeadline": "Current deadline",
+      "extraHours": "Additional hours",
+      "newDeadline": "New deadline",
+      "confirm": "Confirm Extension"
+    },
+    "noEvents": "No gateway switch events found",
+    "stripe": "Stripe",
+    "paddle": "Paddle"
   }
 }

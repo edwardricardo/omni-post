@@ -64,6 +64,12 @@ export type MediaKindValue = "image" | "video" | "gif";
  */
 export type SsoProviderKind = "NONE" | "SAML" | "OIDC";
 
+/**
+ * Payment gateway provider types.
+ * Mirrors the Prisma `GatewayProvider` enum.
+ */
+export type GatewayProviderKind = "STRIPE" | "PADDLE";
+
 // ---------------------------------------------------------------------------
 // Core entity DTOs
 // ---------------------------------------------------------------------------
@@ -98,6 +104,11 @@ export interface AccountDto {
   maxTeamMembers: number;
   maxStorageBytes: bigint;
   maxRecurringPosts: number;
+  gatewayProvider: GatewayProviderKind;
+  gatewayCustomerId: string | null;
+  pendingGatewayProvider: GatewayProviderKind | null;
+  pendingGatewaySwitch: boolean;
+  gatewaySwitchAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

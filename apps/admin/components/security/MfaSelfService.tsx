@@ -81,7 +81,7 @@ export function MfaSelfService() {
     } finally {
       setSetupLoading(false);
     }
-  }, []);
+  }, [tc]);
 
   const handleVerify = useCallback(async () => {
     if (!verifyCode.trim()) {
@@ -110,7 +110,7 @@ export function MfaSelfService() {
     } finally {
       setVerifyLoading(false);
     }
-  }, [verifyCode]);
+  }, [verifyCode, ms, tc]);
 
   const handleDisable = useCallback(async () => {
     if (!disableCode.trim()) {
@@ -139,7 +139,7 @@ export function MfaSelfService() {
     } finally {
       setDisableLoading(false);
     }
-  }, [disableCode]);
+  }, [disableCode, ms, tc]);
 
   if (loading) {
     return (

@@ -15,6 +15,7 @@ import type {
   BillingPortalResult,
   WebhookEvent,
   BillingDomainEvent,
+  SubscriptionDetails,
 } from "@ports/core";
 
 export interface PaddleConfig {
@@ -97,6 +98,32 @@ export class PaddlePaymentAdapter implements IPaymentAdapter {
     await this.paddle.subscriptions.cancel(params.externalSubscriptionId, {
       effectiveFrom: params.immediately ? "immediately" : "next_billing_period",
     });
+  }
+
+  async cancelAtPeriodEnd(params: { externalSubscriptionId: string }): Promise<void> {
+    await this.paddle.subscriptions.cancel(params.externalSubscriptionId, {
+      effectiveFrom: "next_billing_period",
+    });
+  }
+
+  async reactivateSubscription(params: { externalSubscriptionId: string }): Promise<void> {
+    await this.paddle.subscriptions.update(params.externalSubscriptionId, {
+      scheduledChange: null,
+    });
+  }
+
+  async getSubscriptionDetails(params: {
+    externalSubscriptionId: string;
+  }): Promise<SubscriptionDetails> {
+    const sub = await this.paddle.subscriptions.get(params.externalSubscriptionId);
+    const raw = sub as unknown as Record<string, unknown>;
+    const period = raw.currentBillingPeriod as { endsAt?: string } | undefined;
+    const scheduledChange = raw.scheduledChange as Record<string, unknown> | null;
+    return {
+      currentPeriodEnd: new Date(period?.endsAt ?? Date.now()),
+      status: this.mapStatus((raw.status as string) ?? "active"),
+      cancelAtPeriodEnd: scheduledChange?.action === "cancel",
+    };
   }
 
   async createBillingPortalSession(params: {

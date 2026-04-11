@@ -1,6 +1,7 @@
 /**
  * @file page.tsx
- * @description Billing settings page with plan configurator and subscription management.
+ * @description Billing settings page with gateway switching, plan configurator,
+ * and subscription management.
  * @layer client-pages
  */
 
@@ -8,7 +9,25 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useAuth } from "@/lib/auth/authContext";
-import { Button } from "@packages/ui";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@packages/ui";
+import {
+  useGatewayStatus,
+  useInitiateGatewaySwitch,
+  useCancelGatewaySwitch,
+} from "@/hooks/api/useBilling";
+import type { GatewayProvider } from "@/hooks/api/useBilling";
+
+// ---------------------------------------------------------------------------
+// Plan configuration constants
+// ---------------------------------------------------------------------------
 
 const PROVIDER_OPTIONS = [
   "X",
@@ -61,6 +80,10 @@ const ACCOUNT_TIERS = [
   { min: 10, max: null, mult: 0.5 },
 ] as const;
 
+// ---------------------------------------------------------------------------
+// Price calculation helpers
+// ---------------------------------------------------------------------------
+
 function getProviderPrice(count: number): number {
   const tier = PROVIDER_TIERS.find((t) => count >= t.min && (t.max === null || count <= t.max));
   return tier?.price ?? 12;
@@ -84,6 +107,324 @@ function calcBundle(bundlePrice: number, accounts: number): number {
   for (let i = 1; i <= accounts; i++) total += bundlePrice * getAccountMult(i);
   return Math.round(total * 100) / 100;
 }
+
+// ---------------------------------------------------------------------------
+// Gateway display helpers
+// ---------------------------------------------------------------------------
+
+const GATEWAY_LABELS: Record<GatewayProvider, string> = {
+  stripe: "Stripe",
+  paddle: "Paddle",
+};
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function getAlternativeGateway(current: GatewayProvider): GatewayProvider {
+  return current === "stripe" ? "paddle" : "stripe";
+}
+
+// ---------------------------------------------------------------------------
+// Gateway selector for users without active subscription (State A)
+// ---------------------------------------------------------------------------
+
+function GatewaySelector({
+  selected,
+  onChange,
+}: {
+  selected: GatewayProvider;
+  onChange: (g: GatewayProvider) => void;
+}) {
+  return (
+    <div className="rounded-lg border bg-card p-5 mb-6">
+      <h3 className="text-sm font-medium text-foreground mb-3">Procesador de pago</h3>
+      <div className="space-y-3">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="radio"
+            name="gateway"
+            value="stripe"
+            checked={selected === "stripe"}
+            onChange={() => onChange("stripe")}
+            className="mt-1"
+          />
+          <div>
+            <span className="text-sm font-medium text-foreground">Stripe</span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Recommended for US, Canada and Europe.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Visa, Mastercard, Amex, Apple Pay, Google Pay.
+            </p>
+          </div>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="radio"
+            name="gateway"
+            value="paddle"
+            checked={selected === "paddle"}
+            onChange={() => onChange("paddle")}
+            className="mt-1"
+          />
+          <div>
+            <span className="text-sm font-medium text-foreground">Paddle</span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Recommended for rest of the world.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              VAT and local tax handling included. Visa, Mastercard, PayPal and more.
+            </p>
+          </div>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Active gateway banner with switch trigger (State B)
+// ---------------------------------------------------------------------------
+
+function ActiveGatewayBanner({
+  currentGateway,
+  onSwitchClick,
+}: {
+  currentGateway: GatewayProvider;
+  onSwitchClick: () => void;
+}) {
+  return (
+    <div className="rounded-lg border bg-card p-5 mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">
+            Active payment processor:{" "}
+            <span className="font-semibold">{GATEWAY_LABELS[currentGateway]}</span>
+          </h3>
+          <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
+            <p>Switching processors requires re-entering your card.</p>
+            <p>Payment data cannot be transferred between processors.</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={onSwitchClick}>
+          Switch payment processor
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Pending switch banners (State C)
+// ---------------------------------------------------------------------------
+
+function PendingSwitchBanner({
+  status,
+  toGateway,
+  scheduledFor,
+  extendedUntil,
+  onCancel,
+  isCancelling,
+}: {
+  status: "SCHEDULED" | "PENDING_CHECKOUT";
+  toGateway: GatewayProvider;
+  scheduledFor: string;
+  extendedUntil: string;
+  onCancel: () => void;
+  isCancelling: boolean;
+}) {
+  if (status === "SCHEDULED") {
+    return (
+      <div className="rounded-lg border border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950/30 p-4 mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="text-sm text-foreground">
+            <p>
+              Switch scheduled: your subscription moves to{" "}
+              <span className="font-semibold">{GATEWAY_LABELS[toGateway]}</span> on{" "}
+              <span className="font-medium">{formatDate(scheduledFor)}</span>.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              You&apos;ll continue being billed by the current processor until then.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={onCancel} disabled={isCancelling}>
+            {isCancelling ? "Cancelling..." : "Cancel switch"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // PENDING_CHECKOUT
+  return (
+    <div className="rounded-lg border border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/30 p-4 mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="text-sm text-foreground">
+          <p>
+            Your previous billing period has ended. Complete your subscription on{" "}
+            <span className="font-semibold">{GATEWAY_LABELS[toGateway]}</span>.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            You have until <span className="font-medium">{formatDate(extendedUntil)}</span>.
+          </p>
+        </div>
+        <Button variant="default" size="sm" asChild>
+          <a href={`/dashboard/settings/billing/checkout/${toGateway}`}>
+            Complete on {GATEWAY_LABELS[toGateway]}
+          </a>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Switch confirmation dialog
+// ---------------------------------------------------------------------------
+
+function SwitchConfirmDialog({
+  open,
+  onOpenChange,
+  currentGateway,
+  onConfirm,
+  isSubmitting,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentGateway: GatewayProvider;
+  onConfirm: (target: GatewayProvider) => void;
+  isSubmitting: boolean;
+}) {
+  const target = getAlternativeGateway(currentGateway);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Switch payment processor</DialogTitle>
+          <DialogDescription>
+            Change your billing from {GATEWAY_LABELS[currentGateway]} to {GATEWAY_LABELS[target]}.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 py-2">
+          <div className="text-sm text-foreground">
+            <p>
+              Currently using:{" "}
+              <span className="font-semibold">{GATEWAY_LABELS[currentGateway]}</span>
+            </p>
+            <p className="mt-1">
+              Switch to: <span className="font-semibold">{GATEWAY_LABELS[target]}</span>
+            </p>
+          </div>
+
+          <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground space-y-1.5">
+            <p>The switch applies at the end of your current billing period.</p>
+            <p>You must re-enter your card on {GATEWAY_LABELS[target]}.</p>
+            <p>You&apos;ll have 48 hours to complete payment after the switch date.</p>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button onClick={() => onConfirm(target)} disabled={isSubmitting}>
+            {isSubmitting ? "Confirming..." : "Confirm switch"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gateway section (orchestrator for states A/B/C)
+// ---------------------------------------------------------------------------
+
+function GatewaySection() {
+  const { data: gatewayStatus, isLoading, isError } = useGatewayStatus();
+  const initiateSwitch = useInitiateGatewaySwitch();
+  const cancelSwitch = useCancelGatewaySwitch();
+
+  const [localGateway, setLocalGateway] = useState<GatewayProvider>("stripe");
+  const [switchDialogOpen, setSwitchDialogOpen] = useState(false);
+
+  const handleConfirmSwitch = useCallback(
+    (target: GatewayProvider) => {
+      initiateSwitch.mutate(target, {
+        onSuccess: () => {
+          setSwitchDialogOpen(false);
+        },
+      });
+    },
+    [initiateSwitch]
+  );
+
+  const handleCancelSwitch = useCallback(() => {
+    cancelSwitch.mutate(undefined);
+  }, [cancelSwitch]);
+
+  // Loading and error states
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border bg-card p-5 mb-6 animate-pulse">
+        <div className="h-4 bg-muted rounded w-48" />
+        <div className="h-3 bg-muted rounded w-72 mt-2" />
+      </div>
+    );
+  }
+
+  if (isError || !gatewayStatus) {
+    // State A fallback: no subscription data available, show the local selector
+    return <GatewaySelector selected={localGateway} onChange={setLocalGateway} />;
+  }
+
+  const { gatewayProvider, pendingSwitch } = gatewayStatus;
+
+  // State C: pending switch exists
+  if (
+    pendingSwitch &&
+    (pendingSwitch.status === "SCHEDULED" || pendingSwitch.status === "PENDING_CHECKOUT")
+  ) {
+    return (
+      <PendingSwitchBanner
+        status={pendingSwitch.status}
+        toGateway={pendingSwitch.toGateway}
+        scheduledFor={pendingSwitch.scheduledFor}
+        extendedUntil={pendingSwitch.extendedUntil}
+        onCancel={handleCancelSwitch}
+        isCancelling={cancelSwitch.isPending}
+      />
+    );
+  }
+
+  // State B: active subscription, no pending switch
+  return (
+    <>
+      <ActiveGatewayBanner
+        currentGateway={gatewayProvider}
+        onSwitchClick={() => setSwitchDialogOpen(true)}
+      />
+      <SwitchConfirmDialog
+        open={switchDialogOpen}
+        onOpenChange={setSwitchDialogOpen}
+        currentGateway={gatewayProvider}
+        onConfirm={handleConfirmSwitch}
+        isSubmitting={initiateSwitch.isPending}
+      />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main billing page
+// ---------------------------------------------------------------------------
 
 export default function BillingPage() {
   const { user: _user } = useAuth();
@@ -116,6 +457,9 @@ export default function BillingPage() {
         <h1 className="text-2xl font-bold text-foreground">Billing</h1>
         <p className="text-sm text-muted-foreground mt-1">Manage your subscription and plan</p>
       </div>
+
+      {/* Gateway switching section */}
+      <GatewaySection />
 
       <div className="flex border-b mb-6">
         {(["bundles", "custom"] as const).map((t) => (

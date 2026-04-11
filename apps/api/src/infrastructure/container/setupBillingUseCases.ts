@@ -11,8 +11,46 @@ import { ChangeAccountSubscriptionUseCase } from "../../application/billing/Chan
 import { UpdatePricingConfigUseCase } from "../../application/billing/UpdatePricingConfigUseCase.js";
 import { PrismaCreateSubscriptionRepository } from "../repositories/PrismaCreateSubscriptionRepository.js";
 import { PrismaChangeSubscriptionRepository } from "../repositories/PrismaChangeSubscriptionRepository.js";
+import {
+  GatewayAdapterRegistry,
+  createGatewayRegistry,
+} from "../billing/GatewayAdapterRegistry.js";
+import { GatewayBillingService } from "../../billing/GatewayBillingService.js";
+import { GatewaySwitchJobService } from "../../billing/GatewaySwitchJobService.js";
+import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import { createRedisConnection } from "../../lib/redis.js";
 
 export function setupBillingUseCases(container: Container): void {
+  // Gateway Adapter Registry — dual-gateway access (Stripe + Paddle)
+  container.register<GatewayAdapterRegistry>(
+    TOKENS.GatewayAdapterRegistry,
+    () => createGatewayRegistry(),
+    true // singleton
+  );
+
+  // Gateway Switch Job Service — BullMQ queue management
+  container.register<GatewaySwitchJobService>(
+    TOKENS.GatewaySwitchJobService,
+    () => {
+      const redis = createRedisConnection();
+      redis.on("error", () => {});
+      return new GatewaySwitchJobService(redis);
+    },
+    true // singleton
+  );
+
+  // Gateway Billing Service — gateway switch lifecycle
+  container.register<GatewayBillingService>(
+    TOKENS.GatewayBillingService,
+    () =>
+      new GatewayBillingService(
+        container.resolve<GatewayAdapterRegistry>(TOKENS.GatewayAdapterRegistry),
+        container.resolve<GatewaySwitchJobService>(TOKENS.GatewaySwitchJobService),
+        container.resolve<EmailPort>(TOKENS.EmailPort)
+      ),
+    true // singleton
+  );
+
   container.register<CreateAccountSubscriptionUseCase>(
     TOKENS.CreateAccountSubscriptionUseCase,
     () => new CreateAccountSubscriptionUseCase(new PrismaCreateSubscriptionRepository())

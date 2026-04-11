@@ -102,55 +102,61 @@ export default function RbacManager() {
     if (selectedRole) fetchRoleUsers(selectedRole);
   }, [selectedRole, fetchRoleUsers]);
 
-  const handleRoleChange = useCallback(async (userId: string, newRole: string, reason: string) => {
-    try {
-      setActionLoading(userId);
-      const response = await api.security.rbac.updateUserRole(userId, newRole, reason);
-      if (!response.ok) throw new ApiError(0, null, "Failed to update user role");
-      setRoleUsers((prev) => prev.filter((user) => user.id !== userId));
-      toast({ title: "Success", description: "User role updated successfully" });
-    } catch (err) {
-      toast({
-        title: tc("error"),
-        description: getErrorMessage(err),
-        variant: "destructive",
-      });
-    } finally {
-      setActionLoading(null);
-    }
-  }, []);
-
-  const handleToggleActive = useCallback(async (user: RbacUser) => {
-    try {
-      setActionLoading(user.id);
-      const endpoint = user.isActive
-        ? `/admin/users/${user.id}/deactivate`
-        : `/admin/users/${user.id}/activate`;
-      const res = await fetch(`/api/backend${endpoint}`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw ApiError.fromResponse(res.status, body);
+  const handleRoleChange = useCallback(
+    async (userId: string, newRole: string, reason: string) => {
+      try {
+        setActionLoading(userId);
+        const response = await api.security.rbac.updateUserRole(userId, newRole, reason);
+        if (!response.ok) throw new ApiError(0, null, "Failed to update user role");
+        setRoleUsers((prev) => prev.filter((user) => user.id !== userId));
+        toast({ title: "Success", description: "User role updated successfully" });
+      } catch (err) {
+        toast({
+          title: tc("error"),
+          description: getErrorMessage(err),
+          variant: "destructive",
+        });
+      } finally {
+        setActionLoading(null);
       }
-      setRoleUsers((prev) =>
-        prev.map((u) => (u.id === user.id ? { ...u, isActive: !u.isActive } : u))
-      );
-      toast({
-        title: "Success",
-        description: `${user.name} ${user.isActive ? "deactivated" : "activated"}`,
-      });
-    } catch (err) {
-      toast({
-        title: tc("error"),
-        description: getErrorMessage(err),
-        variant: "destructive",
-      });
-    } finally {
-      setActionLoading(null);
-    }
-  }, []);
+    },
+    [tc]
+  );
+
+  const handleToggleActive = useCallback(
+    async (user: RbacUser) => {
+      try {
+        setActionLoading(user.id);
+        const endpoint = user.isActive
+          ? `/admin/users/${user.id}/deactivate`
+          : `/admin/users/${user.id}/activate`;
+        const res = await fetch(`/api/backend${endpoint}`, {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          throw ApiError.fromResponse(res.status, body);
+        }
+        setRoleUsers((prev) =>
+          prev.map((u) => (u.id === user.id ? { ...u, isActive: !u.isActive } : u))
+        );
+        toast({
+          title: "Success",
+          description: `${user.name} ${user.isActive ? "deactivated" : "activated"}`,
+        });
+      } catch (err) {
+        toast({
+          title: tc("error"),
+          description: getErrorMessage(err),
+          variant: "destructive",
+        });
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [tc]
+  );
 
   const handleDeleteRole = useCallback(async () => {
     const roleInfo = roles.find((r) => r.role === selectedRole);
@@ -168,7 +174,7 @@ export default function RbacManager() {
         variant: "destructive",
       });
     }
-  }, [roles, selectedRole, fetchRoles]);
+  }, [roles, selectedRole, fetchRoles, tc]);
 
   const handleSaveDescription = useCallback(async () => {
     const roleInfo = roles.find((r) => r.role === selectedRole);
@@ -188,7 +194,7 @@ export default function RbacManager() {
         variant: "destructive",
       });
     }
-  }, [roles, selectedRole, descriptionDraft, fetchRoles]);
+  }, [roles, selectedRole, descriptionDraft, fetchRoles, tc]);
 
   if (loading) {
     return (

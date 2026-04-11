@@ -75,7 +75,7 @@ export function AccountBillingPanel({
     } finally {
       setSavingGrandfathering(false);
     }
-  }, [grandfatherDate, accountId, queryClient]);
+  }, [grandfatherDate, accountId, queryClient, tb, tc]);
 
   if (isLoading) {
     return (

@@ -127,7 +127,7 @@ function getDefaultMaxMedia(providerId: string): number {
 // ---------------------------------------------------------------------------
 // Status mappers
 // ---------------------------------------------------------------------------
-function mapQueueStatus(status: string): PublishingQueue["status"] {
+function _mapQueueStatus(status: string): PublishingQueue["status"] {
   const map: Record<string, PublishingQueue["status"]> = {
     DRAFT: "draft",
     QUEUED: "queued",
@@ -205,31 +205,6 @@ export async function fetchProviderConstraints(): Promise<Record<string, Provide
     return constraints;
   } catch {
     return {};
-  }
-}
-
-export async function fetchPublishingQueue(projectId: string): Promise<PublishingQueue[]> {
-  try {
-    const response = await fetch(`${API_URL}/admin/queue?projectId=${projectId}`, {
-      credentials: "include",
-    });
-    if (!response.ok) return [];
-    const data = await response.json();
-    const items = (data.value?.items ?? data.items ?? []) as Array<Record<string, unknown>>;
-    return items.map((item) => ({
-      id: String(item.id ?? ""),
-      content: {
-        text: String(item.text ?? item.body ?? ""),
-      },
-      providers: Array.isArray(item.providers) ? (item.providers as string[]) : [],
-      status: mapQueueStatus(String(item.status ?? "draft")),
-      ...(typeof item.progress === "number" && { progress: item.progress }),
-      ...(typeof item.error === "string" && { error: item.error }),
-      createdAt: new Date(String(item.createdAt ?? new Date().toISOString())),
-      updatedAt: new Date(String(item.updatedAt ?? new Date().toISOString())),
-    }));
-  } catch {
-    return [];
   }
 }
 

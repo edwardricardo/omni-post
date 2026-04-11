@@ -14,6 +14,7 @@
     "accounts": "Cuentas",
     "subscriptions": "Suscripciones",
     "pricing": "Precios",
+    "gatewaySwitches": "Cambio de Gateway",
     "analytics": "Analiticas",
     "operations": "Operaciones",
     "security": "Seguridad",
@@ -337,7 +338,18 @@
     "viewTrials": "Ver pruebas",
     "startDate": "Fecha de inicio",
     "exportFailed": "Error al exportar",
-    "na": "N/A"
+    "na": "N/A",
+    "endTrial": "Finalizar prueba",
+    "convertToPaid": "Convertir a pago",
+    "endTrialSuccess": "Prueba finalizada exitosamente",
+    "endTrialError": "Error al finalizar la prueba",
+    "convertTrialSuccess": "Prueba convertida a suscripcion de pago",
+    "convertTrialError": "Error al convertir la prueba",
+    "autoRenewProcessed": "{processed} cuenta(s) convertida(s) a pago",
+    "autoRenewProcessedWithFailed": "{processed} cuenta(s) convertida(s) a pago, {failed} fallaron",
+    "noEligibleRenewals": "No hay cuentas elegibles para auto-renovacion",
+    "autoRenewError": "Error al procesar auto-renovaciones",
+    "actions": "Acciones"
   },
   "changePlan": {
     "title": "Editar plan",
@@ -1356,5 +1368,59 @@
         }
       ]
     }
+  },
+  "gatewaySwitches": {
+    "title": "Gestion de Cambio de Gateway",
+    "description": "Monitorear y gestionar transiciones de gateway de pago",
+    "stats": {
+      "scheduled": "Programados",
+      "pendingCheckout": "Pendiente de Checkout",
+      "suspended": "Suspendidos",
+      "completed30d": "Completados (30d)"
+    },
+    "table": {
+      "account": "Cuenta",
+      "fromTo": "De / A",
+      "requestedAt": "Solicitado",
+      "scheduledFor": "Programado",
+      "status": "Estado",
+      "actions": "Acciones"
+    },
+    "status": {
+      "SCHEDULED": "Programado",
+      "PENDING_CHECKOUT": "Pendiente de Checkout",
+      "COMPLETED": "Completado",
+      "CANCELLED": "Cancelado",
+      "SUSPENDED": "Suspendido",
+      "EXPIRED": "Expirado"
+    },
+    "actions": {
+      "viewDetail": "Ver Detalle",
+      "extend": "Extender Plazo",
+      "forceComplete": "Forzar Completado",
+      "forceSuspend": "Forzar Suspension"
+    },
+    "detail": {
+      "title": "Detalle del Cambio",
+      "timeline": "Linea de Tiempo",
+      "currentDeadline": "Plazo Actual",
+      "switchRequested": "Cambio solicitado",
+      "periodEnded": "Periodo terminado",
+      "reminderSent": "Recordatorio enviado",
+      "checkoutCompleted": "Checkout completado",
+      "accountSuspended": "Cuenta suspendida",
+      "switchCancelled": "Cambio cancelado",
+      "autoSuspension": "Suspension automatica"
+    },
+    "extendDialog": {
+      "title": "Extender Plazo de Checkout",
+      "currentDeadline": "Plazo actual",
+      "extraHours": "Horas adicionales",
+      "newDeadline": "Nuevo plazo",
+      "confirm": "Confirmar Extension"
+    },
+    "noEvents": "No se encontraron eventos de cambio de gateway",
+    "stripe": "Stripe",
+    "paddle": "Paddle"
   }
 }

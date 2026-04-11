@@ -35,8 +35,16 @@ export interface WebhookEvent {
   data: Record<string, unknown>;
 }
 
+export type GatewayProviderType = "stripe" | "paddle";
+
+export interface SubscriptionDetails {
+  currentPeriodEnd: Date;
+  status: string;
+  cancelAtPeriodEnd: boolean;
+}
+
 export interface IPaymentAdapter {
-  readonly provider: "stripe" | "paddle";
+  readonly provider: GatewayProviderType;
 
   createCustomer(params: {
     email: string;
@@ -61,6 +69,12 @@ export interface IPaymentAdapter {
     externalSubscriptionId: string;
     immediately?: boolean;
   }): Promise<void>;
+
+  cancelAtPeriodEnd(params: { externalSubscriptionId: string }): Promise<void>;
+
+  reactivateSubscription(params: { externalSubscriptionId: string }): Promise<void>;
+
+  getSubscriptionDetails(params: { externalSubscriptionId: string }): Promise<SubscriptionDetails>;
 
   createBillingPortalSession(params: {
     externalCustomerId: string;

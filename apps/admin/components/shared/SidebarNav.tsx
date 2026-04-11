@@ -31,6 +31,7 @@ import {
   UserCog,
   Wrench,
   LogOut,
+  ArrowRightLeft,
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -67,6 +68,11 @@ const NAV_GROUPS: NavGroup[] = [
       { translationKey: "accounts", href: "/accounts", icon: Users },
       { translationKey: "subscriptions", href: "/subscriptions", icon: CreditCard },
       { translationKey: "pricing", href: "/pricing", icon: Gauge },
+      {
+        translationKey: "gatewaySwitches",
+        href: "/billing/gateway-switches",
+        icon: ArrowRightLeft,
+      },
       { translationKey: "analytics", href: "/analytics", icon: TrendingUp },
     ],
   },

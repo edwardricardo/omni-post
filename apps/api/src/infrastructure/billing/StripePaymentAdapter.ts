@@ -14,6 +14,7 @@ import type {
   BillingPortalResult,
   WebhookEvent,
   BillingDomainEvent,
+  SubscriptionDetails,
 } from "@ports/core";
 
 export interface StripeConfig {
@@ -102,6 +103,30 @@ export class StripePaymentAdapter implements IPaymentAdapter {
         cancel_at_period_end: true,
       });
     }
+  }
+
+  async cancelAtPeriodEnd(params: { externalSubscriptionId: string }): Promise<void> {
+    await this.stripe.subscriptions.update(params.externalSubscriptionId, {
+      cancel_at_period_end: true,
+    });
+  }
+
+  async reactivateSubscription(params: { externalSubscriptionId: string }): Promise<void> {
+    await this.stripe.subscriptions.update(params.externalSubscriptionId, {
+      cancel_at_period_end: false,
+    });
+  }
+
+  async getSubscriptionDetails(params: {
+    externalSubscriptionId: string;
+  }): Promise<SubscriptionDetails> {
+    const sub = await this.stripe.subscriptions.retrieve(params.externalSubscriptionId);
+    const raw = sub as unknown as Record<string, unknown>;
+    return {
+      currentPeriodEnd: new Date(((raw.current_period_end as number) ?? Date.now() / 1000) * 1000),
+      status: this.mapStatus(sub.status),
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+    };
   }
 
   async createBillingPortalSession(params: {

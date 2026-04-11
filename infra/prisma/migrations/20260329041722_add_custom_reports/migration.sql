@@ -39,14 +39,9 @@ CREATE TABLE "ReportSchedule" (
     CONSTRAINT "ReportSchedule_pkey" PRIMARY KEY ("id")
 );
 
--- AlterEnum — add new values after tables are created with safe defaults
-COMMIT;
+-- AlterEnum — add new values (must be outside transaction for shadow DB compatibility)
 ALTER TYPE "ReportFormat" ADD VALUE IF NOT EXISTS 'PDF';
 ALTER TYPE "ReportFormat" ADD VALUE IF NOT EXISTS 'XLSX';
-BEGIN;
-
--- Now set the intended default for ReportSchedule.format
-ALTER TABLE "ReportSchedule" ALTER COLUMN "format" SET DEFAULT 'PDF';
 
 -- CreateIndex
 CREATE INDEX "CustomReport_accountId_idx" ON "CustomReport"("accountId");

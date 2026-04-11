@@ -164,7 +164,7 @@ function AdminUsersContent() {
         },
       }
     );
-  }, [inviteForm, createMutation]);
+  }, [inviteForm, createMutation, tc, tu]);
 
   const handleDeactivateConfirm = useCallback(() => {
     if (!deactivateTarget) return;
@@ -180,7 +180,7 @@ function AdminUsersContent() {
         toast({ title: tc("error"), description: getErrorMessage(err), variant: "destructive" });
       },
     });
-  }, [deactivateTarget, deactivateMutation]);
+  }, [deactivateTarget, deactivateMutation, tc, tu]);
 
   const handleActivate = useCallback(
     (user: AdminUser) => {
@@ -196,7 +196,7 @@ function AdminUsersContent() {
         },
       });
     },
-    [activateMutation]
+    [activateMutation, tc, tu]
   );
 
   const handleCopyPassword = useCallback(async () => {
@@ -212,7 +212,7 @@ function AdminUsersContent() {
         variant: "destructive",
       });
     }
-  }, [tempPassword]);
+  }, [tempPassword, tc, tu]);
 
   if (isLoading) {
     return (
