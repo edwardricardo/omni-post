@@ -1,9 +1,7 @@
 /**
- * Application Layer - Get Cross-Platform Analytics Use Case
- *
- * Part of Sprint 11: TDD Implementation
- * Retrieves and aggregates cross-platform analytics using standard
- * metric calculations (sums, averages, ratios). No ML involved.
+ * @file GetCrossPlatformAnalyticsUseCase.ts
+ * @description Orchestrates retrieval and aggregation of cross-platform social media analytics using standard metric calculations.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
@@ -50,9 +48,11 @@ export interface CrossPlatformAnalyticsPort {
  * Generates comprehensive analytics across all social media platforms
  * for an account or specific project.
  */
-export class GetCrossPlatformAnalyticsUseCase
-  implements UseCase<GetAnalyticsInput, GetAnalyticsOutput, UseCaseError>
-{
+export class GetCrossPlatformAnalyticsUseCase implements UseCase<
+  GetAnalyticsInput,
+  GetAnalyticsOutput,
+  UseCaseError
+> {
   constructor(private readonly analyticsEngine: CrossPlatformAnalyticsPort) {}
 
   async execute(input: GetAnalyticsInput): Promise<Result<GetAnalyticsOutput, UseCaseError>> {

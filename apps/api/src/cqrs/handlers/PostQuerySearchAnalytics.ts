@@ -1,10 +1,7 @@
 /**
- * Post Query Handlers - Search & Analytics
- *
- * SearchPostsQueryHandler: text search across posts via PostQueryRepository.
- * GetPostAnalyticsQueryHandler: analytics data for posts (simplified read model).
- *
- * @module cqrs/handlers/PostQuerySearchAnalytics
+ * @file PostQuerySearchAnalytics.ts
+ * @description CQRS query handlers for full-text post search (SearchPostsQueryHandler) and post analytics retrieval (GetPostAnalyticsQueryHandler) via PostQueryRepository.
+ * @layer application
  */
 
 import {

@@ -1,18 +1,7 @@
 /**
- * CQRS Post Command Handlers
- *
- * Command handlers for Post aggregate operations that delegate business logic
- * to Application Layer Use Cases. Handlers remain responsible for:
- * - CQRS command schema validation
- * - Channel validation (cross-aggregate concern)
- * - Integration event creation (CQRS infrastructure)
- * - Cache invalidation (infrastructure concern)
- *
- * Use cases own:
- * - Domain validation & business rules
- * - Aggregate creation / mutation
- * - Persistence via repository ports
- * - Domain event dispatching
+ * @file PostCommandHandlers.ts
+ * @description CQRS command handlers for Post aggregate operations (create, update, publish) that delegate to application use cases and handle schema validation, cache invalidation, and integration events.
+ * @layer application
  */
 
 import {
@@ -88,9 +77,10 @@ async function validateChannels(
 // CreatePostCommandHandler
 // ---------------------------------------------------------------------------
 
-export class CreatePostCommandHandler
-  implements CommandHandler<Command<unknown>, { postId: string; version: number }>
-{
+export class CreatePostCommandHandler implements CommandHandler<
+  Command<unknown>,
+  { postId: string; version: number }
+> {
   readonly commandType = POST_COMMANDS.CREATE_POST;
 
   constructor(private config: PostCommandHandlersConfig) {}
@@ -230,9 +220,10 @@ export class CreatePostCommandHandler
 // UpdatePostCommandHandler
 // ---------------------------------------------------------------------------
 
-export class UpdatePostCommandHandler
-  implements CommandHandler<Command<unknown>, { version: number }>
-{
+export class UpdatePostCommandHandler implements CommandHandler<
+  Command<unknown>,
+  { version: number }
+> {
   readonly commandType = POST_COMMANDS.UPDATE_POST;
 
   constructor(private config: PostCommandHandlersConfig) {}
@@ -363,9 +354,10 @@ export class UpdatePostCommandHandler
 // PublishPostCommandHandler
 // ---------------------------------------------------------------------------
 
-export class PublishPostCommandHandler
-  implements CommandHandler<Command<unknown>, { jobIds: string[] }>
-{
+export class PublishPostCommandHandler implements CommandHandler<
+  Command<unknown>,
+  { jobIds: string[] }
+> {
   readonly commandType = POST_COMMANDS.PUBLISH_POST;
 
   constructor(private config: PostCommandHandlersConfig) {}

@@ -1,8 +1,7 @@
 /**
- * Application Layer - Create Post Use Case
- *
- * Part of Sprint 8: DDD Architecture Implementation
- * Handles the creation of new posts.
+ * @file CreatePostUseCase.ts
+ * @description Orchestrates post creation by constructing the PostAggregate, persisting via repository within UoW, and dispatching PostCreated events.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";

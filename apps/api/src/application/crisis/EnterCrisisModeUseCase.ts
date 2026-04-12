@@ -1,8 +1,7 @@
 /**
- * Application Layer - Enter Crisis Mode Use Case
- *
- * Part of Sprint 19: Crisis Mode Feature
- * Handles entering crisis mode for a project.
+ * @file EnterCrisisModeUseCase.ts
+ * @description Orchestrates activation of crisis mode for a project, pausing scheduled posts and dispatching CrisisModeEntered events.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";

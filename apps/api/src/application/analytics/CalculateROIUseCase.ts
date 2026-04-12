@@ -1,9 +1,7 @@
 /**
- * Application Layer - Calculate ROI Use Case
- *
- * Part of Sprint 11: TDD Implementation
- * Calculates return on investment for social media activities using
- * rule-based formulas (investment vs. revenue ratios). No ML involved.
+ * @file CalculateROIUseCase.ts
+ * @description Orchestrates ROI calculation for social media activities using rule-based investment vs. revenue ratios and returns Result<CalculateROIOutput>.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
@@ -55,9 +53,11 @@ export interface ROICalculatorPort {
  * Calculates return on investment for social media marketing activities,
  * including per-channel breakdown and recommendations.
  */
-export class CalculateROIUseCase
-  implements UseCase<CalculateROIInput, CalculateROIOutput, UseCaseError>
-{
+export class CalculateROIUseCase implements UseCase<
+  CalculateROIInput,
+  CalculateROIOutput,
+  UseCaseError
+> {
   constructor(private readonly roiCalculator: ROICalculatorPort) {}
 
   async execute(input: CalculateROIInput): Promise<Result<CalculateROIOutput, UseCaseError>> {

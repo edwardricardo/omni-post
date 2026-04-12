@@ -1,8 +1,7 @@
 /**
- * Application Layer - Link Tracking Types
- *
- * Part of Sprint 19: Link Tracking Feature
- * Defines DTOs for link tracking use cases.
+ * @file types.ts
+ * @description Type definitions for link tracking use cases including CreateTrackedLinkInput, TrackedLinkOutput, RedirectInput, and LinkStatsOutput DTOs.
+ * @layer application
  */
 
 import { type ClickStats } from "../../domain/index.js";

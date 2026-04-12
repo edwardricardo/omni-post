@@ -1,9 +1,7 @@
 /**
- * Application Layer - API Key Use Cases (index)
- *
- * Part of FASE H10-B: API Key Management
- *
- * @module application/apiKeys
+ * @file index.ts
+ * @description Barrel export for API key management use cases and their input/output types.
+ * @layer application
  */
 
 export {

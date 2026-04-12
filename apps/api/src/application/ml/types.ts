@@ -1,8 +1,7 @@
 /**
- * Application Layer - ML Use Cases Types
- *
- * Part of Sprint 9: TDD Implementation
- * Type definitions for ML use cases.
+ * @file types.ts
+ * @description Type definitions for ML use cases including MLProvider, OptimizationGoal, and input/output DTOs for content optimization and timing prediction.
+ * @layer application
  */
 
 /**

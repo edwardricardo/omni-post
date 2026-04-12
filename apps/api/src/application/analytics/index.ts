@@ -1,8 +1,7 @@
 /**
- * Application Layer - Analytics Module
- *
- * Part of Sprint 11: TDD Implementation
- * Exports all Analytics integration use cases and types.
+ * @file index.ts
+ * @description Barrel export for analytics use cases, ports, and shared type definitions.
+ * @layer application
  */
 
 // Types

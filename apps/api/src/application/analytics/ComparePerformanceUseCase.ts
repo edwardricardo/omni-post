@@ -1,9 +1,7 @@
 /**
- * Application Layer - Compare Performance Use Case
- *
- * Part of Sprint 11: TDD Implementation
- * Compares performance across time periods and providers using
- * aggregation queries and threshold-based benchmarks. No ML involved.
+ * @file ComparePerformanceUseCase.ts
+ * @description Orchestrates cross-period and cross-provider performance comparison using aggregation queries and threshold-based benchmarks.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
@@ -57,9 +55,11 @@ export interface PerformanceComparatorPort {
  * Compares performance across time periods, providers, and against
  * industry benchmarks and competitors.
  */
-export class ComparePerformanceUseCase
-  implements UseCase<ComparePerformanceInput, ComparePerformanceOutput, UseCaseError>
-{
+export class ComparePerformanceUseCase implements UseCase<
+  ComparePerformanceInput,
+  ComparePerformanceOutput,
+  UseCaseError
+> {
   constructor(private readonly performanceComparator: PerformanceComparatorPort) {}
 
   async execute(

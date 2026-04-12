@@ -1,8 +1,7 @@
 /**
- * Application Layer - Analytics Use Cases Types
- *
- * Part of Sprint 11: TDD Implementation
- * Type definitions for Analytics integration use cases.
+ * @file types.ts
+ * @description Type definitions for analytics use cases including TimeRange, ProviderType, and input/output DTOs for cross-platform analytics, performance comparison, and ROI calculation.
+ * @layer application
  */
 
 // ============ Common Types ============

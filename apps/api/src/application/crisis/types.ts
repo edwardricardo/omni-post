@@ -1,8 +1,7 @@
 /**
- * Application Layer - Crisis Mode Types
- *
- * Part of Sprint 19: Crisis Mode Feature
- * Defines DTOs for crisis mode use cases.
+ * @file types.ts
+ * @description Type definitions for crisis mode use cases including EnterCrisisModeInput, ExitCrisisModeInput, CrisisStatusOutput, and the CrisisProjectRepository port.
+ * @layer application
  */
 
 import { type CrisisModeEntry } from "../../domain/index.js";

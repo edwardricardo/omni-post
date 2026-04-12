@@ -1,11 +1,7 @@
 /**
- * Phase 2: Week 3-4 - CQRS Integration with Fastify
- *
- * Integration layer that provides CQRS endpoints and middleware:
- * - Command execution endpoints with validation
- * - Query execution endpoints with caching
- * - CQRS Bus health monitoring
- * - Performance metrics and monitoring
+ * @file CQRSIntegration.ts
+ * @description Fastify integration layer that registers CQRS command/query endpoints, wires handler factories to the bus, and exposes health and metrics routes.
+ * @layer application
  */
 
 import { randomUUID } from "node:crypto";

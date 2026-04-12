@@ -1,9 +1,7 @@
 /**
- * Application Layer - Posts Use Cases Export
- *
- * Part of Sprint 8: DDD Architecture Implementation
- * Extended in P2-ARCH-1 with SchedulePostUseCase, GetPostWithThreadQuery,
- * and ListPostsGlobalQuery.
+ * @file index.ts
+ * @description Barrel export for post use cases including CRUD operations, scheduling, thread queries, and global listing.
+ * @layer application
  */
 
 export {

@@ -1,8 +1,7 @@
 /**
- * Application Layer - Get Crisis Status Use Case
- *
- * Part of Sprint 19: Crisis Mode Feature
- * Retrieves crisis mode status for a project.
+ * @file GetCrisisStatusUseCase.ts
+ * @description Retrieves the current crisis mode status and history for a project and returns Result<CrisisStatusOutput>.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
@@ -19,9 +18,11 @@ import {
  *
  * Retrieves the current crisis mode status and history for a project.
  */
-export class GetCrisisStatusUseCase
-  implements UseCase<GetCrisisStatusInput, CrisisStatusOutput, UseCaseError>
-{
+export class GetCrisisStatusUseCase implements UseCase<
+  GetCrisisStatusInput,
+  CrisisStatusOutput,
+  UseCaseError
+> {
   constructor(private readonly projectRepository: CrisisProjectRepository) {}
 
   async execute(input: GetCrisisStatusInput): Promise<Result<CrisisStatusOutput, UseCaseError>> {

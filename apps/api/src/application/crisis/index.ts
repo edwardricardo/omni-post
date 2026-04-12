@@ -1,8 +1,7 @@
 /**
- * Application Layer - Crisis Mode Use Cases
- *
- * Part of Sprint 19: Crisis Mode Feature
- * Exports all crisis mode use cases.
+ * @file index.ts
+ * @description Barrel export for crisis mode use cases and shared type definitions.
+ * @layer application
  */
 
 // Types

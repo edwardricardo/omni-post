@@ -1,11 +1,7 @@
 /**
- * Phase 2: Week 3-4 - CQRS Bus Implementation
- *
- * Central dispatcher for Commands and Queries with:
- * - Handler registration and routing
- * - Validation and error handling
- * - Performance monitoring and caching
- * - Event integration for commands
+ * @file CQRSBus.ts
+ * @description CQRS bus implementation providing command/query dispatching with handler registration, validation, Redis-based query caching, and performance metrics.
+ * @layer application
  */
 
 import {

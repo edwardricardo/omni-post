@@ -1,13 +1,7 @@
 /**
- * Application Layer - Get Post With Thread Query
- *
- * CQRS read-side query that retrieves a post enriched with its thread data
- * (tweets ordered by sequence number). Uses PostQueryRepository.getByIdWithThread()
- * for a single optimized query instead of separate post + thread lookups.
- *
- * Part of P2-ARCH-1: Migrate postRoutes Prisma direct calls to use cases.
- *
- * @module application/posts/GetPostWithThreadQuery
+ * @file GetPostWithThreadQuery.ts
+ * @description CQRS read-side query that retrieves a post enriched with its thread data (tweets ordered by sequence) via a single optimized PostQueryRepository call.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
@@ -48,9 +42,11 @@ export interface GetPostWithThreadInput {
  *   console.log(result.value.thread?.tweets.length); // number of tweets
  * }
  */
-export class GetPostWithThreadQuery
-  implements UseCase<GetPostWithThreadInput, PostReadModelWithThread, UseCaseError>
-{
+export class GetPostWithThreadQuery implements UseCase<
+  GetPostWithThreadInput,
+  PostReadModelWithThread,
+  UseCaseError
+> {
   constructor(private readonly postQueryRepository: PostQueryRepository) {}
 
   async execute(

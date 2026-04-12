@@ -1,8 +1,7 @@
 /**
- * Application Layer - Link Tracking Use Cases
- *
- * Part of Sprint 19: Link Tracking Feature
- * Exports all link tracking use cases.
+ * @file index.ts
+ * @description Barrel export for link tracking use cases including create, get, redirect, stats, and delete operations.
+ * @layer application
  */
 
 // Types

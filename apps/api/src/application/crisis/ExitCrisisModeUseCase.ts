@@ -1,8 +1,7 @@
 /**
- * Application Layer - Exit Crisis Mode Use Case
- *
- * Part of Sprint 19: Crisis Mode Feature
- * Handles exiting crisis mode for a project.
+ * @file ExitCrisisModeUseCase.ts
+ * @description Orchestrates deactivation of crisis mode for a project, resuming scheduled posts and dispatching CrisisModeExited events.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";

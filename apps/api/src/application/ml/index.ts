@@ -1,8 +1,7 @@
 /**
- * Application Layer - ML Module
- *
- * Part of Sprint 9: TDD Implementation
- * Exports all ML-related use cases and types.
+ * @file index.ts
+ * @description Barrel export for ML use cases (content optimization, timing prediction) and shared type definitions.
+ * @layer application
  */
 
 // Types

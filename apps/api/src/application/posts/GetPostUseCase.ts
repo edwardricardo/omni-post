@@ -1,9 +1,7 @@
 /**
- * Application Layer - Get Post Use Case
- *
- * Part of Sprint 8: DDD Architecture Implementation
- * Migrated to CQRS read side (PostQueryRepository) in H10/P2-3.
- * Handles retrieving a single post by ID via the read-optimised query repo.
+ * @file GetPostUseCase.ts
+ * @description CQRS read-side query that retrieves a single post by ID via PostQueryRepository and returns Result<PostDTO>.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";

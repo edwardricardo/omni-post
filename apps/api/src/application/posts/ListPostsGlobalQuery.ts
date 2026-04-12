@@ -1,13 +1,7 @@
 /**
- * Application Layer - List Posts Global Query
- *
- * CQRS read-side query that lists posts across all projects with optional
- * status filtering. Used by admin dashboards and cross-project views where
- * no project scope is specified.
- *
- * Part of P2-ARCH-1: Migrate postRoutes Prisma direct calls to use cases.
- *
- * @module application/posts/ListPostsGlobalQuery
+ * @file ListPostsGlobalQuery.ts
+ * @description CQRS read-side query that lists posts across all projects with optional status filtering and pagination for admin and cross-project views.
+ * @layer application
  */
 
 import { type Result, ok } from "@shared/types";
@@ -56,9 +50,11 @@ export type ListPostsGlobalOutput = PaginatedResult<PostReadModel>;
  *   console.log(result.value.total); // total matching posts
  * }
  */
-export class ListPostsGlobalQuery
-  implements UseCase<ListPostsGlobalInput, ListPostsGlobalOutput, UseCaseError>
-{
+export class ListPostsGlobalQuery implements UseCase<
+  ListPostsGlobalInput,
+  ListPostsGlobalOutput,
+  UseCaseError
+> {
   constructor(private readonly postQueryRepository: PostQueryRepository) {}
 
   async execute(input: ListPostsGlobalInput): Promise<Result<ListPostsGlobalOutput, UseCaseError>> {

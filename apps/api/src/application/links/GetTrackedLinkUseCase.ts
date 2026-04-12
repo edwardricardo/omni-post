@@ -1,8 +1,7 @@
 /**
- * Application Layer - Get Tracked Link Use Case
- *
- * Part of Sprint 19: Link Tracking Feature
- * Retrieves a tracked link by ID.
+ * @file GetTrackedLinkUseCase.ts
+ * @description Retrieves a single tracked link by its ID and returns Result<TrackedLinkOutput>.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
@@ -15,9 +14,11 @@ import { type GetLinkInput, type TrackedLinkOutput } from "./types.js";
  *
  * Retrieves a tracked link by its ID.
  */
-export class GetTrackedLinkUseCase
-  implements UseCase<GetLinkInput, TrackedLinkOutput, UseCaseError>
-{
+export class GetTrackedLinkUseCase implements UseCase<
+  GetLinkInput,
+  TrackedLinkOutput,
+  UseCaseError
+> {
   constructor(private readonly repository: TrackedLinkRepository) {}
 
   async execute(input: GetLinkInput): Promise<Result<TrackedLinkOutput, UseCaseError>> {

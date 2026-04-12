@@ -1,8 +1,7 @@
 /**
- * Application Layer - Update Post Use Case
- *
- * Part of Sprint 8: DDD Architecture Implementation
- * Handles updating an existing post's content.
+ * @file UpdatePostUseCase.ts
+ * @description Orchestrates post content updates (body, title, summary, tags) via PostAggregate mutation, persisting within UoW and dispatching PostUpdated events.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";

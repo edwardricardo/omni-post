@@ -1,13 +1,7 @@
 /**
- * Post Query Handlers - Get & List
- *
- * GetPostQueryHandler: single post retrieval via PostQueryRepository.
- * ListPostsQueryHandler: paginated post listing via PostQueryRepository.
- *
- * Both handlers operate on domain PostReadModel and map results to
- * CQRS-envelope PostReadModel / PostsListReadModel.
- *
- * @module cqrs/handlers/PostQueryGetList
+ * @file PostQueryGetList.ts
+ * @description CQRS query handlers for single post retrieval (GetPostQueryHandler) and paginated post listing (ListPostsQueryHandler) via PostQueryRepository.
+ * @layer application
  */
 
 import {

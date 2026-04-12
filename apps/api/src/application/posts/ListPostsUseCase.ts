@@ -1,13 +1,7 @@
 /**
- * Application Layer - List Posts Use Case
- *
- * Part of Sprint 8: DDD Architecture Implementation
- * Migrated to CQRS read side (PostQueryRepository) in H10/P2-3.
- * Handles listing posts with pagination using the read-optimised query repo.
- *
- * NOTE: Status filtering is intentionally omitted — PostQueryRepository.listByProject()
- * is the base method and status-filtered queries can be added via a future
- * listByProjectWithFilters() extension when a route requires it.
+ * @file ListPostsUseCase.ts
+ * @description CQRS read-side query that lists posts for a specific project with pagination and sorting via PostQueryRepository.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";

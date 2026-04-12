@@ -1,8 +1,7 @@
 /**
- * Application Layer - Redirect And Track Click Use Case
- *
- * Part of Sprint 19: Link Tracking Feature
- * Handles link redirects and click tracking.
+ * @file RedirectAndTrackClickUseCase.ts
+ * @description Resolves a short code to the original URL, records the click event, and optionally forwards to GA4 tracking.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
@@ -16,9 +15,11 @@ import { type GA4TrackingPort } from "../../domain/repositories/GA4TrackingPort.
  *
  * Resolves a short code to original URL and records the click.
  */
-export class RedirectAndTrackClickUseCase
-  implements UseCase<RedirectInput, RedirectOutput, UseCaseError>
-{
+export class RedirectAndTrackClickUseCase implements UseCase<
+  RedirectInput,
+  RedirectOutput,
+  UseCaseError
+> {
   constructor(
     private readonly repository: TrackedLinkRepository,
     private readonly ga4?: GA4TrackingPort

@@ -1,10 +1,7 @@
 /**
- * Post Query Handlers - Facade
- *
- * Re-exports all query handler classes and the factory function
- * from sub-modules. External consumers continue importing from this file.
- *
- * @module cqrs/handlers/PostQueryHandlers
+ * @file PostQueryHandlers.ts
+ * @description Facade that re-exports all post query handler classes and provides the createPostQueryHandlers factory function.
+ * @layer application
  */
 
 import type { PostQueryRepository } from "../../domain/index.js";

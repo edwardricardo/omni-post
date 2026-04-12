@@ -1,8 +1,7 @@
 /**
- * Application Layer - Base Use Case Interface
- *
- * Part of Sprint 8: DDD Architecture Implementation
- * Defines the contract for all use cases (application services).
+ * @file UseCase.ts
+ * @description Defines the base UseCase and CommandUseCase interfaces, UseCaseError class, and USE_CASE_ERRORS constants shared by all application use cases.
+ * @layer application
  */
 
 import { type Result } from "@shared/types";

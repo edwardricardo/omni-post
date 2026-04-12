@@ -1,13 +1,7 @@
 /**
- * Application Layer - Schedule Post Use Case
- *
- * Transitions a post from DRAFT to SCHEDULED status using the domain aggregate
- * method PostAggregate.schedule(). Validates channel existence, persists the
- * state change, and dispatches domain events (PostScheduled).
- *
- * Part of P2-ARCH-1: Migrate postRoutes Prisma direct calls to use cases.
- *
- * @module application/posts/SchedulePostUseCase
+ * @file SchedulePostUseCase.ts
+ * @description Orchestrates post scheduling by transitioning DRAFT to SCHEDULED via PostAggregate.schedule(), validating channels, persisting within UoW, and dispatching PostScheduled events.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";

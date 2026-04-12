@@ -1,8 +1,7 @@
 /**
- * Application Layer - Get Link Stats Use Case
- *
- * Part of Sprint 19: Link Tracking Feature
- * Retrieves click statistics for a tracked link.
+ * @file GetLinkStatsUseCase.ts
+ * @description Retrieves click statistics and analytics for a tracked link by its ID and returns Result<LinkStatsOutput>.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";

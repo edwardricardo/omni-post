@@ -1,16 +1,7 @@
 /**
- * Application Layer - API Key Use Cases
- *
- * Part of FASE H10-B: API Key Management
- * Encapsulates all business logic for creating, validating, rotating,
- * and deactivating API keys.
- *
- * Security model:
- * - The raw key is generated once and returned to the user immediately.
- * - Only an argon2id hash is persisted — the plaintext is NEVER stored.
- * - Validation compares an incoming raw key against the stored hash.
- *
- * @module application/apiKeys/ApiKeyUseCases
+ * @file ApiKeyUseCases.ts
+ * @description Encapsulates all API key lifecycle operations (create, validate, rotate, deactivate) using argon2id hashing; raw keys are returned once and never stored.
+ * @layer application
  */
 
 import { randomBytes } from "node:crypto";

@@ -1,8 +1,7 @@
 /**
- * Application Layer - Delete Post Use Case
- *
- * Part of Sprint 8: DDD Architecture Implementation
- * Handles deleting a post.
+ * @file DeletePostUseCase.ts
+ * @description Orchestrates post deletion by validating the post state (only draft/failed), removing via repository within UoW, and incrementing deletion metrics.
+ * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";

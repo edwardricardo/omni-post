@@ -1,16 +1,7 @@
 /**
- * Application Layer - Main Export
- *
- * Part of Sprint 8: DDD Architecture Implementation
- * This is the main entry point for the application layer.
- *
- * The application layer contains:
- * - Use cases (application services)
- * - Input/Output DTOs
- * - Application errors
- *
- * Use cases orchestrate domain objects and external services
- * to fulfill specific user intentions.
+ * @file index.ts
+ * @description Root barrel export for the application layer, re-exporting all use cases, DTOs, and error types from sub-modules.
+ * @layer application
  */
 
 // Base use case types
@@ -19,8 +10,8 @@ export { USE_CASE_ERRORS } from "./UseCase.js";
 // Post use cases
 export * from "./posts/index.js";
 
-// Link Tracking use cases (Sprint 19)
+// Link Tracking use cases
 export * from "./links/index.js";
 
-// Crisis Mode use cases (Sprint 19)
+// Crisis Mode use cases
 export * from "./crisis/index.js";
