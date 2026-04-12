@@ -1,13 +1,8 @@
 /**
- * Admin Authentication Service (Main Coordinator)
- *
- * Orchestrates all authentication operations by coordinating:
- * - PasswordService - Password management
- * - TokenService - JWT token operations
- * - SessionManager - Session lifecycle
- * - BruteForceProtection - Security monitoring
- * - MfaService - Multi-factor authentication
- *
+ * @file AdminAuthService.ts
+ * @description Orchestrates all admin authentication operations by coordinating
+ *              PasswordService, TokenService, SessionManager, BruteForceProtection, and MfaService.
+ * @layer infrastructure
  * This service provides the main public API for authentication operations
  * while delegating specific concerns to specialized services.
  */

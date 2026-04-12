@@ -1,13 +1,8 @@
 /**
- * Multi-Factor Authentication (MFA) Service
- *
- * Handles MFA operations for admin users:
- * - MFA setup with TOTP secret generation
- * - QR code generation for authenticator apps
- * - Backup code generation and management
- * - MFA verification during login
- * - MFA enable/disable operations
- * - MFA status checking
+ * @file MfaService.ts
+ * @description Handles MFA operations for admin users including TOTP setup,
+ *              QR code generation, backup codes, and verification during login.
+ * @layer infrastructure
  */
 
 import argon2 from "argon2";

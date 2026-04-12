@@ -1,8 +1,8 @@
 /**
- * API Key Routes
- *
- * REST API endpoints for managing API keys. Allows authenticated admin users
- * to create, list, rotate, and deactivate API keys scoped to their account.
+ * @file apiKeyRoutes.ts
+ * @description REST API endpoints for managing API keys. Allows authenticated admin users
+ *              to create, list, rotate, and deactivate API keys scoped to their account.
+ * @layer infrastructure
  *
  * All endpoints require JWT authentication (Bearer token).
  * The actual API keys issued here are used for machine-to-machine access.

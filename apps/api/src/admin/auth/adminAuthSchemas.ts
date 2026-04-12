@@ -1,13 +1,8 @@
 /**
- * Admin Authentication Zod Schemas
- *
- * Runtime validation schemas for all admin auth endpoints.
- * Provides both runtime validation and compile-time type inference.
- *
- * Usage:
- * ```typescript
- * const result = loginSchema.safeParse(requestBody);
- * if (!result.success) {
+ * @file adminAuthSchemas.ts
+ * @description Zod runtime validation schemas for all admin auth endpoints
+ *              with compile-time type inference.
+ * @layer infrastructure
  *   return { errors: result.error.flatten() };
  * }
  * const validatedData = result.data; // Type-safe!

@@ -1,3 +1,9 @@
+/**
+ * @file facebookWebhookProcessor.ts
+ * @description Facebook webhook processor handling Graph API webhooks for feed updates,
+ *              comment changes, reaction tracking, and messaging events.
+ * @layer infrastructure
+ */
 import type { WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
 import { prisma } from "@infra/prisma";

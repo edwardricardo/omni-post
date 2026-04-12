@@ -1,3 +1,9 @@
+/**
+ * @file webhookManager.ts
+ * @description Webhook subscription management and ingestion orchestrator handling
+ *              subscription CRUD, secret rotation, and incoming webhook dispatch.
+ * @layer infrastructure
+ */
 import { prisma } from "@infra/prisma";
 import {
   createWebhookJobProcessor,

@@ -1,7 +1,7 @@
 /**
- * Phase 3A Week 5: Sync Executor
- *
- * Executes sync rules for content, media, and analytics.
+ * @file SyncExecutor.ts
+ * @description Executes sync rules for content, media, and analytics.
+ * @layer infrastructure
  */
 
 import type { SyncRule, VersionDiff } from "@shared/orchestration";

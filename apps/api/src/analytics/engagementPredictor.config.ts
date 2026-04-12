@@ -1,8 +1,8 @@
 /**
- * EngagementPredictor — model weights and platform-specific configuration constants.
- *
- * Extracted from engagementPredictor.ts to keep each file ≤ 800 lines.
- * No logic here — only static data used by the predictor and its factor helpers.
+ * @file engagementPredictor.config.ts
+ * @description Model weights and platform-specific configuration constants
+ *              for the engagement predictor.
+ * @layer infrastructure
  */
 
 import type { ContentType, ProviderType } from "@shared/analytics";

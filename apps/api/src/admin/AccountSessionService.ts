@@ -1,13 +1,8 @@
 /**
- * Account Session Service
- *
- * Manages session and password operations for admin accounts.
- * Extracted from AccountLifecycleService to reduce file size.
- *
- * Features:
- * - Password reset with audit logging
- * - Session listing for admin accounts
- * - Bulk session revocation with security event logging
+ * @file AccountSessionService.ts
+ * @description Manages session and password operations for admin accounts
+ *              including password reset, session listing, and bulk revocation.
+ * @layer infrastructure
  *
  * @module admin/AccountSessionService
  */

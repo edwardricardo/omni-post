@@ -1,10 +1,8 @@
 /**
- * ROIForecasting Module
- *
- * Responsibilities:
- * - Generate ROI forecasts based on historical data
- * - Calculate monthly trends
- * - Apply seasonal factors
+ * @file ROIForecasting.ts
+ * @description Generates ROI forecasts based on historical data with monthly trends
+ *              and seasonal factor adjustments.
+ * @layer infrastructure
  */
 
 import { createLogger } from "../../lib/logger.js";

@@ -1,8 +1,8 @@
 /**
- * Content Version Types
- *
- * Shared interfaces and types for the content versioning system,
- * including branch management, merge requests, and conflict resolution.
+ * @file contentVersionTypes.ts
+ * @description Shared interfaces and types for the content versioning system including
+ *              branch management, merge requests, and conflict resolution.
+ * @layer infrastructure
  */
 
 import type { CanonicalPost } from "@shared/types";

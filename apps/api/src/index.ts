@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description API server entry point. Loads environment, initializes OpenTelemetry,
+ *              configures Fastify with all plugins and routes, and starts the HTTP server.
+ * @layer infrastructure
+ */
 // Load environment-specific .env file FIRST
 import dotenv from "dotenv";
 import path from "path";

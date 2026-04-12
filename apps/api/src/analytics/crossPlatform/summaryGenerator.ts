@@ -1,9 +1,8 @@
 /**
- * Cross-Platform Analytics Summary Generator
- *
- * Generates high-level summary metrics and provider-specific metrics
- * from analytics and post data. Contains only real aggregation logic;
- * fake cost/ROI/timing calculations have been removed.
+ * @file summaryGenerator.ts
+ * @description Generates high-level summary metrics and provider-specific metrics
+ *              from analytics and post data using real aggregation logic.
+ * @layer infrastructure
  */
 
 import type { DomainAnalytics } from "@shared/types";

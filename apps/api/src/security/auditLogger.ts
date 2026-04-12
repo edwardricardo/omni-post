@@ -1,3 +1,9 @@
+/**
+ * @file auditLogger.ts
+ * @description Security audit logger with real-time alerting, severity-based categorization,
+ *              Redis-backed caching, and compliance-ready retention policies.
+ * @layer infrastructure
+ */
 import { prisma } from "@infra/prisma";
 import Redis from "ioredis";
 import type { FastifyRequest } from "fastify";

@@ -1,11 +1,8 @@
 /**
- * Trend Analysis Types
- *
- * Type definitions for the trend analysis system including trending content,
- * predictions, viral content analysis, content discovery insights, and
- * trend reports. Used across the trend analysis service and report builder.
- *
- * @module trends/trendTypes
+ * @file trendTypes.ts
+ * @description Type definitions for the trend analysis system including trending content,
+ *              predictions, viral analysis, content discovery insights, and trend reports.
+ * @layer infrastructure
  */
 
 export interface TrendingContent {

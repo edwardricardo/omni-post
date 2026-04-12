@@ -1,14 +1,8 @@
 /**
- * Unified Authentication Service - Facade
- *
- * Composes AuthServiceCore and AuthServiceSession into the original
- * AuthService public API. External consumers continue importing
- * AuthService, types, and re-exports from this file.
- *
- * Extracted modules: ./redisSessionHelpers.ts, ./deviceFingerprint.ts,
- *                    ./authServiceCore.ts, ./authServiceSession.ts
- *
- * @module auth/authService
+ * @file authService.ts
+ * @description Unified authentication service facade composing AuthServiceCore and
+ *              AuthServiceSession into the original AuthService public API.
+ * @layer infrastructure
  */
 
 import type { Result } from "@shared/types";

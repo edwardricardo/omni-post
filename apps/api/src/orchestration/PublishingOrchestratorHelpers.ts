@@ -1,8 +1,8 @@
 /**
- * Publishing Orchestrator — Helper & Placeholder Methods
- *
- * Contains utility helpers, health monitoring, event emission,
- * and stub placeholder methods for future implementation.
+ * @file PublishingOrchestratorHelpers.ts
+ * @description Utility helpers for health monitoring, event emission,
+ *              and orchestration support functions.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

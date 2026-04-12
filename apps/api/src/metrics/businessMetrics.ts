@@ -1,19 +1,8 @@
 /**
- * Business Metrics
- *
- * Module-level Prometheus counters for business-critical SLO monitoring.
- * These counters use the default prom-client registry so they are automatically
- * included in the existing GET /metrics Prometheus endpoint.
- *
- * SLO Thresholds:
- *   - Post creation P99 latency < 1000ms
- *   - Publish success rate target: > 99%
- *   - Cache L1 hit rate target: > 80%
- *
- * Counter naming follows the Prometheus convention:
- *   omnipost_<subsystem>_<metric>_total
- *
- * @module metrics/businessMetrics
+ * @file businessMetrics.ts
+ * @description Prometheus counters for business-critical SLO monitoring including post creation
+ *              latency, publish success rates, and cache hit rates.
+ * @layer infrastructure
  */
 import client from "prom-client";
 

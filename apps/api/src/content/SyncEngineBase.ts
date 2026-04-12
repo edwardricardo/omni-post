@@ -1,9 +1,8 @@
 /**
- * SyncEngine — Base class
- *
- * Declares the shared state, constructor, and all public API methods of the
- * Sync Engine. Private/internal implementation lives in SyncEngineImpl.ts
- * which extends this class.
+ * @file SyncEngineBase.ts
+ * @description Abstract base class for the sync engine declaring shared state, constructor,
+ *              and public API methods. Implementation lives in SyncEngineImpl.ts.
+ * @layer infrastructure
  */
 
 import { PrismaClient } from "@infra/prisma";

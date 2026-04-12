@@ -1,11 +1,8 @@
 /**
- * Template A/B Test Service
- *
- * Manages A/B testing for content templates including creating, starting,
- * stopping, and querying A/B tests. Tests are associated with templates
- * and support lifecycle management through status transitions.
- *
- * @module templates/TemplateABTestService
+ * @file TemplateABTestService.ts
+ * @description A/B testing service for content templates: creation, lifecycle transitions,
+ *              result queries, and test-to-template association management.
+ * @layer infrastructure
  */
 import { prisma } from "@infra/prisma";
 import { Prisma } from "@infra/prisma";

@@ -1,11 +1,11 @@
+/**
+ * @file healthMetrics.ts
+ * @description Prometheus gauges and histograms for system and dependency health monitoring,
+ *              exposed via the /metrics endpoint for Prometheus scraping.
+ * @layer infrastructure
+ */
 import * as client from "prom-client";
 import type { HealthStatus } from "@monitoring/health-checks";
-
-/**
- * Prometheus metrics for health monitoring
- *
- * These metrics are exposed via the /metrics endpoint for Prometheus scraping.
- */
 
 /**
  * Overall system health status

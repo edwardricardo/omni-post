@@ -1,5 +1,7 @@
 /**
- * Shared type definitions for ROI Calculator modules
+ * @file types.ts
+ * @description Shared type definitions for ROI Calculator modules.
+ * @layer infrastructure
  */
 
 import type {

@@ -1,13 +1,8 @@
 /**
- * Provider Health Monitor — Facade
- *
- * Stateful facade over the pure helper functions in ProviderCoordinatorMonitoring
- * and ProviderCoordinatorExecution. Owns timer lifecycle (health-check and metrics
- * intervals), event-handler wiring, and a few convenience queries that need access
- * to the shared providerNodes map.
- *
- * **Delegation relationship:**
- * - `initializeLoadMetrics`        → {@link MonitoringHelpers.initializeLoadMetrics}
+ * @file ProviderHealthMonitor.ts
+ * @description Stateful facade for provider health monitoring that owns timer lifecycle,
+ *              event-handler wiring, and delegates to pure monitoring/execution helpers.
+ * @layer infrastructure
  * - `getDefaultConfiguration`      → {@link MonitoringHelpers.getDefaultConfiguration}
  * - `setupDefaultFailoverStrategy` → {@link MonitoringHelpers.setupDefaultFailoverStrategy}
  * - `evaluateFailoverConditions`   → {@link MonitoringHelpers.evaluateFailoverConditions}

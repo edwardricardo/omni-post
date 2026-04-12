@@ -1,3 +1,9 @@
+/**
+ * @file threadAnalytics.ts
+ * @description Analytics service for thread-specific metrics including engagement,
+ *              completion rates, and performance tracking across thread posts.
+ * @layer infrastructure
+ */
 import { prisma } from "@infra/prisma";
 import Redis from "ioredis";
 import { createLogger } from "../lib/logger.js";
@@ -126,7 +132,7 @@ export class ThreadAnalytics {
       const failedTweets = thread.tweets.filter((t) => t.status === "FAILED").length;
       const pendingTweets = thread.tweets.filter((t) => t.status === "PENDING").length;
 
-      // ✅ Phase 3.3: Use AnalyticsAggregator for engagement metrics
+      // Use AnalyticsAggregator for engagement metrics
       const metrics = AnalyticsAggregator.calculateEngagementMetrics(analyticsData);
       const { totalViews, totalLikes, totalComments, totalShares } = metrics;
 
@@ -642,7 +648,7 @@ export class ThreadAnalytics {
           const failedTweets = thread.tweets.filter((t) => t.status === "FAILED").length;
           const pendingTweets = thread.tweets.filter((t) => t.status === "PENDING").length;
 
-          // ✅ Phase 3.3: Use AnalyticsAggregator for engagement metrics
+          // Use AnalyticsAggregator for engagement metrics
           const metrics = AnalyticsAggregator.calculateEngagementMetrics(threadAnalytics);
           const { totalViews, totalLikes, totalComments, totalShares } = metrics;
 

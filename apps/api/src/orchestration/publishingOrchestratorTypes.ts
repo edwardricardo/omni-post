@@ -1,7 +1,7 @@
 /**
- * Publishing Orchestrator — Shared Types
- *
- * Internal interfaces used by PublishingOrchestrator and its sub-modules.
+ * @file publishingOrchestratorTypes.ts
+ * @description Internal interfaces used by PublishingOrchestrator and its sub-modules.
+ * @layer infrastructure
  */
 
 import { PrismaClient } from "@infra/prisma";

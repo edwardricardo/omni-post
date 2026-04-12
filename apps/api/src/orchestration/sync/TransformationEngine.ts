@@ -1,7 +1,7 @@
 /**
- * Phase 3A Week 5: Transformation Engine
- *
- * Applies content transformations based on sync rules.
+ * @file TransformationEngine.ts
+ * @description Applies content transformations based on sync rules.
+ * @layer infrastructure
  */
 
 import type { SyncTransformation } from "@shared/orchestration";

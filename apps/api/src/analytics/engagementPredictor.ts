@@ -1,3 +1,9 @@
+/**
+ * @file engagementPredictor.ts
+ * @description Main engagement predictor service that coordinates content feature extraction,
+ *              timing analysis, and platform-specific scoring to predict post performance.
+ * @layer infrastructure
+ */
 import type Redis from "ioredis";
 import { prisma as _prisma } from "@infra/prisma";
 import { createRedisConnection } from "../lib/redis.js";

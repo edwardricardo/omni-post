@@ -1,10 +1,8 @@
 /**
- * Shared Webhook Types
- *
- * Interfaces shared across webhookHandler, webhookHandlerCore, and all
- * webhook processors. Extracted here to break circular import cycles.
- *
- * @module webhooks/webhookTypes
+ * @file webhookTypes.ts
+ * @description Shared webhook interfaces used across webhookHandler, webhookHandlerCore,
+ *              and all webhook processors to break circular import cycles.
+ * @layer infrastructure
  */
 
 import type { WebhookEventType } from "@infra/prisma";

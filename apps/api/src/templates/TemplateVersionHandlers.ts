@@ -1,10 +1,8 @@
 /**
- * Template Version and Analytics Handlers
- *
- * Handles template versioning, usage tracking, and analytics endpoints.
- * Extracted from TemplateHandlers.ts to keep files under 800 lines.
- *
- * @module templates/TemplateVersionHandlers
+ * @file TemplateVersionHandlers.ts
+ * @description Route handlers for template versioning, usage tracking, and analytics
+ *              endpoints including version history and restore operations.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";

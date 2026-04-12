@@ -1,3 +1,9 @@
+/**
+ * @file mfaService.ts
+ * @description Multi-factor authentication service handling TOTP setup, verification,
+ *              backup code generation, and MFA lifecycle management.
+ * @layer infrastructure
+ */
 import { authenticator } from "otplib";
 import * as QRCode from "qrcode";
 import * as crypto from "crypto";

@@ -1,5 +1,9 @@
-// ✅ Phase 6.3: Migrated to BaseRouteHandler Pattern
-
+/**
+ * @file routes.ts
+ * @description REST API endpoints for AI-powered content generation, analysis,
+ *              optimization, image generation, and brand voice integration.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";

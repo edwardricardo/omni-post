@@ -1,11 +1,7 @@
 /**
- * Benchmark Generator
- *
- * Utility functions for percentile and performance categorization.
- * Industry benchmark generation has been removed (was 100% fake data from
- * hardcoded ProviderComparator constants).
- *
- * @module analytics/performanceComparison/benchmarkGenerator
+ * @file benchmarkGenerator.ts
+ * @description Utility functions for percentile calculation and performance categorization.
+ * @layer infrastructure
  */
 import type { PerformanceSnapshot, AnalyticsDataPoint, IndustryBenchmark } from "./types.js";
 

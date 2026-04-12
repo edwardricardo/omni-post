@@ -1,12 +1,8 @@
 /**
- * Correlation ID Middleware
- *
- * Adds correlation IDs to all requests for distributed tracing.
- * The correlation ID is:
- * 1. Taken from X-Correlation-ID header if present (forwarded from upstream)
- * 2. Generated as a new UUID if not present
- * 3. Added to the response headers
- * 4. Made available throughout the request lifecycle
+ * @file correlationMiddleware.ts
+ * @description Fastify middleware that assigns or forwards correlation IDs on every request
+ *              for distributed tracing, adding them to response headers and request context.
+ * @layer infrastructure
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";

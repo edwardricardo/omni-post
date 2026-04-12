@@ -1,15 +1,8 @@
 /**
- * Phase 3.1: Backend Service Consolidation - Base Service Class
- *
- * Provides consistent error handling, logging, and validation patterns
- * across all backend services to eliminate duplication.
- *
- * Features:
- * - Standardized error handling with Result<T, E> pattern
- * - Contextual logging with structured data
- * - Input validation helpers
- * - Performance timing
- * - Consistent error responses
+ * @file BaseService.ts
+ * @description Base service class providing standardized error handling with Result pattern,
+ *              contextual logging, input validation helpers, and performance timing.
+ * @layer infrastructure
  */
 
 import { Result, ok, err } from "@shared/types";

@@ -1,25 +1,9 @@
 /**
- * Saga Integration with Fastify
- *
- * Integration layer that provides Saga orchestration endpoints:
- * - Start saga workflows via API
- * - Monitor saga progress and status
- * - Handle saga compensation manually
- * - Saga metrics and health monitoring
- *
- * ## Publishing Flow (API -> BullMQ -> Worker -> Saga)
- *
- * 1. API request hits `/api/sagas/post-publishing/start`
- * 2. SagaIntegration creates a saga instance and begins step execution
- * 3. When the "schedule-publishing-jobs" step runs, it calls `queueJob()`
- * 4. `queueJob()` enqueues a real BullMQ job via `QueuePort.enqueue()`,
- *    embedding `sagaId` in the payload so the worker can notify back
- * 5. The BullMQ worker (`publishWorker`) processes the job and publishes
- *    a completion/failure event to the Redis pub/sub channel "saga:events"
- * 6. This class subscribes to "saga:events" via a **dedicated** Redis
- *    connection (ioredis enters subscriber mode and cannot issue other
- *    commands on the same connection) and forwards incoming messages
- *    to `SagaManager.handleEvent()` so the saga can advance or compensate
+ * @file SagaIntegration.ts
+ * @description Fastify integration layer for saga orchestration providing API endpoints
+ *              to start workflows, monitor progress, handle compensation, and track metrics.
+ *              Connects API requests to BullMQ workers via Redis pub/sub for saga events.
+ * @layer infrastructure
  *
  * ## Redis Pub/Sub Message Format
  *

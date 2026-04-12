@@ -1,9 +1,8 @@
 /**
- * Thumbnail Templates - Predefined Templates & A/B Testing
- *
- * Platform-specific thumbnail templates and A/B test variant generation.
- *
- * @module video/thumbnailTemplates
+ * @file thumbnailTemplates.ts
+ * @description Platform-specific thumbnail templates and A/B test variant generation
+ *              for YouTube, Instagram, TikTok, and other social platforms.
+ * @layer infrastructure
  */
 
 import * as path from "path";

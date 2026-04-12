@@ -1,10 +1,7 @@
 /**
- * Analytics Dashboard Handlers
- *
- * Handles analytics dashboard KPI and compliance metrics endpoints.
- * Extracted from AnalyticsHandlers.ts to keep files under 800 lines.
- *
- * @module admin/AnalyticsDashboardHandlers
+ * @file AnalyticsDashboardHandlers.ts
+ * @description Handles analytics dashboard KPI and compliance metrics endpoints.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";

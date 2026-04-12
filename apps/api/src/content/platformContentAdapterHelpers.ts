@@ -1,8 +1,8 @@
 /**
- * Platform Content Adapter — Pure Helper Functions
- *
- * Stateless utility functions extracted from PlatformContentAdapter
- * to keep the main class within the 800-line limit.
+ * @file platformContentAdapterHelpers.ts
+ * @description Stateless utility functions for platform content adaptation including
+ *              rule matching, content transformation, and metric calculations.
+ * @layer infrastructure
  */
 
 import type { AdaptationRule, PlatformAdaptation } from "@shared/orchestration";

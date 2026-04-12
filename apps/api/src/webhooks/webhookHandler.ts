@@ -1,10 +1,8 @@
 /**
- * Webhook Handler - Facade
- *
- * Re-exports UniversalWebhookHandler and interfaces
- * from sub-modules. External consumers continue importing from this file.
- *
- * @module webhooks/webhookHandler
+ * @file webhookHandler.ts
+ * @description Webhook handler facade re-exporting UniversalWebhookHandler and shared
+ *              interfaces for backward-compatible consumption by external modules.
+ * @layer infrastructure
  */
 
 // Re-export shared interfaces (unchanged public API)

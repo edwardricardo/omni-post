@@ -1,13 +1,8 @@
 /**
- * Comprehensive File Upload Validation System
- * Phase 1 Sprint 1.2 Day 2 - Input Validation & Security Headers
- *
- * Provides advanced file upload validation including:
- * - File type validation beyond MIME type checking
- * - Magic number (file signature) verification
- * - Malware detection integration
- * - Size and dimension limits
- * - Content analysis for suspicious patterns
+ * @file fileUploadValidator.ts
+ * @description File upload validation system with magic number verification, MIME type checking,
+ *              malware detection integration, size/dimension limits, and content analysis.
+ * @layer infrastructure
  */
 
 import { createHash } from "crypto";

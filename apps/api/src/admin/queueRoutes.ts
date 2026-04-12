@@ -1,14 +1,8 @@
 /**
- * Queue Management Routes
- *
- * Admin endpoints for monitoring and managing the BullMQ publishing queue.
- * Provides job listing, stats, individual job details, retry, and removal.
- *
- * All routes read job data from the BullMQ publish queue (QUEUE_NAMES.PUBLISH)
- * via a dedicated read-only Queue connection created inside the plugin scope.
- * The connection is properly cleaned up via an onClose hook.
- *
- * @module admin/queueRoutes
+ * @file queueRoutes.ts
+ * @description Admin endpoints for monitoring and managing the BullMQ publishing queue
+ *              including job listing, stats, retry, and removal.
+ * @layer infrastructure
  */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { Queue, Job } from "bullmq";

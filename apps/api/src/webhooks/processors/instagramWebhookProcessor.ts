@@ -1,3 +1,9 @@
+/**
+ * @file instagramWebhookProcessor.ts
+ * @description Instagram webhook processor handling Business Discovery API webhooks
+ *              for media published/updated, comment events, and story mentions.
+ * @layer infrastructure
+ */
 import type { WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
 import { prisma } from "@infra/prisma";

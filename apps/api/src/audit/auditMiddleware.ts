@@ -1,3 +1,9 @@
+/**
+ * @file auditMiddleware.ts
+ * @description Fastify middleware that automatically logs audit events for
+ *              authenticated requests, tracking actions, resources, and outcomes.
+ * @layer infrastructure
+ */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { auditService, AuditActions, AuditResources as _AuditResources } from "./auditService.js";
 import { createLogger } from "../lib/logger.js";

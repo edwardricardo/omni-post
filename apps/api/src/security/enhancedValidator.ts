@@ -1,3 +1,9 @@
+/**
+ * @file enhancedValidator.ts
+ * @description Enhanced input validation and sanitization with SQL injection, XSS,
+ *              and command injection detection using DOMPurify and pattern matching.
+ * @layer infrastructure
+ */
 import DOMPurify from "isomorphic-dompurify";
 import validator from "validator";
 import type { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";

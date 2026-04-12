@@ -1,8 +1,8 @@
 /**
- * Merge Manager
- *
- * Handles merge-request lifecycle: creation, conflict detection,
- * conflict resolution, and merge execution between content version branches.
+ * @file MergeManager.ts
+ * @description Merge-request lifecycle management: creation, conflict detection,
+ *              conflict resolution, and merge execution between content version branches.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

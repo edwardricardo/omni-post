@@ -1,8 +1,8 @@
 /**
- * Cross-Platform Analytics - Data Fetcher Module
- *
- * Handles all database queries and data retrieval for cross-platform analytics.
- * Uses repository pattern for clean data access.
+ * @file dataFetcher.ts
+ * @description Handles all database queries and data retrieval for cross-platform analytics
+ *              using repository pattern for clean data access.
+ * @layer infrastructure
  */
 
 import { prisma } from "@infra/prisma";

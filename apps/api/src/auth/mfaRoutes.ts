@@ -1,9 +1,16 @@
-// ✅ Phase 6.3: Migrated to BaseRouteHandler Pattern
+/**
+ * @file mfaRoutes.ts
+ * @description Fastify route plugin for multi-factor authentication endpoints including
+ *              MFA setup, verification, backup codes, and admin MFA management.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
 import type { MfaService } from "./mfaService.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requirePermission } from "./rbacMiddleware.js";
+import { Permission } from "./rbacService.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
 import type { AuditService } from "../audit/auditService.js";
 import type { AuthenticatedUser } from "./authService.js";
@@ -449,7 +456,7 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/users/:userId/mfa/status",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE)],
       schema: { tags: ["MFA"], summary: "Admin: Get MFA status for a user" },
     },
     async (request, reply) => handler.getAdminMfaStatus(request, reply)
@@ -459,7 +466,7 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/admin/users/:userId/mfa/force-disable",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE)],
       schema: { tags: ["MFA"], summary: "Admin: Force disable MFA for a user" },
     },
     async (request, reply) => handler.adminForceDisableMfa(request, reply)

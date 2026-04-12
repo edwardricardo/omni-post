@@ -1,10 +1,7 @@
 /**
- * Analytics Account Handlers
- *
- * Handles account management endpoints for administrators.
- * Extracted from AnalyticsHandlers.ts to keep files under 800 lines.
- *
- * @module admin/AnalyticsAccountHandlers
+ * @file AnalyticsAccountHandlers.ts
+ * @description Handles account management endpoints for administrators.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";

@@ -1,12 +1,8 @@
 /**
- * Performance Comparator
- *
- * Orchestrates cross-platform performance analysis by coordinating snapshot
- * generation, industry benchmarking, provider comparison, content type
- * analysis, and trend detection. Produces comprehensive performance reports
- * with actionable insights and competitive positioning data.
- *
- * @module analytics/performanceComparison
+ * @file index.ts
+ * @description Orchestrates cross-platform performance analysis by coordinating snapshot
+ *              generation, benchmarking, provider comparison, and trend detection.
+ * @layer infrastructure
  */
 import { prisma } from "@infra/prisma";
 import { createLogger } from "../../lib/logger.js";

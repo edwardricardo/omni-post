@@ -1,8 +1,8 @@
 /**
- * Admin Authentication Routes
- *
- * Fastify routes for admin authentication API following BaseRouteHandler pattern.
- * Provides endpoints for login, logout, token refresh, MFA, session management, etc.
+ * @file adminAuthRoutes.ts
+ * @description Fastify routes for admin authentication API following BaseRouteHandler pattern.
+ *              Provides endpoints for login, logout, token refresh, MFA, and session management.
+ * @layer infrastructure
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";

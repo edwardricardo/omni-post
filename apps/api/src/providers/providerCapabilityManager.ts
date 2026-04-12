@@ -1,3 +1,9 @@
+/**
+ * @file providerCapabilityManager.ts
+ * @description Manages provider capability queries, scoring, and matching to find the best
+ *              providers for content requirements based on capabilities, limits, and features.
+ * @layer infrastructure
+ */
 import type {
   ProviderAdapter,
   ProviderCapabilities,

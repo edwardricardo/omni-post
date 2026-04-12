@@ -1,14 +1,8 @@
 /**
- * SyncEngine — barrel re-export
- *
- * The implementation has been split into focused modules:
- *   - syncEngineTypes.ts   : all interfaces / type aliases
- *   - SyncEngineBase.ts    : abstract base class (state + public API)
- *   - SyncEngineImpl.ts    : concrete class with private/protected methods
- *
- * All previously-public exports are preserved here so that external
- * consumers (`content/index.ts`, `container/setup.ts`, tests) continue to
- * import from this path without any changes.
+ * @file SyncEngine.ts
+ * @description Barrel re-export for the sync engine subsystem preserving backward-compatible
+ *              imports from syncEngineTypes, SyncEngineBase, and SyncEngineImpl.
+ * @layer infrastructure
  */
 
 // The concrete class is what callers construct — re-export it as `SyncEngine`

@@ -1,13 +1,8 @@
 /**
- * Thumbnail Generator - Facade
- *
- * Composes ThumbnailGenerationEngine, ThumbnailAnalysisEngine,
- * and ThumbnailTemplateEngine into the original public API.
- *
- * External consumers continue importing ThumbnailGenerator and types
- * from this file.
- *
- * @module video/thumbnailGenerator
+ * @file thumbnailGenerator.ts
+ * @description Thumbnail generator facade composing generation, analysis, and template
+ *              engines into the unified ThumbnailGenerator public API.
+ * @layer infrastructure
  */
 
 import { ThumbnailGenerationEngine, type SpawnFn } from "./thumbnailGeneration.js";

@@ -1,10 +1,8 @@
 /**
- * RevenueCalculator Module
- *
- * Responsibilities:
- * - Calculate revenue breakdowns by source
- * - Track conversion values
- * - Calculate brand awareness and organic traffic value
+ * @file RevenueCalculator.ts
+ * @description Calculates revenue breakdowns by source, tracks conversion values,
+ *              and estimates brand awareness and organic traffic value.
+ * @layer infrastructure
  */
 
 import type {
@@ -32,7 +30,7 @@ export class RevenueCalculator {
 
   /**
    * Calculate comprehensive revenue breakdown
-   * ✅ Phase 3.3: Refactored to use AnalyticsAggregator
+   * Uses AnalyticsAggregator for metric calculations
    */
   calculateRevenue(
     analyticsData: AnalyticsDataPoint[],

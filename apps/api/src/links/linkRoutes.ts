@@ -1,10 +1,8 @@
 /**
- * Link Tracking Routes
- *
- * Part of Sprint 19: Link Tracking Feature
- * Provides API endpoints for tracked link management.
- *
- * Use cases are resolved from the DI container at plugin registration time.
+ * @file linkRoutes.ts
+ * @description REST API endpoints for tracked link management including creation,
+ *              retrieval, click tracking with redirect, statistics, and deletion.
+ * @layer infrastructure
  */
 
 import { type FastifyPluginAsync, type FastifyRequest, type FastifyReply } from "fastify";

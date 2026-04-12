@@ -1,3 +1,9 @@
+/**
+ * @file gemini.ts
+ * @description Google Gemini AI provider adapter implementing the AIProvider interface
+ *              for content generation, analysis, optimization, and predictions.
+ * @layer infrastructure
+ */
 import { GoogleGenAI } from "@google/genai";
 import {
   AIProvider,

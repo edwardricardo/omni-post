@@ -1,7 +1,8 @@
 /**
- * SyncEngine — Type definitions
- *
- * All interfaces and type aliases used by the Sync Engine system.
+ * @file syncEngineTypes.ts
+ * @description Type definitions for the sync engine system including channels,
+ *              configurations, metrics, and real-time sync event interfaces.
+ * @layer infrastructure
  */
 
 import type { SyncConfiguration } from "@shared/orchestration";

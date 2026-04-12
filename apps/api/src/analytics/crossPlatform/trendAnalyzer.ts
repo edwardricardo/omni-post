@@ -1,13 +1,8 @@
 /**
- * Trend and Viral Pattern Analysis Module
- *
- * Extracted from crossPlatformEngine.ts to provide modular trend analysis functions
- * with proper TypeScript types and no `any` usage.
- *
- * This module analyzes:
- * - Engagement, reach, and follower trends over time
- * - Content type performance trends
- * - Hashtag effectiveness trends
+ * @file trendAnalyzer.ts
+ * @description Analyzes engagement, reach, follower, content type, and hashtag
+ *              effectiveness trends over time for cross-platform analytics.
+ * @layer infrastructure
  * - Seasonal patterns and cyclical behavior
  * - Anomaly detection in metrics
  * - Viral content patterns and characteristics

@@ -1,10 +1,8 @@
 /**
- * Template A/B Test Handlers
- *
- * Handles A/B testing endpoints for templates.
- * Extracted from TemplateHandlers.ts to keep files under 800 lines.
- *
- * @module templates/TemplateABTestHandlers
+ * @file TemplateABTestHandlers.ts
+ * @description Route handlers for template A/B testing endpoints including test creation,
+ *              start/stop lifecycle, and results retrieval.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";

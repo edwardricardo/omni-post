@@ -1,8 +1,8 @@
 /**
- * ConflictDetector - Sync conflict detection and resolution
- *
- * Handles intelligent conflict detection between source and target content,
- * implements automated resolution strategies, and manages conflict severity.
+ * @file ConflictDetector.ts
+ * @description Sync conflict detection and resolution: intelligent conflict detection
+ *              between source and target content with automated resolution strategies.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

@@ -1,3 +1,9 @@
+/**
+ * @file snapshotGenerator.ts
+ * @description Generates performance snapshots from analytics and post data
+ *              for period-over-period comparison analysis.
+ * @layer infrastructure
+ */
 import type { DomainAnalytics } from "@shared/types";
 import { AnalyticsAggregator } from "../analyticsUtils.js";
 import type { PerformanceSnapshot, AnalyticsDataPoint, PerformanceChange } from "./types.js";

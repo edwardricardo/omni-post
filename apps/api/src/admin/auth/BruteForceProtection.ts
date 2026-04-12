@@ -1,11 +1,8 @@
 /**
- * Brute Force Protection Service
- *
- * Handles account security against brute force attacks:
- * - Login attempt tracking
- * - Threat score calculation
- * - Account locking mechanisms
- * - Failed attempt reset
+ * @file BruteForceProtection.ts
+ * @description Protects admin accounts against brute force attacks via login attempt
+ *              tracking, threat score calculation, and account locking.
+ * @layer infrastructure
  */
 
 import { prisma } from "@infra/prisma";

@@ -1,3 +1,9 @@
+/**
+ * @file rbacMiddleware.ts
+ * @description Fastify middleware for role-based access control, resolving RbacService
+ *              from DI and enforcing permission checks on protected routes.
+ * @layer infrastructure
+ */
 import { FastifyRequest, FastifyReply } from "fastify";
 import type { RbacService } from "./rbacService.js";
 import { Permission } from "./rbacService.js";

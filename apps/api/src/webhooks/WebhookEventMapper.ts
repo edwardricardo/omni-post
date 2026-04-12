@@ -1,12 +1,8 @@
 /**
- * Webhook Event Mapper - Anti-Corruption Layer (ACL)
- *
- * Translates normalized webhook data (already provider-agnostic, produced by
- * individual webhook processors) into strongly-typed domain webhook events.
- *
- * This is the boundary between the external social media webhook world and the
- * internal domain model. Downstream code works with typed events; it never sees
- * raw provider-specific payloads.
+ * @file WebhookEventMapper.ts
+ * @description Anti-corruption layer translating normalized webhook data into strongly-typed
+ *              domain webhook events at the boundary between external providers and the domain.
+ * @layer infrastructure
  *
  * Flow:
  *   Raw Provider Payload

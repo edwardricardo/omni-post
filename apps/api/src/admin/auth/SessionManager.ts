@@ -1,12 +1,8 @@
 /**
- * Session Manager
- *
- * Handles admin session lifecycle management including:
- * - Session creation with device fingerprinting
- * - Session cleanup (expired/inactive)
- * - Concurrent session enforcement
- * - Session listing and revocation
- * - CSRF token management
+ * @file SessionManager.ts
+ * @description Manages admin session lifecycle including creation, cleanup,
+ *              concurrent session enforcement, revocation, and CSRF tokens.
+ * @layer infrastructure
  */
 
 import crypto from "crypto";

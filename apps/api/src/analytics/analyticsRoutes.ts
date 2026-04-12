@@ -1,4 +1,8 @@
-// ✅ Phase 6: Analytics Routes with Real Service Integration
+/**
+ * @file analyticsRoutes.ts
+ * @description Fastify route definitions for analytics endpoints with real service integration.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {

@@ -1,4 +1,9 @@
-// ✅ Account Routes - Multi-project account management
+/**
+ * @file accountRoutes.ts
+ * @description REST API endpoints for multi-project account management including
+ *              CRUD operations, slug handling, and account settings.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";

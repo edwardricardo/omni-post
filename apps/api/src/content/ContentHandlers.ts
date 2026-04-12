@@ -1,17 +1,8 @@
 /**
- * Content Sync Route Handlers (F28)
- *
- * Implements BaseRouteHandler subclasses for all content synchronisation,
- * version management, conflict detection, and platform adaptation endpoints.
- *
- * Handler classes:
- *  - SyncHandlers          — sync operations (syncPost, getSyncMetrics)
- *  - ChannelHandlers       — sync channel management (createChannel, startRealtime, stopRealtime)
- *  - VersionHandlers       — content version management (list, create snapshot, restore, compare)
- *  - ConflictHandlers      — conflict detection and resolution
- *  - TransformHandlers     — platform adaptation, rendering, and diff
- *
- * @module content/ContentHandlers
+ * @file ContentHandlers.ts
+ * @description BaseRouteHandler subclasses for content synchronisation, version management,
+ *              conflict detection, and platform adaptation endpoints.
+ * @layer infrastructure
  */
 
 import { z } from "zod";

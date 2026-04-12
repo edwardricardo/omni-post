@@ -1,18 +1,8 @@
 /**
- * Post Routes - Application Layer Use Case Integration
- *
- * All CRUD + scheduling operations delegated to DDD use cases:
- * - CreatePostUseCase, GetPostWithThreadQuery, ListPostsUseCase,
- *   ListPostsGlobalQuery, UpdatePostUseCase, DeletePostUseCase,
- *   SchedulePostUseCase.
- *
- * No direct Prisma calls remain. Project existence is verified via the
- * ProjectRepository port. Use cases are resolved from the DI container
- * at plugin registration time.
- *
- * Part of P2-ARCH-1: Migrate postRoutes Prisma direct calls to use cases.
- *
- * @module posts/postRoutes
+ * @file postRoutes.ts
+ * @description REST API endpoints for post CRUD and scheduling, delegating all operations
+ *              to DDD use cases resolved from the DI container.
+ * @layer infrastructure
  */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";

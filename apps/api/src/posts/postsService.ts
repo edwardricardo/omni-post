@@ -1,3 +1,9 @@
+/**
+ * @file postsService.ts
+ * @description Posts service providing multi-level cached post listing, dashboard statistics,
+ *              and optimized queries via DatabaseOptimizer and RedisCacheManager.
+ * @layer infrastructure
+ */
 import { BaseService } from "../services/BaseService.js";
 import { DatabaseOptimizer } from "../database/DatabaseOptimizer.js";
 import { RedisCacheManager } from "@adapters/cache-redis";

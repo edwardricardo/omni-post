@@ -1,3 +1,9 @@
+/**
+ * @file providerRegistry.ts
+ * @description API-side provider registry managing metadata and runtime adapter instances
+ *              for all 11 social media providers using centralized configuration.
+ * @layer infrastructure
+ */
 import type { ProviderAdapter } from "@ports/core";
 import { xAdapter } from "@providers/x";
 import { instagramAdapter } from "@providers/instagram";

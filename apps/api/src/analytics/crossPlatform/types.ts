@@ -1,8 +1,7 @@
 /**
- * Shared types for Cross-Platform Analytics Engine
- *
- * Provides type-safe interfaces for analytics data structures,
- * eliminating `any` types throughout the analytics modules.
+ * @file types.ts
+ * @description Type-safe interfaces for cross-platform analytics data structures.
+ * @layer infrastructure
  */
 
 import type { DomainAnalytics, ProviderName } from "@shared/types";

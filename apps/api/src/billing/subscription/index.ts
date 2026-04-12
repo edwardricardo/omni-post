@@ -1,11 +1,8 @@
 /**
- * Subscription Module - Main Orchestrator
- *
- * This module combines all subscription-related services:
- * - Plan definitions and validation
- * - Subscription management (CRUD operations)
- * - Billing events and payments
- * - Statistics and analytics
+ * @file index.ts
+ * @description Subscription module facade combining plan definitions, subscription
+ *              management, billing events, trial handling, and analytics services.
+ * @layer infrastructure
  */
 
 // ---- Imports ----------------------------------------------------------------

@@ -1,8 +1,8 @@
 /**
- * CredentialManager
- *
- * Manages secure storage and retrieval of provider credentials,
- * handles credential refresh, and validates credential status.
+ * @file CredentialManager.ts
+ * @description Manages secure storage, retrieval, and refresh of provider credentials
+ *              with credential status validation.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

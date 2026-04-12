@@ -1,8 +1,8 @@
 /**
- * OAuth Provider Configurations
- *
- * Provider-specific OAuth configurations and validation code implementations.
- * Extracted from providerOAuth.ts to keep files under 800 lines.
+ * @file providerOAuthConfigs.ts
+ * @description Provider-specific OAuth configurations and authorization code validation
+ *              for all supported social media platforms.
+ * @layer infrastructure
  *
  * Active providers (fully implemented):
  *   - x (Twitter/X) -- PKCE S256 flow

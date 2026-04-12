@@ -1,10 +1,8 @@
 /**
- * Thumbnail Generation - Core Generation Logic
- *
- * Single and multiple thumbnail generation from video files using ffmpeg.
- * Includes ffmpeg command building, execution, and video metadata extraction.
- *
- * @module video/thumbnailGeneration
+ * @file thumbnailGeneration.ts
+ * @description Core thumbnail generation engine using ffmpeg for single and multiple
+ *              thumbnail extraction, command building, and video metadata retrieval.
+ * @layer infrastructure
  */
 
 import type { ChildProcess } from "child_process";

@@ -1,11 +1,7 @@
 /**
- * Admin Analytics Schemas
- *
- * Zod validation schemas for analytics dashboard and compliance endpoints.
- * Centralizes all input validation for analytics metrics, compliance audit logs,
- * GDPR data requests, and account update operations.
- *
- * @module admin/analyticsSchemas
+ * @file analyticsSchemas.ts
+ * @description Zod validation schemas for analytics dashboard and compliance endpoints.
+ * @layer infrastructure
  */
 import { z } from "zod";
 import { IdSchema } from "@packages/api-common";

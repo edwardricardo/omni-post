@@ -1,10 +1,8 @@
 /**
- * Auth Service - Core Authentication
- *
- * User registration, login with MFA support, and shared utilities.
- * Enhanced security features activate when Redis is available.
- *
- * @module auth/authServiceCore
+ * @file authServiceCore.ts
+ * @description Core authentication logic: user registration, login with MFA support,
+ *              and shared utilities. Enhanced security features activate when Redis is available.
+ * @layer infrastructure
  */
 
 import jwt from "jsonwebtoken";

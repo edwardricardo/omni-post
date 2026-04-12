@@ -1,8 +1,8 @@
 /**
- * SyncEngine — Implementation class
- *
- * Implements all protected/private methods declared abstract in SyncEngineBase.
- * This is the concrete class that should be instantiated directly.
+ * @file SyncEngineImpl.ts
+ * @description Concrete sync engine implementation with all protected/private methods
+ *              declared abstract in SyncEngineBase. Instantiated directly by consumers.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

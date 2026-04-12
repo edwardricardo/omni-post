@@ -1,10 +1,8 @@
 /**
- * Competitive Analysis Module
- *
- * Provides competitive benchmarking, market positioning,
- * and opportunity analysis for cross-platform analytics.
- *
- * Extracted from crossPlatformEngine.ts for better code organization.
+ * @file competitiveAnalyzer.ts
+ * @description Provides competitive benchmarking, market positioning,
+ *              and opportunity analysis for cross-platform analytics.
+ * @layer infrastructure
  */
 
 import type { DomainAnalytics } from "@shared/types";

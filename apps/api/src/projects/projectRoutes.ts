@@ -1,4 +1,9 @@
-// ✅ Project Routes - Database-backed project management
+/**
+ * @file projectRoutes.ts
+ * @description REST API endpoints for database-backed project management including
+ *              CRUD operations within accounts.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";

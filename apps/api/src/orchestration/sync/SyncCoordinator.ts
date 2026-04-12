@@ -1,7 +1,7 @@
 /**
- * Phase 3A Week 5: Sync Coordinator
- *
- * Coordinates sync jobs, validation, and execution flow.
+ * @file SyncCoordinator.ts
+ * @description Coordinates sync jobs, validation, and execution flow.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

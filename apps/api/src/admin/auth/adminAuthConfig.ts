@@ -1,12 +1,8 @@
 /**
- * Admin Authentication Configuration
- *
- * Centralized configuration for admin authentication system including:
- * - JWT token settings
- * - Password policies
- * - MFA settings
- * - Security policies
- * - Rate limiting
+ * @file adminAuthConfig.ts
+ * @description Centralized configuration for admin authentication system including
+ *              JWT tokens, password policies, MFA, security policies, and rate limiting.
+ * @layer infrastructure
  */
 
 import type { AdminAuthConfig } from "./adminAuthTypes";

@@ -1,11 +1,8 @@
 /**
- * Content Version Manager
- *
- * Facade that orchestrates the full content versioning system:
- * version CRUD (via VersionController), branch management (via BranchManager),
- * diff calculation (via DiffCalculator), and merge operations (via MergeManager).
- *
- * All types are re-exported from this module so existing consumers are not broken.
+ * @file ContentVersionManager.ts
+ * @description Facade orchestrating the content versioning system: version CRUD,
+ *              branch management, diff calculation, and merge operations.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

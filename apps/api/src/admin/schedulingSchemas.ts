@@ -1,11 +1,8 @@
 /**
- * Admin Scheduling Schemas
- *
- * Zod validation schemas for scheduling management endpoints.
- * Covers scheduled post queries, rescheduling, slot creation,
- * optimal time analysis, and scheduling rule filtering.
- *
- * @module admin/schedulingSchemas
+ * @file schedulingSchemas.ts
+ * @description Zod validation schemas for scheduling management endpoints including
+ *              post queries, rescheduling, slot creation, and optimal time analysis.
+ * @layer infrastructure
  */
 import { z } from "zod";
 import { IdSchema } from "@packages/api-common";

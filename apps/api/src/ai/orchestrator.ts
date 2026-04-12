@@ -1,3 +1,9 @@
+/**
+ * @file orchestrator.ts
+ * @description AI orchestrator that manages multiple LLM providers (OpenAI, Gemini, Perplexity)
+ *              with load balancing, caching, usage tracking, and fallback strategies.
+ * @layer infrastructure
+ */
 import {
   AIProvider,
   AITask,

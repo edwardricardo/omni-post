@@ -1,3 +1,9 @@
+/**
+ * @file xWebhookProcessor.ts
+ * @description X (Twitter) webhook processor with dual base64/hex HMAC verification
+ *              handling tweet creation, mention, and engagement events.
+ * @layer infrastructure
+ */
 import { createHmac } from "crypto";
 import type { WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";

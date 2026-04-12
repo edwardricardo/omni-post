@@ -1,3 +1,9 @@
+/**
+ * @file metricsMiddleware.ts
+ * @description Fastify pre-handler and onResponse hooks for tracking per-request Prometheus
+ *              metrics including duration, status codes, and endpoint-specific counters.
+ * @layer infrastructure
+ */
 import { FastifyRequest, FastifyReply, HookHandlerDoneFunction } from "fastify";
 import { ApiMetrics } from "../metrics/apiMetrics.js";
 

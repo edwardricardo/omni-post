@@ -1,13 +1,8 @@
 /**
- * Phase 3.3: Backend Service Consolidation - Analytics Aggregator
- *
- * Provides consistent analytics calculation and aggregation methods
- * across all analytics services. Eliminates 224-336 lines of duplication.
- *
- * Features:
- * - Engagement metrics calculation
- * - Performance statistics
- * - Time-series data grouping
+ * @file analyticsUtils.ts
+ * @description Provides consistent analytics calculation and aggregation methods
+ *              across all analytics services including engagement metrics and time-series grouping.
+ * @layer infrastructure
  * - Rate calculations
  * - Comparison metrics
  */

@@ -1,10 +1,8 @@
 /**
- * Template CRUD Handlers
- *
- * Handles template create, read, update, delete, duplicate, and compile endpoints.
- * Extracted from TemplateHandlers.ts to keep files under 800 lines.
- *
- * @module templates/TemplateCrudHandlers
+ * @file TemplateCrudHandlers.ts
+ * @description Route handlers for template CRUD operations including create, read,
+ *              update, delete, duplicate, and compile endpoints.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";

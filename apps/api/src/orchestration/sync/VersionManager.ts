@@ -1,7 +1,7 @@
 /**
- * Phase 3A Week 5: Version Manager
- *
- * Manages content versioning, comparison, and version history.
+ * @file VersionManager.ts
+ * @description Manages content versioning, comparison, and version history.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

@@ -1,13 +1,8 @@
 /**
- * Enhanced OAuth Provider with PKCE and Security Hardening
- * Phase 1 Sprint 1.2 Day 3 - Authentication & Authorization Hardening
- *
- * Features:
- * - PKCE (Proof Key for Code Exchange) implementation
- * - Secure state parameter generation and validation
- * - Enhanced token scope validation
- * - Certificate validation and token encryption
- * - OAuth flow security monitoring
+ * @file enhancedOAuthProvider.ts
+ * @description Enhanced OAuth provider with PKCE, secure state parameters, token scope
+ *              validation, certificate validation, encryption, and flow monitoring.
+ * @layer infrastructure
  */
 
 import { randomBytes, createHash, createCipheriv, createDecipheriv } from "crypto";

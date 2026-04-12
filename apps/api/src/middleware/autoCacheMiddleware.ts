@@ -1,8 +1,8 @@
 /**
- * Automatic Cache Middleware
- *
- * Automatically applies caching to GET requests and invalidation to mutations
- * based on the cache configuration.
+ * @file autoCacheMiddleware.ts
+ * @description Fastify plugin that automatically applies caching to GET requests and
+ *              cache invalidation to mutations based on route-level cache configuration.
+ * @layer infrastructure
  */
 
 import type { FastifyRequest, FastifyReply, FastifyPluginAsync } from "fastify";

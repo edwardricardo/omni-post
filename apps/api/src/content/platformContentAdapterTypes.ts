@@ -1,7 +1,8 @@
 /**
- * Platform Content Adapter — Type Definitions
- *
- * Shared interfaces and types for the PlatformContentAdapter system.
+ * @file platformContentAdapterTypes.ts
+ * @description Shared interfaces and types for the PlatformContentAdapter system including
+ *              adaptation strategies, rules, metrics, and transformer definitions.
+ * @layer infrastructure
  */
 
 import type { AdaptationRule, OrchestrationError, PlatformAdaptation } from "@shared/orchestration";

@@ -1,14 +1,8 @@
 /**
- * Channel Routes
- *
- * REST API endpoints for managing social media channels (connections to external
- * platforms like X, Instagram, Facebook, YouTube, TikTok). Handles channel CRUD
- * operations within projects, including credential storage and platform mapping.
- *
- * H5-expansion: All Prisma dependencies removed. Uses ChannelRepository and
- * ProjectRepositoryPort from the DI container.
- *
- * @module channels/channelRoutes
+ * @file channelRoutes.ts
+ * @description REST API endpoints for managing social media channels including CRUD
+ *              operations, credential storage, and platform mapping within projects.
+ * @layer infrastructure
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";

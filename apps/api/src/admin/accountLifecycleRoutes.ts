@@ -1,5 +1,9 @@
-// ✅ Phase 6.2: Migrated to BaseRouteHandler Pattern
-// ✅ DI: Resolves AccountLifecycleService from container (no singleton import)
+/**
+ * @file accountLifecycleRoutes.ts
+ * @description Fastify route definitions for admin account lifecycle operations
+ *              (create, update, suspend, delete) using BaseRouteHandler pattern.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";

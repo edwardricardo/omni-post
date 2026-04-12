@@ -1,3 +1,9 @@
+/**
+ * @file securityHeaders.ts
+ * @description Security headers configuration applying helmet, CORS, HSTS, CSP,
+ *              X-Frame-Options, and permissions policy to Fastify responses.
+ * @layer infrastructure
+ */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import helmet from "@fastify/helmet";

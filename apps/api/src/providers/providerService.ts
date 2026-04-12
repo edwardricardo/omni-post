@@ -1,8 +1,8 @@
 /**
- * Provider Service - P0-6 Phase 2
- *
- * Centralizes provider-related business logic with consistent error handling,
- * logging, and audit trails using BaseService pattern.
+ * @file providerService.ts
+ * @description Provider business logic service handling connection management, capability
+ *              queries, and content validation with consistent error handling and logging.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

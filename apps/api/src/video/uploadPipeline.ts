@@ -1,3 +1,9 @@
+/**
+ * @file uploadPipeline.ts
+ * @description Chunked video upload pipeline with session management, checksum verification,
+ *              resumable uploads, and progress tracking.
+ * @layer infrastructure
+ */
 import { promises as fs } from "fs";
 import * as path from "path";
 import * as crypto from "crypto";

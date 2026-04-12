@@ -1,12 +1,8 @@
 /**
- * Account Lifecycle Query Service
- *
- * Handles read-only queries for admin account management:
- * listing with filters/pagination and aggregate statistics.
- *
- * Extracted from AccountLifecycleService to keep each module under 800 lines.
- *
- * @module admin/accountLifecycleQueryService
+ * @file accountLifecycleQueryService.ts
+ * @description Handles read-only queries for admin account management:
+ *              listing with filters/pagination and aggregate statistics.
+ * @layer infrastructure
  */
 
 import { ok, err, type Result } from "@shared/types";

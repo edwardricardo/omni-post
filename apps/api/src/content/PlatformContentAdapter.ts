@@ -1,12 +1,8 @@
 /**
- * Platform Content Adapter - Facade
- *
- * Composes PlatformContentAdapterCore, PlatformContentAdapterStrategy,
- * and PlatformContentAdapterValidation into the original public API.
- *
- * External consumers continue importing PlatformContentAdapter from this file.
- *
- * @module content/PlatformContentAdapter
+ * @file PlatformContentAdapter.ts
+ * @description Platform content adapter facade composing core adaptation, strategy selection,
+ *              and validation into the unified PlatformContentAdapter public API.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

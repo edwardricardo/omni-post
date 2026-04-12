@@ -1,8 +1,8 @@
 /**
- * SyncScheduler - Sync scheduling and real-time monitoring
- *
- * Manages sync scheduling, real-time content change monitoring,
- * Redis stream processing, and metrics collection.
+ * @file SyncScheduler.ts
+ * @description Sync scheduling and real-time monitoring: manages scheduled syncs,
+ *              content change monitoring, Redis stream processing, and metrics collection.
+ * @layer infrastructure
  */
 
 import Redis from "ioredis";

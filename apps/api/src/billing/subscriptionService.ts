@@ -1,18 +1,8 @@
 /**
- * Subscription Service - Re-export Barrel
- *
- * This file is a backward-compatibility wrapper. All subscription logic has
- * been split into focused modules under `./subscription/`:
- *
- *   - types.ts                    — interfaces, SUBSCRIPTION_PLANS constant
- *   - SubscriptionPlanService.ts  — plan lookup, upgrade/downgrade validation
- *   - SubscriptionManagementService.ts — CRUD, list, limits, suspend
- *   - TrialManagementService.ts   — trial start/end/convert, auto-renewals
- *   - SubscriptionStatsService.ts — analytics and reporting
- *   - BillingService.ts           — billing events and payment helpers
- *   - index.ts                    — combined SubscriptionService facade + singleton
- *
- * Consumers importing from this file do NOT need to change their import paths.
+ * @file subscriptionService.ts
+ * @description Backward-compatibility barrel re-exporting all subscription types and
+ *              services from the modularized subscription/ directory.
+ * @layer infrastructure
  */
 
 export {

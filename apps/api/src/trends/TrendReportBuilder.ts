@@ -1,13 +1,8 @@
 /**
- * Trend Report Builder
- *
- * Standalone helper functions for building trend reports from trending content data.
- * Handles content categorization, pattern identification, anomaly detection,
- * cross-trend analysis, and recommendation generation.
- *
- * Extracted from TrendAnalysisService to reduce file size and improve modularity.
- *
- * @module trends/TrendReportBuilder
+ * @file TrendReportBuilder.ts
+ * @description Helper functions for building trend reports including content categorization,
+ *              pattern identification, anomaly detection, and recommendation generation.
+ * @layer infrastructure
  */
 
 import type { TrendingContent, TrendPrediction, ContentDiscoveryInsight } from "./trendTypes.js";

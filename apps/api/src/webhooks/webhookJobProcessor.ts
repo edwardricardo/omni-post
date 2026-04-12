@@ -1,3 +1,9 @@
+/**
+ * @file webhookJobProcessor.ts
+ * @description BullMQ worker for asynchronous webhook event processing with retry logic,
+ *              provider-specific dispatching, and dead-letter queue support.
+ * @layer infrastructure
+ */
 import { Worker, Job, Queue } from "bullmq";
 import Redis from "ioredis";
 import { prisma } from "@infra/prisma";

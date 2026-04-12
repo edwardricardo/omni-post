@@ -1,9 +1,8 @@
 /**
- * Phase 3A Week 5: Conflict Strategies
- *
- * Resolution strategy implementations for the ConflictResolver.
- * Handles retry, content adaptation, rescheduling, fallback provider,
- * custom strategies, and content adaptation confidence scoring.
+ * @file ConflictStrategies.ts
+ * @description Resolution strategy implementations for the ConflictResolver including
+ *              retry, content adaptation, rescheduling, and fallback provider strategies.
+ * @layer infrastructure
  */
 
 import type { OrchestrationConflict, OrchestrationResult } from "@shared/orchestration";

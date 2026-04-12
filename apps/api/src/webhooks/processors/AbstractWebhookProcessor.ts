@@ -1,17 +1,8 @@
 /**
- * Abstract Webhook Processor
- *
- * Base class for all webhook processors, providing common functionality:
- * - HMAC signature verification with timing attack prevention (Template Method pattern)
- * - Standard parse/process workflow
- * - Related entity lookup pattern
- * - Realtime broadcasting support
- *
- * Subclasses customize verification behavior by setting properties and overriding
- * hook methods rather than reimplementing the entire verification flow:
- * - `signaturePrefix`: The header prefix to strip (e.g., "sha256=", "sha1=")
- * - `signatureEncoding`: Digest encoding ("hex" or "base64")
- * - `getHmacAlgorithm()`: HMAC algorithm (default: "sha256")
+ * @file AbstractWebhookProcessor.ts
+ * @description Abstract base class for webhook processors providing HMAC signature
+ *              verification, standard parse/process workflow, and realtime broadcasting.
+ * @layer infrastructure
  */
 
 import { createHmac } from "crypto";

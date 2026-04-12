@@ -1,12 +1,8 @@
 /**
- * Recommendation Engine for Cross-Platform Analytics
- *
- * Generates rule-based recommendations from comprehensive analytics data.
- * Provides actionable insights for content optimization, timing, platform strategy,
- * hashtag usage, and audience engagement. Uses threshold comparisons and
- * heuristic rules rather than machine learning.
- *
- * @module recommendationEngine
+ * @file recommendationEngine.ts
+ * @description Generates rule-based recommendations from analytics data for content
+ *              optimization, timing, platform strategy, and audience engagement.
+ * @layer infrastructure
  */
 
 import type {

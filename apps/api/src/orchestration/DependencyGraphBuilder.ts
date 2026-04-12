@@ -1,13 +1,8 @@
 /**
- * Dependency Graph Builder
- *
- * Responsible for constructing, validating, and analyzing dependency graphs
- * for provider execution ordering. Contains pure graph logic with no
- * external dependencies on PrismaClient, Redis, or EventService.
- *
- * Extracted from ProviderDependencyManager as part of H8 large-file splitting.
- *
- * @module orchestration/DependencyGraphBuilder
+ * @file DependencyGraphBuilder.ts
+ * @description Constructs, validates, and analyzes dependency graphs for provider
+ *              execution ordering using pure graph logic.
+ * @layer infrastructure
  */
 
 import type { ProviderDependency, OrchestrationResult } from "@shared/orchestration";

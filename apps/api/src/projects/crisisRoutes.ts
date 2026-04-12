@@ -1,10 +1,8 @@
 /**
- * Crisis Mode Routes
- *
- * Part of Sprint 19: Crisis Mode Feature
- * Provides API endpoints for crisis mode management.
- *
- * Use cases are resolved from the DI container at plugin registration time.
+ * @file crisisRoutes.ts
+ * @description REST API endpoints for crisis mode management including entering,
+ *              exiting, and querying crisis status for projects.
+ * @layer infrastructure
  */
 
 import { type FastifyPluginAsync, type FastifyRequest, type FastifyReply } from "fastify";

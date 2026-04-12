@@ -1,14 +1,8 @@
 /**
- * Phase 2: Week 3-4 - Event Integration Example
- *
- * Demonstrates how to integrate Event-Driven Architecture with existing API routes.
- * This shows practical patterns for event publishing in business operations.
- *
- * Usage Examples:
- * - Post creation/update/publishing workflows
- * - User action tracking
- * - Analytics collection
- * - System monitoring
+ * @file EventIntegration.ts
+ * @description Integration layer connecting event-driven architecture with API routes
+ *              for post workflows, user action tracking, analytics, and system monitoring.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

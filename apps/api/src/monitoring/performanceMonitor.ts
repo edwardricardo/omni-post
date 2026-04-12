@@ -1,3 +1,9 @@
+/**
+ * @file performanceMonitor.ts
+ * @description Performance monitoring service tracking response times, endpoint statistics,
+ *              P95/P99 latencies, error rates, and alerting on threshold breaches.
+ * @layer infrastructure
+ */
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
 import Redis from "ioredis";

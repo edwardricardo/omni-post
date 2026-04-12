@@ -1,15 +1,8 @@
 /**
- * Phase 3.4: Backend Service Consolidation - Account Mapper
- *
- * Provides consistent account data transformation patterns.
- * Eliminates 575-920 lines of duplicate mapping logic in subscriptionService.ts
- *
- * Features:
- * - Account → SubscriptionInfo mapping
- * - Trial calculation logic
- * - Usage statistics
- * - Billing information
- * - Plan details
+ * @file AccountMapper.ts
+ * @description Account data transformation mapper providing consistent mapping from
+ *              Prisma Account entities to subscription info, trial calculations, and billing DTOs.
+ * @layer infrastructure
  */
 
 import type { Account, Project } from "@infra/prisma";

@@ -1,5 +1,9 @@
-// Phase 6.3: Migrated to BaseRouteHandler pattern
-// DI: service resolved from container (no direct singleton import)
+/**
+ * @file webhookDashboardRoutes.ts
+ * @description Fastify route plugin for the webhook admin dashboard providing metrics,
+ *              event search, DLQ management, and real-time WebSocket upgrades.
+ * @layer infrastructure
+ */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";

@@ -1,10 +1,8 @@
 /**
- * CostCalculator Module
- *
- * Responsibilities:
- * - Calculate cost breakdowns by category
- * - Cost attribution analysis
- * - Platform and personnel cost calculations
+ * @file CostCalculator.ts
+ * @description Calculates cost breakdowns by category, cost attribution analysis,
+ *              and platform and personnel cost calculations.
+ * @layer infrastructure
  */
 
 import type { CostBreakdown, CostModel, ProviderType, PostDataPoint } from "./types";

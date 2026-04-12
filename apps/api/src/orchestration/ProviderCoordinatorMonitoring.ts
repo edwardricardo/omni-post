@@ -1,11 +1,8 @@
 /**
- * Provider Coordinator — Monitoring Helpers
- *
- * Pure functions for provider health checks, metrics collection, failover
- * condition evaluation, and default configuration factories. Extracted from
- * ProviderCoordinator to keep the main class within the 800-line limit.
- *
- * @module orchestration/ProviderCoordinatorMonitoring
+ * @file ProviderCoordinatorMonitoring.ts
+ * @description Pure functions for provider health checks, metrics collection,
+ *              failover condition evaluation, and default configuration factories.
+ * @layer infrastructure
  */
 
 import type Redis from "ioredis";

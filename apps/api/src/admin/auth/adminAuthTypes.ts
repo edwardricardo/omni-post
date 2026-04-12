@@ -1,13 +1,8 @@
 /**
- * Admin Authentication Types
- *
- * Comprehensive TypeScript types for admin authentication system including:
- * - Login/Registration flows
- * - JWT tokens (access + refresh)
- * - Session management with device fingerprinting
- * - Multi-factor authentication (MFA)
- * - Password policies and security
- * - RBAC permissions
+ * @file adminAuthTypes.ts
+ * @description TypeScript type definitions for admin authentication system including
+ *              login flows, JWT tokens, sessions, MFA, password policies, and RBAC.
+ * @layer infrastructure
  * - Security events and audit logging
  */
 

@@ -1,12 +1,8 @@
 /**
- * Template Service
- *
- * Core CRUD operations for content templates: list, get, create, update, delete,
- * duplicate, and compile. Version management and A/B testing are delegated to
- * TemplateVersionService and TemplateABTestService respectively, but exposed on
- * this class so that callers have a single entry point.
- *
- * @module templates/templateService
+ * @file templateService.ts
+ * @description Core template service providing CRUD operations, duplication, and compilation
+ *              with delegated version management and A/B testing via sub-services.
+ * @layer infrastructure
  */
 import { prisma } from "@infra/prisma";
 import { Prisma } from "@infra/prisma";

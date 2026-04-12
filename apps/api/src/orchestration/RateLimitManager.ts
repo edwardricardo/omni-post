@@ -1,8 +1,8 @@
 /**
- * RateLimitManager
- *
- * Manages rate limiting for provider requests with token bucket algorithm
- * and distributed rate limiting via Redis.
+ * @file RateLimitManager.ts
+ * @description Manages rate limiting for provider requests with token bucket algorithm
+ *              and distributed rate limiting via Redis.
+ * @layer infrastructure
  */
 
 import Redis from "ioredis";

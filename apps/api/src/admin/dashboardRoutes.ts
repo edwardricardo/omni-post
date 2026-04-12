@@ -1,9 +1,15 @@
-// ✅ Phase 6.3: Migrated to BaseRouteHandler Pattern
-// ✅ DI: Resolves DashboardService from container (no singleton import)
+/**
+ * @file dashboardRoutes.ts
+ * @description Fastify route definitions for the admin dashboard using BaseRouteHandler pattern.
+ *              Resolves DashboardService from DI container.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "../auth/rbacService.js";
 import type { DashboardService } from "./dashboardService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
@@ -56,7 +62,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/dashboard/stats",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.DASHBOARD_VIEW)],
       schema: { tags: ["Admin Dashboard"], summary: "Get dashboard statistics" },
     },
     async (request, reply) => handler.getStats(request, reply)
@@ -66,7 +72,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/accounts/summary",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.DASHBOARD_VIEW)],
       schema: { tags: ["Admin Dashboard"], summary: "Get accounts summary" },
     },
     async (request, reply) => handler.getAccountsSummary(request, reply)
@@ -76,7 +82,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/subscriptions/summary",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.DASHBOARD_VIEW)],
       schema: { tags: ["Admin Dashboard"], summary: "Get subscriptions summary" },
     },
     async (request, reply) => handler.getSubscriptionsSummary(request, reply)
@@ -86,7 +92,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/admin/analytics/overview",
     {
-      preHandler: [requireAdminAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.DASHBOARD_VIEW)],
       schema: { tags: ["Admin Dashboard"], summary: "Get analytics overview" },
     },
     async (request, reply) => handler.getAnalyticsOverview(request, reply)

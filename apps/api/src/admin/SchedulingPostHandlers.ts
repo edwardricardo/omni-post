@@ -1,11 +1,8 @@
 /**
- * Admin Scheduling Post Handlers
- *
- * Route handler for scheduled post management: listing, cancellation,
- * and rescheduling. Operates on the Post model via Prisma and manages
- * associated PublishLog entries atomically.
- *
- * @module admin/SchedulingPostHandlers
+ * @file SchedulingPostHandlers.ts
+ * @description Route handler for scheduled post management: listing, cancellation,
+ *              and rescheduling with atomic PublishLog management.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";

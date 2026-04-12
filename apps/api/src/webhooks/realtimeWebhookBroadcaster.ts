@@ -1,3 +1,9 @@
+/**
+ * @file realtimeWebhookBroadcaster.ts
+ * @description WebSocket and Redis pub/sub broadcaster for real-time webhook event
+ *              delivery to connected dashboard clients with filtering support.
+ * @layer infrastructure
+ */
 import * as WebSocket from "ws";
 import Redis from "ioredis";
 import { prisma } from "@infra/prisma";

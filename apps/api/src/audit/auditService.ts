@@ -1,3 +1,9 @@
+/**
+ * @file auditService.ts
+ * @description Service for creating and querying audit log entries, providing
+ *              compliance-ready trails for user actions, security events, and system changes.
+ * @layer infrastructure
+ */
 import { prisma } from "@infra/prisma";
 import { type Result, type AdminRole } from "@shared/types";
 import { BaseService } from "../services/BaseService";

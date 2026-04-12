@@ -1,3 +1,9 @@
+/**
+ * @file tiktokWebhookProcessor.ts
+ * @description TikTok webhook processor handling Business API webhooks for video
+ *              creation, comment events, and user interaction notifications.
+ * @layer infrastructure
+ */
 import type { WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
 import { prisma } from "@infra/prisma";

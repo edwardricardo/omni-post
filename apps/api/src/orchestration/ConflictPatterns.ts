@@ -1,8 +1,8 @@
 /**
- * Phase 3A Week 5: Conflict Patterns
- *
- * Built-in conflict detection patterns and rule evaluation logic.
- * Handles pattern matching, severity calculation, and conflict type mapping.
+ * @file ConflictPatterns.ts
+ * @description Built-in conflict detection patterns and rule evaluation logic
+ *              for pattern matching, severity calculation, and conflict type mapping.
+ * @layer infrastructure
  */
 
 import type { OrchestrationConflict, PublishResult } from "@shared/orchestration";

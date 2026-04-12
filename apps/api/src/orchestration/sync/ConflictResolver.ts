@@ -1,7 +1,7 @@
 /**
- * Phase 3A Week 5: Conflict Resolver
- *
- * Detects and resolves content conflicts during synchronization.
+ * @file ConflictResolver.ts
+ * @description Detects and resolves content conflicts during synchronization.
+ * @layer infrastructure
  */
 
 import type { SyncConflictResolution } from "@shared/orchestration";

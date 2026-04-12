@@ -1,10 +1,8 @@
 /**
- * Platform Content Adapter - Validation, Metrics & Infrastructure
- *
- * Content validation, adaptation metrics calculation, content analysis,
- * caching, and event emission.
- *
- * @module content/PlatformContentAdapterValidation
+ * @file PlatformContentAdapterValidation.ts
+ * @description Content validation, adaptation metrics calculation, content analysis,
+ *              caching, and event emission for platform content adaptation.
+ * @layer infrastructure
  */
 
 import type Redis from "ioredis";

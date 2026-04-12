@@ -1,7 +1,7 @@
 /**
- * Phase 3A Week 5: Content Synchronizer Types
- *
- * Type definitions for content synchronization system.
+ * @file types.ts
+ * @description Type definitions for content synchronization system.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

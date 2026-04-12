@@ -1,17 +1,8 @@
 /**
- * Trial Management Service
- *
- * Handles all trial lifecycle operations including starting trials, ending trials,
- * converting trials to paid subscriptions, and querying expiring trials. Extends
- * AuditableService to ensure all trial changes are logged for compliance
- * and billing audit trails.
- *
- * Extracted from SubscriptionManagementService as part of H8 large file splitting.
- *
- * R1-B: Migrated from legacy AccountRepository singleton to AccountQueryRepositoryPort
- * injected via DI container.
- *
- * @module billing/subscription/TrialManagementService
+ * @file TrialManagementService.ts
+ * @description Service managing trial lifecycle operations: start, end, convert to paid,
+ *              and expiring trial queries. Extends AuditableService for compliance logging.
+ * @layer infrastructure
  */
 import { ok, err, type Result } from "@shared/types";
 import { prisma } from "@infra/prisma";

@@ -1,10 +1,8 @@
 /**
- * Thumbnail Analysis - Video Analysis for Optimal Thumbnails
- *
- * Analyzes video frames for quality, color, motion, and scene changes
- * to determine optimal thumbnail timestamps.
- *
- * @module video/thumbnailAnalysis
+ * @file thumbnailAnalysis.ts
+ * @description Video analysis engine for finding optimal thumbnail frames by evaluating
+ *              quality, color, motion, and scene changes across video timestamps.
+ * @layer infrastructure
  */
 
 import { promises as fs } from "fs";

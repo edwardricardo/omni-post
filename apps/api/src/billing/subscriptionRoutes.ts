@@ -1,4 +1,9 @@
-// ✅ Phase 6.2: Migrated to BaseRouteHandler Pattern
+/**
+ * @file subscriptionRoutes.ts
+ * @description Fastify plugin registering all subscription REST API endpoints for plan
+ *              management, account subscriptions, trials, and analytics.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync } from "fastify";
 import type { SubscriptionService } from "./subscription/index.js";
 import type { ChangeAccountSubscriptionUseCase } from "../application/billing/ChangeAccountSubscriptionUseCase.js";

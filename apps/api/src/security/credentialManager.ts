@@ -1,3 +1,9 @@
+/**
+ * @file credentialManager.ts
+ * @description API key and credential management service with hashing, rotation scheduling,
+ *              Redis-cached validation, and automatic key expiration handling.
+ * @layer infrastructure
+ */
 import crypto from "crypto";
 import Redis from "ioredis";
 import { prisma } from "@infra/prisma";

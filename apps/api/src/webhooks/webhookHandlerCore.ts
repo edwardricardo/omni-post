@@ -1,10 +1,8 @@
 /**
- * Webhook Handler - Core Processing Logic
- *
- * UniversalWebhookHandler: signature verification, event storage,
- * deduplication, retry logic, dead-letter queue, and processing stats.
- *
- * @module webhooks/webhookHandlerCore
+ * @file webhookHandlerCore.ts
+ * @description Core webhook processing: signature verification, event storage,
+ *              deduplication, retry logic, dead-letter queue, and processing stats.
+ * @layer infrastructure
  */
 
 import { prisma } from "@infra/prisma";

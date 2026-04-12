@@ -1,10 +1,8 @@
 /**
- * Platform Content Adapter - Strategy Selection & Execution
- *
- * Handles adapter initialization, strategy loading, selection,
- * and rule-based content transformation execution.
- *
- * @module content/PlatformContentAdapterStrategy
+ * @file PlatformContentAdapterStrategy.ts
+ * @description Adapter initialization, strategy loading, selection, and rule-based
+ *              content transformation execution for platform adaptation.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

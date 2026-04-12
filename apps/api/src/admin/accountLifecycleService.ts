@@ -1,13 +1,8 @@
 /**
- * Phase 3.2: Account Lifecycle Service - Refactored to extend AuditableService
- *
- * Manages admin account lifecycle operations (create, update, suspend, delete)
- * with comprehensive audit logging and standardized error handling.
- *
- * Features:
- * - Extends AuditableService for consistent audit trails
- * - Uses BaseService error handling patterns
- * - Comprehensive validation using validateRequired()
+ * @file accountLifecycleService.ts
+ * @description Manages admin account lifecycle operations (create, update, suspend, delete)
+ *              with comprehensive audit logging and standardized error handling.
+ * @layer infrastructure
  * - Account state change logging with logAccountAction()
  * - Compliance event logging for data deletion/suspension
  * - Transaction-safe operations for data integrity

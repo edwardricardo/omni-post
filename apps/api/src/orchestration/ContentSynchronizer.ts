@@ -1,13 +1,9 @@
 /**
- * Phase 3A Week 5: Content Synchronizer (Facade)
- *
- * Facade that coordinates real-time content synchronization across multiple providers.
- * Delegates to focused modules in the sync/ subdirectory:
- *   - SyncCoordinator  — job lifecycle, validation, execution flow
- *   - VersionManager   — versioning, diffs, history
- *   - ConflictResolver — conflict detection and resolution
- *   - TransformationEngine — content transformations
- *   - StreamProcessor  — Redis streams, event handlers, scheduled sync
+ * @file ContentSynchronizer.ts
+ * @description Facade that coordinates real-time content synchronization across multiple
+ *              providers, delegating to SyncCoordinator, VersionManager, ConflictResolver,
+ *              TransformationEngine, and StreamProcessor.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

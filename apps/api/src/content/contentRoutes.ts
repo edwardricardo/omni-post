@@ -1,9 +1,8 @@
 /**
- * Content Sync Routes Plugin (F28)
- *
- * Exposes the content synchronisation subsystem via REST endpoints under the
- * /content prefix.  Services are resolved from the DI container and shared
- * Redis/EventService instances are wired in during container setup.
+ * @file contentRoutes.ts
+ * @description Fastify plugin exposing the content synchronisation subsystem via REST
+ *              endpoints under the /content prefix with DI-resolved services.
+ * @layer infrastructure
  *
  * Endpoints:
  *

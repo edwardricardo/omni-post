@@ -1,3 +1,9 @@
+/**
+ * @file realtimeAnalytics.ts
+ * @description Real-time analytics service providing WebSocket-based live metrics,
+ *              Redis pub/sub event streaming, and real-time dashboard data.
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type * as WebSocket from "ws";

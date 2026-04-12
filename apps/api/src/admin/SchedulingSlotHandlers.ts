@@ -1,11 +1,8 @@
 /**
- * Admin Scheduling Slot Handlers
- *
- * Route handler for scheduling slot management: available slot queries,
- * optimal posting time analysis, scheduling rule retrieval, and slot creation.
- * Includes analytics-driven algorithms for engagement-based time recommendations.
- *
- * @module admin/SchedulingSlotHandlers
+ * @file SchedulingSlotHandlers.ts
+ * @description Route handler for scheduling slot management including available slot queries,
+ *              optimal posting time analysis, and engagement-based time recommendations.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";

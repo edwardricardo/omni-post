@@ -1,10 +1,8 @@
 /**
- * Cache Statistics and Monitoring Routes
- *
- * Provides endpoints to monitor cache performance and hit rates.
- * The RedisCacheManager is accessed via `fastify.cache` — decorated on the
- * Fastify instance in index.ts (`typedApp.decorate("cache", cacheManager)`).
- * No unsafe `as any` casts needed.
+ * @file cacheStatsRoutes.ts
+ * @description REST API endpoints for monitoring cache performance, hit rates, and
+ *              invalidation operations via the RedisCacheManager instance.
+ * @layer infrastructure
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";

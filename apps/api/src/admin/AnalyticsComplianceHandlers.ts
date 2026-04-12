@@ -1,10 +1,7 @@
 /**
- * Analytics Compliance Handlers
- *
- * Handles compliance audit log and GDPR data endpoints.
- * Extracted from AnalyticsHandlers.ts to keep files under 800 lines.
- *
- * @module admin/AnalyticsComplianceHandlers
+ * @file AnalyticsComplianceHandlers.ts
+ * @description Handles compliance audit log and GDPR data endpoints.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";

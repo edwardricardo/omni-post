@@ -1,7 +1,7 @@
 /**
- * Subscription Analytics Handler
- *
- * Handles subscription analytics and export routes.
+ * @file SubscriptionAnalyticsHandler.ts
+ * @description Route handler for subscription analytics, statistics, and CSV export endpoints.
+ * @layer infrastructure
  */
 
 import { FastifyRequest, FastifyReply } from "fastify";

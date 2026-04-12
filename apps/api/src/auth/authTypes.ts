@@ -1,10 +1,8 @@
 /**
- * Auth Types - Shared authentication interfaces
- *
- * Extracted from authService.ts to break the circular dependency
- * between authService.ts and authServiceCore.ts.
- *
- * @module auth/authTypes
+ * @file authTypes.ts
+ * @description Shared authentication interfaces and types extracted from authService.ts
+ *              to break circular dependencies between auth sub-modules.
+ * @layer infrastructure
  */
 
 import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";

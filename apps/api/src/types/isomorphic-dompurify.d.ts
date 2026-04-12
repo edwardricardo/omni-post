@@ -1,3 +1,9 @@
+/**
+ * @file isomorphic-dompurify.d.ts
+ * @description Type declarations for the isomorphic-dompurify module providing
+ *              server-side HTML sanitization via DOMPurify.
+ * @layer infrastructure
+ */
 declare module "isomorphic-dompurify" {
   interface DOMPurifyStatic {
     sanitize(source: string | Node, config?: unknown): string;

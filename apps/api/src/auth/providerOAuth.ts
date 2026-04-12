@@ -1,12 +1,8 @@
 /**
- * Provider OAuth Routes - Facade
- *
- * Re-exports OAuth configurations and registers route handlers.
- * Implementation split into:
- * - providerOAuthConfigs.ts (provider configs and types)
- * - providerOAuthFlow.ts    (route handler + state management)
- *
- * @module auth/providerOAuth
+ * @file providerOAuth.ts
+ * @description Provider OAuth routes facade that re-exports configurations and registers
+ *              OAuth route handlers for all supported social media platforms.
+ * @layer infrastructure
  */
 import { FastifyInstance } from "fastify";
 import { ProviderOAuthHandler } from "./providerOAuthFlow.js";

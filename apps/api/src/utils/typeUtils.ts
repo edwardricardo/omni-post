@@ -1,5 +1,8 @@
 /**
- * Utility functions for handling exact optional types in TypeScript strict mode
+ * @file typeUtils.ts
+ * @description Utility functions for handling exactOptionalPropertyTypes in TypeScript strict
+ *              mode including undefined removal, conditional spreading, and form data extraction.
+ * @layer infrastructure
  */
 
 /**

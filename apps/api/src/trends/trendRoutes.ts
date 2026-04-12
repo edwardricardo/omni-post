@@ -1,19 +1,8 @@
 /**
- * Trends Routes (F24)
- *
- * REST API endpoints for trend analysis and trend report generation.
- * Exposes trending content analysis, viral content analysis, content
- * opportunity discovery, trend predictions, and comprehensive trend
- * reports built from TrendAnalysisService and TrendReportBuilder.
- *
- * Endpoints:
- *   GET  /trends/analysis      — Retrieve trending content with optional filters
- *   GET  /trends/viral         — Analyze viral DNA of a specific content item
- *   GET  /trends/opportunities — Discover content opportunity gaps
- *   GET  /trends/predictions   — Generate trend predictions
- *   GET  /trends/report        — Generate a comprehensive trend report
- *
- * @module trends/trendRoutes
+ * @file trendRoutes.ts
+ * @description REST API endpoints for trend analysis, viral content analysis, content
+ *              opportunity discovery, predictions, and comprehensive trend reports.
+ * @layer infrastructure
  */
 
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";

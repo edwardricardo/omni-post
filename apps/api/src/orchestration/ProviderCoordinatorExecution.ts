@@ -1,11 +1,8 @@
 /**
- * Provider Coordinator — Execution Helpers
- *
- * Pure functions for provider scoring, content publishing, and coordinated
- * execution strategies (parallel, sequential, optimized). Extracted from
- * ProviderCoordinator to keep the main class within the 800-line limit.
- *
- * @module orchestration/ProviderCoordinatorExecution
+ * @file ProviderCoordinatorExecution.ts
+ * @description Pure functions for provider scoring, content publishing, and coordinated
+ *              execution strategies (parallel, sequential, optimized).
+ * @layer infrastructure
  */
 
 import type { PublishResult } from "@shared/orchestration";

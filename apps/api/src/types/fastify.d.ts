@@ -1,4 +1,9 @@
-// Fastify v5.6.1 Type Declarations — module augmentation
+/**
+ * @file fastify.d.ts
+ * @description Fastify module augmentation declaring custom decorators (prisma, container,
+ *              cache, sagaIntegration) and request properties (correlationId, metrics hooks).
+ * @layer infrastructure
+ */
 
 declare module "fastify" {
   import type { PrismaClient } from "@infra/prisma";

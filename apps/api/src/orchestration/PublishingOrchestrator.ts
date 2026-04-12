@@ -1,13 +1,8 @@
 /**
- * Phase 3A Week 5: Publishing Orchestrator
- *
- * Main orchestration engine for coordinating multi-provider content publishing.
- * Implements transaction-like semantics with rollback capabilities.
- *
- * Split into:
- *   - publishingOrchestratorTypes.ts  — OrchestrationDependencies interface
- *   - PublishingOrchestratorHelpers.ts — utility + placeholder methods
- *   - PublishingOrchestratorExecution.ts — execution strategies + retry
+ * @file PublishingOrchestrator.ts
+ * @description Main orchestration engine for coordinating multi-provider content publishing
+ *              with transaction-like semantics and rollback capabilities.
+ * @layer infrastructure
  *   - PublishingOrchestrator.ts (this file) — public API surface
  */
 

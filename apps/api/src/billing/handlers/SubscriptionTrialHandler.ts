@@ -1,7 +1,8 @@
 /**
- * Subscription Trial Handler
- *
- * Handles trial-related routes.
+ * @file SubscriptionTrialHandler.ts
+ * @description Route handler for trial lifecycle operations including start, end,
+ *              convert to paid, and expiring trial queries.
+ * @layer infrastructure
  */
 
 import { FastifyRequest, FastifyReply } from "fastify";

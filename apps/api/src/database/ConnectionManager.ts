@@ -1,12 +1,8 @@
 /**
- * Phase 2: Week 5-6 - Database Connection Manager
- *
- * Advanced database scaling features:
- * - Connection pooling with dynamic sizing
- * - Read/write replica routing
- * - Health monitoring and failover
- * - Connection lifecycle management
- * - Performance analytics
+ * @file ConnectionManager.ts
+ * @description Database connection manager with dynamic pool sizing, read/write replica
+ *              routing, health monitoring, failover, and performance analytics.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

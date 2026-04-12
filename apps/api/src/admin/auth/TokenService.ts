@@ -1,11 +1,8 @@
 /**
- * Token Service
- *
- * Handles JWT token generation and verification for admin authentication:
- * - Access tokens (short-lived, 15 minutes)
- * - Refresh tokens (long-lived, 7-30 days)
- * - Token payload validation
- * - Token expiration handling
+ * @file TokenService.ts
+ * @description Handles JWT token generation and verification for admin authentication
+ *              including access tokens, refresh tokens, and expiration handling.
+ * @layer infrastructure
  */
 
 import jwt from "jsonwebtoken";

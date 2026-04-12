@@ -1,4 +1,9 @@
-// ✅ CORRECT Fastify v5.6.1 Route Implementation with BaseRouteHandler
+/**
+ * @file authRoutes.ts
+ * @description Fastify route plugin for user authentication endpoints including
+ *              registration, login, token refresh, logout, and session management.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";

@@ -1,3 +1,9 @@
+/**
+ * @file inputValidation.ts
+ * @description Security-focused input validation with SQL injection and XSS pattern detection,
+ *              and reusable Zod schemas for common fields (email, name, content).
+ * @layer infrastructure
+ */
 import { z, ZodSchema } from "zod";
 
 // Security validation rules

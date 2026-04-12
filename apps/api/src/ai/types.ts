@@ -1,9 +1,11 @@
-// AI Service Types and Interfaces
-//
-// NOTE: The "AI" prefix refers to external LLM provider integrations
-// (OpenAI, Gemini, Perplexity), not proprietary ML models. Performance
-// "predictions" are AI-assisted estimates from these providers, not
-// outputs of a trained statistical model.
+/**
+ * @file types.ts
+ * @description Type definitions for the AI subsystem including provider interfaces,
+ *              generation options, content analysis, optimization, and prediction types.
+ *              The "AI" prefix refers to external LLM provider integrations (OpenAI,
+ *              Gemini, Perplexity), not proprietary ML models.
+ * @layer infrastructure
+ */
 
 export interface AIMessage {
   role: "system" | "user" | "assistant";

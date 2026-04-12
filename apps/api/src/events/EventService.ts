@@ -1,15 +1,8 @@
 /**
- * Phase 2: Week 3-4 - Event Service Integration
- *
- * High-level service that orchestrates Event Store, Publisher, and Handlers.
- * This provides a unified interface for the Event-Driven Architecture.
- *
- * Features:
- * - Event publishing with persistence
- * - Handler registration and management
- * - Event replay capabilities
- * - Health monitoring
- * - Integration with existing API services
+ * @file EventService.ts
+ * @description High-level event service orchestrating Event Store, Publisher, and Handlers
+ *              with publishing, persistence, replay, and health monitoring capabilities.
+ * @layer infrastructure
  */
 
 import { PrismaClient } from "@infra/prisma";

@@ -1,3 +1,9 @@
+/**
+ * @file providerAdapter.interface.ts
+ * @description Interface definition for social media provider adapters including capabilities,
+ *              authentication, content rendering, publishing, and analytics contracts.
+ * @layer infrastructure
+ */
 import type {
   CanonicalPost,
   Media,

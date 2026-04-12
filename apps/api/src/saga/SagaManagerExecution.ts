@@ -1,10 +1,8 @@
 /**
- * Saga Manager - Execution & Compensation Engine
- *
- * Step execution, compensation, persistence, retry logic,
- * and completion/failure handling.
- *
- * @module saga/SagaManagerExecution
+ * @file SagaManagerExecution.ts
+ * @description Saga execution and compensation engine handling step execution, persistence,
+ *              retry logic, and completion/failure processing.
+ * @layer application
  */
 
 import type { SagaDefinition, SagaInstance } from "@shared/saga";

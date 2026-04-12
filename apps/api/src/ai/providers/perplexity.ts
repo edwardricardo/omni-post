@@ -1,3 +1,9 @@
+/**
+ * @file perplexity.ts
+ * @description Perplexity AI provider adapter implementing the AIProvider interface
+ *              for content generation, analysis, optimization, and predictions.
+ * @layer infrastructure
+ */
 import {
   AIProvider,
   AIMessage,

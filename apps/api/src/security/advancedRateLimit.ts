@@ -1,3 +1,9 @@
+/**
+ * @file advancedRateLimit.ts
+ * @description Advanced Redis-based rate limiter with configurable rules, bucket state tracking,
+ *              burst protection, and per-route rate limit configuration.
+ * @layer infrastructure
+ */
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import Redis from "ioredis";

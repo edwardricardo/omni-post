@@ -1,10 +1,8 @@
 /**
- * ROIRecommendations Module
- *
- * Responsibilities:
- * - Generate actionable ROI recommendations
- * - Analyze performance gaps
- * - Prioritize optimization opportunities
+ * @file ROIRecommendations.ts
+ * @description Generates actionable ROI recommendations by analyzing performance gaps
+ *              and prioritizing optimization opportunities.
+ * @layer infrastructure
  */
 
 import type { ROIRecommendation, RecommendationInput } from "./types";

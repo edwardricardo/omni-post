@@ -1,7 +1,7 @@
 /**
- * Phase 3A Week 5: Stream Processor
- *
- * Handles Redis stream processing for real-time sync events.
+ * @file StreamProcessor.ts
+ * @description Handles Redis stream processing for real-time sync events.
+ * @layer infrastructure
  */
 
 import type Redis from "ioredis";

@@ -1,3 +1,9 @@
+/**
+ * @file slidingWindowRateLimit.ts
+ * @description Sliding window rate limiter with sub-window precision, progressive blocking,
+ *              geo-blocking, user-agent tracking, and predefined configuration presets.
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";

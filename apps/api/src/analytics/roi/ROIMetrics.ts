@@ -1,10 +1,7 @@
 /**
- * ROIMetrics Module
- *
- * Responsibilities:
- * - Calculate ROI by provider
- * - Calculate ROI by content type
- * - Calculate ROI trends over time
+ * @file ROIMetrics.ts
+ * @description Calculates ROI by provider, content type, and trends over time.
+ * @layer infrastructure
  */
 
 import type {

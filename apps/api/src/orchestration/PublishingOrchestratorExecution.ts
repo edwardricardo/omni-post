@@ -1,9 +1,8 @@
 /**
- * Publishing Orchestrator — Execution Strategies
- *
- * Contains all strategy implementations:
- * SIMULTANEOUS, SEQUENTIAL, DEPENDENCY_BASED, OPTIMIZED_TIMING.
- * Also contains the per-provider publish logic with retry support.
+ * @file PublishingOrchestratorExecution.ts
+ * @description Execution strategy implementations (simultaneous, sequential,
+ *              dependency-based, optimized timing) with per-provider retry support.
+ * @layer infrastructure
  */
 
 import { OrchestrationPlan, OrchestrationExecution, PublishResult } from "@shared/orchestration";

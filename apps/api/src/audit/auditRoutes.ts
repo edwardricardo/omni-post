@@ -1,5 +1,9 @@
-// ✅ Phase 6.2: Migrated to BaseRouteHandler Pattern
-// ✅ DI: Resolves AuditService from container (no singleton import)
+/**
+ * @file auditRoutes.ts
+ * @description REST API endpoints for querying and exporting audit logs with
+ *              filtering, pagination, and CSV export capabilities.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {

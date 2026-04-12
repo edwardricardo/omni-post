@@ -1,16 +1,8 @@
 /**
- * Phase 3.2: Backend Service Consolidation - Auditable Service Class
- *
- * Extends BaseService with comprehensive audit logging capabilities.
- * Provides consistent patterns for tracking user actions, account changes,
- * and resource modifications across all services.
- *
- * Features:
- * - User action logging (login, logout, profile changes)
- * - Account action logging (subscription, billing, settings)
- * - Resource action logging (CRUD operations)
- * - Compliance-ready audit trails
- * - Integration with audit log system
+ * @file AuditableService.ts
+ * @description Base service class extending BaseService with compliance-ready audit logging
+ *              for user actions, account changes, and resource modifications.
+ * @layer infrastructure
  */
 
 import { BaseService, type ServiceContext } from "./BaseService";

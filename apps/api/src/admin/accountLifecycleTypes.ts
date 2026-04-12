@@ -1,10 +1,7 @@
 /**
- * Account Lifecycle Types
- *
- * Type definitions and interfaces for the account lifecycle management system.
- * Used by AccountLifecycleService, AccountSessionService, and related routes.
- *
- * @module admin/accountLifecycleTypes
+ * @file accountLifecycleTypes.ts
+ * @description Type definitions and interfaces for the account lifecycle management system.
+ * @layer infrastructure
  */
 
 import type { AdminRole } from "@shared/types";

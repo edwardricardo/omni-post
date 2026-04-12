@@ -1,7 +1,7 @@
 /**
- * Subscription Plan Handler
- *
- * Handles subscription plan-related routes.
+ * @file SubscriptionPlanHandler.ts
+ * @description Route handler for subscription plan retrieval and tier-specific plan details.
+ * @layer infrastructure
  */
 
 import { FastifyRequest, FastifyReply } from "fastify";

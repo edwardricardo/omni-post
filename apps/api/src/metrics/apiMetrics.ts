@@ -1,3 +1,9 @@
+/**
+ * @file apiMetrics.ts
+ * @description Prometheus metrics collector for HTTP requests, endpoints, database operations,
+ *              queue operations, storage, and provider interactions with correlation ID tracking.
+ * @layer infrastructure
+ */
 import * as client from "prom-client";
 import { v4 as uuidv4 } from "uuid";
 

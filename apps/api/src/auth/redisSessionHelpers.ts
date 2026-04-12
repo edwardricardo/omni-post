@@ -1,12 +1,8 @@
 /**
- * Redis Session Helpers
- *
- * Extracted from authService.ts to keep file size under 800 lines.
- * Provides Redis-backed session management functions including:
- * - Token blacklisting
- * - Session fingerprint storage
- * - Active session tracking
- * - Login attempt recording
+ * @file redisSessionHelpers.ts
+ * @description Redis-backed session management utilities: token blacklisting,
+ *              session fingerprint storage, active session tracking, and login attempt recording.
+ * @layer infrastructure
  */
 
 import { createHash } from "crypto";

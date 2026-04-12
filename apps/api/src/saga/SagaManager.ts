@@ -1,11 +1,8 @@
 /**
- * Saga Manager - Facade
- *
- * Composes SagaManagerLifecycle and SagaExecutionEngine into the
- * original SagaManagerImpl public API. External consumers continue
- * importing SagaManagerImpl from this file.
- *
- * @module saga/SagaManager
+ * @file SagaManager.ts
+ * @description Saga manager facade composing lifecycle and execution engine into
+ *              the unified SagaManagerImpl public API.
+ * @layer application
  */
 
 import type { SagaManager, SagaDefinition, SagaInstance, SagaContext } from "@shared/saga";

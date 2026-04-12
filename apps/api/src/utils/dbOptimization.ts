@@ -1,3 +1,9 @@
+/**
+ * @file dbOptimization.ts
+ * @description Database optimization utilities for query analysis, index recommendations,
+ *              slow query detection, and connection pool statistics.
+ * @layer infrastructure
+ */
 import { prisma } from "@infra/prisma";
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
 import { dbLogger } from "../lib/logger.js";

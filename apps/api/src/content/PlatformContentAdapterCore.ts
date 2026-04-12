@@ -1,11 +1,8 @@
 /**
- * Platform Content Adapter - Core Adaptation Logic
- *
- * Public API methods for content adaptation: adaptForProviders,
- * adaptForSingleProvider, optimizeForEngagement, reverseAdaptation,
- * and getAdaptationRecommendations.
- *
- * @module content/PlatformContentAdapterCore
+ * @file PlatformContentAdapterCore.ts
+ * @description Core platform content adaptation logic: multi-provider adaptation,
+ *              engagement optimization, reverse adaptation, and recommendations.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

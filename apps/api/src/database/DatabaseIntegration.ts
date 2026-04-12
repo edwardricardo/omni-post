@@ -1,12 +1,8 @@
 /**
- * Phase 2: Week 5-6 - Database Integration with Scalability
- *
- * Integrates advanced database features with the API:
- * - Automatic read/write routing
- * - Connection pool management
- * - Query optimization and monitoring
- * - Dynamic scaling based on load
- * - Health monitoring and alerts
+ * @file DatabaseIntegration.ts
+ * @description Integrates database features with the Fastify API including automatic
+ *              read/write routing, pool management, query optimization, and dynamic scaling.
+ * @layer infrastructure
  */
 
 import { FastifyInstance } from "fastify";

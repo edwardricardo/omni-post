@@ -1,3 +1,9 @@
+/**
+ * @file schemaUtils.ts
+ * @description Helper utilities for creating Fastify schema objects from Zod schemas,
+ *              providing backward compatibility with fastify-type-provider-zod.
+ * @layer infrastructure
+ */
 import { ZodSchema } from "zod";
 
 /**

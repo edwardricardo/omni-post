@@ -1,13 +1,8 @@
 /**
- * EngagementPredictor — pure scoring and utility functions.
- *
- * All functions here are stateless (no class, no I/O).  They operate only on
- * the arguments passed in, making them easy to unit-test in isolation.
- *
- * NOTE: Every function in this file implements rule-based heuristics using
- * static lookup tables and hand-tuned thresholds. There is no machine learning,
- * statistical training, or neural network involved.
- *
+ * @file engagementPredictor.scoring.ts
+ * @description Pure stateless scoring and utility functions for the engagement predictor
+ *              using rule-based heuristics with static lookup tables and hand-tuned thresholds.
+ * @layer infrastructure
  * Extracted from engagementPredictor.ts to keep each file ≤ 800 lines.
  */
 

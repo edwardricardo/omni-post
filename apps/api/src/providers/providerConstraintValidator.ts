@@ -1,3 +1,9 @@
+/**
+ * @file providerConstraintValidator.ts
+ * @description Validates content against provider-specific constraints (character limits,
+ *              media requirements, formatting rules) with adaptation suggestions.
+ * @layer infrastructure
+ */
 import type { CanonicalPost } from "@shared/types";
 import { validateContentForProvider } from "@shared/types";
 import type {

@@ -1,11 +1,8 @@
 /**
- * Trend Analyzer
- *
- * Analyzes historical performance data to detect trends and generate actionable
- * insights and recommendations. Provides historical comparisons, industry
- * benchmarking, and content type performance analysis.
- *
- * @module analytics/performanceComparison/trendAnalyzer
+ * @file trendAnalyzer.ts
+ * @description Analyzes historical performance data to detect trends, generate insights,
+ *              and provide content type performance analysis.
+ * @layer infrastructure
  */
 
 import type { MetricType, CompetitorComparison, TrendDataPoint } from "@shared/analytics";

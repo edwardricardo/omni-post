@@ -1,11 +1,8 @@
 /**
- * Template Types
- *
- * Type definitions for the template system including templates, variables,
- * variants, A/B testing configuration, versioning, and query interfaces.
- * Shared across TemplateService, TemplateVersionService, and TemplateABTestService.
- *
- * @module templates/templateTypes
+ * @file templateTypes.ts
+ * @description Type definitions for the template system including templates, variables,
+ *              variants, A/B testing configuration, versioning, and query interfaces.
+ * @layer infrastructure
  */
 
 export interface Template {

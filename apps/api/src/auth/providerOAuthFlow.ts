@@ -1,10 +1,8 @@
 /**
- * OAuth Flow Handler
- *
- * Route handler implementation for OAuth initiation, callback, connection
- * management, and disconnection. Extracted from providerOAuth.ts.
- *
- * @module auth/providerOAuthFlow
+ * @file providerOAuthFlow.ts
+ * @description Route handler implementation for OAuth initiation, callback, connection
+ *              management, and disconnection flows.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";

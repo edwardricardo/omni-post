@@ -1,13 +1,8 @@
 /**
- * Phase 3A Week 5: Provider Coordinator
- *
- * Centralized coordination system for managing multiple providers,
- * load balancing, failover handling, and intelligent routing decisions.
- *
- * Private helpers are split across:
- *   - ProviderCoordinatorExecution.ts  (scoring, publishing, execution strategies)
- *   - ProviderCoordinatorMonitoring.ts (health checks, metrics, failover evaluation)
- *   - providerCoordinatorTypes.ts      (shared interfaces and types)
+ * @file ProviderCoordinator.ts
+ * @description Centralized coordination system for managing multiple providers with
+ *              load balancing, failover handling, and intelligent routing decisions.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

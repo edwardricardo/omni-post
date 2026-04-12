@@ -1,13 +1,8 @@
 /**
- * Brute Force Protection Service
- * Phase 1 Sprint 1.2 Day 3 - Authentication & Authorization Hardening
- *
- * Features:
- * - Progressive delay system with exponential backoff
- * - IP-based and email-based tracking
- * - Account lockout with admin override
- * - CAPTCHA integration support
- * - Anomaly detection and alerting
+ * @file bruteForceProtection.ts
+ * @description Brute force protection service with progressive delay, IP/email tracking,
+ *              account lockout, CAPTCHA integration support, and anomaly detection.
+ * @layer infrastructure
  */
 
 import Redis from "ioredis";

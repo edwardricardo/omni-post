@@ -1,14 +1,8 @@
 /**
- * Template Handlers - Facade
- *
- * Re-exports TemplateRouteHandler composed from three sub-handlers:
- * - TemplateCrudHandler    (CRUD, compile, validate, platform queries)
- * - TemplateABTestHandler  (A/B testing endpoints)
- * - TemplateVersionHandler (versioning, analytics, usage tracking)
- *
- * External consumers continue importing TemplateRouteHandler from this file.
- *
- * @module templates/TemplateHandlers
+ * @file TemplateHandlers.ts
+ * @description Template route handler facade composing TemplateCrudHandler,
+ *              TemplateABTestHandler, and TemplateVersionHandler into a unified API.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler } from "@packages/api-common";

@@ -1,12 +1,8 @@
 /**
- * Performance Comparison Types
- *
- * Type definitions for the performance comparison subsystem including
- * comparison options, performance snapshots, industry benchmarks, provider
- * and content type comparisons, historical trends, and recommendation
- * structures used throughout the analytics pipeline.
- *
- * @module analytics/performanceComparison/types
+ * @file types.ts
+ * @description Type definitions for the performance comparison subsystem including
+ *              snapshots, benchmarks, comparisons, trends, and recommendations.
+ * @layer infrastructure
  */
 import type {
   ProviderType,

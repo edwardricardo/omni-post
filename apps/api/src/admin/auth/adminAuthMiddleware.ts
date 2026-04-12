@@ -1,13 +1,8 @@
 /**
- * Admin Authentication Middleware
- *
- * Fastify middleware for protecting admin routes with JWT authentication.
- * Provides authentication, authorization, and permission checking.
- *
- * Usage:
- * ```typescript
- * // In route handler
- * fastify.register(async (fastify) => {
+ * @file adminAuthMiddleware.ts
+ * @description Fastify middleware for protecting admin routes with JWT authentication,
+ *              authorization, and permission checking.
+ * @layer infrastructure
  *   fastify.addHook('onRequest', requireAdminAuth);
  *   fastify.get('/protected', handler);
  * });

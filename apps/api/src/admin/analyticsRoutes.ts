@@ -1,10 +1,7 @@
 /**
- * Admin Analytics Routes
- *
- * Registers analytics dashboard and compliance management endpoints for the admin panel.
- * Delegates request handling to AnalyticsRouteHandler; validation schemas are in analyticsSchemas.ts.
- *
- * @module admin/analyticsRoutes
+ * @file analyticsRoutes.ts
+ * @description Registers analytics dashboard and compliance management endpoints for the admin panel.
+ * @layer infrastructure
  */
 import { FastifyPluginAsync } from "fastify";
 import type { PrismaClient } from "@infra/prisma";

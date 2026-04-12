@@ -1,12 +1,8 @@
 /**
- * Phase 2: Week 3-4 - Redis Event Publisher Implementation
- *
- * High-performance event publisher using Redis pub/sub with support for:
- * - Real-time event broadcasting
- * - Event handler registration
- * - Dead letter queues
- * - Retry mechanisms
- * - Performance monitoring
+ * @file EventPublisher.ts
+ * @description Redis-based event publisher implementing pub/sub with real-time broadcasting,
+ *              handler registration, dead letter queues, retries, and performance monitoring.
+ * @layer infrastructure
  */
 
 import Redis from "ioredis";

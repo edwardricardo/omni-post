@@ -1,19 +1,8 @@
 /**
- * Phase 2: React 19 Server Components - Optimized Posts API Routes
- *
- * This module provides high-performance API endpoints specifically designed for
- * React 19 Server Components with advanced caching and database optimization.
- *
- * Features:
- * - Multi-level caching (L1/L2/L3) with cache warming
- * - Database optimization with materialized views and stored functions
- * - Server-side data fetching optimization
- * - Performance monitoring and metrics collection
- * - Structured error handling with fallbacks
- * - BaseRouteHandler pattern for consistent request/response handling
- *
- * DI: PostsService is resolved from the container (registered in setup.ts as TOKENS.PostsService).
- * No local DatabaseOptimizer or RedisCacheManager instances are created here.
+ * @file optimizedPostsRoutes.ts
+ * @description High-performance post API endpoints with multi-level caching, database
+ *              optimization, and server-side data fetching for React Server Components.
+ * @layer infrastructure
  */
 
 import { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";

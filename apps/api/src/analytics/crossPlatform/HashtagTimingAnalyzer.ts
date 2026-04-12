@@ -1,10 +1,8 @@
 /**
- * Hashtag & Timing Analyzer Module
- *
- * Analyzes hashtag performance and optimal posting timing.
- * Provides insights into trending hashtags and best times to post.
- *
- * @module HashtagTimingAnalyzer
+ * @file HashtagTimingAnalyzer.ts
+ * @description Analyzes hashtag performance and optimal posting timing
+ *              to identify trending hashtags and best times to post.
+ * @layer infrastructure
  */
 
 import type { DomainAnalytics } from "@shared/types";

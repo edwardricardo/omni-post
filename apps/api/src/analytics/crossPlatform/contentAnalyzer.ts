@@ -1,13 +1,8 @@
 /**
- * Content Analyzer Module
- *
- * Main coordinator for comprehensive content analysis functions.
- * Provides a unified interface for analyzing post performance, content types,
- * hashtags, media, and optimal timing across multiple platforms.
- *
- * This module now delegates to specialized analyzers while maintaining
- * backward compatibility with the original API.
- *
+ * @file contentAnalyzer.ts
+ * @description Coordinator for comprehensive content analysis across multiple platforms,
+ *              delegating to specialized analyzers for posts, hashtags, media, and timing.
+ * @layer infrastructure
  * @module contentAnalyzer
  */
 

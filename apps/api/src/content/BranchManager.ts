@@ -1,8 +1,8 @@
 /**
- * Branch Manager
- *
- * Handles content version branch lifecycle: creation, head updates,
- * existence checks, and branch retrieval from the Redis store.
+ * @file BranchManager.ts
+ * @description Handles content version branch lifecycle: creation, head updates,
+ *              existence checks, and branch retrieval from the Redis store.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

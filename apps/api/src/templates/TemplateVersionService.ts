@@ -1,11 +1,8 @@
 /**
- * Template Version Service
- *
- * Manages template version history including creating new versions,
- * retrieving version history, and restoring templates to previous versions.
- * Supports branching with named branches and commit messages.
- *
- * @module templates/TemplateVersionService
+ * @file TemplateVersionService.ts
+ * @description Template version history management: creating versions, retrieving history,
+ *              restoring previous versions, and branch support with commit messages.
+ * @layer infrastructure
  */
 import { prisma } from "@infra/prisma";
 import { BaseService } from "../services/BaseService";

@@ -1,8 +1,8 @@
 /**
- * Dashboard Service - P0-6 Phase 2
- *
- * Centralizes admin dashboard business logic with consistent error handling,
- * logging, and performance tracking using BaseService pattern.
+ * @file dashboardService.ts
+ * @description Centralizes admin dashboard business logic with consistent error handling,
+ *              logging, and performance tracking using BaseService pattern.
+ * @layer infrastructure
  */
 
 import { BaseService } from "../services/BaseService.js";

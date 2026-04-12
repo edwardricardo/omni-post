@@ -3,7 +3,7 @@
  * @description Fastify plugin registering REST endpoints for external
  *   notification config management (Slack/Teams webhooks).
  *   Use cases are resolved from the DI container at plugin registration time.
- * @layer routes
+ * @layer infrastructure
  */
 
 import { type FastifyPluginAsync, type FastifyRequest, type FastifyReply } from "fastify";

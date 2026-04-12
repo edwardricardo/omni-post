@@ -1,9 +1,8 @@
 /**
- * Comprehensive Security-Focused Zod Schemas
- * Phase 1 Sprint 1.2 Day 2 - Input Validation & Security Headers
- *
- * Provides centralized, secure validation schemas for all API endpoints
- * with advanced threat detection and sanitization
+ * @file secureSchemas.ts
+ * @description Centralized security-focused Zod schemas for API endpoint validation
+ *              with advanced threat detection and input sanitization.
+ * @layer infrastructure
  */
 
 import { z } from "zod/v4";

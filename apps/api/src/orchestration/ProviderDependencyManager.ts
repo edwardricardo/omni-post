@@ -1,11 +1,8 @@
 /**
- * Phase 3A Week 5: Provider Dependency Manager
- *
- * Manages complex provider dependencies, execution order, and retry policies.
- * Implements intelligent dependency resolution with deadlock detection.
- *
- * Graph construction and validation is delegated to DependencyGraphBuilder.
- * Types and pure utilities live in dependencyTypes.ts.
+ * @file ProviderDependencyManager.ts
+ * @description Manages complex provider dependencies, execution order, and retry policies
+ *              with intelligent dependency resolution and deadlock detection.
+ * @layer infrastructure
  */
 
 import { PrismaClient } from "@infra/prisma";

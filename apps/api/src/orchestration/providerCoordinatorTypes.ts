@@ -1,11 +1,8 @@
 /**
- * Provider Coordinator Types
- *
- * Type definitions for provider coordination including load metrics, configuration,
- * routing decisions, failover strategies, and load balancing. Used by ProviderCoordinator
- * and ProviderHealthMonitor.
- *
- * @module orchestration/providerCoordinatorTypes
+ * @file providerCoordinatorTypes.ts
+ * @description Type definitions for provider coordination including load metrics,
+ *              configuration, routing decisions, failover strategies, and load balancing.
+ * @layer infrastructure
  */
 import type { ComponentHealth } from "@shared/orchestration";
 import type {

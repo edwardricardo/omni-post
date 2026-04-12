@@ -1,18 +1,8 @@
 /**
- * Phase 2: Scalability & Performance - Enhanced Database Optimizer
- *
- * This service provides advanced database optimization capabilities including:
- * - Query performance monitoring
- * - Materialized view management
- * - Connection pool optimization
- * - Performance metrics collection
- * - Database health monitoring
- *
- * Technologies Used:
- * - PostgreSQL advanced indexing and materialized views
- * - pg_stat_statements for query performance tracking
- * - Custom performance baseline system
- * - Connection pool monitoring and optimization
+ * @file DatabaseOptimizer.ts
+ * @description Advanced database optimization service providing query performance monitoring,
+ *              materialized view management, connection pool optimization, and health metrics.
+ * @layer infrastructure
  */
 
 import { prisma } from "@infra/prisma";

@@ -1,3 +1,9 @@
+/**
+ * @file connectionManager.ts
+ * @description Manages provider connection lifecycle: health monitoring, token refresh,
+ *              connection scoring, and reconnection strategies.
+ * @layer infrastructure
+ */
 import type { ProviderId, ConnectionConfig } from "../providers/providerAdapter.interface.js";
 import type { ProviderConnection } from "@infra/prisma";
 import { prisma as defaultPrisma } from "@infra/prisma";

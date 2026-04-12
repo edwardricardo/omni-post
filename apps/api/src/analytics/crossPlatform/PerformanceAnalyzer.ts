@@ -1,10 +1,8 @@
 /**
- * Performance Analyzer Module
- *
- * Analyzes content length and media performance to identify optimal strategies.
- * Provides insights into content length optimization and media type effectiveness.
- *
- * @module PerformanceAnalyzer
+ * @file PerformanceAnalyzer.ts
+ * @description Analyzes content length and media performance to identify optimal strategies
+ *              for content length optimization and media type effectiveness.
+ * @layer infrastructure
  */
 
 import type { DomainAnalytics } from "@shared/types";

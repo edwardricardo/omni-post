@@ -1,4 +1,9 @@
-// Template Analytics Service - Stub returning defaults until analytics tracking is wired
+/**
+ * @file templateAnalytics.ts
+ * @description Template analytics service stub returning default metrics until
+ *              full analytics tracking is wired into the event pipeline.
+ * @layer infrastructure
+ */
 
 interface TemplateAnalyticsFilters {
   startDate?: Date;

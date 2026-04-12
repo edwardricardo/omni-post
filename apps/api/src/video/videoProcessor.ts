@@ -1,3 +1,9 @@
+/**
+ * @file videoProcessor.ts
+ * @description Video processing service using ffmpeg for transcoding, format conversion,
+ *              resolution adjustment, codec selection, and platform-specific optimization.
+ * @layer infrastructure
+ */
 import { spawn as defaultSpawn } from "child_process";
 import type { SpawnOptionsWithoutStdio, ChildProcess } from "child_process";
 import { promises as fs } from "fs";

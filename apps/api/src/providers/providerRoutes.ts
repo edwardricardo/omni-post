@@ -1,3 +1,9 @@
+/**
+ * @file providerRoutes.ts
+ * @description REST API endpoints for querying provider capabilities, connections,
+ *              content validation, and provider metadata.
+ * @layer infrastructure
+ */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { ProviderRegistryService } from "./providerRegistry.js";

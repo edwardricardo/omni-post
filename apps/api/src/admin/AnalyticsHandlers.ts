@@ -1,14 +1,8 @@
 /**
- * Admin Analytics Handlers - Facade
- *
- * Re-exports the AnalyticsRouteHandler class composed from three sub-handlers:
- * - AnalyticsDashboardHandler  (dashboard/overview KPIs)
- * - AnalyticsComplianceHandler (audit logs, GDPR data)
- * - AnalyticsAccountHandler    (account management)
- *
- * External consumers import AnalyticsRouteHandler from this file.
- *
- * @module admin/AnalyticsHandlers
+ * @file AnalyticsHandlers.ts
+ * @description Facade that re-exports the AnalyticsRouteHandler class composed
+ *              from dashboard, compliance, and account sub-handlers.
+ * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler } from "@packages/api-common";

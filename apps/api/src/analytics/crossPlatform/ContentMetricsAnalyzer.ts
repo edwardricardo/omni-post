@@ -1,10 +1,8 @@
 /**
- * Content Metrics Analyzer Module
- *
- * Analyzes post performance, content types, and identifies top-performing content.
- * Provides insights into which content types perform best across platforms.
- *
- * @module ContentMetricsAnalyzer
+ * @file ContentMetricsAnalyzer.ts
+ * @description Analyzes post performance and content types to identify top-performing
+ *              content across platforms.
+ * @layer infrastructure
  */
 
 import type { DomainAnalytics } from "@shared/types";

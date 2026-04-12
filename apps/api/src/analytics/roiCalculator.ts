@@ -1,13 +1,8 @@
 /**
- * ROICalculator — Orchestrator
- *
- * Coordinates the ROI calculation pipeline by delegating to focused submodules:
- * - CostCalculator   → cost breakdowns and attribution
- * - RevenueCalculator → revenue breakdowns
- * - ROIMetrics        → per-provider / per-content-type metrics and trends
- * - ROIForecasting    → historical trend analysis and forward projections
- * - ROIRecommendations → actionable recommendations
- *
+ * @file roiCalculator.ts
+ * @description Orchestrates the ROI calculation pipeline by delegating to CostCalculator,
+ *              RevenueCalculator, ROIMetrics, ROIForecasting, and ROIRecommendations.
+ * @layer infrastructure
  * All types are defined in ./roi/types.ts and re-exported from here for
  * backwards compatibility with existing consumers.
  */

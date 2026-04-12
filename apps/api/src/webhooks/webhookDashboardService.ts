@@ -1,3 +1,9 @@
+/**
+ * @file webhookDashboardService.ts
+ * @description Webhook dashboard service providing metrics aggregation, event search,
+ *              DLQ management, and provider health statistics for the admin dashboard.
+ * @layer infrastructure
+ */
 import { BaseService } from "../services/BaseService.js";
 import { prisma, WebhookEventType } from "@infra/prisma";
 import type { Provider } from "@infra/prisma";

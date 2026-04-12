@@ -1,12 +1,8 @@
 /**
- * Password Service
- *
- * Handles all password-related operations including:
- * - Password hashing with Argon2id
- * - Password verification
- * - Password strength validation
- * - Password change with history tracking
- * - Password reset (forgot password flow)
+ * @file PasswordService.ts
+ * @description Handles password operations including Argon2id hashing, verification,
+ *              strength validation, history tracking, and reset flows.
+ * @layer infrastructure
  */
 
 import argon2 from "argon2";

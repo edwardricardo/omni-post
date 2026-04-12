@@ -1,3 +1,9 @@
+/**
+ * @file aiService.ts
+ * @description High-level AI service providing content generation, analysis,
+ *              optimization, and smart analysis using the AI orchestrator.
+ * @layer infrastructure
+ */
 import { BaseService } from "../services/BaseService.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { aiOrchestrator } from "./orchestrator.js";

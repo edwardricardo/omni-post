@@ -1,12 +1,8 @@
 /**
- * Trend Analysis Service
- *
- * Core service for analyzing trending content, generating predictions,
- * discovering content opportunities, and building comprehensive trend
- * reports. Integrates with the TikTok API via a circuit breaker for
- * resilience, and delegates analytics helpers to TrendReportBuilder.
- *
- * @module trends/trendAnalysisService
+ * @file trendAnalysisService.ts
+ * @description Core trend analysis service for trending content, predictions, content
+ *              opportunity discovery, and report building with circuit breaker resilience.
+ * @layer infrastructure
  */
 
 import { FastifyLoggerInstance } from "fastify";

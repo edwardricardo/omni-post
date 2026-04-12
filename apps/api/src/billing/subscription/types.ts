@@ -1,11 +1,8 @@
 /**
- * Subscription Types
- *
- * Type definitions for the billing and subscription module. Defines plan
- * structures, tier hierarchies, feature limits, trial information, and
- * account subscription state used across the billing system.
- *
- * @module billing/subscription/types
+ * @file types.ts
+ * @description Type definitions for the billing and subscription module including plan
+ *              structures, tier hierarchies, feature limits, and account subscription state.
+ * @layer infrastructure
  */
 
 import type { SubscriptionTier } from "@shared/types";

@@ -1,3 +1,9 @@
+/**
+ * @file youtubeWebhookProcessor.ts
+ * @description YouTube webhook processor using PubSubHubbub protocol with SHA1 HMAC
+ *              verification for video published/updated and channel subscription events.
+ * @layer infrastructure
+ */
 import type { WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
 import { prisma } from "@infra/prisma";

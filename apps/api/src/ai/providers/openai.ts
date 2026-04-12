@@ -1,3 +1,9 @@
+/**
+ * @file openai.ts
+ * @description OpenAI provider adapter implementing the AIProvider interface for
+ *              content generation, analysis, optimization, predictions, and image generation.
+ * @layer infrastructure
+ */
 import OpenAI from "openai";
 import {
   AIProvider,

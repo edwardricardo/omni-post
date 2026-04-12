@@ -1,7 +1,7 @@
 /**
- * Phase 3A Week 5: Conflict Resolver — Local Types
- *
- * Internal interfaces used by ConflictResolver and its sub-modules.
+ * @file conflictResolverTypes.ts
+ * @description Internal interfaces used by ConflictResolver and its sub-modules.
+ * @layer infrastructure
  */
 
 import type {

@@ -1,9 +1,8 @@
 /**
- * Template Routes
- *
- * Thin Fastify plugin that registers all template management endpoints.
- * Resolves TemplateService and TemplateAnalytics from the DI container and
- * delegates all request handling to TemplateRouteHandler.
+ * @file templateRoutes.ts
+ * @description Fastify plugin registering all template management endpoints with
+ *              DI-resolved services and delegation to TemplateRouteHandler.
+ * @layer infrastructure
  *
  * Route groups:
  *   - Template CRUD      GET|POST /projects/:projectId/templates[/:templateId]

@@ -1,9 +1,8 @@
 /**
- * Device Fingerprint Utilities
- *
- * Extracted from authService.ts to keep file size under 800 lines.
- * Provides functions for generating and hashing device fingerprints
- * used in enhanced session security.
+ * @file deviceFingerprint.ts
+ * @description Device fingerprint utilities for generating and hashing session fingerprints
+ *              used in enhanced session security.
+ * @layer infrastructure
  */
 
 import { createHash } from "crypto";

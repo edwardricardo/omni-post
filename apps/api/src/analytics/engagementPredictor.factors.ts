@@ -1,13 +1,8 @@
 /**
- * EngagementPredictor — factor extraction and scoring calculation helpers.
- *
- * Contains:
- *  - extractContentFeatures()
- *  - calculateTimingFactors()
- *  - calculatePlatformFactors()
- *  - calculatePrediction()
- *  - generateOptimizationSuggestions()
- *
+ * @file engagementPredictor.factors.ts
+ * @description Factor extraction and scoring calculation helpers for the engagement predictor
+ *              including content features, timing factors, and optimization suggestions.
+ * @layer infrastructure
  * NOTE: All calculations here are rule-based heuristics using hand-tuned
  * weights and static lookup tables. No machine learning or statistical
  * training is involved despite the "prediction" naming.

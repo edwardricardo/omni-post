@@ -1,10 +1,8 @@
 /**
- * Auth Service - Session Management
- *
- * Token refresh, access token verification, logout,
- * session revocation, and session listing.
- *
- * @module auth/authServiceSession
+ * @file authServiceSession.ts
+ * @description Session management: token refresh, access token verification, logout,
+ *              session revocation, and session listing.
+ * @layer infrastructure
  */
 
 import jwt from "jsonwebtoken";

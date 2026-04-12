@@ -1,12 +1,8 @@
 /**
- * Shared types for the thumbnail subsystem.
- *
- * Extracted to break the circular dependency between thumbnailGenerator.ts
- * (facade that imports implementation classes) and the implementation files
- * (thumbnailGeneration.ts, thumbnailAnalysis.ts, thumbnailTemplates.ts) that
- * need these interfaces/types.
- *
- * @module video/thumbnailTypes
+ * @file thumbnailTypes.ts
+ * @description Shared type definitions for the thumbnail subsystem including options,
+ *              results, templates, and analysis interfaces.
+ * @layer infrastructure
  */
 
 export interface ThumbnailOptions {

@@ -1,8 +1,8 @@
 /**
- * Diff Calculator
- *
- * Handles detailed difference calculation between content versions,
- * including content comparison and adaptation tracking.
+ * @file DiffCalculator.ts
+ * @description Detailed difference calculation between content versions including
+ *              content comparison and adaptation tracking.
+ * @layer infrastructure
  */
 
 import { ContentVersion, VersionDiff } from "@shared/orchestration";

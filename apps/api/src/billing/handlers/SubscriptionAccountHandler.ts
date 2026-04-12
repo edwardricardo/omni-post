@@ -1,7 +1,8 @@
 /**
- * Subscription Account Handler
- *
- * Handles account subscription management routes.
+ * @file SubscriptionAccountHandler.ts
+ * @description Route handler for account subscription management including plan changes,
+ *              filtering, limit validation, suspension, and bulk upgrades.
+ * @layer infrastructure
  */
 
 import { FastifyRequest, FastifyReply } from "fastify";

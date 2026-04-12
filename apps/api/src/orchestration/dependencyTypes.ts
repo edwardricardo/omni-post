@@ -1,11 +1,8 @@
 /**
- * Dependency Types for Provider Dependency Management
- *
- * Defines the core interfaces used by the dependency graph builder
- * and the provider dependency manager for orchestrating provider
- * execution order, status tracking, and deadlock resolution.
- *
- * @module orchestration/dependencyTypes
+ * @file dependencyTypes.ts
+ * @description Core interfaces for dependency graph builder and provider dependency manager
+ *              covering execution order, status tracking, and deadlock resolution.
+ * @layer infrastructure
  */
 
 import type {

@@ -1,8 +1,8 @@
 /**
- * Rate Limiting Monitoring Dashboard
- * Phase 1 Sprint 1.2 Day 1 - Advanced Rate Limiting Implementation
- *
- * Provides comprehensive monitoring, alerting, and analytics for the advanced rate limiting system
+ * @file rateLimitingDashboard.ts
+ * @description Monitoring dashboard providing analytics, alerting, and real-time metrics
+ *              for the advanced rate limiting system.
+ * @layer infrastructure
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";

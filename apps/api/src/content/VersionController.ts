@@ -1,8 +1,8 @@
 /**
- * Version Controller
- *
- * Handles CRUD operations for content versions including creation,
- * retrieval, history tracking, and version restoration.
+ * @file VersionController.ts
+ * @description CRUD operations for content versions including creation, retrieval,
+ *              history tracking, and version restoration.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

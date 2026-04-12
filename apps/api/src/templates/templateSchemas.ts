@@ -1,11 +1,8 @@
 /**
- * Template Schemas
- *
- * Zod validation schemas for template management endpoints.
- * Covers CRUD operations, versioning, A/B testing, analytics,
- * and platform-specific limit queries.
- *
- * @module templates/templateSchemas
+ * @file templateSchemas.ts
+ * @description Zod validation schemas for template management endpoints covering CRUD,
+ *              versioning, A/B testing, analytics, and platform-specific limit queries.
+ * @layer infrastructure
  */
 import { z } from "zod";
 import { IdSchema } from "@packages/api-common";

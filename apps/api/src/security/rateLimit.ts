@@ -1,3 +1,9 @@
+/**
+ * @file rateLimit.ts
+ * @description Basic Redis-backed rate limiter with configurable per-route rules,
+ *              fixed window counting, and remaining request tracking.
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import Redis from "ioredis";

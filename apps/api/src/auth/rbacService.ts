@@ -23,6 +23,9 @@ export enum Permission {
   USER_MANAGE = "user:manage",
   USER_MANAGE_ROLES = "user:manage_roles",
 
+  // Dashboard
+  DASHBOARD_VIEW = "dashboard:view",
+
   // Customer account management
   ACCOUNT_READ = "account:read",
   ACCOUNT_MANAGE = "account:manage",
@@ -30,6 +33,9 @@ export enum Permission {
   // Billing & subscriptions
   BILLING_READ = "billing:read",
   BILLING_MANAGE = "billing:manage",
+
+  // Post management
+  POST_MANAGE = "post:manage",
 
   // Pricing configuration
   PRICING_MANAGE = "pricing:manage",

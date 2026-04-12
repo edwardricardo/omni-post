@@ -1,9 +1,8 @@
 /**
- * Cross-Platform Analytics Engine
- *
- * Main orchestrator that coordinates all analytics modules to generate
- * comprehensive cross-platform metrics. Replaces the monolithic
- * crossPlatformEngine.ts with a modular, type-safe implementation.
+ * @file index.ts
+ * @description Main orchestrator that coordinates all analytics modules to generate
+ *              comprehensive cross-platform metrics.
+ * @layer infrastructure
  */
 
 import type { Redis } from "ioredis";

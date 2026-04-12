@@ -1,13 +1,8 @@
 /**
- * Phase 3A Week 5: Conflict Resolver
- *
- * Advanced conflict detection and resolution for multi-provider publishing scenarios.
- * Handles content conflicts, timing conflicts, rate limits, and validation errors.
- *
- * Implementation is split across focused modules:
- *   - conflictResolverTypes.ts  — local interfaces
- *   - ConflictPatterns.ts       — pattern loading, matching, severity, type-mapping
- *   - ConflictStrategies.ts     — resolution strategy implementations
+ * @file ConflictResolver.ts
+ * @description Advanced conflict detection and resolution for multi-provider publishing
+ *              scenarios including content, timing, rate limit, and validation conflicts.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

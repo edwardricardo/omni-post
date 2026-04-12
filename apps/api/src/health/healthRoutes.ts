@@ -1,3 +1,9 @@
+/**
+ * @file healthRoutes.ts
+ * @description Health check REST endpoints for monitoring and Kubernetes probes including
+ *              simple, detailed, liveness, readiness, and per-dependency health checks.
+ * @layer infrastructure
+ */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
