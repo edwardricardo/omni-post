@@ -555,7 +555,7 @@ describe("Integration Feature", () => {
 
 ## Documentation
 
-Every file gets a JSDoc header:
+Every file gets a JSDoc header — **no exceptions, including index files, types files, and barrel exports.**
 
 ```typescript
 /**
@@ -576,6 +576,35 @@ Every public class method gets:
  * @returns Result<PostId> on success, ValidationError or InvariantError on failure
  */
 ```
+
+### @layer Standard Values
+
+**Use exactly these three values — no variations, no new values:**
+
+| Value            | Use for                                                                                   |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| `domain`         | Entities, value objects, aggregates, domain events, repository interfaces, domain errors  |
+| `application`    | Use cases, application services, handlers, command/query objects, DTOs                    |
+| `infrastructure` | Adapters, repository implementations, routes, processors, BullMQ jobs, config, middleware |
+
+**Examples:**
+
+- `GatewayBillingService.ts` → `@layer application`
+- `PrismaPostRepository.ts` → `@layer infrastructure`
+- `billingWebhookRoutes.ts` → `@layer infrastructure`
+- `GatewaySwitchProcessor.ts` → `@layer infrastructure`
+- `Post.ts` (entity) → `@layer domain`
+- `PostRepository.ts` (interface) → `@layer domain`
+
+**Forbidden variations:** `infrastructure (routes)`, `routes`, `presentation`, `service`, `handler` — always normalize to one of the three values above.
+
+### Comment Quality Rules
+
+- Comments explain **why**, not **what** — the code already shows what
+- No references to sprint numbers, implementation phases, or development timeline
+- No comments like "Added in Sprint X", "Part of Phase Y", "TODO: done" — these belong in git history, not source code
+- Inline comments only when the logic is genuinely non-obvious
+- All comments in **English**
 
 All comments in **English**.
 
@@ -611,6 +640,18 @@ grep -rn "prisma\." apps/api/src/cqrs/handlers/ --include="*.ts" | wc -l
 # 7. No randomUUID in dedupeKey
 grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" \
   apps/api/src/ packages/ --include="*.ts" | wc -l
+
+# 8. No sprint references in source comments
+grep -rn "Part of Sprint\|Phase.*Sprint\|Sprint [0-9]" \
+  apps/api/src/ apps/admin/src/ apps/client/src/ \
+  --include="*.ts" --include="*.tsx" | wc -l
+
+# 9. No files missing @file header (target: 0)
+grep -rL "@file" apps/api/src/ --include="*.ts" | grep -v node_modules | wc -l
+
+# 10. No invalid @layer values
+grep -rn "@layer" apps/api/src/ --include="*.ts" | \
+  grep -v "@layer application\|@layer domain\|@layer infrastructure" | wc -l
 ```
 
 ---
