@@ -1,10 +1,7 @@
 /**
- * Domain Layer - Analytics Query Repository Interface (Port)
- *
- * Part of FASE H3: Hexagonal Architecture Remediation
- * Defines a read-heavy query port for analytics data.
- * Follows CQRS pattern — this port is optimized for reads with a single
- * write method for persisting new analytics snapshots.
+ * @file AnalyticsQueryRepository.ts
+ * @description Repository port for analytics queries — defines a CQRS-optimized read interface for fetching analytics data by post, channel, or date range.
+ * @layer domain
  */
 
 import { type Result, type DomainAnalytics } from "@shared/types";

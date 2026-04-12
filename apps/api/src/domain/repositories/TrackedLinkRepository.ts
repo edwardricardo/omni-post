@@ -1,8 +1,7 @@
 /**
- * Domain Layer - TrackedLink Repository Interface (Port)
- *
- * Part of Sprint 19: Link Tracking Feature
- * Defines the contract for TrackedLink data access.
+ * @file TrackedLinkRepository.ts
+ * @description Repository port for TrackedLink persistence — defines the contract for link CRUD, short-code resolution, click recording, and click statistics.
+ * @layer domain
  */
 
 import { type Result } from "@shared/types";

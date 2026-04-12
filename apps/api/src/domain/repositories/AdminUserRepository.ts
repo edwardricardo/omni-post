@@ -1,13 +1,7 @@
 /**
- * Domain Layer - AdminUser Repository Port
- *
- * Port interface for admin user data access operations.
- * Replaces the legacy UserRepository singleton with a proper
- * hexagonal architecture port (interface) that can be implemented
- * by any adapter (Prisma, in-memory, etc.).
- *
- * Methods match the public API of the legacy UserRepository 1:1
- * to allow safe incremental migration of consumers.
+ * @file AdminUserRepository.ts
+ * @description Repository port for admin user lookup operations — defines the contract for finding and verifying active admin users by ID or email.
+ * @layer domain
  */
 
 import type { AdminUserDto } from "./ReadModelDtos.js";

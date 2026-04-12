@@ -1,15 +1,7 @@
 /**
- * Domain Layer - Account Query Repository Port (Read Model)
- *
- * Part of R1-B: Hexagonal migration — Account query methods needed by billing services.
- *
- * This port defines the read-model operations that go beyond the standard CRUD
- * provided by AccountRepositoryPort. The write side (AccountRepositoryPort) uses
- * domain entities (Account, AccountId). This read side works directly with plain
- * domain DTOs so that billing services can receive the relations (e.g., ProjectDto[])
- * that subscription calculations require.
- *
- * @module domain/repositories/AccountQueryRepository
+ * @file AccountQueryRepository.ts
+ * @description Repository port for Account read-model queries — provides DTO-based access for billing and subscription services that need account-project relations.
+ * @layer domain
  */
 
 import type { Result } from "@shared/types";

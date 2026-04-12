@@ -1,8 +1,7 @@
 /**
- * Domain Layer - TrackedLink Entity
- *
- * Part of Sprint 19: Link Tracking Feature
- * Represents a shortened/tracked URL with analytics.
+ * @file TrackedLink.ts
+ * @description Domain entity representing a shortened/tracked URL with UTM parameters, click counting, and expiration support.
+ * @layer domain
  */
 
 import { type Result, ok, err } from "@shared/types";

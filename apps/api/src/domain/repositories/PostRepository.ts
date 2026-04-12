@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Post Repository Interface
- *
- * Part of Sprint 5: DDD Architecture Implementation
- * Defines the contract for Post aggregate persistence.
+ * @file PostRepository.ts
+ * @description Repository port for Post aggregate persistence — defines the contract for CRUD, filtering, pagination, and read-model projections.
+ * @layer domain
  */
 
 import { type Result } from "@shared/types";

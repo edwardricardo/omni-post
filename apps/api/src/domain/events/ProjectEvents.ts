@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Project Events
- *
- * Part of Sprint 19: Crisis Mode Feature
- * Domain events related to Project aggregate.
+ * @file ProjectEvents.ts
+ * @description Domain events emitted by the Project aggregate — crisis mode entry and exit notifications.
+ * @layer domain
  */
 
 import { BaseDomainEvent } from "./DomainEvent.js";

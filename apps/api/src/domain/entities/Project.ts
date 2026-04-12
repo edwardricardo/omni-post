@@ -1,9 +1,7 @@
 /**
- * Domain Layer - Project Entity
- *
- * Part of Sprint 4: DDD Architecture Implementation
- * Updated Sprint 19: Added Crisis Mode support
- * Represents a project that contains posts and channels.
+ * @file Project.ts
+ * @description Domain entity representing a project that organizes posts and channels, with crisis mode support and locale configuration.
+ * @layer domain
  */
 
 import { type Result, ok, err } from "@shared/types";
@@ -88,7 +86,7 @@ export class Project extends AggregateRoot<ProjectId> {
   private _scheduledCount: number;
   private _publishedCount: number;
 
-  // Crisis Mode (Sprint 19)
+  // Crisis Mode
   private _isInCrisisMode: boolean;
   private _crisisStartedAt: Date | undefined;
   private _crisisReason: string | undefined;
@@ -239,7 +237,7 @@ export class Project extends AggregateRoot<ProjectId> {
     return this._postIds.length > 0;
   }
 
-  // Crisis Mode Getters (Sprint 19)
+  // Crisis Mode Getters
 
   /**
    * Check if project is currently in crisis mode
@@ -425,7 +423,7 @@ export class Project extends AggregateRoot<ProjectId> {
     else if (toStatus === "PUBLISHED") this._publishedCount += 1;
   }
 
-  // Crisis Mode Methods (Sprint 19)
+  // Crisis Mode Methods
 
   /**
    * Enter crisis mode - pauses all scheduled posts

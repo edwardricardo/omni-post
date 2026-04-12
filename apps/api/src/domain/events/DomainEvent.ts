@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Domain Events Infrastructure
- *
- * Part of Sprint 5: DDD Architecture Implementation
- * Domain events represent significant occurrences in the domain.
+ * @file DomainEvent.ts
+ * @description Base domain event interface, abstract event class, handler contract, and in-memory event dispatcher for aggregate lifecycle notifications.
+ * @layer domain
  */
 
 import { randomUUID } from "crypto";

@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Content Value Object
- *
- * Part of Sprint 3: DDD Architecture Implementation
- * Represents immutable post content with validation.
+ * @file Content.ts
+ * @description Value object representing post content — immutable, locale-aware, with platform-specific character limit validation.
+ * @layer domain
  */
 
 import { type Result, ok, err } from "@shared/types";

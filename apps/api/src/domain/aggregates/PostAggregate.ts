@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Post Aggregate
- *
- * Part of Sprint 5: DDD Architecture Implementation
- * The Post aggregate manages Post entity along with its content and media.
+ * @file PostAggregate.ts
+ * @description Aggregate root for Post — enforces publishing invariants, manages content and media attachments, and emits lifecycle domain events.
+ * @layer domain
  */
 
 import { type Result, ok, err } from "@shared/types";

@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Post Domain Events
- *
- * Part of Sprint 5: DDD Architecture Implementation
- * Events that occur during the Post lifecycle.
+ * @file PostEvents.ts
+ * @description Domain events emitted by the Post aggregate during state transitions — creation, scheduling, publishing, failure, and cancellation.
+ * @layer domain
  */
 
 import { BaseDomainEvent } from "./DomainEvent.js";

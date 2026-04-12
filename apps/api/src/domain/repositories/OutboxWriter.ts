@@ -1,9 +1,7 @@
 /**
- * Domain Layer - Outbox Writer Port
- *
- * Part of P2-1: Transactional Outbox Implementation
- * Defines the contract for writing domain events to the transactional outbox.
- * The outbox guarantees at-least-once delivery of domain events.
+ * @file OutboxWriter.ts
+ * @description Repository port for the transactional outbox — defines the contract for persisting domain events within the same database transaction as aggregate writes.
+ * @layer domain
  */
 
 import type { DomainEvent } from "../events/DomainEvent.js";

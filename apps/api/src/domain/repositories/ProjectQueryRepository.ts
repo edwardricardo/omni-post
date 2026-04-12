@@ -1,14 +1,7 @@
 /**
- * Domain Layer - ProjectQueryRepository Port
- *
- * Part of R1-C: Read-model repositories for analytics consumers.
- * This is a FLAT DTO-based read repository (NOT the DDD entity-based
- * ProjectRepositoryPort that already exists).
- *
- * Consumers: ROICalculator, CrossPlatformAnalytics dataFetcher,
- *            PerformanceComparator.
- *
- * @module domain/repositories/ProjectQueryRepository
+ * @file ProjectQueryRepository.ts
+ * @description Repository port for flat DTO-based project reads — provides post, content, and analytics queries for ROI calculation and cross-platform analytics.
+ * @layer domain
  */
 
 import type {

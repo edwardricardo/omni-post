@@ -1,8 +1,7 @@
 /**
- * Domain Layer - PublishStatus Value Object
- *
- * Part of Sprint 3: DDD Architecture Implementation
- * Represents the publishing status of a post with valid state transitions.
+ * @file PublishStatus.ts
+ * @description Value object representing the publishing status of a post — immutable, with a defined state machine governing valid transitions.
+ * @layer domain
  */
 
 import { type Result, ok, err } from "@shared/types";

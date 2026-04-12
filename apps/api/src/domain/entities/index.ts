@@ -1,11 +1,7 @@
 /**
- * Domain Layer - Entity Exports
- *
- * Part of Sprint 4: DDD Architecture Implementation
- * Exports all domain entities.
- *
- * Entities are objects with identity that persists over time.
- * Two entities are equal if they have the same identity, regardless of their attributes.
+ * @file index.ts
+ * @description Barrel export for entities — re-exports all public domain entities and their associated types.
+ * @layer domain
  */
 
 // Base entity class
@@ -38,7 +34,7 @@ export {
   type CrisisModeEntry,
 } from "./Project.js";
 
-// Link Tracking entities (Sprint 19)
+// Link Tracking entities
 export { TrackedLink, type TrackedLinkProps, type TrackedLinkCreateProps } from "./TrackedLink.js";
 
 export { LinkClick, type LinkClickProps, type LinkClickCreateProps } from "./LinkClick.js";

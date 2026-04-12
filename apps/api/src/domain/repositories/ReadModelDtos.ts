@@ -1,17 +1,7 @@
 /**
- * Domain Layer - Read Model DTOs
- *
- * Plain TypeScript interfaces (no Prisma dependency) that mirror the shape
- * of the persisted data returned by the read-model repository ports.
- *
- * These DTOs are intentionally "flat" — they correspond 1:1 with database
- * table shapes — so that analytics, billing, and ML services can consume
- * them without any domain entity overhead.
- *
- * The Prisma adapter implementations in src/infrastructure/repositories/ are
- * responsible for mapping Prisma-generated types to these domain DTOs.
- *
- * @module domain/repositories/ReadModelDtos
+ * @file ReadModelDtos.ts
+ * @description Plain TypeScript DTO interfaces for read-model repository ports — Prisma-free type mirrors that analytics, billing, and reporting services consume directly.
+ * @layer domain
  */
 
 // ---------------------------------------------------------------------------

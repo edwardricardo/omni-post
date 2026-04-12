@@ -1,8 +1,7 @@
 /**
- * Domain Layer - LinkClick Entity
- *
- * Part of Sprint 19: Link Tracking Feature
- * Represents a single click event on a tracked link.
+ * @file LinkClick.ts
+ * @description Domain entity representing a single click event on a tracked link — captures referrer, geolocation, and user-agent metadata.
+ * @layer domain
  */
 
 import { type Result, ok } from "@shared/types";

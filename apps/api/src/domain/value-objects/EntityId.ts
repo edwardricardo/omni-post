@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Base Entity Identifier
- *
- * Part of Sprint 3: DDD Architecture Implementation
- * Provides a strongly-typed base class for all entity identifiers.
+ * @file EntityId.ts
+ * @description Value object representing strongly-typed entity identifiers — immutable, UUID-validated on construction, with typed subclasses for each aggregate.
+ * @layer domain
  */
 
 import { randomUUID } from "crypto";
@@ -262,7 +261,6 @@ export class MediaId extends EntityId {
 
 /**
  * TrackedLinkId - Strongly-typed identifier for TrackedLink entities
- * Part of Sprint 19: Link Tracking Feature
  */
 export class TrackedLinkId extends EntityId {
   protected readonly entityType = "TrackedLinkId";
@@ -292,7 +290,6 @@ export class TrackedLinkId extends EntityId {
 
 /**
  * LinkClickId - Strongly-typed identifier for LinkClick entities
- * Part of Sprint 19: Link Tracking Feature
  */
 export class LinkClickId extends EntityId {
   protected readonly entityType = "LinkClickId";
@@ -322,7 +319,6 @@ export class LinkClickId extends EntityId {
 
 /**
  * CampaignId - Strongly-typed identifier for Campaign entities
- * Part of Phase 3: Analytics & Reporting
  */
 export class CampaignId extends EntityId {
   protected readonly entityType = "CampaignId";
@@ -352,7 +348,6 @@ export class CampaignId extends EntityId {
 
 /**
  * ScheduledReportId - Strongly-typed identifier for ScheduledReport entities
- * Part of Phase 3: Analytics & Reporting
  */
 export class ScheduledReportId extends EntityId {
   protected readonly entityType = "ScheduledReportId";

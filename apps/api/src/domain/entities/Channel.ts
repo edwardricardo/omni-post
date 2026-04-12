@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Channel Entity
- *
- * Part of Sprint 4: DDD Architecture Implementation
- * Represents a social media channel (account) connected to a project.
+ * @file Channel.ts
+ * @description Domain entity representing a social media channel connected to a project — manages OAuth credentials, connection status, and provider metadata.
+ * @layer domain
  */
 
 import { type Result, ok, err } from "@shared/types";

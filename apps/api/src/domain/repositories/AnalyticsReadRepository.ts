@@ -1,13 +1,7 @@
 /**
- * Domain Layer - AnalyticsReadRepository Port
- *
- * Part of R1-C: Read-model repositories for analytics consumers.
- * This is a FLAT DTO-based read repository (NOT the DDD entity-based
- * AnalyticsQueryRepository that already exists).
- *
- * Consumers: ThreadAnalytics.
- *
- * @module domain/repositories/AnalyticsReadRepository
+ * @file AnalyticsReadRepository.ts
+ * @description Repository port for flat DTO-based analytics reads — provides engagement metrics, time series, and cross-platform analytics for reporting consumers.
+ * @layer domain
  */
 
 import type { AnalyticsDto, PostDto, ChannelDto, ProviderKind } from "./ReadModelDtos.js";

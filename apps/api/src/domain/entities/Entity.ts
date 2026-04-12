@@ -1,11 +1,7 @@
 /**
- * Domain Layer - Base Entity Class
- *
- * Part of Sprint 4: DDD Architecture Implementation
- * Provides the base class for all domain entities.
- *
- * Entities are objects with identity that persists over time.
- * Two entities are equal if they have the same identity, regardless of attributes.
+ * @file Entity.ts
+ * @description Base class for all domain entities — provides identity-based equality, creation/update timestamps, and audit info.
+ * @layer domain
  */
 
 import { EntityId } from "../value-objects/EntityId.js";

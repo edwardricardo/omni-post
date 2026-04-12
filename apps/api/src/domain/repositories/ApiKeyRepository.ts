@@ -1,11 +1,7 @@
 /**
- * Domain Layer - API Key Repository Interface (Port)
- *
- * Part of FASE H10-B: API Key Management
- * Defines the contract for API key persistence operations.
- * This is a PORT — infrastructure provides the adapter.
- *
- * @module domain/repositories/ApiKeyRepository
+ * @file ApiKeyRepository.ts
+ * @description Repository port for API key persistence — defines the contract for creating, finding, revoking, and validating hashed API keys.
+ * @layer domain
  */
 
 import type { Result } from "@shared/types";

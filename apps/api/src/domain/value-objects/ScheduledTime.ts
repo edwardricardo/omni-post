@@ -1,8 +1,7 @@
 /**
- * Domain Layer - ScheduledTime Value Object
- *
- * Part of Sprint 3: DDD Architecture Implementation
- * Represents an immutable scheduled publication time with validation.
+ * @file ScheduledTime.ts
+ * @description Value object representing a scheduled publication time — immutable, validated with minimum lead time and maximum horizon constraints.
+ * @layer domain
  */
 
 import { type Result, ok, err } from "@shared/types";

@@ -1,8 +1,7 @@
 /**
- * Domain Layer - MediaAttachment Value Object
- *
- * Part of Sprint 3: DDD Architecture Implementation
- * Represents an immutable media attachment with validation.
+ * @file MediaAttachment.ts
+ * @description Value object representing a media attachment — immutable, validated on construction with platform-specific size, dimension, and type constraints.
+ * @layer domain
  */
 
 import { type Result, ok, err } from "@shared/types";

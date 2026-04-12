@@ -1,8 +1,7 @@
 /**
- * Domain Layer - ShortCode Value Object
- *
- * Part of Sprint 19: Link Tracking Feature
- * Represents a short code for tracked links (like Bitly codes).
+ * @file ShortCode.ts
+ * @description Value object representing a short code for tracked links — immutable, validated for length and character constraints, with cryptographic random generation.
+ * @layer domain
  */
 
 import { randomInt } from "node:crypto";

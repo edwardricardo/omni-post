@@ -1,7 +1,7 @@
 /**
- * Domain Layer - Events Exports
- *
- * Part of Sprint 5: DDD Architecture Implementation
+ * @file index.ts
+ * @description Barrel export for events — re-exports all domain events, the base event infrastructure, and event dispatcher.
+ * @layer domain
  */
 
 // Base event infrastructure
@@ -27,7 +27,7 @@ export {
   type PostEvent,
 } from "./PostEvents.js";
 
-// Project events (Sprint 19)
+// Project events
 export { type ProjectEvent } from "./ProjectEvents.js";
 
 // Social Inbox events are co-located with their aggregates/entities:

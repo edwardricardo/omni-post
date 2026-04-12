@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Provider Value Object
- *
- * Part of Sprint 3: DDD Architecture Implementation
- * Represents a social media provider with its capabilities and constraints.
+ * @file Provider.ts
+ * @description Value object representing a social media provider — immutable, validated on construction, with platform capabilities and feature constraints.
+ * @layer domain
  */
 
 import { type Result, ok, err } from "@shared/types";

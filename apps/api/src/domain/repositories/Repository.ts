@@ -1,9 +1,7 @@
 /**
- * Domain Layer - Repository Interfaces (Ports)
- *
- * Part of Sprint 5: DDD Architecture Implementation
- * Repository interfaces define the contracts for data access.
- * These are ports in the hexagonal architecture pattern.
+ * @file Repository.ts
+ * @description Base repository interfaces (ports) for all aggregates — defines generic CRUD, pagination, sorting, and UnitOfWork contracts.
+ * @layer domain
  */
 
 import { type Result } from "@shared/types";
@@ -96,7 +94,6 @@ export interface SortParams<TFields extends string> {
  * begin/commit/rollback fue eliminado porque las transacciones
  * interactivas de Prisma manejan commit/rollback automáticamente.
  *
- * Part of P2-4: UnitOfWork for multi-step use cases.
  */
 export interface UnitOfWork {
   /**

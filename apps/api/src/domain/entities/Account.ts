@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Account Entity
- *
- * Part of Sprint 4: DDD Architecture Implementation
- * Represents a user account with subscription and billing information.
+ * @file Account.ts
+ * @description Domain entity representing a user account with subscription tier, billing cycle, and tier-based usage limits.
+ * @layer domain
  */
 
 import { type Result, ok, err } from "@shared/types";

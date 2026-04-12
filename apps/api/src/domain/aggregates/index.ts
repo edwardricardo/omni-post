@@ -1,7 +1,7 @@
 /**
- * Domain Layer - Aggregates Exports
- *
- * Part of Sprint 5: DDD Architecture Implementation
+ * @file index.ts
+ * @description Barrel export for aggregates — re-exports all public aggregate roots, their input types, and state snapshots.
+ * @layer domain
  */
 
 export { type AggregateSnapshot } from "./AggregateRoot.js";

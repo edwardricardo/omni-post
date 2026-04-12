@@ -1,11 +1,7 @@
 /**
- * Domain Layer - Value Objects
- *
- * Part of Sprint 3: DDD Architecture Implementation
- * Exports all value objects for the domain layer.
- *
- * Value objects are immutable, equality is based on value not identity,
- * and they represent concepts that describe or measure something.
+ * @file index.ts
+ * @description Barrel export for value objects — re-exports all public value object classes, types, and constants.
+ * @layer domain
  */
 
 // Entity Identifiers (strongly-typed IDs)
@@ -22,7 +18,7 @@ export {
   ScheduledReportId,
 } from "./EntityId.js";
 
-// Link Tracking value objects (Sprint 19)
+// Link Tracking value objects
 export { ShortCode } from "./ShortCode.js";
 
 // Content value objects

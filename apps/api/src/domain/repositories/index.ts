@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Repository Interfaces (Ports)
- *
- * Part of Sprint 5: DDD Architecture Implementation
- * These interfaces define the contracts for data access.
+ * @file index.ts
+ * @description Barrel export for repositories — re-exports all repository port interfaces, DTOs, and query types.
+ * @layer domain
  */
 
 // Base repository interfaces
@@ -30,26 +29,26 @@ export {
   type PostQueryRepository,
 } from "./PostRepository.js";
 
-// TrackedLink repository (Sprint 19)
+// TrackedLink repository
 export {
   type TrackedLinkRepository,
   type ClickStats,
   type TrackedLinkFilterOptions,
 } from "./TrackedLinkRepository.js";
 
-// Account repository (FASE H3)
+// Account repository
 export { type AccountRepository, type AccountRepositoryPort } from "./AccountRepository.js";
 
-// Project repository (FASE H3)
+// Project repository
 export { type ProjectRepository, type ProjectRepositoryPort } from "./ProjectRepository.js";
 
-// Channel repository (FASE H3)
+// Channel repository
 export { type ChannelRepository } from "./ChannelRepository.js";
 
-// Analytics query repository (FASE H3)
+// Analytics query repository
 export { type AnalyticsQueryRepository, type DateRange } from "./AnalyticsQueryRepository.js";
 
-// API Key repository (FASE H10-B)
+// API Key repository
 export {
   type ApiKeyRepository,
   type DomainApiKey,

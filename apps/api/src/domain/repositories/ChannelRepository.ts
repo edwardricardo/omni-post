@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Channel Repository Interface (Port)
- *
- * Part of FASE H3: Hexagonal Architecture Remediation
- * Defines the contract for Channel entity persistence.
+ * @file ChannelRepository.ts
+ * @description Repository port for Channel entity persistence — defines the contract for finding, saving, and deleting social media channels by ID or project.
+ * @layer domain
  */
 
 import { type Result } from "@shared/types";

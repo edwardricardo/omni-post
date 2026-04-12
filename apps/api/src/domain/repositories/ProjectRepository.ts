@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Project Repository Interface (Port)
- *
- * Part of FASE H3: Hexagonal Architecture Remediation
- * Defines the contract for Project aggregate persistence.
+ * @file ProjectRepository.ts
+ * @description Repository port for Project aggregate persistence — defines the contract for CRUD, account-based lookups, and publish log retrieval.
+ * @layer domain
  */
 
 import { type Result } from "@shared/types";

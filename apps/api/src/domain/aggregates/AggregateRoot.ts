@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Aggregate Root Base Class
- *
- * Part of Sprint 5: DDD Architecture Implementation
- * Aggregates are clusters of domain objects that can be treated as a single unit.
+ * @file AggregateRoot.ts
+ * @description Base class for all aggregate roots — manages domain event collection, version tracking, and transactional consistency boundaries.
+ * @layer domain
  */
 
 import { Entity } from "../entities/Entity.js";

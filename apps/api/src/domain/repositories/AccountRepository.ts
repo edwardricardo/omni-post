@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Account Repository Interface (Port)
- *
- * Part of FASE H3: Hexagonal Architecture Remediation
- * Defines the contract for Account entity persistence.
+ * @file AccountRepository.ts
+ * @description Repository port for Account entity persistence — defines the contract for CRUD operations and email-based lookup without infrastructure details.
+ * @layer domain
  */
 
 import { type Result } from "@shared/types";

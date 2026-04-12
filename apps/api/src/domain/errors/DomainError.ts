@@ -1,8 +1,7 @@
 /**
- * Domain Layer - Base Domain Errors
- *
- * Part of Sprint 3: DDD Architecture Implementation
- * Domain errors represent business rule violations and invariant failures.
+ * @file DomainError.ts
+ * @description Domain error hierarchy for typed error handling via Result pattern — includes validation, invariant, state transition, and not-found errors.
+ * @layer domain
  */
 
 /**
