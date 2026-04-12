@@ -1,18 +1,9 @@
 /**
- * Infrastructure Layer - Webhook Integration Event Handler
- *
- * Part of P2-2: Integration Events via BullMQ
- * Stub handler for webhook delivery events.
- *
- * Current state: no-op stub. Real implementation will enqueue webhook
- * delivery jobs so external consumers (subscribed via the webhooks API)
- * receive notifications for post lifecycle events.
- *
- * Handles:
- *   - PostPublished       — a post was successfully published to a provider
- *   - PostPublishingFailed — a post failed to publish after all retries
- *   - PostScheduled       — a post was scheduled for future publication
- *   - PostCancelled       — a scheduled post was cancelled
+ * @file WebhookEventHandler.ts
+ * @description Stub handler for webhook delivery integration events (PostPublished,
+ *              PostPublishingFailed, PostScheduled, PostCancelled). Will enqueue
+ *              webhook delivery jobs for external consumers.
+ * @layer infrastructure
  */
 
 import type { IntegrationEvent } from "../IntegrationEvent.js";

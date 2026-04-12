@@ -1,8 +1,8 @@
 /**
- * Environment Variable Validation Utilities
- *
- * Provides safe access to required environment variables with strict
- * enforcement in production and developer-friendly fallbacks in development.
+ * @file envValidation.ts
+ * @description Provides safe access to required environment variables with strict
+ *              enforcement in production and developer-friendly fallbacks in development.
+ * @layer infrastructure
  */
 
 import { createLogger } from "./logger.js";

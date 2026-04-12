@@ -1,11 +1,9 @@
 /**
- * Infrastructure Adapter — Cross-Platform Analytics
- *
- * Bridges the GetCrossPlatformAnalyticsUseCase port interface to the concrete
- * CrossPlatformAnalyticsEngine that orchestrates all analytics modules.
- * Adapts option shapes and return types between application and infrastructure layers.
- *
- * @module infrastructure/adapters/CrossPlatformAnalyticsAdapter
+ * @file CrossPlatformAnalyticsAdapter.ts
+ * @description Adapter bridging CrossPlatformAnalyticsPort to the concrete
+ *              CrossPlatformAnalyticsEngine. Adapts option shapes and return types
+ *              between application and infrastructure layers.
+ * @layer infrastructure
  */
 import type { CrossPlatformAnalyticsPort } from "../../application/analytics/GetCrossPlatformAnalyticsUseCase.js";
 import { CrossPlatformAnalyticsEngine } from "../../analytics/crossPlatform/index.js";

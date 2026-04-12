@@ -1,23 +1,8 @@
 /**
- * Infrastructure Layer - Integration Event Consumer
- *
- * Part of P2-2: Integration Events via BullMQ
- * Part of P2-5: Event Versioning Strategy (schema validation + upcasting)
- *
- * BullMQ Worker that consumes integration events from the "integration-events" queue
- * and routes them to registered handlers based on job name (= event type).
- *
- * Design decisions:
- * - Receives a pre-built `ConnectionOptions` via constructor (DI-friendly — no global singletons).
- *   Workers require their own Redis connection with `maxRetriesPerRequest: null` per BullMQ docs.
- * - `start()` / `stop()` lifecycle methods — the Worker is not created in the constructor so
- *   the consumer can be instantiated without opening connections (useful in tests).
- * - `processJob()` is exposed as a public method so unit tests can exercise routing logic
- *   without a real BullMQ Worker or Redis connection.
- * - Unknown event types are silently skipped (no handler registered → no-op).
- * - Multiple handlers may be registered for the same event type; all are run in parallel.
- * - Optional `EventSchemaRegistry` and `UpcasterChain` enable versioned payload validation.
- *   When not provided (default) the consumer behaves identically to the pre-P2-5 version.
+ * @file IntegrationEventConsumer.ts
+ * @description BullMQ Worker that consumes integration events from the queue and routes
+ *              them to registered handlers. Supports optional schema validation and upcasting.
+ * @layer infrastructure
  */
 
 import { Worker, type ConnectionOptions } from "bullmq";

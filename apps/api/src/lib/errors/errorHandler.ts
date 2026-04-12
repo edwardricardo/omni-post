@@ -1,3 +1,9 @@
+/**
+ * @file errorHandler.ts
+ * @description Centralized Fastify error handler that sanitizes errors before sending
+ *              to clients. Maps Prisma, Zod, and domain errors to appropriate HTTP responses.
+ * @layer infrastructure
+ */
 import type { FastifyBaseLogger, FastifyError, FastifyReply, FastifyRequest } from "fastify";
 import {
   AppError,

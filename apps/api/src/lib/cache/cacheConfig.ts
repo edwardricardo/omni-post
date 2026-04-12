@@ -1,14 +1,8 @@
 /**
- * API Response Caching Configuration
- *
- * Defines caching strategies for API endpoints to improve response times
- * and reduce database load for frequently accessed resources.
- *
- * Performance Targets:
- * - Providers list: 200ms → 5-10ms (95% improvement)
- * - Templates list: 300ms → 10-20ms (93% improvement)
- * - Analytics dashboard: 500-1000ms → 20-50ms (95% improvement)
- * - User profile: 150ms → 5-10ms (93% improvement)
+ * @file cacheConfig.ts
+ * @description Defines per-endpoint caching strategies (TTL, tags, varyBy) for API
+ *              response caching via Redis. Includes cache key generation and invalidation helpers.
+ * @layer infrastructure
  */
 
 import { CacheTTL, RouteCacheOptions } from "@adapters/cache-redis";

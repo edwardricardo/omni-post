@@ -1,13 +1,8 @@
 /**
- * Infrastructure Layer - Composed Event Dispatcher
- *
- * Part of P2-2: Integration Events via BullMQ
- * Wraps InMemoryEventDispatcher (in-process) + IntegrationEventPublisher (cross-process).
- * Ensures in-process handlers always fire, even if BullMQ is unavailable.
- *
- * Error isolation guarantee: if the IntegrationEventPublisher (BullMQ) throws, the
- * in-process dispatch is still treated as successful. The outbox relay provides
- * at-least-once delivery as a safety net for any dropped integration events.
+ * @file ComposedEventDispatcher.ts
+ * @description Dual-path event dispatcher wrapping InMemoryEventDispatcher (in-process) and
+ *              IntegrationEventPublisher (cross-process via BullMQ) with error isolation.
+ * @layer infrastructure
  */
 
 import type {

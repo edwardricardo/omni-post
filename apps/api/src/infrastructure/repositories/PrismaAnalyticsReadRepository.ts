@@ -1,14 +1,8 @@
 /**
- * Infrastructure Layer - Prisma Analytics Read Repository
- *
- * Part of R1-C: Read-model repositories for analytics consumers.
- * Implements AnalyticsReadRepositoryPort using Prisma ORM with flat domain
- * DTOs — keeping the same behaviour as the legacy AnalyticsRepository singleton.
- *
- * This adapter is SEPARATE from PrismaAnalyticsQueryRepository, which serves
- * the hexagonal read-side with domain entities.
- *
- * @module infrastructure/repositories/PrismaAnalyticsReadRepository
+ * @file PrismaAnalyticsReadRepository.ts
+ * @description Prisma adapter implementing AnalyticsReadRepositoryPort. Serves analytics
+ *              consumers with flat domain DTOs. Receives PrismaClient via constructor injection.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

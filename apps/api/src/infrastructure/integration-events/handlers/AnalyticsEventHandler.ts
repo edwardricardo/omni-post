@@ -1,17 +1,8 @@
 /**
- * Infrastructure Layer - Analytics Integration Event Handler
- *
- * Part of P2-2: Integration Events via BullMQ
- * Stub handler for analytics-related integration events.
- *
- * Current state: no-op stub. Real implementation will forward events to
- * the analytics pipeline (Prometheus counters, ClickHouse, etc.) in a
- * future phase once the analytics ingestion service is wired up.
- *
- * Handles:
- *   - PostCreated   — a new post was created in the system
- *   - PostPublished — a post was successfully published to a provider
- *   - PostPublishingFailed — a post failed to publish after all retries
+ * @file AnalyticsEventHandler.ts
+ * @description Stub handler for analytics-related integration events (PostCreated,
+ *              PostPublished, PostPublishingFailed). Will forward to analytics pipeline.
+ * @layer infrastructure
  */
 
 import type { IntegrationEvent } from "../IntegrationEvent.js";

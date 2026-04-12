@@ -1,14 +1,8 @@
 /**
- * Infrastructure Layer - Prisma Project Query Repository
- *
- * Part of R1-C: Read-model repositories for analytics consumers.
- * Implements ProjectQueryRepositoryPort using Prisma ORM with flat domain
- * DTOs — keeping the same behaviour as the legacy ProjectRepository singleton.
- *
- * This adapter is SEPARATE from PrismaProjectRepository, which serves the
- * hexagonal write-side and returns domain entities.
- *
- * @module infrastructure/repositories/PrismaProjectQueryRepository
+ * @file PrismaProjectQueryRepository.ts
+ * @description Prisma adapter implementing ProjectQueryRepositoryPort (read-side).
+ *              Receives PrismaClient via constructor injection. Returns flat domain DTOs.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

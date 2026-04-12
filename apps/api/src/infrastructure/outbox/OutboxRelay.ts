@@ -1,10 +1,8 @@
 /**
- * Infrastructure Layer - Outbox Relay
- *
- * Part of P2-1: Transactional Outbox Implementation
- * Background process that polls the outbox table for unpublished events
- * and dispatches them through the EventDispatcher.
- * Guarantees at-least-once delivery with exponential backoff retry.
+ * @file OutboxRelay.ts
+ * @description Outbox relay that polls the OutboxEvent table for unpublished events
+ *              and dispatches them via EventDispatcher with at-least-once delivery.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

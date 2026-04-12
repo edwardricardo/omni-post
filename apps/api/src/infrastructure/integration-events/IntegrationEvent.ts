@@ -1,10 +1,8 @@
 /**
- * Infrastructure Layer - Integration Event DTO
- *
- * Part of P2-2: Integration Events via BullMQ
- * Versioned, serializable DTO for cross-process event delivery.
- * Distinct from DomainEvent (rich class instance with methods) —
- * IntegrationEvent is a plain JSON object safe for queue serialization.
+ * @file IntegrationEvent.ts
+ * @description Versioned, JSON-serializable DTO for cross-process event delivery via BullMQ.
+ *              Includes the toIntegrationEvent mapper from DomainEvent to this DTO.
+ * @layer infrastructure
  */
 
 import type { DomainEvent } from "../../domain/events/DomainEvent.js";

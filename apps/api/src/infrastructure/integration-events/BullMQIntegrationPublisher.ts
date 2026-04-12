@@ -1,19 +1,8 @@
 /**
- * Infrastructure Layer - BullMQ Integration Event Publisher
- *
- * Part of P2-2: Integration Events via BullMQ
- * Publishes integration events to a BullMQ queue for cross-process delivery.
- *
- * Design decisions:
- * - Receives a pre-configured `Queue` instance via constructor (DI-friendly).
- *   The queue is created in index.ts so connection lifecycle is managed externally.
- * - Uses `jobId: event.eventId` for BullMQ deduplication. When the OutboxRelay
- *   re-dispatches an event already sent by the use case, BullMQ silently ignores
- *   the duplicate (same jobId = no-op on second add).
- * - Job options (attempts, backoff, removeOnComplete) are configured at the queue
- *   level in index.ts. Per-job options here are limited to `jobId` for dedup.
- * - Errors from `queue.add()` propagate to the caller. The ComposedEventDispatcher
- *   (or equivalent) is responsible for error isolation.
+ * @file BullMQIntegrationPublisher.ts
+ * @description Publishes integration events to a BullMQ queue for cross-process delivery.
+ *              Uses jobId-based deduplication so duplicate dispatches are safely ignored.
+ * @layer infrastructure
  */
 
 import type { Queue } from "bullmq";

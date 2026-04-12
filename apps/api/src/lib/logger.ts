@@ -1,9 +1,8 @@
 /**
- * Unified Logger Factory
- *
- * Provides consistent structured logging across all API components.
- * Uses pino for high-performance JSON logging with automatic redaction
- * of sensitive fields.
+ * @file logger.ts
+ * @description Provides the unified Pino logger factory with automatic redaction of
+ *              sensitive fields and structured JSON output for all API components.
+ * @layer infrastructure
  */
 
 import pino, { Logger, LoggerOptions } from "pino";

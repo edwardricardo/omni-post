@@ -1,11 +1,8 @@
 /**
- * Server Template Engine
- *
- * Extends BaseTemplateEngine with server-specific functionality:
- * - Prisma database access for template storage
- * - DOMPurify sanitization
- * - Platform adapters for content validation
- * - Template component compilation
+ * @file ServerTemplateEngine.ts
+ * @description Server-side template engine extending BaseTemplateEngine with Prisma
+ *              database access, DOMPurify sanitization, and platform content validation.
+ * @layer infrastructure
  */
 
 import DOMPurify from "isomorphic-dompurify";

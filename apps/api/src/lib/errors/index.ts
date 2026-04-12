@@ -1,12 +1,7 @@
 /**
- * Centralized Error Handling Module
- *
- * This module provides:
- * - Standardized error codes
- * - Type-safe error classes with factory methods
- * - Secure error handling that prevents information leakage
- * - Automatic sanitization of errors before sending to clients
- * - Fastify plugin for centralized error handling
+ * @file index.ts
+ * @description Barrel export for the centralized error handling module.
+ * @layer infrastructure
  */
 
 export {

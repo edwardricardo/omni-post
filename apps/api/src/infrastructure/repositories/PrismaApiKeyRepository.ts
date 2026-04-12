@@ -1,10 +1,8 @@
 /**
- * Infrastructure Layer - Prisma API Key Repository
- *
- * Part of FASE H10-B: API Key Management
- * Implements ApiKeyRepository using Prisma ORM.
- *
- * @module infrastructure/repositories/PrismaApiKeyRepository
+ * @file PrismaApiKeyRepository.ts
+ * @description Prisma adapter implementing ApiKeyRepository for API key management.
+ *              Receives PrismaClient via constructor injection.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

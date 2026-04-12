@@ -1,10 +1,8 @@
 /**
- * Infrastructure Layer - Prisma Project Repository
- *
- * Part of FASE H4b: Hexagonal Architecture - Prisma Adapters
- * Implements ProjectRepositoryPort using Prisma ORM.
- *
- * @module infrastructure/repositories/PrismaProjectRepository
+ * @file PrismaProjectRepository.ts
+ * @description Prisma adapter implementing ProjectRepositoryPort (write-side).
+ *              Receives PrismaClient via constructor injection.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

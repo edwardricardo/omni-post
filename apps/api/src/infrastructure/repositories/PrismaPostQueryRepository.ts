@@ -1,11 +1,9 @@
 /**
- * Infrastructure Layer - Prisma Post Query Repository
- *
- * Part of P2-3: CQRS Read Side Implementation
- * Implements PostQueryRepository with read-optimized Prisma queries.
- * Queries flat data directly — no aggregate loading, no domain reconstitution.
- *
- * @module infrastructure/repositories/PrismaPostQueryRepository
+ * @file PrismaPostQueryRepository.ts
+ * @description Prisma adapter implementing PostQueryRepository (CQRS read-side).
+ *              Receives PrismaClient via constructor injection. Queries flat data
+ *              directly without aggregate reconstitution.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

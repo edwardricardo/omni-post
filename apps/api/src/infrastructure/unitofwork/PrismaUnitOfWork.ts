@@ -1,11 +1,8 @@
 /**
- * Infrastructure Layer - Prisma Unit of Work
- *
- * Part of P2-4: UnitOfWork for multi-step use cases.
- * Usa AsyncLocalStorage para propagar el cliente de transacción Prisma
- * a todos los repositorios dentro del mismo contexto async.
- *
- * @module infrastructure/unitofwork/PrismaUnitOfWork
+ * @file PrismaUnitOfWork.ts
+ * @description Prisma Unit of Work using AsyncLocalStorage to propagate the transaction
+ *              client to all repositories within the same async context.
+ * @layer infrastructure
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";

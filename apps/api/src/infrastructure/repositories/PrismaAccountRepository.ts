@@ -1,10 +1,8 @@
 /**
- * Infrastructure Layer - Prisma Account Repository
- *
- * Part of FASE H4b: Hexagonal Architecture - Prisma Adapters
- * Implements AccountRepositoryPort using Prisma ORM.
- *
- * @module infrastructure/repositories/PrismaAccountRepository
+ * @file PrismaAccountRepository.ts
+ * @description Prisma adapter implementing AccountRepositoryPort (write-side).
+ *              Receives PrismaClient via constructor injection.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

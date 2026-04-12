@@ -1,6 +1,8 @@
 /**
- * Re-export core error types from @shared/types (single source of truth)
- * API-specific error subclasses are defined below
+ * @file AppError.ts
+ * @description Re-exports core error types from @shared/types and defines API-specific
+ *              error subclasses (AuthenticationError, AuthorizationError, etc.).
+ * @layer infrastructure
  */
 export {
   ErrorCode,

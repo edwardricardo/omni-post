@@ -1,8 +1,8 @@
 /**
- * Infrastructure Layer - Post Aggregate Mapper
- *
- * Part of Sprint 6: DDD Architecture Implementation
- * Maps between Prisma models and domain aggregates.
+ * @file PostAggregateMapper.ts
+ * @description Maps between Prisma Post models (with relations) and the PostAggregate
+ *              domain entity. Used by PrismaPostRepository for persistence hydration.
+ * @layer infrastructure
  */
 
 import type { Post, PostContent, PostMedia, ContentVersion, MediaKind } from "@infra/prisma";

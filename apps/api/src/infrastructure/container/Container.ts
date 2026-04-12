@@ -1,8 +1,8 @@
 /**
- * Infrastructure Layer - Dependency Injection Container
- *
- * Part of Sprint 7: DDD Architecture Implementation
- * A lightweight dependency injection container for managing service instances.
+ * @file Container.ts
+ * @description Lightweight dependency injection container with symbol-based tokens,
+ *              singleton/transient lifetimes, and child container support.
+ * @layer infrastructure
  */
 
 import type { Token, ServiceFactory, ServiceRegistration, ContainerOptions } from "./types.js";

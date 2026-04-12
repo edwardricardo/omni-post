@@ -1,10 +1,7 @@
 /**
- * Container Setup - Service Registrations
- *
- * Registers all application services and infrastructure singletons in the DI container.
- * Extracted from setup.ts to keep files under 800 lines.
- *
- * @module infrastructure/container/setupServices
+ * @file setupServices.ts
+ * @description Registers all application services and infrastructure singletons in the DI container.
+ * @layer infrastructure
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";

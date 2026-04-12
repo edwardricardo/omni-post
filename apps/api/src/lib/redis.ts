@@ -1,14 +1,8 @@
 /**
- * Centralized Redis Connection Utility
- *
- * Supports both:
- * - REDIS_URL (Railway, Heroku, PaaS platforms)
- * - REDIS_HOST/REDIS_PORT (Docker Compose, local development)
- *
- * Usage:
- * import { getRedisUrl, createRedisConnection } from './lib/redis.js';
- *
- * const redis = createRedisConnection();
+ * @file redis.ts
+ * @description Provides centralized Redis connection factory supporting both REDIS_URL
+ *              (PaaS) and REDIS_HOST/PORT (Docker Compose) configuration styles.
+ * @layer infrastructure
  */
 
 import Redis from "ioredis";

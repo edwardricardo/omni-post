@@ -1,11 +1,9 @@
 /**
- * Infrastructure Adapter — ROI Calculator
- *
- * Bridges the CalculateROIUseCase port interface to the concrete ROICalculator
- * infrastructure service. Maps between the use case's simplified input/output shapes
- * (with ad-hoc investment details) and the infrastructure's full cost model.
- *
- * @module infrastructure/adapters/ROICalculatorAdapter
+ * @file ROICalculatorAdapter.ts
+ * @description Adapter bridging ROICalculatorPort to the concrete ROICalculator service.
+ *              Maps between the use case's simplified input/output shapes and the
+ *              infrastructure's full cost model.
+ * @layer infrastructure
  */
 import type { ROICalculatorPort } from "../../application/analytics/CalculateROIUseCase.js";
 import type { ChannelROI } from "../../application/analytics/types.js";

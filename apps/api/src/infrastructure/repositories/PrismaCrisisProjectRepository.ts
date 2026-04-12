@@ -1,9 +1,8 @@
 /**
- * Infrastructure Layer - Prisma Crisis Project Repository
- *
- * Part of P1-DI-8: Crisis mode DI migration
- * Implements CrisisProjectRepository interface using Prisma ORM.
- * Extracted from crisisRoutes.ts to follow hexagonal architecture.
+ * @file PrismaCrisisProjectRepository.ts
+ * @description Prisma adapter implementing CrisisProjectRepository for crisis mode operations.
+ *              Receives PrismaClient via constructor injection.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

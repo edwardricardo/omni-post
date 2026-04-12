@@ -244,7 +244,7 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // AI Differentiation — Analytics→AI Bridge (Sprint 7)
+  // AI Differentiation — Analytics→AI Bridge
   container.register<TopPerformersQueryPort>(
     TOKENS.TopPerformersQueryPort,
     () => new PrismaTopPerformersQuery(container.resolve<PrismaClient>(TOKENS.PrismaClient)),

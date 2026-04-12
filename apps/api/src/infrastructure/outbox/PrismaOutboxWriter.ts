@@ -1,8 +1,8 @@
 /**
- * Infrastructure Layer - Prisma Outbox Writer
- *
- * Part of P2-1: Transactional Outbox Implementation
- * Writes domain events to the OutboxEvent table within a Prisma transaction.
+ * @file PrismaOutboxWriter.ts
+ * @description Outbox writer that persists domain events to the OutboxEvent table
+ *              within a Prisma transaction for transactional event publishing.
+ * @layer infrastructure
  */
 
 import type { Prisma } from "@infra/prisma";

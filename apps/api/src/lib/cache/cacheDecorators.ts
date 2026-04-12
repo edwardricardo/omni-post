@@ -1,7 +1,8 @@
 /**
- * Cache Decorators and Helpers for API Routes
- *
- * Provides decorators and utility functions to easily add caching to route handlers
+ * @file cacheDecorators.ts
+ * @description Provides cache decorator functions and helpers for adding Redis-backed
+ *              response caching to Fastify route handlers.
+ * @layer infrastructure
  */
 
 import type { FastifyRequest, FastifyReply } from "fastify";

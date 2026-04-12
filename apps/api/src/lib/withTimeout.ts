@@ -1,18 +1,8 @@
 /**
- * Use Case Timeout Wrapper
- *
- * Provides a 30-second safety net around any use case execution.
- * If the underlying promise does not settle within the allotted time,
- * the wrapper rejects with a TimeoutError so route handlers can
- * return 504 Gateway Timeout instead of hanging indefinitely.
- *
- * Design notes:
- * - Uses Promise.race() — no external dependencies.
- * - The timer is unref()'d so it never blocks process exit in tests.
- * - Does NOT cancel the in-flight promise (AbortSignal integration is P1 scope).
- *   The promise continues to run in the background but its result is discarded.
- *
- * @module lib/withTimeout
+ * @file withTimeout.ts
+ * @description Provides a configurable timeout wrapper around use case executions using
+ *              Promise.race(). Rejects with TimeoutError for 504 Gateway Timeout responses.
+ * @layer infrastructure
  */
 
 /**

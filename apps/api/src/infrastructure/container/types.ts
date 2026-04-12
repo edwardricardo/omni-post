@@ -1,8 +1,7 @@
 /**
- * Infrastructure Layer - Dependency Injection Types
- *
- * Part of Sprint 7: DDD Architecture Implementation
- * Defines types and tokens for dependency injection.
+ * @file types.ts
+ * @description Defines DI token symbols and type aliases for the dependency injection container.
+ * @layer infrastructure
  */
 
 /**
@@ -18,7 +17,7 @@ export const TOKENS = {
   // AdminUser Repository (R1-A — hexagonal port, replaces legacy UserRepository)
   AdminUserRepository: Symbol.for("AdminUserRepository"),
 
-  // Repositories (FASE H4b — new adapters)
+  // Repositories
   AccountRepository: Symbol.for("AccountRepository"),
   ProjectRepository: Symbol.for("ProjectRepository"),
   AnalyticsQueryRepository: Symbol.for("AnalyticsQueryRepository"),
@@ -34,10 +33,10 @@ export const TOKENS = {
   // Repositories (P2-3 — CQRS read side)
   PostQueryRepository: Symbol.for("PostQueryRepository"),
 
-  // Repositories (FASE H10-B — API keys)
+  // Repositories (API keys)
   ApiKeyRepository: Symbol.for("ApiKeyRepository"),
 
-  // Use Cases (FASE H10-B)
+  // Use Cases (API keys)
   CreateApiKeyUseCase: Symbol.for("CreateApiKeyUseCase"),
   ValidateApiKeyUseCase: Symbol.for("ValidateApiKeyUseCase"),
   ListApiKeysUseCase: Symbol.for("ListApiKeysUseCase"),
@@ -47,14 +46,14 @@ export const TOKENS = {
   // Event Dispatching
   EventDispatcher: Symbol.for("EventDispatcher"),
 
-  // Use Cases (Sprint 8)
+  // Use Cases
   CreatePostUseCase: Symbol.for("CreatePostUseCase"),
   UpdatePostUseCase: Symbol.for("UpdatePostUseCase"),
   GetPostUseCase: Symbol.for("GetPostUseCase"),
   ListPostsUseCase: Symbol.for("ListPostsUseCase"),
   DeletePostUseCase: Symbol.for("DeletePostUseCase"),
 
-  // Use Cases (P2-ARCH-1 — postRoutes migration)
+  // Use Cases (post scheduling)
   SchedulePostUseCase: Symbol.for("SchedulePostUseCase"),
   GetPostWithThreadQuery: Symbol.for("GetPostWithThreadQuery"),
   ListPostsGlobalQuery: Symbol.for("ListPostsGlobalQuery"),
@@ -415,7 +414,7 @@ export const TOKENS = {
   EnableReportSharingUseCase: Symbol.for("EnableReportSharingUseCase"),
   DisableReportSharingUseCase: Symbol.for("DisableReportSharingUseCase"),
 
-  // AI Differentiation (Sprint 7)
+  // AI Differentiation
   TopPerformersQueryPort: Symbol.for("TopPerformersQueryPort"),
   GetTopPerformersContextUseCase: Symbol.for("GetTopPerformersContextUseCase"),
   GeneratePlatformVariantsUseCase: Symbol.for("GeneratePlatformVariantsUseCase"),
@@ -442,7 +441,7 @@ export const TOKENS = {
   ScoreTrendContextPort: Symbol.for("ScoreTrendContextPort"),
   ScoreTrendRelevanceUseCase: Symbol.for("ScoreTrendRelevanceUseCase"),
 
-  // AI Repurpose Use Cases (Sprint 9)
+  // AI Repurpose Use Cases
   ApproveRepurposeVariantUseCase: Symbol.for("ApproveRepurposeVariantUseCase"),
   RejectRepurposeVariantUseCase: Symbol.for("RejectRepurposeVariantUseCase"),
   DetectRepurposeCandidatesUseCase: Symbol.for("DetectRepurposeCandidatesUseCase"),

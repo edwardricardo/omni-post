@@ -28,7 +28,7 @@ import {
  * Register all post use cases in the container
  */
 export function setupPostUseCases(container: Container): void {
-  // Register Post Use Cases (FASE H5)
+  // Register Post Use Cases
   container.register<CreatePostUseCase>(
     TOKENS.CreatePostUseCase,
     () =>
@@ -69,7 +69,7 @@ export function setupPostUseCases(container: Container): void {
     true
   );
 
-  // Register Post Use Cases (P2-ARCH-1 — postRoutes migration)
+  // Register Post Scheduling Use Cases
   container.register<SchedulePostUseCase>(
     TOKENS.SchedulePostUseCase,
     () =>

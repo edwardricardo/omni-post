@@ -1,10 +1,7 @@
 /**
- * Container Setup - Repository Registrations
- *
- * Registers all repository adapters in the DI container.
- * Extracted from setup.ts to keep files under 800 lines.
- *
- * @module infrastructure/container/setupRepositories
+ * @file setupRepositories.ts
+ * @description Registers all repository adapters and Unit of Work in the DI container.
+ * @layer infrastructure
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
@@ -98,7 +95,7 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register Repositories (FASE H4b)
+  // Register Repositories
   container.register<AccountRepositoryPort>(
     TOKENS.AccountRepository,
     () => new PrismaAccountRepository(container.resolve(TOKENS.PrismaClient)),
@@ -143,7 +140,7 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register API Key Repository (FASE H10-B)
+  // Register API Key Repository
   container.register<ApiKeyRepository>(
     TOKENS.ApiKeyRepository,
     () => new PrismaApiKeyRepository(container.resolve(TOKENS.PrismaClient)),

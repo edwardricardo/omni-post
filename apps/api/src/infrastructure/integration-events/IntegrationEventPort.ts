@@ -1,9 +1,8 @@
 /**
- * Infrastructure Layer - Integration Event Publisher Port
- *
- * Part of P2-2: Integration Events via BullMQ
- * Defines the contract for publishing integration events to a message broker.
- * Implementations: BullMQIntegrationPublisher (production), NoopPublisher (tests).
+ * @file IntegrationEventPort.ts
+ * @description Port interface for publishing integration events to a message broker.
+ *              Implementations: BullMQIntegrationPublisher (production), NoopPublisher (tests).
+ * @layer infrastructure
  */
 
 import type { IntegrationEvent } from "./IntegrationEvent.js";

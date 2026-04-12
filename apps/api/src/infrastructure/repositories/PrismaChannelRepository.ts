@@ -1,16 +1,9 @@
 /**
- * Infrastructure Layer - Prisma Channel Repository
- *
- * Part of FASE H4b: Hexagonal Architecture - Prisma Adapters
- * Implements ChannelRepository using Prisma ORM.
- *
- * Note on domain status fields: The Prisma Channel model stores only
- * core identity data (provider, handle, credentials). Runtime status
- * fields (status, errorCount, lastError, lastHealthCheck) live only in
- * the domain entity in memory and are re-evaluated on reconnect. They
- * are reconstructed with safe defaults when loading from persistence.
- *
- * @module infrastructure/repositories/PrismaChannelRepository
+ * @file PrismaChannelRepository.ts
+ * @description Prisma adapter implementing ChannelRepository. Receives PrismaClient via
+ *              constructor injection. Runtime status fields are reconstructed with safe
+ *              defaults when loading from persistence.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

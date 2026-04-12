@@ -1,15 +1,8 @@
 /**
- * Infrastructure Layer - Event Schema Registry
- *
- * Part of P2-5: Event Versioning Strategy
- * Maps (eventType, version) → Zod schema for payload validation.
- *
- * Enables:
- * - Validating incoming event payloads match expected shape
- * - Documenting event schemas as executable code
- * - Detecting unknown event types or unsupported versions
- *
- * All 12 production events (10 Post + 2 Project/Crisis) are pre-registered at v1.
+ * @file EventSchemaRegistry.ts
+ * @description Maps (eventType, version) to Zod schemas for integration event payload
+ *              validation. Pre-registers all production event schemas at v1.
+ * @layer infrastructure
  */
 
 import { z } from "zod";

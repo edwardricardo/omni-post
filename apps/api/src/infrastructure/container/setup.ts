@@ -1,12 +1,8 @@
 /**
- * Infrastructure Layer - Container Setup
- *
- * Composes the DI container from sub-setup modules:
- * - setupRepositories (repository adapters)
- * - setupUseCases     (application use cases)
- * - setupServices     (business services and infrastructure)
- *
- * @module infrastructure/container/setup
+ * @file setup.ts
+ * @description Composes the DI container from sub-setup modules: repositories,
+ *              use cases, and services. Entry point for container initialization.
+ * @layer infrastructure
  */
 import type { PrismaClient } from "@infra/prisma";
 import { Container, getContainer } from "./Container.js";

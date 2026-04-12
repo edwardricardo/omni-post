@@ -1,11 +1,9 @@
 /**
- * Infrastructure Adapter — Performance Comparator
- *
- * Bridges the ComparePerformanceUseCase port interface to the concrete
- * PerformanceComparator infrastructure service. Adapts option and return shapes
- * between the application and infrastructure layers.
- *
- * @module infrastructure/adapters/PerformanceComparatorAdapter
+ * @file PerformanceComparatorAdapter.ts
+ * @description Adapter bridging PerformanceComparatorPort to the concrete
+ *              PerformanceComparator service. Adapts option and return shapes
+ *              between application and infrastructure layers.
+ * @layer infrastructure
  */
 import type { PerformanceComparatorPort } from "../../application/analytics/ComparePerformanceUseCase.js";
 import type { PerformanceSnapshot } from "../../application/analytics/types.js";

@@ -1,8 +1,8 @@
 /**
- * Fastify Error Handler Plugin
- *
- * Registers centralized error handling for the entire application.
- * SECURITY: Ensures no internal details are leaked to clients.
+ * @file errorPlugin.ts
+ * @description Fastify plugin that registers the centralized error handler.
+ *              Ensures no internal details are leaked to clients.
+ * @layer infrastructure
  */
 
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";

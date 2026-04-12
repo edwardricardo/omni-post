@@ -1,8 +1,8 @@
 /**
- * Infrastructure Layer - Prisma Post Repository
- *
- * Part of Sprint 6: DDD Architecture Implementation
- * Implements PostRepository interface using Prisma ORM.
+ * @file PrismaPostRepository.ts
+ * @description Prisma adapter implementing PostRepository (write-side). Receives PrismaClient
+ *              via constructor injection. Persists PostAggregate with outbox event writing.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

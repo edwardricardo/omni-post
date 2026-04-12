@@ -1,13 +1,8 @@
 /**
- * Infrastructure Layer - Prisma Analytics Query Repository
- *
- * Part of FASE H4b: Hexagonal Architecture - Prisma Adapters
- * Implements AnalyticsQueryRepository using Prisma ORM.
- *
- * This is the read side of the CQRS split for analytics data.
- * Uses DomainAnalytics DTOs directly — no full aggregate reconstitution needed.
- *
- * @module infrastructure/repositories/PrismaAnalyticsQueryRepository
+ * @file PrismaAnalyticsQueryRepository.ts
+ * @description Prisma adapter implementing AnalyticsQueryRepository (CQRS read-side).
+ *              Receives PrismaClient via constructor injection. Returns DomainAnalytics DTOs.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

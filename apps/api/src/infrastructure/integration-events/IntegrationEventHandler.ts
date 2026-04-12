@@ -1,9 +1,8 @@
 /**
- * Infrastructure Layer - Integration Event Handler Interface
- *
- * Part of P2-2: Integration Events via BullMQ
- * Contract for handlers that process integration events consumed from the queue.
- * Each handler declares which event types it handles and provides a `handle()` method.
+ * @file IntegrationEventHandler.ts
+ * @description Contract for handlers that process integration events consumed from
+ *              the BullMQ queue. Each handler declares its event types and provides handle().
+ * @layer infrastructure
  */
 
 import type { IntegrationEvent } from "./IntegrationEvent.js";

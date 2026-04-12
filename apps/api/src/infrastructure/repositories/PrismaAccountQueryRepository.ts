@@ -1,22 +1,9 @@
 /**
- * Infrastructure Layer - Prisma Account Query Repository (Read Model Adapter)
- *
- * Part of R1-B: Hexagonal migration — billing services read-model.
- *
- * Implements AccountQueryRepositoryPort using Prisma ORM.
- * This adapter handles the read-side operations required by billing services:
- * - findWithProjects (account + Project[] relation)
- * - findManyWithProjects (batch)
- * - findById (lightweight, no relation)
- * - updateSubscription (partial subscription fields)
- * - getExpiringTrials (scheduled job / notification query)
- *
- * IMPORTANT: This is a SEPARATE adapter from PrismaAccountRepository.
- * PrismaAccountRepository is the write-side hexagonal adapter that works
- * with domain entities (Account, AccountId). This adapter works with raw
- * domain DTOs for billing use cases that need Prisma relations directly.
- *
- * @module infrastructure/repositories/PrismaAccountQueryRepository
+ * @file PrismaAccountQueryRepository.ts
+ * @description Prisma adapter implementing AccountQueryRepositoryPort (read-side).
+ *              Receives PrismaClient via constructor injection. Serves billing
+ *              services with flat DTOs and relation-loaded account queries.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

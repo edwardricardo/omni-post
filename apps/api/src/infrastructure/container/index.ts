@@ -1,7 +1,7 @@
 /**
- * Infrastructure Layer - Container Exports
- *
- * Part of Sprint 7: DDD Architecture Implementation
+ * @file index.ts
+ * @description Barrel export for the DI container module.
+ * @layer infrastructure
  */
 
 export { TOKENS, type Token, type ServiceFactory, type ContainerOptions } from "./types.js";

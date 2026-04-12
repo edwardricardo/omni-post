@@ -1,11 +1,8 @@
 /**
- * Infrastructure Layer - PrismaAdminUserRepository
- *
- * Prisma adapter that implements the AdminUserRepositoryPort.
- * Receives PrismaClient via constructor injection — never imports the singleton.
- *
- * Replaces the legacy apps/api/src/repositories/UserRepository.ts singleton
- * as part of the R1-A hexagonal architecture migration.
+ * @file PrismaAdminUserRepository.ts
+ * @description Prisma adapter implementing AdminUserRepositoryPort.
+ *              Receives PrismaClient via constructor injection.
+ * @layer infrastructure
  */
 
 import type { PrismaClient, AdminUser, Role } from "@infra/prisma";

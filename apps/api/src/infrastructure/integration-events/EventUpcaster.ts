@@ -1,19 +1,8 @@
 /**
- * Infrastructure Layer - Event Upcaster Chain
- *
- * Part of P2-5: Event Versioning Strategy
- * Transforms event payloads from version N to N+1 and chains
- * multiple upcasters for multi-version jumps (v1 → v2 → v3 → ...).
- *
- * Design:
- * - `Upcaster<TFrom, TTo>` is the atomic unit: converts one version to the next.
- * - `UpcasterChain` holds all registered upcasters and applies them sequentially.
- * - If no upcasters are registered for a type/version, the original payload is returned.
- * - Upcasting is a one-way operation — there is no "downcaster".
- *
- * Current state: No actual upcasters are registered because all production events
- * are at v1. The infrastructure is in place so future schema evolutions only need
- * to call `chain.register(new MyUpcaster())`.
+ * @file EventUpcaster.ts
+ * @description Transforms integration event payloads from version N to N+1 via a chainable
+ *              upcaster pipeline. Enables forward-compatible event schema evolution.
+ * @layer infrastructure
  */
 
 // ---------------------------------------------------------------------------

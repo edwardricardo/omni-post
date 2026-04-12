@@ -1,8 +1,8 @@
 /**
- * Infrastructure Layer - Prisma TrackedLink Repository
- *
- * Part of Sprint 19: Link Tracking Feature
- * Implements TrackedLinkRepository interface using Prisma ORM.
+ * @file PrismaTrackedLinkRepository.ts
+ * @description Prisma adapter implementing TrackedLinkRepository for link tracking.
+ *              Receives PrismaClient via constructor injection.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

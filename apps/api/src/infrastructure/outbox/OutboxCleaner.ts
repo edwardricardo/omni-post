@@ -1,9 +1,8 @@
 /**
- * Infrastructure Layer - Outbox Cleaner
- *
- * Part of P2-1: Transactional Outbox Implementation
- * Periodically removes old published events from the outbox table
- * to prevent unbounded table growth.
+ * @file OutboxCleaner.ts
+ * @description Outbox cleaner that periodically removes old published events from the
+ *              OutboxEvent table to prevent unbounded table growth.
+ * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";

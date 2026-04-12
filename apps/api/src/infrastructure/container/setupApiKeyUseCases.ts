@@ -19,7 +19,7 @@ import {
  * Register all API key use cases in the container
  */
 export function setupApiKeyUseCases(container: Container): void {
-  // Register API Key Use Cases (FASE H10-B)
+  // Register API Key Use Cases
   container.register<CreateApiKeyUseCase>(
     TOKENS.CreateApiKeyUseCase,
     () => new CreateApiKeyUseCase(container.resolve<ApiKeyRepository>(TOKENS.ApiKeyRepository)),
