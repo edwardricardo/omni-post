@@ -28,6 +28,11 @@ vi.mock("@infra/prisma", async (importOriginal) => {
   return { ...original, prisma: mockPrisma.prisma };
 });
 
+vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
+  const { createAdminAuthMock } = await import("./helpers/mockAuthMiddleware.js");
+  return createAdminAuthMock();
+});
+
 vi.mock("../../src/lib/logger.js", () => {
   const noop = vi.fn();
   const noopLogger = {
@@ -49,6 +54,11 @@ vi.mock("../../src/lib/logger.js", () => {
 const Fastify = (await import("fastify")).default;
 const { queueRoutes } = await import("../../src/admin/queueRoutes.js");
 const { generateAdminToken } = await import("./admin/adminTestHelper.js");
+const { Container } = await import("../../src/infrastructure/container/Container.js");
+const { TOKENS } = await import("../../src/infrastructure/container/types.js");
+const { RbacService } = await import("../../src/auth/rbacService.js");
+const { PrismaAdminUserRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -58,6 +68,10 @@ const timestamp = Date.now();
 
 async function createTestApp() {
   const app = Fastify({ logger: false });
+  const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+  const container = new Container();
+  container.registerInstance(TOKENS.RbacService, new RbacService(adminUserRepo));
+  app.decorate("container", container);
   await app.register(queueRoutes);
   await app.ready();
   return app;

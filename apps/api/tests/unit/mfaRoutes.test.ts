@@ -61,6 +61,7 @@ const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
 const { Container } = await import("../../src/infrastructure/container/Container.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
+const { RbacService } = await import("../../src/auth/rbacService.js");
 
 // ---------------------------------------------------------------------------
 // Shared service instances
@@ -82,6 +83,7 @@ async function createTestApp() {
   container.registerInstance(TOKENS.AuthService, authService);
   container.registerInstance(TOKENS.MfaService, mfaService);
   container.registerInstance(TOKENS.AuditService, auditService);
+  container.registerInstance(TOKENS.RbacService, new RbacService(adminUserRepo));
   app.decorate("container", container);
 
   await app.register(mfaRoutes);

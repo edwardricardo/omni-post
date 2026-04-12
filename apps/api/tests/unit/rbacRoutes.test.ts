@@ -248,14 +248,15 @@ describe("rbacRoutes Unit Tests", () => {
       expect(Array.isArray(body.data?.allPermissions)).toBeTruthy();
     });
 
-    it("should reject without admin role", async () => {
+    it("should allow support role with user:read permission", async () => {
       const response = await app.inject({
         method: "GET",
         url: "/admin/rbac/roles",
         headers: { authorization: `Bearer ${supportToken}` },
       });
 
-      expect(response.statusCode).toBe(403);
+      // SUPPORT has user:read permission, which is sufficient for read-only RBAC endpoints
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject without authentication", async () => {
@@ -623,14 +624,15 @@ describe("rbacRoutes Unit Tests", () => {
       expect(body.data?.currentUser?.canModifyRoles).toBe(true);
     });
 
-    it("should reject without admin role", async () => {
+    it("should allow support role with user:read permission", async () => {
       const response = await app.inject({
         method: "GET",
         url: "/admin/rbac/hierarchy",
         headers: { authorization: `Bearer ${supportToken}` },
       });
 
-      expect(response.statusCode).toBe(403);
+      // SUPPORT has user:read permission, sufficient for read endpoints
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject without authentication", async () => {
@@ -674,14 +676,15 @@ describe("rbacRoutes Unit Tests", () => {
       expect(Array.isArray(body.data?.statistics?.roleDistribution)).toBeTruthy();
     });
 
-    it("should reject without admin role", async () => {
+    it("should allow support role with user:read permission", async () => {
       const response = await app.inject({
         method: "GET",
         url: "/admin/rbac/status",
         headers: { authorization: `Bearer ${supportToken}` },
       });
 
-      expect(response.statusCode).toBe(403);
+      // SUPPORT has user:read permission, sufficient for read endpoints
+      expect(response.statusCode).toBe(200);
     });
 
     it("should reject without authentication", async () => {

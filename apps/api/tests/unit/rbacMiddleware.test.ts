@@ -137,7 +137,7 @@ describe("rbacMiddleware Tests", () => {
 
   describe("requirePermission Middleware", () => {
     it("should deny access when user is not authenticated", async () => {
-      const middleware = requirePermission(Permission.USER_UPDATE);
+      const middleware = requirePermission(Permission.USER_MANAGE);
       const request = createMockRequest();
       const reply = createMockReply();
 
@@ -150,7 +150,7 @@ describe("rbacMiddleware Tests", () => {
     });
 
     it("should allow access when user has required permission", async () => {
-      const middleware = requirePermission(Permission.USER_UPDATE);
+      const middleware = requirePermission(Permission.USER_MANAGE);
       const request = createMockRequest({ user: mockSuperAdmin });
       const reply = createMockReply();
 
@@ -170,12 +170,13 @@ describe("rbacMiddleware Tests", () => {
       expect(reply.getStatusCode()).toBe(403);
       expect(reply.wasSent()).toBeTruthy();
       const body = reply.getBody();
-      expect(body.error).toBe("Insufficient permissions");
-      expect(body.message).toBeTruthy();
+      expect(body.ok).toBe(false);
+      expect(body.error.code).toBe("PERMISSION_DENIED");
+      expect(body.error.message).toBeTruthy();
     });
 
     it("should allow access with any of multiple permissions", async () => {
-      const middleware = requirePermission(Permission.USER_READ, Permission.USER_UPDATE);
+      const middleware = requirePermission(Permission.USER_READ, Permission.USER_MANAGE);
       const request = createMockRequest({ user: mockAdmin });
       const reply = createMockReply();
 
@@ -185,7 +186,7 @@ describe("rbacMiddleware Tests", () => {
       expect(reply.wasSent()).toBe(false);
     });
 
-    it("should include current permissions in error response", async () => {
+    it("should include permission denied info in error response", async () => {
       const middleware = requirePermission(Permission.SYSTEM_CONFIGURE);
       const request = createMockRequest({ user: mockSupport });
       const reply = createMockReply();
@@ -193,8 +194,9 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       const body = reply.getBody();
-      expect(body.current).toBeTruthy();
-      expect(Array.isArray(body.current)).toBeTruthy();
+      expect(body.ok).toBe(false);
+      expect(body.error.code).toBe("PERMISSION_DENIED");
+      expect(body.error.message).toContain("system:configure");
     });
   });
 
@@ -204,7 +206,7 @@ describe("rbacMiddleware Tests", () => {
 
   describe("requireAllPermissions Middleware", () => {
     it("should deny access when user is not authenticated", async () => {
-      const middleware = requireAllPermissions(Permission.USER_READ, Permission.USER_UPDATE);
+      const middleware = requireAllPermissions(Permission.USER_READ, Permission.USER_MANAGE);
       const request = createMockRequest();
       const reply = createMockReply();
 
@@ -215,7 +217,7 @@ describe("rbacMiddleware Tests", () => {
     });
 
     it("should allow access when user has all required permissions", async () => {
-      const middleware = requireAllPermissions(Permission.USER_READ, Permission.USER_UPDATE);
+      const middleware = requireAllPermissions(Permission.USER_READ, Permission.USER_MANAGE);
       const request = createMockRequest({ user: mockSuperAdmin });
       const reply = createMockReply();
 
@@ -236,26 +238,22 @@ describe("rbacMiddleware Tests", () => {
     });
 
     it("should list missing permissions in error response", async () => {
-      const middleware = requireAllPermissions(
-        Permission.USER_READ,
-        Permission.USER_UPDATE,
-        Permission.SYSTEM_CONFIGURE
-      );
+      const middleware = requireAllPermissions(Permission.USER_READ, Permission.SYSTEM_CONFIGURE);
       const request = createMockRequest({ user: mockSupport });
       const reply = createMockReply();
 
       await middleware(request, reply);
 
       const body = reply.getBody();
-      expect(body.missing).toBeTruthy();
-      expect(Array.isArray(body.missing)).toBeTruthy();
-      expect(body.missing.length > 0).toBeTruthy();
+      expect(body.ok).toBe(false);
+      expect(body.error.code).toBe("PERMISSION_DENIED");
+      expect(body.error.message).toContain("Missing permissions");
     });
 
     it("should allow super admin with all permissions", async () => {
       const middleware = requireAllPermissions(
         Permission.USER_READ,
-        Permission.USER_UPDATE,
+        Permission.USER_MANAGE,
         Permission.BILLING_MANAGE
       );
       const request = createMockRequest({ user: mockSuperAdmin });
@@ -275,7 +273,7 @@ describe("rbacMiddleware Tests", () => {
     it("should deny access when user is not authenticated", async () => {
       const middleware = requireOwnershipOrPermission(
         async () => "resource-owner-id",
-        Permission.MANAGE_USERS
+        Permission.USER_MANAGE
       );
       const request = createMockRequest();
       const reply = createMockReply();
@@ -288,7 +286,7 @@ describe("rbacMiddleware Tests", () => {
 
     it("should allow access when user is resource owner", async () => {
       const userId = mockAdmin.id;
-      const middleware = requireOwnershipOrPermission(async () => userId, Permission.MANAGE_USERS);
+      const middleware = requireOwnershipOrPermission(async () => userId, Permission.USER_MANAGE);
       const request = createMockRequest({ user: mockAdmin });
       const reply = createMockReply();
 
@@ -300,7 +298,7 @@ describe("rbacMiddleware Tests", () => {
     it("should allow access when user has fallback permission", async () => {
       const middleware = requireOwnershipOrPermission(
         async () => "other-user-id",
-        Permission.USER_UPDATE
+        Permission.USER_MANAGE
       );
       const request = createMockRequest({ user: mockSuperAdmin });
       const reply = createMockReply();
@@ -313,7 +311,7 @@ describe("rbacMiddleware Tests", () => {
     it("should deny access when user is not owner and lacks permission", async () => {
       const middleware = requireOwnershipOrPermission(
         async () => "other-user-id",
-        Permission.USER_UPDATE
+        Permission.SYSTEM_CONFIGURE
       );
       const request = createMockRequest({ user: mockSupport });
       const reply = createMockReply();
@@ -323,13 +321,14 @@ describe("rbacMiddleware Tests", () => {
       expect(reply.getStatusCode()).toBe(403);
       expect(reply.wasSent()).toBeTruthy();
       const body = reply.getBody();
-      expect(body.error).toBe("Access denied");
+      expect(body.ok).toBe(false);
+      expect(body.error.code).toBe("PERMISSION_DENIED");
     });
 
     it("should handle async ownership check from request params", async () => {
       const middleware = requireOwnershipOrPermission(
         async (req) => (req.params as any).userId || "unknown",
-        Permission.USER_UPDATE
+        Permission.USER_MANAGE
       );
       const request = createMockRequest({
         user: mockAdmin,
@@ -345,7 +344,7 @@ describe("rbacMiddleware Tests", () => {
     it("should handle errors in ownership check gracefully", async () => {
       const middleware = requireOwnershipOrPermission(async () => {
         throw new Error("Database error");
-      }, Permission.USER_UPDATE);
+      }, Permission.USER_MANAGE);
       const request = createMockRequest({ user: mockAdmin });
       const reply = createMockReply();
 
@@ -402,7 +401,7 @@ describe("rbacMiddleware Tests", () => {
       expect(reply.wasSent()).toBeTruthy();
     });
 
-    it("should include context in error response", async () => {
+    it("should deny access with permission denied error", async () => {
       const context = { projectId: "proj-123", userId: "user-456" };
       const middleware = requireContextPermission(async () => context, Permission.SYSTEM_CONFIGURE);
       const request = createMockRequest({ user: mockSupport });
@@ -411,7 +410,8 @@ describe("rbacMiddleware Tests", () => {
       await middleware(request, reply);
 
       const body = reply.getBody();
-      expect(body.context).toStrictEqual(context);
+      expect(body.ok).toBe(false);
+      expect(body.error.code).toBe("PERMISSION_DENIED");
     });
 
     it("should handle errors in context retrieval", async () => {

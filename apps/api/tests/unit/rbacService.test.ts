@@ -143,73 +143,76 @@ describe("RbacService Tests", () => {
 
   describe("hasPermission", () => {
     it("should grant SUPER_ADMIN all permissions", async () => {
-      const hasUserCreate = await rbacService.hasPermission("SUPER_ADMIN", Permission.USER_CREATE);
-      const hasSystemBackup = await rbacService.hasPermission(
+      const hasUserManage = await rbacService.hasPermission("SUPER_ADMIN", Permission.USER_MANAGE);
+      const hasSystemConfigure = await rbacService.hasPermission(
         "SUPER_ADMIN",
-        Permission.SYSTEM_BACKUP
+        Permission.SYSTEM_CONFIGURE
       );
 
-      expect(hasUserCreate).toBe(true);
-      expect(hasSystemBackup).toBe(true);
+      expect(hasUserManage).toBe(true);
+      expect(hasSystemConfigure).toBe(true);
     });
 
     it("should grant ADMIN limited permissions", async () => {
-      const hasUserCreate = await rbacService.hasPermission("ADMIN", Permission.USER_CREATE);
-      const hasSystemBackup = await rbacService.hasPermission("ADMIN", Permission.SYSTEM_BACKUP);
+      const hasUserManage = await rbacService.hasPermission("ADMIN", Permission.USER_MANAGE);
+      const hasPricingManage = await rbacService.hasPermission("ADMIN", Permission.PRICING_MANAGE);
       const hasSystemConfigure = await rbacService.hasPermission(
         "ADMIN",
         Permission.SYSTEM_CONFIGURE
       );
 
-      expect(hasUserCreate).toBe(true);
-      expect(hasSystemBackup).toBe(false);
+      expect(hasUserManage).toBe(true);
+      expect(hasPricingManage).toBe(false);
       expect(hasSystemConfigure).toBe(false);
     });
 
     it("should grant SUPPORT read-only permissions", async () => {
       const hasUserRead = await rbacService.hasPermission("SUPPORT", Permission.USER_READ);
-      const hasUserCreate = await rbacService.hasPermission("SUPPORT", Permission.USER_CREATE);
-      const hasUserDelete = await rbacService.hasPermission("SUPPORT", Permission.USER_DELETE);
+      const hasUserManage = await rbacService.hasPermission("SUPPORT", Permission.USER_MANAGE);
+      const hasSystemConfigure = await rbacService.hasPermission(
+        "SUPPORT",
+        Permission.SYSTEM_CONFIGURE
+      );
 
       expect(hasUserRead).toBe(true);
-      expect(hasUserCreate).toBe(false);
-      expect(hasUserDelete).toBe(false);
+      expect(hasUserManage).toBe(false);
+      expect(hasSystemConfigure).toBe(false);
     });
   });
 
   describe("hasAnyPermission", () => {
     it("should check multiple permissions correctly for ADMIN", async () => {
-      const adminHasAnyUserPermission = await rbacService.hasAnyPermission("ADMIN", [
-        Permission.USER_CREATE,
-        Permission.USER_UPDATE,
+      const adminHasAnyManagePermission = await rbacService.hasAnyPermission("ADMIN", [
+        Permission.USER_MANAGE,
+        Permission.ACCOUNT_MANAGE,
       ]);
 
-      const supportHasAnyUserPermission = await rbacService.hasAnyPermission("SUPPORT", [
-        Permission.USER_CREATE,
-        Permission.USER_DELETE,
+      const supportHasAnyManagePermission = await rbacService.hasAnyPermission("SUPPORT", [
+        Permission.USER_MANAGE,
+        Permission.SYSTEM_CONFIGURE,
       ]);
 
-      expect(adminHasAnyUserPermission).toBe(true);
-      expect(supportHasAnyUserPermission).toBe(false);
+      expect(adminHasAnyManagePermission).toBe(true);
+      expect(supportHasAnyManagePermission).toBe(false);
     });
   });
 
   describe("hasAllPermissions", () => {
     it("should check all permissions correctly", async () => {
-      const adminHasAllContentPermissions = await rbacService.hasAllPermissions("ADMIN", [
-        Permission.CONTENT_CREATE,
-        Permission.CONTENT_READ,
-        Permission.CONTENT_UPDATE,
+      const adminHasAllBillingPermissions = await rbacService.hasAllPermissions("ADMIN", [
+        Permission.BILLING_READ,
+        Permission.BILLING_MANAGE,
+        Permission.ANALYTICS_READ,
       ]);
 
-      const supportHasAllContentPermissions = await rbacService.hasAllPermissions("SUPPORT", [
-        Permission.CONTENT_CREATE,
-        Permission.CONTENT_READ,
-        Permission.CONTENT_UPDATE,
+      const supportHasAllBillingPermissions = await rbacService.hasAllPermissions("SUPPORT", [
+        Permission.BILLING_READ,
+        Permission.BILLING_MANAGE,
+        Permission.ANALYTICS_READ,
       ]);
 
-      expect(adminHasAllContentPermissions).toBe(true);
-      expect(supportHasAllContentPermissions).toBe(false);
+      expect(adminHasAllBillingPermissions).toBe(true);
+      expect(supportHasAllBillingPermissions).toBe(false);
     });
   });
 
@@ -220,8 +223,8 @@ describe("RbacService Tests", () => {
       expect(adminPermissions.userId).toBe(adminUser.id);
       expect(adminPermissions.role).toBe("ADMIN");
       expect(adminPermissions.permissions.length > 0).toBeTruthy();
-      expect(adminPermissions.canAccess(Permission.USER_CREATE)).toBe(true);
-      expect(adminPermissions.canAccess(Permission.SYSTEM_BACKUP)).toBe(false);
+      expect(adminPermissions.canAccess(Permission.USER_MANAGE)).toBe(true);
+      expect(adminPermissions.canAccess(Permission.PRICING_MANAGE)).toBe(false);
     });
   });
 
@@ -349,10 +352,11 @@ describe("RbacService Tests", () => {
 
       expect(Object.keys(permissionCategories).length > 0).toBeTruthy();
       expect(permissionCategories["User Management"]).toBeTruthy();
-      expect(permissionCategories["User Management"].includes(Permission.USER_CREATE)).toBeTruthy();
-      expect(permissionCategories["Content Management"]).toBeTruthy();
+      expect(permissionCategories["User Management"].includes(Permission.USER_READ)).toBeTruthy();
+      expect(permissionCategories["User Management"].includes(Permission.USER_MANAGE)).toBeTruthy();
+      expect(permissionCategories["Account Management"]).toBeTruthy();
       expect(
-        permissionCategories["Content Management"].includes(Permission.CONTENT_PUBLISH)
+        permissionCategories["Account Management"].includes(Permission.ACCOUNT_READ)
       ).toBeTruthy();
     });
   });

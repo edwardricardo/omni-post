@@ -119,6 +119,7 @@ const timestamp = Date.now();
 let app: FastifyInstance;
 let adminToken: string;
 let superAdminToken: string;
+let supportToken: string;
 let testAccountId: string;
 
 describe("subscriptionRoutes - Trials, Reporting and Auto-Renewals", () => {
@@ -127,6 +128,7 @@ describe("subscriptionRoutes - Trials, Reporting and Auto-Renewals", () => {
     const users = await createTestUsers(timestamp);
     adminToken = users.adminToken;
     superAdminToken = users.superAdminToken;
+    supportToken = users.supportToken;
     testAccountId = users.testAccountId;
   });
 
@@ -351,11 +353,11 @@ describe("subscriptionRoutes - Trials, Reporting and Auto-Renewals", () => {
       expect(typeof body.data?.failed === "number").toBeTruthy();
     });
 
-    it("should reject without super admin role", async () => {
+    it("should reject without billing:manage permission", async () => {
       const response = await app.inject({
         method: "POST",
         url: "/admin/billing/auto-renewals/process",
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${supportToken}` },
       });
 
       expect(response.statusCode).toBe(403);

@@ -51,9 +51,8 @@ const { serializerCompiler, validatorCompiler } = await import("fastify-type-pro
 const fastifyCookie = (await import("@fastify/cookie")).default;
 const { accountLifecycleRoutes } = await import("../../src/admin/accountLifecycleRoutes.js");
 const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
-const { createTestAdminUser, cleanupTestAdminUsersByEmail } = await import(
-  "./admin/adminTestHelper.js"
-);
+const { createTestAdminUser, cleanupTestAdminUsersByEmail } =
+  await import("./admin/adminTestHelper.js");
 
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -85,11 +84,13 @@ async function createTestApp(): Promise<FastifyInstance> {
 const timestamp = Date.now();
 const superAdminEmail = `superadmin-lifecycle-${timestamp}@example.com`;
 const adminEmail = `admin-lifecycle-${timestamp}@example.com`;
+const supportEmail = `support-lifecycle-${timestamp}@example.com`;
 const testPassword = "TestPassword123!";
 
 let app: FastifyInstance;
 let superAdminToken: string;
 let adminToken: string;
+let supportToken: string;
 let testAccountId: string;
 
 describe("accountLifecycleRoutes Unit Tests", () => {
@@ -113,11 +114,21 @@ describe("accountLifecycleRoutes Unit Tests", () => {
       role: "ADMIN",
     });
     adminToken = adminResult.token;
+
+    // Create support user (lacks account:manage permission)
+    const supportResult = await createTestAdminUser({
+      email: supportEmail,
+      name: "Support User",
+      password: testPassword,
+      role: "SUPPORT",
+    });
+    supportToken = supportResult.token;
   });
 
   afterAll(async () => {
     try {
       await cleanupTestAdminUsersByEmail(`lifecycle-${timestamp}`);
+      await cleanupTestAdminUsersByEmail(`support-lifecycle-${timestamp}`);
       await cleanupTestAdminUsersByEmail(`bulk1-${timestamp}`);
       await cleanupTestAdminUsersByEmail(`bulk2-${timestamp}`);
       await cleanupTestAdminUsersByEmail(`new-account-${timestamp}`);
@@ -166,7 +177,7 @@ describe("accountLifecycleRoutes Unit Tests", () => {
       expect(response.statusCode).toBe(401);
     });
 
-    it("should reject creation with admin role (not super admin)", async () => {
+    it("should not allow admin role to create account with role assignment", async () => {
       const response = await app.inject({
         method: "POST",
         url: "/admin/accounts",
@@ -175,10 +186,13 @@ describe("accountLifecycleRoutes Unit Tests", () => {
           email: `admin-create-${timestamp}@example.com`,
           password: testPassword,
           name: "Admin Created",
+          role: "ADMIN",
         },
       });
 
-      expect(response.statusCode).toBe(403);
+      // Admin passes RBAC (has account:manage) but the handler rejects
+      // role assignment for non-SUPER_ADMIN users (400 validation or 403)
+      expect([400, 403].includes(response.statusCode)).toBeTruthy();
     });
 
     it("should reject duplicate email", async () => {
@@ -575,11 +589,11 @@ describe("accountLifecycleRoutes Unit Tests", () => {
       expect(body.data?.successful).toBe(2);
     });
 
-    it("should reject bulk suspend without super admin", async () => {
+    it("should reject bulk suspend without account:manage permission", async () => {
       const response = await app.inject({
         method: "POST",
         url: "/admin/accounts/bulk/suspend",
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${supportToken}` },
         payload: {
           accountIds: [bulkAccountId1],
           reason: "Test",
@@ -649,11 +663,11 @@ describe("accountLifecycleRoutes Unit Tests", () => {
       expect(body.ok).toBe(true);
     });
 
-    it("should reject deletion without super admin", async () => {
+    it("should reject deletion without account:manage permission", async () => {
       const response = await app.inject({
         method: "DELETE",
         url: `/admin/accounts/${testAccountId}`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${supportToken}` },
       });
 
       expect(response.statusCode).toBe(403);

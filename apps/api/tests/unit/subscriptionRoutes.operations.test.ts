@@ -119,6 +119,7 @@ const timestamp = Date.now();
 let app: FastifyInstance;
 let adminToken: string;
 let superAdminToken: string;
+let supportToken: string;
 let testAccountId: string;
 
 describe("subscriptionRoutes - Account Operations and Billing Analytics", () => {
@@ -127,6 +128,7 @@ describe("subscriptionRoutes - Account Operations and Billing Analytics", () => 
     const users = await createTestUsers(timestamp);
     adminToken = users.adminToken;
     superAdminToken = users.superAdminToken;
+    supportToken = users.supportToken;
     testAccountId = users.testAccountId;
   });
 
@@ -294,11 +296,11 @@ describe("subscriptionRoutes - Account Operations and Billing Analytics", () => 
       expect(typeof body.data?.failed === "number").toBeTruthy();
     });
 
-    it("should reject without super admin role", async () => {
+    it("should reject without billing:manage permission", async () => {
       const response = await app.inject({
         method: "POST",
         url: "/admin/billing/bulk/upgrade",
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${supportToken}` },
         payload: {
           accountIds: [testAccountId],
           newTier: "PRO",

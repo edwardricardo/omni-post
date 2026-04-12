@@ -33,10 +33,12 @@ export async function createTestApp(): Promise<FastifyInstance> {
 export async function createTestUsers(timestamp: number): Promise<{
   adminToken: string;
   superAdminToken: string;
+  supportToken: string;
   testAccountId: string;
 }> {
   const adminEmail = `admin-sub-${timestamp}@example.com`;
   const superAdminEmail = `superadmin-sub-${timestamp}@example.com`;
+  const supportEmail = `support-sub-${timestamp}@example.com`;
   const testPassword = "TestPassword123!";
 
   await containerAuthService.registerAdmin(adminEmail, testPassword, "Admin User", "ADMIN");
@@ -46,9 +48,11 @@ export async function createTestUsers(timestamp: number): Promise<{
     "Super Admin User",
     "SUPER_ADMIN"
   );
+  await containerAuthService.registerAdmin(supportEmail, testPassword, "Support User", "SUPPORT");
 
   let adminToken = "";
   let superAdminToken = "";
+  let supportToken = "";
 
   const adminLogin = await containerAuthService.login(
     { email: adminEmail, password: testPassword },
@@ -68,6 +72,15 @@ export async function createTestUsers(timestamp: number): Promise<{
     superAdminToken = superAdminLogin.value.tokens.accessToken;
   }
 
+  const supportLogin = await containerAuthService.login(
+    { email: supportEmail, password: testPassword },
+    "127.0.0.1",
+    "test-agent"
+  );
+  if (supportLogin.ok && "tokens" in supportLogin.value) {
+    supportToken = supportLogin.value.tokens.accessToken;
+  }
+
   const account = await prisma.account.create({
     data: {
       email: `account-${timestamp}@example.com`,
@@ -75,7 +88,7 @@ export async function createTestUsers(timestamp: number): Promise<{
     },
   });
 
-  return { adminToken, superAdminToken, testAccountId: account.id };
+  return { adminToken, superAdminToken, supportToken, testAccountId: account.id };
 }
 
 export async function cleanupTestUsers(timestamp: number, testAccountId: string): Promise<void> {

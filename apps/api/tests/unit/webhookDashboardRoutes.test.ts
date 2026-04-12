@@ -8,9 +8,32 @@
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  const { createMockPrismaModule } = await import("./helpers/mockPrisma.js");
+  const { mockPrisma } = createMockPrismaModule();
+  // Store on globalThis so we can access it later
+  (globalThis as Record<string, unknown>).__webhookTestMockPrisma = mockPrisma;
+  return { ...original, prisma: mockPrisma.prisma };
+});
+
 vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
   const { createAdminAuthMock } = await import("./helpers/mockAuthMiddleware.js");
   return createAdminAuthMock();
+});
+
+vi.mock("../../src/lib/logger.js", () => {
+  const noop = vi.fn();
+  const noopLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    trace: noop,
+    fatal: noop,
+    child: () => noopLogger,
+  };
+  return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
 });
 
 import Fastify, { FastifyInstance } from "fastify";
@@ -23,6 +46,7 @@ import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories
 import { prisma } from "@infra/prisma";
 import { createTestContainer } from "../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
+import { RbacService } from "../../src/auth/rbacService.js";
 import { ok, err } from "@shared/types";
 import jwt from "jsonwebtoken";
 
@@ -190,6 +214,7 @@ async function createTestApp(): Promise<FastifyInstance> {
   container.registerInstance(TOKENS.AuthService, authService);
   container.registerInstance(TOKENS.WebhookDashboardService, webhookDashboardService);
   container.registerInstance(TOKENS.RealtimeWebhookBroadcaster, mockBroadcaster);
+  container.registerInstance(TOKENS.RbacService, new RbacService(adminUserRepo));
   typedApp.decorate("container", container);
 
   await typedApp.register(registerWebhookDashboardRoutes);

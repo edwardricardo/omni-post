@@ -241,12 +241,14 @@ function buildModelMock<T extends Record<string, unknown>>(
         include,
         select,
       }: {
-        where: Record<string, unknown>;
+        where?: Record<string, unknown>;
         include?: Record<string, boolean | Record<string, unknown>>;
         select?: Record<string, boolean | Record<string, unknown>>;
-      }) => {
+      } = {}) => {
         const entries = store.all();
-        const found = entries.find((entry) => matchesWhere(entry, where)) ?? null;
+        const found = where
+          ? (entries.find((entry) => matchesWhere(entry, where)) ?? null)
+          : (entries[0] ?? null);
         if (!found) return null;
         return resolveIncludes(found, include, select);
       }
@@ -673,11 +675,12 @@ function seedDefaultRoles(s: MockPrismaStores): void {
     "user:read",
     "user:manage",
     "user:manage_roles",
+    "dashboard:view",
     "account:read",
     "account:manage",
     "billing:read",
     "billing:manage",
-
+    "post:manage",
     "pricing:manage",
     "analytics:read",
     "analytics:export",
@@ -695,7 +698,8 @@ function seedDefaultRoles(s: MockPrismaStores): void {
     "account:manage",
     "billing:read",
     "billing:manage",
-
+    "dashboard:view",
+    "post:manage",
     "analytics:read",
     "analytics:export",
     "system:monitor",

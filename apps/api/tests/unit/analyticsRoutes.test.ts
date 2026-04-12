@@ -21,13 +21,49 @@ import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/m
 const { mockPrisma } = createMockPrismaModule();
 
 // Add extra models that analyticsRoutes handlers use (post, channel, analytics,
-// adminUserPermission, publishLog)
+// adminUserPermission, publishLog, gdprSettings, securitySettings)
+const gdprStore = createStore();
+gdprStore.add({
+  id: "gdpr-singleton",
+  privacyPolicyUrl: null,
+  termsOfServiceUrl: null,
+  dpoType: "NONE",
+  dpoEmail: null,
+  dpoUrl: null,
+  dataRetentionDays: 365,
+  enableAutoDataDeletion: false,
+  dsarResponseDays: 30,
+  enableRightToErasure: false,
+  updatedBy: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+const securityStore = createStore();
+securityStore.add({
+  id: "security-singleton",
+  mfaRequired: false,
+  sessionTimeout: 3600,
+  maxConcurrentSessions: 5,
+  ipAllowlist: [],
+  passwordMinLength: 8,
+  passwordRequireUppercase: true,
+  passwordRequireLowercase: true,
+  passwordRequireNumbers: true,
+  passwordRequireSpecial: true,
+  passwordExpireDays: 90,
+  enableAuditLog: true,
+  updatedBy: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
 const extraModels = {
   post: buildModelMock(createStore()),
   channel: buildModelMock(createStore()),
   analytics: buildModelMock(createStore()),
   adminUserPermission: buildModelMock(createStore()),
   publishLog: buildModelMock(createStore()),
+  gdprSettings: buildModelMock(gdprStore),
+  securitySettings: buildModelMock(securityStore),
 };
 Object.assign(mockPrisma.prisma, extraModels);
 
