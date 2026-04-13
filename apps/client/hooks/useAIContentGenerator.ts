@@ -66,6 +66,14 @@ interface UseAIContentGeneratorReturn {
   copyToClipboard: (text: string) => void;
 }
 
+/**
+ * @hook useAIContentGenerator
+ * @description Encapsulates all state and business logic for the AI content generation workflow:
+ *              template loading, form data management, generation settings, content generation
+ *              via the backend AI API, and clipboard operations.
+ * @param options - Configuration: selectedTemplate, targetPlatforms, brandVoice, onContentGenerated callback
+ * @returns State and actions for the full AI content generation workflow
+ */
 export function useAIContentGenerator({
   selectedTemplate,
   targetPlatforms = ["twitter", "linkedin", "facebook"],

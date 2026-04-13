@@ -7,11 +7,11 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type AuditLog, type AuditLogFilters } from "../../lib/apiClient";
 
 /**
- * Hook to fetch audit logs using TanStack Query.
- * Automatically refetches every 30 seconds to keep data fresh.
- *
+ * @hook useAuditLogs
+ * @description Fetches audit logs with filtering and auto-refresh every 30 seconds.
+ *   Used by the /logs dashboard page to display system events and user activities.
  * @param filters - Optional query filters (userId, action, resource, dates, pagination)
- * @returns Standard TanStack Query result with `data` as AuditLog[]
+ * @returns Query result with { data: AuditLog[], isLoading, error }
  */
 export function useAuditLogs(filters?: AuditLogFilters) {
   return useQuery({

@@ -13,6 +13,11 @@ interface AudienceInsightsPanelProps {
   insights: AudienceInsight[];
 }
 
+/**
+ * @component AudienceInsightsPanel
+ * @description Demographic and behavioral audience insight cards showing age distribution,
+ * top locations, and peak activity windows per platform.
+ */
 export function AudienceInsightsPanel({ insights }: AudienceInsightsPanelProps) {
   return (
     <div className="bg-white rounded-lg border p-6">

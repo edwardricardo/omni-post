@@ -19,6 +19,13 @@ interface AIContentResultsProps {
   onNewGeneration: () => void;
 }
 
+/**
+ * @component AIContentResults
+ * @description Displays AI-generated content variants with per-item copy, save, and
+ * media-type indicators, plus bulk save-all and new-generation actions.
+ * @param props.onSave - Callback to persist a single generated content variant
+ * @param props.onNewGeneration - Resets the flow to generate fresh content
+ */
 export function AIContentResults({
   content,
   onCopy,

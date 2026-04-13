@@ -36,6 +36,13 @@ const TOOLTIP_TEXT: React.CSSProperties = {
   color: "var(--text-primary)",
 };
 
+/**
+ * @component DonutChart
+ * @description Reusable donut/pie chart with a custom vertical legend showing name, count,
+ *   and percentage for each slice. Falls back to ChartEmptyState when data is empty.
+ * @param props.data - Array of slices with name, value, and color
+ * @param props.showLegend - Whether to render the vertical legend below the chart
+ */
 export function DonutChart({
   data,
   height = 280,

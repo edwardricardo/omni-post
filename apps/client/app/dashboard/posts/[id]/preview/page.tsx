@@ -13,6 +13,10 @@ import { format } from "date-fns";
 import { useAuth } from "@/lib/auth/authContext";
 import { useProviders } from "@/lib/hooks/useProviders";
 
+/**
+ * @component PreviewPostPage
+ * @description Displays a platform-specific preview of a post with publish, schedule, and share actions.
+ */
 export default function PreviewPostPage() {
   const router = useRouter();
   const params = useParams();

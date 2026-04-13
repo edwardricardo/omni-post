@@ -36,6 +36,12 @@ interface ProviderTiersTabProps {
   isLoading: boolean;
 }
 
+/**
+ * @component ProviderTiersTab
+ * @description Provider pricing tiers table with inline editing, status toggle, and a create dialog.
+ * @param props.tiers - Array of provider tier records to display
+ * @param props.isLoading - Whether tier data is still loading
+ */
 export function ProviderTiersTab({ tiers, isLoading }: ProviderTiersTabProps) {
   const tp = useTranslations("pricing");
   const tc = useTranslations("common");

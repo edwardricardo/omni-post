@@ -36,14 +36,10 @@ interface ClientContentEditorProps {
 }
 
 /**
- * Client Content Editor
- * Wraps ContentEditorCore with client-specific features:
- * - Auto-save functionality
- * - Provider integration via useProviders hook
- * - Platform previews
- * - Template selector
- * - Schedule picker
- * - Publishing workflow
+ * @component ClientContentEditor
+ * @description Client-side content editor wrapping ContentEditorCore with auto-save,
+ * provider integration, platform previews, template selector, and schedule picker.
+ * @param props.showPreview - Toggles the platform preview sidebar
  */
 export function ClientContentEditor({
   postId,

@@ -1,5 +1,6 @@
 /**
  * @file WeekCalendar.tsx
+ * @component WeekCalendar
  * @description Week view calendar showing 7 days with time-slot posts.
  * @layer client-components
  */

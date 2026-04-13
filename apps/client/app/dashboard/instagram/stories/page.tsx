@@ -8,6 +8,10 @@
 import { StoriesEditor } from "@/components/instagram";
 import { useProject } from "@/providers/ProjectProvider";
 
+/**
+ * @component InstagramStoriesPage
+ * @description Provides an Instagram Stories editor for creating, scheduling, and publishing stories.
+ */
 export default function InstagramStoriesPage() {
   const { projectId, accountId } = useProject();
 

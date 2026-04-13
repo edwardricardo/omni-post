@@ -682,6 +682,10 @@ function ChannelsPageContent() {
   );
 }
 
+/**
+ * @component Page
+ * @description Manages connected social media channels with capability badges, usage stats, and disconnect controls.
+ */
 export default function Page() {
   return <ChannelsPageContent />;
 }

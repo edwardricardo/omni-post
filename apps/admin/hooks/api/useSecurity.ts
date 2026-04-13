@@ -17,7 +17,10 @@ interface SecurityOverviewData {
 }
 
 /**
- * Hook to fetch security overview data (stats, MFA adoption, RBAC hierarchy)
+ * @hook useSecurityOverview
+ * @description Fetches aggregated security overview data combining security statistics,
+ *   MFA adoption rates, and the RBAC hierarchy from backend security endpoints.
+ * @returns Query result with { data: SecurityOverviewData, isLoading, error }
  */
 export function useSecurityOverview() {
   return useQuery({

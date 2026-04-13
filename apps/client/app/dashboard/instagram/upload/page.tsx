@@ -33,6 +33,10 @@ interface ProcessedVideo {
   createdAt: Date;
 }
 
+/**
+ * @component InstagramUploadPage
+ * @description Handles Instagram media upload with file selection, validation, processing progress, and video segment extraction.
+ */
 export default function InstagramUploadPage() {
   const [uploadedFiles, setUploadedFiles] = useState<MediaFile[]>([]);
   const [processedVideos, setProcessedVideos] = useState<ProcessedVideo[]>([]);

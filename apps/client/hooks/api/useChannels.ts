@@ -45,7 +45,9 @@ interface Provider {
 }
 
 /**
- * Hook to fetch channels
+ * @hook useChannels
+ * @description Fetches all connected social media channels for the current account.
+ * @returns TanStack Query result with channel array including capabilities and usage stats
  */
 export function useChannels() {
   return useQuery({
@@ -67,7 +69,9 @@ export function useChannels() {
 }
 
 /**
- * Hook to fetch providers
+ * @hook useProviders
+ * @description Fetches the list of available social media providers with their capabilities and status.
+ * @returns TanStack Query result with provider array
  */
 export function useProviders() {
   return useQuery({
@@ -89,7 +93,9 @@ export function useProviders() {
 }
 
 /**
- * Hook to disconnect channel
+ * @hook useDisconnectChannel
+ * @description Mutation hook for disconnecting a social media channel.
+ * @returns TanStack Query mutation that invalidates the channels list on success
  */
 export function useDisconnectChannel() {
   const queryClient = useQueryClient();

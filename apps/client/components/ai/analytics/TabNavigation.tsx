@@ -26,6 +26,11 @@ interface TabNavigationProps {
   onTabChange: (tab: AnalysisTab) => void;
 }
 
+/**
+ * @component TabNavigation
+ * @description Horizontal tab bar for the PredictiveAnalytics dashboard, switching
+ * between Performance, ROI Forecast, Audience, and Competitive views.
+ */
 export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange }) => {
   return (
     <div className="border-b border-gray-200">

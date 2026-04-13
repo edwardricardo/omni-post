@@ -100,7 +100,11 @@ export class WebhookManager {
   }
 
   /**
-   * Create a new webhook subscription
+   * @method createSubscription
+   * @description Creates a new webhook subscription with secret key generation and provider setup instructions.
+   * @param accountId - The account ID owning the subscription
+   * @param data - Validated subscription creation payload including provider, event types, and optional webhook URL
+   * @returns The created subscription (without secret key) along with provider-specific setup instructions
    */
   async createSubscription(
     accountId: string,
@@ -145,7 +149,11 @@ export class WebhookManager {
   }
 
   /**
-   * Get webhook subscriptions for an account
+   * @method getSubscriptions
+   * @description Retrieves all webhook subscriptions for an account, optionally filtered by provider.
+   * @param accountId - The account ID to fetch subscriptions for
+   * @param provider - Optional provider filter
+   * @returns Array of subscriptions with event statistics, secret keys redacted
    */
   async getSubscriptions(accountId: string, provider?: Provider) {
     const where: { accountId: string; provider?: Provider } = { accountId };
@@ -177,7 +185,12 @@ export class WebhookManager {
   }
 
   /**
-   * Update webhook subscription
+   * @method updateSubscription
+   * @description Updates an existing webhook subscription's event types, active status, or verify token.
+   * @param subscriptionId - The subscription ID to update
+   * @param accountId - The owning account ID for authorization
+   * @param data - Partial update payload with optional fields
+   * @returns The update result count
    */
   async updateSubscription(
     subscriptionId: string,
@@ -209,7 +222,11 @@ export class WebhookManager {
   }
 
   /**
-   * Delete webhook subscription
+   * @method deleteSubscription
+   * @description Deletes a webhook subscription after verifying account ownership.
+   * @param subscriptionId - The subscription ID to delete
+   * @param accountId - The owning account ID for authorization
+   * @returns Success confirmation object
    */
   async deleteSubscription(subscriptionId: string, accountId: string) {
     const subscription = await prisma.webhookSubscription.findFirst({
@@ -233,7 +250,17 @@ export class WebhookManager {
   }
 
   /**
-   * Process incoming webhook (called by webhook handler)
+   * @method processIncomingWebhook
+   * @description Enqueues an incoming webhook event for asynchronous processing via BullMQ.
+   * @param provider - The social platform provider
+   * @param eventType - The webhook event type
+   * @param eventId - Unique identifier for the event
+   * @param signature - The webhook signature for verification
+   * @param payload - The raw webhook payload
+   * @param headers - The original request headers
+   * @param accountId - Optional account ID associated with the event
+   * @param projectId - Optional project ID associated with the event
+   * @returns The BullMQ job ID for tracking
    */
   async processIncomingWebhook(
     provider: Provider,
@@ -265,7 +292,11 @@ export class WebhookManager {
   }
 
   /**
-   * Get webhook processing statistics
+   * @method getProcessingStats
+   * @description Aggregates webhook processing statistics including success rates, queue depth, and per-provider breakdowns.
+   * @param accountId - The account ID to fetch statistics for
+   * @param timeRange - Optional date range filter for the statistics
+   * @returns Comprehensive statistics object with totals, provider breakdown, and recent errors
    */
   async getProcessingStats(accountId: string, timeRange?: { start: Date; end: Date }) {
     const where: Record<string, unknown> = { accountId };
@@ -389,7 +420,11 @@ export class WebhookManager {
   }
 
   /**
-   * Retry failed webhook events
+   * @method retryFailedEvents
+   * @description Re-enqueues failed and dead-lettered webhook events for reprocessing.
+   * @param accountId - The account ID whose failed events should be retried
+   * @param maxAgeDays - Optional maximum age in days; events older than this are skipped
+   * @returns The number of events successfully re-enqueued
    */
   async retryFailedEvents(accountId: string, maxAgeDays?: number): Promise<number> {
     const maxAge = maxAgeDays ? new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000) : undefined;
@@ -439,7 +474,10 @@ export class WebhookManager {
   }
 
   /**
-   * Clean up old webhook events and jobs
+   * @method cleanup
+   * @description Removes old completed and failed webhook events from the database and cleans up stale queue jobs.
+   * @param maxAgeDays - Maximum age in days for events to retain (default 30)
+   * @returns Object with counts of deleted events and cleaned queue jobs
    */
   async cleanup(maxAgeDays: number = 30): Promise<{
     eventsDeleted: number;
@@ -541,7 +579,9 @@ export class WebhookManager {
   }
 
   /**
-   * Shutdown the webhook manager
+   * @method shutdown
+   * @description Gracefully shuts down the webhook manager by closing the underlying job processor.
+   * @returns Resolves when all workers and queues are closed
    */
   async shutdown(): Promise<void> {
     await this.jobProcessor.shutdown();

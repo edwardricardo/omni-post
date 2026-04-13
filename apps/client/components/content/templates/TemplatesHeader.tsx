@@ -16,6 +16,11 @@ interface TemplatesHeaderProps {
   showAutomation?: boolean;
 }
 
+/**
+ * @component TemplatesHeader
+ * @description Header for the content templates section with title and action buttons
+ * for creating new templates and automation rules.
+ */
 export const TemplatesHeader: React.FC<TemplatesHeaderProps> = ({
   onTemplateCreate,
   onAutomationCreate,

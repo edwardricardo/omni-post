@@ -17,6 +17,16 @@ interface PaginationProps {
   perPageOptions?: number[];
 }
 
+/**
+ * @component Pagination
+ * @description Compact pagination bar with page navigation buttons, range display,
+ *   and a per-page size selector.
+ * @param props.page - Current active page number (1-based)
+ * @param props.totalPages - Total number of pages
+ * @param props.totalItems - Total item count used for the "Showing X-Y of Z" label
+ * @param props.onPageChange - Callback invoked when the user navigates to a different page
+ * @param props.onPerPageChange - Callback invoked when the user changes the page size
+ */
 export function Pagination({
   page,
   totalPages,

@@ -54,6 +54,12 @@ async function addComment(
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useComments
+ * @description Fetches threaded comments for a specific post.
+ * @param postId - The post to fetch comments for, or null to disable
+ * @returns TanStack Query result with comment thread array
+ */
 export function useComments(postId: string | null) {
   return useQuery({
     queryKey: ["comments", postId],
@@ -63,6 +69,12 @@ export function useComments(postId: string | null) {
   });
 }
 
+/**
+ * @hook useAddComment
+ * @description Mutation hook for adding a comment or reply to a post thread.
+ * @param postId - The post to add the comment to
+ * @returns TanStack Query mutation that invalidates the comment list on success
+ */
 export function useAddComment(postId: string) {
   const queryClient = useQueryClient();
   return useMutation({

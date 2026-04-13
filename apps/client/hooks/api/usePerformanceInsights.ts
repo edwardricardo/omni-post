@@ -116,8 +116,11 @@ export interface DashboardInsightsData {
 }
 
 /**
- * Fetches performance insights for the given project.
- * Stale time: 5 minutes — analytics data can tolerate slight staleness.
+ * @hook usePerformanceInsights
+ * @description Fetches performance insights data including engagement, time series, top posts,
+ *              media performance, optimal timing, hashtag performance, and audience insights.
+ * @param projectId - The project to fetch performance insights for
+ * @returns TanStack Query result with dashboard insights data
  */
 export function usePerformanceInsights(projectId: string) {
   return useQuery({

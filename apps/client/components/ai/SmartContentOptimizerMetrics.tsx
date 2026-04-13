@@ -12,6 +12,11 @@ interface SmartContentOptimizerMetricsProps {
   platforms: string[];
 }
 
+/**
+ * @component SmartContentOptimizerMetrics
+ * @description Advanced metrics tab showing per-platform optimization scores and
+ * engagement predictions when the advanced analysis feature is enabled.
+ */
 export function SmartContentOptimizerMetrics({ platforms }: SmartContentOptimizerMetricsProps) {
   return (
     <div className="space-y-6">

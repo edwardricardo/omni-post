@@ -1,5 +1,6 @@
 /**
  * @file VersionCompareView.tsx
+ * @component VersionCompareView
  * @description Inline compare tab content and full-screen compare dialog for template version diffs.
  */
 

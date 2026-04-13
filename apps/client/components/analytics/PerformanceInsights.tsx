@@ -157,6 +157,12 @@ interface PerformanceInsightsProps {
 // Orchestrator component
 // ---------------------------------------------------------------------------
 
+/**
+ * @component PerformanceInsights
+ * @description Performance insights dashboard fetching data via usePerformanceInsights,
+ * mapping API responses to sub-components for recommendations, hashtag performance,
+ * audience insights, optimal timing, and top-performing content.
+ */
 export function PerformanceInsights({
   accountId: _accountId,
   projectId,

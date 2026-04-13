@@ -1,5 +1,6 @@
 /**
  * @file page.tsx
+ * @component SchedulingPage
  * @description Scheduling page with tabbed views for calendar, multi-platform, bulk scheduling,
  * optimal times, and rules. Integrates multiple scheduling components driven by the active project.
  */

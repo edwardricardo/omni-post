@@ -41,6 +41,13 @@ export interface BillingData {
   };
 }
 
+/**
+ * @hook useAccountBilling
+ * @description Fetches billing breakdown for a specific account including plan details,
+ *   grandfathering status, provider costs, and cheaper bundle suggestions.
+ * @param accountId - The account ID to fetch billing data for, or null to disable the query
+ * @returns Query result with { data: BillingData, isLoading, error }
+ */
 export function useAccountBilling(accountId: string | null) {
   return useQuery({
     queryKey: ["account", "billing", accountId],

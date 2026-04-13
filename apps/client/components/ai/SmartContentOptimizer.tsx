@@ -39,6 +39,13 @@ import { SmartContentOptimizerHashtags } from "./SmartContentOptimizerHashtags";
 import { SmartContentOptimizerTone } from "./SmartContentOptimizerTone";
 import { SmartContentOptimizerMetrics } from "./SmartContentOptimizerMetrics";
 
+/**
+ * @component SmartContentOptimizer
+ * @description Orchestrator for the content optimization suite, managing analysis state
+ * and coordinating AI backend calls for content scoring, tone detection, hashtag
+ * recommendations, and engagement predictions across tab-specific sub-components.
+ */
+
 const API_URL = "/api/backend";
 
 type ActiveTab = "overview" | "suggestions" | "hashtags" | "tone" | "metrics";

@@ -545,6 +545,10 @@ function BundleFormDialog({
   );
 }
 
+/**
+ * @component PricingPage
+ * @description Manages pricing configuration including provider tiers, account tiers, bundles (CRUD), and MRR dashboard.
+ */
 export default function Page() {
   return <PricingPageContent />;
 }

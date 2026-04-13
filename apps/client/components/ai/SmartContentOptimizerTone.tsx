@@ -14,6 +14,11 @@ interface SmartContentOptimizerToneProps {
   toneAnalysis: ToneAnalysis;
 }
 
+/**
+ * @component SmartContentOptimizerTone
+ * @description Tone analysis tab displaying detected tone, confidence score,
+ * emotional analysis bars, and tone adjustment recommendations.
+ */
 export function SmartContentOptimizerTone({ toneAnalysis }: SmartContentOptimizerToneProps) {
   return (
     <div className="space-y-6">

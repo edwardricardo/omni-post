@@ -51,6 +51,13 @@ const TOOLTIP_TEXT: React.CSSProperties = {
   color: "var(--text-primary)",
 };
 
+/**
+ * @component StackedBarChart
+ * @description Stacked vertical bar chart for multi-series timeline data. Each series
+ *   is rendered as a stacked bar with its own color and legend entry.
+ * @param props.data - Array of data points with a label and numeric values per series key
+ * @param props.series - Series definitions with key, color, and display name
+ */
 export function StackedBarChart({
   data,
   series,

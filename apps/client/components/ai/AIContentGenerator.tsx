@@ -37,6 +37,15 @@ const TAB_CONFIG = [
   { id: "results" as const, label: "Results", icon: Eye },
 ];
 
+/**
+ * @component AIContentGenerator
+ * @description Orchestrates the AI content generation workflow through a tabbed multi-step
+ * flow combining template selection, prompt configuration, generation preview, and results.
+ * @param props.targetPlatforms - Social platforms to optimize generated content for
+ * @param props.brandVoice - Brand voice configuration to maintain consistency
+ * @param props.contentGoal - Goal driving the content generation (engagement, awareness, etc.)
+ * @param props.onContentGenerated - Callback fired when AI generation completes with results
+ */
 const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
   selectedTemplate,
   targetPlatforms = ["twitter", "linkedin", "facebook"],

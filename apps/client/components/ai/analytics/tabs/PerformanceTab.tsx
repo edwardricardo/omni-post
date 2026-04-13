@@ -12,6 +12,11 @@ interface PerformanceTabProps {
   predictions: PerformancePrediction[];
 }
 
+/**
+ * @component PerformanceTab
+ * @description Tab panel rendering a PerformancePredictionCard for each platform
+ * prediction returned by the AI timing-prediction endpoint.
+ */
 export const PerformanceTab: React.FC<PerformanceTabProps> = ({ predictions }) => {
   return (
     <div className="space-y-6">

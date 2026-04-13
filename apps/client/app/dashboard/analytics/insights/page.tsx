@@ -6,6 +6,10 @@
 "use client";
 
 import { PerformanceInsights } from "@/components/analytics/PerformanceInsights";
+/**
+ * @component PerformanceInsightsPage
+ * @description Renders cross-platform content performance analysis and insights for all connected social platforms.
+ */
 export default function PerformanceInsightsPage() {
   return (
     <div className="p-6">

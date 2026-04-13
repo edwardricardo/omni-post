@@ -19,6 +19,14 @@ interface ConversationThreadProps {
   userId: string;
 }
 
+/**
+ * @component ConversationThread
+ * @description Full conversation thread panel. Loads and displays the message list,
+ *              auto-scrolls to the latest message, marks inbound messages as read on
+ *              open, and mounts the ReplyComposer at the bottom.
+ * @param props.conversationId - ID of the conversation to display
+ * @param props.userId - ID of the current user for read receipts and header actions
+ */
 export function ConversationThread({ conversationId, userId }: ConversationThreadProps) {
   const { data: conversation, isLoading: convLoading } = useConversation(conversationId);
   const { data: messagesData, isLoading: msgLoading } = useConversationMessages(conversationId);

@@ -2,6 +2,7 @@
 
 /**
  * @file BrandVoiceForm.tsx
+ * @component BrandVoiceForm
  * @description Form for creating and editing the Brand Voice profile for an account.
  *              Manages tone chip selection, system prompt textarea, and example post inputs.
  *              Submits via POST /api/backend/ai/brand-voice (upsert).

@@ -52,6 +52,11 @@ async function generateCalendar(input: GenerateCalendarInput): Promise<ContentCa
   return data.value;
 }
 
+/**
+ * @hook useContentCalendar
+ * @description Mutation hook for generating an AI-powered content calendar with suggested posts per platform.
+ * @returns TanStack Query mutation with content calendar result including items and summary
+ */
 export function useContentCalendar() {
   return useMutation({
     mutationFn: generateCalendar,

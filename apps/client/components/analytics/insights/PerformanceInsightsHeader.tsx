@@ -14,6 +14,12 @@ interface PerformanceInsightsHeaderProps {
   onRefresh: () => void;
 }
 
+/**
+ * @component PerformanceInsightsHeader
+ * @description Header bar for the Performance Insights panel displaying the last
+ * analysis timestamp and a refresh button to trigger a new analysis run.
+ * @param props.isAnalyzing - Disables the refresh button while analysis is running
+ */
 export function PerformanceInsightsHeader({
   lastAnalysisAt,
   isAnalyzing,

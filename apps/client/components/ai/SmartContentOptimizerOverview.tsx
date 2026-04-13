@@ -14,6 +14,11 @@ interface SmartContentOptimizerOverviewProps {
   analysis: ContentAnalysis;
 }
 
+/**
+ * @component SmartContentOptimizerOverview
+ * @description Overview tab rendering engagement, readability, virality, and SEO score
+ * cards alongside content statistics and sentiment analysis.
+ */
 export function SmartContentOptimizerOverview({ analysis }: SmartContentOptimizerOverviewProps) {
   return (
     <div className="space-y-6">

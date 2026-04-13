@@ -73,6 +73,13 @@ interface CommentThreadProps {
   authorId: string;
 }
 
+/**
+ * @component CommentThread
+ * @description Threaded comment list for post review. Supports one level of nesting
+ *              (replies), inline comment composition, and reply-to targeting.
+ * @param props.postId - ID of the post whose comments to display
+ * @param props.authorId - ID of the current user authoring new comments
+ */
 export function CommentThread({ postId, authorId }: CommentThreadProps) {
   const { data: comments = [], isLoading } = useComments(postId);
   const addCommentMutation = useAddComment(postId);

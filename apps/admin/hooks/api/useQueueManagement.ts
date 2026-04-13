@@ -36,8 +36,10 @@ export interface FailedJob {
 }
 
 /**
- * @function useQueueStats
+ * @hook useQueueStats
  * @description Fetches queue statistics with auto-refresh every 30 seconds.
+ *   Used by the /maintenance page for operational queue monitoring.
+ * @returns Query result with { data: QueueStats, isLoading, error }
  */
 export function useQueueStats() {
   return useQuery({
@@ -59,8 +61,9 @@ export function useQueueStats() {
 }
 
 /**
- * @function useFailedJobs
+ * @hook useFailedJobs
  * @description Fetches failed jobs with auto-refresh every 30 seconds.
+ * @returns Query result with { data: FailedJob[], isLoading, error }
  */
 export function useFailedJobs() {
   return useQuery({
@@ -82,8 +85,9 @@ export function useFailedJobs() {
 }
 
 /**
- * @function useRetryJob
- * @description Mutation to retry a failed job by ID.
+ * @hook useRetryJob
+ * @description Mutation that retries a failed job by ID. Shows a toast on success or error.
+ * @returns Mutation object with mutate(jobId) and status fields
  */
 export function useRetryJob() {
   const queryClient = useQueryClient();

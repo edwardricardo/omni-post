@@ -1,5 +1,6 @@
 /**
  * @file page.tsx
+ * @component SsoSettingsPage
  * @description SSO settings page for SAML 2.0 and OpenID Connect configuration.
  * @layer client-pages
  */

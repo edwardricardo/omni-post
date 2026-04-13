@@ -42,6 +42,11 @@ async function generateVariants(input: GenerateVariantsInput): Promise<PlatformV
   return data.value;
 }
 
+/**
+ * @hook usePlatformVariants
+ * @description Mutation hook for generating platform-native content variants from a brief.
+ * @returns TanStack Query mutation with platform variant results and generation time
+ */
 export function usePlatformVariants() {
   return useMutation({
     mutationFn: generateVariants,

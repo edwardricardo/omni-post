@@ -25,6 +25,11 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
+/**
+ * @component CampaignCard
+ * @description Individual campaign card displaying name, date range, status badge,
+ * and analytics summary with click-through to the campaign detail view.
+ */
 export function CampaignCard({ campaign, onClick }: CampaignCardProps) {
   const { data: analytics } = useCampaignAnalytics(campaign.id);
 

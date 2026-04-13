@@ -1,5 +1,6 @@
 /**
  * @file OidcConfigForm.tsx
+ * @component OidcConfigForm
  * @description OpenID Connect configuration form with redirect URI display.
  * @layer client-components
  */

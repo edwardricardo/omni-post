@@ -17,6 +17,11 @@ interface AutomationListProps {
   onAutomationCreate: (automation: Partial<AutomationTemplate>) => void;
 }
 
+/**
+ * @component AutomationList
+ * @description List container rendering AutomationCard components for all automation
+ * rules, with an empty state and create-first-automation prompt when none exist.
+ */
 export const AutomationList: React.FC<AutomationListProps> = ({
   automations,
   onAutomationToggle,

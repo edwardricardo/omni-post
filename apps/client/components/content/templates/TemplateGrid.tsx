@@ -20,6 +20,11 @@ interface TemplateGridProps {
   onTemplateDelete: (templateId: string) => void;
 }
 
+/**
+ * @component TemplateGrid
+ * @description Grid container rendering TemplateCard components or a list-style fallback,
+ * displaying filtered content templates with an empty state.
+ */
 export const TemplateGrid: React.FC<TemplateGridProps> = ({
   templates,
   viewMode,

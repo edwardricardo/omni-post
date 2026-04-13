@@ -23,8 +23,11 @@ interface FailedJobsTableProps {
 }
 
 /**
- * @function FailedJobsTable
- * @description Renders a data table of failed jobs with per-row retry action.
+ * @component FailedJobsTable
+ * @description Renders a data table of failed BullMQ jobs with per-row retry action and confirmation dialog.
+ * @param props.jobs - Array of failed job records to display
+ * @param props.onRetry - Callback invoked with the job ID when a retry is confirmed
+ * @param props.isRetrying - Whether a retry operation is currently in progress
  */
 export function FailedJobsTable({ jobs, onRetry, isRetrying }: FailedJobsTableProps) {
   const tf = useTranslations("maintenance.failedJobsTable");

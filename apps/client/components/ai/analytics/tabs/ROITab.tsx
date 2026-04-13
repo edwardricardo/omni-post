@@ -12,6 +12,11 @@ interface ROITabProps {
   roiForecasts: ROIForecast[];
 }
 
+/**
+ * @component ROITab
+ * @description Tab panel rendering an ROIForecastCard for each campaign forecast
+ * returned by the analytics ROI endpoint.
+ */
 export const ROITab: React.FC<ROITabProps> = ({ roiForecasts }) => {
   return (
     <div className="space-y-6">

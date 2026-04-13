@@ -65,6 +65,13 @@ function computeDateRange(timeRange: "7d" | "30d" | "90d"): { startDate: string;
   return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
 }
 
+/**
+ * @hook useAnalytics
+ * @description Fetches aggregated analytics summary by combining metrics from analytics,
+ *   dashboard stats, and billing stats API sources into a unified AnalyticsSummary.
+ * @param timeRange - Time window for analytics data: "7d", "30d", or "90d" (default "30d")
+ * @returns Query result with { data: AnalyticsSummary, isLoading, error }
+ */
 export function useAnalytics(timeRange: "7d" | "30d" | "90d" = "30d") {
   return useQuery({
     queryKey: ["analytics", "summary", timeRange],

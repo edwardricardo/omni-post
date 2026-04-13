@@ -36,6 +36,13 @@ const TOOLTIP_TEXT: React.CSSProperties = {
   color: "var(--text-primary)",
 };
 
+/**
+ * @component HorizontalBarChart
+ * @description Horizontal bar chart using Recharts vertical layout with per-bar colors
+ *   and a configurable value formatter.
+ * @param props.data - Array of bars with name, value, and optional color
+ * @param props.formatValue - Optional formatter for tooltip and axis values
+ */
 export function HorizontalBarChart({
   data,
   height = 200,

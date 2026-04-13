@@ -23,6 +23,11 @@ const getPerformanceIcon = (value: string) => {
   }
 };
 
+/**
+ * @component CompetitorAnalysisCard
+ * @description Card displaying a competitor account's engagement rate, follower growth,
+ * content strategy metrics, and performance comparison indicators.
+ */
 export const CompetitorAnalysisCard: React.FC<CompetitorAnalysisCardProps> = ({ competitor }) => {
   return (
     <div className="border rounded-lg p-6">

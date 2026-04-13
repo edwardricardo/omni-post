@@ -38,6 +38,11 @@ const ROLE_VARIANT: Record<string, "info" | "success" | "neutral"> = {
   SUPPORT: "success",
 };
 
+/**
+ * @component RbacManager
+ * @description Admin RBAC management panel for viewing roles, editing descriptions, managing
+ *   permissions via PermissionGrid, creating/deleting custom roles, and assigning users to roles.
+ */
 export default function RbacManager() {
   const tr = useTranslations("security.rbac");
   const tc = useTranslations("common");

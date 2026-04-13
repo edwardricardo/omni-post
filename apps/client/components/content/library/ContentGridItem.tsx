@@ -20,6 +20,12 @@ interface ContentGridItemProps {
   onTagClick?: (tag: string) => void;
 }
 
+/**
+ * @component ContentGridItem
+ * @description Card rendered inside the content grid view, displaying thumbnail, title,
+ * status badge, metadata, tag chips, and action buttons for a single content item.
+ * @param props.onTagClick - Triggers a tag filter when a tag chip is clicked
+ */
 export function ContentGridItem({
   item,
   isSelected,

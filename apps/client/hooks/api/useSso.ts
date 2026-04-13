@@ -147,6 +147,11 @@ async function disableSso(provider: "saml" | "oidc"): Promise<void> {
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useSamlConfig
+ * @description Fetches the current SAML SSO configuration for the account.
+ * @returns TanStack Query result with SAML config or null
+ */
 export function useSamlConfig() {
   return useQuery({
     queryKey: ["sso", "saml"],
@@ -155,6 +160,11 @@ export function useSamlConfig() {
   });
 }
 
+/**
+ * @hook useOidcConfig
+ * @description Fetches the current OIDC SSO configuration for the account.
+ * @returns TanStack Query result with OIDC config or null
+ */
 export function useOidcConfig() {
   return useQuery({
     queryKey: ["sso", "oidc"],
@@ -163,6 +173,11 @@ export function useOidcConfig() {
   });
 }
 
+/**
+ * @hook useConfigureSaml
+ * @description Mutation hook for saving SAML SSO configuration.
+ * @returns TanStack Query mutation that invalidates the SAML config on success
+ */
 export function useConfigureSaml() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -173,6 +188,11 @@ export function useConfigureSaml() {
   });
 }
 
+/**
+ * @hook useConfigureOidc
+ * @description Mutation hook for saving OIDC SSO configuration.
+ * @returns TanStack Query mutation that invalidates the OIDC config on success
+ */
 export function useConfigureOidc() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -183,6 +203,11 @@ export function useConfigureOidc() {
   });
 }
 
+/**
+ * @hook useEnableSaml
+ * @description Mutation hook for enabling SAML SSO for the account.
+ * @returns TanStack Query mutation that invalidates all SSO queries on success
+ */
 export function useEnableSaml() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -193,6 +218,11 @@ export function useEnableSaml() {
   });
 }
 
+/**
+ * @hook useEnableOidc
+ * @description Mutation hook for enabling OIDC SSO for the account.
+ * @returns TanStack Query mutation that invalidates all SSO queries on success
+ */
 export function useEnableOidc() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -203,6 +233,11 @@ export function useEnableOidc() {
   });
 }
 
+/**
+ * @hook useDisableSso
+ * @description Mutation hook for disabling SSO (SAML or OIDC) for the account.
+ * @returns TanStack Query mutation that invalidates all SSO queries on success
+ */
 export function useDisableSso() {
   const queryClient = useQueryClient();
   return useMutation({

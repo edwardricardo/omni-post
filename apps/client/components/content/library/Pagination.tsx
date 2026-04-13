@@ -16,6 +16,11 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
+/**
+ * @component Pagination
+ * @description Page navigation controls showing current page, total pages, item range,
+ * and previous/next navigation buttons.
+ */
 export function Pagination({
   currentPage,
   totalPages,

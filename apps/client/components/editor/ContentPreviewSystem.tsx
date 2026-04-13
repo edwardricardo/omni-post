@@ -62,6 +62,12 @@ interface ContentPreviewSystemProps {
   onProviderSelect?: (providerId: string) => void;
 }
 
+/**
+ * @component ContentPreviewSystem
+ * @description Multi-platform content preview system rendering adapted post previews for
+ * each target provider, showing threading, media optimizations, and formatting differences.
+ * @param props.adaptedContent - Provider-keyed map of adapted content with metadata
+ */
 export function ContentPreviewSystem({
   originalContent: _originalContent,
   adaptedContent,

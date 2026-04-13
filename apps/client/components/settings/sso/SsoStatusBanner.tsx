@@ -1,5 +1,6 @@
 /**
  * @file SsoStatusBanner.tsx
+ * @component SsoStatusBanner
  * @description Shows current SSO status with enable/disable controls.
  * @layer client-components
  */

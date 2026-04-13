@@ -47,6 +47,13 @@ interface WebhookEventsListProps {
   refreshTrigger?: string;
 }
 
+/**
+ * @component WebhookEventsList
+ * @description Paginated list of webhook events with search, provider/status filtering,
+ *   payload inspection dialog, and CSV export for delivery audit trails.
+ * @param props.provider - Optional provider filter applied on mount
+ * @param props.refreshTrigger - When changed, forces a data refetch
+ */
 export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsListProps) {
   const te = useTranslations("webhooks.events");
   const tc = useTranslations("common");

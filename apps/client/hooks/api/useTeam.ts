@@ -89,6 +89,12 @@ async function removeTeamMember(memberId: string, changerMemberId: string): Prom
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useTeamMembers
+ * @description Fetches all team members for a given account.
+ * @param accountId - The account to fetch team members for
+ * @returns TanStack Query result with team member array
+ */
 export function useTeamMembers(accountId: string) {
   return useQuery({
     queryKey: ["team", accountId],
@@ -98,6 +104,11 @@ export function useTeamMembers(accountId: string) {
   });
 }
 
+/**
+ * @hook useInviteTeamMember
+ * @description Mutation hook for inviting a new team member by email.
+ * @returns TanStack Query mutation that invalidates the team list on success
+ */
 export function useInviteTeamMember() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -108,6 +119,11 @@ export function useInviteTeamMember() {
   });
 }
 
+/**
+ * @hook useUpdateTeamMemberRole
+ * @description Mutation hook for changing a team member's role.
+ * @returns TanStack Query mutation that invalidates the team list on success
+ */
 export function useUpdateTeamMemberRole() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -126,6 +142,11 @@ export function useUpdateTeamMemberRole() {
   });
 }
 
+/**
+ * @hook useRemoveTeamMember
+ * @description Mutation hook for removing a team member from the account.
+ * @returns TanStack Query mutation that invalidates the team list on success
+ */
 export function useRemoveTeamMember() {
   const queryClient = useQueryClient();
   return useMutation({

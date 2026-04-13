@@ -2,6 +2,7 @@
 
 /**
  * @file TemplateEditorToolbar.tsx
+ * @component TemplateEditorToolbar
  * @description Header toolbar for the TemplateEditor, rendering the title, validation button,
  * cancel, and save actions.
  */

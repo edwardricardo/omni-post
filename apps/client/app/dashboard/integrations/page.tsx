@@ -8,6 +8,10 @@
 
 import { IntegrationMarketplace } from "@/components/integrations/IntegrationMarketplace";
 
+/**
+ * @component IntegrationsPage
+ * @description Displays the integration marketplace for connecting OmniPost with third-party tools and services.
+ */
 export default function IntegrationsPage() {
   return (
     <div>

@@ -630,6 +630,10 @@ function SubscriptionsPageContent() {
   );
 }
 
+/**
+ * @component SubscriptionsPage
+ * @description Manages subscriptions with subscriber listings, trial management, revenue metrics, and billing actions.
+ */
 export default function Page() {
   return <SubscriptionsPageContent />;
 }

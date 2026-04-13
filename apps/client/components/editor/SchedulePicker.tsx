@@ -109,6 +109,13 @@ const getOptimalTimes = (providers: string[], date: Date): OptimalTime[] => {
   return uniqueTimes.sort((a, b) => b.score - a.score).slice(0, 5);
 };
 
+/**
+ * @component SchedulePicker
+ * @description Date/time scheduling dialog with timezone selection, optimal posting time
+ * suggestions per platform, and quick-pick presets (tomorrow, next week, etc.).
+ * @param props.selectedProviders - Platforms used to compute optimal posting times
+ * @param props.inline - Renders inline instead of as a dialog overlay
+ */
 export function SchedulePicker({
   isOpen,
   onClose,

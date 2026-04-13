@@ -2,6 +2,7 @@
 
 /**
  * @file TemplateEditorSidebar.tsx
+ * @component TemplateEditorSidebar
  * @description Settings/properties panel for the TemplateEditor. Renders the template
  * name, description, category selector, and supported platforms picker.
  */

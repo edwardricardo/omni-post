@@ -1,6 +1,7 @@
 /**
  * @file page.tsx
- * @description Notification preferences settings page at /admin/settings/notifications.
+ * @component NotificationPreferencesPage
+ * @description Notification preferences settings page at /dashboard/settings/notifications.
  *              Allows users to enable/disable each notification type.
  * @layer ui
  */
@@ -8,7 +9,7 @@
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 
 export const metadata = {
-  title: "Notification Preferences — OmniPost Admin",
+  title: "Notification Preferences — OmniPost",
 };
 
 export default function NotificationPreferencesPage() {

@@ -16,6 +16,14 @@ interface MessageBubbleProps {
   onSelectReply?: (text: string) => void;
 }
 
+/**
+ * @component MessageBubble
+ * @description Single message row in the conversation thread. Inbound messages render
+ *              as left-aligned gray bubbles with sender avatar; outbound as right-aligned
+ *              blue bubbles. Displays AI-suggested reply chips for inbound messages.
+ * @param props.message - The message data to render
+ * @param props.onSelectReply - Callback when a suggested reply chip is clicked
+ */
 export function MessageBubble({ message, onSelectReply }: MessageBubbleProps) {
   const isOutbound = message.direction === "OUTBOUND";
   const timeAgo = formatDistanceToNow(new Date(message.createdAt), { addSuffix: true });

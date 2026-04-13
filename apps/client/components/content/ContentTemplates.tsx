@@ -36,6 +36,12 @@ import type {
   TabOption,
 } from "./templates";
 
+/**
+ * @component ContentTemplates
+ * @description Content templates management orchestrator composing sub-components for
+ * template browsing, filtering, automation management, and template variable filling.
+ */
+
 interface ContentTemplatesProps {
   projectId?: string;
   onTemplateSelect?: (template: ContentTemplate) => void;

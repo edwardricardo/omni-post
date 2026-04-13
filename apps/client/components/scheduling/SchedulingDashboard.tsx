@@ -2,6 +2,7 @@
 
 /**
  * @file SchedulingDashboard.tsx
+ * @component SchedulingDashboard
  * @description Top-level orchestrator for the content scheduling dashboard. Composes the
  * header, sidebar (filters + post list), calendar grid, post detail modal, and loading
  * overlay. All state management lives in the useSchedulingDashboard hook; all visual

@@ -19,7 +19,11 @@ export class BillingService extends AuditableService {
   }
 
   /**
-   * Determine change type by comparing monthly prices or legacy tier strings.
+   * @method getChangeType
+   * @description Determines whether a subscription change is an upgrade, downgrade, or lateral move by comparing prices or legacy tier strings.
+   * @param from - Current price or tier name
+   * @param to - Target price or tier name
+   * @returns The change type: UPGRADE, DOWNGRADE, or LATERAL
    */
   getChangeType(from: number | string, to: number | string): ChangeType {
     if (typeof from === "string" && typeof to === "string") {
@@ -39,7 +43,10 @@ export class BillingService extends AuditableService {
   }
 
   /**
-   * Log billing event with audit trail
+   * @method logBillingEvent
+   * @description Persists a billing event with a generated ID and timestamp, and records an audit trail entry.
+   * @param event - Billing event data excluding auto-generated id and timestamp
+   * @returns void
    */
   async logBillingEvent(event: Omit<BillingEvent, "id" | "timestamp">): Promise<void> {
     const billingEvent: BillingEvent = {
@@ -73,7 +80,11 @@ export class BillingService extends AuditableService {
   }
 
   /**
-   * Calculate next billing date
+   * @method calculateNextBillingDate
+   * @description Calculates the next billing date by advancing one month or one year from the given date.
+   * @param billingCycle - Whether billing is monthly or yearly
+   * @param fromDate - Starting date for the calculation (defaults to now)
+   * @returns The next billing date
    */
   calculateNextBillingDate(billingCycle: "monthly" | "yearly", fromDate: Date = new Date()): Date {
     const nextBilling = new Date(fromDate);
@@ -88,7 +99,12 @@ export class BillingService extends AuditableService {
   }
 
   /**
-   * Calculate billing amount based on plan and cycle
+   * @method calculateBillingAmount
+   * @description Returns the applicable billing amount based on the selected billing cycle.
+   * @param monthlyPrice - The plan's monthly price
+   * @param yearlyPrice - The plan's yearly price
+   * @param billingCycle - Whether billing is monthly or yearly
+   * @returns The billing amount for the selected cycle
    */
   calculateBillingAmount(
     monthlyPrice: number,

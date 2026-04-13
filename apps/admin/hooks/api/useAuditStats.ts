@@ -17,8 +17,10 @@ export interface AuditStats {
 }
 
 /**
- * @function useAuditStats
- * @description Fetches audit statistics from GET /admin/audit/stats.
+ * @hook useAuditStats
+ * @description Fetches audit log statistics (total, today, unique users, failure rate)
+ *   from the admin audit stats endpoint. Used by the /logs page stat cards.
+ * @returns Query result with { data: AuditStats, isLoading, error }
  */
 export function useAuditStats() {
   return useQuery({

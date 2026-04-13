@@ -1,5 +1,6 @@
 /**
  * @file CrmConnectionCard.tsx
+ * @component CrmConnectionCard
  * @description Card for a single CRM platform connection (HubSpot or Salesforce).
  * @layer client-components
  */

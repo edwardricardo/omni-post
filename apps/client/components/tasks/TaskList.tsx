@@ -1,5 +1,6 @@
 /**
  * @file TaskList.tsx
+ * @component TaskList
  * @description Filterable task list with status tabs and priority filter.
  * @layer client-components
  */

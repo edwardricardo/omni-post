@@ -28,6 +28,17 @@ interface ReplyComposerProps {
   onSuggestedTextConsumed?: () => void;
 }
 
+/**
+ * @component ReplyComposer
+ * @description Inline reply composer anchored at the bottom of the conversation thread.
+ *              Features auto-resizing textarea, character counter with warning threshold,
+ *              Ctrl+Enter send shortcut, and provider-level reply capability check.
+ * @param props.conversationId - ID of the conversation being replied to
+ * @param props.lastMessageId - ID of the most recent message for reply threading
+ * @param props.provider - Social platform provider name for capability check
+ * @param props.suggestedText - Pre-populated text from suggested reply selection
+ * @param props.onSuggestedTextConsumed - Callback after suggested text is applied
+ */
 export function ReplyComposer({
   conversationId,
   lastMessageId,

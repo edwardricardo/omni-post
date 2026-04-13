@@ -36,6 +36,12 @@ interface AccountTiersTabProps {
   isLoading: boolean;
 }
 
+/**
+ * @component AccountTiersTab
+ * @description Account pricing tiers table with inline editing, status toggle, and a create dialog.
+ * @param props.tiers - Array of account tier records to display
+ * @param props.isLoading - Whether tier data is still loading
+ */
 export function AccountTiersTab({ tiers, isLoading }: AccountTiersTabProps) {
   const tp = useTranslations("pricing");
   const tc = useTranslations("common");

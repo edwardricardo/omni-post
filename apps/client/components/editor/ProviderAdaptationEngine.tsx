@@ -71,6 +71,12 @@ interface ProviderAdaptationEngineProps {
   enableAutoAdaptation?: boolean;
 }
 
+/**
+ * @component ProviderAdaptationEngine
+ * @description Adapts canonical post content into provider-specific formats, applying
+ * character limits, media constraints, threading, and hashtag optimizations.
+ * @param props.enableAutoAdaptation - Automatically re-adapt when content changes
+ */
 export function ProviderAdaptationEngine({
   content,
   providers,

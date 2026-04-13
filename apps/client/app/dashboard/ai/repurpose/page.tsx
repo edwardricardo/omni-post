@@ -24,6 +24,10 @@ interface RepurposeProposal {
   }>;
 }
 
+/**
+ * @component RepurposePage
+ * @description Shows AI-detected high-performing posts with cross-platform repurpose proposals and variant management.
+ */
 export default function RepurposePage() {
   const { user } = useAuth();
   const accountId = ((user as Record<string, unknown> | null)?.accountId as string) ?? "";

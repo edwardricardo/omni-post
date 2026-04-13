@@ -16,7 +16,9 @@ export class SubscriptionStatsService extends AuditableService {
   }
 
   /**
-   * Get comprehensive subscription statistics from AccountSubscription model.
+   * @method getSubscriptionStats
+   * @description Calculates comprehensive subscription analytics including MRR, status distribution, churn risk, and growth metrics.
+   * @returns Result with subscription statistics on success, or DATABASE_ERROR on failure
    */
   async getSubscriptionStats(): Promise<Result<SubscriptionStats, "DATABASE_ERROR">> {
     const startTime = Date.now();

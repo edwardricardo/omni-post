@@ -32,9 +32,12 @@ interface InputDialogProps {
 }
 
 /**
- * @function InputDialog
- * @description A modal dialog that prompts the user for text input before confirming.
- * @param props - Dialog configuration and callback handlers
+ * @component InputDialog
+ * @description A modal dialog that prompts the user for text input before confirming an action.
+ * @param props.title - Dialog heading text
+ * @param props.description - Explanatory text shown below the title
+ * @param props.inputLabel - Label for the text input field
+ * @param props.onConfirm - Callback receiving the trimmed input value on confirmation
  */
 export function InputDialog({
   open,

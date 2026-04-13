@@ -7,6 +7,10 @@
 
 import { useState } from "react";
 import SmartContentOptimizer from "@/components/ai/SmartContentOptimizer";
+/**
+ * @component SmartOptimizerPage
+ * @description Displays a content input area with real-time AI analysis and optimization suggestions for social media posts.
+ */
 export default function SmartOptimizerPage() {
   const [content, setContent] = useState("");
 

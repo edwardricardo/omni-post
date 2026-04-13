@@ -38,6 +38,12 @@ const STYLES: { label: string; value: ImageStyle }[] = [
 // Component
 // ---------------------------------------------------------------------------
 
+/**
+ * @component AIImageGenerator
+ * @description AI-powered image generation interface using DALL-E 3 via the backend API,
+ * with a prompt form, size/quality/style selectors, generated image preview, and gallery.
+ */
+
 export function AIImageGenerator() {
   const { projectId } = useProject();
 

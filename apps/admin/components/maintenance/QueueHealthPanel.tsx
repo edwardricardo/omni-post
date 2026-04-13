@@ -54,8 +54,9 @@ const DOT_COLORS: Record<ReturnType<typeof getOverallHealth>, string> = {
 };
 
 /**
- * @function QueueHealthPanel
- * @description Grid of all BullMQ queues with status indicator dots.
+ * @component QueueHealthPanel
+ * @description Renders a grid of all 15 BullMQ queues with color-coded health indicator dots.
+ * @param props.stats - Aggregate queue statistics used to derive per-queue health status
  */
 export function QueueHealthPanel({ stats }: QueueHealthPanelProps) {
   const tm = useTranslations("maintenance");

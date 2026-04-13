@@ -26,6 +26,11 @@ interface DsarSubmitResult {
 
 export type { DsarSubmitParams, DsarSubmitResult };
 
+/**
+ * @hook useSubmitDsarRequest
+ * @description Mutation hook for submitting a Data Subject Access Request (DSAR) to the compliance endpoint.
+ * @returns TanStack Query mutation with DSAR submission result including request ID and deadline
+ */
 export function useSubmitDsarRequest() {
   return useMutation({
     mutationFn: async (data: DsarSubmitParams): Promise<DsarSubmitResult> => {

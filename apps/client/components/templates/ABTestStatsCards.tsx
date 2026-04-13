@@ -1,5 +1,6 @@
 /**
  * @file ABTestStatsCards.tsx
+ * @component ABTestStatsCards
  * @description Summary statistics cards for the A/B Test Manager: total tests, running, completed, and drafts.
  */
 

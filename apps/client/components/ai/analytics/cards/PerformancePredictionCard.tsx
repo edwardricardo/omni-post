@@ -14,6 +14,11 @@ interface PerformancePredictionCardProps {
   prediction: PerformancePrediction;
 }
 
+/**
+ * @component PerformancePredictionCard
+ * @description Card showing AI-predicted performance for a platform post, including
+ * expected engagement, reach with confidence intervals, viral potential, and optimal posting time.
+ */
 export const PerformancePredictionCard: React.FC<PerformancePredictionCardProps> = ({
   prediction,
 }) => {

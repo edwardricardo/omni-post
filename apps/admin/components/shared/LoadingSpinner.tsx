@@ -19,6 +19,12 @@ const SIZE_CLASSES: Record<NonNullable<LoadingSpinnerProps["size"]>, string> = {
   lg: "w-12 h-12 border-[3px]",
 };
 
+/**
+ * @component LoadingSpinner
+ * @description Accessible loading indicator with ARIA live region and configurable size.
+ * @param props.size - Spinner diameter: "sm", "md", or "lg"
+ * @param props.label - Screen-reader label for the loading state
+ */
 export function LoadingSpinner({
   size = "md",
   label = "Loading...",

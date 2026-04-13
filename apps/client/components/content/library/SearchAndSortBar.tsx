@@ -17,6 +17,11 @@ interface SearchAndSortBarProps {
   onSortChange: (sortBy: SortField, sortOrder: SortOrder) => void;
 }
 
+/**
+ * @component SearchAndSortBar
+ * @description Search input and sort controls bar for the content library, allowing
+ * keyword filtering and sorting by various fields in ascending or descending order.
+ */
 export function SearchAndSortBar({
   searchQuery,
   sortBy,

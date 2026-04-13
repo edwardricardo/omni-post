@@ -13,6 +13,11 @@ interface BulkActionsBarProps {
   onBulkAction: (action: string) => void;
 }
 
+/**
+ * @component BulkActionsBar
+ * @description Toolbar appearing when content items are selected, providing batch
+ * operations like duplicate, archive, and delete.
+ */
 export function BulkActionsBar({ selectedCount, onBulkAction }: BulkActionsBarProps) {
   if (selectedCount === 0) {
     return null;

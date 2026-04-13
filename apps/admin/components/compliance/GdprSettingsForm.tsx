@@ -19,6 +19,11 @@ import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 
 const JURISDICTIONS = ["GDPR", "CCPA", "LGPD", "PIPEDA"] as const;
 
+/**
+ * @component GdprSettingsForm
+ * @description Form for managing GDPR/privacy settings including DPO configuration,
+ *   data retention policies, DSAR response deadlines, and privacy feature toggles.
+ */
 export function GdprSettingsForm() {
   const t = useTranslations("compliance.gdpr");
   const tc = useTranslations("common");

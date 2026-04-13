@@ -25,15 +25,21 @@ export class SubscriptionPlanService extends AuditableService {
   }
 
   /**
-   * Get subscription plan details.
+   * @method getSubscriptionPlan
+   * @description Returns the hardcoded subscription plan details for a given tier.
    * @deprecated Prefer getAccountPlan(accountId) for provider-based model.
+   * @param tier - The subscription tier to look up
+   * @returns The subscription plan configuration for the given tier
    */
   getSubscriptionPlan(tier: SubscriptionTier): SubscriptionPlan {
     return SUBSCRIPTION_PLANS[tier];
   }
 
   /**
-   * Get plan info from AccountSubscription for an account.
+   * @method getAccountPlan
+   * @description Retrieves plan info from the AccountSubscription model including bundle details and pricing.
+   * @param accountId - The account ID to look up
+   * @returns The account plan details, or null if no subscription exists
    */
   async getAccountPlan(accountId: string) {
     const sub = await prisma.accountSubscription.findUnique({
@@ -62,7 +68,9 @@ export class SubscriptionPlanService extends AuditableService {
   }
 
   /**
-   * Get all available bundles from DB.
+   * @method getAllPlansFromDB
+   * @description Fetches all active provider bundles from the database, ordered by sort position.
+   * @returns List of active provider bundles
    */
   async getAllPlansFromDB() {
     return prisma.providerBundle.findMany({
@@ -72,14 +80,22 @@ export class SubscriptionPlanService extends AuditableService {
   }
 
   /**
+   * @method getAllPlans
+   * @description Returns all hardcoded subscription plans.
    * @deprecated Use getAllPlansFromDB instead.
+   * @returns Array of all subscription plan configurations
    */
   getAllPlans(): SubscriptionPlan[] {
     return Object.values(SUBSCRIPTION_PLANS);
   }
 
   /**
-   * Validate subscription limits using AccountSubscription.maxProjects.
+   * @method validateSubscriptionLimits
+   * @description Validates whether an operation is allowed based on the subscription's project, team, and storage limits.
+   * @param subscriptionInfo - The account's current subscription information
+   * @param operation - The operation to validate (CREATE_PROJECT, ADD_TEAM_MEMBER, UPLOAD_MEDIA)
+   * @param amount - Number of units the operation would consume (defaults to 1)
+   * @returns Result with allowed status, limit, current usage, and remaining capacity
    */
   async validateSubscriptionLimits(
     subscriptionInfo: AccountSubscriptionInfo,
@@ -210,6 +226,12 @@ export class SubscriptionPlanService extends AuditableService {
     };
   }
 
+  /**
+   * @method calculateTrialInfo
+   * @description Computes trial status, remaining days, and expiration state for an account.
+   * @param account - The account to evaluate trial info for
+   * @returns Trial information including active status, dates, days remaining, and expiration
+   */
   calculateTrialInfo(account: PrismaAccount): TrialInfo {
     const now = new Date();
     const trialEndDate = account.trialEndDate;

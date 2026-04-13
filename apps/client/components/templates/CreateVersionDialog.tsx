@@ -1,5 +1,6 @@
 /**
  * @file CreateVersionDialog.tsx
+ * @component CreateVersionDialog
  * @description Dialog for creating a new template version with commit message, change log, and branch selection.
  */
 

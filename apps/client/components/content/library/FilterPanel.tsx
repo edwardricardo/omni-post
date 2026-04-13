@@ -18,6 +18,12 @@ interface FilterPanelProps {
   availableTags?: string[];
 }
 
+/**
+ * @component FilterPanel
+ * @description Sidebar filter panel for the content library allowing filtering by
+ * status, type, platform, date range, and tags.
+ * @param props.availableTags - Known tags across items for filter input suggestions
+ */
 export function FilterPanel({
   filter,
   filterOptions,

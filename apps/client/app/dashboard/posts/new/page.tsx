@@ -12,6 +12,10 @@ import { Label } from "@packages/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@packages/ui";
 import { ArrowLeft, Save, Send } from "lucide-react";
 
+/**
+ * @component NewPostPage
+ * @description Post creation page with content editor, project selection, provider targeting, and publish dialog.
+ */
 export default function NewPostPage() {
   const router = useRouter();
   const [selectedProject, setSelectedProject] = useState<string>("");

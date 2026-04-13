@@ -87,6 +87,12 @@ function scoreToStatus(score: number): "compliant" | "warning" | "non-compliant"
   return "non-compliant";
 }
 
+/**
+ * @hook useCompliance
+ * @description Fetches compliance overview data combining metrics and audit logs
+ *   into a unified ComplianceData structure with compliance scores and audit events.
+ * @returns Query result with { data: ComplianceData, isLoading, error }
+ */
 export function useCompliance() {
   return useQuery({
     queryKey: ["compliance", "overview"],
@@ -201,6 +207,12 @@ export interface GdprSettings {
   updatedAt: string;
 }
 
+/**
+ * @hook useGdprSettings
+ * @description Fetches GDPR configuration settings including privacy URLs, DPO contact,
+ *   data retention policies, and DSAR response deadlines.
+ * @returns Query result with { data: GdprSettings, isLoading, error }
+ */
 export function useGdprSettings() {
   return useQuery({
     queryKey: ["compliance", "gdpr-settings"],
@@ -220,6 +232,12 @@ export function useGdprSettings() {
   });
 }
 
+/**
+ * @hook useUpdateGdprSettings
+ * @description Mutation that updates GDPR configuration settings.
+ *   Invalidates the compliance query family on success.
+ * @returns Mutation object with mutate(Partial<GdprSettings>) and status fields
+ */
 export function useUpdateGdprSettings() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -260,6 +278,12 @@ export interface SecuritySettings {
   updatedAt: string;
 }
 
+/**
+ * @hook useSecuritySettings
+ * @description Fetches security configuration settings including 2FA requirements,
+ *   session timeouts, password policies, and IP allowlist rules.
+ * @returns Query result with { data: SecuritySettings, isLoading, error }
+ */
 export function useSecuritySettings() {
   return useQuery({
     queryKey: ["compliance", "security-settings"],
@@ -279,6 +303,12 @@ export function useSecuritySettings() {
   });
 }
 
+/**
+ * @hook useUpdateSecuritySettings
+ * @description Mutation that updates security configuration settings.
+ *   Invalidates the compliance query family on success.
+ * @returns Mutation object with mutate(Partial<SecuritySettings>) and status fields
+ */
 export function useUpdateSecuritySettings() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -319,6 +349,12 @@ export interface ComplianceScoreData {
   checks: ComplianceCheck[];
 }
 
+/**
+ * @hook useComplianceScore
+ * @description Fetches the overall compliance score with individual check results.
+ *   Auto-refreshes every 60 seconds.
+ * @returns Query result with { data: ComplianceScoreData, isLoading, error }
+ */
 export function useComplianceScore() {
   return useQuery({
     queryKey: ["compliance", "score"],
@@ -369,6 +405,13 @@ interface DsarResponse {
   limit: number;
 }
 
+/**
+ * @hook useDsarRequests
+ * @description Fetches paginated DSAR (Data Subject Access Request) entries with optional
+ *   status and type filters.
+ * @param filters - Pagination and filter options (status, type, page, limit)
+ * @returns Query result with { data: DsarResponse, isLoading, error }
+ */
 export function useDsarRequests(filters: DsarFilters) {
   return useQuery({
     queryKey: ["compliance", "dsar", filters],
@@ -393,6 +436,11 @@ export function useDsarRequests(filters: DsarFilters) {
   });
 }
 
+/**
+ * @hook useAcknowledgeDsar
+ * @description Mutation that acknowledges a DSAR request, transitioning it to IN_PROGRESS.
+ * @returns Mutation object with mutate(id) and status fields
+ */
 export function useAcknowledgeDsar() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -412,6 +460,11 @@ export function useAcknowledgeDsar() {
   });
 }
 
+/**
+ * @hook useCompleteDsar
+ * @description Mutation that marks a DSAR request as completed, optionally attaching an export URL.
+ * @returns Mutation object with mutate({ id, exportUrl? }) and status fields
+ */
 export function useCompleteDsar() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -435,6 +488,11 @@ export function useCompleteDsar() {
   });
 }
 
+/**
+ * @hook useRejectDsar
+ * @description Mutation that rejects a DSAR request with a reason.
+ * @returns Mutation object with mutate({ id, reason }) and status fields
+ */
 export function useRejectDsar() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -495,6 +553,12 @@ export interface CreateBreachInput {
   dataTypes: string[];
 }
 
+/**
+ * @hook useBreachReports
+ * @description Fetches paginated breach reports with optional resolved-status filter.
+ * @param filters - Pagination and filter options (resolved, page, limit)
+ * @returns Query result with { data: BreachResponse, isLoading, error }
+ */
 export function useBreachReports(filters: BreachFilters) {
   return useQuery({
     queryKey: ["compliance", "breaches", filters],
@@ -518,6 +582,11 @@ export function useBreachReports(filters: BreachFilters) {
   });
 }
 
+/**
+ * @hook useCreateBreachReport
+ * @description Mutation that creates a new breach report with severity, affected users, and data types.
+ * @returns Mutation object with mutate(CreateBreachInput) and status fields
+ */
 export function useCreateBreachReport() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -541,6 +610,11 @@ export function useCreateBreachReport() {
   });
 }
 
+/**
+ * @hook useSendBreachNotification
+ * @description Mutation that sends breach notification emails for a given breach report.
+ * @returns Mutation object with mutate(id) and status fields
+ */
 export function useSendBreachNotification() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -24,6 +24,11 @@ interface MfaSetupData {
   backupCodes: string[];
 }
 
+/**
+ * @component MfaSelfService
+ * @description Self-service MFA setup panel for the current admin user. Supports TOTP enrollment
+ *   with QR code, code verification, backup code display, and MFA disabling.
+ */
 export function MfaSelfService() {
   const ms = useTranslations("security.mfa.self");
   const tc = useTranslations("common");

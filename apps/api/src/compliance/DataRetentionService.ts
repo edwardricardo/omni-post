@@ -11,6 +11,11 @@ import { logger } from "../lib/logger.js";
 
 export class DataRetentionService {
   constructor(private readonly prisma: PrismaClient) {}
+  /**
+   * @method runRetentionCleanup
+   * @description Deletes expired audit logs beyond the retention period and marks overdue DSAR requests as EXPIRED.
+   * @returns Counts of deleted audit logs and expired DSAR requests
+   */
   async runRetentionCleanup(): Promise<{
     auditLogsDeleted: number;
     expiredDsarRequests: number;

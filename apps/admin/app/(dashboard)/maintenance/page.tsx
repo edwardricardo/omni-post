@@ -35,6 +35,10 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 // Page component
 // ---------------------------------------------------------------------------
 
+/**
+ * @component MaintenancePage
+ * @description Displays system maintenance with queue overview stats, failed jobs table, and queue health panel.
+ */
 export default function MaintenancePage() {
   const tm = useTranslations("maintenance");
   const tc = useTranslations("common");

@@ -1,5 +1,6 @@
 /**
  * @file page.tsx
+ * @component UsagePage
  * @description Usage dashboard showing account usage vs plan limits.
  * @layer client-pages
  */

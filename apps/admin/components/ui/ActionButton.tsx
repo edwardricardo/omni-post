@@ -54,6 +54,14 @@ function Spinner() {
   );
 }
 
+/**
+ * @component ActionButton
+ * @description Themed button with primary, secondary, and danger variants, three sizes,
+ *   and a loading spinner state. Uses CSS custom-property design tokens.
+ * @param props.variant - Visual style: "primary", "secondary", or "danger"
+ * @param props.size - Button size: "sm", "md", or "lg"
+ * @param props.loading - When true, shows a spinner and disables the button
+ */
 export function ActionButton({
   variant = "primary",
   size = "md",

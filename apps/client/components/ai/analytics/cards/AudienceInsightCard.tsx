@@ -12,6 +12,11 @@ interface AudienceInsightCardProps {
   insight: AudienceInsight;
 }
 
+/**
+ * @component AudienceInsightCard
+ * @description Card rendering a single audience segment's demographics including size,
+ * growth rate, top locations, interests, and peak activity hours.
+ */
 export const AudienceInsightCard: React.FC<AudienceInsightCardProps> = ({ insight }) => {
   return (
     <div className="border rounded-lg p-6">

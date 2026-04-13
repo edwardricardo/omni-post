@@ -64,6 +64,11 @@ export class ComplianceService {
   // Settings (singleton upsert)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /**
+   * @method getGdprSettings
+   * @description Retrieves the singleton GDPR settings record, creating defaults if none exist.
+   * @returns The current GDPR settings
+   */
   async getGdprSettings() {
     const settings = await this.prisma.gdprSettings.findFirst();
     if (settings) return settings;
@@ -72,6 +77,13 @@ export class ComplianceService {
     });
   }
 
+  /**
+   * @method updateGdprSettings
+   * @description Validates and persists changes to GDPR settings with audit logging.
+   * @param data - Key-value map of GDPR setting fields to update
+   * @param updatedBy - User ID of the admin performing the update
+   * @returns Result with updated settings on success, or ComplianceError on failure
+   */
   async updateGdprSettings(
     data: Record<string, unknown>,
     updatedBy: string
@@ -119,6 +131,11 @@ export class ComplianceService {
     }
   }
 
+  /**
+   * @method getSecuritySettings
+   * @description Retrieves the singleton security settings record, creating defaults if none exist.
+   * @returns The current security settings
+   */
   async getSecuritySettings() {
     const settings = await this.prisma.securitySettings.findFirst();
     if (settings) return settings;
@@ -127,6 +144,13 @@ export class ComplianceService {
     });
   }
 
+  /**
+   * @method updateSecuritySettings
+   * @description Validates and persists changes to security settings with audit logging.
+   * @param data - Key-value map of security setting fields to update
+   * @param updatedBy - User ID of the admin performing the update
+   * @returns Result with updated settings on success, or ComplianceError on failure
+   */
   async updateSecuritySettings(
     data: Record<string, unknown>,
     updatedBy: string
@@ -175,6 +199,11 @@ export class ComplianceService {
   // Compliance Score (11 checks, weights sum to 100)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /**
+   * @method getComplianceScore
+   * @description Evaluates 11 weighted compliance checks across GDPR, security, and audit settings and returns an aggregate score.
+   * @returns Compliance score (0-100) and individual check results
+   */
   async getComplianceScore(): Promise<ComplianceScoreResult> {
     const [gdpr, security, recentAuditCount] = await Promise.all([
       this.getGdprSettings(),
@@ -264,6 +293,12 @@ export class ComplianceService {
   // DSAR Requests
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /**
+   * @method getDsarRequests
+   * @description Retrieves a paginated list of DSAR requests with optional status and type filters.
+   * @param filters - Filtering and pagination options for the DSAR query
+   * @returns Paginated list of DSAR requests with associated account info
+   */
   async getDsarRequests(filters: DsarFilters) {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 50;
@@ -285,6 +320,12 @@ export class ComplianceService {
     return { requests, total, page, limit };
   }
 
+  /**
+   * @method getDsarById
+   * @description Retrieves a single DSAR request by its unique identifier.
+   * @param id - The DSAR request ID
+   * @returns The DSAR request with associated account info, or null if not found
+   */
   async getDsarById(id: string) {
     return this.prisma.dsarRequest.findUnique({
       where: { id },
@@ -292,6 +333,13 @@ export class ComplianceService {
     });
   }
 
+  /**
+   * @method acknowledgeDsar
+   * @description Transitions a DSAR request to IN_PROGRESS status and records the acknowledgment timestamp.
+   * @param id - The DSAR request ID to acknowledge
+   * @param adminId - User ID of the admin acknowledging the request
+   * @returns Result with updated DSAR on success, or ComplianceError on failure
+   */
   async acknowledgeDsar(id: string, adminId: string): Promise<Result<unknown, ComplianceError>> {
     try {
       const dsar = await this.prisma.dsarRequest.findUnique({ where: { id } });
@@ -319,6 +367,14 @@ export class ComplianceService {
     }
   }
 
+  /**
+   * @method completeDsar
+   * @description Marks a DSAR request as COMPLETED, optionally attaching an export URL with a 7-day expiry.
+   * @param id - The DSAR request ID to complete
+   * @param adminId - User ID of the admin completing the request
+   * @param exportUrl - Optional URL where the data export can be downloaded
+   * @returns Result with updated DSAR on success, or ComplianceError on failure
+   */
   async completeDsar(
     id: string,
     adminId: string,
@@ -358,6 +414,14 @@ export class ComplianceService {
     }
   }
 
+  /**
+   * @method rejectDsar
+   * @description Rejects a DSAR request with a stated reason and records the rejection in the audit log.
+   * @param id - The DSAR request ID to reject
+   * @param adminId - User ID of the admin rejecting the request
+   * @param reason - Explanation for why the request was rejected
+   * @returns Result with updated DSAR on success, or ComplianceError on failure
+   */
   async rejectDsar(
     id: string,
     adminId: string,
@@ -395,6 +459,12 @@ export class ComplianceService {
     }
   }
 
+  /**
+   * @method submitDsarRequest
+   * @description Creates a new DSAR request with jurisdiction-based deadline, rate limiting (max 3 pending per email), and audit trail.
+   * @param data - Requestor details including email, type, jurisdiction, and optional account association
+   * @returns Result with the created request ID, deadline, and confirmation message
+   */
   async submitDsarRequest(data: {
     requestorEmail: string;
     requestorName?: string;
@@ -462,6 +532,12 @@ export class ComplianceService {
   // Breach Reports
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /**
+   * @method getBreachReports
+   * @description Retrieves a paginated list of data breach reports with optional resolved-status filter.
+   * @param filters - Filtering and pagination options for the breach query
+   * @returns Paginated list of breach reports
+   */
   async getBreachReports(filters: BreachFilters) {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 50;
@@ -481,6 +557,13 @@ export class ComplianceService {
     return { reports, total, page, limit };
   }
 
+  /**
+   * @method createBreachReport
+   * @description Records a new data breach report with severity, affected data types, and audit logging.
+   * @param data - Breach details including title, description, severity, and affected data types
+   * @param reportedBy - User ID of the admin reporting the breach
+   * @returns Result with the created breach report on success, or ComplianceError on failure
+   */
   async createBreachReport(
     data: {
       title: string;
@@ -525,6 +608,13 @@ export class ComplianceService {
     }
   }
 
+  /**
+   * @method sendBreachNotifications
+   * @description Sends email notifications about a breach to all active accounts and records the notification event.
+   * @param breachId - The breach report ID to notify about
+   * @param adminId - User ID of the admin triggering the notifications
+   * @returns Result with notified and error counts on success, or ComplianceError on failure
+   */
   async sendBreachNotifications(
     breachId: string,
     adminId: string

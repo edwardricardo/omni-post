@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * @file page.tsx
+ * @component RegisterPage
+ * @description Registration page with email, name, and password form for new users.
+ */
+
 import { useActionState } from "react";
 import Link from "next/link";
 import {

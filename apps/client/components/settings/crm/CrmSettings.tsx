@@ -1,5 +1,6 @@
 /**
  * @file CrmSettings.tsx
+ * @component CrmSettings
  * @description Main CRM settings component with connection cards and sync logs.
  * @layer client-components
  */

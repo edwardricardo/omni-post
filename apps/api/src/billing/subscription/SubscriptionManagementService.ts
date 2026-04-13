@@ -23,7 +23,10 @@ export class SubscriptionManagementService extends AuditableService {
   // ═══════════════════════════════════════════════════════════════
 
   /**
-   * Get subscription from AccountSubscription model (new).
+   * @method getProviderSubscription
+   * @description Retrieves the provider-based subscription for an account, including bundle and account details.
+   * @param accountId - The account ID to look up
+   * @returns The account subscription with bundle and account info, or null if not found
    */
   async getProviderSubscription(accountId: string) {
     return prisma.accountSubscription.findUnique({
@@ -33,7 +36,12 @@ export class SubscriptionManagementService extends AuditableService {
   }
 
   /**
-   * List subscriptions from AccountSubscription model (new).
+   * @method listProviderSubscriptions
+   * @description Returns a paginated list of provider-based subscriptions with optional status, plan type, and search filters.
+   * @param filters - Optional filters for status, plan type (bundle/custom), and text search
+   * @param page - Page number (defaults to 1)
+   * @param limit - Results per page (defaults to 50)
+   * @returns Paginated subscription list with total count
    */
   async listProviderSubscriptions(
     filters: { status?: string; planType?: "bundle" | "custom"; search?: string } = {},
@@ -79,7 +87,11 @@ export class SubscriptionManagementService extends AuditableService {
   // ═══════════════════════════════════════════════════════════════
 
   /**
+   * @method getAccountSubscription
+   * @description Retrieves subscription info for an account using the legacy Account model.
    * @deprecated Use getProviderSubscription instead.
+   * @param accountId - The account ID to look up
+   * @returns Result with subscription info on success, or NOT_FOUND/DATABASE_ERROR on failure
    */
   async getAccountSubscription(
     accountId: string
@@ -108,8 +120,13 @@ export class SubscriptionManagementService extends AuditableService {
   }
 
   /**
-   * @deprecated Removed — Account.subscription field no longer exists.
-   *   Use ChangeAccountSubscriptionUseCase instead.
+   * @method updateSubscription
+   * @description Legacy stub that logs a deprecation warning and returns INVALID_TIER.
+   * @deprecated Removed -- Account.subscription field no longer exists. Use ChangeAccountSubscriptionUseCase instead.
+   * @param _accountId - The account ID (unused)
+   * @param _changeRequest - The change request payload (unused)
+   * @param _updatedByUserId - The admin user ID (unused)
+   * @returns Result with INVALID_TIER error
    */
   async updateSubscription(
     _accountId: string,
@@ -126,8 +143,13 @@ export class SubscriptionManagementService extends AuditableService {
   }
 
   /**
-   * @deprecated Removed — Account.subscription field no longer exists.
-   *   Use listProviderSubscriptions instead.
+   * @method listAccountSubscriptions
+   * @description Legacy stub that logs a deprecation warning and returns an empty list.
+   * @deprecated Removed -- Account.subscription field no longer exists. Use listProviderSubscriptions instead.
+   * @param _filters - Filter options (unused)
+   * @param _page - Page number (unused)
+   * @param _limit - Results per page (unused)
+   * @returns Result with empty subscription list
    */
   async listAccountSubscriptions(
     _filters: {
@@ -153,7 +175,12 @@ export class SubscriptionManagementService extends AuditableService {
   }
 
   /**
-   * Validate subscription limits
+   * @method validateSubscriptionLimits
+   * @description Checks whether an account can perform a given operation based on its subscription plan limits.
+   * @param accountId - The account ID to validate
+   * @param operation - The operation type to check (CREATE_PROJECT, ADD_TEAM_MEMBER, UPLOAD_MEDIA)
+   * @param amount - Number of units the operation would consume (defaults to 1)
+   * @returns Result with allowed status, limit, current usage, and remaining capacity
    */
   async validateSubscriptionLimits(
     accountId: string,
@@ -196,7 +223,12 @@ export class SubscriptionManagementService extends AuditableService {
   }
 
   /**
-   * Suspend account subscription
+   * @method suspendSubscription
+   * @description Cancels an account's subscription, logs an audit trail, and records a billing suspension event.
+   * @param accountId - The account ID to suspend
+   * @param reason - Explanation for the suspension
+   * @param suspendedByUserId - Optional admin user ID who initiated the suspension
+   * @returns Result with void on success, or NOT_FOUND/DATABASE_ERROR on failure
    */
   async suspendSubscription(
     accountId: string,

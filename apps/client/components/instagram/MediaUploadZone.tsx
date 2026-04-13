@@ -2,6 +2,7 @@
 
 /**
  * @file MediaUploadZone.tsx
+ * @component MediaUploadZone
  * @description Drag-and-drop media upload zone for Instagram content, supporting image and video
  * uploads with file validation, progress tracking, and integrated video split preview.
  */

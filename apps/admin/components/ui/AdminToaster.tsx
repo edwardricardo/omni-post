@@ -16,6 +16,11 @@ import {
   useToast,
 } from "@packages/ui";
 
+/**
+ * @component AdminToaster
+ * @description Admin-specific toast notification container positioned at top-center.
+ *   Wraps @packages/ui Toast primitives with custom viewport positioning.
+ */
 export function AdminToaster() {
   const { toasts } = useToast();
 

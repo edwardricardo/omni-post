@@ -2,6 +2,7 @@
 
 /**
  * @file OptimalTimesView.tsx
+ * @component OptimalTimesView
  * @description View displaying AI-suggested optimal posting times per platform based on
  * audience engagement data, allowing users to schedule posts at recommended times.
  */

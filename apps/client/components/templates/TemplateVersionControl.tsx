@@ -2,6 +2,7 @@
 
 /**
  * @file TemplateVersionControl.tsx
+ * @component TemplateVersionControl
  * @description Main orchestrator component for template version control.
  * Sub-components, hooks, and types are split into separate modules.
  */

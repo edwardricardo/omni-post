@@ -1,5 +1,6 @@
 /**
  * @file TeamPage.tsx
+ * @component TeamPage
  * @description Main team management component with member list and invite.
  * @layer client-components
  */

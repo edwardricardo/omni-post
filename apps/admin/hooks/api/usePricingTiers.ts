@@ -47,8 +47,9 @@ interface PricingData {
 }
 
 /**
+ * @hook usePricingTiers
  * @description Fetches all pricing tiers, account tiers, and bundles.
- * @returns Query result with provider tiers, account tiers, and bundles.
+ * @returns Query result with { data: { providerTiers, accountTiers, bundles }, isLoading, error }
  */
 export function usePricingTiers() {
   return useQuery({
@@ -70,8 +71,9 @@ export function usePricingTiers() {
 }
 
 /**
- * @description Mutation hook for updating a provider tier by ID.
- * Invalidates pricing query cache on success.
+ * @hook useUpdateProviderTier
+ * @description Mutation that updates a provider tier by ID. Invalidates pricing cache on success.
+ * @returns Mutation object with mutate({ id, data }) and status fields
  */
 export function useUpdateProviderTier() {
   const qc = useQueryClient();
@@ -94,8 +96,9 @@ export function useUpdateProviderTier() {
 }
 
 /**
- * @description Mutation hook for updating an account tier by ID.
- * Invalidates pricing query cache on success.
+ * @hook useUpdateAccountTier
+ * @description Mutation that updates an account tier by ID. Invalidates pricing cache on success.
+ * @returns Mutation object with mutate({ id, data }) and status fields
  */
 export function useUpdateAccountTier() {
   const qc = useQueryClient();
@@ -118,8 +121,9 @@ export function useUpdateAccountTier() {
 }
 
 /**
- * @description Mutation hook for updating a pricing bundle by ID.
- * Invalidates pricing query cache on success.
+ * @hook useUpdateBundle
+ * @description Mutation that updates a pricing bundle by ID. Invalidates pricing cache on success.
+ * @returns Mutation object with mutate({ id, data }) and status fields
  */
 export function useUpdateBundle() {
   const qc = useQueryClient();
@@ -142,8 +146,9 @@ export function useUpdateBundle() {
 }
 
 /**
- * @description Mutation hook for creating a new pricing bundle.
- * Invalidates pricing query cache on success.
+ * @hook useCreateBundle
+ * @description Mutation that creates a new pricing bundle. Invalidates pricing cache on success.
+ * @returns Mutation object with mutate({ name, slug, description, providers, pricePerAccountMonth }) and status fields
  */
 export function useCreateBundle() {
   const queryClient = useQueryClient();
@@ -176,8 +181,9 @@ export function useCreateBundle() {
 }
 
 /**
- * @description Mutation hook for creating a new provider tier.
- * Invalidates pricing query cache on success.
+ * @hook useCreateProviderTier
+ * @description Mutation that creates a new provider tier. Invalidates pricing cache on success.
+ * @returns Mutation object with mutate({ minProviders, maxProviders, pricePerProviderMonth }) and status fields
  */
 export function useCreateProviderTier() {
   const queryClient = useQueryClient();
@@ -206,8 +212,9 @@ export function useCreateProviderTier() {
 }
 
 /**
- * @description Mutation hook for creating a new account tier.
- * Invalidates pricing query cache on success.
+ * @hook useCreateAccountTier
+ * @description Mutation that creates a new account tier. Invalidates pricing cache on success.
+ * @returns Mutation object with mutate({ minAccounts, maxAccounts, multiplier }) and status fields
  */
 export function useCreateAccountTier() {
   const queryClient = useQueryClient();
@@ -236,8 +243,10 @@ export function useCreateAccountTier() {
 }
 
 /**
- * @description Mutation hook for toggling the active status of a tier (provider or account).
- * Invalidates pricing query cache on success.
+ * @hook useToggleTierStatus
+ * @description Mutation that toggles the active status of a provider or account tier.
+ *   Invalidates pricing cache on success.
+ * @returns Mutation object with mutate({ type, id, isActive }) and status fields
  */
 export function useToggleTierStatus() {
   const queryClient = useQueryClient();
@@ -271,8 +280,9 @@ export function useToggleTierStatus() {
 }
 
 /**
- * @description Mutation hook for deleting a pricing bundle by ID.
- * Invalidates pricing query cache on success.
+ * @hook useDeleteBundle
+ * @description Mutation that deletes a pricing bundle by ID. Invalidates pricing cache on success.
+ * @returns Mutation object with mutate(id) and status fields
  */
 export function useDeleteBundle() {
   const queryClient = useQueryClient();

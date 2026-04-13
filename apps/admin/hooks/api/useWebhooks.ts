@@ -34,7 +34,12 @@ interface DashboardMetrics {
 }
 
 /**
- * Hook to fetch webhook dashboard metrics
+ * @hook useWebhookMetrics
+ * @description Fetches webhook dashboard metrics including success rates, processing times,
+ *   per-provider breakdowns, and timeline data. Auto-refreshes every 30 seconds.
+ * @param timeRange - Time window for metrics (e.g. "1h", "24h", "7d")
+ * @param selectedProvider - Optional provider filter, or undefined for all providers
+ * @returns Query result with { data: DashboardMetrics, isLoading, error }
  */
 export function useWebhookMetrics(timeRange: string, selectedProvider?: string) {
   return useQuery({
@@ -66,7 +71,10 @@ export function useWebhookMetrics(timeRange: string, selectedProvider?: string) 
 }
 
 /**
- * Hook to fetch DLQ lifecycle metrics (unresolved, archived, outbox totals, etc.)
+ * @hook useDlqMetrics
+ * @description Fetches dead-letter queue lifecycle metrics including unresolved, archived,
+ *   and outbox totals. Auto-refreshes every 30 seconds.
+ * @returns Query result with { data, isLoading, error }
  */
 export function useDlqMetrics() {
   return useQuery({
@@ -85,7 +93,11 @@ export function useDlqMetrics() {
 }
 
 /**
- * Hook to fetch outbox dead-letter entries with pagination
+ * @hook useOutboxDeadLetter
+ * @description Fetches paginated outbox dead-letter entries.
+ * @param page - Page number (default 1)
+ * @param limit - Items per page (default 20)
+ * @returns Query result with { data, isLoading, error }
  */
 export function useOutboxDeadLetter(page = 1, limit = 20) {
   return useQuery({
@@ -104,7 +116,9 @@ export function useOutboxDeadLetter(page = 1, limit = 20) {
 }
 
 /**
- * Mutation hook to retry an outbox dead-letter entry
+ * @hook useRetryOutboxDlq
+ * @description Mutation that retries an outbox dead-letter entry by ID.
+ * @returns Mutation object with mutate(id) and status fields
  */
 export function useRetryOutboxDlq() {
   const qc = useQueryClient();
@@ -123,7 +137,9 @@ export function useRetryOutboxDlq() {
 }
 
 /**
- * Mutation hook to resolve an outbox dead-letter entry
+ * @hook useResolveOutboxDlq
+ * @description Mutation that resolves an outbox dead-letter entry by ID.
+ * @returns Mutation object with mutate(id) and status fields
  */
 export function useResolveOutboxDlq() {
   const qc = useQueryClient();

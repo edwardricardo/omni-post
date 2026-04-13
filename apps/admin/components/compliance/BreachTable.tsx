@@ -60,6 +60,11 @@ const EMPTY_FORM: CreateBreachInput = {
   dataTypes: [],
 };
 
+/**
+ * @component BreachTable
+ * @description Table for managing data breach reports with severity badges, notification actions,
+ *   pagination, and a dialog for reporting new breaches.
+ */
 export function BreachTable() {
   const t = useTranslations("compliance.breaches");
   const tc = useTranslations("common");

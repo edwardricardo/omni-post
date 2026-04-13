@@ -80,6 +80,13 @@ function FilterPill({
   );
 }
 
+/**
+ * @component InboxSidebar
+ * @description Filter sidebar for the social inbox. Provides pill-based filters for
+ *              message type (All/Mentions/Comments), conversation status, and platform.
+ * @param props.filters - Current filter selections
+ * @param props.onChange - Callback when any filter value changes
+ */
 export function InboxSidebar({ filters, onChange }: InboxSidebarProps) {
   return (
     <div className="h-full flex flex-col border-r border-gray-200 bg-white">

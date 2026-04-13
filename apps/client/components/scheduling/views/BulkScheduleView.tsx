@@ -2,6 +2,7 @@
 
 /**
  * @file BulkScheduleView.tsx
+ * @component BulkScheduleView
  * @description Bulk scheduling interface that allows users to create multiple scheduled
  * posts at once by selecting platforms, time slots, and content in a batch workflow.
  */

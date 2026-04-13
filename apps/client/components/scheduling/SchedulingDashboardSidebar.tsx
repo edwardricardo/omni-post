@@ -2,6 +2,7 @@
 
 /**
  * @file SchedulingDashboardSidebar.tsx
+ * @component SchedulingDashboardSidebar
  * @description Left sidebar of the SchedulingDashboard containing filter controls and
  * a scrollable list of posts for the selected (or today's) date.
  */

@@ -7,6 +7,10 @@
 
 import ContentTemplates from "@/components/content/ContentTemplates";
 
+/**
+ * @component TemplatesPage
+ * @description Displays content templates management with automation features enabled for the active project.
+ */
 export default function TemplatesPage() {
   return (
     <div className="p-6">

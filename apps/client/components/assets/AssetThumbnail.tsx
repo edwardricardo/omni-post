@@ -31,6 +31,16 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
+/**
+ * @component AssetThumbnail
+ * @description Thumbnail card for a single media asset. Renders image preview for
+ *              images or a file-type icon for other media, with a selectable checkbox
+ *              overlay on hover.
+ * @param props.asset - The media asset data to render
+ * @param props.selected - Whether this thumbnail is currently selected
+ * @param props.onSelect - Callback to toggle selection state
+ * @param props.onClick - Callback when the thumbnail body is clicked
+ */
 export function AssetThumbnail({ asset, selected, onSelect, onClick }: AssetThumbnailProps) {
   const isImage = asset.mimeType.startsWith("image/");
   const Icon = getTypeIcon(asset.mimeType);

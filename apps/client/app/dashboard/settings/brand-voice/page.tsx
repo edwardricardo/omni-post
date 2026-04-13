@@ -2,6 +2,7 @@
 
 /**
  * @file page.tsx
+ * @component BrandVoicePage
  * @description Settings - Brand Voice page at /dashboard/settings/brand-voice.
  *              Allows configuring a custom AI system prompt for a specific account.
  *              The accountId is read from the URL search params. Auth is enforced

@@ -172,6 +172,13 @@ export class WebhookDashboardService extends BaseService {
     super("WebhookDashboardService");
   }
 
+  /**
+   * @method getDashboardMetrics
+   * @description Aggregates webhook dashboard metrics including totals, success rates, provider breakdowns, and timeline data.
+   * @param accountId - The account ID to compute metrics for
+   * @param query - Dashboard query parameters including time range, provider, and project filters
+   * @returns Complete dashboard metrics object with provider stats, event type counts, and timeline
+   */
   async getDashboardMetrics(
     accountId: string,
     query: DashboardQueryParams
@@ -293,6 +300,13 @@ export class WebhookDashboardService extends BaseService {
     );
   }
 
+  /**
+   * @method getRecentEvents
+   * @description Retrieves a paginated list of recent webhook events with optional provider, status, and search filters.
+   * @param accountId - The account ID to fetch events for
+   * @param query - Pagination and filter parameters
+   * @returns Paginated event list with total count and page metadata
+   */
   async getRecentEvents(accountId: string, query: EventsQueryParams) {
     return this.execute(
       { operation: "getRecentEvents", userId: accountId, metadata: { query } },
@@ -364,6 +378,13 @@ export class WebhookDashboardService extends BaseService {
     );
   }
 
+  /**
+   * @method getEventDetails
+   * @description Fetches full details of a single webhook event including related project and post data.
+   * @param accountId - The account ID for ownership verification
+   * @param eventId - The webhook event ID to retrieve
+   * @returns The complete webhook event record with project and post associations
+   */
   async getEventDetails(accountId: string, eventId: string) {
     return this.execute(
       { operation: "getEventDetails", userId: accountId, metadata: { eventId } },
@@ -398,6 +419,12 @@ export class WebhookDashboardService extends BaseService {
     );
   }
 
+  /**
+   * @method getSubscriptions
+   * @description Retrieves all webhook subscriptions for an account with aggregated event statistics per subscription.
+   * @param accountId - The account ID to fetch subscriptions for
+   * @returns Array of subscriptions with total, recent, and failed event counts plus success rate
+   */
   async getSubscriptions(accountId: string) {
     return this.execute({ operation: "getSubscriptions", userId: accountId }, async () => {
       const subscriptions = await prisma.webhookSubscription.findMany({
@@ -458,6 +485,13 @@ export class WebhookDashboardService extends BaseService {
     });
   }
 
+  /**
+   * @method getDeadLetterQueue
+   * @description Retrieves a paginated view of the dead-letter queue filtered by account access.
+   * @param accountId - The account ID for access control
+   * @param query - Pagination and filter parameters including provider and search
+   * @returns Paginated dead-letter events with original event references
+   */
   async getDeadLetterQueue(accountId: string, query: EventsQueryParams) {
     return this.execute(
       { operation: "getDeadLetterQueue", userId: accountId, metadata: { query } },
@@ -532,6 +566,14 @@ export class WebhookDashboardService extends BaseService {
     );
   }
 
+  /**
+   * @method retryDeadLetterEvent
+   * @description Marks a single dead-letter event as resolved and queues it for retry processing.
+   * @param accountId - The account ID for ownership verification
+   * @param eventId - The dead-letter event ID to retry
+   * @param userId - Optional user ID who initiated the retry
+   * @returns Success confirmation with retry status message
+   */
   async retryDeadLetterEvent(accountId: string, eventId: string, userId?: string) {
     return this.execute(
       { operation: "retryDeadLetterEvent", userId: accountId, metadata: { eventId } },
@@ -576,6 +618,12 @@ export class WebhookDashboardService extends BaseService {
     );
   }
 
+  /**
+   * @method retryAllDeadLetterEvents
+   * @description Batch-retries all unresolved dead-letter events, processing in configurable batch sizes.
+   * @param userId - Optional user ID who initiated the bulk retry
+   * @returns Object with total, queued, and failed counts
+   */
   async retryAllDeadLetterEvents(userId?: string) {
     return this.execute(
       { operation: "retryAllDeadLetterEvents", userId: userId ?? "system", metadata: {} },
@@ -631,6 +679,13 @@ export class WebhookDashboardService extends BaseService {
     );
   }
 
+  /**
+   * @method exportWebhookEvents
+   * @description Exports webhook events as CSV for the given account and time range filters.
+   * @param accountId - The account ID to export events for
+   * @param query - Dashboard query parameters including time range and optional provider/project filters
+   * @returns Object containing the CSV string, event count, and applied time range
+   */
   async exportWebhookEvents(accountId: string, query: DashboardQueryParams) {
     return this.execute(
       { operation: "exportWebhookEvents", userId: accountId, metadata: { query } },
@@ -706,6 +761,11 @@ export class WebhookDashboardService extends BaseService {
     );
   }
 
+  /**
+   * @method getDlqMetrics
+   * @description Computes system-wide dead-letter queue metrics including unresolved totals, provider/event-type breakdowns, and 7-day trend.
+   * @returns Aggregated DLQ metrics with breakdown by provider, event type, and daily trend
+   */
   async getDlqMetrics() {
     return this.execute(
       { operation: "getDlqMetrics", userId: "system", metadata: {} },

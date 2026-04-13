@@ -26,6 +26,11 @@ const SESSION_TIMEOUT_OPTIONS = [
   { value: 1440, label: "24 hours" },
 ] as const;
 
+/**
+ * @component SecuritySettingsForm
+ * @description Form for managing security compliance settings including 2FA requirements,
+ *   session timeouts, password policies, and IP allowlisting.
+ */
 export function SecuritySettingsForm() {
   const t = useTranslations("compliance.security");
   const tc = useTranslations("common");

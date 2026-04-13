@@ -14,6 +14,12 @@ interface HashtagPerformancePanelProps {
   maxItems?: number;
 }
 
+/**
+ * @component HashtagPerformancePanel
+ * @description Ranked list of hashtags with their reach, engagement rate, and trend
+ * direction to identify high-performing tags for future posts.
+ * @param props.maxItems - Maximum number of hashtags to display (default 5)
+ */
 export function HashtagPerformancePanel({ hashtags, maxItems = 5 }: HashtagPerformancePanelProps) {
   const displayHashtags = hashtags.slice(0, maxItems);
 

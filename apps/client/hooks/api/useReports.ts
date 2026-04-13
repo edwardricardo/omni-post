@@ -28,6 +28,12 @@ export interface CreateReportInput {
   recipients: string[];
 }
 
+/**
+ * @hook useReports
+ * @description Fetches scheduled analytics reports for a project.
+ * @param projectId - The project to fetch reports for, or undefined to disable
+ * @returns TanStack Query result with scheduled report array
+ */
 export function useReports(projectId: string | undefined) {
   return useQuery({
     queryKey: ["reports", projectId],
@@ -49,6 +55,11 @@ export function useReports(projectId: string | undefined) {
   });
 }
 
+/**
+ * @hook useCreateReport
+ * @description Mutation hook for creating a new scheduled analytics report.
+ * @returns TanStack Query mutation that invalidates the reports list on success
+ */
 export function useCreateReport() {
   const queryClient = useQueryClient();
 
@@ -72,6 +83,11 @@ export function useCreateReport() {
   });
 }
 
+/**
+ * @hook useDeleteReport
+ * @description Mutation hook for deleting a scheduled analytics report.
+ * @returns TanStack Query mutation that invalidates the reports list on success
+ */
 export function useDeleteReport() {
   const queryClient = useQueryClient();
 
@@ -93,6 +109,11 @@ export function useDeleteReport() {
   });
 }
 
+/**
+ * @hook useGenerateReport
+ * @description Mutation hook for triggering on-demand generation of a scheduled report.
+ * @returns TanStack Query mutation for the report generation trigger
+ */
 export function useGenerateReport() {
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {

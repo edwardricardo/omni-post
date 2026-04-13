@@ -14,6 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, Send, Calendar, BarChart3, Clock } from "lucide-react";
 import { format } from "date-fns";
 
+/**
+ * @component EditPostPage
+ * @description Post editor page for editing content, scheduling, and publishing an existing post with locale and tag support.
+ */
 export default function EditPostPage() {
   const router = useRouter();
   const params = useParams();

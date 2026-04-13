@@ -2,6 +2,7 @@
 
 /**
  * @file PublishingInterface.tsx
+ * @component PublishingInterface
  * @description Publishing execution component that validates content per provider,
  * displays progress during multi-platform publishing, and shows per-provider results.
  */

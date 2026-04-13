@@ -15,6 +15,12 @@ interface AccessDeniedProps {
   requiredRole?: string;
 }
 
+/**
+ * @component AccessDenied
+ * @description Full-block 403 permission denied screen with icon, message, and navigation links.
+ * @param props.message - Custom error message; falls back to a default i18n string
+ * @param props.requiredRole - If provided, displays which role is needed for access
+ */
 export function AccessDenied({ message, requiredRole }: AccessDeniedProps) {
   const te = useTranslations("errors");
 

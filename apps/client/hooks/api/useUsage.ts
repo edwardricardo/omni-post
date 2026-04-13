@@ -50,6 +50,12 @@ async function fetchUsage(accountId: string): Promise<AccountUsageDto> {
   };
 }
 
+/**
+ * @hook useAccountUsage
+ * @description Fetches account usage data including plan limits, current usage, and trial status.
+ * @param accountId - The account to fetch usage for
+ * @returns TanStack Query result with account usage data including limits and counts
+ */
 export function useAccountUsage(accountId: string) {
   return useQuery({
     queryKey: ["usage", accountId],

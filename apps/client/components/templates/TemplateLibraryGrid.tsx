@@ -2,6 +2,7 @@
 
 /**
  * @file TemplateLibraryGrid.tsx
+ * @component TemplateLibraryGrid
  * @description Template card and list item rendering for the TemplateLibrary, supporting
  * both grid and virtual-scroll list view modes.
  */

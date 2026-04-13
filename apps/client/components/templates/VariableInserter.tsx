@@ -2,6 +2,7 @@
 
 /**
  * @file VariableInserter.tsx
+ * @component VariableInserter
  * @description Side panel for browsing, searching, and inserting Handlebars template
  * variables grouped by category, with live context value editing and copy support.
  */

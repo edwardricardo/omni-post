@@ -39,6 +39,13 @@ const TOOLTIP_TEXT: React.CSSProperties = {
   color: "var(--text-primary)",
 };
 
+/**
+ * @component TrendAreaChart
+ * @description Time-series area chart with a gradient fill. Uses a unique linearGradient ID
+ *   per instance so multiple charts render independently on the same page.
+ * @param props.data - Array of data points with label and numeric value
+ * @param props.color - Override color for the area fill; defaults to theme accent
+ */
 export function TrendAreaChart({
   data,
   height = 200,

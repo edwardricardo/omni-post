@@ -50,6 +50,13 @@ async function markReadApi(id: string): Promise<void> {
 // Component
 // ---------------------------------------------------------------------------
 
+/**
+ * @component NotificationBell
+ * @description Notification bell icon with unread count badge and a Radix popover
+ *              dropdown listing recent notifications. Integrates SSE streaming via
+ *              Zustand store and TanStack Query for server state, with mark-all-read
+ *              and individual mark-read actions.
+ */
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();

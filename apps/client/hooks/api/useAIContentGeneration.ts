@@ -19,6 +19,12 @@ interface GenerateContentParams {
   settings: GenerationSettings;
 }
 
+/**
+ * @hook useAIContentGeneration
+ * @description Mutation hook for generating AI-optimized social media content.
+ *              Calls the /ai/generate endpoint and falls back to client-side template rendering on failure.
+ * @returns TanStack Query mutation with generated content array
+ */
 export function useAIContentGeneration() {
   return useMutation({
     mutationFn: async ({

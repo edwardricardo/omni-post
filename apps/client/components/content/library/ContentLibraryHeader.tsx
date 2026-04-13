@@ -19,6 +19,11 @@ interface ContentLibraryHeaderProps {
   onFilterToggle: () => void;
 }
 
+/**
+ * @component ContentLibraryHeader
+ * @description Header for the content library displaying title, item count, selection
+ * count, and view mode toggle buttons (grid vs list).
+ */
 export function ContentLibraryHeader({
   totalItems,
   filteredCount,

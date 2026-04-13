@@ -41,8 +41,12 @@ interface AnalyticsResponse {
 }
 
 /**
- * Hook to fetch customer analytics dashboard data.
- * Routes through the Next.js proxy so the customer-session token is injected.
+ * @hook useAnalytics
+ * @description Fetches customer analytics dashboard data including post performance,
+ *              engagement metrics, and per-platform breakdown by time range.
+ * @param projectId - The project to fetch analytics for
+ * @param timeRange - Time range filter (default "30d")
+ * @returns TanStack Query result with analytics dashboard data
  */
 export function useAnalytics(projectId: string, timeRange: string = "30d") {
   return useQuery({

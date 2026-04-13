@@ -105,6 +105,11 @@ const PROVIDER_EVENT_TYPES = {
   TIKTOK: ["VIDEO_PUBLISHED", "COMMENT_RECEIVED", "SHARE_RECEIVED", "MENTION_RECEIVED"],
 };
 
+/**
+ * @component WebhookSubscriptions
+ * @description Webhook subscription management panel for creating, editing, toggling,
+ *   and deleting webhook endpoints with provider, event type, and URL configuration.
+ */
 export function WebhookSubscriptions() {
   const tsp = useTranslations("webhooks.subscriptionsPanel");
   const tc = useTranslations("common");

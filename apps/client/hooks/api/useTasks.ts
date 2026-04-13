@@ -140,6 +140,12 @@ async function cancelTask(taskId: string, accountId: string, cancelledById: stri
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useTasks
+ * @description Fetches tasks for an account with optional status, priority, and assignee filters.
+ * @param params - Filter options: accountId (required), status, priority, assigneeId
+ * @returns TanStack Query result with task array
+ */
 export function useTasks(params: {
   accountId: string;
   status?: string;
@@ -154,6 +160,13 @@ export function useTasks(params: {
   });
 }
 
+/**
+ * @hook useTask
+ * @description Fetches a single task by ID.
+ * @param taskId - The task to fetch
+ * @param accountId - The account the task belongs to
+ * @returns TanStack Query result with task data
+ */
 export function useTask(taskId: string, accountId: string) {
   return useQuery({
     queryKey: ["tasks", taskId],
@@ -163,6 +176,11 @@ export function useTask(taskId: string, accountId: string) {
   });
 }
 
+/**
+ * @hook useCreateTask
+ * @description Mutation hook for creating a new task.
+ * @returns TanStack Query mutation that invalidates the tasks list on success
+ */
 export function useCreateTask() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -173,6 +191,11 @@ export function useCreateTask() {
   });
 }
 
+/**
+ * @hook useUpdateTask
+ * @description Mutation hook for updating an existing task.
+ * @returns TanStack Query mutation that invalidates the tasks list on success
+ */
 export function useUpdateTask() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -184,6 +207,11 @@ export function useUpdateTask() {
   });
 }
 
+/**
+ * @hook useCompleteTask
+ * @description Mutation hook for marking a task as completed.
+ * @returns TanStack Query mutation that invalidates the tasks list on success
+ */
 export function useCompleteTask() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -202,6 +230,11 @@ export function useCompleteTask() {
   });
 }
 
+/**
+ * @hook useCancelTask
+ * @description Mutation hook for cancelling a task.
+ * @returns TanStack Query mutation that invalidates the tasks list on success
+ */
 export function useCancelTask() {
   const queryClient = useQueryClient();
   return useMutation({

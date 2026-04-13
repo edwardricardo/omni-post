@@ -1,5 +1,6 @@
 /**
  * @file StoryPreview.tsx
+ * @component StoryPreview
  * @description Phone-frame preview component for a single Instagram Story slide, rendering
  * the media and overlay text/stickers in the 9:16 vertical aspect ratio format.
  */

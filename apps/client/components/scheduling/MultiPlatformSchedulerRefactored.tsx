@@ -2,6 +2,7 @@
 
 /**
  * @file MultiPlatformSchedulerRefactored.tsx
+ * @component MultiPlatformScheduler
  * @description Multi-platform post scheduler component that manages scheduling slots across
  * social media platforms, supporting bulk scheduling, optimal time suggestions, and rules.
  */

@@ -1,5 +1,6 @@
 /**
  * @file ABTestCreateDialog.tsx
+ * @component ABTestCreateDialog
  * @description Dialog for creating a new A/B test with variant configuration, traffic split, and scheduling.
  */
 

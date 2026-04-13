@@ -116,6 +116,12 @@ async function deleteTemplate(templateId: string, accountId: string): Promise<vo
 
 const QUERY_KEY = (accountId?: string) => ["ai-templates", accountId ?? "system"];
 
+/**
+ * @hook useAIPromptTemplates
+ * @description Fetches AI prompt templates, optionally filtered by account.
+ * @param accountId - Optional account ID to filter templates; omit for system templates
+ * @returns TanStack Query result with prompt template array
+ */
 export function useAIPromptTemplates(accountId?: string) {
   return useQuery({
     queryKey: QUERY_KEY(accountId),
@@ -124,6 +130,11 @@ export function useAIPromptTemplates(accountId?: string) {
   });
 }
 
+/**
+ * @hook useCreateAIPromptTemplate
+ * @description Mutation hook for creating a new AI prompt template.
+ * @returns TanStack Query mutation that invalidates the template list on success
+ */
 export function useCreateAIPromptTemplate() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -134,6 +145,11 @@ export function useCreateAIPromptTemplate() {
   });
 }
 
+/**
+ * @hook useUpdateAIPromptTemplate
+ * @description Mutation hook for updating an existing AI prompt template.
+ * @returns TanStack Query mutation that invalidates the template list on success
+ */
 export function useUpdateAIPromptTemplate() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -144,6 +160,11 @@ export function useUpdateAIPromptTemplate() {
   });
 }
 
+/**
+ * @hook useDeleteAIPromptTemplate
+ * @description Mutation hook for deleting an AI prompt template.
+ * @returns TanStack Query mutation that invalidates the template list on success
+ */
 export function useDeleteAIPromptTemplate() {
   const queryClient = useQueryClient();
   return useMutation({

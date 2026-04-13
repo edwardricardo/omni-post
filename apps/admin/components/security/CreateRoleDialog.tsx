@@ -32,8 +32,11 @@ interface CreateRoleDialogProps {
 }
 
 /**
- * @function CreateRoleDialog
- * @description Modal form for creating a new custom role with name, description, and level.
+ * @component CreateRoleDialog
+ * @description Modal form for creating a new custom RBAC role with name, description, and level.
+ * @param props.open - Whether the dialog is currently visible
+ * @param props.onOpenChange - Callback to toggle dialog visibility
+ * @param props.onCreated - Callback invoked after a role is successfully created
  */
 export function CreateRoleDialog({ open, onOpenChange, onCreated }: CreateRoleDialogProps) {
   const tcr = useTranslations("security.createRole");

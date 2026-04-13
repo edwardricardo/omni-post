@@ -11,6 +11,10 @@
 import { useAuth } from "@/lib/auth/authContext";
 import { InboxLayout } from "@/components/inbox/InboxLayout";
 
+/**
+ * @component InboxPage
+ * @description Renders the social inbox layout for managing messages and interactions across connected platforms.
+ */
 export default function InboxPage() {
   const { user } = useAuth();
 

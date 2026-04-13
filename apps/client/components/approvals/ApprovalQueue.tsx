@@ -17,6 +17,13 @@ interface ApprovalQueueProps {
   reviewerId: string;
 }
 
+/**
+ * @component ApprovalQueue
+ * @description Renders a responsive grid of pending approval cards with a slide-in
+ *              ReviewPanel sheet for reviewing individual posts. Handles loading,
+ *              error, and empty states.
+ * @param props.reviewerId - ID of the current reviewer used for approve/reject actions
+ */
 export function ApprovalQueue({ reviewerId }: ApprovalQueueProps) {
   const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);
   const { data: approvals = [], isLoading, isError, refetch } = usePendingApprovals(reviewerId);

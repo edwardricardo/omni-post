@@ -1,13 +1,10 @@
 import { useEffect, useRef } from "react";
 
 /**
- * useFocusTrap Hook
- *
- * Traps keyboard focus within a container element (e.g., modal, dialog).
- * Prevents Tab key from moving focus outside the container.
- *
- * WCAG 2.1 Success Criterion 2.4.3 (Level A)
- *
+ * @hook useFocusTrap
+ * @description Traps keyboard focus within a container element (e.g., modal, dialog).
+ *              Prevents Tab key from moving focus outside the container.
+ *              WCAG 2.1 Success Criterion 2.4.3 (Level A).
  * @param isActive - Whether the focus trap is active
  * @returns Ref to attach to the container element
  *

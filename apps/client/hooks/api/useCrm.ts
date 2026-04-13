@@ -78,6 +78,11 @@ async function syncCrm(platform: string): Promise<void> {
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useCrmConnections
+ * @description Fetches all CRM integration connections for the current account.
+ * @returns TanStack Query result with CRM connection array
+ */
 export function useCrmConnections() {
   return useQuery({
     queryKey: ["crm", "connections"],
@@ -86,6 +91,12 @@ export function useCrmConnections() {
   });
 }
 
+/**
+ * @hook useCrmSyncLogs
+ * @description Fetches sync logs for a specific CRM platform integration.
+ * @param platform - The CRM platform to fetch sync logs for (e.g., "HUBSPOT", "SALESFORCE")
+ * @returns TanStack Query result with sync log array
+ */
 export function useCrmSyncLogs(platform: string) {
   return useQuery({
     queryKey: ["crm", "sync-logs", platform],
@@ -95,6 +106,11 @@ export function useCrmSyncLogs(platform: string) {
   });
 }
 
+/**
+ * @hook useDisconnectCrm
+ * @description Mutation hook for disconnecting a CRM integration.
+ * @returns TanStack Query mutation that invalidates all CRM queries on success
+ */
 export function useDisconnectCrm() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -105,6 +121,11 @@ export function useDisconnectCrm() {
   });
 }
 
+/**
+ * @hook useSyncCrm
+ * @description Mutation hook for triggering a manual CRM data sync.
+ * @returns TanStack Query mutation that invalidates all CRM queries on success
+ */
 export function useSyncCrm() {
   const queryClient = useQueryClient();
   return useMutation({

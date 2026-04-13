@@ -33,6 +33,13 @@ interface PermissionGridProps {
   onPermissionsSaved: () => void;
 }
 
+/**
+ * @component PermissionGrid
+ * @description Checkbox grid for managing a role's permissions organized by category.
+ *   Displays all available permissions and allows toggling them on/off with a save action.
+ * @param props.role - The role whose permissions are being edited
+ * @param props.onPermissionsSaved - Callback invoked after permissions are successfully saved
+ */
 export function PermissionGrid({ role, onPermissionsSaved }: PermissionGridProps) {
   const tp = useTranslations("security.permissions");
   const tc = useTranslations("common");

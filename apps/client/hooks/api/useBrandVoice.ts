@@ -57,6 +57,12 @@ async function deleteBrandVoice(accountId: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete brand voice");
 }
 
+/**
+ * @hook useBrandVoice
+ * @description Fetches the brand voice profile for a given account.
+ * @param accountId - The account to fetch the brand voice for
+ * @returns TanStack Query result with brand voice data or null
+ */
 export function useBrandVoice(accountId: string) {
   return useQuery<BrandVoiceData | null>({
     queryKey: ["brand-voice", accountId],
@@ -66,6 +72,11 @@ export function useBrandVoice(accountId: string) {
   });
 }
 
+/**
+ * @hook useUpsertBrandVoice
+ * @description Mutation hook for creating or updating a brand voice profile.
+ * @returns TanStack Query mutation that invalidates the brand voice query on success
+ */
 export function useUpsertBrandVoice() {
   const queryClient = useQueryClient();
   return useMutation<BrandVoiceData, Error, UpsertBrandVoicePayload>({
@@ -76,6 +87,11 @@ export function useUpsertBrandVoice() {
   });
 }
 
+/**
+ * @hook useDeleteBrandVoice
+ * @description Mutation hook for deleting a brand voice profile.
+ * @returns TanStack Query mutation that invalidates the brand voice query on success
+ */
 export function useDeleteBrandVoice() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({

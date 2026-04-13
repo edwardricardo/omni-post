@@ -20,7 +20,10 @@ interface AccountSession {
 }
 
 /**
+ * @hook useAccountSessions
  * @description Fetches active sessions for a given account.
+ * @param accountId - The account ID to fetch sessions for, or null to disable the query
+ * @returns Query result with { data: AccountSession[], isLoading, error }
  */
 export function useAccountSessions(accountId: string | null) {
   return useQuery<AccountSession[]>({
@@ -46,7 +49,9 @@ export function useAccountSessions(accountId: string | null) {
 }
 
 /**
- * @description Revokes all sessions for a given account.
+ * @hook useRevokeAccountSessions
+ * @description Mutation that revokes all active sessions for a given account.
+ * @returns Mutation object with mutate(accountId) and status fields
  */
 export function useRevokeAccountSessions() {
   const qc = useQueryClient();

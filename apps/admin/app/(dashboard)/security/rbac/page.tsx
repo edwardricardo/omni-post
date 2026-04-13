@@ -6,16 +6,21 @@
  */
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import RbacManager from "@/components/security/RbacManager";
 import { PageHeader } from "@/components/ui/PageHeader";
 
+/**
+ * @component RbacPage
+ * @description Manages role-based access control with role and permission configuration for admin users.
+ */
 export default function RbacPage() {
+  const ts = useTranslations("security");
+
   return (
     <div>
-      <PageHeader
-        title="Role-Based Access Control"
-        description="Manage user roles, permissions, and access controls"
-      />
+      <PageHeader title={ts("rbac.title")} description={ts("rbac.description")} />
       <RbacManager />
     </div>
   );

@@ -16,6 +16,11 @@ interface AITemplateSelectorProps {
   onTemplateSelect: (templateId: string) => void;
 }
 
+/**
+ * @component AITemplateSelector
+ * @description Grid of selectable AI content templates, highlighting the active selection
+ * and allowing users to pick a template to drive the generation workflow.
+ */
 export function AITemplateSelector({
   templates,
   selectedTemplateId,

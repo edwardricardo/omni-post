@@ -15,6 +15,11 @@ interface AutomationCardProps {
   onToggle: (automationId: string, active: boolean) => void;
 }
 
+/**
+ * @component AutomationCard
+ * @description Card representing a single automation rule, displaying name, trigger,
+ * schedule, status, and controls to toggle active state or edit settings.
+ */
 export const AutomationCard: React.FC<AutomationCardProps> = ({ automation, onToggle }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {

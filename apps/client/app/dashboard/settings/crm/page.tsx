@@ -1,5 +1,6 @@
 /**
  * @file page.tsx
+ * @component CrmSettingsPage
  * @description CRM integration settings page.
  * @layer client-pages
  */

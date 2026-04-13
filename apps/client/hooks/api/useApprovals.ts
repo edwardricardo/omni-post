@@ -80,6 +80,12 @@ async function rejectPost(approvalId: string, reviewerId: string, comment: strin
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook usePendingApprovals
+ * @description Fetches pending approval requests for a given reviewer with auto-refresh.
+ * @param reviewerId - The reviewer whose pending approvals to fetch
+ * @returns TanStack Query result with pending approval request array
+ */
 export function usePendingApprovals(reviewerId: string) {
   return useQuery({
     queryKey: ["approvals", "pending", reviewerId],
@@ -89,6 +95,11 @@ export function usePendingApprovals(reviewerId: string) {
   });
 }
 
+/**
+ * @hook useSubmitForReview
+ * @description Mutation hook for submitting a post for review approval.
+ * @returns TanStack Query mutation that invalidates the posts list on success
+ */
 export function useSubmitForReview() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -107,6 +118,11 @@ export function useSubmitForReview() {
   });
 }
 
+/**
+ * @hook useApprovePost
+ * @description Mutation hook for approving a pending post.
+ * @returns TanStack Query mutation that invalidates the approvals list on success
+ */
 export function useApprovePost() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -125,6 +141,11 @@ export function useApprovePost() {
   });
 }
 
+/**
+ * @hook useRejectPost
+ * @description Mutation hook for rejecting a pending post with a required comment.
+ * @returns TanStack Query mutation that invalidates the approvals list on success
+ */
 export function useRejectPost() {
   const queryClient = useQueryClient();
   return useMutation({

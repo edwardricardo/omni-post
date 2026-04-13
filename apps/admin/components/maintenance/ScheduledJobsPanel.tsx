@@ -68,6 +68,11 @@ const CRON_PRESETS = [
 
 /** describeCron is now inside the component to access translations */
 
+/**
+ * @component ScheduledJobsPanel
+ * @description Displays scheduled background jobs with last-run info, manual trigger buttons,
+ *   and inline cron schedule editing with preset options.
+ */
 export function ScheduledJobsPanel() {
   const tj = useTranslations("maintenance.jobs");
   const tc = useTranslations("common");

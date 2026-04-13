@@ -33,6 +33,12 @@ interface ContentLibraryProps {
   enableBulkActions?: boolean;
 }
 
+/**
+ * @component ContentLibrary
+ * @description Main content library with grid/list views, filtering, search, bulk actions,
+ * and pagination. Delegates state to useContentLibraryState and rendering to sub-components.
+ * @param props.enableBulkActions - Enables multi-select and batch operations
+ */
 export function ContentLibrary({
   accountId: _accountId,
   projectId: _projectId,

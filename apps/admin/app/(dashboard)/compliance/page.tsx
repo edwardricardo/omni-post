@@ -329,6 +329,10 @@ function CompliancePageContent() {
   );
 }
 
+/**
+ * @component CompliancePage
+ * @description Displays the compliance dashboard with GDPR settings, DSAR requests, security controls, breach reports, and audit logs.
+ */
 export default function Page() {
   return <CompliancePageContent />;
 }

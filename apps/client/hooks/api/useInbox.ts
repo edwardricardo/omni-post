@@ -175,6 +175,12 @@ async function markMessageRead(messageId: string): Promise<void> {
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useInboxConversations
+ * @description Fetches paginated inbox conversations with infinite scrolling and optional filters.
+ * @param filters - Filter options: projectId, provider, status, messageType, assigneeId
+ * @returns TanStack infinite query result with conversation pages
+ */
 export function useInboxConversations(filters: InboxFilters) {
   return useInfiniteQuery({
     queryKey: ["inbox", "conversations", filters],
@@ -185,6 +191,12 @@ export function useInboxConversations(filters: InboxFilters) {
   });
 }
 
+/**
+ * @hook useMentions
+ * @description Fetches paginated social mentions with infinite scrolling.
+ * @param projectId - Optional project to filter mentions for
+ * @returns TanStack infinite query result with mention conversation pages
+ */
 export function useMentions(projectId?: string) {
   return useInfiniteQuery({
     queryKey: ["inbox", "mentions", projectId],
@@ -195,6 +207,12 @@ export function useMentions(projectId?: string) {
   });
 }
 
+/**
+ * @hook useConversation
+ * @description Fetches a single inbox conversation by ID.
+ * @param id - The conversation ID, or null to disable
+ * @returns TanStack Query result with conversation data
+ */
 export function useConversation(id: string | null) {
   return useQuery({
     queryKey: ["inbox", "conversation", id],
@@ -204,6 +222,12 @@ export function useConversation(id: string | null) {
   });
 }
 
+/**
+ * @hook useConversationMessages
+ * @description Fetches paginated messages for a conversation with infinite scrolling.
+ * @param conversationId - The conversation to fetch messages for, or null to disable
+ * @returns TanStack infinite query result with message pages
+ */
 export function useConversationMessages(conversationId: string | null) {
   return useInfiniteQuery({
     queryKey: ["inbox", "messages", conversationId],
@@ -215,6 +239,12 @@ export function useConversationMessages(conversationId: string | null) {
   });
 }
 
+/**
+ * @hook useSendReply
+ * @description Mutation hook for sending a reply to a conversation message.
+ * @param conversationId - The conversation the reply belongs to
+ * @returns TanStack Query mutation that invalidates messages and conversations on success
+ */
 export function useSendReply(conversationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -227,6 +257,11 @@ export function useSendReply(conversationId: string) {
   });
 }
 
+/**
+ * @hook useResolveConversation
+ * @description Mutation hook for marking a conversation as resolved.
+ * @returns TanStack Query mutation that invalidates all inbox queries on success
+ */
 export function useResolveConversation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -243,6 +278,11 @@ export function useResolveConversation() {
   });
 }
 
+/**
+ * @hook useReopenConversation
+ * @description Mutation hook for reopening a previously resolved conversation.
+ * @returns TanStack Query mutation that invalidates all inbox queries on success
+ */
 export function useReopenConversation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -253,6 +293,11 @@ export function useReopenConversation() {
   });
 }
 
+/**
+ * @hook useAssignMessage
+ * @description Mutation hook for assigning an inbox message to a team member.
+ * @returns TanStack Query mutation that invalidates all inbox queries on success
+ */
 export function useAssignMessage() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -264,6 +309,11 @@ export function useAssignMessage() {
   });
 }
 
+/**
+ * @hook useMarkMessageRead
+ * @description Mutation hook for marking a message as read.
+ * @returns TanStack Query mutation for the read status update
+ */
 export function useMarkMessageRead() {
   return useMutation({
     mutationFn: (messageId: string) => markMessageRead(messageId),

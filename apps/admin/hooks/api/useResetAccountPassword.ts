@@ -16,8 +16,10 @@ interface ResetPasswordInput {
 }
 
 /**
- * @function useResetAccountPassword
- * @description Mutation to reset a customer account's password via admin action.
+ * @hook useResetAccountPassword
+ * @description Mutation that resets a customer account's password via admin action.
+ *   Shows a toast notification on success or error.
+ * @returns Mutation object with mutate({ accountId, newPassword, requirePasswordChange? }) and status fields
  */
 export function useResetAccountPassword() {
   const queryClient = useQueryClient();

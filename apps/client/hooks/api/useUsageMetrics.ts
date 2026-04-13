@@ -30,6 +30,12 @@ async function fetchUsageMetrics(
   return json.data;
 }
 
+/**
+ * @hook useUsageMetrics
+ * @description Fetches detailed account usage metrics for the current billing period.
+ * @param accountId - The account to fetch usage metrics for
+ * @returns TanStack Query result with usage metrics data (posts, AI calls, storage, team count)
+ */
 export function useUsageMetrics(accountId: string) {
   const now = new Date();
   const year = now.getFullYear();

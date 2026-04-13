@@ -1,5 +1,6 @@
 /**
  * @file LoadingOverlay.tsx
+ * @component LoadingOverlay
  * @description Full-screen loading overlay displayed during media upload or video processing
  * operations in the Instagram Stories editor, with progress and status messages.
  */

@@ -26,6 +26,13 @@ interface WebhookTimelineProps {
   timeRange: string;
 }
 
+/**
+ * @component WebhookTimeline
+ * @description Real-time webhook event timeline chart visualizing event throughput and
+ *   success vs failure rates over time, with optional live-streaming via server-sent events.
+ * @param props.data - Array of timeline data points with timestamp, total, success, and failed counts
+ * @param props.timeRange - Selected time range label used to contextualize the chart
+ */
 export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
   const tt = useTranslations("webhooks.timeline");
   const tc = useTranslations("common");

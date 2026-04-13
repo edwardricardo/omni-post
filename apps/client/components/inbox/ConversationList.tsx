@@ -20,6 +20,16 @@ interface ConversationListProps {
   projectId?: string;
 }
 
+/**
+ * @component ConversationList
+ * @description Scrollable conversation list with infinite scroll via IntersectionObserver.
+ *              Supports filtering by provider, status, and message type, and switches
+ *              between conversations and mentions queries.
+ * @param props.filters - Active inbox filter selections
+ * @param props.selectedId - ID of the currently selected conversation
+ * @param props.onSelect - Callback when a conversation is selected
+ * @param props.projectId - Optional project scope for filtering
+ */
 export function ConversationList({
   filters,
   selectedId,

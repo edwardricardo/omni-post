@@ -19,6 +19,14 @@ interface AssetGridProps {
   onAssetClick: (asset: MediaAssetDto) => void;
 }
 
+/**
+ * @component AssetGrid
+ * @description Responsive grid of asset thumbnails with multi-select capability and
+ *              bulk delete action. Supports folder and search filtering.
+ * @param props.folderId - Optional folder ID to filter assets by folder
+ * @param props.search - Optional search string to filter assets by name
+ * @param props.onAssetClick - Callback when an asset thumbnail is clicked
+ */
 export function AssetGrid({ folderId, search, onAssetClick }: AssetGridProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { data, isLoading } = useAssets({

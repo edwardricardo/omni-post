@@ -34,6 +34,12 @@ interface WebhookMetricsProps {
   };
 }
 
+/**
+ * @component WebhookMetrics
+ * @description Webhook performance metrics dashboard displaying success rate, processing times,
+ *   queue depth, real-time connection count, and per-provider breakdown statistics.
+ * @param props.metrics - Aggregate metrics object including totals, rates, and per-provider data
+ */
 export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
   const tm = useTranslations("webhooks.metricsPanel");
 

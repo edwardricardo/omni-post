@@ -2,6 +2,7 @@
 
 /**
  * @file TipTapEditor.tsx
+ * @component TipTapEditor
  * @description Rich text editor built on TipTap with a formatting toolbar, character
  * count, link/color popovers, and Handlebars variable highlighting for templates.
  */

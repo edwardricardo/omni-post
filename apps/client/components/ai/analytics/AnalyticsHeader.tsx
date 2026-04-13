@@ -13,6 +13,11 @@ interface AnalyticsHeaderProps {
   onTimeframeChange: (timeframe: Timeframe) => void;
 }
 
+/**
+ * @component AnalyticsHeader
+ * @description Header bar for the PredictiveAnalytics dashboard with title, description,
+ * and a timeframe selector (7d / 30d / 90d).
+ */
 export const AnalyticsHeader: React.FC<AnalyticsHeaderProps> = ({
   selectedTimeframe,
   onTimeframeChange,

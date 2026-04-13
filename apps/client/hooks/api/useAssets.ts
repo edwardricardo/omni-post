@@ -137,6 +137,12 @@ async function createFolder(name: string, parentId?: string): Promise<AssetFolde
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useAssets
+ * @description Fetches paginated media assets with optional folder, MIME type, and search filters.
+ * @param params - Filter options: folderId, mimeType, search
+ * @returns TanStack Query result with asset items and hasMore flag
+ */
 export function useAssets(params: { folderId?: string; mimeType?: string; search?: string }) {
   return useQuery({
     queryKey: ["assets", params],
@@ -145,6 +151,11 @@ export function useAssets(params: { folderId?: string; mimeType?: string; search
   });
 }
 
+/**
+ * @hook useAssetFolders
+ * @description Fetches all asset folders for the current account.
+ * @returns TanStack Query result with asset folder array
+ */
 export function useAssetFolders() {
   return useQuery({
     queryKey: ["assets", "folders"],
@@ -153,6 +164,11 @@ export function useAssetFolders() {
   });
 }
 
+/**
+ * @hook useAssetTags
+ * @description Fetches all asset tags for the current account.
+ * @returns TanStack Query result with asset tag array
+ */
 export function useAssetTags() {
   return useQuery({
     queryKey: ["assets", "tags"],
@@ -161,6 +177,11 @@ export function useAssetTags() {
   });
 }
 
+/**
+ * @hook useCreateAsset
+ * @description Mutation hook for uploading a new media asset.
+ * @returns TanStack Query mutation that invalidates the asset list on success
+ */
 export function useCreateAsset() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -171,6 +192,11 @@ export function useCreateAsset() {
   });
 }
 
+/**
+ * @hook useDeleteAsset
+ * @description Mutation hook for deleting a media asset.
+ * @returns TanStack Query mutation that invalidates the asset list on success
+ */
 export function useDeleteAsset() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -181,6 +207,11 @@ export function useDeleteAsset() {
   });
 }
 
+/**
+ * @hook useCreateFolder
+ * @description Mutation hook for creating a new asset folder.
+ * @returns TanStack Query mutation that invalidates the folder list on success
+ */
 export function useCreateFolder() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -311,7 +311,7 @@ function AnalyticsPageContent() {
             </div>
             <div className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
               <div className="text-2xl font-bold text-[var(--text-primary)]">
-                {summary.growthMetrics.trialConversions.toFixed(1)}%
+                {Number(summary.growthMetrics.trialConversions ?? 0).toFixed(1)}%
               </div>
               <div className="text-sm text-[var(--text-secondary)]">
                 {te("financialHealth.trialConversion")}
@@ -378,6 +378,10 @@ function AnalyticsPageContent() {
   );
 }
 
+/**
+ * @component AnalyticsPage
+ * @description Displays the analytics dashboard with business, operational, and growth metrics including charts and trends.
+ */
 export default function Page() {
   return <AnalyticsPageContent />;
 }

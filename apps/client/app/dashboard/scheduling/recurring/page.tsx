@@ -1,5 +1,6 @@
 /**
  * @file page.tsx
+ * @component RecurringPostsPage
  * @description Recurring posts list page — shows all recurring posts for the active project
  * with human-readable cron schedule, status badges, and deactivate action.
  * @layer presentation

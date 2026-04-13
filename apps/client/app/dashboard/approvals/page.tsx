@@ -11,6 +11,10 @@
 import { useAuth } from "@/lib/auth/authContext";
 import { ApprovalQueue } from "@/components/approvals/ApprovalQueue";
 
+/**
+ * @component ApprovalsPage
+ * @description Displays the approval queue showing posts pending the current user's review.
+ */
 export default function ApprovalsPage() {
   const { user } = useAuth();
 

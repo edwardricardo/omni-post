@@ -21,6 +21,10 @@ import {
   Legend,
 } from "recharts";
 
+/**
+ * @component AnalyticsPageContent
+ * @description Displays the customer analytics dashboard with post performance charts, engagement metrics, and per-platform breakdown.
+ */
 function AnalyticsPageContent() {
   const { projectId } = useProject();
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
@@ -256,6 +260,10 @@ function AnalyticsPageContent() {
   );
 }
 
+/**
+ * @component Page
+ * @description Renders the customer analytics dashboard with post performance, engagement metrics, and platform breakdown.
+ */
 export default function Page() {
   return <AnalyticsPageContent />;
 }

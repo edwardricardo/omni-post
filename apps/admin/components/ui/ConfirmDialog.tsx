@@ -31,9 +31,12 @@ interface ConfirmDialogProps {
 }
 
 /**
- * @function ConfirmDialog
- * @description A modal dialog that asks the user to confirm or cancel an action.
- * @param props - Dialog configuration and callback handlers
+ * @component ConfirmDialog
+ * @description A modal dialog that asks the user to confirm or cancel a destructive or important action.
+ * @param props.title - Dialog heading text
+ * @param props.description - Explanatory text shown below the title
+ * @param props.variant - Visual style: "default" or "danger" for destructive actions
+ * @param props.onConfirm - Callback invoked when the user confirms
  */
 export function ConfirmDialog({
   open,

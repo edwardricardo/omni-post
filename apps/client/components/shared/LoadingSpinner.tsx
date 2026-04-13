@@ -1,7 +1,7 @@
 /**
- * LoadingSpinner Component
- *
- * Accessible loading indicator with ARIA live region.
+ * @file LoadingSpinner.tsx
+ * @component LoadingSpinner
+ * @description Accessible loading indicator with ARIA live region.
  * Announces loading state to screen readers.
  */
 

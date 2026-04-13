@@ -18,6 +18,11 @@ interface TemplateCardProps {
   onDelete: (templateId: string) => void;
 }
 
+/**
+ * @component TemplateCard
+ * @description Card displaying a content template's name, description, category, usage
+ * stats, and action buttons for use, edit, duplicate, and delete.
+ */
 export const TemplateCard: React.FC<TemplateCardProps> = ({
   template,
   onUse,

@@ -44,6 +44,11 @@ function daysUntil(deadline: string): number {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
+/**
+ * @component DsarTable
+ * @description Table for managing Data Subject Access Requests with status badges, deadline indicators,
+ *   and action dialogs for acknowledge, complete, and reject operations.
+ */
 export function DsarTable() {
   const t = useTranslations("compliance.dsar");
   const tc = useTranslations("common");

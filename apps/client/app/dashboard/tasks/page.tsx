@@ -1,5 +1,6 @@
 /**
  * @file page.tsx
+ * @component TasksPage
  * @description Task management page with list, creation modal, and detail panel.
  * @layer client-pages
  */

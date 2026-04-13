@@ -2,6 +2,7 @@
 
 /**
  * @file UnifiedPublishingDashboard.tsx
+ * @component UnifiedPublishingDashboard
  * @description Unified publishing dashboard that orchestrates the content editor, provider
  * adaptation engine, preview system, scheduling, and queue management into a single workflow.
  * Fetches real data from the backend API for provider statuses, publishing queue, and schedules.
@@ -22,7 +23,6 @@ import type {
 import {
   fetchProviderStatuses,
   fetchProviderConstraints,
-  fetchPublishingQueue,
   fetchSchedules,
   publishContent,
   scheduleContent,
@@ -68,7 +68,7 @@ export function UnifiedPublishingDashboard({
   useEffect(() => {
     fetchProviderStatuses().then(setProviderStatuses);
     fetchProviderConstraints().then(setProviderConstraints);
-    fetchPublishingQueue(projectId).then(setPublishingQueue);
+
     fetchSchedules(projectId).then(setSchedules);
   }, [projectId]);
 

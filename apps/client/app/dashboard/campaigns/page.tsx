@@ -15,6 +15,10 @@ import { CampaignList } from "@/components/campaigns/CampaignList";
 import { CreateCampaignModal } from "@/components/campaigns/CreateCampaignModal";
 import type { CampaignDto } from "@/hooks/api/useCampaigns";
 
+/**
+ * @component CampaignsPage
+ * @description Lists all campaigns for the current project with creation modal and navigation to campaign details.
+ */
 export default function CampaignsPage() {
   const { user } = useAuth();
   const router = useRouter();

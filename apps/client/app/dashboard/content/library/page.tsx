@@ -8,6 +8,10 @@
 import { ContentLibrary } from "@/components/content/ContentLibrary";
 import { useProject } from "@/providers/ProjectProvider";
 
+/**
+ * @component ContentLibraryPage
+ * @description Provides browsing, searching, and management of all created posts for the active project.
+ */
 export default function ContentLibraryPage() {
   const { projectId, accountId } = useProject();
 

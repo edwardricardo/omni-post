@@ -13,6 +13,10 @@ interface LogoutButtonProps {
   children?: React.ReactNode;
 }
 
+/**
+ * @component LogoutButton
+ * @description Renders a form-based logout button that triggers the server-side logout action.
+ */
 export function LogoutButton({ className, children }: LogoutButtonProps) {
   const t = useTranslations("common");
 

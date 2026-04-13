@@ -105,6 +105,12 @@ function Toggle({
 // Main component
 // ---------------------------------------------------------------------------
 
+/**
+ * @component NotificationPreferences
+ * @description Notification preferences form rendering toggles for each notification
+ *              type (approvals, comments, mentions). Fetches current preferences on
+ *              mount and persists changes via PUT endpoint with save confirmation toast.
+ */
 export function NotificationPreferences() {
   const queryClient = useQueryClient();
   const [localPrefs, setLocalPrefs] = useState<NotificationPreference[]>([]);

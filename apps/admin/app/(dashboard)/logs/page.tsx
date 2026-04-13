@@ -400,6 +400,10 @@ function LogsPageContent() {
   );
 }
 
+/**
+ * @component LogsPage
+ * @description Displays admin audit logs with filtering, search, auto-refresh, statistics, and CSV export.
+ */
 export default function LogsPage() {
   return <LogsPageContent />;
 }

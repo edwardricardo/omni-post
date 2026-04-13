@@ -87,7 +87,9 @@ async function cancelGatewaySwitch(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
- * Fetches the current gateway provider and any pending switch.
+ * @hook useGatewayStatus
+ * @description Fetches the current billing gateway provider and any pending switch.
+ * @returns TanStack Query result with gateway status data
  */
 export function useGatewayStatus() {
   return useQuery({
@@ -98,8 +100,9 @@ export function useGatewayStatus() {
 }
 
 /**
- * Initiates a gateway switch to a new provider.
- * Invalidates gateway-status on success.
+ * @hook useInitiateGatewaySwitch
+ * @description Mutation hook for initiating a billing gateway switch (Stripe to Paddle or vice versa).
+ * @returns TanStack Query mutation that invalidates gateway-status on success
  */
 export function useInitiateGatewaySwitch() {
   const queryClient = useQueryClient();
@@ -113,8 +116,9 @@ export function useInitiateGatewaySwitch() {
 }
 
 /**
- * Cancels a pending gateway switch.
- * Invalidates gateway-status on success.
+ * @hook useCancelGatewaySwitch
+ * @description Mutation hook for cancelling a pending billing gateway switch.
+ * @returns TanStack Query mutation that invalidates gateway-status on success
  */
 export function useCancelGatewaySwitch() {
   const queryClient = useQueryClient();
@@ -142,7 +146,9 @@ export interface BillingPlan {
 }
 
 /**
- * Fetches active billing plans (public, no auth).
+ * @hook useAvailablePlans
+ * @description Fetches active billing plans (public, no auth required).
+ * @returns TanStack Query result with available billing plan array
  */
 export function useAvailablePlans() {
   return useQuery({
@@ -163,7 +169,9 @@ export function useAvailablePlans() {
 }
 
 /**
- * Creates a checkout session and redirects to the gateway.
+ * @hook useCheckout
+ * @description Mutation hook that creates a checkout session and redirects to the payment gateway.
+ * @returns TanStack Query mutation that redirects to the checkout URL on success
  */
 export function useCheckout() {
   return useMutation({
@@ -192,7 +200,9 @@ export function useCheckout() {
 }
 
 /**
- * Redirects to the gateway's billing portal (manage subscription, invoices).
+ * @hook useBillingPortal
+ * @description Mutation hook that redirects to the gateway billing portal for managing subscriptions and invoices.
+ * @returns TanStack Query mutation that redirects to the portal URL on success
  */
 export function useBillingPortal() {
   return useMutation({

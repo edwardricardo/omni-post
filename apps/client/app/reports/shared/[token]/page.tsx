@@ -1,5 +1,6 @@
 /**
  * @file page.tsx
+ * @component SharedReportPage
  * @description Public shared report page — no authentication required.
  *              Displays a read-only view of a custom analytics report.
  * @layer client-pages

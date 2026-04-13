@@ -2,6 +2,7 @@
 
 /**
  * @file TemplateLibrary.tsx
+ * @component TemplateLibrary
  * @description Orchestrator component for the template library. Manages search, filtering,
  * sorting, view mode, and dialog state, delegating rendering to TemplateLibrarySearch,
  * TemplateLibraryGrid, and TemplateLibraryDialogs.

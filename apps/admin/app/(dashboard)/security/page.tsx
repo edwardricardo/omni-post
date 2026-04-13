@@ -284,6 +284,10 @@ function ChangePasswordSection() {
   );
 }
 
+/**
+ * @component SecurityPage
+ * @description Displays the security overview with MFA adoption rate, RBAC hierarchy summary, and password management.
+ */
 export default function Page() {
   return <SecurityPageContent />;
 }

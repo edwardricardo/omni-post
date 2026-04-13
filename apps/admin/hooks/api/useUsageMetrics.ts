@@ -34,6 +34,13 @@ async function fetchUsageMetrics(
   return json.data;
 }
 
+/**
+ * @hook useUsageMetrics
+ * @description Fetches current-month usage metrics for a specific account including
+ *   posts published, AI calls, storage usage, and team member count.
+ * @param accountId - The account ID to fetch usage metrics for
+ * @returns Query result with { data: UsageMetricsDto, isLoading, error }
+ */
 export function useUsageMetrics(accountId: string) {
   const now = new Date();
   const year = now.getFullYear();

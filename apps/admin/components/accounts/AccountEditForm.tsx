@@ -26,6 +26,16 @@ interface AccountEditFormProps {
   onCancel: () => void;
 }
 
+/**
+ * @component AccountEditForm
+ * @description Inline edit form for account properties such as name, email, phone, active status,
+ *   trial state, and auto-renewal toggle.
+ * @param props.accountId - Unique identifier for the account being edited
+ * @param props.editForm - Current form field values
+ * @param props.onFormChange - Updater callback for modifying form state
+ * @param props.onSave - Callback invoked when the user saves changes
+ * @param props.onCancel - Callback invoked when the user cancels editing
+ */
 export function AccountEditForm({
   accountId,
   editForm,

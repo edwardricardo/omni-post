@@ -7,8 +7,10 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type DashboardStats } from "../../lib/apiClient";
 
 /**
- * Hook to fetch dashboard statistics using TanStack Query
- * Automatically refetches every 1 minute to keep data fresh
+ * @hook useDashboardStats
+ * @description Fetches admin dashboard statistics including account counts, subscription
+ *   distribution, revenue figures, and recent publish activity. Auto-refreshes every minute.
+ * @returns Query result with { data: DashboardStats, isLoading, error }
  */
 export function useDashboardStats() {
   return useQuery({

@@ -25,6 +25,11 @@ function getTrendIcon(status: string) {
   }
 }
 
+/**
+ * @component SmartContentOptimizerHashtags
+ * @description Hashtag analysis tab displaying relevance scores, popularity indices,
+ * competition levels, and trend indicators for recommended hashtags.
+ */
 export function SmartContentOptimizerHashtags({
   hashtagAnalysis,
 }: SmartContentOptimizerHashtagsProps) {

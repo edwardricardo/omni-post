@@ -1,5 +1,6 @@
 /**
  * @file StoryEditorControls.tsx
+ * @component StoryEditorControls
  * @description Editor controls panel for a single story slide, providing options to add
  * text overlays, stickers, link stickers, and video split configuration.
  */

@@ -834,6 +834,10 @@ function AccountsPageContent() {
   );
 }
 
+/**
+ * @component AccountsPage
+ * @description Manages tenant accounts with plan details, trial status, usage information, and admin actions.
+ */
 export default function Page() {
   return <AccountsPageContent />;
 }

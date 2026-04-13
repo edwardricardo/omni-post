@@ -60,6 +60,12 @@ async function fetchGeneratedImages(projectId: string): Promise<GeneratedImage[]
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useGeneratedImages
+ * @description Fetches previously generated AI images for a project.
+ * @param projectId - The project to fetch generated images for
+ * @returns TanStack Query result with generated image array
+ */
 export function useGeneratedImages(projectId: string) {
   return useQuery({
     queryKey: ["ai-images", projectId],
@@ -68,6 +74,12 @@ export function useGeneratedImages(projectId: string) {
   });
 }
 
+/**
+ * @hook useGenerateImage
+ * @description Mutation hook for generating a new AI image. Invalidates the image list on success.
+ * @param projectId - The project to associate the generated image with
+ * @returns TanStack Query mutation for AI image generation
+ */
 export function useGenerateImage(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({

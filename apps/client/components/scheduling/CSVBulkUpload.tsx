@@ -2,6 +2,7 @@
 
 /**
  * @file CSVBulkUpload.tsx
+ * @component CSVBulkUpload
  * @description CSV upload zone for bulk scheduling. Parses CSV, shows per-row validation,
  *              and submits valid rows via useBulkCreateSchedules.
  * @layer presentation

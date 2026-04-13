@@ -15,8 +15,10 @@ interface ChangePasswordInput {
 }
 
 /**
- * @function useChangePassword
- * @description Mutation to change the current admin user's password.
+ * @hook useChangePassword
+ * @description Mutation that changes the current admin user's password.
+ *   Shows a success or error toast notification on completion.
+ * @returns Mutation object with mutate({ currentPassword, newPassword }) and status fields
  */
 export function useChangePassword() {
   return useMutation({

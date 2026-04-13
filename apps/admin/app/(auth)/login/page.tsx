@@ -5,6 +5,10 @@
  */
 import { LoginForm } from "@/components/auth/login-form";
 
+/**
+ * @component LoginPage
+ * @description Displays the admin login page with split layout branding and authentication form.
+ */
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen">

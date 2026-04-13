@@ -41,6 +41,15 @@ function TrendIndicator({ value, isPositive }: { value: number; isPositive: bool
   );
 }
 
+/**
+ * @component StatCard
+ * @description Compact statistic card displaying a label, value, optional trend arrow,
+ *   and optional icon. Used in dashboard summary grids.
+ * @param props.label - Metric name shown as uppercase caption
+ * @param props.value - Primary metric value
+ * @param props.trend - Optional trend indicator with percentage and direction
+ * @param props.icon - Optional icon rendered in the top-right corner
+ */
 export function StatCard({ label, value, trend, icon }: StatCardProps) {
   return (
     <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">

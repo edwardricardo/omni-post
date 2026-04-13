@@ -26,6 +26,12 @@ const SIZE_CLASSES: Record<NonNullable<BadgeProps["size"]>, string> = {
   md: "px-1.5 py-px text-[11px]",
 };
 
+/**
+ * @component Badge
+ * @description Small pill badge with semantic color variants for status indication.
+ * @param props.variant - Semantic color: "success", "warning", "error", "info", or "neutral"
+ * @param props.size - Badge size: "sm" or "md"
+ */
 export function Badge({ variant, children, size = "md" }: BadgeProps) {
   return (
     <span

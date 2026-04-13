@@ -27,6 +27,13 @@ interface AccountBillingPanelProps {
   editingAccount?: boolean;
 }
 
+/**
+ * @component AccountBillingPanel
+ * @description Displays billing breakdown for an account including plan badge, grandfathering controls,
+ *   trial info, provider pricing, active sessions, and a Change Plan dialog.
+ * @param props.accountId - The account whose billing details are shown
+ * @param props.accountName - Display name used in the Change Plan dialog header
+ */
 export function AccountBillingPanel({
   accountId,
   accountName,

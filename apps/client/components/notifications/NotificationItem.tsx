@@ -52,6 +52,14 @@ interface NotificationItemProps {
   onRead: (id: string) => void;
 }
 
+/**
+ * @component NotificationItem
+ * @description Single notification row in the bell dropdown. Displays a colored type
+ *              dot, title, truncated body, relative timestamp, and navigates to the
+ *              relevant resource on click while marking as read.
+ * @param props.notification - The notification data to render
+ * @param props.onRead - Callback invoked with notification ID when clicked
+ */
 export function NotificationItem({ notification, onRead }: NotificationItemProps) {
   const router = useRouter();
   const colour = TYPE_COLOURS[notification.type] ?? "bg-gray-400";

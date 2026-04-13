@@ -19,6 +19,11 @@ interface ContentGridViewProps {
   onTagClick?: (tag: string) => void;
 }
 
+/**
+ * @component ContentGridView
+ * @description Responsive grid layout container rendering ContentGridItem components
+ * for the current page of content items.
+ */
 export function ContentGridView({
   items,
   selectedItems,

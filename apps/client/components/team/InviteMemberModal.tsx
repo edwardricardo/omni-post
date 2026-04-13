@@ -1,5 +1,6 @@
 /**
  * @file InviteMemberModal.tsx
+ * @component InviteMemberModal
  * @description Modal for inviting new team members with email and role.
  * @layer client-components
  */

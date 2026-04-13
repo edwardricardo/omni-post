@@ -20,7 +20,10 @@ interface ConvertTrialParams {
 }
 
 /**
- * @description Starts a trial for the given account.
+ * @hook useStartTrial
+ * @description Mutation that starts a trial period for the given account.
+ *   Invalidates subscriptions and accounts query caches on success.
+ * @returns Mutation object with mutate({ accountId, trialDays }) and status fields
  */
 export function useStartTrial() {
   const qc = useQueryClient();
@@ -45,16 +48,26 @@ export function useStartTrial() {
   });
 }
 
+interface EndTrialParams {
+  accountId: string;
+  reason: string;
+}
+
 /**
- * @description Ends the trial for the given account.
+ * @hook useEndTrial
+ * @description Mutation that ends the trial period for the given account with a reason.
+ *   Invalidates subscriptions and accounts query caches on success.
+ * @returns Mutation object with mutate({ accountId, reason }) and status fields
  */
 export function useEndTrial() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (accountId: string) => {
+    mutationFn: async ({ accountId, reason }: EndTrialParams) => {
       const res = await fetch(`/api/backend/admin/billing/accounts/${accountId}/trial/end`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({ reason }),
       });
       if (!res.ok) {
         const body = await res.text().catch(() => "");
@@ -70,7 +83,10 @@ export function useEndTrial() {
 }
 
 /**
- * @description Converts a trial account to a paid subscription.
+ * @hook useConvertTrial
+ * @description Mutation that converts a trial account to a paid subscription.
+ *   Invalidates subscriptions and accounts query caches on success.
+ * @returns Mutation object with mutate({ accountId, billingCycle? }) and status fields
  */
 export function useConvertTrial() {
   const qc = useQueryClient();

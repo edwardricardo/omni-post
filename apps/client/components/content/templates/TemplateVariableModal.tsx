@@ -16,6 +16,11 @@ interface TemplateVariableModalProps {
   onSubmit: (templateId: string, variables: Record<string, any>) => void;
 }
 
+/**
+ * @component TemplateVariableModal
+ * @description Modal dialog for filling in variable placeholders in a content template
+ * before applying it to a new post, with dynamic form fields per variable.
+ */
 export const TemplateVariableModal: React.FC<TemplateVariableModalProps> = ({
   template,
   isOpen,

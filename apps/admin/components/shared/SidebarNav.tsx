@@ -225,6 +225,13 @@ function CollapsibleGroup({
 // Main export
 // ---------------------------------------------------------------------------
 
+/**
+ * @component SidebarNav
+ * @description Collapsible sidebar navigation for the admin dashboard with i18n labels,
+ *   theme toggle, language switcher, grouped nav links, and user info footer.
+ * @param props.userName - Display name shown in the sidebar footer
+ * @param props.userRole - Role label shown below the user name
+ */
 export function SidebarNav({ userName, userRole }: SidebarNavProps) {
   const pathname = usePathname();
   const t = useTranslations("nav");

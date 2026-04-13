@@ -11,6 +11,10 @@ import { useState } from "react";
 
 type Tab = "content" | "images";
 
+/**
+ * @component AIGeneratePage
+ * @description Provides AI-powered content and image generation tools with a tabbed interface.
+ */
 export default function AIGeneratePage() {
   const [tab, setTab] = useState<Tab>("content");
 

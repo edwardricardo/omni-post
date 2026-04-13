@@ -16,6 +16,12 @@ interface RecommendationsListProps {
   onApplyRecommendation?: (recommendation: Recommendation) => void;
 }
 
+/**
+ * @component RecommendationsList
+ * @description Filterable list of AI-generated content recommendations grouped by
+ * category (timing, content, hashtags, audience) with one-click apply actions.
+ * @param props.onApplyRecommendation - Callback fired when user applies a recommendation
+ */
 export function RecommendationsList({
   recommendations,
   selectedCategory,

@@ -14,6 +14,11 @@ interface CreateReportFormProps {
   onClose: () => void;
 }
 
+/**
+ * @component CreateReportForm
+ * @description Dialog form for creating a new scheduled analytics report with cron
+ * schedule, format selection, and recipient list configuration.
+ */
 export function CreateReportForm({ projectId, isOpen, onClose }: CreateReportFormProps) {
   const [name, setName] = useState("");
   const [cronSchedule, setCronSchedule] = useState("0 9 * * 1");

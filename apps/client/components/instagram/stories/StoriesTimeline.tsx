@@ -1,5 +1,6 @@
 /**
  * @file StoriesTimeline.tsx
+ * @component StoriesTimeline
  * @description Horizontal timeline strip showing all story slides as thumbnails, supporting
  * drag-to-reorder, selection, and add/remove operations for the Stories editor.
  */

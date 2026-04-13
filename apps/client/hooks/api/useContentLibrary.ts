@@ -41,6 +41,12 @@ export interface ListPostsResponse {
   hasPrevious: boolean;
 }
 
+/**
+ * @hook useContentLibrary
+ * @description Fetches paginated post data for the content library with sorting support.
+ * @param options - Pagination and sort options: projectId, page, limit, sortBy, sortDirection
+ * @returns TanStack Query result with paginated post list response
+ */
 export function useContentLibrary({
   projectId,
   page,

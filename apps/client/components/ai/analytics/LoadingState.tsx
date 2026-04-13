@@ -7,6 +7,11 @@
 import React from "react";
 import { Brain } from "lucide-react";
 
+/**
+ * @component LoadingState
+ * @description Animated skeleton screen displayed while predictive analytics data
+ * is being fetched from the backend.
+ */
 export const LoadingState: React.FC = () => {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">

@@ -652,6 +652,10 @@ function GatewaySwitchesPageContent() {
   );
 }
 
+/**
+ * @component GatewaySwitchesPage
+ * @description Manages payment gateway switch events with stats, filtering, detail dialogs, and admin actions.
+ */
 export default function Page() {
   return <GatewaySwitchesPageContent />;
 }

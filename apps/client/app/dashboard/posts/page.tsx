@@ -52,6 +52,10 @@ const statusIcons = {
   FAILED: Trash2,
 };
 
+/**
+ * @component PostsPage
+ * @description Lists all posts with search, filtering, status badges, and actions for editing, previewing, and deleting.
+ */
 export default function PostsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");

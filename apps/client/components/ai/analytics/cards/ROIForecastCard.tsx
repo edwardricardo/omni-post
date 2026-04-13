@@ -13,6 +13,11 @@ interface ROIForecastCardProps {
   forecast: ROIForecast;
 }
 
+/**
+ * @component ROIForecastCard
+ * @description Card rendering projected return-on-investment figures for a campaign,
+ * covering estimated revenue, cost breakdown, and net ROI percentage.
+ */
 export const ROIForecastCard: React.FC<ROIForecastCardProps> = ({ forecast }) => {
   return (
     <div className="space-y-6">

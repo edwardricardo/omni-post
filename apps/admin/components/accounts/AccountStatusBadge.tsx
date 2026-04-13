@@ -9,6 +9,11 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/Badge";
 import type { AccountSummary } from "@/lib/apiClient";
 
+/**
+ * @component AccountStatusBadge
+ * @description Renders a semantic color badge indicating the account status: Active, Suspended, or Trial.
+ * @param props.account - Account summary containing isActive and trial information
+ */
 export function AccountStatusBadge({ account }: { account: AccountSummary }) {
   const t = useTranslations("accounts");
 

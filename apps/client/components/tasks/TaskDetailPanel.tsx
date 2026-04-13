@@ -1,5 +1,6 @@
 /**
  * @file TaskDetailPanel.tsx
+ * @component TaskDetailPanel
  * @description Slide-over panel showing full task details with actions.
  * @layer client-components
  */

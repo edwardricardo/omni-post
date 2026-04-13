@@ -19,6 +19,13 @@ interface TabNavProps {
   onChange: (key: string) => void;
 }
 
+/**
+ * @component TabNav
+ * @description Horizontal tab navigation bar with an active underline indicator and ARIA roles.
+ * @param props.tabs - Array of tab definitions with key and label
+ * @param props.activeTab - The key of the currently selected tab
+ * @param props.onChange - Callback invoked with the key of the newly selected tab
+ */
 export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
   const handleClick = useCallback(
     (key: string) => {

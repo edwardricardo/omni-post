@@ -1,5 +1,6 @@
 /**
  * @file page.tsx
+ * @component EditRecurringPostPage
  * @description Edit existing recurring post page. Fetches the recurring post by ID and
  * pre-fills the form with existing values.
  * @layer presentation

@@ -15,6 +15,10 @@ import { AssetDetailPanel } from "@/components/assets/AssetDetailPanel";
 import { apiClient } from "@/lib/api/client";
 import type { MediaAssetDto } from "@/hooks/api/useAssets";
 
+/**
+ * @component AssetsPage
+ * @description Provides a standalone asset library with folder navigation, grid browsing, upload, and detail panel.
+ */
 export default function AssetsPage() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>(undefined);
   const [selectedAsset, setSelectedAsset] = useState<MediaAssetDto | null>(null);

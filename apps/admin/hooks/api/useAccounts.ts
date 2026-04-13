@@ -9,7 +9,9 @@ import { api } from "../../lib/apiClient";
 import { ApiError } from "@/lib/parseApiError";
 
 /**
- * Hook to fetch account summary data
+ * @hook useAccounts
+ * @description Fetches the account summary list for the admin accounts page.
+ * @returns Query result with { data: Account[], isLoading, error }
  */
 export function useAccounts() {
   return useQuery({
@@ -42,8 +44,10 @@ interface UpdateAccountResponse {
 }
 
 /**
- * Hook to update an account
- * Automatically invalidates the accounts query on success
+ * @hook useUpdateAccount
+ * @description Mutation that updates an account's properties (name, email, role, active status).
+ *   Automatically invalidates the accounts query cache on success.
+ * @returns Mutation object with mutate({ id, data }) and status fields
  */
 export function useUpdateAccount() {
   const queryClient = useQueryClient();

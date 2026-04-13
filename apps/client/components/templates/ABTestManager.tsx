@@ -1,5 +1,6 @@
 /**
  * @file ABTestManager.tsx
+ * @component ABTestManager
  * @description Main A/B Test Manager component. Orchestrates sub-components for test creation,
  * overview, results display, and lifecycle management.
  *

@@ -14,6 +14,10 @@ import {
   Loader2,
 } from "lucide-react";
 
+/**
+ * @component DashboardPage
+ * @description Main dashboard overview showing key stats, recent posts, connected providers, and quick actions.
+ */
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuth();

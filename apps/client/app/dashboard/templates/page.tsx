@@ -1,3 +1,9 @@
+/**
+ * @file page.tsx
+ * @component TemplateManagementPage
+ * @description Template management page with library, A/B testing, and version control features.
+ */
+
 import { Suspense } from "react";
 import { Metadata } from "next";
 import { TemplateManagementDashboard } from "./TemplateManagementDashboard";

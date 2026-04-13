@@ -1,5 +1,6 @@
 /**
  * @file VersionCard.tsx
+ * @component VersionCard
  * @description Card component representing a single template version with metadata, author info, and restore/delete actions.
  */
 

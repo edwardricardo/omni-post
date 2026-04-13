@@ -16,6 +16,11 @@ interface CreateCampaignModalProps {
   onClose: () => void;
 }
 
+/**
+ * @component CreateCampaignModal
+ * @description Modal form for creating new campaigns with name, description, date range,
+ * and optional UTM parameter configuration.
+ */
 export function CreateCampaignModal({ projectId, open, onClose }: CreateCampaignModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");

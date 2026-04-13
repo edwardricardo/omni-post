@@ -14,6 +14,12 @@ interface TopPerformingContentProps {
   maxItems?: number;
 }
 
+/**
+ * @component TopPerformingContent
+ * @description Ranked list of the highest-scoring posts with engagement metrics,
+ * reach, and click-through rates for quick comparison.
+ * @param props.maxItems - Maximum number of top posts to display (default 3)
+ */
 export function TopPerformingContent({ content, maxItems = 3 }: TopPerformingContentProps) {
   const displayContent = content.slice(0, maxItems);
 

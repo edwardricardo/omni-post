@@ -39,6 +39,15 @@ interface ReviewPanelProps {
   onClose: () => void;
 }
 
+/**
+ * @component ReviewPanel
+ * @description Slide-in sheet panel for reviewing a pending approval. Displays full
+ *              post content, platform badges, approve/reject actions with a rejection
+ *              reason dialog, and an embedded comment thread.
+ * @param props.approval - The approval request to review, or null to hide the panel
+ * @param props.reviewerId - ID of the reviewer performing the action
+ * @param props.onClose - Callback to dismiss the panel
+ */
 export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps) {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");

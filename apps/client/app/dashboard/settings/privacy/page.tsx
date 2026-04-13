@@ -1,5 +1,6 @@
 /**
  * @file page.tsx
+ * @component PrivacyPage
  * @description Privacy rights page at /dashboard/settings/privacy.
  *              Allows users to submit Data Subject Access Requests (DSAR)
  *              for data export, access, or deletion under GDPR, LGPD, CCPA,

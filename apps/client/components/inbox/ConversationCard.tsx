@@ -63,6 +63,15 @@ interface ConversationCardProps {
   onClick: () => void;
 }
 
+/**
+ * @component ConversationCard
+ * @description Single conversation row in the inbox list. Displays platform badge,
+ *              sender name, message preview, relative timestamp, priority indicator,
+ *              message type badge, and unread dot.
+ * @param props.conversation - The conversation list item data
+ * @param props.selected - Whether this conversation is currently active
+ * @param props.onClick - Callback when the card is clicked
+ */
 export function ConversationCard({ conversation, selected, onClick }: ConversationCardProps) {
   const colour = PROVIDER_COLOURS[conversation.provider] ?? "bg-gray-500 text-white";
   const label =

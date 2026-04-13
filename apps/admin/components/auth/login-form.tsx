@@ -18,6 +18,11 @@ const INPUT_CLASS = [
   "sm:text-sm",
 ].join(" ");
 
+/**
+ * @component LoginForm
+ * @description Admin login form with two-step MFA flow using React 19 useActionState.
+ *   Handles credential submission and TOTP code verification.
+ */
 export function LoginForm() {
   const [mfaCredentials, setMfaCredentials] = useState<{
     email: string;

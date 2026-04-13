@@ -36,6 +36,13 @@ interface ApprovalCardProps {
   onReview: (approval: ApprovalRequest) => void;
 }
 
+/**
+ * @component ApprovalCard
+ * @description Renders a single pending approval card displaying content preview,
+ *              platform badges, submitter info, and a review action button.
+ * @param props.approval - The approval request data to display
+ * @param props.onReview - Callback invoked when the user clicks the Review button
+ */
 export function ApprovalCard({ approval, onReview }: ApprovalCardProps) {
   const preview =
     approval.postContent.length > 100

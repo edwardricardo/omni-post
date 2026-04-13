@@ -8,6 +8,11 @@
 
 import React from "react";
 
+/**
+ * @component LoadingSkeleton
+ * @description Skeleton loading placeholder mimicking the content library grid layout
+ * while items are being fetched from the API.
+ */
 export function LoadingSkeleton() {
   return (
     <div className="content-library p-6">

@@ -277,6 +277,10 @@ function WebhookDashboardContent() {
   );
 }
 
+/**
+ * @component WebhookDashboard
+ * @description Displays the webhook dashboard with metrics, events, subscriptions, timeline, and dead-letter queue tabs.
+ */
 export default function WebhookDashboard() {
   return <WebhookDashboardContent />;
 }

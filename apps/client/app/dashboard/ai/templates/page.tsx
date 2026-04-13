@@ -12,6 +12,10 @@ import React, { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { PromptTemplateManager } from "@/components/ai/PromptTemplateManager";
 
+/**
+ * @component AITemplatesContent
+ * @description Manages AI prompt templates including system templates and account-specific custom templates.
+ */
 function AITemplatesContent() {
   const searchParams = useSearchParams();
   const accountId = searchParams.get("accountId");
@@ -39,6 +43,10 @@ function AITemplatesContent() {
   );
 }
 
+/**
+ * @component AITemplatesPage
+ * @description Entry point for the AI prompt templates page with Suspense wrapper around template management content.
+ */
 export default function AITemplatesPage() {
   return (
     <Suspense fallback={<div className="p-6 max-w-6xl mx-auto animate-pulse">Loading...</div>}>

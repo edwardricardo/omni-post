@@ -1,5 +1,6 @@
 /**
  * @file BranchCard.tsx
+ * @component BranchCard
  * @description Card component representing a version branch with metadata, author info, and merge/delete actions.
  */
 

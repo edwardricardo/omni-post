@@ -20,6 +20,14 @@ interface AIPromptFormProps {
   onGenerate: () => void;
 }
 
+/**
+ * @component AIPromptForm
+ * @description Form for configuring AI content generation, allowing users to fill in
+ * template variables and adjust generation settings before triggering a run.
+ * @param props.template - Active template whose variables drive the form fields
+ * @param props.settings - Generation parameters (tone, length, creativity, etc.)
+ * @param props.isGenerating - Disables the form while a generation is in progress
+ */
 export function AIPromptForm({
   template,
   formData,

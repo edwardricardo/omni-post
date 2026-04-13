@@ -21,6 +21,11 @@ interface TemplateFiltersProps {
   onViewModeChange: (mode: ViewMode) => void;
 }
 
+/**
+ * @component TemplateFilters
+ * @description Filter and view controls for the templates list, providing search input,
+ * category filtering, sort options, and grid/list view mode toggle.
+ */
 export const TemplateFilters: React.FC<TemplateFiltersProps> = ({
   searchQuery,
   onSearchChange,

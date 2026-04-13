@@ -16,9 +16,10 @@ export interface BillingStats {
 }
 
 /**
- * @function useBillingStats
- * @description Fetches billing aggregates from the admin billing stats endpoint.
- * @returns TanStack Query result with BillingStats data
+ * @hook useBillingStats
+ * @description Fetches aggregated billing statistics including MRR, total revenue,
+ *   active subscriptions, and grandfathered revenue from the admin billing stats endpoint.
+ * @returns Query result with { data: BillingStats, isLoading, error }
  */
 export function useBillingStats() {
   return useQuery({

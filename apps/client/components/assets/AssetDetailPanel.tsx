@@ -23,6 +23,14 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
+/**
+ * @component AssetDetailPanel
+ * @description Slide-over panel displaying full asset details including image preview,
+ *              metadata (type, size, dimensions, upload date), and actions for copying
+ *              URL, downloading, and deleting the asset.
+ * @param props.asset - The media asset to display, or null to hide the panel
+ * @param props.onClose - Callback to dismiss the panel
+ */
 export function AssetDetailPanel({ asset, onClose }: AssetDetailPanelProps) {
   const deleteMutation = useDeleteAsset();
 

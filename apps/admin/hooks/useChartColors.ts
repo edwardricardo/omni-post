@@ -74,6 +74,12 @@ function buildColors(): ChartColors {
   };
 }
 
+/**
+ * @hook useChartColors
+ * @description Resolves CSS custom-property color tokens into concrete RGB/hex values
+ *   for Recharts SVG attributes. Re-computes when the theme toggles between light and dark.
+ * @returns ChartColors object with accent, success, error, warning, text, and subscription colors
+ */
 export function useChartColors(): ChartColors {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);

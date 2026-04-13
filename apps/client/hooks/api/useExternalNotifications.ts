@@ -70,6 +70,12 @@ async function testConfig(id: string): Promise<{ sent: boolean }> {
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useExternalNotificationConfigs
+ * @description Fetches Slack/Teams external notification webhook configurations for a project.
+ * @param projectId - The project to fetch webhook configs for
+ * @returns TanStack Query result with external notification config array
+ */
 export function useExternalNotificationConfigs(projectId: string) {
   return useQuery({
     queryKey: ["external-notifications", projectId],
@@ -78,6 +84,12 @@ export function useExternalNotificationConfigs(projectId: string) {
   });
 }
 
+/**
+ * @hook useCreateWebhook
+ * @description Mutation hook for creating a new Slack/Teams webhook configuration.
+ * @param projectId - The project to associate the webhook with
+ * @returns TanStack Query mutation that invalidates the webhook config list on success
+ */
 export function useCreateWebhook(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -88,6 +100,12 @@ export function useCreateWebhook(projectId: string) {
   });
 }
 
+/**
+ * @hook useDeleteWebhook
+ * @description Mutation hook for deleting a Slack/Teams webhook configuration.
+ * @param projectId - The project the webhook belongs to
+ * @returns TanStack Query mutation that invalidates the webhook config list on success
+ */
 export function useDeleteWebhook(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -98,6 +116,11 @@ export function useDeleteWebhook(projectId: string) {
   });
 }
 
+/**
+ * @hook useTestWebhook
+ * @description Mutation hook for sending a test message to a configured webhook.
+ * @returns TanStack Query mutation with sent status result
+ */
 export function useTestWebhook() {
   return useMutation({
     mutationFn: (id: string) => testConfig(id),

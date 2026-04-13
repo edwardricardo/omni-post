@@ -13,6 +13,12 @@ interface ChartEmptyStateProps {
   height?: number;
 }
 
+/**
+ * @component ChartEmptyState
+ * @description Placeholder shown inside chart containers when there is no data to render.
+ * @param props.message - Text displayed below the icon
+ * @param props.height - Container height in pixels, defaults to 200
+ */
 export function ChartEmptyState({ message, height = 200 }: ChartEmptyStateProps) {
   return (
     <div

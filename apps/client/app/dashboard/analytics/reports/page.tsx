@@ -12,6 +12,10 @@ import { useSearchParams } from "next/navigation";
 import { ScheduledReportsList } from "@/components/analytics/ScheduledReportsList";
 import { CreateReportForm } from "@/components/analytics/CreateReportForm";
 
+/**
+ * @component ScheduledReportsPage
+ * @description Manages scheduled analytics reports with list, create, delete, and manual trigger capabilities.
+ */
 export default function ScheduledReportsPage() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId");

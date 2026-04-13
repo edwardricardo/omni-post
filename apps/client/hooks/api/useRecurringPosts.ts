@@ -24,6 +24,12 @@ interface UseRecurringPostsParams {
   projectId: string | undefined;
 }
 
+/**
+ * @hook useRecurringPosts
+ * @description Fetches recurring posts for a project.
+ * @param params - projectId to fetch recurring posts for
+ * @returns TanStack Query result with recurring post array
+ */
 export function useRecurringPosts({ projectId }: UseRecurringPostsParams) {
   return useQuery({
     queryKey: ["recurring-posts", projectId],
@@ -45,6 +51,11 @@ export function useRecurringPosts({ projectId }: UseRecurringPostsParams) {
   });
 }
 
+/**
+ * @hook useDeactivateRecurringPost
+ * @description Mutation hook for deactivating a recurring post schedule.
+ * @returns TanStack Query mutation that invalidates the recurring posts list on success
+ */
 export function useDeactivateRecurringPost() {
   const queryClient = useQueryClient();
 

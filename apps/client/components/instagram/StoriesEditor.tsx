@@ -2,6 +2,7 @@
 
 /**
  * @file StoriesEditor.tsx
+ * @component StoriesEditor
  * @description Orchestrator component for the Instagram Stories editor. Composes
  * sub-components from the stories/ subdirectory: header, timeline, preview,
  * editor controls, and loading overlay. Manages top-level state and delegates

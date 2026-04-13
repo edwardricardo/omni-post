@@ -235,6 +235,10 @@ function HelpContent() {
   );
 }
 
+/**
+ * @component HelpPage
+ * @description Displays help and documentation with expandable accordion sections explaining every admin portal feature.
+ */
 export default function HelpPage() {
   return <HelpContent />;
 }

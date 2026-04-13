@@ -7,7 +7,10 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/apiClient";
 
 /**
- * Hook to fetch subscription summary data
+ * @hook useSubscriptions
+ * @description Fetches subscription summary data including plan distributions and billing
+ *   information for the admin subscriptions management page.
+ * @returns Query result with { data: SubscriptionSummary, isLoading, error }
  */
 export function useSubscriptions() {
   return useQuery({

@@ -13,6 +13,10 @@ import { ArrowLeft, Archive } from "lucide-react";
 import { useCampaign, useCampaignAnalytics, useArchiveCampaign } from "@/hooks/api/useCampaigns";
 import { CampaignStatusBadge } from "@/components/campaigns/CampaignStatusBadge";
 
+/**
+ * @component CampaignDetailPage
+ * @description Shows campaign details including analytics, post list, and archive controls for a specific campaign.
+ */
 export default function CampaignDetailPage() {
   const params = useParams();
   const router = useRouter();

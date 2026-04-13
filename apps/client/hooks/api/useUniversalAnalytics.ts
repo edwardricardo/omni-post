@@ -54,11 +54,9 @@ interface UseUniversalAnalyticsOptions {
 }
 
 /**
- * Fetches the universal analytics dashboard data for a project.
- *
- * Uses the proxy route /api/backend/dashboard which forwards to the Fastify
- * GET /dashboard endpoint (registered under analyticsRoutes plugin).
- *
+ * @hook useUniversalAnalytics
+ * @description Fetches cross-platform analytics dashboard data including aggregated overview
+ *              metrics and per-platform breakdown from real Prisma data.
  * @param options - projectId (required), timeRange (default "7d"), enabled flag
  * @returns TanStack Query result with dashboard data, loading, and error states
  */

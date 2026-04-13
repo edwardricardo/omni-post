@@ -68,6 +68,11 @@ interface DeadLetterEvent {
   };
 }
 
+/**
+ * @component DeadLetterQueue
+ * @description Dead letter queue management panel for failed webhook events. Provides filtering,
+ *   payload inspection, individual and bulk retry, and resolution of permanently failed events.
+ */
 export function DeadLetterQueue() {
   const td = useTranslations("webhooks.deadLetter");
   const te = useTranslations("webhooks.events");

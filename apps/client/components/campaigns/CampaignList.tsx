@@ -24,6 +24,11 @@ const STATUS_TABS = [
   { label: "Archived", value: "ARCHIVED" },
 ] as const;
 
+/**
+ * @component CampaignList
+ * @description Filterable campaign listing with status tabs (All, Active, Draft,
+ * Completed, Archived) rendering CampaignCard items.
+ */
 export function CampaignList({ projectId, onCampaignClick }: CampaignListProps) {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 

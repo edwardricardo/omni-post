@@ -13,6 +13,11 @@ interface EmptyStateProps {
   onClearFilters: () => void;
 }
 
+/**
+ * @component EmptyState
+ * @description Placeholder displayed when no content items match the current filters
+ * or the library is empty, with a clear-filters action when filters are active.
+ */
 export function EmptyState({ hasActiveFilters, onClearFilters }: EmptyStateProps) {
   return (
     <div className="text-center py-12">

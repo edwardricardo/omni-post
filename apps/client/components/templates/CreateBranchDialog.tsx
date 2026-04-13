@@ -1,5 +1,6 @@
 /**
  * @file CreateBranchDialog.tsx
+ * @component CreateBranchDialog
  * @description Dialog for creating a new version branch with name, description, and source version selection.
  */
 

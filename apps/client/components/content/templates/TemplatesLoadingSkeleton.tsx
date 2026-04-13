@@ -8,6 +8,11 @@
 
 import React from "react";
 
+/**
+ * @component TemplatesLoadingSkeleton
+ * @description Skeleton loading placeholder for the templates section displayed while
+ * template and automation data is being fetched from the API.
+ */
 export const TemplatesLoadingSkeleton: React.FC = () => {
   return (
     <div className="space-y-4">

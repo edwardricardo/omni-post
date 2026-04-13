@@ -28,6 +28,14 @@ interface PredictiveAnalyticsProps {
   showAdvanced?: boolean;
 }
 
+/**
+ * @component PredictiveAnalytics
+ * @description Predictive analytics dashboard with tabbed views for Performance, Audience,
+ * ROI, and Competitive analysis, powered by the usePredictiveData hook.
+ * @param props.platforms - Social platforms to include in the analysis
+ * @param props.timeframe - Time window for predictions (7d, 30d, 90d)
+ * @param props.onPredictionUpdate - Callback fired when new predictions are available
+ */
 const PredictiveAnalytics: React.FC<PredictiveAnalyticsProps> = ({
   accountId = "default",
   contentId: _contentId,

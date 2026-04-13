@@ -59,6 +59,14 @@ function defaultRender<T>(item: T, key: string): React.ReactNode {
 // Main component
 // ---------------------------------------------------------------------------
 
+/**
+ * @component DataTable
+ * @description Generic data table with sticky header, loading skeleton, empty state,
+ *   and optional row click handler. Columns define rendering via a render function or auto-access by key.
+ * @param props.columns - Column definitions with header text and optional custom render
+ * @param props.data - Array of row items to display
+ * @param props.rowKey - Function returning a unique key for each row item
+ */
 export function DataTable<T>({
   columns,
   data,

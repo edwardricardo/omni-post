@@ -617,6 +617,10 @@ function AdminUsersContent() {
   );
 }
 
+/**
+ * @component AdminUsersPage
+ * @description Manages admin users with role badges, status indicators, and actions for inviting, activating, and deactivating users.
+ */
 export default function AdminUsersPage() {
   return <AdminUsersContent />;
 }

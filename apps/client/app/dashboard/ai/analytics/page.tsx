@@ -7,6 +7,10 @@
 "use client";
 
 import PredictiveAnalytics from "@/components/ai/PredictiveAnalytics";
+/**
+ * @component AIAnalyticsPage
+ * @description Displays AI-powered content intelligence analytics with performance insights and trend analysis.
+ */
 export default function AIAnalyticsPage() {
   return (
     <div className="p-6">

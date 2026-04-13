@@ -1,5 +1,6 @@
 /**
  * @file RoleBadge.tsx
+ * @component RoleBadge
  * @description Role badge component for team member display.
  * @layer client-components
  */

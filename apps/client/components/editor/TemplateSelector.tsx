@@ -166,6 +166,12 @@ function VariableModal({ template, isOpen, onClose, onApply }: VariableModalProp
   );
 }
 
+/**
+ * @component TemplateSelector
+ * @description Dialog for browsing, previewing, and selecting post templates with
+ * category filtering, variable customization, and platform-aware content insertion.
+ * @param props.selectedPlatforms - Filters templates compatible with these platforms
+ */
 export function TemplateSelector({
   onTemplateSelect,
   selectedPlatforms = [],

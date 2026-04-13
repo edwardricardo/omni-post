@@ -125,6 +125,12 @@ async function archiveCampaign(campaignId: string): Promise<void> {
 // Hooks
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useCampaigns
+ * @description Fetches campaigns for a project with optional status filter.
+ * @param params - Filter options: projectId (required), status (optional)
+ * @returns TanStack Query result with campaign array
+ */
 export function useCampaigns(params: { projectId: string; status?: string }) {
   return useQuery({
     queryKey: ["campaigns", params],
@@ -134,6 +140,12 @@ export function useCampaigns(params: { projectId: string; status?: string }) {
   });
 }
 
+/**
+ * @hook useCampaign
+ * @description Fetches a single campaign by ID.
+ * @param campaignId - The campaign to fetch
+ * @returns TanStack Query result with campaign data
+ */
 export function useCampaign(campaignId: string) {
   return useQuery({
     queryKey: ["campaigns", campaignId],
@@ -143,6 +155,12 @@ export function useCampaign(campaignId: string) {
   });
 }
 
+/**
+ * @hook useCampaignAnalytics
+ * @description Fetches analytics data for a specific campaign.
+ * @param campaignId - The campaign to fetch analytics for
+ * @returns TanStack Query result with campaign analytics data
+ */
 export function useCampaignAnalytics(campaignId: string) {
   return useQuery({
     queryKey: ["campaigns", campaignId, "analytics"],
@@ -152,6 +170,11 @@ export function useCampaignAnalytics(campaignId: string) {
   });
 }
 
+/**
+ * @hook useCreateCampaign
+ * @description Mutation hook for creating a new campaign.
+ * @returns TanStack Query mutation that invalidates the campaigns list on success
+ */
 export function useCreateCampaign() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -162,6 +185,11 @@ export function useCreateCampaign() {
   });
 }
 
+/**
+ * @hook useArchiveCampaign
+ * @description Mutation hook for archiving a campaign.
+ * @returns TanStack Query mutation that invalidates the campaigns list on success
+ */
 export function useArchiveCampaign() {
   const queryClient = useQueryClient();
   return useMutation({

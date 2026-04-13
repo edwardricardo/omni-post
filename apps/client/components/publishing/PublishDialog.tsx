@@ -2,6 +2,7 @@
 
 /**
  * @file PublishDialog.tsx
+ * @component PublishDialog
  * @description Modal dialog wrapping the publishing workflow with tabs for publish,
  * preview, and schedule, coordinating provider selection and the PublishingInterface.
  */

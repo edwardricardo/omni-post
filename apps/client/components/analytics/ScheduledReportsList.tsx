@@ -14,6 +14,13 @@ interface ScheduledReportsListProps {
   onCreateClick: () => void;
 }
 
+/**
+ * @component ScheduledReportsList
+ * @description Table of scheduled analytics reports with generate-now and delete actions,
+ * showing cron schedule in human-readable format and last-run date.
+ * @param props.onCreateClick - Opens the report creation dialog
+ */
+
 type GenerateStatus = "idle" | "success" | "error";
 
 function humanizeCron(cron: string): string {

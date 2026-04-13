@@ -46,7 +46,13 @@ export class ContentVersionManager {
   // ---------------------------------------------------------------------------
 
   /**
-   * Create a new content version
+   * @method createVersion
+   * @description Creates a new content version with canonical content and per-provider adaptations.
+   * @param postId - The post ID to version
+   * @param content - The canonical post content
+   * @param adaptations - Provider-specific content adaptations keyed by provider ID
+   * @param metadata - Version metadata including author, changelog, branch, and tags
+   * @returns OrchestrationResult containing the created ContentVersion or an error
    */
   async createVersion(
     postId: string,
@@ -65,7 +71,12 @@ export class ContentVersionManager {
   }
 
   /**
-   * Get version history for a post
+   * @method getVersionHistory
+   * @description Retrieves the version history for a post, optionally scoped to a branch with a result limit.
+   * @param postId - The post ID to fetch history for
+   * @param branchName - Optional branch name filter
+   * @param limit - Optional maximum number of versions to return
+   * @returns Array of ContentVersion records ordered by creation date
    */
   async getVersionHistory(
     postId: string,
@@ -76,7 +87,11 @@ export class ContentVersionManager {
   }
 
   /**
-   * Restore content to a specific version
+   * @method restoreVersion
+   * @description Restores content to a previously saved version, creating a new version entry as the restoration.
+   * @param versionId - The version ID to restore to
+   * @param restoredBy - The user ID performing the restoration
+   * @returns OrchestrationResult containing the newly created ContentVersion or an error
    */
   async restoreVersion(
     versionId: string,
@@ -90,7 +105,14 @@ export class ContentVersionManager {
   // ---------------------------------------------------------------------------
 
   /**
-   * Create a new content branch
+   * @method createBranch
+   * @description Creates a new content branch from a base version for parallel editing workflows.
+   * @param postId - The post ID the branch belongs to
+   * @param branchName - The name for the new branch
+   * @param baseVersionId - The version ID to branch from
+   * @param createdBy - The user ID creating the branch
+   * @param description - Optional description of the branch purpose
+   * @returns OrchestrationResult containing the created VersionBranch or a validation error
    */
   async createBranch(
     postId: string,
@@ -122,7 +144,11 @@ export class ContentVersionManager {
   // ---------------------------------------------------------------------------
 
   /**
-   * Compare two versions and generate a diff
+   * @method compareVersions
+   * @description Compares two content versions and generates a list of field-level diffs.
+   * @param fromVersionId - The source version ID for comparison
+   * @param toVersionId - The target version ID for comparison
+   * @returns OrchestrationResult containing an array of VersionDiff entries or a validation error
    */
   async compareVersions(
     fromVersionId: string,
@@ -153,7 +179,13 @@ export class ContentVersionManager {
   // ---------------------------------------------------------------------------
 
   /**
-   * Create a merge request between two branches
+   * @method createMergeRequest
+   * @description Creates a merge request to integrate changes from a source branch into a target branch.
+   * @param postId - The post ID both branches belong to
+   * @param sourceBranch - The branch name to merge from
+   * @param targetBranch - The branch name to merge into
+   * @param requestedBy - The user ID requesting the merge
+   * @returns OrchestrationResult containing the created MergeRequest or a validation error
    */
   async createMergeRequest(
     postId: string,
@@ -188,7 +220,11 @@ export class ContentVersionManager {
   }
 
   /**
-   * Resolve merge conflicts on a pending merge request
+   * @method resolveMergeConflicts
+   * @description Applies conflict resolutions to a pending merge request, advancing it toward approval.
+   * @param mergeRequestId - The merge request ID to resolve conflicts on
+   * @param resolutions - Array of conflict resolution decisions
+   * @returns OrchestrationResult containing the updated MergeRequest or an error
    */
   async resolveMergeConflicts(
     mergeRequestId: string,
@@ -198,7 +234,11 @@ export class ContentVersionManager {
   }
 
   /**
-   * Execute an approved merge request
+   * @method executeMerge
+   * @description Executes an approved merge request by producing merged content and creating the resulting version.
+   * @param mergeRequestId - The approved merge request ID to execute
+   * @param mergedBy - The user ID performing the merge
+   * @returns OrchestrationResult containing the merged ContentVersion or a validation error
    */
   async executeMerge(
     mergeRequestId: string,

@@ -9,6 +9,11 @@
 import React from "react";
 import { Brain } from "lucide-react";
 
+/**
+ * @component AIGenerationPreview
+ * @description Animated loading indicator shown while AI content generation is in progress,
+ * providing step-by-step status messages to the user.
+ */
 export function AIGenerationPreview() {
   return (
     <div className="text-center py-12" role="status" aria-live="polite">

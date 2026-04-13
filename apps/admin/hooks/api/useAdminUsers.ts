@@ -30,7 +30,9 @@ interface CreateAdminUserResponse {
 }
 
 /**
- * @description Fetches all admin users.
+ * @hook useAdminUsers
+ * @description Fetches all admin users including their roles, MFA status, and last login.
+ * @returns Query result with { data: AdminUser[], isLoading, error }
  */
 export function useAdminUsers() {
   return useQuery({
@@ -53,8 +55,9 @@ export function useAdminUsers() {
 }
 
 /**
- * @description Mutation hook for creating a new admin user.
- * Returns the created user and a temporary password.
+ * @hook useCreateAdminUser
+ * @description Mutation that creates a new admin user. Returns the created user and a temporary password.
+ * @returns Mutation object with mutate({ email, name, role }) and status fields
  */
 export function useCreateAdminUser() {
   const queryClient = useQueryClient();
@@ -85,7 +88,9 @@ export function useCreateAdminUser() {
 }
 
 /**
- * @description Mutation hook for deactivating an admin user.
+ * @hook useDeactivateAdminUser
+ * @description Mutation that deactivates an admin user by ID.
+ * @returns Mutation object with mutate(userId) and status fields
  */
 export function useDeactivateAdminUser() {
   const queryClient = useQueryClient();
@@ -108,7 +113,9 @@ export function useDeactivateAdminUser() {
 }
 
 /**
- * @description Mutation hook for activating an admin user.
+ * @hook useActivateAdminUser
+ * @description Mutation that activates a previously deactivated admin user by ID.
+ * @returns Mutation object with mutate(userId) and status fields
  */
 export function useActivateAdminUser() {
   const queryClient = useQueryClient();
@@ -138,7 +145,9 @@ interface UpdateAdminUserData {
 }
 
 /**
- * @description Mutation hook for updating an admin user's profile data.
+ * @hook useUpdateAdminUser
+ * @description Mutation that updates an admin user's profile data (name, email, department, team).
+ * @returns Mutation object with mutate({ id, data }) and status fields
  */
 export function useUpdateAdminUser() {
   const queryClient = useQueryClient();

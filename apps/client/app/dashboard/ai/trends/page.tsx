@@ -27,6 +27,10 @@ const URGENCY_STYLES = {
   THIS_WEEK: "bg-green-100 text-green-700",
 } as const;
 
+/**
+ * @component TrendsPage
+ * @description Displays a trend radar with relevant trending topics, urgency levels, and AI-generated post ideas.
+ */
 export default function TrendsPage() {
   const { user } = useAuth();
   const accountId = ((user as Record<string, unknown> | null)?.accountId as string) ?? "";

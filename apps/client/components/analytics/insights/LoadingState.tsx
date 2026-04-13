@@ -8,6 +8,11 @@
 
 import React from "react";
 
+/**
+ * @component LoadingState
+ * @description Skeleton placeholder rendered while performance insight data is being
+ * fetched, using animated pulse blocks to indicate loading.
+ */
 export function LoadingState() {
   return (
     <div className="performance-insights p-6">

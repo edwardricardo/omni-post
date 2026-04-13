@@ -15,6 +15,12 @@ interface UseScheduledPostsParams {
   assigneeId?: string;
 }
 
+/**
+ * @hook useScheduledPosts
+ * @description Fetches scheduled posts with optional project, account, campaign, and assignee filters.
+ * @param params - Filter options: projectId, accountId, campaignId, assigneeId
+ * @returns TanStack Query result with scheduled post array, auto-refreshes every 30s
+ */
 export function useScheduledPosts({
   projectId,
   accountId,
@@ -44,6 +50,11 @@ export function useScheduledPosts({
   });
 }
 
+/**
+ * @hook useCancelScheduledPost
+ * @description Mutation hook for cancelling a scheduled post.
+ * @returns TanStack Query mutation that invalidates the scheduled posts list on success
+ */
 export function useCancelScheduledPost() {
   const queryClient = useQueryClient();
 

@@ -1,5 +1,6 @@
 /**
  * @file TaskCard.tsx
+ * @component TaskCard
  * @description Individual task card with action buttons.
  * @layer client-components
  */

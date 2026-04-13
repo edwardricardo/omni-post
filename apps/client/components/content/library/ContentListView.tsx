@@ -20,6 +20,11 @@ interface ContentListViewProps {
   onDelete: (itemId: string) => void;
 }
 
+/**
+ * @component ContentListView
+ * @description Table-style list layout rendering content items as rows with columns
+ * for title, status, platform, type, date, and actions.
+ */
 export function ContentListView({
   items,
   selectedItems,

@@ -16,6 +16,11 @@ interface TemplatesTabsProps {
   automationsCount: number;
 }
 
+/**
+ * @component TemplatesTabs
+ * @description Tab navigation switching between the templates list and the
+ * automation rules list, with item counts per tab.
+ */
 export const TemplatesTabs: React.FC<TemplatesTabsProps> = ({
   activeTab,
   onTabChange,

@@ -16,6 +16,12 @@ interface SmartContentOptimizerSuggestionsProps {
   onApplySuggestion: (suggestion: OptimizationSuggestion) => void;
 }
 
+/**
+ * @component SmartContentOptimizerSuggestions
+ * @description Optimization suggestions tab displaying actionable recommendations with
+ * priority badges, expected engagement impact, and apply/dismiss actions.
+ * @param props.onApplySuggestion - Callback fired when the user applies a suggestion
+ */
 export function SmartContentOptimizerSuggestions({
   suggestions,
   onApplySuggestion,

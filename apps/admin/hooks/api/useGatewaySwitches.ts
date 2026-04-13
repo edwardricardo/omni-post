@@ -90,8 +90,10 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 // ---------------------------------------------------------------------------
 
 /**
- * @function useGatewaySwitches
+ * @hook useGatewaySwitches
  * @description Fetches paginated gateway switch events with optional status filter.
+ * @param filters - Optional pagination and status filter (status, page, limit)
+ * @returns Query result with { data: { events, total, page, limit, stats }, isLoading, error }
  */
 export function useGatewaySwitches(filters: GatewaySwitchFilters = {}) {
   const { status = "ALL", page = 1, limit = 50 } = filters;
@@ -113,8 +115,10 @@ export function useGatewaySwitches(filters: GatewaySwitchFilters = {}) {
 }
 
 /**
- * @function useGatewaySwitchDetail
+ * @hook useGatewaySwitchDetail
  * @description Fetches a single gateway switch event by ID.
+ * @param id - The gateway switch event ID, or null to disable the query
+ * @returns Query result with { data: GatewaySwitchEvent, isLoading, error }
  */
 export function useGatewaySwitchDetail(id: string | null) {
   return useQuery({
@@ -135,8 +139,9 @@ export function useGatewaySwitchDetail(id: string | null) {
 // ---------------------------------------------------------------------------
 
 /**
- * @function useExtendSwitchDeadline
- * @description Extends the checkout deadline for a gateway switch event.
+ * @hook useExtendSwitchDeadline
+ * @description Mutation that extends the checkout deadline for a gateway switch event.
+ * @returns Mutation object with mutate({ id, extraHours }) and status fields
  */
 export function useExtendSwitchDeadline() {
   const qc = useQueryClient();
@@ -163,8 +168,9 @@ export function useExtendSwitchDeadline() {
 }
 
 /**
- * @function useForceCompleteSwitch
- * @description Forces a gateway switch event to complete.
+ * @hook useForceCompleteSwitch
+ * @description Mutation that forces a gateway switch event to complete.
+ * @returns Mutation object with mutate(id) and status fields
  */
 export function useForceCompleteSwitch() {
   const qc = useQueryClient();
@@ -186,8 +192,9 @@ export function useForceCompleteSwitch() {
 }
 
 /**
- * @function useForceSuspendSwitch
- * @description Forces a gateway switch event to suspend.
+ * @hook useForceSuspendSwitch
+ * @description Mutation that forces a gateway switch event to suspend.
+ * @returns Mutation object with mutate(id) and status fields
  */
 export function useForceSuspendSwitch() {
   const qc = useQueryClient();

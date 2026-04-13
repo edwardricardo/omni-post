@@ -33,6 +33,11 @@ const ROLE_VARIANT: Record<string, "info" | "success" | "neutral"> = {
   ADMIN: "info",
 };
 
+/**
+ * @component MfaManager
+ * @description Admin MFA management panel for viewing all users' MFA status and performing
+ *   administrative actions such as disabling MFA or regenerating backup codes.
+ */
 export default function MfaManager() {
   const tm = useTranslations("security.mfa");
   const tc = useTranslations("common");

@@ -19,7 +19,12 @@ interface UseSchedulingParams {
   endDate?: Date;
 }
 
-// Fetch available scheduling slots
+/**
+ * @hook useScheduleSlots
+ * @description Fetches available scheduling slots for a project within an optional date range.
+ * @param params - projectId (required), startDate and endDate (optional)
+ * @returns TanStack Query result with available slot array, auto-refreshes every 30s
+ */
 export function useScheduleSlots({ projectId, startDate, endDate }: UseSchedulingParams) {
   return useQuery({
     queryKey: ["schedule-slots", projectId, startDate, endDate],
@@ -43,7 +48,12 @@ export function useScheduleSlots({ projectId, startDate, endDate }: UseSchedulin
   });
 }
 
-// Fetch optimal posting times based on analytics
+/**
+ * @hook useOptimalTimes
+ * @description Fetches analytics-based optimal posting times for a project.
+ * @param params - projectId to fetch optimal times for
+ * @returns TanStack Query result with optimal time array
+ */
 export function useOptimalTimes({ projectId }: Pick<UseSchedulingParams, "projectId">) {
   return useQuery({
     queryKey: ["optimal-times", projectId],
@@ -63,7 +73,12 @@ export function useOptimalTimes({ projectId }: Pick<UseSchedulingParams, "projec
   });
 }
 
-// Fetch scheduling rules
+/**
+ * @hook useSchedulingRules
+ * @description Fetches scheduling rules configured for a project.
+ * @param params - projectId to fetch scheduling rules for
+ * @returns TanStack Query result with scheduling rule array
+ */
 export function useSchedulingRules({ projectId }: Pick<UseSchedulingParams, "projectId">) {
   return useQuery({
     queryKey: ["scheduling-rules", projectId],
@@ -83,7 +98,11 @@ export function useSchedulingRules({ projectId }: Pick<UseSchedulingParams, "pro
   });
 }
 
-// Create a scheduling slot
+/**
+ * @hook useCreateSchedule
+ * @description Mutation hook for creating a single scheduling slot.
+ * @returns TanStack Query mutation that invalidates the schedule slots list on success
+ */
 export function useCreateSchedule() {
   const queryClient = useQueryClient();
 
@@ -110,7 +129,11 @@ export function useCreateSchedule() {
   });
 }
 
-// Bulk create scheduling slots
+/**
+ * @hook useBulkCreateSchedules
+ * @description Mutation hook for creating multiple scheduling slots in bulk.
+ * @returns TanStack Query mutation that invalidates the schedule slots list on success
+ */
 export function useBulkCreateSchedules() {
   const queryClient = useQueryClient();
 

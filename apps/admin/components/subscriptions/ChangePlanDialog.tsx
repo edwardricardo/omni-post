@@ -85,6 +85,15 @@ function estimateCustomPrice(count: number, tiers: PricingTier[]): number {
 // Component
 // ---------------------------------------------------------------------------
 
+/**
+ * @component ChangePlanDialog
+ * @description Dialog for changing an account's subscription plan. Supports Custom mode
+ *   (individual provider checkboxes with live pricing) and Bundle mode (pre-configured plan cards).
+ * @param props.accountId - The account whose plan is being changed
+ * @param props.accountName - Display name shown in the dialog header
+ * @param props.currentProviders - Currently active provider IDs for pre-selection
+ * @param props.onSuccess - Callback invoked after a successful plan change
+ */
 export function ChangePlanDialog({
   accountId,
   accountName,

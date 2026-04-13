@@ -13,6 +13,11 @@ interface OptimalTimingPanelProps {
   timings: OptimalTiming[];
 }
 
+/**
+ * @component OptimalTimingPanel
+ * @description Shows AI-recommended optimal posting windows per platform, including
+ * best day-of-week and time-of-day with expected engagement multipliers.
+ */
 export function OptimalTimingPanel({ timings }: OptimalTimingPanelProps) {
   const getDayName = useCallback((dayOfWeek: number): string => {
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

@@ -27,6 +27,13 @@ const STATUS_COLOURS: Record<string, string> = {
   ARCHIVED: "bg-yellow-100 text-yellow-700",
 };
 
+/**
+ * @component ConversationHeader
+ * @description Header bar for the conversation thread view. Shows platform name,
+ *              sender, status badge, and a Resolve/Reopen toggle button.
+ * @param props.conversation - The full conversation object
+ * @param props.userId - ID of the current user performing resolve/reopen actions
+ */
 export function ConversationHeader({ conversation, userId }: ConversationHeaderProps) {
   const resolveMutation = useResolveConversation();
   const reopenMutation = useReopenConversation();

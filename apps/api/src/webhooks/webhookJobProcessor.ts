@@ -177,7 +177,10 @@ export class WebhookJobProcessor {
   }
 
   /**
-   * Add webhook event to processing queue
+   * @method addWebhookJob
+   * @description Adds a webhook event to the BullMQ processing queue with calculated priority and delay.
+   * @param jobData - The webhook job payload including provider, event type, and raw data
+   * @returns The assigned BullMQ job ID
    */
   async addWebhookJob(jobData: WebhookJobData): Promise<string> {
     const job = await this.webhookQueue.add("process-webhook", jobData, {
@@ -381,7 +384,9 @@ export class WebhookJobProcessor {
   }
 
   /**
-   * Get queue statistics
+   * @method getQueueStats
+   * @description Returns current job counts across the webhook and dead-letter queues.
+   * @returns Object with waiting, active, completed, failed, and dead-letter counts
    */
   async getQueueStats(): Promise<{
     waiting: number;
@@ -409,7 +414,10 @@ export class WebhookJobProcessor {
   }
 
   /**
-   * Retry all failed jobs in dead letter queue
+   * @method retryDeadLetterJobs
+   * @description Moves all dead-letter jobs back to the main processing queue with reset retry counts.
+   * @param maxAge - Optional minimum received date; events older than this are skipped
+   * @returns The number of jobs successfully re-enqueued
    */
   async retryDeadLetterJobs(maxAge?: Date): Promise<number> {
     const deadLetterJobs = await this.deadLetterQueue.getJobs(["waiting", "failed"]);
@@ -435,7 +443,10 @@ export class WebhookJobProcessor {
   }
 
   /**
-   * Clean up old completed and failed jobs
+   * @method cleanupOldJobs
+   * @description Removes old completed and failed jobs from the webhook and dead-letter queues.
+   * @param maxAge - The cutoff date; jobs older than this are removed
+   * @returns Object with counts of cleaned jobs from each queue
    */
   async cleanupOldJobs(maxAge: Date): Promise<{
     webhookQueueCleaned: number;
@@ -460,7 +471,9 @@ export class WebhookJobProcessor {
   }
 
   /**
-   * Shutdown the processor gracefully
+   * @method shutdown
+   * @description Gracefully shuts down all BullMQ workers and closes both processing queues.
+   * @returns Resolves when all workers and queues are fully closed
    */
   async shutdown(): Promise<void> {
     webhookLogger.info("Shutting down webhook job processor");

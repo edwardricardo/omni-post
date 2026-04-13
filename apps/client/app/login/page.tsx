@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * @file page.tsx
+ * @component LoginPage
+ * @description Login page with email/password authentication form.
+ */
+
 import { useActionState } from "react";
 import Link from "next/link";
 import {

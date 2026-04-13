@@ -16,6 +16,13 @@ interface FolderSidebarProps {
   onSelectFolder: (folderId: string | undefined) => void;
 }
 
+/**
+ * @component FolderSidebar
+ * @description Sidebar navigation for the asset library listing all folders with an
+ *              "All Assets" option and inline folder creation form.
+ * @param props.selectedFolderId - Currently active folder ID, or undefined for all assets
+ * @param props.onSelectFolder - Callback when a folder is selected
+ */
 export function FolderSidebar({ selectedFolderId, onSelectFolder }: FolderSidebarProps) {
   const { data: folders = [] } = useAssetFolders();
   const createFolderMutation = useCreateFolder();

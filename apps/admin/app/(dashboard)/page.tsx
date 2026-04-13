@@ -236,6 +236,10 @@ function DashboardContent() {
   );
 }
 
+/**
+ * @component Dashboard
+ * @description Displays the main admin dashboard with key metrics, plan distribution, revenue figures, and recent activity.
+ */
 export default function Dashboard() {
   return <DashboardContent />;
 }

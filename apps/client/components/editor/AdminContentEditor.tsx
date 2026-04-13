@@ -83,13 +83,11 @@ function hasSchedulingCapability(providerId: string): boolean {
 }
 
 /**
- * Admin Content Editor
- * Wraps ContentEditorCore with admin-specific features:
- * - Advanced validation display
- * - Platform compatibility checking
- * - Adaptation suggestions
- * - Analytics integration (future)
- * - Plain text editing (no rich text)
+ * @component AdminContentEditor
+ * @description Rich content editor for admin post creation, wrapping ContentEditorCore
+ * with provider-specific constraints, media attachments, and real-time validation per platform.
+ * @param props.selectedProviders - Target providers for validation and adaptation
+ * @param props.onValidationChange - Callback with per-provider validation results
  */
 export function AdminContentEditor({
   accountId,

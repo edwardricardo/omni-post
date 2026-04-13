@@ -1,5 +1,6 @@
 /**
  * @file StoriesHeader.tsx
+ * @component StoriesHeader
  * @description Header component for the Instagram Stories editor, displaying the project
  * name, story count, and action buttons for saving drafts and publishing the story set.
  */

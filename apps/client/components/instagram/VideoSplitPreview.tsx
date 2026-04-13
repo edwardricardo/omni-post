@@ -2,6 +2,7 @@
 
 /**
  * @file VideoSplitPreview.tsx
+ * @component VideoSplitPreview
  * @description Video splitting preview component for Instagram Stories, allowing users to
  * configure split options, preview individual segments, and apply the split before upload.
  */

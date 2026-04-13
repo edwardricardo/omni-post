@@ -14,6 +14,11 @@ const STATUS_STYLES = {
   ARCHIVED: "bg-gray-100 text-gray-500 line-through",
 } as const;
 
+/**
+ * @component CampaignStatusBadge
+ * @description Color-coded badge displaying a campaign's current status
+ * (Draft, Active, Paused, Completed, Archived).
+ */
 export function CampaignStatusBadge({
   status,
 }: {

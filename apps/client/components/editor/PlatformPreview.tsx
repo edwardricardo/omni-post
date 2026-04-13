@@ -31,6 +31,12 @@ interface ThreadSegment {
   charCount: number;
 }
 
+/**
+ * @component PlatformPreview
+ * @description Live preview rendering post content as it would appear on each selected
+ * social platform, with thread segmentation and media thumbnails.
+ * @param props.selectedProviders - Platforms to render preview tabs for
+ */
 export function PlatformPreview({
   content,
   mediaFiles,

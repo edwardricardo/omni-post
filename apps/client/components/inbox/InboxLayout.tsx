@@ -24,6 +24,14 @@ const DEFAULT_FILTERS: InboxFilters = {
   messageType: "all",
 };
 
+/**
+ * @component InboxLayout
+ * @description Two-panel inbox layout. Left panel contains the filter sidebar and
+ *              conversation list; right panel shows the selected conversation thread
+ *              or an empty-state prompt.
+ * @param props.userId - ID of the current user for thread actions
+ * @param props.projectId - Optional project scope for conversation filtering
+ */
 export function InboxLayout({ projectId, userId }: InboxLayoutProps) {
   const [filters, setFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
