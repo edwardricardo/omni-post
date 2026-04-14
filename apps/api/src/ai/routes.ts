@@ -43,6 +43,7 @@ const AnalyzeContentBodySchema = z.object({
   content: z.string().min(1),
   analysisType: AnalysisTypeSchema,
   provider: z.string().optional(),
+  accountId: z.string().uuid().optional(),
 });
 
 const OptimizeContentBodySchema = z.object({
@@ -58,6 +59,7 @@ const PredictPerformanceBodySchema = z.object({
   platform: z.string().min(1),
   historicalData: z.array(z.any()).optional(),
   provider: z.string().optional(),
+  accountId: z.string().uuid().optional(),
 });
 
 const VariationTypeSchema = z.enum(["tone", "length", "audience"]);
@@ -67,6 +69,7 @@ const GenerateVariationsBodySchema = z.object({
   variationType: VariationTypeSchema,
   count: z.number().int().min(1).max(10),
   provider: z.string().optional(),
+  accountId: z.string().uuid().optional(),
 });
 
 const SmartAnalysisBodySchema = z.object({
@@ -145,7 +148,8 @@ class AiRouteHandler extends BaseRouteHandler {
           : messages;
       const result = await this.aiService.generateContent(
         effectiveMessages,
-        options as import("./types.js").GenerationOptions | undefined
+        options as import("./types.js").GenerationOptions | undefined,
+        accountId
       );
 
       this.sendSuccess(ctx, result, 200);
@@ -167,8 +171,8 @@ class AiRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 400, "Content and analysisType are required");
       }
 
-      const { content, analysisType } = validation.value;
-      const result = await this.aiService.analyzeContent(content, analysisType);
+      const { content, analysisType, accountId } = validation.value;
+      const result = await this.aiService.analyzeContent(content, analysisType, accountId);
 
       this.sendSuccess(ctx, result, 200);
     } catch (error: unknown) {
@@ -191,7 +195,12 @@ class AiRouteHandler extends BaseRouteHandler {
 
       const { content, platform, brandVoice, accountId } = validation.value;
       const effectiveBrandVoice = brandVoice ?? (await this.resolveBrandVoicePrompt(accountId));
-      const result = await this.aiService.optimizeContent(content, platform, effectiveBrandVoice);
+      const result = await this.aiService.optimizeContent(
+        content,
+        platform,
+        effectiveBrandVoice,
+        accountId
+      );
 
       this.sendSuccess(ctx, result, 200);
     } catch (error: unknown) {
@@ -217,8 +226,13 @@ class AiRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 400, "Content and platform are required");
       }
 
-      const { content, platform, historicalData } = validation.value;
-      const result = await this.aiService.predictPerformance(content, platform, historicalData);
+      const { content, platform, historicalData, accountId } = validation.value;
+      const result = await this.aiService.predictPerformance(
+        content,
+        platform,
+        historicalData,
+        accountId
+      );
 
       this.sendSuccess(ctx, result, 200);
     } catch (error: unknown) {
@@ -239,8 +253,13 @@ class AiRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 400, "Content, variationType, and count are required");
       }
 
-      const { content, variationType, count } = validation.value;
-      const result = await this.aiService.generateVariations(content, variationType, count);
+      const { content, variationType, count, accountId } = validation.value;
+      const result = await this.aiService.generateVariations(
+        content,
+        variationType,
+        count,
+        accountId
+      );
 
       this.sendSuccess(ctx, result, 200);
     } catch (error: unknown) {

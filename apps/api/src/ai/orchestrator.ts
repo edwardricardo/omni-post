@@ -1,7 +1,8 @@
 /**
  * @file orchestrator.ts
- * @description AI orchestrator that manages multiple LLM providers (OpenAI, Gemini, Perplexity)
- *              with load balancing, caching, usage tracking, and fallback strategies.
+ * @description AI orchestrator that manages multiple LLM providers with load balancing,
+ *   caching, usage tracking, and fallback strategies. Accepts providers via constructor
+ *   injection — no module-level singleton.
  * @layer infrastructure
  */
 import {
@@ -25,6 +26,9 @@ const aiLogger = logger.child({ module: "ai" });
 import { OpenAIProvider } from "./providers/openai.js";
 import { PerplexityProvider } from "./providers/perplexity.js";
 import { GeminiProvider } from "./providers/gemini.js";
+
+/** Callback invoked after each successful AI request with token usage */
+type TokenUsageCallback = (provider: string, tokens: number) => Promise<void>;
 
 interface CacheEntry<T> {
   data: T;
@@ -50,15 +54,29 @@ export class AIOrchestrator {
   private rateLimits: Map<string, { requests: number; tokens: number; resetTime: number }> =
     new Map();
 
-  constructor() {
-    this.initializeProviders();
+  /**
+   * @constructor
+   * @param providers - Pre-built provider map (use AIProviderFactory to create)
+   * @param onTokensUsed - Optional callback invoked after each successful request
+   */
+  constructor(
+    providers: Map<string, AIProvider>,
+    private readonly onTokensUsed?: TokenUsageCallback
+  ) {
+    this.providers = providers;
     this.startMetricsCollection();
   }
 
-  private initializeProviders() {
-    // Initialize providers based on environment variables
+  /**
+   * @method createFromEnv
+   * @description Creates an orchestrator from environment variables.
+   * @deprecated Use AIProviderFactory + constructor injection instead.
+   */
+  static createFromEnv(): AIOrchestrator {
+    const providers = new Map<string, AIProvider>();
+
     if (process.env.OPENAI_API_KEY) {
-      this.providers.set(
+      providers.set(
         "openai",
         new OpenAIProvider({
           apiKey: process.env.OPENAI_API_KEY,
@@ -76,7 +94,7 @@ export class AIOrchestrator {
     }
 
     if (process.env.PERPLEXITY_API_KEY) {
-      this.providers.set(
+      providers.set(
         "perplexity",
         new PerplexityProvider({
           apiKey: process.env.PERPLEXITY_API_KEY,
@@ -95,7 +113,7 @@ export class AIOrchestrator {
     }
 
     if (process.env.GEMINI_API_KEY) {
-      this.providers.set(
+      providers.set(
         "gemini",
         new GeminiProvider({
           apiKey: process.env.GEMINI_API_KEY,
@@ -111,6 +129,8 @@ export class AIOrchestrator {
         })
       );
     }
+
+    return new AIOrchestrator(providers);
   }
 
   private startMetricsCollection() {
@@ -351,7 +371,7 @@ export class AIOrchestrator {
             this.setCachedResult(cacheKey, result, config?.cacheTTL || 300000);
           }
 
-          return {
+          const response: AIResponse<T> = {
             ok: true,
             value: result,
             metadata: {
@@ -362,6 +382,15 @@ export class AIOrchestrator {
               cached: false,
             },
           };
+
+          // Track token usage via callback (never throws)
+          if (this.onTokensUsed && estimatedTokens > 0) {
+            await this.onTokensUsed(providerName, estimatedTokens).catch((err) =>
+              aiLogger.warn({ err }, "Failed to track token usage")
+            );
+          }
+
+          return response;
         } catch (_error: unknown) {
           const latency = Date.now() - startTime;
           this.updateMetrics(providerName, false, latency, 0);
@@ -545,5 +574,4 @@ export class AIOrchestrator {
   }
 }
 
-// Singleton instance
-export const aiOrchestrator = new AIOrchestrator();
+// Legacy singleton removed — use DI container with AIOrchestrator.createFromEnv() or AiRequestService

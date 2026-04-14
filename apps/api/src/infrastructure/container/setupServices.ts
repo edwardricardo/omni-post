@@ -13,7 +13,8 @@ import { MfaService } from "../../auth/mfaService.js";
 import { RbacService } from "../../auth/rbacService.js";
 import { auditService } from "../../audit/auditService.js";
 import { ActivityFeedService } from "../../audit/activityFeedService.js";
-import { aiService } from "../../ai/aiService.js";
+import { AIService } from "../../ai/aiService.js";
+import { AiRequestService } from "../../ai/AiRequestService.js";
 import { dashboardService } from "../../admin/dashboardService.js";
 import { AccountLifecycleService } from "../../admin/accountLifecycleService.js";
 import { AccountSessionService } from "../../admin/AccountSessionService.js";
@@ -102,7 +103,21 @@ export function setupServices(
   // Register singleton instances
   container.registerInstance(TOKENS.AuditService, auditService);
   container.registerInstance(TOKENS.ActivityFeedService, new ActivityFeedService());
-  container.registerInstance(TOKENS.AIService, aiService);
+  container.register<AiRequestService>(
+    TOKENS.AiRequestService,
+    () =>
+      new AiRequestService(
+        container.resolve(TOKENS.PrismaClient),
+        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
+      ),
+    true
+  );
+
+  container.register<AIService>(
+    TOKENS.AIService,
+    () => new AIService(container.resolve<AiRequestService>(TOKENS.AiRequestService)),
+    true
+  );
   container.registerInstance(TOKENS.DashboardService, dashboardService);
 
   container.register<AccountLifecycleService>(
