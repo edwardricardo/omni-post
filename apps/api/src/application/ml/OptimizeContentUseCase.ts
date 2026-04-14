@@ -69,9 +69,11 @@ const FALLBACK_STRATEGIES: Record<string, string[]> = {
  * @description Takes content and optimization goals, delegates to AI providers for
  *              real optimization suggestions. Falls back to heuristic strategies if AI fails.
  */
-export class OptimizeContentUseCase
-  implements UseCase<OptimizeContentInput, OptimizeContentOutput, UseCaseError>
-{
+export class OptimizeContentUseCase implements UseCase<
+  OptimizeContentInput,
+  OptimizeContentOutput,
+  UseCaseError
+> {
   constructor(private readonly aiService: AIService) {}
 
   /**
@@ -124,27 +126,27 @@ export class OptimizeContentUseCase
         return null;
       }
 
-      const optimization = result.optimization;
+      const optimization = result.optimization as Record<string, unknown>;
       const recommendations: string[] = [];
 
       // Extract recommendations from AI changes
-      if (Array.isArray(optimization.changes)) {
-        for (const change of optimization.changes) {
-          if (change.reason) {
-            recommendations.push(change.reason);
+      if (Array.isArray(optimization["changes"])) {
+        for (const change of optimization["changes"] as Array<Record<string, unknown>>) {
+          if (typeof change["reason"] === "string") {
+            recommendations.push(change["reason"]);
           }
         }
       }
 
       // Add hashtag suggestions from AI
-      if (Array.isArray(optimization.hashtags) && optimization.hashtags.length > 0) {
-        recommendations.push(`Suggested hashtags: ${optimization.hashtags.join(", ")}`);
+      const hashtags = optimization["hashtags"];
+      if (Array.isArray(hashtags) && hashtags.length > 0) {
+        recommendations.push(`Suggested hashtags: ${(hashtags as string[]).join(", ")}`);
       }
 
+      const rawOptText = optimization["optimizedText"];
       const optimizedText =
-        typeof optimization.optimizedText === "string" && optimization.optimizedText.length > 0
-          ? optimization.optimizedText
-          : content;
+        typeof rawOptText === "string" && rawOptText.length > 0 ? rawOptText : content;
 
       // Generate variations via AI if requested
       let variations: ContentVariation[] | undefined;
@@ -210,11 +212,13 @@ export class OptimizeContentUseCase
         return undefined;
       }
 
-      const analysis = result.analysis;
+      const analysis = result.analysis as Record<string, unknown>;
+      const tone = analysis["tone"] as Record<string, unknown> | undefined;
       return {
-        currentTone:
-          typeof analysis.tone?.detected === "string" ? analysis.tone.detected : "neutral",
-        suggestedTones: Array.isArray(analysis.tone?.suggestions) ? analysis.tone.suggestions : [],
+        currentTone: typeof tone?.["detected"] === "string" ? tone["detected"] : "neutral",
+        suggestedTones: Array.isArray(tone?.["suggestions"])
+          ? (tone["suggestions"] as string[])
+          : [],
       };
     } catch {
       return undefined;

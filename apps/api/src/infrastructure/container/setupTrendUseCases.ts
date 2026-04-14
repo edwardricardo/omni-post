@@ -38,7 +38,7 @@ export function setupTrendUseCases(container: Container): void {
         ): Promise<{ success: boolean; value?: string }> {
           try {
             const result = await aiService.generateContent(messages);
-            const value = result.content;
+            const value = typeof result.content === "string" ? result.content : undefined;
             return { success: true, ...(value !== undefined && { value }) };
           } catch {
             return { success: false };

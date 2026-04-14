@@ -78,9 +78,11 @@ const MIN_ANALYTICS_RECORDS = 14;
  * @description Analyzes historical engagement data and uses AI to recommend optimal posting times.
  *              Falls back to industry defaults when no historical data or AI is unavailable.
  */
-export class PredictOptimalTimingUseCase
-  implements UseCase<PredictTimingInput, PredictTimingOutput, UseCaseError>
-{
+export class PredictOptimalTimingUseCase implements UseCase<
+  PredictTimingInput,
+  PredictTimingOutput,
+  UseCaseError
+> {
   constructor(
     private readonly aiService?: AIService,
     private readonly analyticsRepo?: AnalyticsReadRepositoryPort
@@ -166,7 +168,7 @@ export class PredictOptimalTimingUseCase
 
       // Parse AI recommendations and combine with data-driven slots
       const dataSlots = this.generateDataDrivenSlots(engagementByHour, contentModifier);
-      const aiRecommendations = this.parseAIRecommendations(aiResult.content);
+      const aiRecommendations = this.parseAIRecommendations(String(aiResult.content));
 
       const activityPatterns = input.includeActivityPatterns
         ? this.generateDataDrivenPatterns(engagementByHour)
