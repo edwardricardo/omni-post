@@ -1,17 +1,14 @@
 /**
  * @file SubscriptionManagementService.ts
- * @description Core subscription lifecycle: get, update, list, suspend.
- *   Dual-mode: supports both legacy Account.subscription AND new AccountSubscription model.
- *   Legacy methods marked @deprecated for incremental removal.
+ * @description Core subscription lifecycle: get, list, suspend, validate limits.
+ *   Uses the AccountSubscription + ProviderBundle model for provider-based subscriptions.
  * @layer application
  */
-import { ok, err, type Result, type SubscriptionTier } from "@shared/types";
+import { ok, err, type Result } from "@shared/types";
 import { prisma } from "@infra/prisma";
 import type { AccountQueryRepositoryPort } from "../../domain/repositories/AccountQueryRepository.js";
 import { AuditableService } from "../../services/AuditableService.js";
-import { subscriptionPlanService } from "./SubscriptionPlanService.js";
 import { billingService } from "./BillingService.js";
-import { type AccountSubscriptionInfo, type SubscriptionChangeRequest } from "./types.js";
 
 export class SubscriptionManagementService extends AuditableService {
   constructor(private readonly accountQueryRepo: AccountQueryRepositoryPort) {
@@ -82,101 +79,10 @@ export class SubscriptionManagementService extends AuditableService {
     return { subscriptions, total, page, limit };
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // Legacy methods (kept for backward compatibility)
-  // ═══════════════════════════════════════════════════════════════
-
-  /**
-   * @method getAccountSubscription
-   * @description Retrieves subscription info for an account using the legacy Account model.
-   * @deprecated Use getProviderSubscription instead.
-   * @param accountId - The account ID to look up
-   * @returns Result with subscription info on success, or NOT_FOUND/DATABASE_ERROR on failure
-   */
-  async getAccountSubscription(
-    accountId: string
-  ): Promise<Result<AccountSubscriptionInfo, "NOT_FOUND" | "DATABASE_ERROR">> {
-    const startTime = Date.now();
-    try {
-      const accountResult = await this.accountQueryRepo.findWithProjects(accountId);
-      if (!accountResult.ok) return err("NOT_FOUND");
-
-      const account = accountResult.value;
-      const subscriptionInfo = subscriptionPlanService.mapAccountToSubscriptionInfo(account);
-      return ok(subscriptionInfo);
-    } catch (error) {
-      const serviceError = this.createServiceError(error, {
-        serviceName: this.serviceName,
-        operation: "getAccountSubscription",
-        accountId,
-      });
-      this.logError(
-        { serviceName: this.serviceName, operation: "getAccountSubscription", accountId },
-        serviceError,
-        Date.now() - startTime
-      );
-      return err("DATABASE_ERROR");
-    }
-  }
-
-  /**
-   * @method updateSubscription
-   * @description Legacy stub that logs a deprecation warning and returns INVALID_TIER.
-   * @deprecated Removed -- Account.subscription field no longer exists. Use ChangeAccountSubscriptionUseCase instead.
-   * @param _accountId - The account ID (unused)
-   * @param _changeRequest - The change request payload (unused)
-   * @param _updatedByUserId - The admin user ID (unused)
-   * @returns Result with INVALID_TIER error
-   */
-  async updateSubscription(
-    _accountId: string,
-    _changeRequest: SubscriptionChangeRequest,
-    _updatedByUserId?: string
-  ): Promise<
-    Result<AccountSubscriptionInfo, "NOT_FOUND" | "INVALID_TIER" | "NO_CHANGE" | "DATABASE_ERROR">
-  > {
-    this.logWarning(
-      { operation: "updateSubscription", accountId: _accountId },
-      "Legacy updateSubscription called — use ChangeAccountSubscriptionUseCase"
-    );
-    return err("INVALID_TIER");
-  }
-
-  /**
-   * @method listAccountSubscriptions
-   * @description Legacy stub that logs a deprecation warning and returns an empty list.
-   * @deprecated Removed -- Account.subscription field no longer exists. Use listProviderSubscriptions instead.
-   * @param _filters - Filter options (unused)
-   * @param _page - Page number (unused)
-   * @param _limit - Results per page (unused)
-   * @returns Result with empty subscription list
-   */
-  async listAccountSubscriptions(
-    _filters: {
-      tier?: SubscriptionTier;
-      status?: string;
-      search?: string;
-      sortBy?: "createdAt" | "updatedAt" | "email";
-      sortOrder?: "asc" | "desc";
-    } = {},
-    _page = 1,
-    _limit = 50
-  ): Promise<
-    Result<
-      { subscriptions: AccountSubscriptionInfo[]; total: number; page: number; limit: number },
-      "DATABASE_ERROR"
-    >
-  > {
-    this.logWarning(
-      { operation: "listAccountSubscriptions" },
-      "Legacy listAccountSubscriptions called — use listProviderSubscriptions"
-    );
-    return ok({ subscriptions: [], total: 0, page: _page, limit: _limit });
-  }
-
   /**
    * @method validateSubscriptionLimits
-   * @description Checks whether an account can perform a given operation based on its subscription plan limits.
+   * @description Checks whether an account can perform a given operation based on its
+   *   AccountSubscription limits (maxProjects from DB, inline defaults for team/storage).
    * @param accountId - The account ID to validate
    * @param operation - The operation type to check (CREATE_PROJECT, ADD_TEAM_MEMBER, UPLOAD_MEDIA)
    * @param amount - Number of units the operation would consume (defaults to 1)
@@ -194,19 +100,61 @@ export class SubscriptionManagementService extends AuditableService {
   > {
     const startTime = Date.now();
     try {
-      const subscriptionResult = await this.getAccountSubscription(accountId);
-      if (!subscriptionResult.ok) {
-        return subscriptionResult as Result<
-          { allowed: boolean; limit: number; current: number; remaining: number },
-          "NOT_FOUND" | "DATABASE_ERROR"
-        >;
+      const subscription = await prisma.accountSubscription.findUnique({
+        where: { accountId },
+        select: { maxProjects: true },
+      });
+
+      if (!subscription) {
+        return err("NOT_FOUND");
       }
 
-      return subscriptionPlanService.validateSubscriptionLimits(
-        subscriptionResult.value,
-        operation,
-        amount
-      );
+      switch (operation) {
+        case "CREATE_PROJECT": {
+          const currentProjects = await prisma.project.count({ where: { accountId } });
+          const remaining = Math.max(0, subscription.maxProjects - currentProjects);
+          return ok({
+            allowed: remaining >= amount,
+            limit: subscription.maxProjects,
+            current: currentProjects,
+            remaining,
+          });
+        }
+        case "ADD_TEAM_MEMBER": {
+          const currentMembers = await prisma.project.count({ where: { accountId } });
+          const teamLimit = subscription.maxProjects * 5;
+          const remaining = Math.max(0, teamLimit - currentMembers);
+          return ok({
+            allowed: remaining >= amount,
+            limit: teamLimit,
+            current: currentMembers,
+            remaining,
+          });
+        }
+        case "UPLOAD_MEDIA": {
+          const mediaCounts = await prisma.postMedia.groupBy({
+            by: ["type"],
+            where: { post: { project: { accountId } } },
+            _count: { id: true },
+          });
+          const AVG_SIZE_MB: Record<string, number> = { image: 2, gif: 2, video: 20 };
+          let totalMB = 0;
+          for (const group of mediaCounts) {
+            totalMB += group._count.id * (AVG_SIZE_MB[group.type] ?? 2);
+          }
+          const storageUsedGB = Math.round((totalMB / 1024) * 100) / 100;
+          const storageLimit = subscription.maxProjects * 10;
+          const remaining = Math.max(0, storageLimit - storageUsedGB);
+          return ok({
+            allowed: remaining >= amount,
+            limit: storageLimit,
+            current: storageUsedGB,
+            remaining,
+          });
+        }
+        default:
+          return ok({ allowed: true, limit: 0, current: 0, remaining: 0 });
+      }
     } catch (error) {
       const serviceError = this.createServiceError(error, {
         serviceName: this.serviceName,

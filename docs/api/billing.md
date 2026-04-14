@@ -98,21 +98,18 @@ The billing domain manages payment processing through dual gateways (Stripe and 
 
 **File:** `apps/api/src/billing/subscription/SubscriptionManagementService.ts`
 **Layer:** application
-**Description:** Core subscription lifecycle operations: get, list, validate limits, suspend. Supports both legacy Account.subscription model and new AccountSubscription model.
+**Description:** Core subscription lifecycle operations: get, list, validate limits, suspend. Uses the AccountSubscription + ProviderBundle model.
 
 #### Methods
 
-| Method                       | Signature                                                         | Returns                                                                     | Description                                                  |
-| ---------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `getProviderSubscription`    | `(accountId: string)`                                             | `Promise<AccountSubscription \| null>`                                      | Get subscription from new AccountSubscription model          |
-| `listProviderSubscriptions`  | `(filters?, page?, limit?)`                                       | `Promise<{ subscriptions, total, page, limit }>`                            | List subscriptions with filtering (status, planType, search) |
-| `getAccountSubscription`     | `(accountId: string)`                                             | `Promise<Result<AccountSubscriptionInfo, "NOT_FOUND" \| "DATABASE_ERROR">>` | **@deprecated** Legacy method                                |
-| `updateSubscription`         | `(accountId, changeRequest, updatedByUserId?)`                    | `Promise<Result<AccountSubscriptionInfo, ...>>`                             | **@deprecated** Use ChangeAccountSubscriptionUseCase         |
-| `listAccountSubscriptions`   | `(filters?, page?, limit?)`                                       | `Promise<Result<{ subscriptions, total, ... }, ...>>`                       | **@deprecated** Use listProviderSubscriptions                |
-| `validateSubscriptionLimits` | `(accountId: string, operation: string, amount?: number)`         | `Promise<Result<{ allowed, limit, current, remaining }, ...>>`              | Validates operation against subscription limits              |
-| `suspendSubscription`        | `(accountId: string, reason: string, suspendedByUserId?: string)` | `Promise<Result<void, "NOT_FOUND" \| "DATABASE_ERROR">>`                    | Suspends an account subscription                             |
+| Method                       | Signature                                                         | Returns                                                        | Description                                                       |
+| ---------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `getProviderSubscription`    | `(accountId: string)`                                             | `Promise<AccountSubscription \| null>`                         | Get subscription from AccountSubscription model                   |
+| `listProviderSubscriptions`  | `(filters?, page?, limit?)`                                       | `Promise<{ subscriptions, total, page, limit }>`               | List subscriptions with filtering (status, planType, search)      |
+| `validateSubscriptionLimits` | `(accountId: string, operation: string, amount?: number)`         | `Promise<Result<{ allowed, limit, current, remaining }, ...>>` | Validates operation against AccountSubscription limits (DB-based) |
+| `suspendSubscription`        | `(accountId: string, reason: string, suspendedByUserId?: string)` | `Promise<Result<void, "NOT_FOUND" \| "DATABASE_ERROR">>`       | Suspends an account subscription                                  |
 
-**Has JSDoc:** ⚠️ Has descriptions but no formal `@method` tags.
+**Has JSDoc:** ✅ All public methods have `@method` and `@description` tags.
 
 ---
 
@@ -120,20 +117,17 @@ The billing domain manages payment processing through dual gateways (Stripe and 
 
 **File:** `apps/api/src/billing/subscription/SubscriptionPlanService.ts`
 **Layer:** application
-**Description:** Manages subscription plans from AccountSubscription + ProviderBundle DB models. Validates limits, provides plan info, and maps accounts to subscription info.
+**Description:** Manages subscription plans from AccountSubscription + ProviderBundle DB models. Provides plan info and trial calculations.
 
 #### Methods
 
-| Method                       | Signature                                | Returns                                                                        | Description                                               |
-| ---------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| `getAccountPlan`             | `(accountId: string)`                    | `Promise<{ id, planType, bundleName, providers, pricePerMonth, ... } \| null>` | Get plan info from AccountSubscription model              |
-| `getAllPlansFromDB`          | `()`                                     | `Promise<ProviderBundle[]>`                                                    | Get all active bundles from DB                            |
-| `validateSubscriptionLimits` | `(subscriptionInfo, operation, amount?)` | `Promise<Result<{ allowed, limit, current, remaining }, never>>`               | Validate limits using AccountSubscription.maxProjects     |
-| `getSubscriptionPlan`        | `(tier: SubscriptionTier)`               | `SubscriptionPlan`                                                             | **@deprecated** Get plan details from hardcoded constants |
-| `getAllPlans`                | `()`                                     | `SubscriptionPlan[]`                                                           | **@deprecated** Use getAllPlansFromDB                     |
-| `calculateTrialInfo`         | `(account: PrismaAccount)`               | `TrialInfo`                                                                    | Calculate trial status from account fields                |
+| Method               | Signature                  | Returns                                                                        | Description                                  |
+| -------------------- | -------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------- |
+| `getAccountPlan`     | `(accountId: string)`      | `Promise<{ id, planType, bundleName, providers, pricePerMonth, ... } \| null>` | Get plan info from AccountSubscription model |
+| `getAllPlansFromDB`  | `()`                       | `Promise<ProviderBundle[]>`                                                    | Get all active bundles from DB               |
+| `calculateTrialInfo` | `(account: PrismaAccount)` | `TrialInfo`                                                                    | Calculate trial status from account fields   |
 
-**Has JSDoc:** ⚠️ Has `@deprecated` annotations; no `@method` tags.
+**Has JSDoc:** ✅
 
 ---
 
@@ -164,10 +158,10 @@ The billing domain manages payment processing through dual gateways (Stripe and 
 | Method                           | Signature                                                | Returns                                                               | Description                                       |
 | -------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------- |
 | `getTrialStatusFromSubscription` | `(accountId: string)`                                    | `Promise<{ isTrialing, trialEndsAt, daysRemaining, status } \| null>` | Reads trial status from AccountSubscription model |
-| `startTrial`                     | `(request: StartTrialRequest, startedByUserId?: string)` | `Promise<Result<AccountSubscriptionInfo, ...>>`                       | Starts trial period with configurable duration    |
-| `endTrial`                       | `(accountId, reason, endedByUserId?)`                    | `Promise<Result<AccountSubscriptionInfo, ...>>`                       | Ends trial period                                 |
-| `getExpiringTrials`              | `(daysBeforeExpiration?: number)`                        | `Promise<Result<AccountSubscriptionInfo[], "DATABASE_ERROR">>`        | Gets accounts with expiring trials                |
-| `convertTrialToPaid`             | `(accountId, billingCycle?, convertedByUserId?)`         | `Promise<Result<AccountSubscriptionInfo, ...>>`                       | Converts trial to paid subscription               |
+| `startTrial`                     | `(request: StartTrialRequest, startedByUserId?: string)` | `Promise<Result<AccountTrialResponse, ...>>`                          | Starts trial period with configurable duration    |
+| `endTrial`                       | `(accountId, reason, endedByUserId?)`                    | `Promise<Result<AccountTrialResponse, ...>>`                          | Ends trial period                                 |
+| `getExpiringTrials`              | `(daysBeforeExpiration?: number)`                        | `Promise<Result<AccountTrialResponse[], "DATABASE_ERROR">>`           | Gets accounts with expiring trials                |
+| `convertTrialToPaid`             | `(accountId, billingCycle?, convertedByUserId?)`         | `Promise<Result<AccountTrialResponse, ...>>`                          | Converts trial to paid subscription               |
 | `processAutoRenewals`            | `()`                                                     | `Promise<Result<{ processed, failed, details }, "DATABASE_ERROR">>`   | Processes auto-renewals for expired trials        |
 
 **Has JSDoc:** ✅ Has `@method` tag on `getTrialStatusFromSubscription`.
@@ -230,16 +224,14 @@ The billing domain manages payment processing through dual gateways (Stripe and 
 
 ## Key Types (`subscription/types.ts`)
 
-| Type                        | Description                                               |
-| --------------------------- | --------------------------------------------------------- |
-| `SubscriptionPlan`          | Plan definition: tier, prices, limits, features           |
-| `AccountSubscriptionInfo`   | Full account subscription state with usage and trial info |
-| `SubscriptionChangeRequest` | Request to change tier/cycle                              |
-| `SubscriptionStats`         | Analytics: totals, revenue, churn risk, growth            |
-| `BillingEvent`              | Audit event: UPGRADE, DOWNGRADE, TRIAL_START, etc.        |
-| `StartTrialRequest`         | Trial initiation params                                   |
-| `SwitchError`               | Union of gateway switch error codes                       |
-| `SUBSCRIPTION_PLANS`        | Hardcoded plan definitions (BASIC, PRO, ENTERPRISE)       |
+| Type                   | Description                                                      |
+| ---------------------- | ---------------------------------------------------------------- |
+| `AccountTrialResponse` | Trial operation response with Account + AccountSubscription data |
+| `SubscriptionStats`    | Analytics: totals, revenue, churn risk, growth                   |
+| `BillingEvent`         | Audit event: UPGRADE, DOWNGRADE, TRIAL_START, etc.               |
+| `TrialInfo`            | Trial status: isOnTrial, dates, daysRemaining, expired           |
+| `StartTrialRequest`    | Trial initiation params                                          |
+| `SwitchError`          | Union of gateway switch error codes                              |
 
 ---
 

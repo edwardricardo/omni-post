@@ -446,6 +446,13 @@ export const TOKENS = {
   RejectRepurposeVariantUseCase: Symbol.for("RejectRepurposeVariantUseCase"),
   DetectRepurposeCandidatesUseCase: Symbol.for("DetectRepurposeCandidatesUseCase"),
   GenerateRepurposeVariantsUseCase: Symbol.for("GenerateRepurposeVariantsUseCase"),
+
+  // Platform Encryption
+  EncryptionService: Symbol.for("EncryptionService"),
+  PlatformCredentialService: Symbol.for("PlatformCredentialService"),
+
+  // Settings
+  SettingsService: Symbol.for("SettingsService"),
 } as const;
 
 /**

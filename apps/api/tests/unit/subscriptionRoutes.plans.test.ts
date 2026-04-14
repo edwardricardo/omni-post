@@ -59,6 +59,88 @@ prismaAny.channel = { deleteMany: vi.fn(async () => ({ count: 0 })) };
 prismaAny.postContent = { deleteMany: vi.fn(async () => ({ count: 0 })) };
 prismaAny.postMedia = { deleteMany: vi.fn(async () => ({ count: 0 })) };
 
+// ProviderBundle mock data for getAllPlansFromDB
+const mockBundles = [
+  {
+    id: "bundle-basic",
+    slug: "BASIC",
+    name: "Basic Plan",
+    providers: ["X"],
+    pricePerMonth: 9.99,
+    pricePerYear: 99.99,
+    maxProjects: 1,
+    isActive: true,
+    sortOrder: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: "bundle-pro",
+    slug: "PRO",
+    name: "Pro Plan",
+    providers: ["X", "INSTAGRAM", "FACEBOOK"],
+    pricePerMonth: 29.99,
+    pricePerYear: 299.99,
+    maxProjects: 5,
+    isActive: true,
+    sortOrder: 2,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: "bundle-enterprise",
+    slug: "ENTERPRISE",
+    name: "Enterprise Plan",
+    providers: ["X", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "TIKTOK"],
+    pricePerMonth: 99.99,
+    pricePerYear: 999.99,
+    maxProjects: 50,
+    isActive: true,
+    sortOrder: 3,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
+
+prismaAny.providerBundle = {
+  findMany: vi.fn(async () => mockBundles),
+  findUnique: vi.fn(async () => null),
+};
+
+// Track known account IDs for subscription lookups
+const knownAccountIds = new Set<string>();
+
+// AccountSubscription mock for getProviderSubscription / listProviderSubscriptions
+prismaAny.accountSubscription = {
+  findUnique: vi.fn(async (args: Record<string, unknown>) => {
+    const where = args.where as Record<string, unknown> | undefined;
+    const accountId = where?.accountId as string | undefined;
+    if (accountId && knownAccountIds.has(accountId)) {
+      return {
+        id: `sub-${accountId}`,
+        accountId,
+        maxProjects: 5,
+        providers: ["X"],
+        pricePerMonth: 29.99,
+        status: "ACTIVE",
+        billingCycle: "monthly",
+        bundleId: "bundle-pro",
+        bundle: mockBundles[1],
+        account: { id: accountId, name: "Test Account", email: "test@example.com" },
+        trialEndsAt: null,
+        currentPeriodEnd: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
+    return null;
+  }),
+  findMany: vi.fn(async () => []),
+  count: vi.fn(async () => 0),
+  groupBy: vi.fn(async () => []),
+  updateMany: vi.fn(async () => ({ count: 0 })),
+};
+
 vi.mock("@infra/prisma", async (importOriginal) => {
   const original = await importOriginal<Record<string, unknown>>();
   return { ...original, prisma: mockPrisma.prisma };
@@ -109,6 +191,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", () => {
     const users = await createTestUsers(timestamp);
     adminToken = users.adminToken;
     testAccountId = users.testAccountId;
+    knownAccountIds.add(testAccountId);
   });
 
   afterAll(async () => {
@@ -159,7 +242,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", () => {
 
       expect(response.statusCode).toBe(200);
       expect(body.ok).toBe(true);
-      expect(body.data?.plan?.tier).toBe("BASIC");
+      expect(body.data?.plan?.slug).toBe("BASIC");
     });
 
     it("should get PRO plan", async () => {
@@ -172,7 +255,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", () => {
       const body = JSON.parse(response.body);
 
       expect(response.statusCode).toBe(200);
-      expect(body.data?.plan?.tier).toBe("PRO");
+      expect(body.data?.plan?.slug).toBe("PRO");
     });
 
     it("should get ENTERPRISE plan", async () => {
@@ -185,7 +268,7 @@ describe("subscriptionRoutes - Plans and Subscription Management", () => {
       const body = JSON.parse(response.body);
 
       expect(response.statusCode).toBe(200);
-      expect(body.data?.plan?.tier).toBe("ENTERPRISE");
+      expect(body.data?.plan?.slug).toBe("ENTERPRISE");
     });
 
     it("should reject invalid tier", async () => {
@@ -221,9 +304,10 @@ describe("subscriptionRoutes - Plans and Subscription Management", () => {
       expect(response.statusCode).toBe(200);
       expect(body.ok).toBe(true);
       expect(body.data?.subscription).toBeTruthy();
+      expect(body.data?.subscription?.status).toBe("ACTIVE");
     });
 
-    it("should reject non-existent account", async () => {
+    it("should return 404 for non-existent account", async () => {
       const fakeId = "123e4567-e89b-12d3-a456-426614174000";
       const response = await app.inject({
         method: "GET",
@@ -291,10 +375,10 @@ describe("subscriptionRoutes - Plans and Subscription Management", () => {
       expect(body.data?.pagination).toBeTruthy();
     });
 
-    it("should filter by tier", async () => {
+    it("should filter by status", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/admin/billing/subscriptions?tier=PRO",
+        url: "/admin/billing/subscriptions?status=ACTIVE",
         headers: { authorization: `Bearer ${adminToken}` },
       });
 

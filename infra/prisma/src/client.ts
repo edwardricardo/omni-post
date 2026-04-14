@@ -73,6 +73,8 @@ export {
   TemplateComponentType,
   TemplatePermission,
   TemplateCollaboratorRole,
+  CredentialGroup,
+  AccountCredentialGroup,
 } from "../generated/prisma/client/client.js";
 
 // Also re-export the $Enums namespace for backward compatibility

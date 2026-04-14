@@ -20,7 +20,7 @@ export class SubscriptionPlanHandler extends BaseRouteHandler {
   async getAllPlans(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const plans = this.subscriptionService.getAllPlans();
+    const plans = await this.subscriptionService.getAllPlansFromDB();
 
     this.logInfo(ctx, "Retrieved all subscription plans", { count: plans.length });
     return this.sendSuccess(ctx, {
@@ -45,7 +45,12 @@ export class SubscriptionPlanHandler extends BaseRouteHandler {
     }
 
     const { tier } = validated.value.params;
-    const plan = this.subscriptionService.getSubscriptionPlan(tier);
+    const plans = await this.subscriptionService.getAllPlansFromDB();
+    const plan = plans.find((p) => p.slug === tier);
+
+    if (!plan) {
+      return this.sendError(ctx, 404, `Subscription plan '${tier}' not found`);
+    }
 
     this.logInfo(ctx, "Retrieved subscription plan", { tier });
     return this.sendSuccess(ctx, {

@@ -1,1 +1,0 @@
-ALTER TYPE "ReportFormat" ADD VALUE 'XML';

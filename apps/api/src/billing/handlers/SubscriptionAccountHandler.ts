@@ -44,18 +44,15 @@ export class SubscriptionAccountHandler extends BaseRouteHandler {
     }
 
     const { accountId } = validated.value.params;
-    const result = await this.subscriptionService.getAccountSubscription(accountId);
+    const subscription = await this.subscriptionService.getProviderSubscription(accountId);
 
-    if (!result.ok) {
-      if (result.error === "NOT_FOUND") {
-        return this.sendError(ctx, 404, "Account not found");
-      }
-      return this.sendError(ctx, 500, "Internal server error");
+    if (!subscription) {
+      return this.sendError(ctx, 404, "Account subscription not found");
     }
 
     this.logInfo(ctx, "Retrieved account subscription", { accountId });
     return this.sendSuccess(ctx, {
-      subscription: result.value,
+      subscription,
       timestamp: new Date().toISOString(),
     });
   }
@@ -118,19 +115,13 @@ export class SubscriptionAccountHandler extends BaseRouteHandler {
     const query = validated.value.query;
     const { page, limit, ...filters } = query;
 
-    const result = await this.subscriptionService.listAccountSubscriptions(
+    const { subscriptions, total } = await this.subscriptionService.listProviderSubscriptions(
       removeUndefinedProperties(filters) as Parameters<
-        SubscriptionService["listAccountSubscriptions"]
+        SubscriptionService["listProviderSubscriptions"]
       >[0],
       page,
       limit
     );
-
-    if (!result.ok) {
-      return this.sendError(ctx, 500, "Internal server error");
-    }
-
-    const { subscriptions, total } = result.value;
     const totalPages = Math.ceil(total / limit);
 
     this.logInfo(ctx, "Listed subscriptions", { count: subscriptions.length, total });
@@ -240,16 +231,19 @@ export class SubscriptionAccountHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request parameters");
     }
 
-    const { accountIds, newTier, billingCycle, reason } = validated.value.body;
-    const upgradedByUserId = request.user?.id;
+    const {
+      accountIds,
+      newTier,
+      billingCycle: _billingCycle,
+      reason: _reason,
+    } = validated.value.body;
+    const _upgradedByUserId = request.user?.id;
 
     const results = await Promise.allSettled(
       accountIds.map((accountId) =>
-        this.subscriptionService.updateSubscription(
+        this.changeSubscriptionUseCase.execute({
           accountId,
-          { newTier, billingCycle, ...(reason !== undefined && { reason }) },
-          upgradedByUserId
-        )
+        })
       )
     );
 

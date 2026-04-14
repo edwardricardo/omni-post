@@ -88,6 +88,7 @@
     "@providers/telegram": "workspace:*",
     "@providers/tiktok": "workspace:*",
     "@providers/x": "workspace:*",
+    "@providers/threads": "workspace:*",
     "@providers/youtube": "workspace:*",
     "@react-email/components": "1.0.10",
     "@react-email/render": "2.0.4",

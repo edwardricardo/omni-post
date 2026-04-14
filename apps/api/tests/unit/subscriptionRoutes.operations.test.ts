@@ -72,6 +72,29 @@ prismaAny.postContent = { ...noopModel };
 prismaAny.postMedia = { ...noopModel };
 prismaAny.accountSubscription = {
   ...noopModel,
+  findUnique: vi.fn(async (args: Record<string, unknown>) => {
+    const where = args.where as Record<string, unknown> | undefined;
+    const accountId = where?.accountId as string | undefined;
+    // Return a valid subscription for any known account so validate-limits works
+    if (accountId) {
+      return {
+        id: `sub-${accountId}`,
+        accountId,
+        maxProjects: 5,
+        providers: [],
+        pricePerMonth: 0,
+        status: "ACTIVE",
+        billingCycle: "monthly",
+        bundleId: null,
+        bundle: null,
+        trialEndsAt: null,
+        currentPeriodEnd: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
+    return null;
+  }),
   groupBy: vi.fn(async () => []),
   updateMany: vi.fn(async () => ({ count: 0 })),
 };

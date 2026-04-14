@@ -7,20 +7,14 @@
 
 // ---- Imports ----------------------------------------------------------------
 import { prisma } from "@infra/prisma";
-import type { Result, SubscriptionTier } from "@shared/types";
+import type { Result } from "@shared/types";
 import { PrismaAccountQueryRepository } from "../../infrastructure/repositories/PrismaAccountQueryRepository.js";
 import { subscriptionPlanService } from "./SubscriptionPlanService";
 import { SubscriptionManagementService } from "./SubscriptionManagementService";
 import { TrialManagementService } from "./TrialManagementService";
 import { billingService } from "./BillingService";
 import { subscriptionStatsService } from "./SubscriptionStatsService";
-import type {
-  SubscriptionPlan,
-  AccountSubscriptionInfo,
-  SubscriptionChangeRequest,
-  SubscriptionStats,
-  StartTrialRequest,
-} from "./types";
+import type { AccountTrialResponse, SubscriptionStats, StartTrialRequest } from "./types";
 
 // ---- Type + service re-exports ----------------------------------------------
 
@@ -52,53 +46,22 @@ export const trialManagementService = new TrialManagementService(accountQueryRep
  * Provides a unified interface to all subscription functionality
  */
 export class SubscriptionService {
-  // Plan operations
-  getSubscriptionPlan(tier: SubscriptionTier): SubscriptionPlan {
-    return subscriptionPlanService.getSubscriptionPlan(tier);
+  // Plan operations (new DB-based)
+  async getAllPlansFromDB() {
+    return subscriptionPlanService.getAllPlansFromDB();
   }
 
-  getAllPlans(): SubscriptionPlan[] {
-    return subscriptionPlanService.getAllPlans();
+  // Account subscription operations (new provider-based)
+  async getProviderSubscription(accountId: string) {
+    return subscriptionManagementService.getProviderSubscription(accountId);
   }
 
-  // Account subscription operations
-  async getAccountSubscription(
-    accountId: string
-  ): Promise<Result<AccountSubscriptionInfo, "NOT_FOUND" | "DATABASE_ERROR">> {
-    return subscriptionManagementService.getAccountSubscription(accountId);
-  }
-
-  async updateSubscription(
-    accountId: string,
-    changeRequest: SubscriptionChangeRequest,
-    updatedByUserId?: string
-  ): Promise<
-    Result<AccountSubscriptionInfo, "NOT_FOUND" | "INVALID_TIER" | "NO_CHANGE" | "DATABASE_ERROR">
-  > {
-    return subscriptionManagementService.updateSubscription(
-      accountId,
-      changeRequest,
-      updatedByUserId
-    );
-  }
-
-  async listAccountSubscriptions(
-    filters?: {
-      tier?: SubscriptionTier;
-      status?: string;
-      search?: string;
-      sortBy?: "createdAt" | "updatedAt" | "email";
-      sortOrder?: "asc" | "desc";
-    },
+  async listProviderSubscriptions(
+    filters?: { status?: string; planType?: "bundle" | "custom"; search?: string },
     page?: number,
     limit?: number
-  ): Promise<
-    Result<
-      { subscriptions: AccountSubscriptionInfo[]; total: number; page: number; limit: number },
-      "DATABASE_ERROR"
-    >
-  > {
-    return subscriptionManagementService.listAccountSubscriptions(filters, page, limit);
+  ) {
+    return subscriptionManagementService.listProviderSubscriptions(filters, page, limit);
   }
 
   async validateSubscriptionLimits(
@@ -128,7 +91,7 @@ export class SubscriptionService {
     startedByUserId?: string
   ): Promise<
     Result<
-      AccountSubscriptionInfo,
+      AccountTrialResponse,
       "NOT_FOUND" | "ALREADY_ON_TRIAL" | "TRIAL_EXPIRED" | "DATABASE_ERROR"
     >
   > {
@@ -139,7 +102,7 @@ export class SubscriptionService {
     accountId: string,
     reason: string,
     endedByUserId?: string
-  ): Promise<Result<AccountSubscriptionInfo, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
     return trialManagementService.endTrial(accountId, reason, endedByUserId);
   }
 
@@ -158,7 +121,7 @@ export class SubscriptionService {
 
   async getExpiringTrials(
     daysBeforeExpiration?: number
-  ): Promise<Result<AccountSubscriptionInfo[], "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse[], "DATABASE_ERROR">> {
     return trialManagementService.getExpiringTrials(daysBeforeExpiration);
   }
 
@@ -166,7 +129,7 @@ export class SubscriptionService {
     accountId: string,
     billingCycle?: "monthly" | "yearly",
     convertedByUserId?: string
-  ): Promise<Result<AccountSubscriptionInfo, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
     return trialManagementService.convertTrialToPaid(accountId, billingCycle, convertedByUserId);
   }
 

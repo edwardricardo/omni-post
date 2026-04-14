@@ -1,11 +1,14 @@
 /**
  * @file subscriptionService.test.ts
- * @description Unit tests for SubscriptionService — subscription management,
- *              upgrades, downgrades, trials, suspension, limits, stats, and listing.
+ * @description Unit tests for SubscriptionService — trials, suspension, limits, and stats.
  *
  *              Uses vi.hoisted() + vi.mock() to intercept @infra/prisma so the
  *              module-level singleton in billing/subscription/index.ts receives
  *              a fully mocked PrismaClient backed by in-memory stores.
+ *
+ *              Tests for removed methods (getSubscriptionPlan, getAllPlans,
+ *              getAccountSubscription, listAccountSubscriptions, updateSubscription)
+ *              were deleted as part of billing modernization.
  *
  *              No real database connection is needed.
  * @layer test
@@ -78,6 +81,7 @@ const { mockModule, stores } = vi.hoisted(() => {
   const auditLogStore = createStore();
   const postStore = createStore();
   const postMediaStore = createStore();
+  const accountSubscriptionStore = createStore();
 
   // ---- Helper: match a "where" clause against a record (basic subset) ----
   function matchesWhere(record: StoreRecord, where: StoreRecord): boolean {
@@ -280,20 +284,42 @@ const { mockModule, stores } = vi.hoisted(() => {
   // ---- Build accountSubscription model mock ----
   const accountSubscriptionModel = {
     groupBy: vi.fn(async (_args: { by: string[]; _count: StoreRecord; _sum?: StoreRecord }) => {
-      // Return empty distribution by default
       return [];
     }),
     count: vi.fn(async () => 0),
     updateMany: vi.fn(async () => ({ count: 0 })),
     findMany: vi.fn(async () => []),
-    findUnique: vi.fn(async () => null),
+    findUnique: vi.fn(
+      async (args: { where: StoreRecord; select?: StoreRecord; include?: StoreRecord }) => {
+        const accountId = args.where["accountId"] as string | undefined;
+        if (!accountId) return null;
+        const sub = accountSubscriptionStore.find((s) => s["accountId"] === accountId);
+        if (!sub) return null;
+        return { ...sub };
+      }
+    ),
     create: vi.fn(async () => ({})),
+  };
+
+  // ---- Build project model mock ----
+  const projectModel = {
+    deleteMany: vi.fn(async () => ({ count: 0 })),
+    count: vi.fn(async (args?: { where?: StoreRecord }) => {
+      if (!args?.where) return projectStore.data.size;
+      return projectStore.filter((r) => matchesWhere(r, args.where as StoreRecord)).length;
+    }),
+  };
+
+  // ---- Build providerBundle model mock ----
+  const providerBundleModel = {
+    findMany: vi.fn(async () => []),
   };
 
   const prisma = {
     account: accountModel,
     accountSubscription: accountSubscriptionModel,
-    project: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    project: projectModel,
+    providerBundle: providerBundleModel,
     auditLog: auditLogModel,
     post: postModel,
     postMedia: postMediaModel,
@@ -310,6 +336,7 @@ const { mockModule, stores } = vi.hoisted(() => {
       auditLog: auditLogStore,
       post: postStore,
       postMedia: postMediaStore,
+      accountSubscription: accountSubscriptionStore,
     },
   };
 });
@@ -377,80 +404,28 @@ beforeAll(async () => {
   });
 
   testAccountId = testAccount["id"] as string;
+
+  // Create an AccountSubscription for the test account so limits validation works
+  stores.accountSubscription.add({
+    id: `sub-${testAccountId}`,
+    accountId: testAccountId,
+    maxProjects: 5,
+    providers: [],
+    pricePerMonth: 9.99,
+    status: "ACTIVE",
+    billingCycle: "monthly",
+    bundleId: null,
+    bundle: null,
+    trialEndsAt: null,
+    currentPeriodEnd: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
 });
 
 beforeEach(() => {
   // Clear audit logs between tests to keep stores lean
   stores.auditLog.clear();
-});
-
-// ========== SUBSCRIPTION PLAN TESTS ==========
-
-describe("Subscription Plan Management", () => {
-  it("should get plan details for BASIC tier", () => {
-    const basicPlan = subscriptionService.getSubscriptionPlan("BASIC");
-
-    expect(basicPlan.tier).toBe("BASIC");
-    expect(basicPlan.name).toBe("Basic Plan");
-    expect(basicPlan.maxProjects).toBe(1);
-    expect(basicPlan.monthlyPrice > 0).toBeTruthy();
-    expect(basicPlan.yearlyPrice > 0).toBeTruthy();
-  });
-
-  it("should get all available plans", () => {
-    const allPlans = subscriptionService.getAllPlans();
-
-    expect(allPlans.length).toBe(3);
-    expect(allPlans.find((p) => p.tier === "BASIC")).toBeTruthy();
-    expect(allPlans.find((p) => p.tier === "PRO")).toBeTruthy();
-    expect(allPlans.find((p) => p.tier === "ENTERPRISE")).toBeTruthy();
-  });
-});
-
-// ========== ACCOUNT SUBSCRIPTION TESTS ==========
-
-describe("Account Subscription Retrieval", () => {
-  it("should get account subscription info", async () => {
-    const result = await subscriptionService.getAccountSubscription(testAccountId);
-
-    expect(result.ok).toBeTruthy();
-    expect(result.value.subscription).toBe("BASIC");
-    expect(result.value.plan.tier).toBe("BASIC");
-    expect(result.value.email).toBe(testAccountEmail);
-    expect(result.value.isActive).toBe(true);
-  });
-
-  it("should return NOT_FOUND for non-existent account", async () => {
-    const result = await subscriptionService.getAccountSubscription("non-existent-id");
-
-    expect(result.ok).toBeFalsy();
-    expect(result.error).toBe("NOT_FOUND");
-  });
-});
-
-// ========== SUBSCRIPTION UPDATE TESTS ==========
-
-describe("Subscription Updates (deprecated — Account.subscription removed)", () => {
-  it("should return INVALID_TIER for any update (deprecated method)", async () => {
-    const result = await subscriptionService.updateSubscription(testAccountId, {
-      newTier: "PRO",
-      billingCycle: "monthly",
-      reason: "User upgrade request",
-    });
-
-    expect(result.ok).toBeFalsy();
-    expect(result.error).toBe("INVALID_TIER");
-  });
-
-  it("should return INVALID_TIER for non-existent account (deprecated method)", async () => {
-    const result = await subscriptionService.updateSubscription("non-existent-id", {
-      newTier: "PRO",
-      billingCycle: "monthly",
-    });
-
-    expect(result.ok).toBeFalsy();
-    expect(result.error).toBe("INVALID_TIER");
-  });
 });
 
 // ========== TRIAL MANAGEMENT TESTS ==========
@@ -488,8 +463,8 @@ describe("Trial Period Management", () => {
     expect(result.ok).toBeTruthy();
     expect(result.value.trial.isOnTrial).toBe(true);
     expect(result.value.trial.trialDaysRemaining > 0).toBeTruthy();
-    // After removing Account.subscription, mapAccountToSubscriptionInfo defaults to "BASIC"
-    expect(result.value.subscription).toBe("BASIC");
+    // plan is null because no AccountSubscription exists for this account
+    expect(result.value.plan).toBeNull();
   });
 
   it("should reject starting trial when already on trial", async () => {
@@ -508,7 +483,7 @@ describe("Trial Period Management", () => {
 
     expect(result.ok).toBeTruthy();
     expect(result.value.trial.isOnTrial).toBe(false);
-    expect(result.value.subscription).toBe("BASIC");
+    expect(result.value.plan).toBeNull();
   });
 
   it("should reject ending trial when not on trial", async () => {
@@ -630,49 +605,5 @@ describe("Expiring Trials Management", () => {
 
     expect(result.ok).toBeTruthy();
     expect(Array.isArray(result.value)).toBeTruthy();
-  });
-});
-
-// ========== LIST SUBSCRIPTIONS TESTS ==========
-
-describe("List Account Subscriptions", () => {
-  it("should list all subscriptions with pagination", async () => {
-    const result = await subscriptionService.listAccountSubscriptions({}, 1, 10);
-
-    expect(result.ok).toBeTruthy();
-    expect(Array.isArray(result.value.subscriptions)).toBeTruthy();
-    expect(result.value.total >= 0).toBeTruthy();
-    expect(result.value.page).toBe(1);
-    expect(result.value.limit).toBe(10);
-  });
-
-  it("should filter subscriptions by tier", async () => {
-    const result = await subscriptionService.listAccountSubscriptions({ tier: "BASIC" }, 1, 10);
-
-    expect(result.ok).toBeTruthy();
-    expect(result.value.subscriptions.every((sub) => sub.subscription === "BASIC")).toBeTruthy();
-  });
-
-  it("should search subscriptions by email", async () => {
-    const result = await subscriptionService.listAccountSubscriptions(
-      { search: testAccountEmail.substring(0, 20) },
-      1,
-      10
-    );
-
-    expect(result.ok).toBeTruthy();
-    // Search should return results or empty array
-    expect(Array.isArray(result.value.subscriptions)).toBeTruthy();
-  });
-
-  it("should sort subscriptions by different fields", async () => {
-    const result = await subscriptionService.listAccountSubscriptions(
-      { sortBy: "createdAt", sortOrder: "desc" },
-      1,
-      10
-    );
-
-    expect(result.ok).toBeTruthy();
-    expect(Array.isArray(result.value.subscriptions)).toBeTruthy();
   });
 });

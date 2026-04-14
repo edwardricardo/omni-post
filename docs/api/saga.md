@@ -1,1171 +1,256 @@
-# Saga Orchestration Guide
+# Saga Orchestration API Reference
 
-## Overview
+<!-- @file saga.md @description API reference for the Saga Orchestration system — endpoints, types, and the Post Publishing Saga workflow. @layer infrastructure -->
 
-The Saga pattern is a crucial component of our Phase 2 architecture, providing reliable orchestration of complex business workflows across multiple aggregates and services. This guide details how saga orchestration is implemented and used throughout the system.
+## Key File Locations
 
-## Saga Pattern Fundamentals
+| File                                       | Description                                                                 |
+| ------------------------------------------ | --------------------------------------------------------------------------- |
+| `packages/shared/src/saga.ts`              | Saga type definitions (SagaDefinition, SagaInstance, SagaStep, SagaContext) |
+| `apps/api/src/saga/SagaManager.ts`         | Saga execution engine                                                       |
+| `apps/api/src/saga/steps/`                 | Individual saga step implementations                                        |
+| `apps/api/src/infrastructure/routes/saga/` | Saga route handlers                                                         |
 
-### What is a Saga?
+---
 
-A Saga is a sequence of local transactions where each transaction updates data within a single service. If any transaction fails, the saga executes compensating actions to undo the impact of the preceding transactions.
-
-### Key Benefits
-
-1. **Distributed Transaction Management**: Manages complex workflows across multiple services
-2. **Automatic Rollback**: Compensating actions ensure system consistency
-3. **Fault Tolerance**: Built-in retry logic and error handling
-4. **Auditability**: Complete workflow tracking and monitoring
-5. **Scalability**: Asynchronous execution prevents blocking
-
-## Core Architecture
-
-### Saga Components
-
-**Location**: `packages/shared/src/saga.ts`
-
-#### 1. Saga Definition
-
-Defines the workflow structure and configuration:
+## Core Types
 
 ```typescript
 interface SagaDefinition {
-  id: string; // Unique identifier
-  name: string; // Human-readable name
-  version: string; // Version for compatibility
-  steps: SagaStep[]; // Ordered sequence of steps
-  timeout?: number; // Maximum execution time
-  retryPolicy?: RetryPolicy; // Retry configuration
+  id: string;
+  name: string;
+  version: string;
+  steps: SagaStep[];
+  timeout?: number;
+  retryPolicy?: RetryPolicy;
 }
-```
 
-#### 2. Saga Instance
-
-Runtime state of a saga execution:
-
-```typescript
 interface SagaInstance {
-  id: string; // Unique instance ID
-  definitionId: string; // Reference to definition
-  status: SagaStatus; // Current execution status
-  currentStep: number; // Current step index
-  context: SagaContext; // Execution context
-  stepResults: SagaStepResult[]; // Results from completed steps
-  compensationResults: SagaStepResult[]; // Compensation results
-  startedAt: Date; // Start timestamp
-  completedAt?: Date; // Completion timestamp
-  error?: string; // Error description if failed
-  retryCount: number; // Current retry count
+  id: string;
+  definitionId: string;
+  status: SagaStatus;
+  currentStep: number;
+  context: SagaContext;
+  stepResults: SagaStepResult[];
+  compensationResults: SagaStepResult[];
+  startedAt: Date;
+  completedAt?: Date;
+  error?: string;
+  retryCount: number;
 }
-```
 
-#### 3. Saga Step
-
-Individual units of work within a saga:
-
-```typescript
 interface SagaStep<TData = unknown, TCompensationData = unknown> {
-  id: string; // Step identifier
-  name: string; // Human-readable name
+  id: string;
+  name: string;
   execute(context: SagaContext, data?: TData): Promise<SagaStepResult>;
   compensate?(context: SagaContext, compensationData?: TCompensationData): Promise<SagaStepResult>;
 }
-```
 
-#### 4. Saga Context
-
-Shared state across all steps:
-
-```typescript
 interface SagaContext {
-  sagaId: string; // Saga instance ID
-  correlationId: string; // Request correlation ID
-  userId?: string; // Initiating user
-  metadata: Record<string, unknown>; // Additional metadata
-  stepData: Record<string, unknown>; // Data from previous steps
-  events: DomainEvent[]; // Generated events
+  sagaId: string;
+  correlationId: string;
+  userId?: string;
+  metadata: Record<string, unknown>;
+  stepData: Record<string, unknown>;
+  events: DomainEvent[];
 }
 ```
 
-## Post Publishing Saga Workflow
-
-### Workflow Overview
-
-The Post Publishing Saga orchestrates the complete post publication process:
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Saga as Saga Manager
-    participant V as Validate Step
-    participant C as Create Step
-    participant S as Schedule Step
-    participant W as Wait Step
-    participant U as Update Step
-
-    Client->>Saga: Start Publishing Saga
-    Saga->>V: Execute Validate Step
-    V-->>Saga: Validation Success
-    Saga->>C: Execute Create Step
-    C-->>Saga: Post Created
-    Saga->>S: Execute Schedule Step
-    S-->>Saga: Jobs Scheduled
-    Saga->>W: Execute Wait Step
-    W-->>Saga: Publishing Complete
-    Saga->>U: Execute Update Step
-    U-->>Saga: Status Updated
-    Saga-->>Client: Saga Complete
-```
-
-### Step-by-Step Implementation
-
-#### Step 1: Validate Post Data
-
-**Location**: `ValidatePostDataStep` class
-
-```typescript
-export class ValidatePostDataStep implements SagaStep {
-  readonly id = "validate-post-data";
-  readonly name = "Validate Post Data";
-
-  async execute(context: SagaContext, data?: any): Promise<SagaStepResult> {
-    try {
-      const { postData } = data || {};
-
-      // Validate required fields
-      if (!postData?.body) {
-        return {
-          success: false,
-          error: "Post body is required",
-        };
-      }
-
-      if (!postData?.channelIds || postData.channelIds.length === 0) {
-        return {
-          success: false,
-          error: "At least one channel must be selected",
-        };
-      }
-
-      // Additional validation logic
-      // - Character count limits
-      // - Media validation
-      // - Channel compatibility checks
-
-      // Store validated data for next steps
-      context.stepData[this.id] = {
-        validatedData: postData,
-        validatedAt: new Date(),
-      };
-
-      return {
-        success: true,
-        data: { validated: true },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Validation failed",
-      };
-    }
-  }
-
-  // No compensation needed for validation
-}
-```
-
-#### Step 2: Create Post Entity
-
-**Location**: `CreatePostStep` class
-
-```typescript
-export class CreatePostStep implements SagaStep {
-  readonly id = "create-post";
-  readonly name = "Create Post";
-
-  constructor(private executeCommand: (command: Command) => Promise<any>) {}
-
-  async execute(context: SagaContext, data?: any): Promise<SagaStepResult> {
-    try {
-      // Get validated data from previous step
-      const validationData = context.stepData["validate-post-data"] as any;
-      const postData = validationData?.validatedData || data?.postData;
-
-      // Create post via CQRS command
-      const createCommand = {
-        id: `cmd-create-post-${Date.now()}`,
-        type: "post.create",
-        aggregateId: data?.postId || `post-${Date.now()}`,
-        aggregateType: "Post",
-        data: postData,
-        metadata: {
-          userId: context.userId,
-          correlationId: context.correlationId,
-          source: "PostPublishingSaga",
-        },
-        timestamp: new Date(),
-      };
-
-      const result = await this.executeCommand(createCommand);
-
-      if (!result.success) {
-        return {
-          success: false,
-          error: result.error,
-        };
-      }
-
-      // Store post information for subsequent steps
-      context.stepData[this.id] = {
-        postId: createCommand.aggregateId,
-        version: result.data?.version || 1,
-        createdAt: new Date(),
-      };
-
-      return {
-        success: true,
-        data: { postId: createCommand.aggregateId },
-        compensationData: { postId: createCommand.aggregateId },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to create post",
-      };
-    }
-  }
-
-  // Compensation: Delete the created post
-  async compensate(context: SagaContext, compensationData?: any): Promise<SagaStepResult> {
-    try {
-      const { postId } = compensationData || context.stepData[this.id];
-
-      if (!postId) {
-        return { success: true }; // Nothing to compensate
-      }
-
-      const deleteCommand = {
-        id: `cmd-delete-post-${Date.now()}`,
-        type: "post.delete",
-        aggregateId: postId,
-        aggregateType: "Post",
-        data: { reason: "saga-compensation" },
-        metadata: {
-          userId: context.userId,
-          correlationId: context.correlationId,
-          source: "PostPublishingSaga:Compensation",
-        },
-        timestamp: new Date(),
-      };
-
-      await this.executeCommand(deleteCommand);
-
-      return {
-        success: true,
-        data: { compensated: true, postId },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Compensation failed",
-      };
-    }
-  }
-}
-```
-
-#### Step 3: Schedule Publishing Jobs
-
-**Location**: `SchedulePublishingJobsStep` class
-
-```typescript
-export class SchedulePublishingJobsStep implements SagaStep {
-  readonly id = "schedule-publishing-jobs";
-  readonly name = "Schedule Publishing Jobs";
-
-  constructor(private queueJob: (job: any) => Promise<string>) {}
-
-  async execute(context: SagaContext, data?: any): Promise<SagaStepResult> {
-    try {
-      const createData = context.stepData["create-post"] as any;
-      const postId = createData?.postId || data?.postId;
-
-      if (!postId) {
-        return {
-          success: false,
-          error: "Post ID not found from previous step",
-        };
-      }
-
-      const validationData = context.stepData["validate-post-data"] as any;
-      const { channelIds, scheduledAt } = validationData?.validatedData || data;
-
-      const jobIds: string[] = [];
-
-      // Create publishing job for each channel
-      for (const channelId of channelIds) {
-        const jobId = await this.queueJob({
-          type: "publish-post",
-          postId,
-          channelId,
-          scheduledAt: scheduledAt || new Date(),
-          priority: data?.priority || "NORMAL",
-          sagaId: context.sagaId,
-          correlationId: context.correlationId,
-        });
-
-        jobIds.push(jobId);
-      }
-
-      context.stepData[this.id] = {
-        jobIds,
-        channelCount: channelIds.length,
-        scheduledAt: scheduledAt || new Date(),
-      };
-
-      return {
-        success: true,
-        data: { jobIds, channelCount: channelIds.length },
-        compensationData: { jobIds },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to schedule publishing jobs",
-      };
-    }
-  }
-
-  // Compensation: Cancel scheduled jobs
-  async compensate(context: SagaContext, compensationData?: any): Promise<SagaStepResult> {
-    try {
-      const { jobIds } = compensationData || context.stepData[this.id];
-
-      if (!jobIds || jobIds.length === 0) {
-        return { success: true }; // Nothing to compensate
-      }
-
-      const cancelledJobs: string[] = [];
-      for (const jobId of jobIds) {
-        try {
-          // Cancel the queued job (implementation depends on queue system)
-          // await jobQueue.cancel(jobId);
-          cancelledJobs.push(jobId);
-        } catch (error) {
-          console.warn(`Failed to cancel job ${jobId}:`, error);
-        }
-      }
-
-      return {
-        success: true,
-        data: { cancelledJobs, cancelledCount: cancelledJobs.length },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Job cancellation compensation failed",
-      };
-    }
-  }
-}
-```
-
-#### Step 4: Wait for Publishing Completion
-
-**Location**: `WaitForPublishingCompletionStep` class
-
-```typescript
-export class WaitForPublishingCompletionStep implements SagaStep {
-  readonly id = "wait-publishing-completion";
-  readonly name = "Wait for Publishing Completion";
-
-  constructor(
-    private checkJobsStatus: (jobIds: string[]) => Promise<{
-      completed: number;
-      failed: number;
-      pending: number;
-    }>
-  ) {}
-
-  async execute(context: SagaContext): Promise<SagaStepResult> {
-    try {
-      const schedulingData = context.stepData["schedule-publishing-jobs"] as any;
-      const { jobIds } = schedulingData;
-
-      if (!jobIds || jobIds.length === 0) {
-        return {
-          success: false,
-          error: "No jobs found from scheduling step",
-        };
-      }
-
-      // Check status of all publishing jobs
-      const status = await this.checkJobsStatus(jobIds);
-
-      if (status.pending > 0) {
-        // Still waiting for completion
-        return {
-          success: false,
-          error: "Publishing jobs still in progress",
-        };
-      }
-
-      context.stepData[this.id] = {
-        totalJobs: jobIds.length,
-        completed: status.completed,
-        failed: status.failed,
-        completedAt: new Date(),
-      };
-
-      if (status.failed > 0) {
-        return {
-          success: false,
-          error: `${status.failed} out of ${jobIds.length} publishing jobs failed`,
-        };
-      }
-
-      return {
-        success: true,
-        data: {
-          publishingComplete: true,
-          completedJobs: status.completed,
-          totalJobs: jobIds.length,
-        },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to check publishing status",
-      };
-    }
-  }
-
-  // No compensation needed for waiting
-}
-```
-
-#### Step 5: Update Post Status
-
-**Location**: `UpdatePostStatusStep` class
-
-```typescript
-export class UpdatePostStatusStep implements SagaStep {
-  readonly id = "update-post-status";
-  readonly name = "Update Post Status";
-
-  constructor(private executeCommand: (command: Command) => Promise<any>) {}
-
-  async execute(context: SagaContext, _data?: any): Promise<SagaStepResult> {
-    try {
-      const createData = context.stepData["create-post"] as any;
-      const completionData = context.stepData["wait-publishing-completion"] as any;
-
-      const postId = createData?.postId;
-      const publishingSuccess = completionData?.publishingComplete;
-
-      if (!postId) {
-        return {
-          success: false,
-          error: "Post ID not found",
-        };
-      }
-
-      const newStatus = publishingSuccess ? "PUBLISHED" : "FAILED";
-
-      const updateCommand = {
-        id: `cmd-update-post-status-${Date.now()}`,
-        type: "post.update",
-        aggregateId: postId,
-        aggregateType: "Post",
-        data: {
-          status: newStatus,
-          publishedAt: publishingSuccess ? new Date() : undefined,
-        },
-        metadata: {
-          userId: context.userId,
-          correlationId: context.correlationId,
-          source: "PostPublishingSaga",
-        },
-        timestamp: new Date(),
-      };
-
-      const result = await this.executeCommand(updateCommand);
-
-      if (!result.success) {
-        return {
-          success: false,
-          error: result.error,
-        };
-      }
-
-      context.stepData[this.id] = {
-        previousStatus: "DRAFT",
-        newStatus,
-        updatedAt: new Date(),
-      };
-
-      return {
-        success: true,
-        data: { status: newStatus, postId },
-        compensationData: { postId, previousStatus: "DRAFT", newStatus },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to update post status",
-      };
-    }
-  }
-
-  // Compensation: Revert status change
-  async compensate(context: SagaContext, compensationData?: any): Promise<SagaStepResult> {
-    try {
-      const { postId, previousStatus } = compensationData || context.stepData[this.id];
-
-      if (!postId || !previousStatus) {
-        return { success: true }; // Nothing to compensate
-      }
-
-      const revertCommand = {
-        id: `cmd-revert-post-status-${Date.now()}`,
-        type: "post.update",
-        aggregateId: postId,
-        aggregateType: "Post",
-        data: {
-          status: previousStatus,
-          publishedAt: null,
-        },
-        metadata: {
-          userId: context.userId,
-          correlationId: context.correlationId,
-          source: "PostPublishingSaga:Compensation",
-        },
-        timestamp: new Date(),
-      };
-
-      await this.executeCommand(revertCommand);
-
-      return {
-        success: true,
-        data: { revertedTo: previousStatus, postId },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Status revert compensation failed",
-      };
-    }
-  }
-}
-```
-
-## Saga Manager Implementation
-
-### Saga Execution Engine
-
-**Location**: `apps/api/src/saga/SagaManager.ts`
-
-```typescript
-export class SagaManager implements SagaManager {
-  private definitions = new Map<string, SagaDefinition>();
-  private instances = new Map<string, SagaInstance>();
-
-  constructor(
-    private sagaRepository: SagaRepository,
-    private eventPublisher: EventPublisher,
-    private scheduler: SagaScheduler,
-    private logger: Logger
-  ) {}
-
-  registerSaga(definition: SagaDefinition): void {
-    this.definitions.set(definition.id, definition);
-    this.logger.info("Saga definition registered", { definitionId: definition.id });
-  }
-
-  async startSaga(definitionId: string, context: Partial<SagaContext>): Promise<SagaInstance> {
-    const definition = this.definitions.get(definitionId);
-    if (!definition) {
-      throw new Error(`Saga definition not found: ${definitionId}`);
-    }
-
-    const sagaId = createSagaId(definitionId);
-    const sagaContext = createSagaContext(
-      sagaId,
-      context.correlationId || generateCorrelationId(),
-      context.userId,
-      context.metadata
-    );
-
-    const instance: SagaInstance = {
-      id: sagaId,
-      definitionId,
-      status: "PENDING",
-      currentStep: 0,
-      context: sagaContext,
-      stepResults: [],
-      compensationResults: [],
-      startedAt: new Date(),
-      retryCount: 0,
-    };
-
-    // Persist saga instance
-    await this.sagaRepository.save(instance);
-
-    // Publish saga started event
-    await this.eventPublisher.publish({
-      id: generateEventId(),
-      aggregateId: sagaId,
-      aggregateType: "Saga",
-      type: SAGA_EVENTS.SAGA_STARTED,
-      data: {
-        sagaId,
-        definitionId,
-        correlationId: sagaContext.correlationId,
-        userId: sagaContext.userId,
-        startedAt: instance.startedAt,
-        totalSteps: definition.steps.length,
-      },
-      metadata: { source: "SagaManager" },
-      version: 1,
-      timestamp: new Date(),
-    });
-
-    // Start execution
-    await this.continueSaga(sagaId);
-
-    return instance;
-  }
-
-  async continueSaga(sagaId: string): Promise<SagaInstance> {
-    const instance = await this.sagaRepository.findById(sagaId);
-    if (!instance) {
-      throw new Error(`Saga instance not found: ${sagaId}`);
-    }
-
-    const definition = this.definitions.get(instance.definitionId);
-    if (!definition) {
-      throw new Error(`Saga definition not found: ${instance.definitionId}`);
-    }
-
-    if (instance.status !== "PENDING" && instance.status !== "RUNNING") {
-      return instance; // Already completed, failed, or compensating
-    }
-
-    instance.status = "RUNNING";
-
-    try {
-      while (instance.currentStep < definition.steps.length) {
-        const step = definition.steps[instance.currentStep];
-        const result = await this.executeStep(instance, step);
-
-        instance.stepResults.push(result);
-
-        if (result.success) {
-          // Step succeeded, continue to next
-          instance.currentStep++;
-          await this.publishStepCompletedEvent(instance, step, result);
-        } else {
-          // Step failed, start compensation
-          instance.status = "FAILED";
-          await this.compensateSaga(sagaId);
-          break;
-        }
-      }
-
-      if (instance.currentStep >= definition.steps.length && instance.status === "RUNNING") {
-        // All steps completed successfully
-        instance.status = "COMPLETED";
-        instance.completedAt = new Date();
-        await this.publishSagaCompletedEvent(instance);
-      }
-    } catch (error) {
-      this.logger.error("Saga execution error", { sagaId, error });
-      instance.status = "FAILED";
-      instance.error = error instanceof Error ? error.message : "Unknown error";
-      await this.compensateSaga(sagaId);
-    }
-
-    // Persist updated instance
-    await this.sagaRepository.save(instance);
-
-    return instance;
-  }
-
-  private async executeStep(instance: SagaInstance, step: SagaStep): Promise<SagaStepResult> {
-    try {
-      this.logger.info("Executing saga step", {
-        sagaId: instance.id,
-        stepId: step.id,
-        stepName: step.name,
-      });
-
-      const result = await step.execute(instance.context);
-
-      this.logger.info("Saga step completed", {
-        sagaId: instance.id,
-        stepId: step.id,
-        success: result.success,
-        error: result.error,
-      });
-
-      return result;
-    } catch (error) {
-      this.logger.error("Saga step execution error", {
-        sagaId: instance.id,
-        stepId: step.id,
-        error,
-      });
-
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Step execution failed",
-      };
-    }
-  }
-
-  async compensateSaga(sagaId: string): Promise<SagaInstance> {
-    const instance = await this.sagaRepository.findById(sagaId);
-    if (!instance) {
-      throw new Error(`Saga instance not found: ${sagaId}`);
-    }
-
-    const definition = this.definitions.get(instance.definitionId);
-    if (!definition) {
-      throw new Error(`Saga definition not found: ${instance.definitionId}`);
-    }
-
-    instance.status = "COMPENSATING";
-
-    try {
-      // Execute compensation in reverse order
-      for (let i = instance.currentStep - 1; i >= 0; i--) {
-        const step = definition.steps[i];
-        const stepResult = instance.stepResults[i];
-
-        if (step.compensate && stepResult.success) {
-          const compensationResult = await step.compensate(
-            instance.context,
-            stepResult.compensationData
-          );
-
-          instance.compensationResults.unshift(compensationResult);
-
-          if (!compensationResult.success) {
-            this.logger.error("Compensation step failed", {
-              sagaId: instance.id,
-              stepId: step.id,
-              error: compensationResult.error,
-            });
-          }
-        }
-      }
-
-      instance.status = "COMPENSATED";
-      instance.completedAt = new Date();
-      await this.publishSagaCompletedEvent(instance);
-    } catch (error) {
-      this.logger.error("Saga compensation error", { sagaId, error });
-      instance.status = "FAILED";
-      instance.error = `Compensation failed: ${error instanceof Error ? error.message : "Unknown error"}`;
-    }
-
-    // Persist compensated instance
-    await this.sagaRepository.save(instance);
-
-    return instance;
-  }
-}
-```
-
-## Saga Integration with API
-
-### Saga Route Handler
-
-```typescript
-// Start saga endpoint
-export const startSagaRoute = async (fastify: FastifyInstance) => {
-  fastify.route<{
-    Body: {
-      definitionId: string;
-      context: Partial<SagaContext>;
-      data?: unknown;
-    };
-    Reply: {
-      sagaId: string;
-      status: SagaStatus;
-      startedAt: Date;
-    };
-  }>({
-    method: "POST",
-    url: "/api/sagas/start",
-    schema: {
-      body: {
-        type: "object",
-        required: ["definitionId", "context"],
-        properties: {
-          definitionId: { type: "string" },
-          context: {
-            type: "object",
-            properties: {
-              correlationId: { type: "string" },
-              userId: { type: "string" },
-              metadata: { type: "object" },
-            },
-          },
-          data: {},
-        },
-      },
-    },
-    preHandler: [authenticate],
-    handler: async (request, reply) => {
-      try {
-        const { definitionId, context, data } = request.body;
-
-        // Add request data to context metadata
-        const enrichedContext = {
-          ...context,
-          metadata: {
-            ...context.metadata,
-            requestData: data,
-            requestId: request.id,
-            userAgent: request.headers["user-agent"],
-          },
-        };
-
-        const instance = await sagaManager.startSaga(definitionId, enrichedContext);
-
-        reply.status(201).send({
-          sagaId: instance.id,
-          status: instance.status,
-          startedAt: instance.startedAt,
-        });
-      } catch (error) {
-        fastify.log.error("Start saga error", { error });
-        reply.status(400).send({
-          error: error instanceof Error ? error.message : "Failed to start saga",
-        });
-      }
-    },
-  });
-};
-```
-
-### Saga Status Endpoint
-
-```typescript
-// Get saga status endpoint
-export const getSagaStatusRoute = async (fastify: FastifyInstance) => {
-  fastify.route<{
-    Params: { sagaId: string };
-    Reply: SagaInstance;
-  }>({
-    method: "GET",
-    url: "/api/sagas/:sagaId",
-    schema: {
-      params: {
-        type: "object",
-        required: ["sagaId"],
-        properties: {
-          sagaId: { type: "string" },
-        },
-      },
-    },
-    preHandler: [authenticate],
-    handler: async (request, reply) => {
-      try {
-        const { sagaId } = request.params;
-
-        const instance = await sagaManager.getSaga(sagaId);
-        if (!instance) {
-          reply.status(404).send({ error: "Saga not found" });
-          return;
-        }
-
-        // Filter sensitive information
-        const sanitizedInstance = {
-          ...instance,
-          context: {
-            sagaId: instance.context.sagaId,
-            correlationId: instance.context.correlationId,
-            // Remove sensitive metadata
-            metadata: filterSensitiveData(instance.context.metadata),
-          },
-        };
-
-        reply.status(200).send(sanitizedInstance);
-      } catch (error) {
-        fastify.log.error("Get saga status error", { error });
-        reply.status(500).send({
-          error: "Failed to get saga status",
-        });
-      }
-    },
-  });
-};
-```
-
-## Event-Driven Saga Progression
-
-### Event Handlers
-
-Sagas can progress based on domain events:
-
-```typescript
-export class SagaEventHandler {
-  constructor(
-    private sagaManager: SagaManager,
-    private logger: Logger
-  ) {}
-
-  @EventHandler("post.publishing.job.completed")
-  async handlePublishingJobCompleted(event: PublishingJobCompletedEvent): Promise<void> {
-    try {
-      // Find saga instances waiting for this job
-      const instances = await this.sagaRepository.findBySagaId(event.data.sagaId);
-
-      for (const instance of instances) {
-        if (instance.status === "RUNNING" && this.isWaitingForJob(instance, event.data.jobId)) {
-          // Continue saga execution
-          await this.sagaManager.continueSaga(instance.id);
-        }
-      }
-    } catch (error) {
-      this.logger.error("Saga event handler error", { event, error });
-    }
-  }
-
-  @EventHandler("external.service.timeout")
-  async handleExternalServiceTimeout(event: ExternalServiceTimeoutEvent): Promise<void> {
-    // Handle timeouts that might affect saga execution
-    const affectedSagas = await this.sagaRepository.findByCorrelationId(event.data.correlationId);
-
-    for (const saga of affectedSagas) {
-      if (saga.status === "RUNNING") {
-        // Trigger compensation due to timeout
-        await this.sagaManager.compensateSaga(saga.id);
+---
+
+## Saga Status Values
+
+| Status         | Description                                       |
+| -------------- | ------------------------------------------------- |
+| `PENDING`      | Saga created, execution not yet started           |
+| `RUNNING`      | Saga is actively executing steps                  |
+| `COMPLETED`    | All steps executed successfully                   |
+| `FAILED`       | A step failed; may trigger compensation           |
+| `COMPENSATING` | Compensation steps are executing in reverse order |
+| `COMPENSATED`  | All compensation steps completed                  |
+
+---
+
+## API Endpoints
+
+### Start Post Publishing Saga
+
+- **Method:** `POST`
+- **URL:** `/api/sagas/post-publishing/start`
+- **Auth:** Required
+
+**Request Body:**
+
+```json
+{
+  "definitionId": "post-publishing-saga",
+  "context": {
+    "correlationId": "string",
+    "userId": "string",
+    "metadata": {
+      "postData": {
+        "title": "string",
+        "content": "string",
+        "channelIds": ["channel-1", "channel-2"]
       }
     }
   }
 }
 ```
 
-## Monitoring and Observability
+**Response (201):**
+
+```json
+{
+  "sagaId": "saga-post-publishing-abc123",
+  "status": "PENDING",
+  "startedAt": "2024-01-15T10:00:00Z"
+}
+```
+
+---
+
+### Get Saga Status
+
+- **Method:** `GET`
+- **URL:** `/api/sagas/:sagaId`
+- **Auth:** Required
+
+Returns the full `SagaInstance` object with sanitized context (sensitive metadata removed).
+
+**Response (200):** `SagaInstance` | **404** if not found.
+
+---
+
+### Continue Saga
+
+- **Method:** `POST`
+- **URL:** `/api/sagas/:sagaId/continue`
+- **Auth:** Required
+
+Resumes execution of a saga that is in `PENDING` or `RUNNING` status. Used for event-driven progression (e.g., after a publishing job completes).
+
+**Response (200):** Updated `SagaInstance`.
+
+---
+
+### Compensate Saga
+
+- **Method:** `POST`
+- **URL:** `/api/sagas/:sagaId/compensate`
+- **Auth:** Required
+
+Triggers compensation for a saga. Executes compensating actions in reverse step order for all successfully completed steps that define a `compensate` method.
+
+**Response (200):** Updated `SagaInstance` with `status: "COMPENSATED"`.
+
+---
+
+### List Sagas
+
+- **Method:** `GET`
+- **URL:** `/api/sagas`
+- **Auth:** Required
+
+Query parameters: `status`, `definitionId`, `limit`, `offset`.
+
+**Response (200):** Paginated list of `SagaInstance` summaries.
+
+---
+
+### Saga Health
+
+- **Method:** `GET`
+- **URL:** `/api/sagas/health`
+- **Auth:** Required (`saga:read`)
+
+Returns system health for the saga subsystem.
+
+---
 
 ### Saga Metrics
 
-```typescript
-// Saga execution metrics
-const sagaExecutionDuration = new prometheus.Histogram({
-  name: "saga_execution_duration_seconds",
-  help: "Time spent executing sagas",
-  labelNames: ["definition_id", "status"],
-});
+- **Method:** `GET`
+- **URL:** `/api/sagas/metrics`
+- **Auth:** Required (`saga:read`)
 
-const sagaStepExecutionDuration = new prometheus.Histogram({
-  name: "saga_step_execution_duration_seconds",
-  help: "Time spent executing saga steps",
-  labelNames: ["definition_id", "step_id", "status"],
-});
+**Response (200):**
 
-const sagaCompensationRate = new prometheus.Gauge({
-  name: "saga_compensation_rate",
-  help: "Rate of saga compensations",
-  labelNames: ["definition_id"],
-});
-
-const activeSagasGauge = new prometheus.Gauge({
-  name: "active_sagas_total",
-  help: "Number of currently active sagas",
-  labelNames: ["definition_id", "status"],
-});
+```json
+{
+  "totalSagas": 1250,
+  "activeSagas": 3,
+  "completedSagas": 1200,
+  "failedSagas": 15,
+  "compensatedSagas": 32,
+  "averageExecutionTime": "2.4s",
+  "successRate": 0.96
+}
 ```
 
-### Saga Dashboard
+---
 
-Monitor saga execution through dedicated dashboard endpoints:
+## Post Publishing Saga — 5 Steps
 
-```typescript
-// Saga dashboard endpoint
-export const getSagaDashboard = async (fastify: FastifyInstance) => {
-  fastify.route({
-    method: "GET",
-    url: "/api/sagas/dashboard",
-    preHandler: [authenticate, authorize(["saga:read"])],
-    handler: async (request, reply) => {
-      const dashboard = await sagaRepository.getDashboardStats();
+The post-publishing saga orchestrates end-to-end post publication across social media channels.
 
-      reply.status(200).send({
-        totalSagas: dashboard.total,
-        activeSagas: dashboard.active,
-        completedSagas: dashboard.completed,
-        failedSagas: dashboard.failed,
-        compensatedSagas: dashboard.compensated,
-        averageExecutionTime: dashboard.averageExecutionTime,
-        successRate: dashboard.successRate,
-        stepPerformance: dashboard.stepPerformance,
-        recentExecutions: dashboard.recentExecutions,
-      });
-    },
-  });
-};
-```
+### Step 1: Validate Post Data
 
-## Testing Saga Workflows
+- **Step ID:** `validate-post-data`
+- **Execute:** Validates required fields (body, channelIds), character limits, media, and channel compatibility. Stores validated data in `context.stepData`.
+- **Compensate:** None (validation is side-effect-free).
 
-### Unit Testing Saga Steps
+### Step 2: Create Post Entity
 
-```typescript
-import { describe, it, beforeEach } from "node:test";
-import assert from "node:assert/strict";
+- **Step ID:** `create-post`
+- **Execute:** Issues a `post.create` CQRS command using validated data from Step 1. Stores `postId` and `version` in context.
+- **Compensate:** Issues a `post.delete` command to remove the created post. Idempotent -- skips if no `postId` exists.
 
-describe("CreatePostStep", () => {
-  let step: CreatePostStep;
-  let executedCommands: unknown[];
+### Step 3: Schedule Publishing Jobs
 
-  beforeEach(() => {
-    executedCommands = [];
-    const mockCommandExecutor = async (cmd: unknown) => {
-      executedCommands.push(cmd);
-      return { success: true, data: { version: 1 } };
-    };
-    step = new CreatePostStep(mockCommandExecutor);
-  });
+- **Step ID:** `schedule-publishing-jobs`
+- **Execute:** Creates a BullMQ publishing job per channel. Stores `jobIds` and `channelCount` in context.
+- **Compensate:** Cancels all queued jobs by their stored `jobIds`. Tolerates individual cancellation failures.
 
-  it("should create post successfully", async () => {
-    const context = createMockSagaContext();
-    const data = { postData: { title: "Test", content: "Content" } };
+### Step 4: Wait for Publishing Completion
 
-    const result = await step.execute(context, data);
+- **Step ID:** `wait-publishing-completion`
+- **Execute:** Polls job statuses. Fails if any jobs are still pending or if any jobs failed. Stores completion stats.
+- **Compensate:** None (read-only check).
 
-    assert.ok(result.success, "Step should succeed");
-    assert.ok(result.data?.postId, "Should return a postId");
-    assert.strictEqual(executedCommands.length, 1);
-  });
+### Step 5: Update Post Status
 
-  it("should compensate by deleting post", async () => {
-    const context = createMockSagaContext();
-    const compensationData = { postId: "test-post-id" };
+- **Step ID:** `update-post-status`
+- **Execute:** Issues a `post.update` command setting status to `PUBLISHED` (all jobs succeeded) or `FAILED`. Stores previous status for compensation.
+- **Compensate:** Reverts the post status to its previous value (`DRAFT`) and clears `publishedAt`.
 
-    const result = await step.compensate!(context, compensationData);
+---
 
-    assert.ok(result.success, "Compensation should succeed");
-    assert.strictEqual(executedCommands.length, 1);
-  });
-});
-```
+## Execution Flow
 
-### Integration Testing Full Saga
+1. Client calls `POST /api/sagas/post-publishing/start` with post data.
+2. SagaManager creates a `SagaInstance` (status `PENDING`), persists it, publishes `SAGA_STARTED` event.
+3. Steps execute sequentially. Each successful step advances `currentStep`.
+4. **On success:** Status becomes `COMPLETED`.
+5. **On failure:** Status becomes `FAILED`, then `COMPENSATING`. Compensation runs in reverse order for all completed steps that have a `compensate` method. Final status: `COMPENSATED`.
+6. Terminal statuses (`COMPLETED`, `FAILED`, `COMPENSATED`) are guarded against re-execution.
 
-```typescript
-describe("PostPublishingSaga Integration", () => {
-  let sagaManager: SagaManager;
-  let mockServices: MockedServices;
+---
 
-  beforeEach(async () => {
-    mockServices = await setupMockServices();
-    sagaManager = new SagaManager(
-      mockServices.sagaRepository,
-      mockServices.eventPublisher,
-      mockServices.scheduler,
-      mockServices.logger
-    );
+## Prometheus Metrics
 
-    // Register saga definition
-    const sagaDefinition = createPostPublishingSagaDefinition(
-      mockServices.commandExecutor,
-      mockServices.jobQueue,
-      mockServices.jobStatusChecker
-    );
+| Metric                                 | Type      | Labels                               | Description               |
+| -------------------------------------- | --------- | ------------------------------------ | ------------------------- |
+| `saga_execution_duration_seconds`      | Histogram | `definition_id`, `status`            | Total saga execution time |
+| `saga_step_execution_duration_seconds` | Histogram | `definition_id`, `step_id`, `status` | Per-step execution time   |
+| `saga_compensation_rate`               | Gauge     | `definition_id`                      | Rate of compensations     |
+| `active_sagas_total`                   | Gauge     | `definition_id`, `status`            | Currently active sagas    |
 
-    sagaManager.registerSaga(sagaDefinition);
-  });
+---
 
-  it("should complete post publishing workflow successfully", async () => {
-    // Setup successful execution path
-    mockServices.commandExecutor.mockResolvedValue({ success: true, data: { version: 1 } });
-    mockServices.jobQueue.mockResolvedValue("job-123");
-    mockServices.jobStatusChecker.mockResolvedValue({ completed: 1, failed: 0, pending: 0 });
+## Event-Driven Progression
 
-    const context = {
-      correlationId: "test-correlation",
-      userId: "test-user",
-      metadata: {
-        postData: {
-          title: "Test Post",
-          content: "Test content",
-          channelIds: ["channel-1"],
-        },
-      },
-    };
+Sagas can advance via domain events rather than synchronous polling:
 
-    const instance = await sagaManager.startSaga("post-publishing-saga", context);
-
-    // Wait for completion
-    await waitForSagaCompletion(instance.id);
-
-    const finalInstance = await sagaManager.getSaga(instance.id);
-    expect(finalInstance?.status).toBe("COMPLETED");
-    expect(finalInstance?.stepResults).toHaveLength(5);
-    expect(finalInstance?.stepResults.every((r) => r.success)).toBe(true);
-  });
-
-  it("should compensate on failure", async () => {
-    // Setup failure scenario
-    mockServices.commandExecutor
-      .mockResolvedValueOnce({ success: true, data: { version: 1 } }) // Create succeeds
-      .mockRejectedValueOnce(new Error("Job scheduling failed")); // Scheduling fails
-
-    const context = {
-      correlationId: "test-correlation-failure",
-      userId: "test-user",
-      metadata: {
-        postData: {
-          title: "Failing Post",
-          content: "Content",
-          channelIds: ["channel-1"],
-        },
-      },
-    };
-
-    const instance = await sagaManager.startSaga("post-publishing-saga", context);
-
-    await waitForSagaCompletion(instance.id);
-
-    const finalInstance = await sagaManager.getSaga(instance.id);
-    expect(finalInstance?.status).toBe("COMPENSATED");
-
-    // Verify compensation was executed (post deleted)
-    expect(mockServices.commandExecutor).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "post.delete",
-      })
-    );
-  });
-});
-```
-
-## Best Practices
-
-### Saga Design Principles
-
-1. **Atomicity**: Each step should be atomic and idempotent
-2. **Compensation**: Every step that can fail should have compensation logic
-3. **Timeout Handling**: Set appropriate timeouts for each saga
-4. **Error Recovery**: Implement retry logic for transient failures
-5. **Monitoring**: Include comprehensive logging and metrics
-
-### Performance Optimization
-
-1. **Async Execution**: Use event-driven progression when possible
-2. **Batch Operations**: Group related operations when feasible
-3. **Resource Management**: Limit concurrent saga executions
-4. **Cleanup**: Implement saga instance cleanup policies
-
-### Security Considerations
-
-1. **Data Sanitization**: Remove sensitive data from saga context
-2. **Access Control**: Verify permissions before saga execution
-3. **Audit Logging**: Log all saga activities for security audits
-4. **Compensation Security**: Ensure compensation actions are authorized
-
-This saga orchestration system provides reliable, scalable, and observable management of complex business workflows while maintaining data consistency and system reliability.
+- **`post.publishing.job.completed`** — Triggers `continueSaga()` for sagas waiting on that job.
+- **`external.service.timeout`** — Triggers `compensateSaga()` for affected running sagas matched by `correlationId`.

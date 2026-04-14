@@ -44,6 +44,7 @@ export class PostgreSQLEventStore implements IEventStore {
   private tableRef: Prisma.Sql;
   private streamPrefix: string;
   private maxBatchSize: number;
+  private tableEnsured = false;
 
   constructor(config: EventStoreConfig) {
     this.prisma = config.prisma;
@@ -51,6 +52,39 @@ export class PostgreSQLEventStore implements IEventStore {
     this.tableRef = Prisma.raw(config.tableName || "stored_events");
     this.streamPrefix = config.streamPrefix || "stream:";
     this.maxBatchSize = config.maxBatchSize || 1000;
+  }
+
+  /**
+   * @method ensureTable
+   * @description Creates the stored_events table if it does not exist.
+   *   Called lazily on first operation.
+   */
+  async ensureTable(): Promise<void> {
+    if (this.tableEnsured) return;
+    try {
+      await this.prisma.$executeRaw`
+        CREATE TABLE IF NOT EXISTS stored_events (
+          id TEXT PRIMARY KEY,
+          stream_id TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          event_data TEXT NOT NULL,
+          metadata TEXT NOT NULL DEFAULT '{}',
+          version INTEGER NOT NULL,
+          sequence BIGINT NOT NULL,
+          timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          correlation_id TEXT,
+          causation_id TEXT
+        )`;
+      await this.prisma.$executeRaw`
+        CREATE INDEX IF NOT EXISTS idx_stored_events_stream_id ON stored_events (stream_id)`;
+      await this.prisma.$executeRaw`
+        CREATE INDEX IF NOT EXISTS idx_stored_events_sequence ON stored_events (sequence)`;
+      await this.prisma.$executeRaw`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_stored_events_stream_version ON stored_events (stream_id, version)`;
+      this.tableEnsured = true;
+    } catch (error) {
+      logger.warn({ err: error }, "Failed to ensure stored_events table");
+    }
   }
 
   /**
@@ -71,7 +105,7 @@ export class PostgreSQLEventStore implements IEventStore {
           Prisma.sql`SELECT MAX(version) as version FROM ${this.tableRef} WHERE stream_id = ${fullStreamId}`
         );
 
-        const currentVersion = currentVersionResult[0]?.version || 0;
+        const currentVersion = Number(currentVersionResult[0]?.version ?? 0);
 
         if (expectedVersion !== undefined && currentVersion !== expectedVersion) {
           throw new Error(
@@ -83,7 +117,7 @@ export class PostgreSQLEventStore implements IEventStore {
           Prisma.sql`SELECT COALESCE(MAX(sequence), 0) + 1 as next_sequence FROM ${this.tableRef}`
         );
 
-        let nextSequence = sequenceResult[0]?.next_sequence || 1;
+        let nextSequence = Number(sequenceResult[0]?.next_sequence ?? 1);
 
         const eventsToInsert = events.map((event, index) => ({
           id: event.id,
@@ -294,7 +328,7 @@ export class PostgreSQLEventStore implements IEventStore {
       if (!result) return null;
 
       return {
-        version: result.version,
+        version: Number(result.version),
         data: JSON.parse(result.data),
         createdAt: result.created_at,
       };
@@ -337,9 +371,9 @@ export class PostgreSQLEventStore implements IEventStore {
         ...(storedEvent.causationId && { causationId: storedEvent.causationId }),
       },
       occurredAt: storedEvent.timestamp,
-      sequence: storedEvent.sequence,
+      sequence: Number(storedEvent.sequence),
       streamId: storedEvent.streamId.replace(this.streamPrefix, ""),
-      streamVersion: storedEvent.version,
+      streamVersion: Number(storedEvent.version),
     };
   }
 

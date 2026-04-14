@@ -13,7 +13,7 @@ import type { AccountQueryRepositoryPort } from "../../domain/repositories/Accou
 import { AuditableService } from "../../services/AuditableService";
 import { subscriptionPlanService } from "./SubscriptionPlanService";
 import { billingService } from "./BillingService";
-import { type AccountSubscriptionInfo, type StartTrialRequest } from "./types";
+import { type AccountTrialResponse, type StartTrialRequest } from "./types";
 
 /**
  * Service responsible for trial period management operations:
@@ -25,22 +25,68 @@ export class TrialManagementService extends AuditableService {
   }
 
   /**
-   * Get account subscription information.
-   * Used internally after trial mutations to return updated subscription info.
+   * @method buildTrialResponse
+   * @description Builds an AccountTrialResponse from Account + AccountSubscription data.
+   * @param accountId - The account ID to look up
+   * @returns Result with trial response on success, or NOT_FOUND/DATABASE_ERROR on failure
    */
-  private async getAccountSubscription(
+  private async buildTrialResponse(
     accountId: string
-  ): Promise<Result<AccountSubscriptionInfo, "NOT_FOUND" | "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "DATABASE_ERROR">> {
     const accountResult = await this.accountQueryRepo.findWithProjects(accountId);
-
-    if (!accountResult.ok) {
-      return err("NOT_FOUND");
-    }
+    if (!accountResult.ok) return err("NOT_FOUND");
 
     const account = accountResult.value;
-    const subscriptionInfo = subscriptionPlanService.mapAccountToSubscriptionInfo(account);
+    const subscription = await prisma.accountSubscription.findUnique({
+      where: { accountId },
+      include: { bundle: true },
+    });
 
-    return ok(subscriptionInfo);
+    const trial = subscriptionPlanService.calculateTrialInfo(account);
+    const currentProjects = account.projects.length;
+
+    return ok({
+      id: account.id,
+      email: account.email,
+      name: account.name,
+      maxProjects: account.maxProjects,
+      currentProjects,
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+      plan: subscription
+        ? {
+            planType: subscription.bundleId
+              ? ("bundle" as const)
+              : subscription.providers.length > 0
+                ? ("custom" as const)
+                : ("none" as const),
+            bundleName: subscription.bundle?.name ?? null,
+            providers: subscription.providers.map(String),
+            pricePerMonth: Number(subscription.pricePerMonth),
+            maxProjects: subscription.maxProjects,
+            status: subscription.status,
+            billingCycle: subscription.billingCycle,
+          }
+        : null,
+      usage: {
+        projectsUsed: currentProjects,
+        projectsRemaining: Math.max(0, account.maxProjects - currentProjects),
+        utilizationPercent:
+          account.maxProjects > 0 ? Math.round((currentProjects / account.maxProjects) * 100) : 0,
+      },
+      isActive: !trial.trialExpired,
+      trial,
+      billing: {
+        billingCycle: account.billingCycle,
+        autoRenewal: account.autoRenewal,
+        nextBillingDate: account.nextBillingDate,
+        lastBillingDate: account.lastBillingDate,
+        ...(account.stripeCustomerId && { stripeCustomerId: account.stripeCustomerId }),
+        ...(account.stripeSubscriptionId && {
+          stripeSubscriptionId: account.stripeSubscriptionId,
+        }),
+      },
+    });
   }
 
   /**
@@ -81,7 +127,7 @@ export class TrialManagementService extends AuditableService {
     startedByUserId?: string
   ): Promise<
     Result<
-      AccountSubscriptionInfo,
+      AccountTrialResponse,
       "NOT_FOUND" | "ALREADY_ON_TRIAL" | "TRIAL_EXPIRED" | "DATABASE_ERROR"
     >
   > {
@@ -165,7 +211,7 @@ export class TrialManagementService extends AuditableService {
         },
       });
 
-      return this.getAccountSubscription(accountId);
+      return this.buildTrialResponse(accountId);
     } catch (error) {
       const serviceError = this.createServiceError(error, {
         serviceName: this.serviceName,
@@ -194,7 +240,7 @@ export class TrialManagementService extends AuditableService {
     accountId: string,
     reason: string,
     endedByUserId?: string
-  ): Promise<Result<AccountSubscriptionInfo, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
     const startTime = Date.now();
     try {
       const accountResult = await this.accountQueryRepo.findWithProjects(accountId);
@@ -246,7 +292,7 @@ export class TrialManagementService extends AuditableService {
         ...(endedByUserId && { processedBy: endedByUserId }),
       });
 
-      return this.getAccountSubscription(accountId);
+      return this.buildTrialResponse(accountId);
     } catch (error) {
       const serviceError = this.createServiceError(error, {
         serviceName: this.serviceName,
@@ -273,7 +319,7 @@ export class TrialManagementService extends AuditableService {
    */
   async getExpiringTrials(
     daysBeforeExpiration = 1
-  ): Promise<Result<AccountSubscriptionInfo[], "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse[], "DATABASE_ERROR">> {
     const startTime = Date.now();
     try {
       const targetDate = new Date();
@@ -295,10 +341,13 @@ export class TrialManagementService extends AuditableService {
         },
       });
 
-      // Map accounts to subscription info
-      const accountInfos = accounts
-        .map((account) => subscriptionPlanService.mapAccountToSubscriptionInfo(account))
-        .filter(Boolean);
+      const accountInfos: AccountTrialResponse[] = [];
+      for (const account of accounts) {
+        const result = await this.buildTrialResponse(account.id);
+        if (result.ok) {
+          accountInfos.push(result.value);
+        }
+      }
 
       return ok(accountInfos);
     } catch (error) {
@@ -322,7 +371,7 @@ export class TrialManagementService extends AuditableService {
     accountId: string,
     billingCycle: "monthly" | "yearly" = "monthly",
     convertedByUserId?: string
-  ): Promise<Result<AccountSubscriptionInfo, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
     const startTime = Date.now();
     try {
       const accountResult = await this.accountQueryRepo.findWithProjects(accountId);
@@ -390,7 +439,7 @@ export class TrialManagementService extends AuditableService {
         },
       });
 
-      return this.getAccountSubscription(accountId);
+      return this.buildTrialResponse(accountId);
     } catch (error) {
       const serviceError = this.createServiceError(error, {
         serviceName: this.serviceName,

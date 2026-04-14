@@ -550,7 +550,9 @@ const unsubscribeFromSagas = realtimeClient.subscribe("saga.progress", (data) =>
 // realtimeClient.disconnect();
 ```
 
-## Advanced Integration Patterns
+## Advanced Integration Patterns (Proposed, Not Implemented)
+
+> **Note:** The patterns in this section are design proposals that have NOT been implemented in the codebase. They are included as reference for future development.
 
 ### Optimistic Updates
 
@@ -798,7 +800,9 @@ try {
 }
 ```
 
-## Rate Limiting and Circuit Breaker
+## Rate Limiting and Circuit Breaker (Proposed Pattern)
+
+> **Note:** The `CircuitBreaker` class below is a simplified example. The actual implementation lives in `packages/monitoring/circuit-breaker/src/index.ts` and has a different API.
 
 ```typescript
 interface RateLimiter {

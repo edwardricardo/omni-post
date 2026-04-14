@@ -79,6 +79,8 @@ model Account {
   gatewaySwitchEvents    GatewaySwitchEvent[]
   billingEvents          BillingEvent[]
   dsarRequests           DsarRequest[]
+  accountCredentials     AccountCredential[]
+  aiTokenUsage           AiTokenUsage[]
 
   @@index([isOnTrial, trialEndDate])
   @@index([nextBillingDate])
@@ -3163,4 +3165,86 @@ enum TrendUrgency {
   NOW
   TODAY
   THIS_WEEK
+}
+
+// ─── Platform Configuration ──────────────────────────────────────────────────
+
+model PlatformCredential {
+  id             String          @id @default(cuid())
+  group          CredentialGroup
+  key            String
+  encryptedValue String
+  iv             String
+  authTag        String
+  isActive       Boolean         @default(true)
+  updatedAt      DateTime        @updatedAt
+  updatedBy      String?
+
+  @@unique([group, key])
+  @@index([group])
+}
+
+model AccountCredential {
+  id             String                 @id @default(cuid())
+  accountId      String
+  group          AccountCredentialGroup
+  key            String
+  encryptedValue String
+  iv             String
+  authTag        String
+  isActive       Boolean                @default(true)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, group, key])
+  @@index([accountId, group])
+}
+
+model PlatformEncryptionKey {
+  id         String   @id @default(cuid())
+  keyVersion Int      @default(1)
+  rotatedAt  DateTime @default(now())
+  rotatedBy  String
+  note       String?
+  isActive   Boolean  @default(true)
+}
+
+enum CredentialGroup {
+  STRIPE
+  PADDLE
+  RESEND
+  STORAGE
+  MONITORING
+  AI_POOL
+  PLATFORM
+  SOCIAL_FACEBOOK
+  SOCIAL_INSTAGRAM
+  SOCIAL_X
+  SOCIAL_YOUTUBE
+  SOCIAL_TIKTOK
+  SOCIAL_LINKEDIN
+  SOCIAL_SNAPCHAT
+  SOCIAL_TELEGRAM
+  SOCIAL_PINTEREST
+  SOCIAL_BLUESKY
+  SOCIAL_THREADS
+}
+
+enum AccountCredentialGroup {
+  AI_BYOK
+}
+
+model AiTokenUsage {
+  id         String   @id @default(cuid())
+  accountId  String
+  provider   String
+  tokensUsed Int
+  usedAt     DateTime @default(now())
+  isByok     Boolean  @default(false)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, usedAt])
 }

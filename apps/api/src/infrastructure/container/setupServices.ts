@@ -48,6 +48,9 @@ import type { ProviderHealthMonitor } from "../../orchestration/ProviderHealthMo
 import { SagaManagerImpl } from "../../saga/SagaManager.js";
 import type { IntegrationEventPublisher } from "../integration-events/IntegrationEventPort.js";
 import { EventSchemaRegistry } from "../integration-events/EventSchemaRegistry.js";
+import { EncryptionService } from "../../security/EncryptionService.js";
+import { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
+import { SettingsService } from "../../settings/SettingsService.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
 import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.js";
 import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
@@ -354,6 +357,33 @@ export function setupServices(
         maxConcurrentSagas: 100,
       });
     },
+    true
+  );
+
+  // Register Platform Encryption Services
+  container.register<EncryptionService>(
+    TOKENS.EncryptionService,
+    () => new EncryptionService(),
+    true
+  );
+  container.register<PlatformCredentialService>(
+    TOKENS.PlatformCredentialService,
+    () =>
+      new PlatformCredentialService(
+        container.resolve(TOKENS.PrismaClient),
+        container.resolve<EncryptionService>(TOKENS.EncryptionService)
+      ),
+    true
+  );
+
+  // Register Settings Service
+  container.register<SettingsService>(
+    TOKENS.SettingsService,
+    () =>
+      new SettingsService(
+        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService),
+        container.resolve(TOKENS.PrismaClient)
+      ),
     true
   );
 }

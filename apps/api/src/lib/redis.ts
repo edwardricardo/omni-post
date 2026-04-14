@@ -37,13 +37,14 @@ export function getRedisUrl(): string {
 export function createRedisConnection(
   options: {
     db?: number;
-    maxRetriesPerRequest?: number;
+    maxRetriesPerRequest?: number | null;
   } = {}
 ): Redis {
   const redisUrl = getRedisUrl();
 
   return new Redis(redisUrl, {
-    maxRetriesPerRequest: options.maxRetriesPerRequest ?? 3,
+    maxRetriesPerRequest:
+      options.maxRetriesPerRequest === null ? null : (options.maxRetriesPerRequest ?? 3),
     db: options.db ?? 0,
     // Enable lazy connect for Railway compatibility (private network not available during build)
     lazyConnect: true,

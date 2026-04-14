@@ -352,10 +352,10 @@ export class DatabaseOptimizer {
 
     const latest = stats[0];
     return {
-      total: latest?.total_connections || 0,
-      active: latest?.active_connections || 0,
-      idle: latest?.idle_connections || 0,
-      utilization: Number(latest?.pool_utilization || 0),
+      total: Number(latest?.total_connections ?? 0),
+      active: Number(latest?.active_connections ?? 0),
+      idle: Number(latest?.idle_connections ?? 0),
+      utilization: Number(latest?.pool_utilization ?? 0),
     };
   }
 
@@ -419,7 +419,7 @@ export class DatabaseOptimizer {
       tableName: row.tablename,
       indexName: row.indexname,
       scanCount: Number(row.idx_scan),
-      efficiency: row.idx_scan > 0 ? Number(row.idx_tup_read) / Number(row.idx_scan) : 0,
+      efficiency: Number(row.idx_scan) > 0 ? Number(row.idx_tup_read) / Number(row.idx_scan) : 0,
     }));
   }
 

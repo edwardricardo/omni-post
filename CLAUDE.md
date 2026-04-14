@@ -94,6 +94,23 @@ packages/
 
 **All project documentation lives under `/docs/`.** Never create `.md` files in `apps/`, `packages/`, `infra/`, or any other directory. The only exceptions are `CLAUDE.md` (root) and `.claude/` configuration files.
 
+### `/docs/` Structure
+
+| Directory            | Content                                                         |
+| -------------------- | --------------------------------------------------------------- |
+| `docs/api/`          | REST API reference (endpoints, services, types)                 |
+| `docs/frontend/`     | Frontend portals (admin-portal, client-portal, REACT_STANDARDS) |
+| `docs/architecture/` | System design and architectural decisions                       |
+| `docs/development/`  | Developer guides, contributing, migration guides                |
+| `docs/features/`     | Feature specifications and design docs                          |
+| `docs/reports/`      | Sprint reports and session logs                                 |
+| `docs/security/`     | Security policies and audits                                    |
+| `docs/deployment/`   | Infrastructure and deployment guides                            |
+| `docs/technical/`    | Technical deep-dives and ADRs                                   |
+| `docs/product/`      | Product requirements and roadmap                                |
+| `docs/admin/`        | Admin-specific operational docs                                 |
+| `docs/client/`       | Client-facing documentation                                     |
+
 ---
 
 ## Architecture — Hexagonal (Ports & Adapters)
@@ -539,6 +556,8 @@ describe("Integration Feature", () => {
 
 ## React Component Standards
 
+> Full React standards: `docs/frontend/REACT_STANDARDS.md`
+
 - Function Declaration Order:
   1. State declarations (useState)
   2. Refs (useRef)
@@ -550,6 +569,34 @@ describe("Integration Feature", () => {
 - Named exports for components, default exports only for pages
 - Import order: React → External libs → Internal packages → Relative imports
 - No circular dependencies
+
+---
+
+## Mandatory Requirements for Every Sprint
+
+**Every prompt that creates or modifies production code MUST include both of these — no exceptions:**
+
+### 1. Tests (mandatory)
+
+Every new or modified class, method, or function requires tests in the same sprint:
+
+- **New service / use case** → unit tests with mock factory pattern (`apps/api/tests/unit/`)
+- **New route / endpoint** → integration test with real HTTP request (`apps/api/tests/integration/`)
+- **New React component** → Vitest component test with `@testing-library/react`
+- **New hook** → Vitest hook test
+- **Modified method** → update existing tests to cover new behavior
+
+Tests are never deferred to a later sprint. A sprint that produces code without tests
+is incomplete regardless of TypeScript compiling cleanly.
+
+### 2. JSDoc (mandatory)
+
+Every new file and every new public method requires JSDoc in the same sprint:
+
+- **New file** → `@file/@description/@layer` header
+- **New public method** → `@method/@description/@param/@returns`
+- **New React component** → `@component` with key props documented
+- **New hook** → `@hook` with return value documented
 
 ---
 

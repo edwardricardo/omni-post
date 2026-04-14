@@ -80,6 +80,7 @@ import { clientBillingRoutes } from "./billing/clientBillingRoutes.js";
 import { adminBillingRoutes } from "./billing/adminBillingRoutes.js";
 import { billingWebhookRoutes } from "./billing/billingWebhookRoutes.js";
 import { complianceRoutes } from "./compliance/complianceRoutes.js";
+import { settingsRoutes } from "./settings/settingsRoutes.js";
 import { outboxAdminRoutes } from "./outbox/outboxAdminRoutes.js";
 import { registerOAuthRoutes } from "./auth/providerOAuth.js";
 import { setupContainer } from "./infrastructure/container/setup.js";
@@ -415,6 +416,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(clientBillingRoutes);
   await typedApp.register(adminBillingRoutes);
   await typedApp.register(complianceRoutes);
+  await typedApp.register(settingsRoutes);
   await typedApp.register(outboxAdminRoutes);
   await typedApp.register(analyticsRoutes);
   await typedApp.register(aiRoutes);
@@ -578,7 +580,7 @@ async function start() {
 
     // Gateway switch processor — BullMQ worker for reminder/suspend jobs
     const { GatewaySwitchProcessor } = await import("./billing/gatewaySwitchProcessor.js");
-    const switchProcessorRedis = createRedisConnection();
+    const switchProcessorRedis = createRedisConnection({ maxRetriesPerRequest: null });
     switchProcessorRedis.on("error", () => {});
     const _gatewaySwitchProcessor = new GatewaySwitchProcessor(
       switchProcessorRedis,

@@ -126,17 +126,13 @@ export class SubscriptionAnalyticsHandler extends BaseRouteHandler {
     const filters: { status?: string } = {};
     if (status) filters.status = status;
 
-    const result = await this.subscriptionService.listAccountSubscriptions(
-      filters as Parameters<SubscriptionService["listAccountSubscriptions"]>[0],
+    const { subscriptions } = await this.subscriptionService.listProviderSubscriptions(
+      filters,
       1,
       1000 // Large limit for export
     );
 
-    if (!result.ok) {
-      return this.sendError(ctx, 500, "Failed to export subscription data");
-    }
-
-    let filteredData = result.value.subscriptions;
+    let filteredData = subscriptions;
 
     // Apply date filters
     if (startDate) {
@@ -149,14 +145,14 @@ export class SubscriptionAnalyticsHandler extends BaseRouteHandler {
     if (format === "csv") {
       const columns: ColumnDefinition<(typeof filteredData)[0]>[] = [
         { key: "id", header: "ID" },
-        { key: "email", header: "Email" },
-        { key: "name", header: "Name" },
-        { key: "subscription", header: "Subscription" },
+        { key: "accountId", header: "Account ID" },
+        { key: "status", header: "Status" },
+        { key: "pricePerMonth", header: "Price/Month", format: (val) => String(Number(val)) },
         { key: "maxProjects", header: "Max Projects", format: (val) => String(val) },
         {
-          key: "currentProjects",
-          header: "Current Projects",
-          format: (val) => String(val),
+          key: "providers",
+          header: "Providers",
+          format: (val) => (Array.isArray(val) ? val.join(", ") : String(val)),
         },
         {
           key: "createdAt",
