@@ -31,7 +31,9 @@
     "switchToLight": "Switch to light mode",
     "switchToDark": "Switch to dark mode",
     "switchToEnglish": "Switch to English",
-    "switchToSpanish": "Switch to Spanish"
+    "switchToSpanish": "Switch to Spanish",
+    "configuration": "Configuration",
+    "settings": "Settings"
   },
   "common": {
     "save": "Save",
@@ -1489,5 +1491,156 @@
     "noEvents": "No gateway switch events found",
     "stripe": "Stripe",
     "paddle": "Paddle"
+  },
+  "settings": {
+    "title": "Platform Settings",
+    "description": "Manage platform credentials and integrations",
+    "errorTitle": "Error Loading Settings",
+    "tabs": {
+      "overview": "Overview",
+      "gateways": "Payment Gateways",
+      "email": "Email",
+      "ai": "AI Providers",
+      "storage": "Storage",
+      "social": "Social Providers",
+      "platform": "Platform",
+      "monitoring": "Monitoring",
+      "security": "Security"
+    },
+    "overview": {
+      "title": "Configuration Status",
+      "overallHealth": "Overall Health",
+      "configured": "Configured",
+      "notConfigured": "Not configured",
+      "healthy": "All critical services configured",
+      "partial": "Some services need configuration",
+      "unconfigured": "No services configured yet",
+      "socialCount": "{count}/11 configured",
+      "clickToConfigure": "Click any card to configure"
+    },
+    "groups": {
+      "STRIPE": "Stripe",
+      "PADDLE": "Paddle",
+      "RESEND": "Resend (Email)",
+      "STORAGE": "Object Storage",
+      "MONITORING": "Sentry Monitoring",
+      "AI_POOL": "AI Provider Pool",
+      "PLATFORM": "Platform Identity",
+      "SOCIAL_FACEBOOK": "Facebook",
+      "SOCIAL_INSTAGRAM": "Instagram",
+      "SOCIAL_X": "X (Twitter)",
+      "SOCIAL_YOUTUBE": "YouTube",
+      "SOCIAL_TIKTOK": "TikTok",
+      "SOCIAL_LINKEDIN": "LinkedIn",
+      "SOCIAL_SNAPCHAT": "Snapchat",
+      "SOCIAL_TELEGRAM": "Telegram",
+      "SOCIAL_PINTEREST": "Pinterest",
+      "SOCIAL_BLUESKY": "Bluesky",
+      "SOCIAL_THREADS": "Threads"
+    },
+    "fields": {
+      "secretKey": "Secret Key",
+      "webhookSecret": "Webhook Secret",
+      "apiKey": "API Key",
+      "apiSecret": "API Secret",
+      "accessToken": "Access Token",
+      "accessTokenSecret": "Access Token Secret",
+      "appId": "App ID",
+      "appSecret": "App Secret",
+      "clientId": "Client ID",
+      "clientSecret": "Client Secret",
+      "botToken": "Bot Token",
+      "appPassword": "App Password",
+      "identifier": "Identifier / Handle",
+      "sandboxMode": "Sandbox Mode",
+      "provider": "Storage Provider",
+      "fromEmail": "From Email",
+      "fromName": "From Name",
+      "replyTo": "Reply-To",
+      "bucketName": "Bucket Name",
+      "region": "Region",
+      "endpoint": "Endpoint URL",
+      "accessKeyId": "Access Key ID",
+      "secretAccessKey": "Secret Access Key",
+      "sentryDsn": "Sentry DSN",
+      "sentryEnvironment": "Environment",
+      "sentryTracesSampleRate": "Traces Sample Rate",
+      "openaiApiKey": "OpenAI API Key",
+      "openaiModel": "OpenAI Model",
+      "anthropicApiKey": "Anthropic API Key",
+      "anthropicModel": "Anthropic Model",
+      "geminiApiKey": "Gemini API Key",
+      "geminiModel": "Gemini Model",
+      "perplexityApiKey": "Perplexity API Key",
+      "perplexityModel": "Perplexity Model",
+      "defaultProvider": "Default Provider",
+      "monthlyTokenBudget": "Monthly Token Budget",
+      "name": "Platform Name",
+      "logoUrl": "Logo URL",
+      "faviconUrl": "Favicon URL",
+      "supportEmail": "Support Email",
+      "baseUrl": "Base URL",
+      "timezone": "Timezone",
+      "defaultLanguage": "Default Language",
+      "analyticsApiKey": "Analytics API Key",
+      "researchApiKey": "Research API Key",
+      "priceStarterMonthly": "Starter Monthly Price ID",
+      "priceStarterYearly": "Starter Yearly Price ID",
+      "priceProMonthly": "Pro Monthly Price ID",
+      "priceProYearly": "Pro Yearly Price ID"
+    },
+    "form": {
+      "save": "Save Changes",
+      "saving": "Saving...",
+      "testConnection": "Test Connection",
+      "testing": "Testing...",
+      "testPassed": "Connected",
+      "testFailed": "Failed",
+      "noChanges": "No changes to save",
+      "saveSuccess": "Credentials saved successfully",
+      "saveError": "Failed to save credentials",
+      "notConfigured": "Not configured",
+      "enterNewValue": "Enter new value to update"
+    },
+    "security": {
+      "title": "Encryption Key Management",
+      "description": "Rotate the platform encryption key used to protect stored credentials.",
+      "rotateButton": "Log Key Rotation",
+      "confirmTitle": "Log Encryption Key Rotation?",
+      "confirmDescription": "This will log a rotation event. You must then update PLATFORM_ENCRYPTION_KEY in your environment and restart the API server. Existing credentials encrypted with the old key will need to be re-entered.",
+      "noteLabel": "Rotation Note",
+      "notePlaceholder": "e.g. Quarterly rotation, key compromise",
+      "rotateSuccess": "Encryption key rotation logged successfully",
+      "rotateError": "Failed to log encryption key rotation",
+      "warning": "This is a sensitive operation that requires manual environment changes."
+    },
+    "gateways": {
+      "title": "Payment Gateways",
+      "description": "Configure Stripe and Paddle payment processing credentials."
+    },
+    "email": {
+      "title": "Email Provider",
+      "description": "Configure Resend for transactional email delivery."
+    },
+    "ai": {
+      "title": "AI Providers",
+      "description": "Configure AI provider API keys and model preferences."
+    },
+    "storage": {
+      "title": "Object Storage",
+      "description": "Configure S3-compatible storage for media files."
+    },
+    "social": {
+      "title": "Social Providers",
+      "description": "Configure OAuth credentials for social media platforms."
+    },
+    "platform": {
+      "title": "Platform Identity",
+      "description": "Configure platform name, branding, and defaults."
+    },
+    "monitoring": {
+      "title": "Monitoring",
+      "description": "Configure Sentry error tracking and observability."
+    }
   }
 }

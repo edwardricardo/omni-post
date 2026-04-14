@@ -32,6 +32,7 @@ import {
   Wrench,
   LogOut,
   ArrowRightLeft,
+  Settings2,
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -86,6 +87,10 @@ const NAV_GROUPS: NavGroup[] = [
       { translationKey: "maintenance", href: "/maintenance", icon: Wrench },
       { translationKey: "users", href: "/users", icon: UserCog },
     ],
+  },
+  {
+    translationKey: "configuration",
+    items: [{ translationKey: "settings", href: "/settings", icon: Settings2 }],
   },
 ];
 

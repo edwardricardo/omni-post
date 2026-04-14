@@ -31,7 +31,9 @@
     "switchToLight": "Cambiar a modo claro",
     "switchToDark": "Cambiar a modo oscuro",
     "switchToEnglish": "Cambiar a ingles",
-    "switchToSpanish": "Cambiar a espanol"
+    "switchToSpanish": "Cambiar a espanol",
+    "configuration": "Configuración",
+    "settings": "Configuración de Plataforma"
   },
   "common": {
     "save": "Guardar",
@@ -1495,5 +1497,156 @@
     "noEvents": "No se encontraron eventos de cambio de gateway",
     "stripe": "Stripe",
     "paddle": "Paddle"
+  },
+  "settings": {
+    "title": "Configuración de Plataforma",
+    "description": "Gestionar credenciales e integraciones de la plataforma",
+    "errorTitle": "Error al Cargar Configuración",
+    "tabs": {
+      "overview": "Resumen",
+      "gateways": "Pasarelas de Pago",
+      "email": "Correo",
+      "ai": "Proveedores IA",
+      "storage": "Almacenamiento",
+      "social": "Redes Sociales",
+      "platform": "Plataforma",
+      "monitoring": "Monitoreo",
+      "security": "Seguridad"
+    },
+    "overview": {
+      "title": "Estado de Configuración",
+      "overallHealth": "Salud General",
+      "configured": "Configurado",
+      "notConfigured": "No configurado",
+      "healthy": "Todos los servicios críticos configurados",
+      "partial": "Algunos servicios necesitan configuración",
+      "unconfigured": "Ningún servicio configurado aún",
+      "socialCount": "{count}/11 configurados",
+      "clickToConfigure": "Haz clic en una tarjeta para configurar"
+    },
+    "groups": {
+      "STRIPE": "Stripe",
+      "PADDLE": "Paddle",
+      "RESEND": "Resend (Correo)",
+      "STORAGE": "Almacenamiento",
+      "MONITORING": "Monitoreo Sentry",
+      "AI_POOL": "Pool de Proveedores IA",
+      "PLATFORM": "Identidad de Plataforma",
+      "SOCIAL_FACEBOOK": "Facebook",
+      "SOCIAL_INSTAGRAM": "Instagram",
+      "SOCIAL_X": "X (Twitter)",
+      "SOCIAL_YOUTUBE": "YouTube",
+      "SOCIAL_TIKTOK": "TikTok",
+      "SOCIAL_LINKEDIN": "LinkedIn",
+      "SOCIAL_SNAPCHAT": "Snapchat",
+      "SOCIAL_TELEGRAM": "Telegram",
+      "SOCIAL_PINTEREST": "Pinterest",
+      "SOCIAL_BLUESKY": "Bluesky",
+      "SOCIAL_THREADS": "Threads"
+    },
+    "fields": {
+      "secretKey": "Clave Secreta",
+      "webhookSecret": "Secreto de Webhook",
+      "apiKey": "Clave API",
+      "apiSecret": "Secreto API",
+      "accessToken": "Token de Acceso",
+      "accessTokenSecret": "Secreto de Token de Acceso",
+      "appId": "ID de Aplicación",
+      "appSecret": "Secreto de Aplicación",
+      "clientId": "ID de Cliente",
+      "clientSecret": "Secreto de Cliente",
+      "botToken": "Token de Bot",
+      "appPassword": "Contraseña de Aplicación",
+      "identifier": "Identificador / Handle",
+      "sandboxMode": "Modo Sandbox",
+      "provider": "Proveedor de Almacenamiento",
+      "fromEmail": "Email de Origen",
+      "fromName": "Nombre de Origen",
+      "replyTo": "Responder a",
+      "bucketName": "Nombre del Bucket",
+      "region": "Región",
+      "endpoint": "URL del Endpoint",
+      "accessKeyId": "ID de Clave de Acceso",
+      "secretAccessKey": "Clave de Acceso Secreta",
+      "sentryDsn": "DSN de Sentry",
+      "sentryEnvironment": "Entorno",
+      "sentryTracesSampleRate": "Tasa de Muestreo de Trazas",
+      "openaiApiKey": "Clave API de OpenAI",
+      "openaiModel": "Modelo OpenAI",
+      "anthropicApiKey": "Clave API de Anthropic",
+      "anthropicModel": "Modelo Anthropic",
+      "geminiApiKey": "Clave API de Gemini",
+      "geminiModel": "Modelo Gemini",
+      "perplexityApiKey": "Clave API de Perplexity",
+      "perplexityModel": "Modelo Perplexity",
+      "defaultProvider": "Proveedor por Defecto",
+      "monthlyTokenBudget": "Presupuesto Mensual de Tokens",
+      "name": "Nombre de Plataforma",
+      "logoUrl": "URL del Logo",
+      "faviconUrl": "URL del Favicon",
+      "supportEmail": "Email de Soporte",
+      "baseUrl": "URL Base",
+      "timezone": "Zona Horaria",
+      "defaultLanguage": "Idioma por Defecto",
+      "analyticsApiKey": "Clave API de Analytics",
+      "researchApiKey": "Clave API de Investigación",
+      "priceStarterMonthly": "ID Precio Starter Mensual",
+      "priceStarterYearly": "ID Precio Starter Anual",
+      "priceProMonthly": "ID Precio Pro Mensual",
+      "priceProYearly": "ID Precio Pro Anual"
+    },
+    "form": {
+      "save": "Guardar Cambios",
+      "saving": "Guardando...",
+      "testConnection": "Probar Conexión",
+      "testing": "Probando...",
+      "testPassed": "Conectado",
+      "testFailed": "Falló",
+      "noChanges": "Sin cambios para guardar",
+      "saveSuccess": "Credenciales guardadas exitosamente",
+      "saveError": "Error al guardar credenciales",
+      "notConfigured": "No configurado",
+      "enterNewValue": "Ingrese nuevo valor para actualizar"
+    },
+    "security": {
+      "title": "Gestión de Claves de Encriptación",
+      "description": "Rotar la clave de encriptación utilizada para proteger credenciales almacenadas.",
+      "rotateButton": "Registrar Rotación de Clave",
+      "confirmTitle": "¿Registrar Rotación de Clave de Encriptación?",
+      "confirmDescription": "Esto registrará un evento de rotación. Luego debe actualizar PLATFORM_ENCRYPTION_KEY en su entorno y reiniciar el servidor API. Las credenciales existentes encriptadas con la clave anterior deberán ser reingresadas.",
+      "noteLabel": "Nota de Rotación",
+      "notePlaceholder": "ej. Rotación trimestral, compromiso de clave",
+      "rotateSuccess": "Rotación de clave registrada exitosamente",
+      "rotateError": "Error al registrar rotación de clave",
+      "warning": "Esta es una operación sensible que requiere cambios manuales en el entorno."
+    },
+    "gateways": {
+      "title": "Pasarelas de Pago",
+      "description": "Configurar credenciales de procesamiento de pagos de Stripe y Paddle."
+    },
+    "email": {
+      "title": "Proveedor de Correo",
+      "description": "Configurar Resend para envío de correos transaccionales."
+    },
+    "ai": {
+      "title": "Proveedores de IA",
+      "description": "Configurar claves API y preferencias de modelos de proveedores de IA."
+    },
+    "storage": {
+      "title": "Almacenamiento de Objetos",
+      "description": "Configurar almacenamiento compatible con S3 para archivos multimedia."
+    },
+    "social": {
+      "title": "Proveedores Sociales",
+      "description": "Configurar credenciales OAuth para plataformas de redes sociales."
+    },
+    "platform": {
+      "title": "Identidad de Plataforma",
+      "description": "Configurar nombre, marca y valores predeterminados de la plataforma."
+    },
+    "monitoring": {
+      "title": "Monitoreo",
+      "description": "Configurar seguimiento de errores y observabilidad de Sentry."
+    }
   }
 }
