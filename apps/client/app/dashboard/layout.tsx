@@ -30,6 +30,7 @@ import {
   Megaphone,
   Puzzle,
   Shield,
+  BrainCircuit,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -51,6 +52,7 @@ const navigation = [
   { name: "Integrations", href: "/dashboard/integrations", icon: Puzzle },
   { name: "Settings", href: "/dashboard/settings/brand-voice", icon: Settings },
   { name: "Privacy", href: "/dashboard/settings/privacy", icon: Shield },
+  { name: "AI Settings", href: "/dashboard/settings/ai", icon: BrainCircuit },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
