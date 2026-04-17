@@ -533,3 +533,139 @@ Edward approved the recommendations. Two rounds of changes, both committed:
 - **NEEDS_DECISION items** (§6 P2) require Edward's classification.
 
 Follow-up audits should use this doc as the baseline and drill into specific categories (e.g., "orphan admin endpoints — full row-level pass") rather than repeating the full sweep.
+
+---
+
+## 10. PRE-3C Re-verification (2026-04-17)
+
+**Motivation:** PRE-3A discovered silent `head_limit` truncation in the original consumer-search grep. Re-verification of the ~45 orphans sampled in §6 P1 using the robust methodology (`head_limit: 0` + count cross-check) mandated by `PLAN_MAESTRO.md §5.7`.
+
+### 10.1 Canonical list expanded from §6 P1
+
+§6 P1 is explicitly a **sample** (not exhaustive). Expanded to 48 endpoints by enumerating all routes in files called out in §6 P1 + §2 tables as having orphan candidates:
+
+| File                        |   # | Note                                                   |
+| --------------------------- | --: | ------------------------------------------------------ |
+| `accountLifecycleRoutes.ts` |  16 | All `/admin/accounts/*`                                |
+| `adminUserRoutes.ts`        |   7 | All `/admin/users/*`                                   |
+| `auditRoutes.ts`            |   8 | All `/admin/audit/*`                                   |
+| `outboxAdminRoutes.ts`      |   3 | All `/api/admin/outbox/*`                              |
+| `samlRoutes.ts`             |   7 | 4 × `/api/saml/*` + 3 × `/auth/saml/:accountId/*`      |
+| `oidcRoutes.ts`             |   6 | 4 × `/api/oidc/*` + 2 × `/auth/oidc/:accountId/*`      |
+| `subscriptionRoutes.ts`     |   1 | `GET /admin/billing/trials/expiring` (single call-out) |
+
+**Total verified: 48.**
+
+### 10.2 Metrics
+
+```
+Total endpoints re-verified:   48
+  STILL_ORPHAN (confirmed):    19
+  FALSE_NEGATIVE (audit miss): 21
+  AMBIGUOUS (path mismatch):    8
+
+False-negative rate:           21 / 48 = 43.75%
+```
+
+**⚠️ 43.75% false-negative rate exceeds the 30% halt threshold from PLAN_MAESTRO §5.7.** This is a **D1 BLOCKER**. The original `ENDPOINT_AUDIT.md §6 P1` classifications are materially unreliable. D1 must re-verify every declared orphan using the robust method — cannot trust §6 P1 as-is.
+
+### 10.3 Full classification table
+
+| #   | Method | Path                                         | Conclusion    | Consumer evidence (if FN)                                                                                                                                                                                   |
+| --- | ------ | -------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | POST   | `/admin/accounts`                            | **FN**        | `app/(dashboard)/accounts/page.tsx:279` create button                                                                                                                                                       |
+| 2   | GET    | `/admin/accounts`                            | **FN**        | `lib/apiClient.ts:290`, `providers/ProjectProvider.tsx:103`                                                                                                                                                 |
+| 3   | GET    | `/admin/accounts/stats`                      | STILL_ORPHAN  | —                                                                                                                                                                                                           |
+| 4   | GET    | `/admin/accounts/:accountId`                 | STILL_ORPHAN  | — (no detail page `[id]/page.tsx`)                                                                                                                                                                          |
+| 5   | PUT    | `/admin/accounts/:accountId`                 | STILL_ORPHAN  | — (`useUpdateAccount` hook exists but unused)                                                                                                                                                               |
+| 6   | PUT    | `/admin/accounts/:accountId/status`          | **FN**        | `hooks/api/useAccounts.ts:57`                                                                                                                                                                               |
+| 7   | GET    | `/admin/accounts/:accountId/billing`         | **FN**        | `hooks/api/useAccountBilling.ts:55`                                                                                                                                                                         |
+| 8   | POST   | `/admin/accounts/:accountId/suspend`         | STILL_ORPHAN  | — (only bulk suspend used)                                                                                                                                                                                  |
+| 9   | POST   | `/admin/accounts/:accountId/reactivate`      | STILL_ORPHAN  | — (only bulk reactivate used)                                                                                                                                                                               |
+| 10  | POST   | `/admin/accounts/:accountId/reset-password`  | **FN**        | `hooks/api/useResetAccountPassword.ts:28`                                                                                                                                                                   |
+| 11  | DELETE | `/admin/accounts/:accountId`                 | STILL_ORPHAN  | —                                                                                                                                                                                                           |
+| 12  | GET    | `/admin/accounts/:accountId/sessions`        | **FN**        | `hooks/api/useAccountSessions.ts:32`                                                                                                                                                                        |
+| 13  | POST   | `/admin/accounts/:accountId/revoke-sessions` | **FN**        | `hooks/api/useAccountSessions.ts:60`                                                                                                                                                                        |
+| 14  | PATCH  | `/admin/accounts/:accountId/grandfathering`  | **FN**        | `components/accounts/AccountBillingPanel.tsx:63`                                                                                                                                                            |
+| 15  | POST   | `/admin/accounts/bulk/suspend`               | **FN**        | `app/(dashboard)/accounts/page.tsx:174`                                                                                                                                                                     |
+| 16  | POST   | `/admin/accounts/bulk/reactivate`            | **FN**        | `app/(dashboard)/accounts/page.tsx:175`                                                                                                                                                                     |
+| 17  | GET    | `/admin/users`                               | **FN**        | `hooks/api/useAdminUsers.ts` list query                                                                                                                                                                     |
+| 18  | POST   | `/admin/users`                               | **FN**        | `hooks/api/useAdminUsers.ts:41`                                                                                                                                                                             |
+| 19  | GET    | `/admin/users/:id`                           | STILL_ORPHAN  | — (no GET consumer found)                                                                                                                                                                                   |
+| 20  | PUT    | `/admin/users/:id`                           | **FN**        | `hooks/api/useAdminUsers.ts:156` (`useUpdateAdminUser`, verified method=PUT)                                                                                                                                |
+| 21  | POST   | `/admin/users/:id/deactivate`                | **FN**        | `hooks/api/useAdminUsers.ts:99`, `components/security/RbacManager.tsx:136`                                                                                                                                  |
+| 22  | POST   | `/admin/users/:id/activate`                  | **FN**        | `hooks/api/useAdminUsers.ts:124`, `components/security/RbacManager.tsx:137`                                                                                                                                 |
+| 23  | POST   | `/admin/users/:id/password-reset`            | **FN**        | `hooks/api/useAdminPasswordReset.ts:19`                                                                                                                                                                     |
+| 24  | GET    | `/admin/audit/logs`                          | **FN**        | `lib/apiClient.ts:328`, `components/maintenance/ScheduledJobsPanel.tsx:102`                                                                                                                                 |
+| 25  | GET    | `/admin/audit/stats`                         | **FN**        | `lib/apiClient.ts:331`, `hooks/api/useAuditStats.ts:29`                                                                                                                                                     |
+| 26  | GET    | `/admin/audit/users/:userId/logs`            | STILL_ORPHAN  | —                                                                                                                                                                                                           |
+| 27  | GET    | `/admin/audit/resources/:resource/logs`      | STILL_ORPHAN  | —                                                                                                                                                                                                           |
+| 28  | POST   | `/admin/audit/logs`                          | STILL_ORPHAN  | — (backend-written only)                                                                                                                                                                                    |
+| 29  | POST   | `/admin/audit/cleanup`                       | STILL_ORPHAN  | —                                                                                                                                                                                                           |
+| 30  | GET    | `/admin/audit/my-logs`                       | STILL_ORPHAN  | —                                                                                                                                                                                                           |
+| 31  | GET    | `/admin/audit/export`                        | STILL_ORPHAN  | — (matches original §6 P1 claim)                                                                                                                                                                            |
+| 32  | GET    | `/api/admin/outbox/dead-letter`              | **FN**        | `hooks/api/useWebhooks.ts:107`                                                                                                                                                                              |
+| 33  | POST   | `/api/admin/outbox/dead-letter/:id/retry`    | **FN**        | `hooks/api/useWebhooks.ts:127`                                                                                                                                                                              |
+| 34  | POST   | `/api/admin/outbox/dead-letter/:id/resolve`  | **FN**        | `hooks/api/useWebhooks.ts:148`                                                                                                                                                                              |
+| 35  | GET    | `/api/saml/config`                           | **AMBIGUOUS** | `apps/client/hooks/api/useSso.ts:77` calls `/api/backend/saml/config` — Next.js proxy strips `/api/backend` → `/saml/config` ≠ backend's `/api/saml/config`. Path mismatch. Consumer exists but likely 404s |
+| 36  | PUT    | `/api/saml/config`                           | **AMBIGUOUS** | Same (`useSso.ts:97`)                                                                                                                                                                                       |
+| 37  | POST   | `/api/saml/enable`                           | **AMBIGUOUS** | Same (`useSso.ts:123`)                                                                                                                                                                                      |
+| 38  | POST   | `/api/saml/disable`                          | **AMBIGUOUS** | `useSso.ts:139` uses dynamic template `/api/backend/${provider}/disable` — covers both saml and oidc. Path mismatch suspected                                                                               |
+| 39  | GET    | `/auth/saml/:accountId/metadata`             | STILL_ORPHAN  | — (server-side SSO flow, no UI consumer expected)                                                                                                                                                           |
+| 40  | GET    | `/auth/saml/:accountId/login`                | STILL_ORPHAN  | — (redirect endpoint)                                                                                                                                                                                       |
+| 41  | POST   | `/auth/saml/:accountId/callback`             | STILL_ORPHAN  | — (IdP callback)                                                                                                                                                                                            |
+| 42  | GET    | `/api/oidc/config`                           | **AMBIGUOUS** | `useSso.ts:87` — same path mismatch pattern as SAML                                                                                                                                                         |
+| 43  | PUT    | `/api/oidc/config`                           | **AMBIGUOUS** | `useSso.ts:110`                                                                                                                                                                                             |
+| 44  | POST   | `/api/oidc/enable`                           | **AMBIGUOUS** | `useSso.ts:131`                                                                                                                                                                                             |
+| 45  | POST   | `/api/oidc/disable`                          | **AMBIGUOUS** | `useSso.ts:139` dynamic                                                                                                                                                                                     |
+| 46  | GET    | `/auth/oidc/:accountId/login`                | STILL_ORPHAN  | — (OP redirect)                                                                                                                                                                                             |
+| 47  | GET    | `/auth/oidc/:accountId/callback`             | STILL_ORPHAN  | — (OP callback)                                                                                                                                                                                             |
+| 48  | GET    | `/admin/billing/trials/expiring`             | STILL_ORPHAN  | — (matches original §6 P1 claim)                                                                                                                                                                            |
+
+### 10.4 FALSE_NEGATIVE details (21 endpoints, all with admin consumers)
+
+Every false negative has its consumer in `apps/admin/`. No `apps/client/` consumers surfaced in the false-negative set — admin-scoped endpoints are consumed from the admin app as expected.
+
+Pattern: most false negatives are routine admin mutations wired through `hooks/api/use*.ts` files. The original grep truncated at `head_limit: 60` before reaching these hook files alphabetically.
+
+**Impact on §6 P1:** the "~45 orphans" figure collapses to **~19 true orphans** once false negatives are excluded. The remaining 19 are the real candidates for D1's "implement UI / delete endpoint / justify" decision.
+
+### 10.5 AMBIGUOUS details (8 endpoints, all SAML/OIDC config)
+
+All 8 have consumers in `apps/client/hooks/api/useSso.ts` but the consumer uses `/api/backend/saml/*` which the Next.js proxy strips to `/saml/*` — backend registered at `/api/saml/*`. This is a **live-reverse-orphan pattern** similar to what §5.1 documented for templates:
+
+- Backend route exists: `/api/saml/config`, `/api/oidc/config`, etc.
+- Client calls it via `/api/backend/saml/config` (strips `/api/backend/` → `/saml/config`)
+- Fastify receives request for `/saml/config` → **404** because it's registered at `/api/saml/config`
+
+**Resolution options (decision for Sprint 2):**
+
+1. Fix client to call `/api/backend/api/saml/config` (double-api pattern, matches `/api/backend/api/admin/outbox/*` precedent that works).
+2. Change backend to register at `/saml/config` (drop `/api` prefix).
+3. Keep the Next.js catchall proxy but have it NOT strip `/api/backend` for these paths.
+
+Not resolved in PRE-3C. Logged as lateral finding.
+
+### 10.6 Recommendation for D1
+
+1. **Do NOT trust `ENDPOINT_AUDIT.md §6 P1` orphan list as-is.** 43.75% false-negative rate confirms poisoned baseline.
+2. **D1 must apply `head_limit: 0` + count cross-check** (PLAN_MAESTRO §5.7) on every endpoint, not just the ~45 sampled here.
+3. **SAML/OIDC path mismatch** is an incidental discovery worth its own short fix sprint. Client routes reach 404. Not scoped to PRE-3C; surfaced for follow-up.
+4. **5 STILL_ORPHAN endpoints in accountLifecycle** (individual suspend/reactivate/delete + GET by id + stats) are genuine candidates for removal. The UI uses bulk variants + summary + status only.
+5. **6 STILL_ORPHAN endpoints in audit** (users/:id/logs, resources/:resource/logs, cleanup, my-logs, export, write) are the genuine audit-route orphans. `export` and `cleanup` might legitimately have no UI (back-end only use). Others need UI or deletion decision.
+
+### 10.7 Methodology used (for reproducibility)
+
+Per endpoint, minimum 1 prefix grep + targeted verification:
+
+- Prefix sweep: `Grep pattern="/admin/accounts" --glob="*.{ts,tsx}" output_mode="content" head_limit=0` across `apps/admin/ + apps/client/ + packages/`, excluding `/tests/`, `.test.`, `node_modules/`.
+- Per-endpoint when prefix returned hits: map each hit to backend route by matching method + path structure.
+- Cross-referenced backend route declarations at `apps/api/src/<file>.ts` lines to avoid misattribution.
+- Verified ambiguous cases (method-unclear hits) by Read of the specific source lines.
+
+### 10.8 Lateral findings generated during PRE-3C
+
+Appended to `LATERAL_FINDINGS.md`:
+
+1. **SAML/OIDC client path mismatch** — `apps/client/hooks/api/useSso.ts` calls don't reach their backend routes due to `/api/` prefix stripping discrepancy. 8 endpoints affected.
+2. **`GET /admin/billing/trials/stats`** — discovered during `/admin/billing/trials` prefix sweep. Listed in `subscriptionRoutes.ts:198`, not in §6 P1, but no consumer found. Likely additional orphan.
