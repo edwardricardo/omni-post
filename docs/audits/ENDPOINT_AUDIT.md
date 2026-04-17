@@ -13,13 +13,13 @@ This is the consolidated replacement for ~16 overlapping audit files. See [§8 D
 
 ### Backend endpoint inventory
 
-| Metric                                                                                                               |    Count | Source                                                                               |
-| -------------------------------------------------------------------------------------------------------------------- | -------: | ------------------------------------------------------------------------------------ |
-| Fastify HTTP registrations (`server/fastify/app/instance.method(`)                                                   |  **478** | Direct grep, all `*.ts` in `apps/api/src`                                            |
-| Route files (`*Routes.ts` + `*routes*.ts`)                                                                           |   **67** | Convention-named                                                                     |
-| Integration files exposing routes (`*Integration.ts`)                                                                |    **4** | SagaIntegration, DatabaseIntegration, EventIntegration, CQRSIntegration              |
-| Endpoints with explicit auth preHandler (`requireAdminAuth`/`requireClientAuth`/`requirePermission`/`requireApiKey`) |  **370** | `preHandler: [...]` grep across 61 files                                             |
-| Endpoints without explicit auth preHandler                                                                           | **~108** | Difference → includes webhooks, health, OAuth callbacks, Integration debug endpoints |
+| Metric                                                                                                               |    Count | Source                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------- | -------: | --------------------------------------------------------------------------------------------------- |
+| Fastify HTTP registrations (`server/fastify/app/instance.method(`)                                                   |  **466** | Direct grep, all `*.ts` in `apps/api/src`. Post-cleanup: 478 − 12 (deleted Integrations 2026-04-16) |
+| Route files (`*Routes.ts` + `*routes*.ts`)                                                                           |   **67** | Convention-named                                                                                    |
+| Integration files exposing routes (`*Integration.ts`)                                                                |    **4** | SagaIntegration, DatabaseIntegration, EventIntegration, CQRSIntegration                             |
+| Endpoints with explicit auth preHandler (`requireAdminAuth`/`requireClientAuth`/`requirePermission`/`requireApiKey`) |  **370** | `preHandler: [...]` grep across 61 files                                                            |
+| Endpoints without explicit auth preHandler                                                                           | **~108** | Difference → includes webhooks, health, OAuth callbacks, Integration debug endpoints                |
 
 **Drift vs prior CODE_FIRST (2026-04-10):** 478 vs 428 = **+50 endpoints over ~6 days**, consistent with SETTINGS-B, SETTINGS-C, and AI-ARCH sprints completed after that audit.
 
@@ -115,16 +115,16 @@ Potential prefix mismatches found in `apps/client/lib/hooks/` — see §5.
 
 Per project rule: endpoints in `*Integration.ts` files are `internal` — invoked by backend orchestration, not by humans. Expected status: `OK` if unconsumed by frontend, `OVER_CONSUMED` if consumed.
 
-| File                                  |     Endpoints | Production-registered?                                                          | Frontend consumer      | Auth                      | Status                                                   |
-| ------------------------------------- | ------------: | ------------------------------------------------------------------------------- | ---------------------- | ------------------------- | -------------------------------------------------------- |
-| `saga/SagaIntegration.ts`             |             7 | **YES** — instantiated in `apps/api/src/index.ts:540`                           | NONE (only test files) | **NONE**                  | `OK` category-wise, **SECURITY_REVIEW_NEEDED** — see §4b |
-| `cqrs/CQRSIntegration.ts`             |             9 | **NO** — class exists but `new CQRSIntegration()` never called in non-test code | NONE                   | **NONE**                  | `DEAD_CODE` — not live in prod                           |
-| `database/DatabaseIntegration.ts`     |             6 | **NO** — class exists but never instantiated in non-test code                   | NONE                   | **NONE**                  | `DEAD_CODE` — not live in prod                           |
-| `events/EventIntegration.ts`          |             6 | **NO** — class exists but never instantiated in non-test code                   | NONE                   | **NONE**                  | `DEAD_CODE` — not live in prod                           |
-| `monitoring/cacheStatsRoutes.ts`      |             6 | YES (route file)                                                                | check in §4            | mostly `requireAdminAuth` | `health-infra`                                           |
-| `monitoring/rateLimitingDashboard.ts` |             5 | YES (route file)                                                                | check in §4            | `requireAdminAuth`        | `health-infra`                                           |
-| `health/healthRoutes.ts`              |             5 | YES                                                                             | NONE expected          | mostly public             | `health-infra`                                           |
-| `analytics/realtimeAnalytics.ts`      | 1 (WebSocket) | YES                                                                             | `/ws/analytics`        | check                     | `health-infra`                                           |
+| File                                  |     Endpoints | Production-registered?                                                                                   | Frontend consumer      | Auth                      | Status                                                   |
+| ------------------------------------- | ------------: | -------------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------- | -------------------------------------------------------- |
+| `saga/SagaIntegration.ts`             |             7 | **YES** — instantiated in `apps/api/src/index.ts:540`                                                    | NONE (only test files) | **NONE**                  | `OK` category-wise, **SECURITY_REVIEW_NEEDED** — see §4b |
+| `cqrs/CQRSIntegration.ts`             |             9 | **NO** — class exists but `new CQRSIntegration()` never called in non-test code                          | NONE                   | **NONE**                  | `DEAD_CODE` — not live in prod                           |
+| ~~`database/DatabaseIntegration.ts`~~ |         ~~6~~ | **DELETED 2026-04-16** (this audit) — file + `ConnectionManager.ts` sole-consumer + 4 test files removed | —                      | —                         | `DELETED`                                                |
+| ~~`events/EventIntegration.ts`~~      |         ~~6~~ | **DELETED 2026-04-16** (this audit) — file + 3 test files removed                                        | —                      | —                         | `DELETED`                                                |
+| `monitoring/cacheStatsRoutes.ts`      |             6 | YES (route file)                                                                                         | check in §4            | mostly `requireAdminAuth` | `health-infra`                                           |
+| `monitoring/rateLimitingDashboard.ts` |             5 | YES (route file)                                                                                         | check in §4            | `requireAdminAuth`        | `health-infra`                                           |
+| `health/healthRoutes.ts`              |             5 | YES                                                                                                      | NONE expected          | mostly public             | `health-infra`                                           |
+| `analytics/realtimeAnalytics.ts`      | 1 (WebSocket) | YES                                                                                                      | `/ws/analytics`        | check                     | `health-infra`                                           |
 
 **See §4b for per-endpoint verification of the 28 `internal` items and the SECURITY_REVIEW_NEEDED flag.**
 
@@ -315,6 +315,35 @@ fastify.get("/api/sagas/metrics", ...);
 
 **Reporting only, per prompt rules. No fixes applied.**
 
+### 4b.3 Decisions executed 2026-04-16
+
+After the security verification above, Edward decided:
+
+| Integration           |  Endpoints | Decision                         | Status                                                                                                                                                                                                                                                      |
+| --------------------- | ---------: | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SagaIntegration`     |   7 (LIVE) | **KEEP** pending client refactor | Still unauthenticated in prod — `SECURITY_REVIEW_NEEDED` remains open. No network-layer restriction verified in this audit. Auth decisions deferred to client refactor sprint.                                                                              |
+| `CQRSIntegration`     | 9 (latent) | **KEEP** pending client refactor | Still dead code. Will be protected when wired.                                                                                                                                                                                                              |
+| `DatabaseIntegration` | 6 (latent) | **DELETE**                       | Executed: removed `src/database/DatabaseIntegration.ts` (22KB) + `src/database/ConnectionManager.ts` (19KB, sole-consumer) + 4 unit test files. Net: -12 unauthenticated endpoint definitions (6 direct, -6 latent with SSRF risk on `/replicas` URL body). |
+| `EventIntegration`    | 6 (latent) | **DELETE**                       | Executed: removed `src/events/EventIntegration.ts` (16KB) + 3 unit test files. Scaffolding code with hardcoded fake channels `["channel-1", "channel-2"]` (line 259).                                                                                       |
+
+**Preserved infrastructure (NOT touched):**
+
+- `src/database/DatabaseOptimizer.ts` — used by `posts/postsService.ts:8` + DI container.
+- `src/events/EventService.ts` — used by saga in prod via `index.ts:533` as `sagaEventService`.
+- `src/events/EventStore.ts` — used by `EventService:23`.
+- `src/events/EventPublisher.ts` — only test references found. Potentially dead but out of scope for this cleanup.
+
+**Net impact:** endpoint inventory count drops 478 → 466.
+
+### 4b.4 Open P0 — Saga endpoints still unauthenticated
+
+Preserved from §4b.2 item 1: the 7 live SagaIntegration endpoints at `/api/sagas/*` have zero backend-code-level auth. Rely entirely on external network restrictions (ingress firewall, service mesh, etc.) if any exist. Status: **OPEN** — deferred to client refactor sprint per Edward 2026-04-16.
+
+Four mutating, three info-leaking:
+
+- **Mutating** (require at least `requireAdminAuth + SYSTEM_CONFIGURE` before shipping without network restriction): `POST /api/sagas/post-publishing/start`, `POST /api/sagas/:id/continue`, `POST /api/sagas/:id/compensate`, plus `GET /api/sagas/:id` (not mutating but leaks per-saga state).
+- **Info-leaking** (should be restricted if not behind observability gateway): `GET /api/sagas`, `GET /api/sagas/health`, `GET /api/sagas/metrics`.
+
 ---
 
 ## 5. Reverse orphans — frontend paths without a matching backend route
@@ -436,7 +465,12 @@ From the 16 previous audit docs. Classified as **preserved** (still valid, incor
 
 ## 8. Doc lifecycle — executed 2026-04-16
 
-Edward approved the recommendations. Changes staged via git (not committed — run `git status` to review before commit).
+Edward approved the recommendations. Two rounds of changes, both committed:
+
+| Round                 | Commit          | Scope                                                                                                          |
+| --------------------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
+| 1 — Doc consolidation | `57e6787`       | 6 DELETE + 6 ARCHIVE + new `docs/audits/ENDPOINT_AUDIT.md`                                                     |
+| 2 — Code lifecycle    | _(this commit)_ | 3 source files deleted + 7 test files deleted — `DatabaseIntegration`, `ConnectionManager`, `EventIntegration` |
 
 | Doc                                                      | Recommendation | Reason                                                                                                                                               |
 | -------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
