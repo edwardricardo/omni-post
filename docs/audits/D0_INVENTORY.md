@@ -973,21 +973,3 @@ packages/providers/youtube/
 ```
 
 Total: 12 platform providers. `shared` is shared utilities, `_template` is a skeleton (not a real provider).
-
----
-
-## 6. Configuration
-
-_Placeholder — Phase 6 populates this section._
-
----
-
-## 7. Tests
-
-_Placeholder — Phase 7 populates this section._
-
----
-
-## 8. External integrations
-
-_Placeholder — Phase 8 populates this section._

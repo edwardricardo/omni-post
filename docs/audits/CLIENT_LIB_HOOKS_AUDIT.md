@@ -303,3 +303,47 @@ Fixing one does not fix the other. They can be scheduled independently.
 - `/dashboard/templates` page has silent 404s on user mutation actions — previously undocumented. Added to §6 P1 → P0.
 
 **Commit:** [corrected via commit after approval of plan `omnipost-stryker-adaptive-hejlsberg.md` 2026-04-17]
+
+---
+
+## 11. Methodology post-mortem (2026-04-17, added by PRE-3A/3B)
+
+### Root cause of the original false negative
+
+The original `CLIENT_LIB_HOOKS_AUDIT.md` Phase-1 consumer-search grep used `head_limit: 60`. The Grep tool silently truncated the output before reaching `apps/client/app/dashboard/templates/TemplateManagementDashboard.tsx`, which is where all 3 hooks are imported (lines 16, 17, 19) and invoked (lines 59, 69, 77). The first 60 matches consumed by self-references in the hook files themselves + `describe.todo` blocks in `hooks.integration.test.ts` + alphabetically earlier files. The critical hit was at position ≥61.
+
+Because the truncation was **silent** (the Grep tool returned only 60 results with no "more available" marker), the audit misread the truncated output as "all matches seen, zero prod consumers found." The hooks were wrongly classified `DEAD_CODE`.
+
+### What PRE-3A verified
+
+PRE-3A (2026-04-17) ran 5 independent detection methods against the same 3 hooks with `head_limit: 0`:
+
+1. Direct name grep (`useABTests\b`, etc.)
+2. Import-path grep (`from ['\"].*lib/hooks/useX`)
+3. Alias-aware grep (`from ['\"]@/[^'\"]*useX`)
+4. Barrel re-export search (N/A — no `lib/hooks/index.ts` exists)
+5. Ground-truth read of `TemplateManagementDashboard.tsx`
+
+**All 5 methods converged on the same consumer** at `apps/client/app/dashboard/templates/TemplateManagementDashboard.tsx`. The detection method (name grep) is not the bug; the `head_limit` truncation is.
+
+### Implication for D1-D7
+
+The `CLIENT_LIB_HOOKS_AUDIT` false negative is a flag for every future dimension that counts consumers. `PLAN_MAESTRO.md` §5.7 now mandates:
+
+1. `head_limit: 0` by default on consumer-detection greps.
+2. Cross-check with count-mode grep to detect hidden truncation.
+3. If `results.length === head_limit`, treat as truncated and escalate.
+
+### Corrections propagated to this document
+
+All 3 hooks (`useABTests`, `useTemplates`, `useTemplateVersions`) are reclassified:
+
+- §1 TL;DR: already updated to `LEGACY_WORKING_WITH_BROKEN_URLS` (during PRE-2's block).
+- §3.1, §3.4, §3.5: already updated with correct consumer count (1 production each).
+- §4 Classified summary: already updated.
+- §5 Numeric summary: already updated.
+- §6 P1 (deletions): already empty.
+- §6 P2 (migrations): already includes the 3 template hooks.
+- §10: documents the PRE-2 block and initial correction.
+
+**This §11 formalizes the methodology root cause and the lessons-learned propagation to `PLAN_MAESTRO.md §5.7`.** No further edits to §1-§10 needed.

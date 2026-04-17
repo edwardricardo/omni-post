@@ -354,6 +354,8 @@ async function main() {
         "audit:read",
         "audit:export",
         "webhook:manage",
+        "dashboard:view",
+        "post:manage",
       ],
     },
     {
@@ -375,6 +377,8 @@ async function main() {
         "system:monitor",
         "audit:read",
         "webhook:manage",
+        "dashboard:view",
+        "post:manage",
       ],
     },
     {
@@ -383,7 +387,15 @@ async function main() {
       description: "Limited access for customer support operations",
       level: 10,
       isSystem: true,
-      permissions: ["user:read", "account:read", "billing:read", "analytics:read", "audit:read"],
+      permissions: [
+        "user:read",
+        "account:read",
+        "billing:read",
+        "analytics:read",
+        "audit:read",
+        "dashboard:view",
+        "post:manage",
+      ],
     },
   ];
 
