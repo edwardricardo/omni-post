@@ -42,6 +42,9 @@ import Redis from "ioredis";
 import { AppError } from "../lib/errors/index.js";
 import { logger } from "../lib/logger.js";
 import { createRedisConnection } from "../lib/redis.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "../auth/rbacService.js";
 
 /** Channel used by workers to notify saga completions/failures */
 const SAGA_EVENTS_CHANNEL = "saga:events";
@@ -181,221 +184,249 @@ export class SagaIntegration {
         };
         priority?: "LOW" | "NORMAL" | "HIGH";
       };
-    }>("/api/sagas/post-publishing/start", async (request, _reply) => {
-      try {
-        const { postData, priority = "NORMAL" } = request.body;
+    }>(
+      "/api/sagas/post-publishing/start",
+      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
+      async (request, _reply) => {
+        try {
+          const { postData, priority = "NORMAL" } = request.body;
 
-        // Validate required fields
-        if (!postData.body || !postData.channelIds || postData.channelIds.length === 0) {
-          throw AppError.badRequest("Post body and at least one channel are required");
-        }
-
-        // Create saga context
-        const correlationId = `post-publish-${randomUUID()}`;
-        const context = createSagaContext(
-          "", // Will be set by saga manager
-          correlationId,
-          request.user?.id,
-          {
-            postData: {
-              ...postData,
-              projectId: request.user?.projectId || "default-project",
-              ...(postData.scheduledAt && { scheduledAt: new Date(postData.scheduledAt) }),
-            },
-            priority,
-            source: "API",
-            userAgent: request.headers["user-agent"],
-            ipAddress: request.ip,
+          // Validate required fields
+          if (!postData.body || !postData.channelIds || postData.channelIds.length === 0) {
+            throw AppError.badRequest("Post body and at least one channel are required");
           }
-        );
 
-        // Start saga
-        const sagaInstance = await this.sagaManager.startSaga("post-publishing-saga", context);
-
-        return {
-          success: true,
-          data: {
-            sagaId: sagaInstance.id,
-            status: sagaInstance.status,
+          // Create saga context
+          const correlationId = `post-publish-${randomUUID()}`;
+          const context = createSagaContext(
+            "", // Will be set by saga manager
             correlationId,
-            startedAt: sagaInstance.startedAt,
-          },
-        };
-      } catch (error) {
-        // Re-throw AppErrors (e.g. validation errors) directly
-        if (error instanceof AppError) {
-          throw error;
+            request.user?.id,
+            {
+              postData: {
+                ...postData,
+                projectId: request.user?.projectId || "default-project",
+                ...(postData.scheduledAt && { scheduledAt: new Date(postData.scheduledAt) }),
+              },
+              priority,
+              source: "API",
+              userAgent: request.headers["user-agent"],
+              ipAddress: request.ip,
+            }
+          );
+
+          // Start saga
+          const sagaInstance = await this.sagaManager.startSaga("post-publishing-saga", context);
+
+          return {
+            success: true,
+            data: {
+              sagaId: sagaInstance.id,
+              status: sagaInstance.status,
+              correlationId,
+              startedAt: sagaInstance.startedAt,
+            },
+          };
+        } catch (error) {
+          // Re-throw AppErrors (e.g. validation errors) directly
+          if (error instanceof AppError) {
+            throw error;
+          }
+          logger.error({ err: error }, "Failed to start post publishing saga");
+          throw AppError.internal("Failed to start saga");
         }
-        logger.error({ err: error }, "Failed to start post publishing saga");
-        throw AppError.internal("Failed to start saga");
       }
-    });
+    );
 
     // Get Saga Status
     fastify.get<{
       Params: { sagaId: string };
-    }>("/api/sagas/:sagaId", async (request, _reply) => {
-      try {
-        const { sagaId } = request.params;
+    }>(
+      "/api/sagas/:sagaId",
+      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
+      async (request, _reply) => {
+        try {
+          const { sagaId } = request.params;
 
-        const sagaInstance = await this.sagaManager.getSaga(sagaId);
-        if (!sagaInstance) {
-          throw AppError.notFound("Saga");
+          const sagaInstance = await this.sagaManager.getSaga(sagaId);
+          if (!sagaInstance) {
+            throw AppError.notFound("Saga");
+          }
+
+          // Calculate progress
+          const totalSteps = sagaInstance.stepResults.length || 1;
+          const completedSteps = sagaInstance.stepResults.filter((r) => r?.success).length;
+          const progress = Math.round((completedSteps / totalSteps) * 100);
+
+          return {
+            success: true,
+            data: {
+              id: sagaInstance.id,
+              definitionId: sagaInstance.definitionId,
+              status: sagaInstance.status,
+              currentStep: sagaInstance.currentStep,
+              progress,
+              startedAt: sagaInstance.startedAt,
+              completedAt: sagaInstance.completedAt,
+              error: sagaInstance.error,
+              retryCount: sagaInstance.retryCount,
+              stepResults: sagaInstance.stepResults.map((result, index) => ({
+                stepIndex: index,
+                success: result?.success || false,
+                error: result?.error,
+                data: result?.data,
+              })),
+            },
+          };
+        } catch (error) {
+          if (error instanceof AppError) {
+            throw error;
+          }
+          logger.error({ err: error }, "Failed to get saga status");
+          throw AppError.notFound(`Saga not found: ${request.params.sagaId}`);
         }
-
-        // Calculate progress
-        const totalSteps = sagaInstance.stepResults.length || 1;
-        const completedSteps = sagaInstance.stepResults.filter((r) => r?.success).length;
-        const progress = Math.round((completedSteps / totalSteps) * 100);
-
-        return {
-          success: true,
-          data: {
-            id: sagaInstance.id,
-            definitionId: sagaInstance.definitionId,
-            status: sagaInstance.status,
-            currentStep: sagaInstance.currentStep,
-            progress,
-            startedAt: sagaInstance.startedAt,
-            completedAt: sagaInstance.completedAt,
-            error: sagaInstance.error,
-            retryCount: sagaInstance.retryCount,
-            stepResults: sagaInstance.stepResults.map((result, index) => ({
-              stepIndex: index,
-              success: result?.success || false,
-              error: result?.error,
-              data: result?.data,
-            })),
-          },
-        };
-      } catch (error) {
-        if (error instanceof AppError) {
-          throw error;
-        }
-        logger.error({ err: error }, "Failed to get saga status");
-        throw AppError.notFound(`Saga not found: ${request.params.sagaId}`);
       }
-    });
+    );
 
     // Continue Saga (manual trigger)
     fastify.post<{
       Params: { sagaId: string };
-    }>("/api/sagas/:sagaId/continue", async (request, _reply) => {
-      try {
-        const { sagaId } = request.params;
+    }>(
+      "/api/sagas/:sagaId/continue",
+      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
+      async (request, _reply) => {
+        try {
+          const { sagaId } = request.params;
 
-        const sagaInstance = await this.sagaManager.continueSaga(sagaId);
+          const sagaInstance = await this.sagaManager.continueSaga(sagaId);
 
-        return {
-          success: true,
-          data: {
-            sagaId: sagaInstance.id,
-            status: sagaInstance.status,
-            currentStep: sagaInstance.currentStep,
-          },
-        };
-      } catch (error) {
-        logger.error({ err: error }, "Failed to continue saga");
-        throw AppError.badRequest("Failed to continue saga");
+          return {
+            success: true,
+            data: {
+              sagaId: sagaInstance.id,
+              status: sagaInstance.status,
+              currentStep: sagaInstance.currentStep,
+            },
+          };
+        } catch (error) {
+          logger.error({ err: error }, "Failed to continue saga");
+          throw AppError.badRequest("Failed to continue saga");
+        }
       }
-    });
+    );
 
     // Compensate Failed Saga
     fastify.post<{
       Params: { sagaId: string };
-    }>("/api/sagas/:sagaId/compensate", async (request, _reply) => {
-      try {
-        const { sagaId } = request.params;
+    }>(
+      "/api/sagas/:sagaId/compensate",
+      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
+      async (request, _reply) => {
+        try {
+          const { sagaId } = request.params;
 
-        const sagaInstance = await this.sagaManager.compensateSaga(sagaId);
+          const sagaInstance = await this.sagaManager.compensateSaga(sagaId);
 
-        return {
-          success: true,
-          data: {
-            sagaId: sagaInstance.id,
-            status: sagaInstance.status,
-            compensationStarted: true,
-          },
-        };
-      } catch (error) {
-        logger.error({ err: error }, "Failed to compensate saga");
-        throw AppError.badRequest("Failed to compensate saga");
+          return {
+            success: true,
+            data: {
+              sagaId: sagaInstance.id,
+              status: sagaInstance.status,
+              compensationStarted: true,
+            },
+          };
+        } catch (error) {
+          logger.error({ err: error }, "Failed to compensate saga");
+          throw AppError.badRequest("Failed to compensate saga");
+        }
       }
-    });
+    );
 
     // List Active Sagas
-    fastify.get("/api/sagas", async (_request, _reply) => {
-      try {
-        const metrics = this.sagaManager.getMetrics();
+    fastify.get(
+      "/api/sagas",
+      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)] },
+      async (_request, _reply) => {
+        try {
+          const metrics = this.sagaManager.getMetrics();
 
-        return {
-          success: true,
-          data: {
-            activeInstances: metrics.activeInstances,
-            totalStarted: metrics.sagasStarted,
-            totalCompleted: metrics.sagasCompleted,
-            totalFailed: metrics.sagasFailed,
-            totalCompensated: metrics.sagasCompensated,
-            averageExecutionTime: metrics.averageExecutionTime,
-            definitions: metrics.definitions,
-          },
-        };
-      } catch (error) {
-        logger.error({ err: error }, "Failed to list sagas");
-        throw AppError.internal("Failed to list sagas");
+          return {
+            success: true,
+            data: {
+              activeInstances: metrics.activeInstances,
+              totalStarted: metrics.sagasStarted,
+              totalCompleted: metrics.sagasCompleted,
+              totalFailed: metrics.sagasFailed,
+              totalCompensated: metrics.sagasCompensated,
+              averageExecutionTime: metrics.averageExecutionTime,
+              definitions: metrics.definitions,
+            },
+          };
+        } catch (error) {
+          logger.error({ err: error }, "Failed to list sagas");
+          throw AppError.internal("Failed to list sagas");
+        }
       }
-    });
+    );
 
     // Saga Health Check
-    fastify.get("/api/sagas/health", async (_request, _reply) => {
-      try {
-        const health = await this.sagaManager.healthCheck();
-        const metrics = this.sagaManager.getMetrics();
+    fastify.get(
+      "/api/sagas/health",
+      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)] },
+      async (_request, _reply) => {
+        try {
+          const health = await this.sagaManager.healthCheck();
+          const metrics = this.sagaManager.getMetrics();
 
-        return {
-          ...health,
-          metrics,
-          timestamp: new Date(),
-        };
-      } catch (error) {
-        logger.error({ err: error }, "Saga health check failed");
-        throw AppError.internal("Health check failed");
+          return {
+            ...health,
+            metrics,
+            timestamp: new Date(),
+          };
+        } catch (error) {
+          logger.error({ err: error }, "Saga health check failed");
+          throw AppError.internal("Health check failed");
+        }
       }
-    });
+    );
 
     // Saga Metrics
-    fastify.get("/api/sagas/metrics", async (_request, reply) => {
-      try {
-        const metrics = this.sagaManager.getMetrics();
+    fastify.get(
+      "/api/sagas/metrics",
+      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)] },
+      async (_request, reply) => {
+        try {
+          const metrics = this.sagaManager.getMetrics();
 
-        return {
-          success: true,
-          data: {
-            performance: {
-              sagasStarted: metrics.sagasStarted,
-              sagasCompleted: metrics.sagasCompleted,
-              sagasFailed: metrics.sagasFailed,
-              sagasCompensated: metrics.sagasCompensated,
-              averageExecutionTime: metrics.averageExecutionTime,
-              successRate:
-                metrics.sagasStarted > 0
-                  ? Math.round((metrics.sagasCompleted / metrics.sagasStarted) * 100)
-                  : 0,
+          return {
+            success: true,
+            data: {
+              performance: {
+                sagasStarted: metrics.sagasStarted,
+                sagasCompleted: metrics.sagasCompleted,
+                sagasFailed: metrics.sagasFailed,
+                sagasCompensated: metrics.sagasCompensated,
+                averageExecutionTime: metrics.averageExecutionTime,
+                successRate:
+                  metrics.sagasStarted > 0
+                    ? Math.round((metrics.sagasCompleted / metrics.sagasStarted) * 100)
+                    : 0,
+              },
+              active: {
+                instances: metrics.activeInstances,
+                definitions: metrics.definitions.length,
+              },
             },
-            active: {
-              instances: metrics.activeInstances,
-              definitions: metrics.definitions.length,
-            },
-          },
-          timestamp: new Date(),
-        };
-      } catch (error) {
-        logger.error({ err: error }, "Failed to get saga metrics");
-        return reply.status(500).send({
-          error: "Failed to get metrics",
-        });
+            timestamp: new Date(),
+          };
+        } catch (error) {
+          logger.error({ err: error }, "Failed to get saga metrics");
+          return reply.status(500).send({
+            error: "Failed to get metrics",
+          });
+        }
       }
-    });
+    );
 
     logger.info("Saga API routes registered");
   }

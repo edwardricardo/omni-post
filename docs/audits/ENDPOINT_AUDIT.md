@@ -335,14 +335,26 @@ After the security verification above, Edward decided:
 
 **Net impact:** endpoint inventory count drops 478 → 466.
 
-### 4b.4 Open P0 — Saga endpoints still unauthenticated
+### 4b.4 RESOLVED 2026-04-17 — Saga endpoints authentication applied
 
-Preserved from §4b.2 item 1: the 7 live SagaIntegration endpoints at `/api/sagas/*` have zero backend-code-level auth. Rely entirely on external network restrictions (ingress firewall, service mesh, etc.) if any exist. Status: **OPEN** — deferred to client refactor sprint per Edward 2026-04-16.
+**Original finding** (preserved for history): the 7 live SagaIntegration endpoints at `/api/sagas/*` had zero backend-code-level auth. Anyone with network access could start/advance/compensate arbitrary sagas or enumerate internal state.
 
-Four mutating, three info-leaking:
+**Fix applied** via `apps/api/src/saga/SagaIntegration.ts` (single-file edit, imports added for `requireAdminAuth`, `requirePermission`, `Permission`):
 
-- **Mutating** (require at least `requireAdminAuth + SYSTEM_CONFIGURE` before shipping without network restriction): `POST /api/sagas/post-publishing/start`, `POST /api/sagas/:id/continue`, `POST /api/sagas/:id/compensate`, plus `GET /api/sagas/:id` (not mutating but leaks per-saga state).
-- **Info-leaking** (should be restricted if not behind observability gateway): `GET /api/sagas`, `GET /api/sagas/health`, `GET /api/sagas/metrics`.
+| Group             | Middleware                                                           | Endpoints                                                                                                                                   |
+| ----------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ops-sensitive (4) | `[requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)]` | `POST /api/sagas/post-publishing/start`, `GET /api/sagas/:sagaId`, `POST /api/sagas/:sagaId/continue`, `POST /api/sagas/:sagaId/compensate` |
+| Observability (3) | `[requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)]`   | `GET /api/sagas`, `GET /api/sagas/health`, `GET /api/sagas/metrics`                                                                         |
+
+**Verification performed:**
+
+- `pnpm tsc --noEmit` in `apps/api`: exit 0, no type errors.
+- Grep confirms 7 `fastify.<method>` registrations with adjacent `preHandler: [...]`.
+- Phase 1 grep for `fetch|axios|ky|request` to `/api/sagas` returned zero hits across the monorepo — no internal HTTP consumer was broken by the change.
+
+**Defensive choice documented:** `/health` and `/metrics` now require `SYSTEM_MONITOR` despite the common convention of leaving health/metrics public for external scrapers. Reason: no external observability gateway was found in the codebase. If a Prometheus scraper or external health probe exists and needs unauthenticated access, a follow-up decision is required (separate observability endpoint, bearer token for scraper, or network-level exemption).
+
+**Latent code smell (not in scope):** `request.user?.projectId || "default-project"` on line 202. Admin users don't have a `projectId`, so the fallback still always triggers. No behavioral change from this fix, but worth a later sprint to require explicit `projectId` in the request body for admin-initiated sagas.
 
 ---
 
