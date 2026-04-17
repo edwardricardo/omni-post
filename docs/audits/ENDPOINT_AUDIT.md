@@ -380,6 +380,19 @@ Candidates found in `apps/client/lib/hooks/` using the `/api/*` (non-proxied) pa
 
 **Recommended action:** audit `apps/client/lib/hooks/` as a separate follow-up. Likely contains dead code or broken fetches from pre-separation era.
 
+### 5.1 Update 2026-04-17 — follow-up audit findings
+
+The `lib/hooks/` follow-up audit was completed in [CLIENT_LIB_HOOKS_AUDIT.md](CLIENT_LIB_HOOKS_AUDIT.md). Key revisions to this §5 table:
+
+- **Next.js rewrite invalidates the "prefix mismatch, will 404" assumption.** `apps/client/next.config.mjs:15-22` proxies `/api/:path*` to `http://localhost:3000/:path*`, stripping `/api/`. So `/api/projects/:id/templates` → Fastify `/projects/:id/templates` which does exist. The routes marked "prefix mismatch" are mostly working via the generic rewrite.
+- **But 7 specific URLs across 3 hooks are genuinely 404 — and now confirmed live-reverse-orphans** (a live production page calls them and gets 404):
+  - `useABTests.ts`: `PUT /api/ab-tests/:id`, `POST /api/projects/:id/templates/ab-tests/:testId/pause`, `DELETE /api/ab-tests/:id`
+  - `useTemplates.ts`: `PUT /api/templates/:id`, `DELETE /api/templates/:id`, `POST /api/templates/:id/duplicate` (all missing `/projects/:id/` scope that backend requires)
+  - `useTemplateVersions.ts`: `DELETE /api/template-versions/:id`
+- **Consumer of the live-reverse-orphans:** `apps/client/app/dashboard/templates/TemplateManagementDashboard.tsx` (routed at `/dashboard/templates`). Customer-facing mutation actions on that page silently fail.
+- `useProviders.ts` → `/api/providers` **matches** `providerRoutes.ts:252` via the rewrite. Not an orphan.
+- `useOnboarding.ts`, `useBilling.ts`, `useChannels.ts`, `AnnouncementBanner.tsx` — not yet re-verified individually. Out of scope for the 2026-04-17 follow-up.
+
 ---
 
 ## 6. Actionable list — non-OK items
