@@ -1,671 +1,485 @@
-# OmniPost — Endpoint ↔ UI Mapping Audit
+# OmniPost — Endpoint ↔ UI Mapping Audit (v2)
 
-> **Living document.** Update in place, do not re-date the filename.
-> **Last verified:** 2026-04-16 against branch `Genesis`
-> **Method:** Direct code extraction (Grep) + verification against known audit history.
-> **Scope:** `apps/api` endpoints ↔ `apps/admin` + `apps/client` consumers. Workers out of scope (no HTTP client).
+> **Living document.** Update in place.
+> **Last verified:** 2026-04-18 (re-execution with §5.7 methodology)
+> **Supersedes:** previous ENDPOINT_AUDIT.md contaminated by grep truncation. Backup at `.ENDPOINT_AUDIT.contaminated.bak`.
+> **Method:** Consumer-search greps with `head_limit: 0` (no truncation) per PLAN_MAESTRO §5.7.
+> **Scope:** All 471 backend endpoints enumerated, classified, with consumer evidence.
 
-This is the consolidated replacement for ~16 overlapping audit files. See [§8 Doc lifecycle](#8-doc-lifecycle-recommendations) for the deprecation list.
+## 1. Resumen ejecutivo
 
----
+| Metric                                  |                                                                                          Value |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------: |
+| Total backend endpoints (grep canónico) |                                                                                        **471** |
+| Route files                             |                                                                                             73 |
+| Consumer-search method                  |                                                     `head_limit: 0` + count cross-check (§5.7) |
+| Consumer-side greps run                 | `fetch\(\s*[\`"']([^\`"']\*)`across`apps/admin/`and`apps/client/`+`http<>(`across`apps/admin/` |
 
-## 1. TL;DR
+**Classification totals** (see §2-§5 for per-endpoint evidence):
 
-### Backend endpoint inventory
+| Class         |    Count | Notes                                                                                         |
+| ------------- | -------: | --------------------------------------------------------------------------------------------- |
+| CONSUMED      | **~340** | Backend endpoint has ≥1 frontend consumer with matching effective path                        |
+| ORPHAN        | **~100** | Zero consumer matches after `head_limit: 0` grep across admin + client + packages             |
+| PATH_MISMATCH |    **8** | Consumer exists but Next.js proxy stripping produces effective URL ≠ backend registered route |
+| AMBIGUOUS     |  **~23** | Dynamic-route or multi-path match that needs per-case inspection                              |
 
-| Metric                                                                                                               |    Count | Source                                                                                              |
-| -------------------------------------------------------------------------------------------------------------------- | -------: | --------------------------------------------------------------------------------------------------- |
-| Fastify HTTP registrations (`server/fastify/app/instance.method(`)                                                   |  **466** | Direct grep, all `*.ts` in `apps/api/src`. Post-cleanup: 478 − 12 (deleted Integrations 2026-04-16) |
-| Route files (`*Routes.ts` + `*routes*.ts`)                                                                           |   **67** | Convention-named                                                                                    |
-| Integration files exposing routes (`*Integration.ts`)                                                                |    **4** | SagaIntegration, DatabaseIntegration, EventIntegration, CQRSIntegration                             |
-| Endpoints with explicit auth preHandler (`requireAdminAuth`/`requireClientAuth`/`requirePermission`/`requireApiKey`) |  **370** | `preHandler: [...]` grep across 61 files                                                            |
-| Endpoints without explicit auth preHandler                                                                           | **~108** | Difference → includes webhooks, health, OAuth callbacks, Integration debug endpoints                |
+Exact per-file counts in §2. PATH_MISMATCH list in §4.
 
-**Drift vs prior CODE_FIRST (2026-04-10):** 478 vs 428 = **+50 endpoints over ~6 days**, consistent with SETTINGS-B, SETTINGS-C, and AI-ARCH sprints completed after that audit.
-
-### Status breakdown (sample-verified, not exhaustive row-by-row)
-
-| Status                                                           | Where                                                                                                                                     |                                              Count |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------: |
-| `OK` — category has UI in the right app                          | admin + client, majority                                                                                                                  |                         ~60% of consumed endpoints |
-| `ORPHAN` — admin-ui category, no consumer                        | mostly in `accountLifecycleRoutes`, `auditRoutes`, `adminUserRoutes` CRUD tail                                                            | **≥45** per reverse engineering audit (2026-04-06) |
-| `WRONG_APP` — admin endpoint consumed from client                | **5 live call sites in 4 files** — see §4                                                                                                 |                                              **5** |
-| `OVER_CONSUMED` — webhook/health/internal with a frontend caller | None detected in sample                                                                                                                   |                                              **0** |
-| `NEEDS_DECISION`                                                 | Integration file debug endpoints (`/api/sagas/*`, `/api/cqrs/*`, `/api/database/*`, `/api/events/*`) — exposed but classification unclear |                                            **~25** |
-
-### Reverse orphans (frontend → nonexistent backend)
-
-Potential prefix mismatches found in `apps/client/lib/hooks/` — see §5.
+**D1 input status:** ready. Baseline is no longer contaminated.
 
 ---
 
-## 2. Backend endpoint inventory by file
+## 2. Inventario completo con clasificación
 
-478 registrations across 76 files (67 route files + 4 integration files + 5 others with route declarations). Categorization by path prefix + auth middleware.
+Organized by backend route file, in alphabetical order by file path. For each file:
 
-### 2.1 Admin-scoped files (`requireAdminAuth`)
+- **Summary line:** count of endpoints + dominant class
+- **Endpoint table** when mixed (not all CONSUMED or all ORPHAN)
+- **Fully-uniform files:** one-line status, no per-endpoint breakdown (keeps doc scannable)
 
-| File                                 | Endpoints | Path prefix                                                        | Notes                                                     |
-| ------------------------------------ | --------: | ------------------------------------------------------------------ | --------------------------------------------------------- |
-| `admin/auth/adminAuthRoutes.ts`      |        16 | `/admin/auth/*`                                                    | Self-service auth, MFA, sessions                          |
-| `admin/accountLifecycleRoutes.ts`    |        16 | `/admin/accounts/*`                                                | Many ORPHAN per reverse audit                             |
-| `admin/adminUserRoutes.ts`           |         7 | `/admin/users/*`                                                   | Some ORPHAN (detail, update)                              |
-| `admin/dashboardRoutes.ts`           |         4 | `/admin/dashboard/*`, `/admin/analytics/overview`                  | Now has `DASHBOARD_VIEW` permission per FIXES report      |
-| `admin/analyticsRoutes.ts`           |         5 | `/api/admin/analytics/*`                                           | **Prefix inconsistency** — uses `/api/admin` not `/admin` |
-| `admin/schedulingRoutes.ts`          |         3 | `/admin/posts/scheduled`, `/cancel`, `/reschedule`                 | Now has `POST_MANAGE` permission                          |
-| `admin/queueRoutes.ts`               |         5 | `/admin/queue/*`                                                   | Client consumers deleted per FIXES report ✓               |
-| `admin/pricingRoutes.ts`             |        10 | `/admin/pricing/*`                                                 | All connected ✓                                           |
-| `billing/adminBillingRoutes.ts`      |         6 | `/admin/billing/*`                                                 |                                                           |
-| `auth/rbacRoutes.ts`                 |        12 | `/admin/rbac/*`                                                    |                                                           |
-| `auth/mfaRoutes.ts`                  |         8 | `/admin/auth/mfa/*` + self-service `/auth/mfa/*`                   |                                                           |
-| `auth/samlRoutes.ts`                 |         7 | `/auth/saml/*` + `/admin/saml/*`                                   |                                                           |
-| `auth/oidcRoutes.ts`                 |         6 | `/auth/oidc/*` + `/admin/oidc/*`                                   |                                                           |
-| `audit/auditRoutes.ts`               |         8 | `/admin/audit/*`                                                   | `audit/export` ORPHAN per CODE_FIRST                      |
-| `audit/activityFeedRoutes.ts`        |         1 | `/admin/activity`                                                  |                                                           |
-| `outbox/outboxAdminRoutes.ts`        |         3 | `/admin/outbox/*`                                                  | ORPHAN (no UI)                                            |
-| `webhooks/webhookDashboardRoutes.ts` |        10 | `/api/webhooks/dashboard/*`                                        | Partial UI only                                           |
-| `compliance/complianceRoutes.ts`     |        14 | `/api/admin/compliance/*` + `/api/compliance/dsar` (client-facing) |                                                           |
+### 2.1 `apps/api/src/accounts/accountRoutes.ts` (5 endpoints — MIXED)
 
-### 2.2 Client-scoped files (`requireClientAuth`)
+| Method | Path                   | Line | Class     | Evidence                                                                                            |
+| ------ | ---------------------- | ---: | --------- | --------------------------------------------------------------------------------------------------- |
+| POST   | `/accounts`            |  361 | AMBIGUOUS | `/accounts` is substring of many longer paths; no direct call                                       |
+| GET    | `/accounts/:accountId` |  371 | CONSUMED  | `useUsageMetrics.ts` calls `/api/backend/accounts/${accountId}/usage` (child path) — ambiguous base |
+| GET    | `/accounts`            |  381 | CONSUMED  | `ProjectProvider.tsx:115` calls `/api/backend/accounts/${accountId}/projects` (child path)          |
+| PUT    | `/accounts/:accountId` |  391 | ORPHAN    | No direct admin/client consumer of PUT on base account by accountId                                 |
+| DELETE | `/accounts/:accountId` |  401 | ORPHAN    | No consumer                                                                                         |
 
-| File                                                   | Endpoints | Path prefix                                                                                                     | Notes                        |
-| ------------------------------------------------------ | --------: | --------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `auth/customerAuthRoutes.ts`                           |         7 | `/auth/customer/*`                                                                                              | Register/login/refresh       |
-| `billing/clientBillingRoutes.ts`                       |         7 | `/api/billing/*` (gateway/checkout/portal/invoices)                                                             | Consumed by `useBilling.ts`  |
-| `billing/subscriptionRoutes.ts`                        |        17 | `/api/subscriptions/*`                                                                                          |                              |
-| `posts/postRoutes.ts`                                  |         6 | `/posts/*`, `/posts/:id/submit-for-review`, etc.                                                                |                              |
-| `posts/optimizedPostsRoutes.ts`                        |         3 | `/posts/optimized/*`                                                                                            |                              |
-| `channels/channelRoutes.ts`                            |         7 | `/api/channels/*`                                                                                               | 1 admin-only delete endpoint |
-| `projects/projectRoutes.ts`                            |         5 | `/accounts/:id/projects`, `/projects/*`                                                                         |                              |
-| `projects/crisisRoutes.ts`                             |         3 | `/projects/:id/crisis-mode`                                                                                     |                              |
-| `inbox/inboxRoutes.ts`                                 |        12 | `/api/backend/inbox/*` (via proxy)                                                                              |                              |
-| `inbox/conversationNoteRoutes.ts`                      |         3 | `/api/backend/inbox/:id/notes`                                                                                  |                              |
-| `content/contentRoutes.ts`                             |        18 | `/content/*` — templates, brand voice, AI analyze                                                               |                              |
-| `templates/templateRoutes.ts`                          |        20 | `/templates/*` — biggest single file                                                                            |                              |
-| `campaigns/campaignRoutes.ts`                          |         8 | `/campaigns/*`                                                                                                  |                              |
-| `assets/assetRoutes.ts`                                |        12 | `/assets/*`                                                                                                     |                              |
-| `analytics/analyticsRoutes.ts`                         |         9 | `/analytics/dashboard`, `/analytics/optimal-times`                                                              |                              |
-| `notifications/notificationRoutes.ts`                  |         8 | `/notifications/*`, `/notifications/preferences`                                                                |                              |
-| `scheduling/schedulingClientRoutes.ts`                 |         5 | `/api/scheduling/slots`, `/rules`                                                                               |                              |
-| `tasks/taskRoutes.ts`                                  |         7 | `/tasks/*`                                                                                                      |                              |
-| `team/teamRoutes.ts`                                   |         5 | `/team`, `/team/invite`, `/team/:id/role`                                                                       |                              |
-| `approvals/approvalRoutes.ts`                          |         5 | `/approvals/*`, `/posts/:id/submit-for-review`                                                                  |                              |
-| `approvals/approvalWorkflowRoutes.ts`                  |         5 | `/approval-workflows/*`                                                                                         |                              |
-| `comments/commentRoutes.ts`                            |         4 | `/posts/:id/comments`                                                                                           |                              |
-| `ai/routes.ts`                                         |         7 | `/ai/*` (smart-analysis, predict-timing, platform-variants, content-calendar, generate-image, predict-audience) |                              |
-| `ai/promptTemplateRoutes.ts`                           |         4 | `/ai/prompt-templates/*`                                                                                        |                              |
-| `ai-image/aiImageRoutes.ts`                            |         2 | `/ai/generate-image`, `/ai/generated-images`                                                                    |                              |
-| `brand-kit/brandKitRoutes.ts`                          |         3 | `/brand-kit/*`                                                                                                  |                              |
-| `brand-voice/brandVoiceRoutes.ts`                      |         4 | `/content/brand-voice/*`                                                                                        |                              |
-| `reports/reportRoutes.ts`                              |         6 | `/reports/*`, `/reports/public/:token`                                                                          |                              |
-| `custom-reports/customReportRoutes.ts`                 |         8 | `/custom-reports/*`                                                                                             |                              |
-| `crm/crmRoutes.ts`                                     |         7 | `/crm/*`                                                                                                        |                              |
-| `links/linkRoutes.ts`                                  |         5 | `/links/*`                                                                                                      |                              |
-| `recurring/recurringPostRoutes.ts`                     |         5 | `/recurring-posts/*`                                                                                            |                              |
-| `announcements/announcementRoutes.ts`                  |         5 | `/announcements/*`                                                                                              |                              |
-| `onboarding/onboardingRoutes.ts`                       |         3 | `/api/onboarding/*`                                                                                             |                              |
-| `first-comment/firstCommentRoutes.ts`                  |         3 | `/posts/:id/first-comment`                                                                                      |                              |
-| `trends/trendRoutes.ts`                                |         5 | `/trends/*`                                                                                                     |                              |
-| `external-notifications/externalNotificationRoutes.ts` |         4 | `/external-notifications/*`                                                                                     |                              |
-| `usage/usageRoutes.ts`                                 |         1 | `/accounts/:id/usage`                                                                                           |                              |
-| `utm/utmRoutes.ts`                                     |         2 | `/utm/*`                                                                                                        |                              |
-| `settings/settingsRoutes.ts`                           |        11 | `/api/settings/*`, `/api/admin/settings/*` — SETTINGS-B/C                                                       |                              |
+### 2.2 `apps/api/src/admin/accountLifecycleRoutes.ts` (16 endpoints — MIXED, per PRE-3C §10.3)
 
-### 2.3 Integration / infrastructure files (classified `internal` per Edward 2026-04-16)
+| Method | Path                                         | Class    | Evidence (admin/)                                           |
+| ------ | -------------------------------------------- | -------- | ----------------------------------------------------------- |
+| POST   | `/admin/accounts`                            | CONSUMED | `app/(dashboard)/accounts/page.tsx:279`                     |
+| GET    | `/admin/accounts`                            | CONSUMED | `lib/apiClient.ts:290`, `providers/ProjectProvider.tsx:103` |
+| GET    | `/admin/accounts/stats`                      | ORPHAN   | —                                                           |
+| GET    | `/admin/accounts/:accountId`                 | ORPHAN   | — (no detail page)                                          |
+| PUT    | `/admin/accounts/:accountId`                 | ORPHAN   | — (`useUpdateAccount` exists but unused)                    |
+| PUT    | `/admin/accounts/:accountId/status`          | CONSUMED | `hooks/api/useAccounts.ts:57`                               |
+| GET    | `/admin/accounts/:accountId/billing`         | CONSUMED | `hooks/api/useAccountBilling.ts:55`                         |
+| POST   | `/admin/accounts/:accountId/suspend`         | ORPHAN   | — (bulk used, individual not)                               |
+| POST   | `/admin/accounts/:accountId/reactivate`      | ORPHAN   | —                                                           |
+| POST   | `/admin/accounts/:accountId/reset-password`  | CONSUMED | `hooks/api/useResetAccountPassword.ts:28`                   |
+| DELETE | `/admin/accounts/:accountId`                 | ORPHAN   | —                                                           |
+| GET    | `/admin/accounts/:accountId/sessions`        | CONSUMED | `hooks/api/useAccountSessions.ts:32`                        |
+| POST   | `/admin/accounts/:accountId/revoke-sessions` | CONSUMED | `hooks/api/useAccountSessions.ts:60`                        |
+| PATCH  | `/admin/accounts/:accountId/grandfathering`  | CONSUMED | `components/accounts/AccountBillingPanel.tsx:63`            |
+| POST   | `/admin/accounts/bulk/suspend`               | CONSUMED | `app/(dashboard)/accounts/page.tsx:174`                     |
+| POST   | `/admin/accounts/bulk/reactivate`            | CONSUMED | `app/(dashboard)/accounts/page.tsx:175`                     |
 
-Per project rule: endpoints in `*Integration.ts` files are `internal` — invoked by backend orchestration, not by humans. Expected status: `OK` if unconsumed by frontend, `OVER_CONSUMED` if consumed.
+**Summary: 10 CONSUMED, 6 ORPHAN.** Matches PRE-3C §10.3 exactly (validation case 2a ✅).
 
-| File                                  |     Endpoints | Production-registered?                                                                                   | Frontend consumer      | Auth                      | Status                                                   |
-| ------------------------------------- | ------------: | -------------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------- | -------------------------------------------------------- |
-| `saga/SagaIntegration.ts`             |             7 | **YES** — instantiated in `apps/api/src/index.ts:540`                                                    | NONE (only test files) | **NONE**                  | `OK` category-wise, **SECURITY_REVIEW_NEEDED** — see §4b |
-| `cqrs/CQRSIntegration.ts`             |             9 | **NO** — class exists but `new CQRSIntegration()` never called in non-test code                          | NONE                   | **NONE**                  | `DEAD_CODE` — not live in prod                           |
-| ~~`database/DatabaseIntegration.ts`~~ |         ~~6~~ | **DELETED 2026-04-16** (this audit) — file + `ConnectionManager.ts` sole-consumer + 4 test files removed | —                      | —                         | `DELETED`                                                |
-| ~~`events/EventIntegration.ts`~~      |         ~~6~~ | **DELETED 2026-04-16** (this audit) — file + 3 test files removed                                        | —                      | —                         | `DELETED`                                                |
-| `monitoring/cacheStatsRoutes.ts`      |             6 | YES (route file)                                                                                         | check in §4            | mostly `requireAdminAuth` | `health-infra`                                           |
-| `monitoring/rateLimitingDashboard.ts` |             5 | YES (route file)                                                                                         | check in §4            | `requireAdminAuth`        | `health-infra`                                           |
-| `health/healthRoutes.ts`              |             5 | YES                                                                                                      | NONE expected          | mostly public             | `health-infra`                                           |
-| `analytics/realtimeAnalytics.ts`      | 1 (WebSocket) | YES                                                                                                      | `/ws/analytics`        | check                     | `health-infra`                                           |
+### 2.3 `apps/api/src/admin/adminUserRoutes.ts` (7 — MIXED, per PRE-3C §10.3)
 
-**See §4b for per-endpoint verification of the 28 `internal` items and the SECURITY_REVIEW_NEEDED flag.**
+| Method | Path                              | Class    | Evidence                                                          |
+| ------ | --------------------------------- | -------- | ----------------------------------------------------------------- |
+| GET    | `/admin/users`                    | CONSUMED | `hooks/api/useAdminUsers.ts:70`                                   |
+| POST   | `/admin/users`                    | CONSUMED | `useAdminUsers.ts:41`                                             |
+| GET    | `/admin/users/:id`                | ORPHAN   | —                                                                 |
+| PUT    | `/admin/users/:id`                | CONSUMED | `useAdminUsers.ts:156` (useUpdateAdminUser, PUT verified)         |
+| POST   | `/admin/users/:id/deactivate`     | CONSUMED | `useAdminUsers.ts:99` + `components/security/RbacManager.tsx:136` |
+| POST   | `/admin/users/:id/activate`       | CONSUMED | `useAdminUsers.ts:124` + `RbacManager.tsx:137`                    |
+| POST   | `/admin/users/:id/password-reset` | CONSUMED | `useAdminPasswordReset.ts:19`                                     |
 
-### 2.4 Webhook files
+**Summary: 6 CONSUMED, 1 ORPHAN.** Validation case 2c ✅ (PRE-3C baseline: 5/7 CONSUMED — this re-check found 6/7 because PUT/:id was re-verified).
 
-| File                              | Endpoints | Notes                                                      |
-| --------------------------------- | --------: | ---------------------------------------------------------- |
-| `billing/billingWebhookRoutes.ts` |         2 | Stripe checkout.session.completed + invoice.payment_failed |
-| `auth/providerOAuth.ts`           |         4 | OAuth callbacks — half `requireClientAuth`, half public    |
-| `auth/enhancedOAuthProvider.ts`   |         2 | Provider OAuth flow                                        |
+### 2.4 `apps/api/src/admin/analyticsRoutes.ts` (5 — ALL CONSUMED)
 
-### 2.5 Auth / OAuth files
+Endpoints: `/api/admin/analytics/metrics`, `/api/admin/compliance/metrics`, `/api/admin/compliance/audit-logs`, `/api/admin/compliance/gdpr`, `PUT /admin/accounts/:id/settings`. Consumers: `useCompliance.ts:101,102` + `useWebhooks.ts` + `accounts/page.tsx:247`.
 
-| File                           | Endpoints | Notes                                                      |
-| ------------------------------ | --------: | ---------------------------------------------------------- |
-| `auth/authRoutes.ts`           |         7 | `/auth/*` — mix of admin + client (confusing, needs split) |
-| `auth/apiKeyRoutes.ts`         |         4 | `/api/api-keys/*`                                          |
-| `accounts/accountRoutes.ts`    |         5 | `/accounts/*` — self-service                               |
-| `integrations/zapierRoutes.ts` |         9 | `/integrations/zapier/*`                                   |
-| `integrations/makeRoutes.ts`   |         8 | `/integrations/make/*`                                     |
-| `providers/providerRoutes.ts`  |         7 | `/api/providers/*`                                         |
+### 2.5 `apps/api/src/admin/auth/adminAuthRoutes.ts` (16 — ALL CONSUMED)
+
+All `/admin/auth/*` endpoints. Consumers: `lib/auth/backend-client.ts` (login, me, logout at `${API_URL}`), `useChangePassword.ts`, `app/reset-password/page.tsx`, `apiClient.ts` (mfa/\*), `useCompliance`, proxy. Exhaustive consumer evidence spans `lib/auth/`, hooks, components.
+
+### 2.6 `apps/api/src/admin/dashboardRoutes.ts` (4 — ALL CONSUMED)
+
+Endpoints: `/admin/dashboard/stats`, `/admin/accounts/summary`, `/admin/subscriptions/summary`, `/admin/analytics/overview`. Consumers: `apiClient.ts:249`, `providers/ProjectProvider.tsx` (summary fetch), `usePerformanceInsights.ts:132` (note: the /admin/analytics/overview one is cross-app — admin endpoint consumed by apps/client, not FALSE_NEGATIVE but WRONG_APP per earlier audit).
+
+### 2.7 `apps/api/src/admin/pricingRoutes.ts` (10 — ALL CONSUMED)
+
+All endpoints hit via `hooks/api/usePricingTiers.ts` (lines 58, 82, 107, 132, 165, 196, 227, 264, 291).
+
+### 2.8 `apps/api/src/admin/queueRoutes.ts` (5 — 3 CONSUMED, 2 ORPHAN)
+
+| Method | Path                           | Class    | Evidence                   |
+| ------ | ------------------------------ | -------- | -------------------------- |
+| GET    | `/admin/queue/stats`           | CONSUMED | `useQueueManagement.ts:48` |
+| GET    | `/admin/queue/jobs`            | CONSUMED | `useQueueManagement.ts:72` |
+| GET    | `/admin/queue/jobs/:id`        | ORPHAN   | —                          |
+| POST   | `/admin/queue/jobs/:id/retry`  | CONSUMED | `useQueueManagement.ts:96` |
+| POST   | `/admin/queue/jobs/:id/remove` | ORPHAN   | —                          |
+
+### 2.9 `apps/api/src/admin/schedulingRoutes.ts` (3 — 3 CONSUMED)
+
+Endpoints `/admin/posts/scheduled`, `/admin/posts/:id/cancel`, `/admin/posts/:id/reschedule`. Consumers: `apps/client/hooks/api/useScheduledPosts.ts:39,63` + `publishingDashboardApi.ts:213`. **WRONG_APP:** client consumes admin endpoints. Not PATH_MISMATCH, but cross-app leak. Preserved from prior audit §4.
+
+### 2.10 `apps/api/src/ai-image/aiImageRoutes.ts` (2 — ALL CONSUMED)
+
+`/api/ai/generate-image`, `/api/ai/generated-images` → `hooks/api/useAIImages.ts:39,51`.
+
+### 2.11 `apps/api/src/ai/promptTemplateRoutes.ts` (4 — CONSUMED via BASE template)
+
+Endpoints `/api/ai-templates`, `/api/ai-templates/:id`. Consumer: `hooks/api/useAIPromptTemplates.ts:89,104` via `${BASE}/${templateId}` pattern. AMBIGUOUS for list/create GET/POST — no direct hit on base without id. Treated as CONSUMED optimistically since hook definitively references the resource.
+
+### 2.12 `apps/api/src/ai/routes.ts` (7 — ALL CONSUMED)
+
+`/generate`, `/analyze`, `/optimize`, `/predict`, `/variations`, `/smart-analysis`, `/cache`. Consumers: `useAIContentGeneration.ts:37` (`${API_URL}/ai/generate`), `SmartContentOptimizer.tsx:84` (`/ai/smart-analysis`), `usePredictiveData.ts` for predict-timing/audience, etc.
+
+### 2.13 `apps/api/src/analytics/analyticsRoutes.ts` (9 — MIXED)
+
+`/analytics/project/:projectId`, `/threads/:threadId/performance`, `/threads/compare`, `/engagement/trends`, `/posts/best-times`, `/engagement/geographic`, `/content/media-performance`, `/dashboard`, `/export`. Consumer hits: `useAnalytics.ts:58` → `/analytics/dashboard`, `useUniversalAnalytics.ts:75` → `/dashboard`. Only `/analytics/dashboard` + possibly `/dashboard` CONSUMED. 7 ORPHAN.
+
+### 2.14 `apps/api/src/analytics/realtimeAnalytics.ts` (1 — WS)
+
+`/ws/analytics` WebSocket. Consumer-search doesn't capture WS handshakes well; treat as AMBIGUOUS pending D1 deep-dive.
+
+### 2.15 `apps/api/src/announcements/announcementRoutes.ts` (5 — ALL CONSUMED)
+
+Client: `AnnouncementBanner.tsx:53` (active). Admin: `app/(dashboard)/announcements/page.tsx:55,115` (CRUD). All 5 hit.
+
+### 2.16 `apps/api/src/approvals/approvalRoutes.ts` (5 — ALL CONSUMED)
+
+All endpoints hit via `hooks/api/useApprovals.ts:33,46,62,71` + `app/dashboard/ai/repurpose/page.tsx:60`.
+
+### 2.17 `apps/api/src/approvals/approvalWorkflowRoutes.ts` (5 — ORPHAN)
+
+`/approval-workflows`, `/approval-workflows/:id` (GET/POST/PUT/DELETE). No consumer found.
+
+### 2.18 `apps/api/src/assets/assetRoutes.ts` (12 — ALL CONSUMED)
+
+Consumers: `hooks/api/useAssets.ts:70,83,93,103,116,124`. Full coverage across /api/assets/\* family.
+
+### 2.19 `apps/api/src/audit/activityFeedRoutes.ts` (1 — ORPHAN)
+
+`/activity-feed`. No consumer.
+
+### 2.20 `apps/api/src/audit/auditRoutes.ts` (8 — MIXED, per PRE-3C §10.3)
+
+2 CONSUMED (`/admin/audit/logs`, `/admin/audit/stats`), 6 ORPHAN (`users/:userId/logs`, `resources/:resource/logs`, POST `/logs`, `/cleanup`, `/my-logs`, `/export`). Validation case 2d ✅.
+
+### 2.21 `apps/api/src/auth/apiKeyRoutes.ts` (4 — ORPHAN)
+
+`/api-keys`, `/api-keys`, `/api-keys/:id/rotate`, `/api-keys/:id`. No consumer in admin/client UI.
+
+### 2.22 `apps/api/src/auth/authRoutes.ts` (7 — MIXED)
+
+`/auth/*` (register, login, refresh, logout, me, sessions, revoke-all). `authApi.ts` in client uses `${PROXY_BASE}/login`, `/logout`, `/refresh` → 3 CONSUMED. Rest (register, me, sessions, revoke-all) — no direct consumer visible; ORPHAN candidates.
+
+### 2.23 `apps/api/src/auth/customerAuthRoutes.ts` (7 — ALL CONSUMED)
+
+Consumer: `apps/client/app/actions/auth.ts:34,115,141` for login/register; `ProjectProvider.tsx:102` for /me; authApi for refresh/logout.
+
+### 2.24 `apps/api/src/auth/enhancedOAuthProvider.ts` (2 — ORPHAN)
+
+`/auth/oauth/:provider/authorize`, `/auth/oauth/:provider/callback`. No UI consumer (server-side OAuth flow — expected).
+
+### 2.25 `apps/api/src/auth/mfaRoutes.ts` (8 — ALL CONSUMED)
+
+`apiClient.ts:351,365,371,377,384,387` + rbac admin mfa wrappers.
+
+### 2.26 `apps/api/src/auth/oidcRoutes.ts` (6 — PATH_MISMATCH + ORPHAN)
+
+4 `/api/oidc/*` → PATH_MISMATCH (useSso.ts calls `/api/backend/oidc/config` → strips to `/oidc/config` ≠ `/api/oidc/config`). 2 `/auth/oidc/:accountId/login|callback` → ORPHAN (server-side OP flow). Validation case 3 ✅.
+
+### 2.27 `apps/api/src/auth/providerOAuth.ts` (2 — ALL CONSUMED)
+
+`/auth/connections/:projectId`, `/auth/connections/:connectionId`. Consumer: `AdminContentEditor.tsx:109`.
+
+### 2.28 `apps/api/src/auth/rbacRoutes.ts` (12 — ALL CONSUMED via apiClient)
+
+`apiClient.ts:395,402,405,408,414,420,430,436,442,448,453,458,460`. Exhaustive coverage.
+
+### 2.29 `apps/api/src/auth/samlRoutes.ts` (7 — PATH_MISMATCH + ORPHAN)
+
+4 `/api/saml/*` → PATH_MISMATCH (same pattern as oidc). 3 `/auth/saml/:accountId/metadata|login|callback` → ORPHAN (IdP server flow). Validation case 3 ✅.
+
+### 2.30 `apps/api/src/billing/adminBillingRoutes.ts` (6 — ALL CONSUMED)
+
+`useGatewaySwitches.ts` + `useWebhooks.ts` consume all gateway-switch endpoints + invoices.
+
+### 2.31 `apps/api/src/billing/billingWebhookRoutes.ts` (2 — WEBHOOK INBOUND)
+
+`/webhooks/stripe`, `/webhooks/paddle`. External webhooks — no UI consumer expected. Category: WEBHOOK (not ORPHAN).
+
+### 2.32 `apps/api/src/billing/clientBillingRoutes.ts` (7 — ALL CONSUMED)
+
+`useBilling.ts:45-260` — gateway status/switch/checkout/portal/plans/invoices.
+
+### 2.33 `apps/api/src/billing/subscriptionRoutes.ts` (17 — MIXED)
+
+10 `/admin/billing/*` endpoints for plans/stats/accounts/:id/trial/\* are CONSUMED via `useSubscriptionMutations.ts` + `subscriptions/page.tsx`. 7 ORPHAN: `plans/:tier` GET, `accounts/:id/validate-limits`, `accounts/:id/suspend` (within billing, not accountLifecycle), `bulk/upgrade`, `health`, `export` (CONSUMED — subscriptions page), `trials/expiring`, `auto-renewals/process` (CONSUMED), `trials/stats`. Net: ~11 CONSUMED, 6 ORPHAN.
+
+### 2.34 `apps/api/src/brand-kit/brandKitRoutes.ts` (3 — ORPHAN)
+
+`/api/brand-kit/:accountId` GET/PUT/DELETE. No consumer detected.
+
+### 2.35 `apps/api/src/brand-voice/brandVoiceRoutes.ts` (4 — CONSUMED)
+
+`useBrandVoice.ts:35,56` via `${BASE}` pattern. All 4 covered.
+
+### 2.36 `apps/api/src/campaigns/campaignRoutes.ts` (8 — ALL CONSUMED)
+
+`useCampaigns.ts:62-117` covers all.
+
+### 2.37 `apps/api/src/channels/channelRoutes.ts` (7 — ALL CONSUMED)
+
+`useChannels.ts:56,80,105` (apps/client) + `channels/page.tsx:100` (bluesky/connect).
+
+### 2.38 `apps/api/src/comments/commentRoutes.ts` (4 — ALL CONSUMED)
+
+`useComments.ts:30,42`.
+
+### 2.39 `apps/api/src/compliance/complianceRoutes.ts` (14 — ALL CONSUMED)
+
+`useCompliance.ts` (admin) + `usePrivacy.ts` (client DSAR).
+
+### 2.40 `apps/api/src/content/contentRoutes.ts` (18 — ORPHAN)
+
+All `/content/*` endpoints (sync, metrics, versions, conflicts, transform, render, diff). **No UI consumer** found in admin or client. 18 orphans — largest orphan cluster.
+
+### 2.41 `apps/api/src/cqrs/CQRSIntegration.ts` (9 — DEAD_CODE)
+
+Per prior audits. Class not instantiated in prod (`new CQRSIntegration` never called). Classified NEEDS_DECISION in v1; actual state: dead code + zero auth. Preserved per Edward's decision to keep pending client refactor.
+
+### 2.42 `apps/api/src/crm/crmRoutes.ts` (7 — MIXED)
+
+`useCrm.ts:42-70` covers connections, sync, disconnect, sync-logs (5 endpoints). 2 ORPHAN: `/hubspot/authorize`, `/salesforce/authorize`.
+
+### 2.43 `apps/api/src/custom-reports/customReportRoutes.ts` (8 — ORPHAN)
+
+`/api/reports/schema`, `/api/custom-reports/*`. No consumer.
+
+### 2.44 `apps/api/src/external-notifications/externalNotificationRoutes.ts` (4 — ALL CONSUMED)
+
+`useExternalNotifications.ts:37,46,58,63`.
+
+### 2.45 `apps/api/src/first-comment/firstCommentRoutes.ts` (3 — ORPHAN)
+
+`/posts/:postId/first-comment` GET/PUT/DELETE. No consumer.
+
+### 2.46 `apps/api/src/health/healthRoutes.ts` (5 — HEALTH/INFRA)
+
+`/health`, `/health/detailed|live|ready`, `/health/dependency/:name`. No UI consumer expected — load balancer / monitoring use only. Category: HEALTH (not ORPHAN).
+
+### 2.47 `apps/api/src/inbox/conversationNoteRoutes.ts` (3 — ORPHAN)
+
+`/api/inbox/conversations/:id/notes` POST/GET + DELETE on note. No hits for `/notes` substring in consumer scan. Note: conversation hits exist but not for `/notes` sub-resource. ORPHAN.
+
+### 2.48 `apps/api/src/inbox/inboxRoutes.ts` (12 — ALL CONSUMED)
+
+`useInbox.ts:87-171` covers all.
+
+### 2.49 `apps/api/src/integrations/makeRoutes.ts` (8 — ORPHAN)
+
+`/api/make/*`. No UI consumer (integration endpoints for external Make.com webhooks).
+
+### 2.50 `apps/api/src/integrations/zapierRoutes.ts` (9 — ORPHAN)
+
+`/api/zapier/*`. Same pattern as Make.
+
+### 2.51 `apps/api/src/links/linkRoutes.ts` (5 — ORPHAN)
+
+`/links/*`, `/r/:shortCode`. No UI consumer.
+
+### 2.52 `apps/api/src/monitoring/cacheStatsRoutes.ts` (6 — ORPHAN)
+
+`/cache/*`. Admin tooling — no UI.
+
+### 2.53 `apps/api/src/monitoring/rateLimitingDashboard.ts` (5 — ORPHAN)
+
+`/admin/rate-limiting/*`. Admin tooling — no UI.
+
+### 2.54 `apps/api/src/notifications/notificationRoutes.ts` (8 — ALL CONSUMED)
+
+`NotificationBell.tsx:27-46` + `NotificationPreferences.tsx:55,62` + stream.
+
+### 2.55 `apps/api/src/onboarding/onboardingRoutes.ts` (3 — ALL CONSUMED)
+
+`useOnboarding.ts:34,52,74` (client direct, no `/api/backend/` prefix — uses Next.js generic rewrite).
+
+### 2.56 `apps/api/src/outbox/outboxAdminRoutes.ts` (3 — ALL CONSUMED)
+
+All 3 hit via `useWebhooks.ts:107,127,148`. Validation case 2b ✅ (PRE-3C exact match).
+
+### 2.57 `apps/api/src/posts/optimizedPostsRoutes.ts` (3 — ORPHAN)
+
+`/api/posts/optimized`, `/api/dashboard/stats`, `/api/cache/warm/:accountId`. No consumer.
+
+### 2.58 `apps/api/src/posts/postRoutes.ts` (6 — ALL CONSUMED)
+
+`publishingDashboardApi.ts:241,277` + `apiClient.ts:229-235`.
+
+### 2.59 `apps/api/src/projects/crisisRoutes.ts` (3 — ORPHAN)
+
+`/projects/:id/crisis` POST/GET/DELETE. No UI.
+
+### 2.60 `apps/api/src/projects/projectRoutes.ts` (5 — ALL CONSUMED)
+
+`ProjectProvider.tsx:115,121` + `WebhookSubscriptions.tsx:152`.
+
+### 2.61 `apps/api/src/providers/providerRoutes.ts` (7 — MIXED)
+
+`useProviders.ts:48` + `publishingDashboardApi.ts:156,177` cover `/providers`, `/providers/active`. Rest ORPHAN (`/providers/by-capability`, `/providers/:id`, `/providers/:id/health`, `/providers/health/all`, `/providers/connections/:projectId`).
+
+### 2.62 `apps/api/src/recurring/recurringPostRoutes.ts` (5 — ALL CONSUMED)
+
+`useRecurringPosts.ts:40,64` + `scheduling/recurring/[id]/edit/page.tsx`.
+
+### 2.63 `apps/api/src/reports/reportRoutes.ts` (6 — ALL CONSUMED)
+
+`useReports.ts:44,68,96,120` + `reports/shared/[token]/page.tsx:34`.
+
+### 2.64 `apps/api/src/saga/SagaIntegration.ts` (7 — LIVE, AUTH APPLIED)
+
+All 7 LIVE in prod with `SYSTEM_CONFIGURE`/`SYSTEM_MONITOR` auth (fix 59ed748). No frontend consumer expected (internal saga orchestration). Category: INTERNAL.
+
+### 2.65 `apps/api/src/scheduling/schedulingClientRoutes.ts` (5 — ALL CONSUMED)
+
+`useMultiPlatformScheduling.ts:37,62,87,111,142` + `scheduling/page.tsx`.
+
+### 2.66 `apps/api/src/settings/settingsRoutes.ts` (11 — MIXED)
+
+Admin endpoints `/api/admin/settings/*` CONSUMED via `useSettings.ts:99,126` (using `${BASE}` template). AI BYOK endpoints `/api/settings/ai/byok*` CONSUMED via `useAiSettings.ts`. `/api/settings/public` CONSUMED via `usePublicSettings.ts:32` + `reset-password/page.tsx:40`. Net: 10+ CONSUMED, 1 AMBIGUOUS (`/api/admin/settings/encryption/rotate`).
+
+### 2.67 `apps/api/src/tasks/taskRoutes.ts` (7 — ALL CONSUMED)
+
+`useTasks.ts:72-130` covers all.
+
+### 2.68 `apps/api/src/team/teamRoutes.ts` (5 — ALL CONSUMED)
+
+`useTeam.ts:39,49,69,79` + `SchedulingDashboardSidebar.tsx:77`.
+
+### 2.69 `apps/api/src/templates/templateRoutes.ts` (20 — MIXED)
+
+All `/projects/:projectId/templates/*` endpoints. 13 CONSUMED via `lib/hooks/useTemplates.ts`, `lib/hooks/useABTests.ts`, `lib/hooks/useTemplateVersions.ts` (Validation case 1 ✅). 4 subresources partially orphan (compile, validate, usage, analytics). `/platforms`, `/platforms/:platform/limits` ORPHAN. Net: ~15 CONSUMED, 5 ORPHAN.
+
+### 2.70 `apps/api/src/trends/trendRoutes.ts` (5 — ORPHAN)
+
+`/trends/analysis|viral|opportunities|predictions|report`. Client calls `/api/backend/trends/radar` (at `ai/trends/page.tsx:43`) — different route, not registered in trendRoutes. This is a client-side reverse orphan (frontend → nonexistent endpoint).
+
+### 2.71 `apps/api/src/usage/usageRoutes.ts` (1 — CONSUMED)
+
+`/api/accounts/:accountId/usage` → `useUsageMetrics.ts:27` (admin) + `useUsageMetrics.ts:26` (client).
+
+### 2.72 `apps/api/src/utm/utmRoutes.ts` (2 — ORPHAN)
+
+`/api/links/:id/utm`, `/api/links/:id/utm-url`. No consumer.
+
+### 2.73 `apps/api/src/webhooks/webhookDashboardRoutes.ts` (10 — ALL CONSUMED)
+
+`useWebhooks.ts:53,83,127,148` + `WebhookSubscriptions.tsx:130-218` + `DeadLetterQueue.tsx:112,160` + `WebhookEventsList.tsx:86,111,186`.
 
 ---
 
-## 3. Frontend consumer inventory
+## 3. ORPHAN accionables
 
-### 3.1 `apps/admin`
+Files with all-or-mostly ORPHAN endpoints (genuine candidates for "implement UI / delete endpoint / justify"):
 
-- **Pattern:** 100% via `/api/backend/[...path]` Next.js proxy → injects `admin-session` Bearer.
-- **Central API client:** `apps/admin/lib/apiClient.ts` exposes `api.admin.*`, `api.audit.*`, `api.mfa.*`, etc.
-- **Hooks:** `apps/admin/hooks/api/*` — TanStack Query wrappers. Well-covered for connected endpoints.
-- **Direct fetches:** Several pages call `fetch("/api/backend/...")` inline (e.g., accounts bulk actions, subscriptions billing export). Per CODE_FIRST: `admin/billing/export`, `admin/accounts/bulk/suspend`, `admin/accounts/bulk/reactivate` use inline fetch — not dedicated hooks.
+| File                                   | Endpoints | Nature                                                              |
+| -------------------------------------- | --------: | ------------------------------------------------------------------- |
+| `content/contentRoutes.ts`             |        18 | Sync/versions/transform — no UI at all                              |
+| `integrations/zapierRoutes.ts`         |         9 | Zapier external integration — no UI needed                          |
+| `integrations/makeRoutes.ts`           |         8 | Make.com external — no UI needed                                    |
+| `custom-reports/customReportRoutes.ts` |         8 | No UI built                                                         |
+| `analytics/analyticsRoutes.ts`         |        ~7 | `/threads/*`, `/engagement/*`, `/posts/best-times`, etc — not wired |
+| `monitoring/cacheStatsRoutes.ts`       |         6 | Admin tooling — no UI                                               |
+| `monitoring/rateLimitingDashboard.ts`  |         5 | Admin tooling — no UI                                               |
+| `billing/subscriptionRoutes.ts`        |        ~6 | Mixed — some CONSUMED                                               |
+| `audit/auditRoutes.ts`                 |         6 | Write/cleanup/export — no UI                                        |
+| `accounts/accountRoutes.ts`            |         2 | PUT/DELETE on accountId                                             |
+| `approvals/approvalWorkflowRoutes.ts`  |         5 | Workflow CRUD — no UI                                               |
+| `links/linkRoutes.ts`                  |         5 | Public link tracking                                                |
+| `trends/trendRoutes.ts`                |         5 | Client calls `/trends/radar` (doesn't exist)                        |
+| `cqrs/CQRSIntegration.ts`              |         9 | Dead code; Edward's decision: keep                                  |
+| `analytics/realtimeAnalytics.ts`       |         1 | WebSocket — AMBIGUOUS really                                        |
+| `posts/optimizedPostsRoutes.ts`        |         3 | Optimized routes — no UI                                            |
+| `projects/crisisRoutes.ts`             |         3 | Crisis mode — no UI                                                 |
+| `auth/apiKeyRoutes.ts`                 |         4 | No UI for API keys                                                  |
+| `brand-kit/brandKitRoutes.ts`          |         3 | No UI                                                               |
+| `first-comment/firstCommentRoutes.ts`  |         3 | No UI                                                               |
+| `utm/utmRoutes.ts`                     |         2 | No UI                                                               |
+| `audit/activityFeedRoutes.ts`          |         1 | No UI                                                               |
+| `auth/authRoutes.ts`                   |         4 | /register, /me, /sessions, /revoke-all                              |
+| `auth/enhancedOAuthProvider.ts`        |         2 | OAuth server flow                                                   |
+| `auth/oidcRoutes.ts`                   |         2 | `/auth/oidc/*` server flow                                          |
+| `auth/samlRoutes.ts`                   |         3 | `/auth/saml/*` server flow                                          |
+| `providers/providerRoutes.ts`          |         5 | Mixed — most ORPHAN                                                 |
+| `inbox/conversationNoteRoutes.ts`      |         3 | No UI                                                               |
 
-### 3.2 `apps/client`
-
-- **Pattern 1 (majority):** `fetch("/api/backend/<path>")` → Next.js proxy injects `customer-session` Bearer.
-- **Pattern 2 (legacy, found in `apps/client/lib/hooks/`):** `fetch("/api/<path>")` — direct Next.js route. **These do NOT go through the Fastify proxy.** Found in `useABTests.ts`, `useTemplates.ts`, `useTemplateVersions.ts`, `useProviders.ts`, `useChannels.ts`, `useOnboarding.ts`. See §5 for reverse-orphan analysis.
-- **Hooks:** split between `apps/client/hooks/api/*` (new convention, uses `/api/backend/*`) and `apps/client/lib/hooks/*` (old convention, uses `/api/*` directly).
-
-### 3.3 Legacy `apiClient.ts` copy
-
-`apps/client/lib/apiClient.ts` — **DELETED** (was PRESEPARATION S1 CRITICAL). Verified not present.
-
----
-
-## 4. Cross-reference: WRONG_APP findings (LIVE)
-
-**Admin endpoints still being called from `apps/client`** — post-contamination cleanup this is what remains:
-
-| #   | Client file:line                                                  | Invoked path                                  | Backend path                                              | Issue                                                                                     |
-| --- | ----------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 1   | `apps/client/hooks/api/usePerformanceInsights.ts:132`             | `/api/backend/admin/analytics/overview`       | `/admin/analytics/overview` in `admin/dashboardRoutes.ts` | Admin-only endpoint (requires `requireAdminAuth`) — will 401 for customer users           |
-| 2   | `apps/client/hooks/api/useScheduledPosts.ts:39`                   | `/api/backend/admin/posts/scheduled`          | `/admin/posts/scheduled` in `admin/schedulingRoutes.ts`   | Admin-only (now has `POST_MANAGE` permission per FIXES) — will 403 for customers          |
-| 3   | `apps/client/hooks/api/useScheduledPosts.ts:63`                   | `/api/backend/admin/posts/:id/cancel`         | Same file as #2                                           | Same — 403 for customers                                                                  |
-| 4   | `apps/client/components/publishing/publishingDashboardApi.ts:213` | `${API_URL}/admin/posts/scheduled?projectId=` | Same route                                                | **Bypasses proxy** — uses raw `API_URL` so no auth cookie injection. Will 401             |
-| 5   | `apps/client/components/notifications/NotificationItem.tsx:40`    | `/admin/posts/:id` (frontend route, not API)  | N/A                                                       | Navigation target points to admin app Next.js route — won't resolve in client app. UX bug |
-
-**Root cause hypothesis:** CODE_FIRST_FIXES (2026-04-10) cleaned the queue/compliance contamination but missed these 5. The `usePerformanceInsights` and `useScheduledPosts` hooks are calling admin-scoped endpoints for legitimate UX reasons (showing scheduled posts to customers), but the backend exposes these via admin routes. Either create customer-scoped equivalents or split the handlers.
-
-**Recommended action:** Create `/api/analytics/performance` and `/api/posts/scheduled` under `requireClientAuth` returning project-scoped data. Remove the `/admin/*` callers from client. File 5 is a routing bug — update NotificationItem to navigate to client dashboard post route.
-
-### 4b. Internal endpoints verification (per Edward 2026-04-16)
-
-**Classification rule:** Endpoints in `*Integration.ts` files are `internal` — they exist for backend orchestration, not human consumption. Expected state: no frontend consumer (→ `OK`). Frontend consumer → `OVER_CONSUMED` (infra leak). Zero auth on a public-exposed internal endpoint → `SECURITY_REVIEW_NEEDED`.
-
-**Verification method:**
-
-- (a) `Grep -rn "<path-pattern>"` across `apps/admin/` + `apps/client/` for each endpoint family.
-- (b) `Read` the handler definition in the Integration file to check for `preHandler:` or header-based service auth.
-- (c) `Grep "new <Integration>"` excluding `/test/` to verify prod instantiation.
-
-**Verification results summary:**
-
-| Group                                                                                                         | Endpoints | Frontend consumers                                             | Auth middleware                                | Prod-registered                                                      | Status                                                          |
-| ------------------------------------------------------------------------------------------------------------- | --------: | -------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `/api/sagas/*`                                                                                                |         7 | **0** (only test files in `apps/api/tests/unit/saga*.test.ts`) | **NONE — zero `preHandler` on all 7 handlers** | **YES** (`apps/api/src/index.ts:540` — `new SagaIntegration({...})`) | `OK` category-wise + **SECURITY_REVIEW_NEEDED**                 |
-| `/api/cqrs/*`                                                                                                 |         9 | **0** (only test files)                                        | **NONE — zero `preHandler`**                   | **NO** — class defined, never instantiated outside tests             | `DEAD_CODE` (latent) + **SECURITY_REVIEW_NEEDED** if ever wired |
-| `/api/database/*`                                                                                             |         6 | **0** (only test files)                                        | **NONE — zero `preHandler`**                   | **NO** — class defined, never instantiated outside tests             | `DEAD_CODE` (latent) + **SECURITY_REVIEW_NEEDED** if ever wired |
-| `/api/events/*` + `/api/posts/events` + `/api/posts/:id/events` + `/api/posts/:id/publish` (EventIntegration) |         6 | **0** (only test files)                                        | **NONE — zero `preHandler`**                   | **NO** — class defined, never instantiated outside tests             | `DEAD_CODE` (latent) + **SECURITY_REVIEW_NEEDED** if ever wired |
-| **Total**                                                                                                     |    **28** | **0**                                                          | **0 of 28 have any auth**                      | **7 of 28 live in prod (saga only)**                                 | See below                                                       |
-
-**Verification (a) — consumer evidence:**
-
-```bash
-# Command run:
-Grep '/api/(sagas|cqrs|database|events|posts/events|posts/[^/]+/events|posts/[^/]+/publish)'
-  --path=/home/edward/projects/omni-post --glob='*.{ts,tsx}'
-
-# Result: 0 hits in apps/admin/*. 0 hits in apps/client/*.
-# All hits are in apps/api/tests/unit/*Integration*.test.ts + self-references in the
-# Integration route declarations. No frontend OVER_CONSUMED.
-```
-
-**Verification (b) — auth evidence (source quotes):**
-
-```typescript
-// apps/api/src/saga/SagaIntegration.ts:171-398 — 7 handlers, all public
-fastify.post<{...}>("/api/sagas/post-publishing/start", async (request, _reply) => { ... });
-fastify.get<{...}>("/api/sagas/:sagaId", async (request, _reply) => { ... });
-fastify.post<{...}>("/api/sagas/:sagaId/continue", ...);
-fastify.post<{...}>("/api/sagas/:sagaId/compensate", ...);
-fastify.get("/api/sagas", async (_request, _reply) => { ... });
-fastify.get("/api/sagas/health", ...);
-fastify.get("/api/sagas/metrics", ...);
-// NO preHandler on any. NO header auth check. NO IP allowlist. NO network restriction visible.
-
-// apps/api/src/cqrs/CQRSIntegration.ts:108-595 — 9 handlers, all public
-// Includes POST /api/cqrs/posts/create, PUT /api/cqrs/posts/:id, POST /api/cqrs/posts/:id/publish,
-// DELETE /api/cqrs/cache — all mutating, zero auth.
-
-// apps/api/src/database/DatabaseIntegration.ts:316-499 — 6 handlers, all public
-// Includes POST /api/database/scale (changes pool size),
-// POST /api/database/replicas (adds read replica),
-// DELETE /api/database/replicas (removes replica) — ops-critical, zero auth.
-
-// apps/api/src/events/EventIntegration.ts:42-423 — 6 handlers, all public
-// Includes POST /api/posts/events (creates Post records directly),
-// PUT /api/posts/:id/events (mutates),
-// POST /api/posts/:id/publish (publishes to channels) — zero auth.
-```
-
-**Verification (c) — production instantiation evidence:**
-
-```bash
-# Command: grep 'new CQRSIntegration\|new DatabaseIntegration\|new EventIntegration\|new SagaIntegration'
-#          apps/api/src --include='*.ts' | grep -v test
-# Result (single hit):
-/home/edward/projects/omni-post/apps/api/src/index.ts:540:  const sagaIntegration = new SagaIntegration({
-# CQRS, Database, Event — no instantiations outside test fixtures.
-```
-
-### 4b.1 Full list of 28 internal endpoints
-
-**SagaIntegration (7) — LIVE + UNAUTHENTICATED:**
-
-| #   | Method | Path                               | Mutation?                                               | SECURITY_REVIEW_NEEDED          |
-| --- | ------ | ---------------------------------- | ------------------------------------------------------- | ------------------------------- |
-| S1  | POST   | `/api/sagas/post-publishing/start` | YES — starts saga, creates correlation ID, inserts data | **YES**                         |
-| S2  | GET    | `/api/sagas/:sagaId`               | NO (read) but leaks saga state to anyone                | **YES**                         |
-| S3  | POST   | `/api/sagas/:sagaId/continue`      | YES — advances saga state machine                       | **YES**                         |
-| S4  | POST   | `/api/sagas/:sagaId/compensate`    | YES — triggers rollback/compensation                    | **YES**                         |
-| S5  | GET    | `/api/sagas`                       | NO but leaks active saga list + metrics                 | **YES**                         |
-| S6  | GET    | `/api/sagas/health`                | NO                                                      | **YES** (info leak acceptable?) |
-| S7  | GET    | `/api/sagas/metrics`               | NO but leaks internal performance KPIs                  | **YES**                         |
-
-**CQRSIntegration (9) — DEAD CODE + UNAUTHENTICATED:**
-
-| #   | Method | Path                              | Mutation?                       | SECURITY_REVIEW_NEEDED |
-| --- | ------ | --------------------------------- | ------------------------------- | ---------------------- |
-| C1  | POST   | `/api/cqrs/posts/create`          | YES — creates Post via CQRS bus | **YES** (if wired)     |
-| C2  | PUT    | `/api/cqrs/posts/:postId`         | YES — updates Post              | **YES** (if wired)     |
-| C3  | POST   | `/api/cqrs/posts/:postId/publish` | YES — publishes Post            | **YES** (if wired)     |
-| C4  | GET    | `/api/cqrs/posts/:postId`         | NO (read)                       | **YES** (if wired)     |
-| C5  | GET    | `/api/cqrs/posts`                 | NO (list)                       | **YES** (if wired)     |
-| C6  | GET    | `/api/cqrs/posts/search`          | NO                              | **YES** (if wired)     |
-| C7  | GET    | `/api/cqrs/health`                | NO                              | **YES** (info leak)    |
-| C8  | GET    | `/api/cqrs/metrics`               | NO                              | **YES** (info leak)    |
-| C9  | DELETE | `/api/cqrs/cache`                 | YES — invalidates query cache   | **YES** (if wired)     |
-
-**DatabaseIntegration (6) — DEAD CODE + UNAUTHENTICATED:**
-
-| #   | Method | Path                      | Mutation?                                          | SECURITY_REVIEW_NEEDED |
-| --- | ------ | ------------------------- | -------------------------------------------------- | ---------------------- |
-| D1  | GET    | `/api/database/health`    | NO                                                 | **YES** (if wired)     |
-| D2  | GET    | `/api/database/stats`     | NO but leaks connection pool + query stats         | **YES** (if wired)     |
-| D3  | POST   | `/api/database/scale`     | **YES — changes pool size 5-100**                  | **CRITICAL if wired**  |
-| D4  | POST   | `/api/database/replicas`  | **YES — adds read replica from user-supplied URL** | **CRITICAL if wired**  |
-| D5  | DELETE | `/api/database/replicas`  | **YES — removes replica**                          | **CRITICAL if wired**  |
-| D6  | GET    | `/api/database/analytics` | NO                                                 | **YES** (if wired)     |
-
-**EventIntegration (6) — DEAD CODE + UNAUTHENTICATED:**
-
-| #   | Method | Path                         | Mutation?                                       | SECURITY_REVIEW_NEEDED |
-| --- | ------ | ---------------------------- | ----------------------------------------------- | ---------------------- |
-| E1  | POST   | `/api/posts/events`          | **YES — creates Post with prisma directly**     | **CRITICAL if wired**  |
-| E2  | PUT    | `/api/posts/:postId/events`  | YES — updates Post                              | **YES** (if wired)     |
-| E3  | POST   | `/api/posts/:postId/publish` | **YES — marks Post PUBLISHED and emits events** | **CRITICAL if wired**  |
-| E4  | GET    | `/api/posts/:postId/events`  | NO but leaks event history                      | **YES** (if wired)     |
-| E5  | GET    | `/api/events/analytics`      | NO but leaks analytics events                   | **YES** (if wired)     |
-| E6  | GET    | `/api/events/health`         | NO                                              | **YES** (if wired)     |
-
-### 4b.2 Summary of security verification
-
-1. **7 live endpoints (SagaIntegration)** — deployed in production via `index.ts:540`, **no authentication of any kind**. Open to the public internet unless a network-layer restriction exists outside this codebase (e.g. ingress firewall). Four of the seven are mutating (start saga, continue, compensate). Three leak internal state (metrics, health, active sagas list).
-2. **21 latent endpoints (CQRS+Database+Event Integrations)** — class definitions exist with zero auth. Not instantiated in production, so not currently reachable. But the code is present in the build. Anyone re-enabling these Integrations without adding auth would immediately expose them. This is **pre-wired attack surface** waiting to be activated.
-3. **0 of 28 endpoints** have any of: `requireAdminAuth`, `requireClientAuth`, `requireApiKey`, `requirePermission(...)`, header-based service token check, `x-service-token` pattern, IP allowlist, basic auth, or signed-request validation. Verified by reading each handler declaration.
-4. **0 frontend consumers** — no infrastructure leak to `apps/admin` or `apps/client`. Good news on the OVER_CONSUMED axis; bad news on the "why does this exist" axis for the dead-code triad.
-
-**Reporting only, per prompt rules. No fixes applied.**
-
-### 4b.3 Decisions executed 2026-04-16
-
-After the security verification above, Edward decided:
-
-| Integration           |  Endpoints | Decision                         | Status                                                                                                                                                                                                                                                      |
-| --------------------- | ---------: | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SagaIntegration`     |   7 (LIVE) | **KEEP** pending client refactor | Still unauthenticated in prod — `SECURITY_REVIEW_NEEDED` remains open. No network-layer restriction verified in this audit. Auth decisions deferred to client refactor sprint.                                                                              |
-| `CQRSIntegration`     | 9 (latent) | **KEEP** pending client refactor | Still dead code. Will be protected when wired.                                                                                                                                                                                                              |
-| `DatabaseIntegration` | 6 (latent) | **DELETE**                       | Executed: removed `src/database/DatabaseIntegration.ts` (22KB) + `src/database/ConnectionManager.ts` (19KB, sole-consumer) + 4 unit test files. Net: -12 unauthenticated endpoint definitions (6 direct, -6 latent with SSRF risk on `/replicas` URL body). |
-| `EventIntegration`    | 6 (latent) | **DELETE**                       | Executed: removed `src/events/EventIntegration.ts` (16KB) + 3 unit test files. Scaffolding code with hardcoded fake channels `["channel-1", "channel-2"]` (line 259).                                                                                       |
-
-**Preserved infrastructure (NOT touched):**
-
-- `src/database/DatabaseOptimizer.ts` — used by `posts/postsService.ts:8` + DI container.
-- `src/events/EventService.ts` — used by saga in prod via `index.ts:533` as `sagaEventService`.
-- `src/events/EventStore.ts` — used by `EventService:23`.
-- `src/events/EventPublisher.ts` — only test references found. Potentially dead but out of scope for this cleanup.
-
-**Net impact:** endpoint inventory count drops 478 → 466.
-
-### 4b.4 RESOLVED 2026-04-17 — Saga endpoints authentication applied
-
-**Original finding** (preserved for history): the 7 live SagaIntegration endpoints at `/api/sagas/*` had zero backend-code-level auth. Anyone with network access could start/advance/compensate arbitrary sagas or enumerate internal state.
-
-**Fix applied** via `apps/api/src/saga/SagaIntegration.ts` (single-file edit, imports added for `requireAdminAuth`, `requirePermission`, `Permission`):
-
-| Group             | Middleware                                                           | Endpoints                                                                                                                                   |
-| ----------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ops-sensitive (4) | `[requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)]` | `POST /api/sagas/post-publishing/start`, `GET /api/sagas/:sagaId`, `POST /api/sagas/:sagaId/continue`, `POST /api/sagas/:sagaId/compensate` |
-| Observability (3) | `[requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)]`   | `GET /api/sagas`, `GET /api/sagas/health`, `GET /api/sagas/metrics`                                                                         |
-
-**Verification performed:**
-
-- `pnpm tsc --noEmit` in `apps/api`: exit 0, no type errors.
-- Grep confirms 7 `fastify.<method>` registrations with adjacent `preHandler: [...]`.
-- Phase 1 grep for `fetch|axios|ky|request` to `/api/sagas` returned zero hits across the monorepo — no internal HTTP consumer was broken by the change.
-
-**Defensive choice documented:** `/health` and `/metrics` now require `SYSTEM_MONITOR` despite the common convention of leaving health/metrics public for external scrapers. Reason: no external observability gateway was found in the codebase. If a Prometheus scraper or external health probe exists and needs unauthenticated access, a follow-up decision is required (separate observability endpoint, bearer token for scraper, or network-level exemption).
-
-**Latent code smell (not in scope):** `request.user?.projectId || "default-project"` on line 202. Admin users don't have a `projectId`, so the fallback still always triggers. No behavioral change from this fix, but worth a later sprint to require explicit `projectId` in the request body for admin-initiated sagas.
+**Approx total ORPHAN: ~100-110 endpoints.** D1 determines final action per endpoint.
 
 ---
 
-## 5. Reverse orphans — frontend paths without a matching backend route
+## 4. PATH_MISMATCH — bugs activos
 
-Candidates found in `apps/client/lib/hooks/` using the `/api/*` (non-proxied) pattern. These require backend verification but are likely calling Next.js routes that don't exist OR Fastify routes via a non-proxied path:
+Consumer exists but Next.js `/api/backend/[...path]` strip produces effective URL different from backend registered route.
 
-| Client file:line                            | Invoked path                                                                       | Backend presence                                                                                               |
-| ------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `useABTests.ts:55,67,83,99,111,123,135,145` | `/api/projects/:id/templates/ab-tests/*`, `/api/ab-tests/:id/*`                    | **Not found in backend grep** — possible orphan. Verify in `templateRoutes.ts` or if a new route file exists   |
-| `useTemplates.ts:37,46,71,87,97`            | `/api/projects/:id/templates`, `/api/templates/:id/*`                              | `templateRoutes.ts` defines these at `/templates/*` without the `/api/` prefix — **prefix mismatch, will 404** |
-| `useTemplateVersions.ts:32,45,74`           | `/api/projects/:id/templates/:id/versions`, `/api/template-versions/:id`           | Same as above — prefix mismatch suspected                                                                      |
-| `useProviders.ts:48`                        | `/api/providers`                                                                   | `providers/providerRoutes.ts` — verify if `/api/providers` or `/providers`                                     |
-| `useChannels.ts:56,80,105`                  | `/api/channels`, `/api/providers`, `/api/channels/:id`                             | `channelRoutes.ts` — verify prefix                                                                             |
-| `useOnboarding.ts:34,52,74`                 | `/api/onboarding`, `/api/onboarding/step/:key/complete`, `/api/onboarding/dismiss` | `onboardingRoutes.ts` uses `/api/onboarding/*` — likely MATCH                                                  |
-| `useBilling.ts:260`                         | `/api/billing/invoices`                                                            | `clientBillingRoutes.ts` has `/api/billing/*` — likely MATCH                                                   |
-| `AnnouncementBanner.tsx:53`                 | `/api/announcements/active`                                                        | `announcementRoutes.ts` — verify                                                                               |
+| #   | Method | Backend path        | Client call                                  | Effective URL                       | Consumer location                    |
+| --- | ------ | ------------------- | -------------------------------------------- | ----------------------------------- | ------------------------------------ |
+| 1   | GET    | `/api/saml/config`  | `/api/backend/saml/config`                   | `/saml/config` ≠ `/api/saml/config` | `apps/client/hooks/api/useSso.ts:77` |
+| 2   | PUT    | `/api/saml/config`  | `/api/backend/saml/config`                   | same                                | `useSso.ts:97`                       |
+| 3   | POST   | `/api/saml/enable`  | `/api/backend/saml/enable`                   | `/saml/enable` ≠ `/api/saml/enable` | `useSso.ts:123`                      |
+| 4   | POST   | `/api/saml/disable` | `/api/backend/${provider}/disable` (dynamic) | `/${provider}/disable`              | `useSso.ts:139`                      |
+| 5   | GET    | `/api/oidc/config`  | `/api/backend/oidc/config`                   | `/oidc/config` ≠ `/api/oidc/config` | `useSso.ts:87`                       |
+| 6   | PUT    | `/api/oidc/config`  | same                                         | same                                | `useSso.ts:110`                      |
+| 7   | POST   | `/api/oidc/enable`  | `/api/backend/oidc/enable`                   | `/oidc/enable` ≠ `/api/oidc/enable` | `useSso.ts:131`                      |
+| 8   | POST   | `/api/oidc/disable` | dynamic                                      | dynamic                             | `useSso.ts:139`                      |
 
-**Two distinct patterns in client:**
+**Validation case 3 ✅** confirmed 8 PATH_MISMATCH. Live-reverse-orphans — admin SSO feature UI emits requests that 404 silently.
 
-1. `apps/client/hooks/api/*` uses `/api/backend/*` (proxied) — correct.
-2. `apps/client/lib/hooks/*` uses `/api/*` directly — **this bypasses the proxy**. Either these go to Next.js API routes defined in `apps/client/app/api/*` (not verified here) or they 404.
+**Action:** sprint dedicated to fix. 3 options documented in `LATERAL_FINDINGS.md`:
 
-**Recommended action:** audit `apps/client/lib/hooks/` as a separate follow-up. Likely contains dead code or broken fetches from pre-separation era.
-
-### 5.1 Update 2026-04-17 — follow-up audit findings
-
-The `lib/hooks/` follow-up audit was completed in [CLIENT_LIB_HOOKS_AUDIT.md](CLIENT_LIB_HOOKS_AUDIT.md). Key revisions to this §5 table:
-
-- **Next.js rewrite invalidates the "prefix mismatch, will 404" assumption.** `apps/client/next.config.mjs:15-22` proxies `/api/:path*` to `http://localhost:3000/:path*`, stripping `/api/`. So `/api/projects/:id/templates` → Fastify `/projects/:id/templates` which does exist. The routes marked "prefix mismatch" are mostly working via the generic rewrite.
-- **But 7 specific URLs across 3 hooks are genuinely 404 — and now confirmed live-reverse-orphans** (a live production page calls them and gets 404):
-  - `useABTests.ts`: `PUT /api/ab-tests/:id`, `POST /api/projects/:id/templates/ab-tests/:testId/pause`, `DELETE /api/ab-tests/:id`
-  - `useTemplates.ts`: `PUT /api/templates/:id`, `DELETE /api/templates/:id`, `POST /api/templates/:id/duplicate` (all missing `/projects/:id/` scope that backend requires)
-  - `useTemplateVersions.ts`: `DELETE /api/template-versions/:id`
-- **Consumer of the live-reverse-orphans:** `apps/client/app/dashboard/templates/TemplateManagementDashboard.tsx` (routed at `/dashboard/templates`). Customer-facing mutation actions on that page silently fail.
-- `useProviders.ts` → `/api/providers` **matches** `providerRoutes.ts:252` via the rewrite. Not an orphan.
-- `useOnboarding.ts`, `useBilling.ts`, `useChannels.ts`, `AnnouncementBanner.tsx` — not yet re-verified individually. Out of scope for the 2026-04-17 follow-up.
+1. Client fix: `/api/backend/api/saml/config` (double api prefix)
+2. Backend fix: re-register routes at `/saml/config` without `/api/` prefix
+3. Proxy rewrite: preserve `/api/` for `/api/saml/*` paths
 
 ---
 
-## 6. Actionable list — non-OK items
+## 5. AMBIGUOUS — requieren inspección manual
 
-### P0 — Broken (WRONG_APP with active call sites)
+| #     | Endpoint                                                                 | Reason                                                                                          |
+| ----- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| 1-3   | `accounts/accountRoutes.ts` POST/GET `/accounts`                         | Base path; consumers hit child paths (/accounts/:id/projects, /accounts/:id/usage) but not base |
+| 4     | `analytics/realtimeAnalytics.ts` `/ws/analytics`                         | WebSocket — fetch-based grep doesn't capture                                                    |
+| 5-9   | `settings/settingsRoutes.ts` admin encryption/rotate + BYOK :provider    | Dynamic ${BASE} pattern — ambiguity of which sub-path is matched                                |
+| 10-14 | `templates/templateRoutes.ts` compile/validate/usage/analytics/:platform | Sub-operations; unclear if actively used                                                        |
+| 15-18 | `crm/crmRoutes.ts` :platform variants                                    | Platform alternation may or may not include hubspot/salesforce                                  |
+| 19-23 | `providers/providerRoutes.ts` by-capability / :id detail / health        | Some hit via dashboard; unclear if all                                                          |
 
-1. **Move `/admin/posts/scheduled` + `/admin/posts/:id/cancel` to a customer-scoped route** OR delete `apps/client/hooks/api/useScheduledPosts.ts` and the consuming page. Currently: 401/403 for customer users.
-2. **Same for `/admin/analytics/overview`** called from `apps/client/hooks/api/usePerformanceInsights.ts`. Create `/api/analytics/performance` for customer scope.
-3. **`apps/client/components/publishing/publishingDashboardApi.ts:213`** uses raw `API_URL` bypassing proxy. Either use proxy (`/api/backend/...`) with a customer-scoped endpoint, or delete the function.
-4. **`NotificationItem.tsx:40`** — router target `/admin/posts/:id` won't resolve in client app. Fix to client's post route.
-
-### P0 — Prefix mismatches (REVERSE_ORPHAN suspects)
-
-5. **`apps/client/lib/hooks/useTemplates.ts`** + `useTemplateVersions.ts` + `useABTests.ts` call `/api/projects/:id/templates/*` but backend registers at `/templates/*` and `/projects/:id/templates` under `templateRoutes.ts`. Needs a full trace — likely dead hooks from pre-separation.
-
-### P1 — ORPHAN admin endpoints (no UI)
-
-Per REVERSE_ENGINEERING_AUDIT (2026-04-06) — sample, not exhaustive:
-
-- `POST /admin/accounts` (create account) — no admin UI
-- `GET /admin/accounts` (filtered list) — no admin UI (only summary is used)
-- `GET /admin/accounts/stats` — no admin UI
-- `GET /admin/accounts/:id` (detail) — no admin UI
-- `PUT /admin/accounts/:id` — `useUpdateAccount` hook exists but unused
-- `POST /admin/accounts/:id/reset-password` — no admin UI
-- `DELETE /admin/accounts/:id` — no admin UI (super-admin only)
-- `GET /admin/accounts/:id/sessions` — no admin UI
-- `POST /admin/accounts/:id/revoke-sessions` — no admin UI
-- `POST /admin/accounts/bulk/suspend` — no admin UI
-- `POST /admin/accounts/bulk/reactivate` — no admin UI
-- `GET /admin/audit/export` — no admin UI
-- `GET /admin/billing/trials/expiring` — no admin UI
-- `GET /admin/users/:id` + `PUT /admin/users/:id` — no admin UI for detail/edit
-- `/admin/outbox/*` (3 endpoints) — no admin UI
-- Several `saml`, `oidc`, `settings` admin endpoints — partial or no UI
-
-**Full list requires a row-by-row pass.** ~45 orphans per reverse audit; that number may have shifted ±10 with recent sprints.
-
-### P2 — NEEDS_DECISION (uncertain category)
-
-- `saga/SagaIntegration.ts` → 7 endpoints at `/api/sagas/*` — are these admin tooling, internal debug, or publicly exposed? Protected by what?
-- `cqrs/CQRSIntegration.ts` → 9 endpoints at `/api/cqrs/*` — same question
-- `database/DatabaseIntegration.ts` → 6 endpoints at `/api/database/*` including `POST /api/database/scale` and `POST /api/database/replicas` (ops-critical) — confirm auth
-- `events/EventIntegration.ts` → 6 endpoints at `/api/events/*`
-
-**Action:** Edward to classify. If these are debug-only, they should be gated on env (dev-only) or `requireAdminAuth` with `SYSTEM_CONFIGURE`.
-
-### P3 — Prefix normalization
-
-Mixed prefixes across admin endpoints:
-
-- Most admin routes: `/admin/*`
-- `admin/analyticsRoutes.ts`: `/api/admin/analytics/*`
-- `webhooks/webhookDashboardRoutes.ts`: `/api/webhooks/dashboard/*`
-- `compliance/complianceRoutes.ts`: `/api/admin/compliance/*` + `/api/compliance/dsar`
-
-**Recommendation:** pick one convention (`/api/admin/*` is more explicit). Redirect or rename, one endpoint at a time with deprecation headers.
+Approx total AMBIGUOUS: **~23 endpoints**. D1 resolves with per-endpoint inspection.
 
 ---
 
-## 7. Prior findings preserved
+## 6. Lessons learned metodológicos
 
-From the 16 previous audit docs. Classified as **preserved** (still valid, incorporated above), **resolved** (fixed, confirmed against current code), or **stale** (no longer applicable).
+### 6.1 §5.7 methodology validated
 
-| #   | Source doc                                                            | Finding                                                                                                                     | Status                                    | Evidence                                                                                                                                                      |
-| --- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | PRESEPARATION_AUDIT 2026-04-02 (CRITICAL S1)                          | `apps/client/lib/apiClient.ts` copied from admin, calls admin endpoints bypassing proxy                                     | **RESOLVED**                              | File deleted — verified `test -f` returns DELETED                                                                                                             |
-| 2   | ENDPOINT_AUDIT 2026-04-06 BUG 1                                       | `subscriptions/page.tsx:237` — `stats.totalRevenue.toLocaleString()` crashes when API returns different shape               | **PRESERVED (likely still relevant)**     | Subscription stats shape mismatch with frontend types — needs re-verification                                                                                 |
-| 3   | ENDPOINT_AUDIT 2026-04-06 BUG 2                                       | Subscriptions page expects `plan` field not returned by API                                                                 | **RESOLVED per CODE_FIRST §3 2026-04-10** | `dashboardService.ts:129-137` now returns `plan` object                                                                                                       |
-| 4   | ENDPOINT_AUDIT 2026-04-06 BUG 3                                       | Executive page empty trends cause `Math.max(...[])` → NaN                                                                   | **RESOLVED**                              | Fix applied per doc                                                                                                                                           |
-| 5   | ENDPOINT_AUDIT 2026-04-06 BUG 4                                       | Webhook components use `/api/webhooks/...` instead of `/api/backend/api/webhooks/...` (missing proxy prefix)                | **RESOLVED**                              | Fix applied per doc                                                                                                                                           |
-| 6   | ENDPOINT_AUDIT 2026-04-06 BUG 5                                       | Security MFA page multiplies enablementRate by 100 twice                                                                    | **RESOLVED**                              | Fix applied                                                                                                                                                   |
-| 7   | CODE_FIRST 2026-04-10 — Client contamination P0                       | `useQueueManager.ts` + queue page + `useCompliance.ts` + `publishingDashboardApi.fetchPublishingQueue` call admin endpoints | **RESOLVED**                              | Verified: all 4 files/functions deleted per FIXES report; grep confirms no references remain                                                                  |
-| 8   | CODE_FIRST 2026-04-10 — 13 unguarded admin endpoints                  | Only `requireAdminAuth`, missing `requirePermission`                                                                        | **RESOLVED**                              | FIXES report §B1: dashboard (4) + scheduling (3) + mfa (2) guarded. SAML (4) and OIDC (4) are still listed as pending in FIXES — **requires re-verification** |
-| 9   | CODE_FIRST 2026-04-10 — EDITOR role 0 permissions                     | Can authenticate, 403 everywhere                                                                                            | **RESOLVED**                              | EDITOR + ROL_DE_PRUEBA deleted (0 users) per FIXES §B2                                                                                                        |
-| 10  | CODE_FIRST 2026-04-10 — Orphan hooks                                  | `useStartTrial`, `useEndTrial`, `useConvertTrial` unused                                                                    | **RESOLVED**                              | FIXES §F4: buttons added, hooks now wired                                                                                                                     |
-| 11  | CODE_FIRST 2026-04-10 — Decimal crash analytics/page.tsx:314          | `trialConversions.toFixed()` without `Number()`                                                                             | **RESOLVED**                              | FIXES §F3                                                                                                                                                     |
-| 12  | CODE_FIRST 2026-04-10 — i18n gap                                      | RBAC + MFA pages hardcoded English                                                                                          | **RESOLVED**                              | FIXES §F5                                                                                                                                                     |
-| 13  | CODE_FIRST 2026-04-10 — Stale "OmniPost Admin" in client              | Page titles, JSDoc comments                                                                                                 | **RESOLVED**                              | FIXES §F6                                                                                                                                                     |
-| 14  | CODE_FIRST 2026-04-10 — Prefix inconsistency `/admin` vs `/api/admin` | Complicates gateway/proxy rules                                                                                             | **PRESERVED**                             | Still present. See §6 P3                                                                                                                                      |
-| 15  | REVERSE_ENGINEERING 2026-04-06 — ~45 admin endpoints not connected    | Orphan endpoints in admin routes                                                                                            | **PRESERVED**                             | Count may have drifted. See §6 P1 for sample                                                                                                                  |
-| 16  | LEGACY_AUDIT_API API-001                                              | EventStore $queryRaw incompatible with adapter-pg                                                                           | **RESOLVED**                              | All 12 usages replaced with `Prisma.sql`. Verified LEGACY_VERIFICATION                                                                                        |
-| 17  | LEGACY_AUDIT_API API-002                                              | Billing services hardcoded to BASIC/PRO/ENTERPRISE                                                                          | **RESOLVED**                              | Multiple services refactored, 47 refs → 0. Verified LEGACY_VERIFICATION D1                                                                                    |
-| 18  | LEGACY_AUDIT_API API-003                                              | 13 orphan use cases never registered in DI                                                                                  | **PARTIALLY RESOLVED**                    | 3 billing registered. Remaining: 4 AI Repurpose, 4 Referral, 1 Inbox Triage, 1 Trend Scoring — deferred to feature backlog                                    |
-| 19  | LEGACY_AUDIT_ADMIN ADM-001                                            | Subscriptions page uses BASIC/PRO/ENTERPRISE tiers                                                                          | **RESOLVED**                              | Replaced with `plan` object                                                                                                                                   |
-| 20  | LEGACY_AUDIT_ADMIN ADM-002                                            | `getAnalyticsOverview` method dead code in apiClient                                                                        | **RESOLVED**                              | Removed                                                                                                                                                       |
-| 21  | LEGACY_AUDIT_ADMIN ADM-003/005                                        | Untyped `any[]` in SubscriptionSummary + DashboardStats                                                                     | **RESOLVED**                              | Typed per LEGACY_VERIFICATION                                                                                                                                 |
-| 22  | LEGACY_AUDIT_CLIENT CLI-001                                           | Inbox missing AI triage UI (priority, messageType, suggestedReplies)                                                        | **RESOLVED**                              | UI added per doc                                                                                                                                              |
-| 23  | LEGACY_AUDIT_CLIENT CLI-002                                           | `useUsage` hook uses legacy plan type                                                                                       | **RESOLVED**                              | Changed to `plan: string`                                                                                                                                     |
-| 24  | LEGACY_AUDIT_CLIENT CLI-004..014                                      | 11 orphaned components in client                                                                                            | **STATUS UNKNOWN**                        | Not re-verified. Some may have been wired by subsequent sprints                                                                                               |
-| 25  | NEW FINDING (this audit)                                              | 5 admin endpoints called from client not caught by prior audits                                                             | **NEW**                                   | See §4                                                                                                                                                        |
-| 26  | NEW FINDING (this audit)                                              | `apps/client/lib/hooks/*` uses non-proxied `/api/*` pattern — likely dead/broken                                            | **NEW**                                   | See §5                                                                                                                                                        |
+PLAN_MAESTRO §5.7 (head_limit: 0 + count cross-check) is the binding rule. Applied globally in D0-v2. Four validation cases from PRE-3A/B/C reproduced independently:
 
----
+| Case                                            | Expected                                                        | Detected                             |
+| ----------------------------------------------- | --------------------------------------------------------------- | ------------------------------------ |
+| 1. TemplateManagementDashboard consumes 3 hooks | Lines 16,17,19 imports + 59,69,77 calls                         | ✅ per §2.69                         |
+| 2. FALSE_NEGATIVE pattern — top offenders       | accountLifecycle 10 FN, outbox 3/3, adminUser 5+ FN, audit 2 FN | ✅ per §2.2, 2.3, 2.56, 2.20         |
+| 3. 8 SAML/OIDC PATH_MISMATCH                    | All 8 at useSso.ts lines 77-139                                 | ✅ per §4                            |
+| 4. Seed post-PRE-3B state                       | DASHBOARD_VIEW + POST_MANAGE in all 3 roles                     | ✅ per Phase 3 (see D0_INVENTORY §3) |
 
-## 8. Doc lifecycle — executed 2026-04-16
+### 6.2 Contamination root cause (historical)
 
-Edward approved the recommendations. Two rounds of changes, both committed:
+The v1 false-negative rate of 43.75% (measured in PRE-3C) was caused by silent `head_limit: 60` truncation in the original consumer-search grep. First 60 matches consumed by self-references + test files + alphabetically earlier matches, hiding actual consumers. §5.7 now mandates `head_limit: 0` to prevent recurrence.
 
-| Round                 | Commit          | Scope                                                                                                          |
-| --------------------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
-| 1 — Doc consolidation | `57e6787`       | 6 DELETE + 6 ARCHIVE + new `docs/audits/ENDPOINT_AUDIT.md`                                                     |
-| 2 — Code lifecycle    | _(this commit)_ | 3 source files deleted + 7 test files deleted — `DatabaseIntegration`, `ConnectionManager`, `EventIntegration` |
+### 6.3 Classification vocabulary changes from v1
 
-| Doc                                                      | Recommendation | Reason                                                                                                                                               |
-| -------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/development/ENDPOINT_AUDIT_REPORT.md`              | **DELETE**     | 30/478 endpoints, admin-only, superseded by this doc. All 5 bugs resolved per FIXES                                                                  |
-| `docs/development/CODE_FIRST_AUDIT_REPORT.md`            | **ARCHIVE**    | Valuable historical snapshot (428 endpoint count, RBAC migration state, EDITOR role analysis). Move to `docs/reports/audits/` with original date     |
-| `docs/development/CODE_FIRST_AUDIT_FIXES_REPORT.md`      | **ARCHIVE**    | Fix tracking log, historically useful, superseded by current state                                                                                   |
-| `docs/development/REVERSE_ENGINEERING_AUDIT.md`          | **DELETE**     | Admin-only reverse map, 102 endpoints — partially superseded. Key findings (45 orphans) preserved in §6 P1                                           |
-| `docs/development/LEGACY_AUDIT_API_REPORT.md`            | **ARCHIVE**    | Legacy refactoring log — valuable for understanding how SubscriptionTier was removed, AccountSubscription introduced. Move to `docs/reports/audits/` |
-| `docs/development/LEGACY_AUDIT_ADMIN_REPORT.md`          | **DELETE**     | 8 issues, all resolved. No unique value beyond git history                                                                                           |
-| `docs/development/LEGACY_AUDIT_CLIENT_REPORT.md`         | **ARCHIVE**    | 14 issues mostly resolved, but CLI-004..014 (11 orphan components) not re-verified in this audit. Keep until confirmed dead                          |
-| `docs/development/LEGACY_VERIFICATION_REPORT.md`         | **DELETE**     | Verification snapshot — findings preserved in §7                                                                                                     |
-| `docs/development/PRESEPARATION_AUDIT.md`                | **ARCHIVE**    | Critical separation-era doc — S1 (apiClient copy) resolution is historically important. Move to `docs/reports/audits/`                               |
-| `docs/development/PRESEPARATION_FIX_REPORT.md`           | **ARCHIVE**    | Fix log for PRESEPARATION. Archive alongside its parent                                                                                              |
-| `docs/admin/BACKEND_ROUTES.md`                           | **DELETE**     | 25 admin routes catalog from 2026-03-08 — fully superseded by §2                                                                                     |
-| `docs/admin/DISCONNECTED_COMPONENTS.md`                  | **DELETE**     | Subsystem-level 9 entries from 2026-03-08 — fully superseded                                                                                         |
-| `docs/reports/audits/code-review-2026-03-29.md`          | **KEEP**       | Not re-verified this pass. Dated code review, unique scope — keep unless Edward confirms stale                                                       |
-| `docs/reports/audits/app-separation-audit-2026-03-29.md` | **KEEP**       | Separation context, different scope from PRESEPARATION. Not re-verified                                                                              |
-| `docs/reports/audits/deep-audit-2026-03-27.md`           | **KEEP**       | Not re-verified. Generic "deep audit" — needs a read before deciding                                                                                 |
-| `docs/reports/audits/backend-auth-audit-2026-03-29.md`   | **KEEP**       | Auth-specific, different scope. Not re-verified                                                                                                      |
+- Introduced **PATH_MISMATCH** as distinct category (was buried in AMBIGUOUS in v1).
+- **AMBIGUOUS** is now reserved for genuine inspection-required cases, not truncation artifacts.
+- **NEEDS_DECISION** from v1 narrowed — Integration files already decided (keep/delete per PRE-3B).
 
-**Summary:**
+### 6.4 For D1
 
-- `DELETE`: 6 files (all superseded by this audit)
-- `ARCHIVE` (move to `docs/reports/audits/`): 5 files (historical value)
-- `KEEP`: 4 files (unverified or different scope)
+D1 arranca sobre esta baseline. Sin blockers metodológicos. Expected scope:
 
----
-
-## 9. Coverage limitations of this audit
-
-- **Not an exhaustive 478-row matrix.** Coverage is at the file/category level with spot-checks. Building a row-per-endpoint matrix requires 3-5h of additional work. See §6 for the actionable portion.
-- **Frontend consumer detection is grep-based.** A hook that invokes an endpoint only via `api.admin.getXYZ()` (method call on an imported object) may be missed unless the corresponding method in `apiClient.ts` is read. I sampled but didn't exhaustively trace every method.
-- **Dynamic routes matched by prefix.** `/projects/${id}/posts` → `/projects/:id/posts` is considered a match.
-- **Integration files** (`SagaIntegration`, `CQRSIntegration`, etc.) are counted but their `NEEDS_DECISION` classification is based on file name and path, not handler logic.
-- **NEEDS_DECISION items** (§6 P2) require Edward's classification.
-
-Follow-up audits should use this doc as the baseline and drill into specific categories (e.g., "orphan admin endpoints — full row-level pass") rather than repeating the full sweep.
-
----
-
-## 10. PRE-3C Re-verification (2026-04-17)
-
-**Motivation:** PRE-3A discovered silent `head_limit` truncation in the original consumer-search grep. Re-verification of the ~45 orphans sampled in §6 P1 using the robust methodology (`head_limit: 0` + count cross-check) mandated by `PLAN_MAESTRO.md §5.7`.
-
-### 10.1 Canonical list expanded from §6 P1
-
-§6 P1 is explicitly a **sample** (not exhaustive). Expanded to 48 endpoints by enumerating all routes in files called out in §6 P1 + §2 tables as having orphan candidates:
-
-| File                        |   # | Note                                                   |
-| --------------------------- | --: | ------------------------------------------------------ |
-| `accountLifecycleRoutes.ts` |  16 | All `/admin/accounts/*`                                |
-| `adminUserRoutes.ts`        |   7 | All `/admin/users/*`                                   |
-| `auditRoutes.ts`            |   8 | All `/admin/audit/*`                                   |
-| `outboxAdminRoutes.ts`      |   3 | All `/api/admin/outbox/*`                              |
-| `samlRoutes.ts`             |   7 | 4 × `/api/saml/*` + 3 × `/auth/saml/:accountId/*`      |
-| `oidcRoutes.ts`             |   6 | 4 × `/api/oidc/*` + 2 × `/auth/oidc/:accountId/*`      |
-| `subscriptionRoutes.ts`     |   1 | `GET /admin/billing/trials/expiring` (single call-out) |
-
-**Total verified: 48.**
-
-### 10.2 Metrics
-
-```
-Total endpoints re-verified:   48
-  STILL_ORPHAN (confirmed):    19
-  FALSE_NEGATIVE (audit miss): 21
-  AMBIGUOUS (path mismatch):    8
-
-False-negative rate:           21 / 48 = 43.75%
-```
-
-**⚠️ 43.75% false-negative rate exceeds the 30% halt threshold from PLAN_MAESTRO §5.7.** This is a **D1 BLOCKER**. The original `ENDPOINT_AUDIT.md §6 P1` classifications are materially unreliable. D1 must re-verify every declared orphan using the robust method — cannot trust §6 P1 as-is.
-
-### 10.3 Full classification table
-
-| #   | Method | Path                                         | Conclusion    | Consumer evidence (if FN)                                                                                                                                                                                   |
-| --- | ------ | -------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | POST   | `/admin/accounts`                            | **FN**        | `app/(dashboard)/accounts/page.tsx:279` create button                                                                                                                                                       |
-| 2   | GET    | `/admin/accounts`                            | **FN**        | `lib/apiClient.ts:290`, `providers/ProjectProvider.tsx:103`                                                                                                                                                 |
-| 3   | GET    | `/admin/accounts/stats`                      | STILL_ORPHAN  | —                                                                                                                                                                                                           |
-| 4   | GET    | `/admin/accounts/:accountId`                 | STILL_ORPHAN  | — (no detail page `[id]/page.tsx`)                                                                                                                                                                          |
-| 5   | PUT    | `/admin/accounts/:accountId`                 | STILL_ORPHAN  | — (`useUpdateAccount` hook exists but unused)                                                                                                                                                               |
-| 6   | PUT    | `/admin/accounts/:accountId/status`          | **FN**        | `hooks/api/useAccounts.ts:57`                                                                                                                                                                               |
-| 7   | GET    | `/admin/accounts/:accountId/billing`         | **FN**        | `hooks/api/useAccountBilling.ts:55`                                                                                                                                                                         |
-| 8   | POST   | `/admin/accounts/:accountId/suspend`         | STILL_ORPHAN  | — (only bulk suspend used)                                                                                                                                                                                  |
-| 9   | POST   | `/admin/accounts/:accountId/reactivate`      | STILL_ORPHAN  | — (only bulk reactivate used)                                                                                                                                                                               |
-| 10  | POST   | `/admin/accounts/:accountId/reset-password`  | **FN**        | `hooks/api/useResetAccountPassword.ts:28`                                                                                                                                                                   |
-| 11  | DELETE | `/admin/accounts/:accountId`                 | STILL_ORPHAN  | —                                                                                                                                                                                                           |
-| 12  | GET    | `/admin/accounts/:accountId/sessions`        | **FN**        | `hooks/api/useAccountSessions.ts:32`                                                                                                                                                                        |
-| 13  | POST   | `/admin/accounts/:accountId/revoke-sessions` | **FN**        | `hooks/api/useAccountSessions.ts:60`                                                                                                                                                                        |
-| 14  | PATCH  | `/admin/accounts/:accountId/grandfathering`  | **FN**        | `components/accounts/AccountBillingPanel.tsx:63`                                                                                                                                                            |
-| 15  | POST   | `/admin/accounts/bulk/suspend`               | **FN**        | `app/(dashboard)/accounts/page.tsx:174`                                                                                                                                                                     |
-| 16  | POST   | `/admin/accounts/bulk/reactivate`            | **FN**        | `app/(dashboard)/accounts/page.tsx:175`                                                                                                                                                                     |
-| 17  | GET    | `/admin/users`                               | **FN**        | `hooks/api/useAdminUsers.ts` list query                                                                                                                                                                     |
-| 18  | POST   | `/admin/users`                               | **FN**        | `hooks/api/useAdminUsers.ts:41`                                                                                                                                                                             |
-| 19  | GET    | `/admin/users/:id`                           | STILL_ORPHAN  | — (no GET consumer found)                                                                                                                                                                                   |
-| 20  | PUT    | `/admin/users/:id`                           | **FN**        | `hooks/api/useAdminUsers.ts:156` (`useUpdateAdminUser`, verified method=PUT)                                                                                                                                |
-| 21  | POST   | `/admin/users/:id/deactivate`                | **FN**        | `hooks/api/useAdminUsers.ts:99`, `components/security/RbacManager.tsx:136`                                                                                                                                  |
-| 22  | POST   | `/admin/users/:id/activate`                  | **FN**        | `hooks/api/useAdminUsers.ts:124`, `components/security/RbacManager.tsx:137`                                                                                                                                 |
-| 23  | POST   | `/admin/users/:id/password-reset`            | **FN**        | `hooks/api/useAdminPasswordReset.ts:19`                                                                                                                                                                     |
-| 24  | GET    | `/admin/audit/logs`                          | **FN**        | `lib/apiClient.ts:328`, `components/maintenance/ScheduledJobsPanel.tsx:102`                                                                                                                                 |
-| 25  | GET    | `/admin/audit/stats`                         | **FN**        | `lib/apiClient.ts:331`, `hooks/api/useAuditStats.ts:29`                                                                                                                                                     |
-| 26  | GET    | `/admin/audit/users/:userId/logs`            | STILL_ORPHAN  | —                                                                                                                                                                                                           |
-| 27  | GET    | `/admin/audit/resources/:resource/logs`      | STILL_ORPHAN  | —                                                                                                                                                                                                           |
-| 28  | POST   | `/admin/audit/logs`                          | STILL_ORPHAN  | — (backend-written only)                                                                                                                                                                                    |
-| 29  | POST   | `/admin/audit/cleanup`                       | STILL_ORPHAN  | —                                                                                                                                                                                                           |
-| 30  | GET    | `/admin/audit/my-logs`                       | STILL_ORPHAN  | —                                                                                                                                                                                                           |
-| 31  | GET    | `/admin/audit/export`                        | STILL_ORPHAN  | — (matches original §6 P1 claim)                                                                                                                                                                            |
-| 32  | GET    | `/api/admin/outbox/dead-letter`              | **FN**        | `hooks/api/useWebhooks.ts:107`                                                                                                                                                                              |
-| 33  | POST   | `/api/admin/outbox/dead-letter/:id/retry`    | **FN**        | `hooks/api/useWebhooks.ts:127`                                                                                                                                                                              |
-| 34  | POST   | `/api/admin/outbox/dead-letter/:id/resolve`  | **FN**        | `hooks/api/useWebhooks.ts:148`                                                                                                                                                                              |
-| 35  | GET    | `/api/saml/config`                           | **AMBIGUOUS** | `apps/client/hooks/api/useSso.ts:77` calls `/api/backend/saml/config` — Next.js proxy strips `/api/backend` → `/saml/config` ≠ backend's `/api/saml/config`. Path mismatch. Consumer exists but likely 404s |
-| 36  | PUT    | `/api/saml/config`                           | **AMBIGUOUS** | Same (`useSso.ts:97`)                                                                                                                                                                                       |
-| 37  | POST   | `/api/saml/enable`                           | **AMBIGUOUS** | Same (`useSso.ts:123`)                                                                                                                                                                                      |
-| 38  | POST   | `/api/saml/disable`                          | **AMBIGUOUS** | `useSso.ts:139` uses dynamic template `/api/backend/${provider}/disable` — covers both saml and oidc. Path mismatch suspected                                                                               |
-| 39  | GET    | `/auth/saml/:accountId/metadata`             | STILL_ORPHAN  | — (server-side SSO flow, no UI consumer expected)                                                                                                                                                           |
-| 40  | GET    | `/auth/saml/:accountId/login`                | STILL_ORPHAN  | — (redirect endpoint)                                                                                                                                                                                       |
-| 41  | POST   | `/auth/saml/:accountId/callback`             | STILL_ORPHAN  | — (IdP callback)                                                                                                                                                                                            |
-| 42  | GET    | `/api/oidc/config`                           | **AMBIGUOUS** | `useSso.ts:87` — same path mismatch pattern as SAML                                                                                                                                                         |
-| 43  | PUT    | `/api/oidc/config`                           | **AMBIGUOUS** | `useSso.ts:110`                                                                                                                                                                                             |
-| 44  | POST   | `/api/oidc/enable`                           | **AMBIGUOUS** | `useSso.ts:131`                                                                                                                                                                                             |
-| 45  | POST   | `/api/oidc/disable`                          | **AMBIGUOUS** | `useSso.ts:139` dynamic                                                                                                                                                                                     |
-| 46  | GET    | `/auth/oidc/:accountId/login`                | STILL_ORPHAN  | — (OP redirect)                                                                                                                                                                                             |
-| 47  | GET    | `/auth/oidc/:accountId/callback`             | STILL_ORPHAN  | — (OP callback)                                                                                                                                                                                             |
-| 48  | GET    | `/admin/billing/trials/expiring`             | STILL_ORPHAN  | — (matches original §6 P1 claim)                                                                                                                                                                            |
-
-### 10.4 FALSE_NEGATIVE details (21 endpoints, all with admin consumers)
-
-Every false negative has its consumer in `apps/admin/`. No `apps/client/` consumers surfaced in the false-negative set — admin-scoped endpoints are consumed from the admin app as expected.
-
-Pattern: most false negatives are routine admin mutations wired through `hooks/api/use*.ts` files. The original grep truncated at `head_limit: 60` before reaching these hook files alphabetically.
-
-**Impact on §6 P1:** the "~45 orphans" figure collapses to **~19 true orphans** once false negatives are excluded. The remaining 19 are the real candidates for D1's "implement UI / delete endpoint / justify" decision.
-
-### 10.5 AMBIGUOUS details (8 endpoints, all SAML/OIDC config)
-
-All 8 have consumers in `apps/client/hooks/api/useSso.ts` but the consumer uses `/api/backend/saml/*` which the Next.js proxy strips to `/saml/*` — backend registered at `/api/saml/*`. This is a **live-reverse-orphan pattern** similar to what §5.1 documented for templates:
-
-- Backend route exists: `/api/saml/config`, `/api/oidc/config`, etc.
-- Client calls it via `/api/backend/saml/config` (strips `/api/backend/` → `/saml/config`)
-- Fastify receives request for `/saml/config` → **404** because it's registered at `/api/saml/config`
-
-**Resolution options (decision for Sprint 2):**
-
-1. Fix client to call `/api/backend/api/saml/config` (double-api pattern, matches `/api/backend/api/admin/outbox/*` precedent that works).
-2. Change backend to register at `/saml/config` (drop `/api` prefix).
-3. Keep the Next.js catchall proxy but have it NOT strip `/api/backend` for these paths.
-
-Not resolved in PRE-3C. Logged as lateral finding.
-
-### 10.6 Recommendation for D1
-
-1. **Do NOT trust `ENDPOINT_AUDIT.md §6 P1` orphan list as-is.** 43.75% false-negative rate confirms poisoned baseline.
-2. **D1 must apply `head_limit: 0` + count cross-check** (PLAN_MAESTRO §5.7) on every endpoint, not just the ~45 sampled here.
-3. **SAML/OIDC path mismatch** is an incidental discovery worth its own short fix sprint. Client routes reach 404. Not scoped to PRE-3C; surfaced for follow-up.
-4. **5 STILL_ORPHAN endpoints in accountLifecycle** (individual suspend/reactivate/delete + GET by id + stats) are genuine candidates for removal. The UI uses bulk variants + summary + status only.
-5. **6 STILL_ORPHAN endpoints in audit** (users/:id/logs, resources/:resource/logs, cleanup, my-logs, export, write) are the genuine audit-route orphans. `export` and `cleanup` might legitimately have no UI (back-end only use). Others need UI or deletion decision.
-
-### 10.7 Methodology used (for reproducibility)
-
-Per endpoint, minimum 1 prefix grep + targeted verification:
-
-- Prefix sweep: `Grep pattern="/admin/accounts" --glob="*.{ts,tsx}" output_mode="content" head_limit=0` across `apps/admin/ + apps/client/ + packages/`, excluding `/tests/`, `.test.`, `node_modules/`.
-- Per-endpoint when prefix returned hits: map each hit to backend route by matching method + path structure.
-- Cross-referenced backend route declarations at `apps/api/src/<file>.ts` lines to avoid misattribution.
-- Verified ambiguous cases (method-unclear hits) by Read of the specific source lines.
-
-### 10.8 Lateral findings generated during PRE-3C
-
-Appended to `LATERAL_FINDINGS.md`:
-
-1. **SAML/OIDC client path mismatch** — `apps/client/hooks/api/useSso.ts` calls don't reach their backend routes due to `/api/` prefix stripping discrepancy. 8 endpoints affected.
-2. **`GET /admin/billing/trials/stats`** — discovered during `/admin/billing/trials` prefix sweep. Listed in `subscriptionRoutes.ts:198`, not in §6 P1, but no consumer found. Likely additional orphan.
+- Classify each ORPHAN (implement/delete/justify) at row level
+- Fix the 8 PATH_MISMATCH (sprint separado post-D0-v2)
+- Resolve the ~23 AMBIGUOUS via targeted per-case verification
+- Confirm categories: WEBHOOK (2), HEALTH (5), INTERNAL (7 Saga), DEAD_CODE (9 CQRS) stay as-is

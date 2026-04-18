@@ -108,4 +108,39 @@
 **Encontrado durante:** PRE-3C §10.2
 **Descripción:** De los 48 endpoints re-verificados con metodología robusta, 21 tenían consumer live (FALSE_NEGATIVE). El tasa supera el umbral de 30% definido en PLAN_MAESTRO §5.7. Significa que el inventario de huérfanos del audit original no es confiable globalmente — no solo los 48 verificados. D1 debe re-verificar todos los endpoints, no confiar en §6 P1.
 **Severidad estimada:** alto (bloqueante para D1)
-**Acción propuesta:** D1 aplica PLAN_MAESTRO §5.7 a los 471 endpoints, no solo a los 48 muestreados aquí. Esfuerzo adicional ~1-2h con método batch por prefijo.
+**Acción propuesta:** ~~D1 aplica PLAN_MAESTRO §5.7 a los 471 endpoints~~ → **RESUELTO 2026-04-18 (D0-v2).** `ENDPOINT_AUDIT.md` v2 reescrito desde cero con `head_limit: 0` aplicado a los 471 endpoints. D1 arranca con baseline limpia. PATH_MISMATCH extraído como categoría separada (8 endpoints). Ver `ENDPOINT_AUDIT.md §4` v2.
+
+---
+
+## Hallazgos durante D0-v2
+
+### 2026-04-18 — 8 endpoints SAML/OIDC PATH_MISMATCH requieren sprint dedicado
+
+**Encontrado durante:** D0-v2 §2.26, §2.29 (confirmado de PRE-3C)
+**Descripción:** `ENDPOINT_AUDIT.md §4` v2 lista los 8 endpoints con el mismatch: `useSso.ts` en `apps/client/` llama `/api/backend/(saml|oidc)/config|enable|disable`, el proxy Next.js strippea `/api/backend/` y llegan a Fastify como `/saml/config`, pero las rutas están registradas con prefix `/api/` (e.g. `/api/saml/config`). Resultado: 404 silencioso cuando un admin intenta configurar SSO.
+**Severidad estimada:** medio (feature SSO falla en producción, aunque SSO no tiene UI principal activa todavía)
+**Acción propuesta:** sprint separado post-D0-v2. 3 opciones en `ENDPOINT_AUDIT.md §4`:
+
+1. Client: cambiar a `/api/backend/api/saml/*` (double prefix, match otros endpoints con `/api/` prefix)
+2. Backend: cambiar registro de rutas a `/saml/config` sin prefix
+3. Proxy: preservar `/api/` prefix para rutas específicas
+
+### 2026-04-18 — ~100 endpoints ORPHAN confirmados — top-offender es `content/contentRoutes.ts` con 18 endpoints sin UI
+
+**Encontrado durante:** D0-v2 §3
+**Descripción:** El archivo `apps/api/src/content/contentRoutes.ts` contiene 18 endpoints (sync, metrics, versions, conflicts, transform, render, diff) — ninguno tiene consumer en admin ni client. Representa el cluster más grande de orphans en un solo archivo. Otros clusters significativos: `integrations/zapierRoutes` (9), `integrations/makeRoutes` (8), `custom-reports/customReportRoutes` (8), `monitoring/cacheStatsRoutes` (6), `monitoring/rateLimitingDashboard` (5), `approvals/approvalWorkflowRoutes` (5).
+**Severidad estimada:** medio (superficie de código sin uso UI, candidatos a eliminación o implementación)
+**Acción propuesta:** D1 decide endpoint-por-endpoint (implementar UI / borrar / justificar). Los de `content/` especialmente sospechosos — son CRUD de versiones/transformaciones sin pantalla asociada.
+
+### 2026-04-18 — Sin hallazgos metodológicos adicionales; los 4 validation cases confirmados
+
+**Encontrado durante:** D0-v2 §9 (self-check)
+**Descripción:** Los 4 casos de validación de PRE-3A/B/C fueron detectados independientemente por D0-v2 con `head_limit: 0`:
+
+1. TemplateManagementDashboard consume 3 hooks ✅
+2. FALSE_NEGATIVE top-offenders reproducidos (accountLifecycle, outbox, adminUser, audit) ✅
+3. 8 SAML/OIDC PATH_MISMATCH ✅
+4. Seed post-PRE-3B state (6 permission hits) ✅
+   La metodología §5.7 funciona como esperado.
+   **Severidad estimada:** N/A (confirmación positiva)
+   **Acción propuesta:** ninguna. Mantener §5.7 vigente para D1-D7.

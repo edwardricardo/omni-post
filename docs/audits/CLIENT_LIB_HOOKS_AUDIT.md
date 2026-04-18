@@ -347,3 +347,22 @@ All 3 hooks (`useABTests`, `useTemplates`, `useTemplateVersions`) are reclassifi
 - §10: documents the PRE-2 block and initial correction.
 
 **This §11 formalizes the methodology root cause and the lessons-learned propagation to `PLAN_MAESTRO.md §5.7`.** No further edits to §1-§10 needed.
+
+---
+
+## 12. D0-v2 cross-reference (2026-04-18)
+
+La re-ejecución completa de D0-v2 aplicó §5.7 a todos los hooks en `apps/client` como parte del inventario de frontend (`D0_INVENTORY.md §4.2`). Resultados relevantes para este audit:
+
+**Confirmaciones (4 validation cases de PRE-3A/B/C reproducidos):**
+
+- Los 3 hooks previamente reclasificados a `LEGACY_WORKING_WITH_BROKEN_URLS` en PRE-3A (`useABTests`, `useTemplates`, `useTemplateVersions`): D0-v2 **confirma independientemente** el consumer en `apps/client/app/dashboard/templates/TemplateManagementDashboard.tsx`. Ver `D0_INVENTORY.md §4.6` para la evidencia del grep directo (6 hits: 3 imports + 3 invocaciones).
+- Los 2 hooks `LEGACY_WORKING` (`useAutoSave`, `useProviders`): consumers confirmados (ClientContentEditor, PublishDialog).
+- Los 8 PATH_MISMATCH de `useSso.ts` confirmados en `ENDPOINT_AUDIT.md §4` v2.
+
+**Hallazgos nuevos desde D0-v2 sobre hooks:**
+
+- **`apps/client/lib/api/hooks.ts` no estaba clasificado en este audit.** D0-v2 lo inventarió (9 exports: `useAllProvidersHealth`, `useApiProviders`, `useCreatePost`, `useDeletePost`, `usePost`, `usePosts`, `useProjects`, `useUpdatePost`, `useUploadFile`). Varios de estos duplican funcionalidad que existe en otra parte (p.ej. `useApiProviders` re-exportado como `useProviders`, clash con `lib/hooks/useProviders.ts`). No auditados individualmente por scope; registrado como hallazgo lateral en `LATERAL_FINDINGS.md` (ya existía como finding "Tres carpetas paralelas de hooks" del audit original).
+- **`apps/client/components/*/hooks/` tiene 4 hooks component-locales** (`usePredictiveData`, `useFileUpload`, `useKeyboardShortcuts`, `useStoryManagement`) que este audit no mencionaba. Viven adyacentes a sus consumers (mismo dir tree), todos con uso directo. Sin hallazgos problemáticos.
+
+**Conclusión:** no hay discrepancias adicionales entre el audit de `lib/hooks/` y los resultados de D0-v2. Las 5 entradas del audit permanecen válidas y el método de verificación es consistente.
