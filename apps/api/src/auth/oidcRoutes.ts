@@ -230,7 +230,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
   // ── Admin endpoints ─────────────────────────────────────────────────────
 
   app.get(
-    "/api/oidc/config",
+    "/oidc/config",
     {
       preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Get OIDC configuration" },
@@ -239,7 +239,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.put(
-    "/api/oidc/config",
+    "/oidc/config",
     {
       preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Configure OIDC IdP settings" },
@@ -248,7 +248,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/oidc/enable",
+    "/oidc/enable",
     {
       preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Enable OIDC SSO for account" },
@@ -257,7 +257,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/oidc/disable",
+    "/oidc/disable",
     {
       preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Disable OIDC SSO for account" },

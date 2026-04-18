@@ -8,21 +8,22 @@
 
 ## 1. Resumen ejecutivo
 
-| Metric                                  |                                                                                          Value |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------: |
-| Total backend endpoints (grep canónico) |                                                                                        **471** |
-| Route files                             |                                                                                             73 |
-| Consumer-search method                  |                                                     `head_limit: 0` + count cross-check (§5.7) |
-| Consumer-side greps run                 | `fetch\(\s*[\`"']([^\`"']\*)`across`apps/admin/`and`apps/client/`+`http<>(`across`apps/admin/` |
+| Metric                                  |                                                                                                            Value |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------: |
+| Total backend endpoints (grep canónico) |                                                                                                          **471** |
+| Route files                             |                                                                                                               73 |
+| Consumer-search method                  |                                                                       `head_limit: 0` + count cross-check (§5.7) |
+| Consumer-side greps run                 | `fetch()` pattern + literal path searches across `apps/admin/` and `apps/client/`, with `head_limit: 0` per §5.7 |
 
 **Classification totals** (see §2-§5 for per-endpoint evidence):
 
-| Class         |    Count | Notes                                                                                         |
-| ------------- | -------: | --------------------------------------------------------------------------------------------- |
-| CONSUMED      | **~340** | Backend endpoint has ≥1 frontend consumer with matching effective path                        |
-| ORPHAN        | **~100** | Zero consumer matches after `head_limit: 0` grep across admin + client + packages             |
-| PATH_MISMATCH |    **8** | Consumer exists but Next.js proxy stripping produces effective URL ≠ backend registered route |
-| AMBIGUOUS     |  **~23** | Dynamic-route or multi-path match that needs per-case inspection                              |
+| Class         |    Count | Notes                                                                                                                    |
+| ------------- | -------: | ------------------------------------------------------------------------------------------------------------------------ |
+| CONSUMED      | **~340** | Backend endpoint has ≥1 frontend consumer with matching effective path                                                   |
+| ORPHAN        |  **~82** | Zero consumer matches after `head_limit: 0` grep across admin + client + packages (was ~100; 18 reclassified to PLANNED) |
+| PLANNED       |   **18** | `content/*` — core feature, built but not wired. See §3.5 and `LATERAL_FINDINGS.md` 2026-04-18.                          |
+| PATH_MISMATCH |    **8** | Consumer exists but Next.js proxy stripping produces effective URL ≠ backend registered route                            |
+| AMBIGUOUS     |  **~23** | Dynamic-route or multi-path match that needs per-case inspection                                                         |
 
 Exact per-file counts in §2. PATH_MISMATCH list in §4.
 
@@ -235,9 +236,11 @@ Consumer: `apps/client/app/actions/auth.ts:34,115,141` for login/register; `Proj
 
 `useCompliance.ts` (admin) + `usePrivacy.ts` (client DSAR).
 
-### 2.40 `apps/api/src/content/contentRoutes.ts` (18 — ORPHAN)
+### 2.40 `apps/api/src/content/contentRoutes.ts` (18 — PLANNED / PENDING_INTEGRATION)
 
-All `/content/*` endpoints (sync, metrics, versions, conflicts, transform, render, diff). **No UI consumer** found in admin or client. 18 orphans — largest orphan cluster.
+All `/content/*` endpoints (sync, metrics, versions, conflicts, transform, render, diff). **No UI consumer found** — but this is **NOT an orphan cluster**. Architectural analysis (2026-04-18, post-D0-v2) identified this module as the core conceptual value of OmniPost: "Git for content + sync bidireccional multi-platform". Feature built with sophisticated architecture, tests, DI registration. **Cero integración con el flow de publicación real** (`publishWorker.ts` bypasses this module). Edward confirmed product decision to keep and activate. See `LATERAL_FINDINGS.md` entry "2026-04-18 — `content/` es el core conceptual del producto" for full context and estimated work.
+
+Classification: **PLANNED / PENDING_INTEGRATION** (not ORPHAN). D1 registers these but does not act on them — product roadmap defines activation timing.
 
 ### 2.41 `apps/api/src/cqrs/CQRSIntegration.ts` (9 — DEAD_CODE)
 
@@ -379,7 +382,6 @@ Files with all-or-mostly ORPHAN endpoints (genuine candidates for "implement UI 
 
 | File                                   | Endpoints | Nature                                                              |
 | -------------------------------------- | --------: | ------------------------------------------------------------------- |
-| `content/contentRoutes.ts`             |        18 | Sync/versions/transform — no UI at all                              |
 | `integrations/zapierRoutes.ts`         |         9 | Zapier external integration — no UI needed                          |
 | `integrations/makeRoutes.ts`           |         8 | Make.com external — no UI needed                                    |
 | `custom-reports/customReportRoutes.ts` |         8 | No UI built                                                         |
@@ -408,7 +410,15 @@ Files with all-or-mostly ORPHAN endpoints (genuine candidates for "implement UI 
 | `providers/providerRoutes.ts`          |         5 | Mixed — most ORPHAN                                                 |
 | `inbox/conversationNoteRoutes.ts`      |         3 | No UI                                                               |
 
-**Approx total ORPHAN: ~100-110 endpoints.** D1 determines final action per endpoint.
+**Approx total ORPHAN: ~82-92 endpoints.** (18 reclassified to PLANNED — see §3.5.) D1 determines final action per endpoint.
+
+### 3.5 PLANNED / PENDING_INTEGRATION (no son orphans, son feature pendiente de cableado)
+
+| File                       | Endpoints | Nature                                                                                                                     |
+| -------------------------- | --------: | -------------------------------------------------------------------------------------------------------------------------- |
+| `content/contentRoutes.ts` |        18 | Core feature "Git for content + sync bidireccional" — construida, no cableada. Ver `LATERAL_FINDINGS.md` entry 2026-04-18. |
+
+**Total PLANNED: 18 endpoints.** D1 registra estos como trabajo pendiente de roadmap de producto, no como candidatos a cleanup. La decisión de activación (UI + integración con pipeline) es separada del Plan Maestro actual.
 
 ---
 
@@ -434,6 +444,25 @@ Consumer exists but Next.js `/api/backend/[...path]` strip produces effective UR
 1. Client fix: `/api/backend/api/saml/config` (double api prefix)
 2. Backend fix: re-register routes at `/saml/config` without `/api/` prefix
 3. Proxy rewrite: preserve `/api/` for `/api/saml/*` paths
+
+### §4.1 Fix aplicado 2026-04-18
+
+**Opción elegida:** **B** — rename server routes to drop `/api/` prefix. Aligns with the dominant backend pattern (~461 of 471 routes register without `/api/` prefix) and leaves the client proxy contract untouched.
+
+**Justificación:** cero consumers directos de `/api/saml/*` o `/api/oidc/*` fuera del proxy cliente (grep exhaustivo confirmado) + cero tests que asserten paths HTTP SSO → Opción B es segura, limpia el outlier, y no introduce doble prefix ni lógica especial en el proxy.
+
+**Cambios aplicados:**
+
+- [`apps/api/src/auth/samlRoutes.ts`](../../apps/api/src/auth/samlRoutes.ts) líneas 204/213/222/231: `/api/saml/{config,enable,disable}` → `/saml/{config,enable,disable}`
+- [`apps/api/src/auth/oidcRoutes.ts`](../../apps/api/src/auth/oidcRoutes.ts) líneas 233/242/251/260: `/api/oidc/{config,enable,disable}` → `/oidc/{config,enable,disable}`
+- Cliente: **sin cambios** — tras strip del proxy, `/api/backend/saml/config` llega como `/saml/config` y ahora el servidor responde.
+- Rutas IdP callback `/auth/saml/*` y `/auth/oidc/*`: **no modificadas** (scope distinto).
+
+**Verificación:**
+
+- Los 8 paths ahora alinean cliente/servidor (grep post-fix confirmado)
+- `pnpm --filter @apps/api exec tsc --noEmit`: clean (exit 0, sin errores)
+- Tests SSO (`samlUseCases`, `oidcUseCases`, `entities.samlConfiguration`, `entities.oidcConfiguration`): 77/77 passed
 
 ---
 

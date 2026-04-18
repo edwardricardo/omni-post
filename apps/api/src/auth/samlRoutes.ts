@@ -201,7 +201,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   // ── Admin endpoints ─────────────────────────────────────────────────────
 
   app.get(
-    "/api/saml/config",
+    "/saml/config",
     {
       preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Get SAML configuration" },
@@ -210,7 +210,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.put(
-    "/api/saml/config",
+    "/saml/config",
     {
       preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Configure IdP settings" },
@@ -219,7 +219,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/saml/enable",
+    "/saml/enable",
     {
       preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Enable SSO for account" },
@@ -228,7 +228,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/saml/disable",
+    "/saml/disable",
     {
       preHandler: [requireAdminAuth],
       schema: { tags: ["SSO"], summary: "Disable SSO for account" },

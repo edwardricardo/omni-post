@@ -354,23 +354,25 @@ Cuando una dimensión cuenta consumidores (endpoints, hooks, funciones, tipos), 
 
 ## 6. Estado del plan
 
-| Fase                                | Estado                                                                                   | Fecha      |
-| ----------------------------------- | ---------------------------------------------------------------------------------------- | ---------- |
-| PRE-1 RBAC check                    | ✅ Ejecutado — Estado A (acceso funcional)                                               | 2026-04-17 |
-| PRE-2 DEAD_CODE cleanup             | ✅ Ejecutado — BLOQUEADO, reclasificados 3 hooks DEAD_CODE → LEGACY_WORKING (ver PRE-3A) | 2026-04-17 |
-| PRE-3A Verificación consumer live   | ✅ Ejecutado — Conclusión B (falso negativo metodológico por truncación silenciosa)      | 2026-04-17 |
-| PRE-3B Housekeeping + seed fix      | ✅ Ejecutado — seed sincronizado, §5.7 añadido, D0 limpiado                              | 2026-04-17 |
-| PRE-3C Re-verificación 45 huérfanos | ✅ Ejecutado — 43.75% FN rate, §10 added to ENDPOINT_AUDIT                               | 2026-04-17 |
-| D0 Inventario (v1)                  | ⚠️ Deprecated — contaminado por truncación silenciosa (ver PRE-3A/3C)                    | 2026-04-17 |
-| D0-v2 Inventario limpio             | ✅ Ejecutado — §5.7 aplicada globalmente, 4 validation cases confirmados                 | 2026-04-18 |
-| D1 Endpoint ↔ UI Mapping            | Pendiente (base en ENDPOINT_AUDIT.md)                                                    | —          |
-| D2 Standards Compliance             | Pendiente                                                                                | —          |
-| D3 Data Integrity                   | Pendiente                                                                                | —          |
-| D4 Functional Conformity            | Pendiente                                                                                | —          |
-| D5 Security                         | Pendiente                                                                                | —          |
-| D6 Pre-Production Cleanup           | Pendiente                                                                                | —          |
-| D7 Critical Tests Coverage          | Pendiente                                                                                | —          |
-| Revisión hallazgos laterales        | Pendiente                                                                                | —          |
+| Fase                                  | Estado                                                                                   | Fecha      |
+| ------------------------------------- | ---------------------------------------------------------------------------------------- | ---------- |
+| PRE-1 RBAC check                      | ✅ Ejecutado — Estado A (acceso funcional)                                               | 2026-04-17 |
+| PRE-2 DEAD_CODE cleanup               | ✅ Ejecutado — BLOQUEADO, reclasificados 3 hooks DEAD_CODE → LEGACY_WORKING (ver PRE-3A) | 2026-04-17 |
+| PRE-3A Verificación consumer live     | ✅ Ejecutado — Conclusión B (falso negativo metodológico por truncación silenciosa)      | 2026-04-17 |
+| PRE-3B Housekeeping + seed fix        | ✅ Ejecutado — seed sincronizado, §5.7 añadido, D0 limpiado                              | 2026-04-17 |
+| PRE-3C Re-verificación 45 huérfanos   | ✅ Ejecutado — 43.75% FN rate, §10 added to ENDPOINT_AUDIT                               | 2026-04-17 |
+| D0 Inventario (v1)                    | ⚠️ Deprecated — contaminado por truncación silenciosa (ver PRE-3A/3C)                    | 2026-04-17 |
+| D0-v2 Inventario limpio               | ✅ Ejecutado — §5.7 aplicada globalmente, 4 validation cases confirmados                 | 2026-04-18 |
+| PATH_MISMATCH SSO fix                 | ✅ Ejecutado — Opción B (backend `/saml/*` y `/oidc/*` sin prefix `/api/`)               | 2026-04-18 |
+| Reclasificación 18 endpoints content/ | ✅ Ejecutado — ORPHAN → PLANNED                                                          | 2026-04-18 |
+| D1 Endpoint ↔ UI Mapping              | Pendiente (base en ENDPOINT_AUDIT.md)                                                    | —          |
+| D2 Standards Compliance               | Pendiente                                                                                | —          |
+| D3 Data Integrity                     | Pendiente                                                                                | —          |
+| D4 Functional Conformity              | Pendiente                                                                                | —          |
+| D5 Security                           | Pendiente                                                                                | —          |
+| D6 Pre-Production Cleanup             | Pendiente                                                                                | —          |
+| D7 Critical Tests Coverage            | Pendiente                                                                                | —          |
+| Revisión hallazgos laterales          | Pendiente                                                                                | —          |
 
 ---
 
