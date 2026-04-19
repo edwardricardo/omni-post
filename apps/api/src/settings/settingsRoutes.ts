@@ -269,4 +269,18 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({ ok: true, data: result.value });
     }
   );
+
+  // ─── Public: Non-secret Platform Settings (no auth) ──────────────────
+
+  fastify.get(
+    "/api/settings/public",
+    { schema: { tags: ["Settings"], summary: "Get public platform settings (no auth)" } },
+    async (_request, reply) => {
+      const result = await service.getPublicPlatformSettings();
+      if (!result.ok) {
+        return reply.code(500).send({ ok: false, error: "Failed to load platform settings" });
+      }
+      return reply.send({ ok: true, data: result.value });
+    }
+  );
 };

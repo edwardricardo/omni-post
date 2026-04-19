@@ -9,6 +9,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { ZodError } from "zod";
 import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
 import type { AdminAuthService } from "./AdminAuthService.js";
+import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import { requireAdminAuth, rateLimit } from "./adminAuthMiddleware";
 import { requirePermission } from "../../auth/rbacMiddleware.js";
 import { Permission } from "../../auth/rbacService.js";
@@ -34,7 +35,10 @@ import type { DeviceFingerprint } from "./adminAuthTypes";
 class AdminAuthRouteHandler extends BaseRouteHandler {
   protected routeName = "admin-auth";
 
-  constructor(private readonly adminAuthService: AdminAuthService) {
+  constructor(
+    private readonly adminAuthService: AdminAuthService,
+    private readonly credentialService: PlatformCredentialService
+  ) {
     super();
   }
 
@@ -252,7 +256,34 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
       return this.sendValidationError(ctx, validation.error);
     }
 
-    const { token, newPassword } = validation.data;
+    const { token, newPassword, turnstileToken } = validation.data;
+
+    // Verify Turnstile if configured (reads secret key from platform credentials)
+    const turnstileResult = await this.credentialService.getCredential(
+      "PLATFORM",
+      "turnstileSecretKey"
+    );
+    const turnstileSecret = turnstileResult.ok ? turnstileResult.value : null;
+    if (turnstileSecret) {
+      if (!turnstileToken) {
+        return this.sendError(ctx, 403, "Security verification required");
+      }
+      try {
+        const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ secret: turnstileSecret, response: turnstileToken }),
+        });
+        const verifyData = (await verifyRes.json()) as { success: boolean };
+        if (!verifyData.success) {
+          return this.sendError(ctx, 403, "Security verification failed");
+        }
+      } catch {
+        this.logError(ctx, "Turnstile verification request failed");
+        return this.sendError(ctx, 500, "Security verification unavailable");
+      }
+    }
+
     const result = await this.adminAuthService.confirmPasswordReset(token, newPassword);
 
     if (!result.ok) {
@@ -467,7 +498,8 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
     throw new Error("DI container not available");
   }
   const adminAuthSvc = container.resolve<AdminAuthService>(TOKENS.AdminAuthService);
-  const handler = new AdminAuthRouteHandler(adminAuthSvc);
+  const credSvc = container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService);
+  const handler = new AdminAuthRouteHandler(adminAuthSvc, credSvc);
 
   // ==========================================================================
   // Public Endpoints (No Authentication Required)
@@ -501,10 +533,13 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.resetPasswordRequest(request, reply)
   );
 
-  // Password reset confirmation
+  // Password reset confirmation (rate limited: 5 attempts per 15 min)
   fastify.post(
     "/admin/auth/password/reset/confirm",
-    { schema: { tags: ["Admin Auth"], summary: "Confirm password reset" } },
+    {
+      preHandler: [rateLimit(5, 900000)],
+      schema: { tags: ["Admin Auth"], summary: "Confirm password reset" },
+    },
     async (request, reply) => handler.resetPasswordConfirm(request, reply)
   );
 
@@ -534,6 +569,33 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
     "/admin/auth/logout",
     { preHandler: [requireAdminAuth], schema: { tags: ["Admin Auth"], summary: "Admin logout" } },
     async (request, reply) => handler.logout(request, reply)
+  );
+
+  // Profile update (own profile: timezone, locale, avatarUrl)
+  const profilePrisma = container.resolve<import("@infra/prisma").PrismaClient>(
+    TOKENS.PrismaClient
+  );
+  fastify.put(
+    "/admin/auth/profile",
+    {
+      preHandler: [requireAdminAuth],
+      schema: { tags: ["Admin Auth"], summary: "Update own profile" },
+    },
+    async (request, reply) => {
+      const userId = request.auth!.user.id;
+      const body = request.body as Record<string, unknown>;
+      const data: Record<string, string> = {};
+      if (typeof body.timezone === "string") data.timezone = body.timezone;
+      if (typeof body.locale === "string") data.locale = body.locale;
+      if (typeof body.avatarUrl === "string") data.avatarUrl = body.avatarUrl;
+
+      if (Object.keys(data).length === 0) {
+        return reply.code(400).send({ ok: false, error: "No valid fields to update" });
+      }
+
+      await profilePrisma.adminUser.update({ where: { id: userId }, data });
+      return reply.send({ ok: true, data: { updated: Object.keys(data) } });
+    }
   );
 
   // Change password

@@ -520,4 +520,88 @@ describe("SettingsService", () => {
       }
     });
   });
+
+  // ─── getPublicPlatformSettings ──────────────────────────────────────
+
+  describe("getPublicPlatformSettings", () => {
+    it("returns only NON_SECRET_KEYS values from PLATFORM group", async () => {
+      (mockCreds.getGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: {
+          name: "OmniPost",
+          baseUrl: "https://app.omnipost.io",
+          adminUrl: "https://admin.omnipost.io",
+          turnstileSiteKey: "0x4AAAAAAA_test_key",
+          turnstileSecretKey: "0x4AAAAAAA_secret_value",
+        },
+      });
+
+      const result = await service.getPublicPlatformSettings();
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value["name"]).toBe("OmniPost");
+        expect(result.value["baseUrl"]).toBe("https://app.omnipost.io");
+        expect(result.value["adminUrl"]).toBe("https://admin.omnipost.io");
+        expect(result.value["turnstileSiteKey"]).toBe("0x4AAAAAAA_test_key");
+      }
+    });
+
+    it("never returns turnstileSecretKey or other secrets", async () => {
+      (mockCreds.getGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: {
+          name: "OmniPost",
+          turnstileSiteKey: "0x4AAAAAAA_test_key",
+          turnstileSecretKey: "0x4AAAAAAA_secret_value",
+        },
+      });
+
+      const result = await service.getPublicPlatformSettings();
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value["turnstileSecretKey"]).toBeUndefined();
+      }
+    });
+
+    it("returns empty object when PLATFORM group not configured", async () => {
+      (mockCreds.getGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: {},
+      });
+
+      const result = await service.getPublicPlatformSettings();
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(Object.keys(result.value)).toHaveLength(0);
+      }
+    });
+
+    it("omits null/empty values from response", async () => {
+      (mockCreds.getGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: { name: "OmniPost", baseUrl: "", adminUrl: null },
+      });
+
+      const result = await service.getPublicPlatformSettings();
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value["name"]).toBe("OmniPost");
+        expect(result.value["baseUrl"]).toBeUndefined();
+        expect(result.value["adminUrl"]).toBeUndefined();
+      }
+    });
+
+    it("returns DATABASE_ERROR when credential service fails", async () => {
+      (mockCreds.getGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: false,
+        error: "DECRYPTION_FAILED",
+      });
+
+      const result = await service.getPublicPlatformSettings();
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBe("DATABASE_ERROR");
+      }
+    });
+  });
 });

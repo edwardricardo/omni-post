@@ -25,7 +25,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <QueryProvider>
-      <AuthProvider userName={user.name} userRole={user.role}>
+      <AuthProvider userId={user.id} userName={user.name} userRole={user.role}>
         <div className="flex min-h-screen bg-[var(--bg-base)]">
           <SidebarNav userName={user.name} userRole={user.role} />
 

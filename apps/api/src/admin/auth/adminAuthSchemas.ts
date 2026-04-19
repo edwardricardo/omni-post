@@ -111,6 +111,7 @@ export const resetPasswordRequestSchema = z.object({
 export const resetPasswordConfirmSchema = z.object({
   token: z.string().uuid({ message: "Invalid reset token" }),
   newPassword: passwordSchema,
+  turnstileToken: z.string().min(1).optional(),
 });
 
 /**

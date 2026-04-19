@@ -2,13 +2,23 @@
  * @file page.tsx
  * @description Admin users management page. Lists admin users with role badges,
  * status indicators, and action controls for inviting, activating, and deactivating users.
- * @layer admin-pages
+ * @layer infrastructure
  */
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { Users, UserCheck, Shield, Headset, Copy, Check, Pencil } from "lucide-react";
+import {
+  Users,
+  UserCheck,
+  Shield,
+  Headset,
+  Copy,
+  Check,
+  Pencil,
+  KeyRound,
+  UserX,
+} from "lucide-react";
 import { useCurrentUser } from "@/providers/AuthProvider";
 import {
   toast,
@@ -24,6 +34,7 @@ import { AccessDenied } from "@/components/shared/AccessDenied";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
+import { Pagination } from "@/components/ui/Pagination";
 import { Badge } from "@/components/ui/Badge";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -37,6 +48,8 @@ import {
 } from "@/hooks/api/useAdminUsers";
 import type { AdminUser } from "@/hooks/api/useAdminUsers";
 import { api } from "@/lib/apiClient";
+import { useAdminPasswordReset } from "@/hooks/api/useAdminPasswordReset";
+import { ChangePasswordDialog } from "@/components/users/ChangePasswordDialog";
 
 const INPUT_CLASS =
   "w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
@@ -50,18 +63,25 @@ const ROLE_BADGE_VARIANT: Record<string, "info" | "success" | "neutral"> = {
 function AdminUsersContent() {
   const tu = useTranslations("users");
   const tc = useTranslations("common");
-  const { hasPermission } = useCurrentUser();
+  const { hasPermission, userId } = useCurrentUser();
   const { data: users, isLoading, error, refetch } = useAdminUsers();
   const createMutation = useCreateAdminUser();
   const deactivateMutation = useDeactivateAdminUser();
   const activateMutation = useActivateAdminUser();
   const updateMutation = useUpdateAdminUser();
+  const resetPasswordMutation = useAdminPasswordReset();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: "", name: "", role: "ADMIN" });
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<AdminUser | null>(null);
 
   const [deactivateTarget, setDeactivateTarget] = useState<AdminUser | null>(null);
   const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
@@ -139,6 +159,12 @@ function AdminUsersContent() {
     };
   }, [users]);
 
+  const totalPages = Math.max(1, Math.ceil((users?.length ?? 0) / perPage));
+  const paginatedUsers = useMemo(
+    () => (users ?? []).slice((page - 1) * perPage, page * perPage),
+    [users, page, perPage]
+  );
+
   const handleInviteSubmit = useCallback(() => {
     if (!inviteForm.email.trim() || !inviteForm.name.trim()) {
       toast({
@@ -214,6 +240,30 @@ function AdminUsersContent() {
     }
   }, [tempPassword, tc, tu]);
 
+  const handlePasswordAction = useCallback(
+    (user: AdminUser) => {
+      if (user.id === userId) {
+        setChangePasswordOpen(true);
+      } else {
+        setResetPasswordTarget(user);
+      }
+    },
+    [userId]
+  );
+
+  const handleResetPasswordConfirm = useCallback(() => {
+    if (!resetPasswordTarget) return;
+    resetPasswordMutation.mutate(resetPasswordTarget.id, {
+      onSuccess: () => {
+        toast({ title: tu("success.passwordResetSent", { name: resetPasswordTarget.name }) });
+        setResetPasswordTarget(null);
+      },
+      onError: (err) => {
+        toast({ title: tc("error"), description: getErrorMessage(err), variant: "destructive" });
+      },
+    });
+  }, [resetPasswordTarget, resetPasswordMutation, tu, tc]);
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -257,7 +307,10 @@ function AdminUsersContent() {
       header: tu("table.name"),
       render: (u: AdminUser) => (
         <div>
-          <div className="font-medium text-[var(--text-primary)]">{u.name}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-[var(--text-primary)]">{u.name}</span>
+            {u.id === userId && <Badge variant="info">{tu("table.you")}</Badge>}
+          </div>
           <div className="text-xs text-[var(--text-tertiary)]">{u.email}</div>
         </div>
       ),
@@ -300,6 +353,15 @@ function AdminUsersContent() {
               >
                 <Pencil className="h-3 w-3" />
               </ActionButton>
+              <ActionButton
+                variant="secondary"
+                size="sm"
+                onClick={() => handlePasswordAction(u)}
+                disabled={u.role === "SUPER_ADMIN" && u.id !== userId}
+                aria-label={`${tu("passwordAction")} ${u.name}`}
+              >
+                <KeyRound className="h-3 w-3" />
+              </ActionButton>
               {u.isActive ? (
                 <ActionButton
                   variant="danger"
@@ -308,7 +370,7 @@ function AdminUsersContent() {
                   disabled={u.role === "SUPER_ADMIN"}
                   aria-label={`${tu("deactivate")} ${u.name}`}
                 >
-                  {tu("deactivate")}
+                  <UserX className="h-3 w-3" />
                 </ActionButton>
               ) : (
                 <ActionButton
@@ -318,7 +380,7 @@ function AdminUsersContent() {
                   loading={activateMutation.isPending}
                   aria-label={`${tu("activate")} ${u.name}`}
                 >
-                  {tu("activate")}
+                  <UserCheck className="h-3 w-3" />
                 </ActionButton>
               )}
             </>
@@ -369,10 +431,22 @@ function AdminUsersContent() {
       {/* Users Table */}
       <DataTable<AdminUser>
         columns={columns}
-        data={users ?? []}
+        data={paginatedUsers}
         isLoading={isLoading}
         rowKey={(u) => u.id}
         emptyMessage={tc("noData")}
+      />
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={users?.length ?? 0}
+        perPage={perPage}
+        onPageChange={setPage}
+        onPerPageChange={(n) => {
+          setPerPage(n);
+          setPage(1);
+        }}
       />
 
       {/* Invite User Dialog */}
@@ -612,6 +686,29 @@ function AdminUsersContent() {
         variant="danger"
         onConfirm={handleDeactivateConfirm}
         loading={deactivateMutation.isPending}
+      />
+
+      {/* Change Own Password Dialog */}
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
+
+      {/* Reset Another User's Password Confirm */}
+      <ConfirmDialog
+        open={resetPasswordTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setResetPasswordTarget(null);
+        }}
+        title={tu("resetPasswordTitle")}
+        description={
+          resetPasswordTarget
+            ? tu("resetPasswordDesc", {
+                name: resetPasswordTarget.name,
+                email: resetPasswordTarget.email,
+              })
+            : ""
+        }
+        confirmLabel={tu("sendResetEmail")}
+        onConfirm={handleResetPasswordConfirm}
+        loading={resetPasswordMutation.isPending}
       />
     </div>
   );

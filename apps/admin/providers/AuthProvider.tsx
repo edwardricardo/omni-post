@@ -18,6 +18,7 @@ import {
 } from "react";
 
 interface AuthContextValue {
+  userId: string;
   userName: string;
   userRole: string;
   isSuperAdmin: boolean;
@@ -28,6 +29,7 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue>({
+  userId: "",
   userName: "",
   userRole: "",
   isSuperAdmin: false,
@@ -38,10 +40,12 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({
+  userId,
   userName,
   userRole,
   children,
 }: {
+  userId: string;
   userName: string;
   userRole: string;
   children: ReactNode;
@@ -84,6 +88,7 @@ export function AuthProvider({
 
   const value = useMemo(
     () => ({
+      userId,
       userName,
       userRole,
       isSuperAdmin,
@@ -93,6 +98,7 @@ export function AuthProvider({
       hasAnyPermission,
     }),
     [
+      userId,
       userName,
       userRole,
       isSuperAdmin,

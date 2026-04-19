@@ -609,4 +609,26 @@ export class SettingsService {
           message: `${providerName} returned ${res.status}: ${res.statusText}`,
         };
   }
+
+  // ─── Public Platform Settings ──────────────────────────────────────
+
+  /**
+   * @method getPublicPlatformSettings
+   * @description Returns non-secret PLATFORM credential values safe for public exposure.
+   *   Only returns keys present in NON_SECRET_KEYS — never returns masked secrets.
+   * @returns Record of non-secret platform settings
+   */
+  async getPublicPlatformSettings(): Promise<Result<Record<string, string>, SettingsError>> {
+    const result = await this.credentialService.getGroup("PLATFORM");
+    if (!result.ok) return err("DATABASE_ERROR");
+
+    const publicSettings: Record<string, string> = {};
+    for (const [key, value] of Object.entries(result.value)) {
+      if (NON_SECRET_KEYS.has(key) && value) {
+        publicSettings[key] = value;
+      }
+    }
+
+    return ok(publicSettings);
+  }
 }

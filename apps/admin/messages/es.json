@@ -24,6 +24,7 @@
     "expandSidebar": "Expandir barra lateral",
     "collapseSidebar": "Contraer barra lateral",
     "maintenance": "Mantenimiento",
+    "announcements": "Anuncios",
     "users": "Usuarios Admin",
     "helpDocs": "Ayuda y Docs",
     "lightMode": "Modo claro",
@@ -621,6 +622,7 @@
     },
     "changePassword": {
       "title": "Cambiar contrasena",
+      "description": "Ingresa tu contrasena actual y elige una nueva.",
       "currentPassword": "Contrasena actual",
       "newPassword": "Nueva contrasena",
       "confirmPassword": "Confirmar nueva contrasena",
@@ -1025,7 +1027,8 @@
       "role": "Rol",
       "lastLogin": "Ultimo acceso",
       "status": "Estado",
-      "actions": "Acciones"
+      "actions": "Acciones",
+      "you": "Tu"
     },
     "deactivate": "Desactivar",
     "deactivateTitle": "Desactivar usuario",
@@ -1035,17 +1038,32 @@
     "editDescription": "Actualizar detalles y asignacion de rol del usuario.",
     "department": "Departamento",
     "team": "Equipo",
+    "passwordAction": "Contrasena",
+    "resetPasswordTitle": "Restablecer contrasena",
+    "resetPasswordDesc": "Se enviara un correo de restablecimiento de contrasena a {name} ({email}). Debera hacer clic en el enlace para establecer una nueva contrasena.",
+    "sendResetEmail": "Enviar correo de restablecimiento",
     "success": {
       "created": "Usuario admin creado",
       "updated": "{name} actualizado exitosamente",
       "deactivated": "{name} desactivado",
       "activated": "{name} activado",
-      "copied": "Contrasena copiada al portapapeles"
+      "copied": "Contrasena copiada al portapapeles",
+      "passwordResetSent": "Correo de restablecimiento enviado a {name}"
     },
     "errors": {
       "validation": "El correo y nombre son requeridos",
       "copyFailed": "Error al copiar — por favor seleccione y copie manualmente"
     }
+  },
+  "resetPassword": {
+    "title": "Restablecer contrasena",
+    "description": "Ingresa una nueva contrasena para tu cuenta.",
+    "submit": "Restablecer contrasena",
+    "invalidToken": "Token invalido o faltante",
+    "invalidTokenDesc": "El enlace de restablecimiento es invalido o ha expirado. Por favor solicita uno nuevo.",
+    "completeCaptcha": "Por favor completa la verificacion de seguridad.",
+    "successTitle": "Contrasena restablecida exitosamente",
+    "successDesc": "Tu contrasena ha sido actualizada. Redirigiendo al inicio de sesion..."
   },
   "logs": {
     "title": "Registros de auditoria",
@@ -1586,8 +1604,11 @@
       "faviconUrl": "URL del Favicon",
       "supportEmail": "Email de Soporte",
       "baseUrl": "URL Base",
+      "adminUrl": "URL del Panel Admin",
       "timezone": "Zona Horaria",
       "defaultLanguage": "Idioma por Defecto",
+      "turnstileSiteKey": "Clave de Sitio Turnstile",
+      "turnstileSecretKey": "Clave Secreta Turnstile",
       "analyticsApiKey": "Clave API de Analytics",
       "researchApiKey": "Clave API de Investigación",
       "priceStarterMonthly": "ID Precio Starter Mensual",

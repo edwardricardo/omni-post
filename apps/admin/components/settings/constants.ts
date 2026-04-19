@@ -51,8 +51,11 @@ export const CREDENTIAL_KEYS: Record<string, string[]> = {
     "faviconUrl",
     "supportEmail",
     "baseUrl",
+    "adminUrl",
     "timezone",
     "defaultLanguage",
+    "turnstileSiteKey",
+    "turnstileSecretKey",
   ],
   SOCIAL_FACEBOOK: ["appId", "appSecret", "accessToken"],
   SOCIAL_INSTAGRAM: ["appId", "appSecret", "accessToken"],
@@ -88,8 +91,10 @@ const NON_SECRET_KEYS = new Set([
   "faviconUrl",
   "supportEmail",
   "baseUrl",
+  "adminUrl",
   "timezone",
   "defaultLanguage",
+  "turnstileSiteKey",
   "identifier",
 ]);
 

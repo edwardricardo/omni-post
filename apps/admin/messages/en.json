@@ -24,6 +24,7 @@
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar",
     "maintenance": "Maintenance",
+    "announcements": "Announcements",
     "users": "Admin Users",
     "helpDocs": "Help & Docs",
     "lightMode": "Light Mode",
@@ -383,9 +384,9 @@
     "loading": "Loading pricing tiers...",
     "retry": "Retry",
     "tabs": {
-      "providers": "providers",
-      "accounts": "accounts",
-      "bundles": "bundles",
+      "providers": "Providers",
+      "accounts": "Accounts",
+      "bundles": "Bundles",
       "mrr": "MRR Dashboard",
       "providerTiers": "Provider Tiers",
       "accountTiers": "Account Tiers",
@@ -621,6 +622,7 @@
     },
     "changePassword": {
       "title": "Change Password",
+      "description": "Enter your current password and choose a new one.",
       "currentPassword": "Current Password",
       "newPassword": "New Password",
       "confirmPassword": "Confirm New Password",
@@ -1025,7 +1027,8 @@
       "role": "Role",
       "lastLogin": "Last Login",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "you": "You"
     },
     "deactivate": "Deactivate",
     "deactivateTitle": "Deactivate User",
@@ -1035,17 +1038,32 @@
     "editDescription": "Update user details and role assignment.",
     "department": "Department",
     "team": "Team",
+    "passwordAction": "Password",
+    "resetPasswordTitle": "Reset Password",
+    "resetPasswordDesc": "This will send a password reset email to {name} ({email}). They will need to click the link to set a new password.",
+    "sendResetEmail": "Send Reset Email",
     "success": {
       "created": "Admin user created",
       "updated": "{name} updated successfully",
       "deactivated": "{name} deactivated",
       "activated": "{name} activated",
-      "copied": "Password copied to clipboard"
+      "copied": "Password copied to clipboard",
+      "passwordResetSent": "Password reset email sent to {name}"
     },
     "errors": {
       "validation": "Email and name are required",
       "copyFailed": "Failed to copy — please select and copy manually"
     }
+  },
+  "resetPassword": {
+    "title": "Reset Your Password",
+    "description": "Enter a new password for your account.",
+    "submit": "Reset Password",
+    "invalidToken": "Invalid or Missing Token",
+    "invalidTokenDesc": "The password reset link is invalid or has expired. Please request a new one.",
+    "completeCaptcha": "Please complete the security verification.",
+    "successTitle": "Password Reset Successfully",
+    "successDesc": "Your password has been updated. Redirecting to login..."
   },
   "logs": {
     "title": "Audit Logs",
@@ -1580,8 +1598,11 @@
       "faviconUrl": "Favicon URL",
       "supportEmail": "Support Email",
       "baseUrl": "Base URL",
+      "adminUrl": "Admin Dashboard URL",
       "timezone": "Timezone",
       "defaultLanguage": "Default Language",
+      "turnstileSiteKey": "Turnstile Site Key",
+      "turnstileSecretKey": "Turnstile Secret Key",
       "analyticsApiKey": "Analytics API Key",
       "researchApiKey": "Research API Key",
       "priceStarterMonthly": "Starter Monthly Price ID",

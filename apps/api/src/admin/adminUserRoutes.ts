@@ -2,7 +2,7 @@
  * @file adminUserRoutes.ts
  * @description Admin CRUD endpoints for managing AdminUser records.
  *              Protected by admin authentication with role-based access control.
- * @layer infrastructure (routes)
+ * @layer infrastructure
  */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
@@ -13,6 +13,14 @@ import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { prisma } from "@infra/prisma";
+import type { AdminAuthService } from "./auth/AdminAuthService.js";
+import type { EmailPort } from "../domain/repositories/EmailPort.js";
+import type { PlatformCredentialService } from "../security/PlatformCredentialService.js";
+import { TOKENS } from "../infrastructure/container/types.js";
+import { passwordResetEmail } from "../application/notifications/emailTemplates.js";
+import { createLogger } from "../lib/logger.js";
+
+const adminUserLogger = createLogger("admin-users");
 
 // --- Zod Schemas ---
 
@@ -33,6 +41,7 @@ const UpdateAdminUserSchema = z.object({
   role: z.string().min(1).max(50).optional(),
   department: z.string().max(200).nullable().optional(),
   team: z.string().max(200).nullable().optional(),
+  avatarUrl: z.string().url().max(2048).nullable().optional(),
 });
 
 // --- Helper ---
@@ -280,6 +289,7 @@ class AdminUserHandler extends BaseRouteHandler {
       }
       if (updates.department !== undefined) data.department = updates.department;
       if (updates.team !== undefined) data.team = updates.team;
+      if (updates.avatarUrl !== undefined) data.avatarUrl = updates.avatarUrl;
 
       const raw = await prisma.adminUser.update({
         where: { id },
@@ -292,6 +302,7 @@ class AdminUserHandler extends BaseRouteHandler {
           isActive: true,
           department: true,
           team: true,
+          avatarUrl: true,
           updatedAt: true,
         },
       });
@@ -429,6 +440,91 @@ class AdminUserHandler extends BaseRouteHandler {
       return this.sendError(ctx, 500, "Internal server error");
     }
   }
+
+  /**
+   * @method resetUserPassword
+   * @description Initiates a password reset for another admin user by generating
+   *   a reset token and sending an email with a link.
+   * @param request - Fastify request with id param
+   * @param reply - Fastify reply
+   * @param adminAuthService - Admin authentication service for token generation
+   * @param emailPort - Email delivery port
+   * @param credentialService - Platform credential service for reading config
+   */
+  async resetUserPassword(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    adminAuthService: AdminAuthService,
+    emailPort: EmailPort,
+    credentialService: PlatformCredentialService
+  ): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    const paramsResult = IdParamsSchema.safeParse(request.params);
+    if (!paramsResult.success) {
+      return this.sendError(ctx, 400, "Invalid parameters");
+    }
+
+    const { id } = paramsResult.data;
+    const requestingUserId = (request as FastifyRequest & { auth: { user: { id: string } } }).auth
+      .user.id;
+
+    if (id === requestingUserId) {
+      return this.sendError(ctx, 400, "Use the change-password flow for your own account");
+    }
+
+    try {
+      const target = await prisma.adminUser.findUnique({
+        where: { id },
+        select: { id: true, email: true, name: true, isActive: true },
+      });
+
+      if (!target) {
+        return this.sendError(ctx, 404, "Admin user not found");
+      }
+
+      if (!target.isActive) {
+        return this.sendError(ctx, 400, "Cannot reset password for an inactive user");
+      }
+
+      const result = await adminAuthService.initiatePasswordReset(target.email);
+      if (!result.ok) {
+        return this.sendError(ctx, 500, "Failed to initiate password reset");
+      }
+
+      const resetToken = result.value;
+      const adminUrlResult = await credentialService.getCredential("PLATFORM", "adminUrl");
+      const adminUrl = (adminUrlResult.ok && adminUrlResult.value) || "http://localhost:3100";
+      const resetUrl = `${adminUrl}/reset-password?token=${resetToken}`;
+
+      const emailContent = await passwordResetEmail({
+        userName: target.name,
+        resetUrl,
+      });
+
+      const emailResult = await emailPort.send({
+        to: [target.email],
+        subject: emailContent.subject,
+        body: `Password reset requested. Visit: ${resetUrl}`,
+        html: emailContent.html,
+      });
+
+      if (!emailResult.ok) {
+        adminUserLogger.warn(
+          { err: emailResult.error, userId: id },
+          "Password reset email delivery failed"
+        );
+      }
+
+      this.logInfo(ctx, "Password reset initiated", { targetUserId: id });
+      return this.sendSuccess(ctx, { message: "Password reset email sent" });
+    } catch (error: unknown) {
+      this.logError(ctx, "Failed to reset user password", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return this.sendError(ctx, 500, "Internal server error");
+    }
+  }
 }
 
 // --- Plugin ---
@@ -488,6 +584,23 @@ const adminUserRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Admin Users"], summary: "Activate admin user" },
     },
     async (request, reply) => handler.activateUser(request, reply)
+  );
+
+  // Password reset (admin resets another admin's password via email)
+  const adminAuthService = fastify.container!.resolve<AdminAuthService>(TOKENS.AdminAuthService);
+  const emailPort = fastify.container!.resolve<EmailPort>(TOKENS.EmailPort);
+  const credentialService = fastify.container!.resolve<PlatformCredentialService>(
+    TOKENS.PlatformCredentialService
+  );
+
+  fastify.post(
+    "/admin/users/:id/password-reset",
+    {
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE)],
+      schema: { tags: ["Admin Users"], summary: "Reset admin user password via email" },
+    },
+    async (request, reply) =>
+      handler.resetUserPassword(request, reply, adminAuthService, emailPort, credentialService)
   );
 };
 
