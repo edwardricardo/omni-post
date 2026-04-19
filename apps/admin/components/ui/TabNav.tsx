@@ -38,7 +38,7 @@ export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
     <nav
       role="tablist"
       aria-label="Tabs"
-      className="flex gap-1 border-b border-[var(--border-subtle)]"
+      className="flex gap-1 border-b border-[var(--border-subtle)] overflow-x-auto"
     >
       {tabs.map((tab) => {
         const isActive = tab.key === activeTab;
@@ -53,7 +53,7 @@ export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
             id={`tab-${tab.key}`}
             onClick={() => handleClick(tab.key)}
             className={[
-              "cursor-pointer px-4 py-2 text-sm font-medium transition-colors",
+              "shrink-0 cursor-pointer whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
               isActive
                 ? "border-b-2 border-[var(--accent)] text-[var(--text-primary)]"
