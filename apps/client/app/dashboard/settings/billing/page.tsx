@@ -29,6 +29,7 @@ import {
   useBillingPortal,
 } from "@/hooks/api/useBilling";
 import type { GatewayProvider, BillingPlan } from "@/hooks/api/useBilling";
+import { InvoiceHistory } from "@/components/billing/InvoiceHistory";
 
 // ---------------------------------------------------------------------------
 // Plan configuration constants
@@ -674,6 +675,11 @@ export default function BillingPage() {
         <p className="text-xs text-muted-foreground mt-1">
           Volume discount: accounts 2-3 at 80%, 4-9 at 65%, 10+ at 50%
         </p>
+      </div>
+
+      {/* Invoice History */}
+      <div className="mt-8">
+        <InvoiceHistory />
       </div>
     </div>
   );

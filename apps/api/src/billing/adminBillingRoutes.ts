@@ -6,6 +6,7 @@
  */
 
 import type { FastifyPluginAsync } from "fastify";
+import type { PrismaClient } from "@infra/prisma";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
@@ -166,6 +167,48 @@ export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       return reply.send({ ok: true });
+    }
+  );
+
+  // ─── Admin Invoice List ─────────────────────────────────────────────
+
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
+
+  fastify.get(
+    "/api/admin/billing/invoices",
+    {
+      preHandler,
+      schema: { tags: ["Admin Billing"], summary: "List all invoices (admin)" },
+    },
+    async (request, reply) => {
+      const query = request.query as {
+        accountId?: string;
+        status?: string;
+        page?: string;
+        limit?: string;
+      };
+      const page = Math.max(1, parseInt(query.page ?? "1", 10));
+      const limit = Math.min(100, Math.max(1, parseInt(query.limit ?? "20", 10)));
+      const skip = (page - 1) * limit;
+
+      const where: Record<string, unknown> = {};
+      if (query.accountId) where.accountId = query.accountId;
+      if (query.status) where.status = query.status;
+
+      const [invoices, total] = await Promise.all([
+        prisma.invoice.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit,
+          include: {
+            account: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        prisma.invoice.count({ where }),
+      ]);
+
+      return reply.send({ ok: true, data: { invoices, total, page, limit } });
     }
   );
 };

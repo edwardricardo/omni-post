@@ -78,6 +78,7 @@ model Account {
   gatewaySwitchAt        DateTime?
   gatewaySwitchEvents    GatewaySwitchEvent[]
   billingEvents          BillingEvent[]
+  invoices               Invoice[]
   dsarRequests           DsarRequest[]
   accountCredentials     AccountCredential[]
   aiTokenUsage           AiTokenUsage[]
@@ -2829,9 +2830,10 @@ model AccountSubscription {
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 
-  account Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  bundle  ProviderBundle? @relation(fields: [bundleId], references: [id])
-  history SubscriptionPriceHistory[]
+  account  Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  bundle   ProviderBundle? @relation(fields: [bundleId], references: [id])
+  history  SubscriptionPriceHistory[]
+  invoices Invoice[]
 
   @@index([status])
 }
@@ -2849,6 +2851,42 @@ model SubscriptionPriceHistory {
   subscription AccountSubscription @relation(fields: [subscriptionId], references: [id])
 
   @@index([subscriptionId])
+}
+
+model Invoice {
+  id               String          @id @default(cuid())
+  accountId        String
+  subscriptionId   String?
+  gatewayProvider  GatewayProvider
+  gatewayInvoiceId String          @unique
+  status           InvoiceStatus
+  amountDue        Float
+  amountPaid       Float           @default(0)
+  currency         String          @default("usd")
+  periodStart      DateTime
+  periodEnd        DateTime
+  paidAt           DateTime?
+  hostedUrl        String?
+  pdfUrl           String?
+  attemptCount     Int             @default(0)
+  nextRetryAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  account      Account              @relation(fields: [accountId], references: [id])
+  subscription AccountSubscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([accountId])
+  @@index([status])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+  PAYMENT_FAILED
 }
 
 model AccountOnboarding {

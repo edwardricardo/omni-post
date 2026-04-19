@@ -6,6 +6,7 @@
  */
 
 import type { FastifyPluginAsync } from "fastify";
+import type { PrismaClient } from "@infra/prisma";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GatewayBillingService } from "./GatewayBillingService.js";
@@ -197,6 +198,51 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       return reply.send({ ok: true, data: result.value });
+    }
+  );
+
+  // ─── Invoice History ────────────────────────────────────────────────
+
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
+
+  fastify.get(
+    "/api/billing/invoices",
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Client Billing"], summary: "List invoices for current account" },
+    },
+    async (request, reply) => {
+      const accountId = request.customerUser!.accountId;
+      const query = request.query as { page?: string; limit?: string };
+      const page = Math.max(1, parseInt(query.page ?? "1", 10));
+      const limit = Math.min(100, Math.max(1, parseInt(query.limit ?? "10", 10)));
+      const skip = (page - 1) * limit;
+
+      const [invoices, total] = await Promise.all([
+        prisma.invoice.findMany({
+          where: { accountId },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit,
+          select: {
+            id: true,
+            status: true,
+            amountDue: true,
+            amountPaid: true,
+            currency: true,
+            periodStart: true,
+            periodEnd: true,
+            paidAt: true,
+            hostedUrl: true,
+            pdfUrl: true,
+            gatewayProvider: true,
+            createdAt: true,
+          },
+        }),
+        prisma.invoice.count({ where: { accountId } }),
+      ]);
+
+      return reply.send({ ok: true, data: { invoices, total, page, limit } });
     }
   );
 };

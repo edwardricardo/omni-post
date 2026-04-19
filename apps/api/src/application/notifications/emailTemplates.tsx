@@ -368,3 +368,237 @@ export async function mentionEmail(
     html: await render(React.createElement(MentionEmail, params)),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Password Reset (Admin-initiated)
+// ---------------------------------------------------------------------------
+
+interface PasswordResetProps {
+  userName: string;
+  resetUrl: string;
+}
+
+function PasswordResetEmail(props: PasswordResetProps) {
+  return (
+    <BaseEmailLayout
+      preview="Password reset requested for your account"
+      accountName="OmniPost Admin"
+      ctaText="Reset Password"
+      ctaUrl={props.resetUrl}
+    >
+      <Text style={{ fontSize: "18px", fontWeight: 600, color: "#111827", margin: "0 0 12px" }}>
+        Password Reset
+      </Text>
+      <Text style={{ color: "#4b5563" }}>
+        Hi {props.userName}, an administrator has initiated a password reset for your account. Click
+        the button below to set a new password. This link expires in 1 hour.
+      </Text>
+      <Text style={{ color: "#9ca3af", fontSize: "13px", marginTop: "24px" }}>
+        If you did not expect this, you can safely ignore this email.
+      </Text>
+    </BaseEmailLayout>
+  );
+}
+
+export async function passwordResetEmail(
+  params: PasswordResetProps
+): Promise<{ subject: string; html: string }> {
+  return {
+    subject: "Password reset requested — OmniPost Admin",
+    html: await render(React.createElement(PasswordResetEmail, params)),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Dunning (Payment Failed)
+// ---------------------------------------------------------------------------
+
+interface DunningProps {
+  accountName: string;
+  amountDue: string;
+  currency: string;
+  attemptCount: number;
+  updatePaymentUrl: string;
+}
+
+function DunningEmail(props: DunningProps) {
+  const isFinal = props.attemptCount >= 3;
+  const title = isFinal ? "Action Required: Account Suspended" : "Payment Failed";
+  const message = isFinal
+    ? `We were unable to process your payment of ${props.currency} ${props.amountDue} after multiple attempts. Your account has been suspended. Please update your payment method to restore access.`
+    : props.attemptCount === 1
+      ? `Your payment of ${props.currency} ${props.amountDue} could not be processed. We will automatically retry in a few days. To avoid interruption, please update your payment method.`
+      : `We attempted to charge ${props.currency} ${props.amountDue} again, but the payment failed. This is attempt ${props.attemptCount}. Please update your payment method to avoid account suspension.`;
+
+  return (
+    <BaseEmailLayout
+      preview={`Payment failed — ${props.currency} ${props.amountDue}`}
+      accountName={props.accountName}
+      ctaText="Update Payment Method"
+      ctaUrl={props.updatePaymentUrl}
+    >
+      <Text style={{ fontSize: "18px", fontWeight: 600, color: "#111827", margin: "0 0 12px" }}>
+        {title}
+      </Text>
+      <Text style={{ color: "#4b5563" }}>{message}</Text>
+    </BaseEmailLayout>
+  );
+}
+
+export async function dunningEmail(
+  params: DunningProps
+): Promise<{ subject: string; html: string }> {
+  const isFinal = params.attemptCount >= 3;
+  return {
+    subject: isFinal
+      ? "Account suspended — update payment method"
+      : `Payment failed — ${params.currency} ${params.amountDue}`,
+    html: await render(React.createElement(DunningEmail, params)),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Subscription Cancelled
+// ---------------------------------------------------------------------------
+
+interface SubscriptionCancelledProps {
+  accountName: string;
+  planName: string;
+  accessUntil: string;
+  reactivateUrl: string;
+}
+
+function SubscriptionCancelledEmail(props: SubscriptionCancelledProps) {
+  return (
+    <BaseEmailLayout
+      preview="Your subscription has been cancelled"
+      accountName={props.accountName}
+      ctaText="Reactivate Subscription"
+      ctaUrl={props.reactivateUrl}
+    >
+      <Text style={{ fontSize: "18px", fontWeight: 600, color: "#111827", margin: "0 0 12px" }}>
+        Subscription Cancelled
+      </Text>
+      <Text style={{ color: "#4b5563" }}>
+        Your {props.planName} subscription has been cancelled. You will continue to have access
+        until {props.accessUntil}.
+      </Text>
+      <Text style={{ color: "#4b5563", marginTop: "16px" }}>
+        If this was a mistake or you change your mind, you can reactivate your subscription at any
+        time.
+      </Text>
+    </BaseEmailLayout>
+  );
+}
+
+export async function subscriptionCancelledEmail(
+  params: SubscriptionCancelledProps
+): Promise<{ subject: string; html: string }> {
+  return {
+    subject: "Your subscription has been cancelled",
+    html: await render(React.createElement(SubscriptionCancelledEmail, params)),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Welcome Email (Client Registration)
+// ---------------------------------------------------------------------------
+
+interface WelcomeProps {
+  accountName: string;
+  onboardingUrl: string;
+  supportEmail: string;
+}
+
+function WelcomeEmail(props: WelcomeProps) {
+  return (
+    <BaseEmailLayout
+      preview={`Welcome to OmniPost, ${props.accountName}!`}
+      accountName={props.accountName}
+      ctaText="Get Started"
+      ctaUrl={props.onboardingUrl}
+    >
+      <Text style={{ fontSize: "18px", fontWeight: 600, color: "#111827", margin: "0 0 12px" }}>
+        Welcome to OmniPost!
+      </Text>
+      <Text style={{ color: "#4b5563" }}>
+        Your account <strong>{props.accountName}</strong> is ready. Here are three quick steps to
+        get the most out of OmniPost:
+      </Text>
+      <Section style={cardStyle}>
+        <Text style={{ fontWeight: 600, margin: "0 0 8px", color: "#111827" }}>
+          1. Connect your first social account
+        </Text>
+        <Text style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 12px" }}>
+          Link your social media profiles to start managing content from one place.
+        </Text>
+        <Text style={{ fontWeight: 600, margin: "0 0 8px", color: "#111827" }}>
+          2. Create your first post
+        </Text>
+        <Text style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 12px" }}>
+          Write, schedule, and publish across all your connected platforms.
+        </Text>
+        <Text style={{ fontWeight: 600, margin: "0 0 8px", color: "#111827" }}>
+          3. Invite your team
+        </Text>
+        <Text style={{ color: "#6b7280", fontSize: "14px", margin: 0 }}>
+          Collaborate with your team using roles and approval workflows.
+        </Text>
+      </Section>
+      <Text style={{ color: "#9ca3af", fontSize: "13px", marginTop: "16px" }}>
+        Questions? Reach us at {props.supportEmail}.
+      </Text>
+    </BaseEmailLayout>
+  );
+}
+
+export async function welcomeEmail(
+  params: WelcomeProps
+): Promise<{ subject: string; html: string }> {
+  return {
+    subject: `Welcome to OmniPost — let's get you set up`,
+    html: await render(React.createElement(WelcomeEmail, params)),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Team Invitation
+// ---------------------------------------------------------------------------
+
+interface TeamInvitationProps {
+  inviterName: string;
+  accountName: string;
+  role: string;
+  acceptUrl: string;
+}
+
+function TeamInvitationEmail(props: TeamInvitationProps) {
+  return (
+    <BaseEmailLayout
+      preview={`${props.inviterName} invited you to ${props.accountName}`}
+      accountName={props.accountName}
+      ctaText="Accept Invitation"
+      ctaUrl={props.acceptUrl}
+    >
+      <Text style={{ fontSize: "18px", fontWeight: 600, color: "#111827", margin: "0 0 12px" }}>
+        You&apos;ve been invited!
+      </Text>
+      <Text style={{ color: "#4b5563" }}>
+        <strong>{props.inviterName}</strong> invited you to join{" "}
+        <strong>{props.accountName}</strong> as a <strong>{props.role}</strong> on OmniPost.
+      </Text>
+      <Text style={{ color: "#9ca3af", fontSize: "13px", marginTop: "16px" }}>
+        This invitation expires in 48 hours. If you did not expect this, you can ignore it.
+      </Text>
+    </BaseEmailLayout>
+  );
+}
+
+export async function teamInvitationEmail(
+  params: TeamInvitationProps
+): Promise<{ subject: string; html: string }> {
+  return {
+    subject: `${params.inviterName} invited you to ${params.accountName}`,
+    html: await render(React.createElement(TeamInvitationEmail, params)),
+  };
+}

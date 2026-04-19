@@ -106,6 +106,27 @@ async function routeBillingEvent(
       break;
     }
 
+    case "payment.failed": {
+      const result = await service.handlePaymentFailed(data, customerId);
+      if (!result.ok) {
+        processingError = result.error;
+        log.error({ provider, customerId, error: result.error }, "Error processing payment.failed");
+      }
+      break;
+    }
+
+    case "payment.succeeded": {
+      const result = await service.handlePaymentSucceeded(data, customerId);
+      if (!result.ok) {
+        processingError = result.error;
+        log.error(
+          { provider, customerId, error: result.error },
+          "Error processing payment.succeeded"
+        );
+      }
+      break;
+    }
+
     default:
       log.debug(
         { provider, domainEvent, eventType },

@@ -283,7 +283,23 @@ export class GatewayBillingService {
       if (!account) return err("ACCOUNT_NOT_FOUND");
 
       if (!account.pendingGatewaySwitch || !account.pendingGatewayProvider) {
-        // Not a gateway switch — normal cancellation handled elsewhere
+        // Not a gateway switch — regular cancellation: send notification email
+        if (account.email) {
+          const sub = await this.prisma.accountSubscription.findFirst({
+            where: { accountId },
+            select: { currentPeriodEnd: true, bundleId: true },
+          });
+          const accessUntil = sub?.currentPeriodEnd
+            ? (sub.currentPeriodEnd.toISOString().split("T")[0] ?? "N/A")
+            : "N/A";
+          await this.emailPort
+            .send({
+              to: [account.email],
+              subject: "Your subscription has been cancelled",
+              body: `Your subscription has been cancelled. You will have access until ${accessUntil}.`,
+            })
+            .catch((e) => logger.warn({ err: e }, "Failed to send cancellation email"));
+        }
         return ok(undefined);
       }
 
@@ -850,5 +866,176 @@ export class GatewayBillingService {
         account: { select: { id: true, name: true, email: true } },
       },
     });
+  }
+
+  // ─── Dunning (Payment Failed / Succeeded) ────────────────────────────
+
+  /**
+   * @method handlePaymentFailed
+   * @description Handles failed payment webhook. Upserts Invoice, transitions
+   *   subscription to PAST_DUE, sends dunning email. On 3rd attempt, cancels.
+   * @param data - Raw webhook event data
+   * @param gatewayCustomerId - Gateway customer ID to look up account
+   */
+  async handlePaymentFailed(
+    data: Record<string, unknown>,
+    gatewayCustomerId: string
+  ): Promise<Result<void, SwitchError>> {
+    try {
+      const account = await this.prisma.account.findFirst({
+        where: { gatewayCustomerId },
+        select: { id: true, name: true, email: true },
+      });
+      if (!account) return err("ACCOUNT_NOT_FOUND");
+
+      const invoiceId = String(data.id ?? data.invoice_id ?? "");
+      const attemptCount = Number(data.attempt_count ?? data.payment_attempt_number ?? 1);
+      const amountDue = Number(data.amount_due ?? data.amount ?? 0) / 100;
+      const currency = String(data.currency ?? "usd").toUpperCase();
+      const periodStart = data.period_start
+        ? new Date(Number(data.period_start) * 1000)
+        : new Date();
+      const periodEnd = data.period_end ? new Date(Number(data.period_end) * 1000) : new Date();
+      const gatewayProvider = String(data.subscription_id ?? "").startsWith("sub_")
+        ? "STRIPE"
+        : "PADDLE";
+
+      if (!invoiceId) return err("DATABASE_ERROR");
+
+      // Upsert Invoice (idempotent by gatewayInvoiceId)
+      await this.prisma.invoice.upsert({
+        where: { gatewayInvoiceId: invoiceId },
+        create: {
+          accountId: account.id,
+          gatewayProvider: gatewayProvider as "STRIPE" | "PADDLE",
+          gatewayInvoiceId: invoiceId,
+          status: "PAYMENT_FAILED",
+          amountDue,
+          currency,
+          periodStart,
+          periodEnd,
+          attemptCount,
+        },
+        update: { status: "PAYMENT_FAILED", attemptCount },
+      });
+
+      const sub = await this.prisma.accountSubscription.findFirst({
+        where: { accountId: account.id },
+      });
+
+      if (attemptCount >= 3) {
+        // Final attempt — cancel subscription
+        if (sub) {
+          await this.prisma.accountSubscription.update({
+            where: { id: sub.id },
+            data: { status: "CANCELED" },
+          });
+        }
+      } else if (sub && sub.status !== "PAST_DUE") {
+        await this.prisma.accountSubscription.update({
+          where: { id: sub.id },
+          data: { status: "PAST_DUE" },
+        });
+      }
+
+      // Send dunning email
+      if (account.email) {
+        const isFinal = attemptCount >= 3;
+        await this.emailPort
+          .send({
+            to: [account.email],
+            subject: isFinal
+              ? "Account suspended — update payment method"
+              : `Payment failed — ${currency} ${amountDue.toFixed(2)}`,
+            body: isFinal
+              ? `Your payment of ${currency} ${amountDue.toFixed(2)} failed after ${attemptCount} attempts. Your account has been suspended.`
+              : `Your payment of ${currency} ${amountDue.toFixed(2)} could not be processed (attempt ${attemptCount}). Please update your payment method.`,
+          })
+          .catch((e) => logger.warn({ err: e }, "Failed to send dunning email"));
+      }
+
+      logger.info({ accountId: account.id, attemptCount, invoiceId }, "Payment failed processed");
+      return ok(undefined);
+    } catch (error) {
+      logger.error({ err: error, gatewayCustomerId }, "Failed to handle payment failed");
+      return err("DATABASE_ERROR");
+    }
+  }
+
+  /**
+   * @method handlePaymentSucceeded
+   * @description Handles successful payment webhook. Upserts Invoice as PAID,
+   *   recovers PAST_DUE subscriptions to ACTIVE.
+   * @param data - Raw webhook event data
+   * @param gatewayCustomerId - Gateway customer ID
+   */
+  async handlePaymentSucceeded(
+    data: Record<string, unknown>,
+    gatewayCustomerId: string
+  ): Promise<Result<void, SwitchError>> {
+    try {
+      const account = await this.prisma.account.findFirst({
+        where: { gatewayCustomerId },
+        select: { id: true },
+      });
+      if (!account) return err("ACCOUNT_NOT_FOUND");
+
+      const invoiceId = String(data.id ?? data.invoice_id ?? "");
+      const amountPaid = Number(data.amount_paid ?? data.amount ?? 0) / 100;
+      const currency = String(data.currency ?? "usd").toUpperCase();
+      const periodStart = data.period_start
+        ? new Date(Number(data.period_start) * 1000)
+        : new Date();
+      const periodEnd = data.period_end ? new Date(Number(data.period_end) * 1000) : new Date();
+      const hostedUrl = data.hosted_invoice_url ? String(data.hosted_invoice_url) : null;
+      const pdfUrl = data.invoice_pdf ? String(data.invoice_pdf) : null;
+      const gatewayProvider = String(data.subscription_id ?? "").startsWith("sub_")
+        ? "STRIPE"
+        : "PADDLE";
+
+      if (!invoiceId) return err("DATABASE_ERROR");
+
+      await this.prisma.invoice.upsert({
+        where: { gatewayInvoiceId: invoiceId },
+        create: {
+          accountId: account.id,
+          gatewayProvider: gatewayProvider as "STRIPE" | "PADDLE",
+          gatewayInvoiceId: invoiceId,
+          status: "PAID",
+          amountDue: amountPaid,
+          amountPaid,
+          currency,
+          periodStart,
+          periodEnd,
+          paidAt: new Date(),
+          ...(hostedUrl && { hostedUrl }),
+          ...(pdfUrl && { pdfUrl }),
+        },
+        update: {
+          status: "PAID",
+          amountPaid,
+          paidAt: new Date(),
+          ...(hostedUrl && { hostedUrl }),
+          ...(pdfUrl && { pdfUrl }),
+        },
+      });
+
+      // Recover PAST_DUE → ACTIVE
+      const sub = await this.prisma.accountSubscription.findFirst({
+        where: { accountId: account.id, status: "PAST_DUE" },
+      });
+      if (sub) {
+        await this.prisma.accountSubscription.update({
+          where: { id: sub.id },
+          data: { status: "ACTIVE" },
+        });
+        logger.info({ accountId: account.id }, "Subscription recovered from PAST_DUE");
+      }
+
+      return ok(undefined);
+    } catch (error) {
+      logger.error({ err: error, gatewayCustomerId }, "Failed to handle payment succeeded");
+      return err("DATABASE_ERROR");
+    }
   }
 }
