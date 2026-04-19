@@ -64,11 +64,19 @@ function buildTargetUrl(req: NextRequest, segments: string[]): string {
   return targetUrl.toString();
 }
 
-function buildHeaders(req: NextRequest, token: string | undefined): Headers {
+async function buildHeaders(req: NextRequest, token: string | undefined): Promise<Headers> {
   const headers = new Headers();
   const contentType = req.headers.get("Content-Type");
   if (contentType) headers.set("Content-Type", contentType);
   if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  // Forward CSRF token from httpOnly cookie as header for backend validation
+  const cookieStore = await cookies();
+  const csrfCookie = cookieStore.get("admin-csrf");
+  if (csrfCookie?.value) {
+    headers.set("X-CSRF-Token", csrfCookie.value);
+  }
+
   return headers;
 }
 
@@ -96,7 +104,12 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
 
   let upstream: Response;
   try {
-    upstream = await sendUpstream(req.method, url, buildHeaders(req, session?.value), bodyText);
+    upstream = await sendUpstream(
+      req.method,
+      url,
+      await buildHeaders(req, session?.value),
+      bodyText
+    );
   } catch {
     return NextResponse.json({ ok: false, error: "Backend unavailable" }, { status: 503 });
   }
@@ -117,7 +130,12 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
       if (newToken) {
         // Retry the original request with the fresh token (body was saved earlier)
         try {
-          upstream = await sendUpstream(req.method, url, buildHeaders(req, newToken), bodyText);
+          upstream = await sendUpstream(
+            req.method,
+            url,
+            await buildHeaders(req, newToken),
+            bodyText
+          );
         } catch {
           return NextResponse.json({ ok: false, error: "Backend unavailable" }, { status: 503 });
         }
