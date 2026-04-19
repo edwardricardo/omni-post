@@ -227,15 +227,21 @@ export class AdminAuthService {
       return err("INVALID_TOKEN");
     }
 
-    // Generate new access token
+    // Generate new access token (reads session timeout from SecuritySettings)
     const profile = await this.getUserProfile(session.userId);
     if (!profile.ok) {
       return err("INTERNAL_ERROR");
     }
 
+    const securitySettings = await prisma.securitySettings.findFirst({
+      select: { sessionTimeoutMinutes: true },
+    });
+    const sessionTimeoutMinutes = securitySettings?.sessionTimeoutMinutes ?? 15;
+
     const accessToken = this.tokenService.generateAccessToken(
       profile.value,
-      session.deviceId || undefined
+      session.deviceId || undefined,
+      sessionTimeoutMinutes
     );
 
     // Update session last activity

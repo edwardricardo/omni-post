@@ -93,6 +93,8 @@ import { teamRoutes } from "./team/teamRoutes.js";
 import { notificationRoutes } from "./notifications/notificationRoutes.js";
 import { approvalRoutes } from "./approvals/approvalRoutes.js";
 import { approvalWorkflowRoutes } from "./approvals/approvalWorkflowRoutes.js";
+import { onboardingRoutes } from "./onboarding/onboardingRoutes.js";
+import { announcementRoutes } from "./announcements/announcementRoutes.js";
 import { commentRoutes } from "./comments/commentRoutes.js";
 import { inboxRoutes } from "./inbox/inboxRoutes.js";
 import { conversationNoteRoutes } from "./inbox/conversationNoteRoutes.js";
@@ -132,6 +134,7 @@ async function createApp(): Promise<FastifyInstance> {
   // ✅ Correct constructor syntax - Fastify v5.6.1
   const app = Fastify({
     logger: true,
+    trustProxy: true,
   });
 
   // ✅ Apply ZodTypeProvider for type safety
@@ -315,6 +318,25 @@ async function createApp(): Promise<FastifyInstance> {
     await fastify.addHook("onError", metricsMiddleware.onError);
   });
 
+  // Initialize Sentry error tracking (reads DSN from MONITORING credentials)
+  try {
+    const { initSentry } = await import("./observability/sentryInit.js");
+    const credService = container.resolve<
+      import("./security/PlatformCredentialService.js").PlatformCredentialService
+    >(TOKENS.PlatformCredentialService);
+    const monitoringCreds = await credService.getGroup("MONITORING");
+    if (monitoringCreds.ok) {
+      const creds = monitoringCreds.value;
+      initSentry(
+        creds.sentryDsn ?? null,
+        creds.sentryEnvironment ?? process.env.NODE_ENV,
+        parseFloat(creds.sentryTracesSampleRate ?? "0.1")
+      );
+    }
+  } catch (err) {
+    typedApp.log.warn({ err }, "Sentry initialization skipped");
+  }
+
   // 🔒 SECURITY: Centralized error handler (prevents information leakage)
   // Never exposes stack traces, database schema, or internal paths in production
   const errorHandler = createErrorHandler(typedApp.log);
@@ -367,6 +389,14 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Register Phase 3 security and performance middleware
   await securityManager.register(typedApp);
+
+  // IP allowlist enforcement (reads SecuritySettings from DB, 60s cache)
+  const { createIpAllowlistMiddleware } = await import("./security/ipAllowlistMiddleware.js");
+  typedApp.addHook("onRequest", createIpAllowlistMiddleware(prisma));
+
+  // CSRF token validation on state-changing admin requests
+  const { createCsrfMiddleware } = await import("./security/csrfMiddleware.js");
+  typedApp.addHook("preHandler", createCsrfMiddleware(prisma));
 
   // Performance monitoring hooks
   typedApp.addHook(
@@ -437,6 +467,8 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(teamRoutes);
   await typedApp.register(notificationRoutes);
   await typedApp.register(approvalRoutes);
+  await typedApp.register(onboardingRoutes);
+  await typedApp.register(announcementRoutes);
   await typedApp.register(approvalWorkflowRoutes);
   await typedApp.register(commentRoutes);
   await typedApp.register(inboxRoutes);

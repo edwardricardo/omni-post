@@ -24,6 +24,8 @@ interface PrismaTeamMemberRow {
   role: string;
   isActive: boolean;
   invitedBy: string | null;
+  inviteToken: string | null;
+  inviteTokenExpiry: Date | null;
   joinedAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -163,6 +165,8 @@ export class PrismaTeamMemberRepository implements TeamMemberRepository {
         role: member.role.value,
         isActive: member.isActive,
         invitedBy: member.invitedBy ?? null,
+        inviteToken: member.inviteToken ?? null,
+        inviteTokenExpiry: member.inviteTokenExpiry ?? null,
         joinedAt: member.joinedAt,
       };
 
@@ -176,6 +180,8 @@ export class PrismaTeamMemberRepository implements TeamMemberRepository {
           name: data.name,
           role: data.role,
           isActive: data.isActive,
+          inviteToken: data.inviteToken,
+          inviteTokenExpiry: data.inviteTokenExpiry,
         },
       });
 
@@ -246,6 +252,8 @@ export class PrismaTeamMemberRepository implements TeamMemberRepository {
       role,
       isActive: row.isActive,
       ...(row.invitedBy !== null && { invitedBy: row.invitedBy }),
+      ...(row.inviteToken !== null && { inviteToken: row.inviteToken }),
+      ...(row.inviteTokenExpiry !== null && { inviteTokenExpiry: row.inviteTokenExpiry }),
       joinedAt: row.joinedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

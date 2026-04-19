@@ -356,6 +356,9 @@ const { mockModule, stores } = vi.hoisted(() => {
         return record;
       }),
     },
+    securitySettings: {
+      findFirst: fn(async () => ({ sessionTimeoutMinutes: 15 })),
+    },
     $connect: fn(async () => undefined),
     $disconnect: fn(async () => undefined),
     $transaction: fn(async (fnOrArray: unknown) => {

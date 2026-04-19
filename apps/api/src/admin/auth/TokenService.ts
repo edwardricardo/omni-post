@@ -19,7 +19,12 @@ export class TokenService {
   /**
    * Generate access token (short-lived, 15 minutes)
    */
-  generateAccessToken(user: AdminUserProfile, deviceId?: string): string {
+  generateAccessToken(
+    user: AdminUserProfile,
+    deviceId?: string,
+    sessionTimeoutMinutes?: number
+  ): string {
+    const expirySeconds = (sessionTimeoutMinutes ?? 15) * 60;
     const payload: AccessTokenPayload = {
       sub: user.id,
       email: user.email,
@@ -27,7 +32,7 @@ export class TokenService {
       role: user.role,
       type: "access",
       iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
+      exp: Math.floor(Date.now() / 1000) + expirySeconds,
       ...(deviceId && { deviceId }),
     };
 

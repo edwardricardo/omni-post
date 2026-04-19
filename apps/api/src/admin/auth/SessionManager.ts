@@ -83,14 +83,24 @@ export class SessionManager {
       throw new Error("Failed to get user profile");
     }
 
-    const accessToken = this.tokenService.generateAccessToken(user.value, device.deviceId);
+    // Read session timeout from SecuritySettings (DB-configurable)
+    const securitySettings = await prisma.securitySettings.findFirst({
+      select: { sessionTimeoutMinutes: true },
+    });
+    const sessionTimeoutMinutes = securitySettings?.sessionTimeoutMinutes ?? 15;
+
+    const accessToken = this.tokenService.generateAccessToken(
+      user.value,
+      device.deviceId,
+      sessionTimeoutMinutes
+    );
 
     return {
       sessionId: session.id,
       tokens: {
         accessToken,
         refreshToken,
-        expiresIn: 15 * 60, // 15 minutes in seconds
+        expiresIn: sessionTimeoutMinutes * 60,
         csrfToken,
       },
     };

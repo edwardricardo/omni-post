@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/auth/authContext";
 import { ProjectProvider } from "@/providers/ProjectProvider";
+import { AnnouncementBanner } from "@/components/announcements/AnnouncementBanner";
 import { Button } from "@packages/ui";
 import { Avatar, AvatarFallback, AvatarInitial } from "@packages/ui";
 import {
@@ -158,6 +159,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Main Content */}
         <main className="flex-1 lg:ml-0">
           <div className="p-6">
+            <AnnouncementBanner />
             <ProjectProvider>{children}</ProjectProvider>
           </div>
         </main>

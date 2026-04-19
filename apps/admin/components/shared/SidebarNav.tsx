@@ -30,6 +30,7 @@ import {
   HelpCircle,
   UserCog,
   Wrench,
+  Megaphone,
   LogOut,
   ArrowRightLeft,
   Settings2,
@@ -85,6 +86,7 @@ const NAV_GROUPS: NavGroup[] = [
       { translationKey: "logs", href: "/logs", icon: ScrollText },
       { translationKey: "webhooks", href: "/webhooks", icon: Webhook },
       { translationKey: "maintenance", href: "/maintenance", icon: Wrench },
+      { translationKey: "announcements", href: "/announcements", icon: Megaphone },
       { translationKey: "users", href: "/users", icon: UserCog },
     ],
   },
@@ -262,6 +264,7 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
     logs: t("logs"),
     webhooks: t("webhooks"),
     maintenance: t("maintenance"),
+    announcements: t("announcements"),
     users: t("users"),
   };
 

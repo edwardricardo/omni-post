@@ -17,6 +17,8 @@ interface TeamMemberProps {
   role: TeamRole;
   isActive: boolean;
   invitedBy?: string;
+  inviteToken?: string;
+  inviteTokenExpiry?: Date;
   joinedAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -78,6 +80,16 @@ export class TeamMemberEntity {
   /** @description ID of the user who invited this member (if any) */
   get invitedBy(): string | undefined {
     return this._props.invitedBy;
+  }
+
+  /** @description Unique token for accepting the invitation */
+  get inviteToken(): string | undefined {
+    return this._props.inviteToken;
+  }
+
+  /** @description Expiry date for the invitation token */
+  get inviteTokenExpiry(): Date | undefined {
+    return this._props.inviteTokenExpiry;
   }
 
   /** @description When this member joined the account */
@@ -208,6 +220,18 @@ export class TeamMemberEntity {
    */
   hasPermission(permission: TeamPermission): boolean {
     return this._props.role.hasPermission(permission);
+  }
+
+  /**
+   * @method setInviteToken
+   * @description Sets the invitation token and its expiry for this member.
+   * @param token - Unique invite token
+   * @param expiry - When the token expires
+   */
+  setInviteToken(token: string, expiry: Date): void {
+    this._props.inviteToken = token;
+    this._props.inviteTokenExpiry = expiry;
+    this._props.updatedAt = new Date();
   }
 
   /**

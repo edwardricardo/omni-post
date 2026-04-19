@@ -22,6 +22,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
+import { SetupBanner } from "@/components/dashboard/SetupBanner";
 
 function DashboardContent() {
   const t = useTranslations("nav");
@@ -108,6 +109,7 @@ function DashboardContent() {
 
   return (
     <div>
+      <SetupBanner />
       <PageHeader
         title={t("dashboard")}
         actions={

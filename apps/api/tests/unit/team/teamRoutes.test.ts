@@ -5,8 +5,15 @@
  * @layer test
  */
 
+import { randomBytes } from "node:crypto";
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule, createStore, buildModelMock } from "../helpers/mockPrisma.js";
+
+// Provide a valid 256-bit key so EncryptionService (resolved transitively by
+// InviteTeamMemberUseCase → PlatformCredentialService) doesn't throw.
+if (!process.env.PLATFORM_ENCRYPTION_KEY) {
+  process.env.PLATFORM_ENCRYPTION_KEY = randomBytes(32).toString("base64");
+}
 
 // ---------------------------------------------------------------------------
 // Mock setup

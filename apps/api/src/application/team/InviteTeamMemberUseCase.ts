@@ -5,12 +5,19 @@
  * @layer application
  */
 
+import { randomUUID } from "node:crypto";
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
 import { TeamMemberEntity } from "../../domain/entities/TeamMember.js";
 import type { TeamRoleValue } from "../../domain/value-objects/TeamRole.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
+import { teamInvitationEmail } from "../notifications/emailTemplates.js";
+import { createLogger } from "../../lib/logger.js";
+
+const inviteLogger = createLogger("team-invite");
 
 /**
  * Input DTO for inviting a team member
@@ -34,7 +41,9 @@ export class InviteTeamMemberUseCase implements UseCase<
 > {
   constructor(
     private readonly repository: TeamMemberRepository,
-    private readonly unitOfWork?: UnitOfWork
+    private readonly unitOfWork?: UnitOfWork,
+    private readonly emailPort?: EmailPort,
+    private readonly credentialService?: PlatformCredentialService
   ) {}
 
   /**
@@ -80,6 +89,11 @@ export class InviteTeamMemberUseCase implements UseCase<
 
     const member = createResult.value;
 
+    // Generate invitation token (expires in 7 days)
+    const inviteToken = randomUUID();
+    const inviteTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    member.setInviteToken(inviteToken, inviteTokenExpiry);
+
     // Persist (atomically via UoW when available)
     const doWork = async (): Promise<Result<string, UseCaseError>> => {
       const saveResult = await this.repository.save(member);
@@ -96,14 +110,24 @@ export class InviteTeamMemberUseCase implements UseCase<
     };
 
     try {
+      let result: Result<string, UseCaseError>;
       if (this.unitOfWork) {
-        let result: Result<string, UseCaseError> = ok(member.id.value);
+        result = ok(member.id.value);
         await this.unitOfWork.executeInTransaction(async () => {
           result = await doWork();
         });
-        return result;
+      } else {
+        result = await doWork();
       }
-      return await doWork();
+
+      // Send invitation email after successful persist (fire-and-forget)
+      if (result.ok && this.emailPort) {
+        this.sendInvitationEmail(input, inviteToken).catch((e) =>
+          inviteLogger.warn({ err: e }, "Failed to send invitation email")
+        );
+      }
+
+      return result;
     } catch (error: unknown) {
       return err(
         new UseCaseError(
@@ -113,5 +137,34 @@ export class InviteTeamMemberUseCase implements UseCase<
         )
       );
     }
+  }
+
+  private async sendInvitationEmail(
+    input: InviteTeamMemberInput,
+    inviteToken: string
+  ): Promise<void> {
+    if (!this.emailPort) return;
+
+    let baseUrl = "https://app.omnipost.io";
+    if (this.credentialService) {
+      const platformResult = await this.credentialService.getGroup("PLATFORM");
+      if (platformResult.ok) {
+        baseUrl = platformResult.value.baseUrl || baseUrl;
+      }
+    }
+
+    const content = await teamInvitationEmail({
+      inviterName: input.invitedBy ?? "An admin",
+      accountName: input.accountId,
+      role: input.role ?? "MEMBER",
+      acceptUrl: `${baseUrl}/accept-invitation?token=${inviteToken}`,
+    });
+
+    await this.emailPort.send({
+      to: [input.email],
+      subject: content.subject,
+      body: `You've been invited to join a team on OmniPost. Visit ${baseUrl}/accept-invitation?token=${inviteToken}`,
+      html: content.html,
+    });
   }
 }

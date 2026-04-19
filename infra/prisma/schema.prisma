@@ -145,6 +145,7 @@ model AdminUser {
   locale                String?   @default("en")
   department            String?
   team                  String?
+  avatarUrl             String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -263,10 +264,12 @@ model TeamMember {
   name      String
   role      TeamRole @default(MEMBER)
   isActive  Boolean  @default(true)
-  invitedBy String?
-  joinedAt  DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  invitedBy        String?
+  inviteToken      String?   @unique
+  inviteTokenExpiry DateTime?
+  joinedAt         DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   account            Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
   projectMemberships ProjectMember[]
@@ -303,6 +306,7 @@ model CustomerUser {
   mfaEnabled        Boolean   @default(false)
   mfaSecret         String?
   lastLoginAt       DateTime?
+  avatarUrl         String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
@@ -2887,6 +2891,28 @@ enum InvoiceStatus {
   VOID
   UNCOLLECTIBLE
   PAYMENT_FAILED
+}
+
+model SystemAnnouncement {
+  id        String           @id @default(cuid())
+  title     String
+  message   String
+  type      AnnouncementType @default(INFO)
+  startsAt  DateTime
+  endsAt    DateTime?
+  isActive  Boolean          @default(true)
+  createdBy String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([isActive, startsAt])
+}
+
+enum AnnouncementType {
+  INFO
+  WARNING
+  MAINTENANCE
+  CRITICAL
 }
 
 model AccountOnboarding {
