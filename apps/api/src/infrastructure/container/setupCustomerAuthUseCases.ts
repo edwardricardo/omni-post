@@ -11,6 +11,7 @@ import type { CustomerUserRepository } from "../../domain/repositories/CustomerU
 import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import { PrismaAccountSubscriptionAdapter } from "../repositories/PrismaAccountSubscriptionAdapter.js";
 import { PrismaCustomerUserRepository } from "../repositories/PrismaCustomerUserRepository.js";
 import {
@@ -42,7 +43,9 @@ export function setupCustomerAuthUseCases(container: Container): void {
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
         container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
         new PrismaAccountSubscriptionAdapter(),
-        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
+        container.resolve<EmailPort>(TOKENS.EmailPort),
+        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
       ),
     true
   );

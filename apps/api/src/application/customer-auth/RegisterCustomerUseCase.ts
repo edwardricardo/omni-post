@@ -14,7 +14,13 @@ import { CustomerUser, CUSTOMER_ROLE } from "../../domain/entities/CustomerUser.
 import { randomBytes } from "crypto";
 import argon2 from "argon2";
 import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
+import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
+import { welcomeEmail } from "../notifications/emailTemplates.js";
 import { signCustomerAccessToken, signCustomerRefreshToken } from "../../auth/customerJwt.js";
+import { createLogger } from "../../lib/logger.js";
+
+const registrationLogger = createLogger("customer-registration");
 
 /** Error code union for this use case */
 export type RegisterCustomerError = "VALIDATION_ERROR" | "EMAIL_EXISTS" | "INTERNAL_ERROR";
@@ -48,7 +54,9 @@ export class RegisterCustomerUseCase {
     private readonly customerUserRepo: CustomerUserRepository,
     private readonly accountRepo: AccountRepositoryPort,
     private readonly accountSubscriptionPort?: AccountSubscriptionPort,
-    private readonly unitOfWork?: UnitOfWork
+    private readonly unitOfWork?: UnitOfWork,
+    private readonly emailPort?: EmailPort,
+    private readonly credentialService?: PlatformCredentialService
   ) {}
 
   /**
@@ -156,16 +164,58 @@ export class RegisterCustomerUseCase {
     };
 
     try {
+      let result: Result<RegisterCustomerOutput, RegisterCustomerError>;
       if (this.unitOfWork) {
-        let result: Result<RegisterCustomerOutput, RegisterCustomerError> = err("INTERNAL_ERROR");
+        result = err("INTERNAL_ERROR");
         await this.unitOfWork.executeInTransaction(async () => {
           result = await doWork();
         });
-        return result;
+      } else {
+        result = await doWork();
       }
-      return await doWork();
+
+      // Send welcome email after successful registration (never blocks)
+      if (result.ok && this.emailPort) {
+        this.sendWelcomeEmail(account.name, input.email).catch((e) =>
+          registrationLogger.warn({ err: e }, "Failed to send welcome email")
+        );
+      }
+
+      return result;
     } catch (_error: unknown) {
       return err("INTERNAL_ERROR");
     }
+  }
+
+  /**
+   * @method sendWelcomeEmail
+   * @description Sends welcome email to newly registered customer. Never throws.
+   */
+  private async sendWelcomeEmail(accountName: string, email: string): Promise<void> {
+    if (!this.emailPort) return;
+
+    let baseUrl = "https://app.omnipost.io";
+    let supportEmail = "support@omnipost.io";
+
+    if (this.credentialService) {
+      const platformResult = await this.credentialService.getGroup("PLATFORM");
+      if (platformResult.ok) {
+        baseUrl = platformResult.value.baseUrl || baseUrl;
+        supportEmail = platformResult.value.supportEmail || supportEmail;
+      }
+    }
+
+    const content = await welcomeEmail({
+      accountName,
+      onboardingUrl: `${baseUrl}/dashboard`,
+      supportEmail,
+    });
+
+    await this.emailPort.send({
+      to: [email],
+      subject: content.subject,
+      body: `Welcome to OmniPost! Get started at ${baseUrl}/dashboard`,
+      html: content.html,
+    });
   }
 }
