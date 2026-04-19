@@ -10,6 +10,8 @@ import { useState } from "react";
 import { useAnalytics } from "@/hooks/api/useAnalytics";
 import { useProject } from "@/providers/ProjectProvider";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { BarChart3 } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -251,9 +253,13 @@ function AnalyticsPageContent() {
         )}
 
         {platformMetrics.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <p className="text-gray-500">No platform data available for the selected time range.</p>
-          </div>
+          <EmptyState
+            icon={BarChart3}
+            title="No analytics data yet"
+            description="Connect your social accounts and publish content to start seeing analytics here."
+            actionLabel="Create a post"
+            actionHref="/dashboard/posts/new"
+          />
         )}
       </div>
     </div>

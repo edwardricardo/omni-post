@@ -226,3 +226,49 @@ export function useBillingPortal() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Invoice History
+// ---------------------------------------------------------------------------
+
+export interface InvoiceDto {
+  id: string;
+  status: string;
+  amountDue: number;
+  amountPaid: number;
+  currency: string;
+  periodStart: string;
+  periodEnd: string;
+  paidAt: string | null;
+  hostedUrl: string | null;
+  pdfUrl: string | null;
+  gatewayProvider: string;
+  createdAt: string;
+}
+
+/**
+ * @hook useMyInvoices
+ * @description Fetches paginated invoice history for the current account.
+ * @param page - Page number (1-based)
+ * @param limit - Items per page
+ * @returns Query result with invoices array, total, page, limit
+ */
+export function useMyInvoices(page = 1, limit = 10) {
+  return useQuery({
+    queryKey: ["billing", "invoices", page, limit],
+    queryFn: async () => {
+      const res = await fetch(`/api/billing/invoices?page=${page}&limit=${limit}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch invoices");
+      const json = await res.json();
+      return json.data as {
+        invoices: InvoiceDto[];
+        total: number;
+        page: number;
+        limit: number;
+      };
+    },
+    staleTime: 60_000,
+  });
+}

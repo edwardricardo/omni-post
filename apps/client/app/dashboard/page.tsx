@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/authContext";
 import { usePosts, useProjects, useApiProviders } from "@/lib/api/hooks";
+import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import {
   PlusCircle,
@@ -56,6 +57,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Onboarding Checklist (hidden when complete or dismissed) */}
+      <OnboardingChecklist />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
