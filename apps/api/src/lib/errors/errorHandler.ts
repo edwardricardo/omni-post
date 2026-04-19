@@ -13,6 +13,7 @@ import {
   getStatusCode,
   isOperationalError,
 } from "./AppError.js";
+import { captureError } from "../../observability/sentryInit.js";
 
 /** Structural type for Prisma errors with a code and optional meta */
 interface PrismaErrorLike {
@@ -59,8 +60,9 @@ export function createErrorHandler(logger: FastifyBaseLogger) {
       // Expected operational errors - log as warning
       logger.warn(logContext, "Operational error occurred");
     } else {
-      // Unexpected errors - log as error
+      // Unexpected errors - log as error and report to Sentry
       logger.error(logContext, "Unexpected error occurred");
+      captureError(error, { requestId, method, url, ip });
     }
 
     // Prepare safe response for client
