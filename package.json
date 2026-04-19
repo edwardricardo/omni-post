@@ -63,7 +63,6 @@
     "@ast-grep/cli": "0.42.0",
     "@eslint/js": "9.36.0",
     "@stryker-mutator/core": "9.6.0",
-    "@stryker-mutator/typescript-checker": "9.6.0",
     "@stryker-mutator/vitest-runner": "9.6.0",
     "@types/opossum": "8.1.9",
     "@types/react": "19.2.14",

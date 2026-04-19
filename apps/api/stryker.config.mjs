@@ -9,14 +9,16 @@ export default {
     fileName: 'reports/mutation/index.html',
   },
   vitest: {
-    configFile: 'vitest.config.ts',
+    configFile: 'vitest.stryker.config.ts',
   },
   coverageAnalysis: 'perTest',
   // Disable typescript checker — use vitest's own TS handling
   checkers: [],
   plugins: ['@stryker-mutator/vitest-runner'],
-  // 4 workers — vitest forks pool handles isolation per file
-  concurrency: 4,
+  // Static mutants (module-level constants/initializers) consume ~98% of run time
+  // for ~10% of mutants. Run without this flag only in the nightly pipeline.
+  ignoreStatic: true,
+  // Concurrency inherited from root (2) — overriding to 4 exceeded WSL2 16GB ceiling
   // 43K mutants — initial test run needs more time for perTest coverage analysis
   dryRunTimeoutMinutes: 30,
   mutate: [
@@ -93,6 +95,14 @@ export default {
     '!src/validation/**/*.test.ts',
     'src/video/**/*.ts',
     '!src/video/**/*.test.ts',
+    'src/compliance/**/*.ts',
+    '!src/compliance/**/*.test.ts',
+    'src/settings/**/*.ts',
+    '!src/settings/**/*.test.ts',
+    'src/onboarding/**/*.ts',
+    '!src/onboarding/**/*.test.ts',
+    'src/announcements/**/*.ts',
+    '!src/announcements/**/*.test.ts',
   ],
   thresholds: {
     high: 80,

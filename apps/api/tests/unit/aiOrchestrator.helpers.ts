@@ -212,15 +212,16 @@ export interface OrchestratorFixture {
 export function createOrchestrator(
   latencies = { openai: 50, perplexity: 75, gemini: 100 }
 ): OrchestratorFixture {
-  const orchestrator = new AIOrchestrator();
-
   const mockOpenAI = new MockAIProvider("openai", true, false, latencies.openai);
   const mockPerplexity = new MockAIProvider("perplexity", true, false, latencies.perplexity);
   const mockGemini = new MockAIProvider("gemini", true, false, latencies.gemini);
 
-  (orchestrator as any).providers.set("openai", mockOpenAI);
-  (orchestrator as any).providers.set("perplexity", mockPerplexity);
-  (orchestrator as any).providers.set("gemini", mockGemini);
+  const providers = new Map<string, AIProvider>();
+  providers.set("openai", mockOpenAI);
+  providers.set("perplexity", mockPerplexity);
+  providers.set("gemini", mockGemini);
+
+  const orchestrator = new AIOrchestrator(providers);
 
   // Initialize usage metrics for each mock provider
   for (const provider of ["openai", "perplexity", "gemini"]) {

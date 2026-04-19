@@ -1,9 +1,24 @@
 import Fastify, { FastifyInstance } from "fastify";
+import { vi } from "vitest";
 import aiRoutes from "../../src/ai/routes.js";
-import { aiService } from "../../src/ai/aiService.js";
 import { setupContainer } from "../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { prisma } from "@infra/prisma";
+
+// Create a standalone mock object that satisfies AIService's public interface.
+// The real class requires an AiRequestService in its constructor, which is
+// unavailable in unit tests — we only need the method stubs for spyOn.
+const aiService = {
+  healthCheck: vi.fn(),
+  generateContent: vi.fn(),
+  analyzeContent: vi.fn(),
+  optimizeContent: vi.fn(),
+  predictPerformance: vi.fn(),
+  generateVariations: vi.fn(),
+  smartAnalysis: vi.fn(),
+  getMetrics: vi.fn(),
+  clearCache: vi.fn(),
+};
 
 export async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
@@ -128,31 +143,29 @@ export function setupAiServiceMocks(
     >
   >
 ): void {
-  vi.spyOn(service, "healthCheck").mockImplementation(
+  service.healthCheck.mockImplementation(
     overrides?.healthCheck ?? (async () => mockHealthCheckResponse)
   );
-  vi.spyOn(service, "generateContent").mockImplementation(
+  service.generateContent.mockImplementation(
     overrides?.generateContent ?? (async () => mockGenerateResponse)
   );
-  vi.spyOn(service, "analyzeContent").mockImplementation(
+  service.analyzeContent.mockImplementation(
     overrides?.analyzeContent ?? (async () => mockAnalyzeResponse)
   );
-  vi.spyOn(service, "optimizeContent").mockImplementation(
+  service.optimizeContent.mockImplementation(
     overrides?.optimizeContent ?? (async () => mockOptimizeResponse)
   );
-  vi.spyOn(service, "predictPerformance").mockImplementation(
+  service.predictPerformance.mockImplementation(
     overrides?.predictPerformance ?? (async () => mockPredictResponse)
   );
-  vi.spyOn(service, "generateVariations").mockImplementation(
+  service.generateVariations.mockImplementation(
     overrides?.generateVariations ?? (async () => mockVariationsResponse)
   );
-  vi.spyOn(service, "smartAnalysis").mockImplementation(
+  service.smartAnalysis.mockImplementation(
     overrides?.smartAnalysis ?? (async () => mockSmartAnalysisResponse)
   );
-  vi.spyOn(service, "getMetrics").mockImplementation(
-    overrides?.getMetrics ?? (async () => mockMetricsResponse)
-  );
-  vi.spyOn(service, "clearCache").mockImplementation(
+  service.getMetrics.mockImplementation(overrides?.getMetrics ?? (async () => mockMetricsResponse));
+  service.clearCache.mockImplementation(
     overrides?.clearCache ?? (async () => mockClearCacheResponse)
   );
 }
