@@ -337,42 +337,85 @@ Este plan no tiene fecha de cierre. Se avanza al ritmo que Edward decida. El dri
 
 Si en cualquier momento aparece la tentación de "hagamos una revisión adicional no planeada", la respuesta por defecto es **no**. Se anota como hallazgo lateral si aplica, y el slot de revisión de laterales al final del plan decide si amerita.
 
-### 5.7 Metodología de greps para consumer-detection
+### 5.7 Metodología de greps para consumer-detection (REGLA OBLIGATORIA para D0-D7)
 
-Cuando una dimensión cuenta consumidores (endpoints, hooks, funciones, tipos), los greps deben usar `head_limit: 0` (sin límite) por default.
+**Objetivo:** detectar TODOS los consumers de un endpoint/hook sin falsos negativos.
 
-**Falsos negativos por truncación silenciosa son un modo de falla documentado** (ver `CLIENT_LIB_HOOKS_AUDIT.md` §11). Causó un falso negativo que llevó a clasificar incorrectamente 3 hooks como DEAD_CODE cuando tenían consumer live en `TemplateManagementDashboard.tsx`.
+**Historia de versiones:**
+
+- **v1** (D0 original): `head_limit: 60` causó truncación silenciosa → 43.75% FN en PRE-3C §10 (ver `CLIENT_LIB_HOOKS_AUDIT.md` §11, caso TemplateManagementDashboard).
+- **v2** (D0-v2, 2026-04-18): `head_limit: 0` añadido. Corrigió truncación.
+- **v3** (PRE-D1B, 2026-04-18): pattern de template literals añadido. Tras D1 Fase 1 detectar 9 FN en 23 AMBIGUOUS (39%) vía ``fetch(`${BASE}/${var}`)``, PRE-D1B re-verificó los ~82 ORPHAN y encontró 1 FN adicional (`/admin/audit/export` vía `logs/page.tsx:99`). v2 solo capturaba paths literales con comillas simples/dobles.
+
+**Patterns obligatorios POR CADA endpoint/hook auditado:**
+
+1. **Literal path** (cadenas comilladas — v1+):
+
+   ```bash
+   grep -rn --include="*.ts" --include="*.tsx" "<ruta>" apps/admin/ apps/client/ 2>/dev/null | grep -v "node_modules" | grep -v "\.test\."
+   ```
+
+2. **Template literal con interpolación** (backticks + `${}` — v3):
+
+   ```bash
+   grep -rn --include="*.ts" --include="*.tsx" -E "fetch\(\`[^\`]*<prefix_stable_de_la_ruta>" apps/admin/ apps/client/ 2>/dev/null
+   ```
+
+   `prefix_stable` = parte de la ruta antes del primer `:param`. Ejemplo: `/admin/accounts/:id/sessions` → `prefix_stable = /admin/accounts/`.
+
+3. **Constantes BASE** (identificar consts que contengan el prefix, luego seguir sus usos — v3):
+
+   ```bash
+   grep -rn --include="*.ts" --include="*.tsx" -E "(const|let)\s+\w+\s*=\s*['\"\`][^'\"\`]*<prefix_stable>" apps/admin/ apps/client/ 2>/dev/null
+   ```
+
+4. **Count cross-check** (detectar truncación residual — v2):
+
+   ```bash
+   grep -rln --include="*.ts" --include="*.tsx" "<ruta o prefix>" apps/admin/ apps/client/ 2>/dev/null | wc -l
+   ```
 
 **Reglas:**
 
-1. `head_limit: 0` por default en greps de consumer-detection. No optimizar prematuramente por volumen.
-2. Cross-check con count-mode: ejecutar un grep en modo `count` antes o después del grep de contenido. Si `count > head_limit`, hay truncación silenciosa.
-3. Si se usa un `head_limit` finito, verificar explícitamente que `results.length < head_limit`. Si es `===`, tratar como truncado y escalar.
-4. Esta regla aplica a **todas las dimensiones D1-D7** cuando se busque "quién consume X" en el codebase.
+1. `head_limit: 0` por default. Si se usa finito, verificar `results.length < head_limit`; si `===`, tratar como truncado.
+2. **Ejecutar queries 1 + 2 (+ 3 cuando aplique)** antes de concluir "sin consumer". Query 1 sola genera falsos negativos por template literals.
+3. Si Query 3 identifica una constante BASE, seguir la pista: buscar usos de esa constante en template literals.
+4. Si hits solo en Query 2/3 (template literal) y no en Query 1 → endpoint es CONSUMED vía template literal (no ORPHAN). Contar y reportar.
+5. Si clasificación final no concilia entre queries → AMBIGUOUS, escalar.
+6. Regla aplica a **todas las dimensiones D1-D7**.
+
+**Signos de alarma — pausa obligatoria:**
+
+- Tasa FN en muestra > 30% (trigger v2).
+- Tasa FN_TEMPLATE > 15% en lote re-verificado (trigger v3).
+- NEW_BLIND_SPOT: hit encontrado vía un pattern distinto a 1-3 (ej: axios custom wrapper, Ky) — investigar antes de seguir.
+
+**Verificación de auditor:** si un agente reporta "0 hits" en un block-check, hacer al menos 1 spot-check manual sobre el mismo bloque antes de aceptar. Caso documentado PRE-D1B: agente reportó 0 FN_TEMPLATE en 82 ORPHAN; spot-check manual encontró 1 real. Métrica de confianza en el agente debe incluir verificación cruzada.
 
 ---
 
 ## 6. Estado del plan
 
-| Fase                                  | Estado                                                                                   | Fecha      |
-| ------------------------------------- | ---------------------------------------------------------------------------------------- | ---------- |
-| PRE-1 RBAC check                      | ✅ Ejecutado — Estado A (acceso funcional)                                               | 2026-04-17 |
-| PRE-2 DEAD_CODE cleanup               | ✅ Ejecutado — BLOQUEADO, reclasificados 3 hooks DEAD_CODE → LEGACY_WORKING (ver PRE-3A) | 2026-04-17 |
-| PRE-3A Verificación consumer live     | ✅ Ejecutado — Conclusión B (falso negativo metodológico por truncación silenciosa)      | 2026-04-17 |
-| PRE-3B Housekeeping + seed fix        | ✅ Ejecutado — seed sincronizado, §5.7 añadido, D0 limpiado                              | 2026-04-17 |
-| PRE-3C Re-verificación 45 huérfanos   | ✅ Ejecutado — 43.75% FN rate, §10 added to ENDPOINT_AUDIT                               | 2026-04-17 |
-| D0 Inventario (v1)                    | ⚠️ Deprecated — contaminado por truncación silenciosa (ver PRE-3A/3C)                    | 2026-04-17 |
-| D0-v2 Inventario limpio               | ✅ Ejecutado — §5.7 aplicada globalmente, 4 validation cases confirmados                 | 2026-04-18 |
-| PATH_MISMATCH SSO fix                 | ✅ Ejecutado — Opción B (backend `/saml/*` y `/oidc/*` sin prefix `/api/`)               | 2026-04-18 |
-| Reclasificación 18 endpoints content/ | ✅ Ejecutado — ORPHAN → PLANNED                                                          | 2026-04-18 |
-| D1 Endpoint ↔ UI Mapping              | Pendiente (base en ENDPOINT_AUDIT.md)                                                    | —          |
-| D2 Standards Compliance               | Pendiente                                                                                | —          |
-| D3 Data Integrity                     | Pendiente                                                                                | —          |
-| D4 Functional Conformity              | Pendiente                                                                                | —          |
-| D5 Security                           | Pendiente                                                                                | —          |
-| D6 Pre-Production Cleanup             | Pendiente                                                                                | —          |
-| D7 Critical Tests Coverage            | Pendiente                                                                                | —          |
-| Revisión hallazgos laterales          | Pendiente                                                                                | —          |
+| Fase                                  | Estado                                                                                                                                                                                   | Fecha      |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| PRE-1 RBAC check                      | ✅ Ejecutado — Estado A (acceso funcional)                                                                                                                                               | 2026-04-17 |
+| PRE-2 DEAD_CODE cleanup               | ✅ Ejecutado — BLOQUEADO, reclasificados 3 hooks DEAD_CODE → LEGACY_WORKING (ver PRE-3A)                                                                                                 | 2026-04-17 |
+| PRE-3A Verificación consumer live     | ✅ Ejecutado — Conclusión B (falso negativo metodológico por truncación silenciosa)                                                                                                      | 2026-04-17 |
+| PRE-3B Housekeeping + seed fix        | ✅ Ejecutado — seed sincronizado, §5.7 añadido, D0 limpiado                                                                                                                              | 2026-04-17 |
+| PRE-3C Re-verificación 45 huérfanos   | ✅ Ejecutado — 43.75% FN rate, §10 added to ENDPOINT_AUDIT                                                                                                                               | 2026-04-17 |
+| D0 Inventario (v1)                    | ⚠️ Deprecated — contaminado por truncación silenciosa (ver PRE-3A/3C)                                                                                                                    | 2026-04-17 |
+| D0-v2 Inventario limpio               | ✅ Ejecutado — §5.7 aplicada globalmente, 4 validation cases confirmados                                                                                                                 | 2026-04-18 |
+| PATH_MISMATCH SSO fix                 | ✅ Ejecutado — Opción B (backend `/saml/*` y `/oidc/*` sin prefix `/api/`)                                                                                                               | 2026-04-18 |
+| Reclasificación 18 endpoints content/ | ✅ Ejecutado — ORPHAN → PLANNED                                                                                                                                                          | 2026-04-18 |
+| PRE-D1B re-scan ORPHAN + §5.7 v3      | ✅ Ejecutado — 1 FN_TEMPLATE reclasificado, §5.7 v3 con template literals                                                                                                                | 2026-04-18 |
+| D1 Endpoint ↔ UI Mapping              | ✅ Ejecutado — 104 decisiones sobre ORPHAN (revisado 2026-04-18: 42 BUILD_UI, 10 DELETE, 40 KEEP, 12 PLANNED, 0 INVESTIGATE) + 1 nuevo PATH_MISMATCH `/trends/radar` → `D1_DECISIONS.md` | 2026-04-18 |
+| D2 Standards Compliance               | Pendiente                                                                                                                                                                                | —          |
+| D3 Data Integrity                     | Pendiente                                                                                                                                                                                | —          |
+| D4 Functional Conformity              | Pendiente                                                                                                                                                                                | —          |
+| D5 Security                           | Pendiente                                                                                                                                                                                | —          |
+| D6 Pre-Production Cleanup             | Pendiente                                                                                                                                                                                | —          |
+| D7 Critical Tests Coverage            | Pendiente                                                                                                                                                                                | —          |
+| Revisión hallazgos laterales          | Pendiente                                                                                                                                                                                | —          |
 
 ---
 

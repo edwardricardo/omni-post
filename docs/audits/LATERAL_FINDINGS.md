@@ -189,3 +189,69 @@ El módulo `apps/api/src/content/` es una implementación arquitectónicamente s
 4. **D1 hace:** registrar los 18 endpoints como PLANNED con link a este entry. No actúa sobre ellos (no borra, no implementa UI reactiva ad-hoc, no refactoriza). Producto define cuándo se integra.
 
 **Reporte completo del análisis:** conversación de agente 2026-04-18 (preservado en chat).
+
+### 2026-04-18 — §5.7 v3: template literals añadidos como pattern obligatorio de consumer-detection
+
+**Encontrado durante:** D1 Fase 1 checkpoint + PRE-D1B re-scan
+
+**Descripción:** En D1 Fase 1, 9 de 23 AMBIGUOUS (39%) resultaron ser CONSUMED vía template literals (`fetch(\`${BASE}/${var}\`)`). §5.7 v2 solo capturaba paths literales con comillas simples/dobles — los backticks con interpolación pasaban invisibles. PRE-D1B re-verificó los ~82 ORPHAN con pattern extendido (Query 2 para backticks + Query 3 para constantes BASE); encontró 1 FN adicional: `GET /admin/audit/export`consumido por`apps/admin/app/(dashboard)/logs/page.tsx:99`vía template literal. Tasa FN en ORPHAN = 1/82 = 1.2% (muy distinto del 39% de AMBIGUOUS, confirmando que el blind spot se concentraba en endpoints con`:param` dinámicos). §5.7 actualizada a v3 con pattern obligatorio de 3+1 queries (literal + template + BASE consts + count cross-check).
+
+**Nota de calibración metodológica:** el Explore agent de PRE-D1B reportó "0 FN_TEMPLATE" tras block-check agresivo. Spot-check manual del parent encontró 1 hit que el agente había perdido. **Regla añadida a §5.7 v3:** cuando un agente reporta "0 hits" en block-check, el parent hace al menos 1 spot-check manual antes de aceptar.
+
+**Severidad estimada:** alto (blind spot metodológico histórico, ahora resuelto; pero calibración de confianza en agentes requiere verificación cruzada)
+
+**Acción propuesta:** ~~re-verificar ORPHAN con pattern extendido~~ → **RESUELTO 2026-04-18 (PRE-D1B).** Ver `ENDPOINT_AUDIT.md` §2.20 (`/admin/audit/export` reclasificado CONSUMED), `PLAN_MAESTRO.md` §5.7 v3, §6 fila PRE-D1B.
+
+### 2026-04-18 — `useSettings.ts` doble prefix `/api/backend/api/admin/settings` (code smell, no bug)
+
+**Encontrado durante:** D1 Fase 1 (reportado por agente) + PRE-D1B Fase 2 diagnóstico
+
+**Descripción:** `apps/admin/hooks/api/useSettings.ts` línea 32 define `BASE = "/api/backend/api/admin/settings"` (doble `/api/`). Construye URLs como `${BASE}/${group}` → `/api/backend/api/admin/settings/STRIPE`. El proxy Next.js `apps/admin/app/api/backend/[...path]/route.ts:60` strippea solo `/api/backend/` (una vez), reconstruye como `/api/admin/settings/STRIPE`. El backend registra rutas en `settingsRoutes.ts` con prefix `/api/admin/settings/*` — match correcto. **Escenario A confirmado:** funciona, pero es code smell (los demás hooks usan `/api/backend/` una sola vez, `useSettings` es el único con doble prefix).
+
+**Severidad estimada:** bajo (funciona correctamente, solo inconsistencia cosmética)
+
+**Acción propuesta:** candidato para D6 (pre-production cleanup) o micro-sprint: cambiar `BASE` a `/api/backend/admin/settings` + ajustar las ~5 funciones que usan `${BASE}`. Esfuerzo estimado: 30 min. No urgente.
+
+### 2026-04-18 — `apps/admin/app/(dashboard)/accounts/page.tsx:247` llama endpoint inexistente `/admin/accounts/:id/settings`
+
+**Encontrado durante:** PRE-D1B Fase 1 spot-check
+
+**Descripción:** La página de accounts hace `fetch(\`/api/backend/admin/accounts/${editingId}/settings\`, { method: "PUT", ... })` en línea 247. Grep exhaustivo en backend (`apps/api/src/`buscando`admin/accounts/\*/settings`) retorna cero hits — el endpoint **no existe**. Es un **client-reverse-orphan** (frontend llama ruta inexistente, patrón similar al `/dashboard/templates`documentado en ENDPOINT_AUDIT.md §5.1 o`/trends/radar` en §2.70). La UI probablemente falla silenciosamente con 404 cuando el usuario intenta esa acción.
+
+**Severidad estimada:** medio (funcionalidad de UI rota sin alarma visible)
+
+**Acción propuesta:** D1 Fase 2 evalúa: (a) implementar el endpoint backend si la feature es válida, (b) remover el fetch del frontend si la feature se descontinuó, o (c) investigar con producto si era una feature a medio implementar. Candidato para lista BUILD_UI o DELETE del backlog Sprint 2.
+
+### 2026-04-18 — PATH_MISMATCH #9: `/trends/radar` cliente llama endpoint inexistente (decisión producto: implementar)
+
+**Encontrado durante:** D1 Fase 2 feature-intent deep analysis (análisis arquitectónico post D1 inicial)
+
+**Descripción:** `apps/client/app/dashboard/ai/trends/page.tsx:43` hace `fetch(\`/api/backend/trends/radar?accountId=${accountId}\`)`esperando`ScoredTrend[]`(topic, platform, relevanceScore, postIdea, bestPlatform, urgency, volume). Backend`apps/api/src/trends/trendRoutes.ts` registra 5 endpoints GET (`/analysis`, `/viral`, `/opportunities`, `/predictions`, `/report`) pero **NO registra `/trends/radar`**. UI construida, demanda de cliente explícita, pero backend incompleto. Detectado durante análisis arquitectónico D1 — D1 Fase 1 tenía `trendRoutes.ts` como "DELETE huérfano" pero el re-análisis encontró la UI + mismatch.
+
+**Severidad estimada:** alto — feature visible en UI cliente que falla silenciosamente con 404.
+
+**Acción propuesta:** ~~DELETE feature~~ → **RESUELTO POR DECISIÓN DE PRODUCTO (Edward 2026-04-18): implementar `/trends/radar`.** Feature pasa a roadmap como:
+
+- Los 5 endpoints legacy reclasificados ORPHAN → PLANNED en `ENDPOINT_AUDIT.md §3.5` (building blocks)
+- PATH_MISMATCH #9 registrado en `§4` tabla principal
+- Sprint dedicado: implementar backend `/trends/radar` con shape esperado + integrar con los 5 building blocks existentes + UI ya está construida
+- Ver `D1_DECISIONS.md §5.2` para plan
+
+### 2026-04-18 — D1 rescue pattern: features con arquitectura profunda rescatadas de DELETE
+
+**Encontrado durante:** D1 Fase 2 feature-intent deep analysis tras input Edward "si algo fue concebido y se construyó, tiene razón"
+
+**Descripción:** D1 inicial clasificó 24 endpoints como DELETE usando heurística rápida (cero consumer UI = DELETE). Análisis arquitectónico profundo feature-by-feature (estilo `content/`) tras input de producto reveló que **19 de esos 24 tenían arquitectura CORE_CONCEPTUAL o valor de negocio explícito**. Reducción DELETE 24 → 10 (-58%). Categorías rescatadas:
+
+1. **`analytics/analyticsRoutes.ts` (7):** `ThreadAnalytics` service es CORE (batch optimization + caching + repository pattern + tests robustos). 2 endpoints → PLANNED core, 3 endpoints → BUILD_UI marketing (compare/geographic/media-performance endorsados por Edward "valioso para campañas de marketing"), 2 endpoints pendiente confirmación (engagement/trends, posts/best-times).
+2. **`trends/trendRoutes.ts` (5):** Feature con UI parcial (`trends/page.tsx`) + PATH_MISMATCH #9 — no es DELETE, es PLANNED con mismatch a resolver.
+3. **`billing/subscriptionRoutes.ts` (2):** `/admin/billing/health` (SaaS metrics MRR/churn) + `/admin/billing/trials/expiring` (retention ops list actionable, no solo count). Valor business confirmado por Edward → BUILD_UI.
+4. **`audit/auditRoutes.ts` INVESTIGATE (2):** `/audit/users/:userId/logs`, `/audit/resources/:resource/logs` — queries compliance legítimas → KEEP_AS_INTERNAL.
+5. **`analytics/realtimeAnalytics.ts` (1 WS):** WebSocket + Redis pub/sub infra → KEEP_AS_INTERNAL.
+
+**Severidad estimada:** alto (calibración metodológica crítica)
+
+**Lección incorporada:** **NUNCA DELETE sin análisis arquitectónico profundo.** Greps de consumer no bastan — si hay aggregates + UoW + domain events + tests robustos + docs del producto, hay intención. Caso `content/` fue el primer wake-up; D1 reveló el patrón sistemático. Aplicable a D2-D7: antes de decidir DELETE, leer servicios + identificar sofisticación arquitectónica. Ver `D1_DECISIONS.md §10` (calibración metodológica).
+
+**Severidad estimada:** alto
+**Acción propuesta:** **APLICADO.** D1 revisado publicado en `D1_DECISIONS.md` (2026-04-18). Para D2-D7, análisis arquitectónico profundo es pre-requisito obligatorio antes de clasificar DELETE en cualquier dimensión.

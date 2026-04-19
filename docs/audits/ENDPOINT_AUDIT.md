@@ -17,13 +17,13 @@
 
 **Classification totals** (see §2-§5 for per-endpoint evidence):
 
-| Class         |    Count | Notes                                                                                                                    |
-| ------------- | -------: | ------------------------------------------------------------------------------------------------------------------------ |
-| CONSUMED      | **~340** | Backend endpoint has ≥1 frontend consumer with matching effective path                                                   |
-| ORPHAN        |  **~82** | Zero consumer matches after `head_limit: 0` grep across admin + client + packages (was ~100; 18 reclassified to PLANNED) |
-| PLANNED       |   **18** | `content/*` — core feature, built but not wired. See §3.5 and `LATERAL_FINDINGS.md` 2026-04-18.                          |
-| PATH_MISMATCH |    **8** | Consumer exists but Next.js proxy stripping produces effective URL ≠ backend registered route                            |
-| AMBIGUOUS     |  **~23** | Dynamic-route or multi-path match that needs per-case inspection                                                         |
+| Class         |    Count | Notes                                                                                                                                          |
+| ------------- | -------: | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| CONSUMED      | **~340** | Backend endpoint has ≥1 frontend consumer with matching effective path                                                                         |
+| ORPHAN        |  **~70** | Post D1 2026-04-18 revisado: 12 más reclasificados a PLANNED (ThreadAnalytics core 2 + trends 5 + approvals 5). Ver D1_DECISIONS.md §5         |
+| PLANNED       |   **30** | 18 `content/*` + 5 approvals + 5 trends + 2 ThreadAnalytics core. Ver §3.5 y `D1_DECISIONS.md §5`                                              |
+| PATH_MISMATCH |    **9** | Consumer exists but Next.js proxy stripping produces effective URL ≠ backend registered route (8 SSO resueltos §4.1 + 1 nuevo `/trends/radar`) |
+| AMBIGUOUS     |  **~23** | Dynamic-route or multi-path match that needs per-case inspection                                                                               |
 
 Exact per-file counts in §2. PATH_MISMATCH list in §4.
 
@@ -156,9 +156,9 @@ Consumers: `hooks/api/useAssets.ts:70,83,93,103,116,124`. Full coverage across /
 
 `/activity-feed`. No consumer.
 
-### 2.20 `apps/api/src/audit/auditRoutes.ts` (8 — MIXED, per PRE-3C §10.3)
+### 2.20 `apps/api/src/audit/auditRoutes.ts` (8 — MIXED, per PRE-3C §10.3 + PRE-D1B)
 
-2 CONSUMED (`/admin/audit/logs`, `/admin/audit/stats`), 6 ORPHAN (`users/:userId/logs`, `resources/:resource/logs`, POST `/logs`, `/cleanup`, `/my-logs`, `/export`). Validation case 2d ✅.
+3 CONSUMED (`/admin/audit/logs`, `/admin/audit/stats`, `/admin/audit/export` — last one reclassified PRE-D1B 2026-04-18 via `logs/page.tsx:99` template literal), 5 ORPHAN (`users/:userId/logs`, `resources/:resource/logs`, POST `/logs`, `/cleanup`, `/my-logs`). Validation case 2d ✅.
 
 ### 2.21 `apps/api/src/auth/apiKeyRoutes.ts` (4 — ORPHAN)
 
@@ -380,45 +380,50 @@ All `/projects/:projectId/templates/*` endpoints. 13 CONSUMED via `lib/hooks/use
 
 Files with all-or-mostly ORPHAN endpoints (genuine candidates for "implement UI / delete endpoint / justify"):
 
-| File                                   | Endpoints | Nature                                                              |
-| -------------------------------------- | --------: | ------------------------------------------------------------------- |
-| `integrations/zapierRoutes.ts`         |         9 | Zapier external integration — no UI needed                          |
-| `integrations/makeRoutes.ts`           |         8 | Make.com external — no UI needed                                    |
-| `custom-reports/customReportRoutes.ts` |         8 | No UI built                                                         |
-| `analytics/analyticsRoutes.ts`         |        ~7 | `/threads/*`, `/engagement/*`, `/posts/best-times`, etc — not wired |
-| `monitoring/cacheStatsRoutes.ts`       |         6 | Admin tooling — no UI                                               |
-| `monitoring/rateLimitingDashboard.ts`  |         5 | Admin tooling — no UI                                               |
-| `billing/subscriptionRoutes.ts`        |        ~6 | Mixed — some CONSUMED                                               |
-| `audit/auditRoutes.ts`                 |         6 | Write/cleanup/export — no UI                                        |
-| `accounts/accountRoutes.ts`            |         2 | PUT/DELETE on accountId                                             |
-| `approvals/approvalWorkflowRoutes.ts`  |         5 | Workflow CRUD — no UI                                               |
-| `links/linkRoutes.ts`                  |         5 | Public link tracking                                                |
-| `trends/trendRoutes.ts`                |         5 | Client calls `/trends/radar` (doesn't exist)                        |
-| `cqrs/CQRSIntegration.ts`              |         9 | Dead code; Edward's decision: keep                                  |
-| `analytics/realtimeAnalytics.ts`       |         1 | WebSocket — AMBIGUOUS really                                        |
-| `posts/optimizedPostsRoutes.ts`        |         3 | Optimized routes — no UI                                            |
-| `projects/crisisRoutes.ts`             |         3 | Crisis mode — no UI                                                 |
-| `auth/apiKeyRoutes.ts`                 |         4 | No UI for API keys                                                  |
-| `brand-kit/brandKitRoutes.ts`          |         3 | No UI                                                               |
-| `first-comment/firstCommentRoutes.ts`  |         3 | No UI                                                               |
-| `utm/utmRoutes.ts`                     |         2 | No UI                                                               |
-| `audit/activityFeedRoutes.ts`          |         1 | No UI                                                               |
-| `auth/authRoutes.ts`                   |         4 | /register, /me, /sessions, /revoke-all                              |
-| `auth/enhancedOAuthProvider.ts`        |         2 | OAuth server flow                                                   |
-| `auth/oidcRoutes.ts`                   |         2 | `/auth/oidc/*` server flow                                          |
-| `auth/samlRoutes.ts`                   |         3 | `/auth/saml/*` server flow                                          |
-| `providers/providerRoutes.ts`          |         5 | Mixed — most ORPHAN                                                 |
-| `inbox/conversationNoteRoutes.ts`      |         3 | No UI                                                               |
+| File                                   | Endpoints | Nature                                                                                    |
+| -------------------------------------- | --------: | ----------------------------------------------------------------------------------------- |
+| `integrations/zapierRoutes.ts`         |         9 | Zapier external integration — no UI needed                                                |
+| `integrations/makeRoutes.ts`           |         8 | Make.com external — no UI needed                                                          |
+| `custom-reports/customReportRoutes.ts` |         8 | No UI built                                                                               |
+| `analytics/analyticsRoutes.ts`         |        ~7 | `/threads/*`, `/engagement/*`, `/posts/best-times`, etc — not wired                       |
+| `monitoring/cacheStatsRoutes.ts`       |         6 | Admin tooling — no UI                                                                     |
+| `monitoring/rateLimitingDashboard.ts`  |         5 | Admin tooling — no UI                                                                     |
+| `billing/subscriptionRoutes.ts`        |        ~6 | Mixed — some CONSUMED                                                                     |
+| `audit/auditRoutes.ts`                 |         5 | Write/cleanup/my-logs — no UI (was 6; `/export` reclassified CONSUMED PRE-D1B 2026-04-18) |
+| `accounts/accountRoutes.ts`            |         2 | PUT/DELETE on accountId                                                                   |
+| `approvals/approvalWorkflowRoutes.ts`  |         5 | Workflow CRUD — no UI                                                                     |
+| `links/linkRoutes.ts`                  |         5 | Public link tracking                                                                      |
+| `trends/trendRoutes.ts`                |         5 | Client calls `/trends/radar` (doesn't exist)                                              |
+| `cqrs/CQRSIntegration.ts`              |         9 | Dead code; Edward's decision: keep                                                        |
+| `analytics/realtimeAnalytics.ts`       |         1 | WebSocket — AMBIGUOUS really                                                              |
+| `posts/optimizedPostsRoutes.ts`        |         3 | Optimized routes — no UI                                                                  |
+| `projects/crisisRoutes.ts`             |         3 | Crisis mode — no UI                                                                       |
+| `auth/apiKeyRoutes.ts`                 |         4 | No UI for API keys                                                                        |
+| `brand-kit/brandKitRoutes.ts`          |         3 | No UI                                                                                     |
+| `first-comment/firstCommentRoutes.ts`  |         3 | No UI                                                                                     |
+| `utm/utmRoutes.ts`                     |         2 | No UI                                                                                     |
+| `audit/activityFeedRoutes.ts`          |         1 | No UI                                                                                     |
+| `auth/authRoutes.ts`                   |         4 | /register, /me, /sessions, /revoke-all                                                    |
+| `auth/enhancedOAuthProvider.ts`        |         2 | OAuth server flow                                                                         |
+| `auth/oidcRoutes.ts`                   |         2 | `/auth/oidc/*` server flow                                                                |
+| `auth/samlRoutes.ts`                   |         3 | `/auth/saml/*` server flow                                                                |
+| `providers/providerRoutes.ts`          |         5 | Mixed — most ORPHAN                                                                       |
+| `inbox/conversationNoteRoutes.ts`      |         3 | No UI                                                                                     |
 
-**Approx total ORPHAN: ~82-92 endpoints.** (18 reclassified to PLANNED — see §3.5.) D1 determines final action per endpoint.
+**Approx total ORPHAN: ~81-91 endpoints.** (18 reclassified to PLANNED — see §3.5; 1 reclassified to CONSUMED via PRE-D1B 2026-04-18 template literal re-scan — see §2.20.) D1 determines final action per endpoint.
+
+> **D1 decisions applied 2026-04-18.** See [`D1_DECISIONS.md`](D1_DECISIONS.md) for action-per-endpoint classifications (BUILD_UI / DELETE / KEEP_AS_INTERNAL / RECLASSIFY_TO_PLANNED / INVESTIGATE). §3 endpoint list remains authoritative; D1 layers decisions on top. Bloque A (BUILD_UI): 35 endpoints; Bloque B (DELETE): 24 endpoints ~770 LOC; Bloque C (KEEP_AS_INTERNAL): 37 endpoints; Bloque D (RECLASSIFY_TO_PLANNED): 5 (approval workflows); Bloque E (INVESTIGATE): 3 pendientes de Edward.
 
 ### 3.5 PLANNED / PENDING_INTEGRATION (no son orphans, son feature pendiente de cableado)
 
-| File                       | Endpoints | Nature                                                                                                                     |
-| -------------------------- | --------: | -------------------------------------------------------------------------------------------------------------------------- |
-| `content/contentRoutes.ts` |        18 | Core feature "Git for content + sync bidireccional" — construida, no cableada. Ver `LATERAL_FINDINGS.md` entry 2026-04-18. |
+| File                                  | Endpoints | Nature                                                                                                                                                    |
+| ------------------------------------- | --------: | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `content/contentRoutes.ts`            |        18 | Core feature "Git for content + sync bidireccional" — construida, no cableada. Ver `LATERAL_FINDINGS.md` entry 2026-04-18 core conceptual.                |
+| `approvals/approvalWorkflowRoutes.ts` |         5 | Multi-level approval aggregate + UoW + domain events. CORE_CONCEPTUAL (no experimental). D1 2026-04-18 confirmó. Ver `D1_DECISIONS.md §5.1`.              |
+| `trends/trendRoutes.ts`               |         5 | `/trends/{analysis,viral,opportunities,predictions,report}` — building blocks para resolver PATH_MISMATCH #9 `/trends/radar`. Ver `D1_DECISIONS.md §5.2`. |
+| `analytics/analyticsRoutes.ts` (core) |         2 | `/threads/:threadId/performance` + `/export` — parte de `ThreadAnalytics` CORE (batch optimization + caching + repository pattern + tests robustos).      |
 
-**Total PLANNED: 18 endpoints.** D1 registra estos como trabajo pendiente de roadmap de producto, no como candidatos a cleanup. La decisión de activación (UI + integración con pipeline) es separada del Plan Maestro actual.
+**Total PLANNED: 30 endpoints** (18 content + 5 approvals + 5 trends + 2 analytics core). D1 registra estos como trabajo pendiente de roadmap de producto, no como candidatos a cleanup. La decisión de activación (UI + integración con pipeline) es separada del Plan Maestro actual. Acciones priorizadas en `D1_DECISIONS.md §5`.
 
 ---
 
@@ -426,18 +431,21 @@ Files with all-or-mostly ORPHAN endpoints (genuine candidates for "implement UI 
 
 Consumer exists but Next.js `/api/backend/[...path]` strip produces effective URL different from backend registered route.
 
-| #   | Method | Backend path        | Client call                                  | Effective URL                       | Consumer location                    |
-| --- | ------ | ------------------- | -------------------------------------------- | ----------------------------------- | ------------------------------------ |
-| 1   | GET    | `/api/saml/config`  | `/api/backend/saml/config`                   | `/saml/config` ≠ `/api/saml/config` | `apps/client/hooks/api/useSso.ts:77` |
-| 2   | PUT    | `/api/saml/config`  | `/api/backend/saml/config`                   | same                                | `useSso.ts:97`                       |
-| 3   | POST   | `/api/saml/enable`  | `/api/backend/saml/enable`                   | `/saml/enable` ≠ `/api/saml/enable` | `useSso.ts:123`                      |
-| 4   | POST   | `/api/saml/disable` | `/api/backend/${provider}/disable` (dynamic) | `/${provider}/disable`              | `useSso.ts:139`                      |
-| 5   | GET    | `/api/oidc/config`  | `/api/backend/oidc/config`                   | `/oidc/config` ≠ `/api/oidc/config` | `useSso.ts:87`                       |
-| 6   | PUT    | `/api/oidc/config`  | same                                         | same                                | `useSso.ts:110`                      |
-| 7   | POST   | `/api/oidc/enable`  | `/api/backend/oidc/enable`                   | `/oidc/enable` ≠ `/api/oidc/enable` | `useSso.ts:131`                      |
-| 8   | POST   | `/api/oidc/disable` | dynamic                                      | dynamic                             | `useSso.ts:139`                      |
+| #   | Method | Backend path                           | Client call                                  | Effective URL                       | Consumer location                                 |
+| --- | ------ | -------------------------------------- | -------------------------------------------- | ----------------------------------- | ------------------------------------------------- |
+| 1   | GET    | `/api/saml/config`                     | `/api/backend/saml/config`                   | `/saml/config` ≠ `/api/saml/config` | `apps/client/hooks/api/useSso.ts:77`              |
+| 2   | PUT    | `/api/saml/config`                     | `/api/backend/saml/config`                   | same                                | `useSso.ts:97`                                    |
+| 3   | POST   | `/api/saml/enable`                     | `/api/backend/saml/enable`                   | `/saml/enable` ≠ `/api/saml/enable` | `useSso.ts:123`                                   |
+| 4   | POST   | `/api/saml/disable`                    | `/api/backend/${provider}/disable` (dynamic) | `/${provider}/disable`              | `useSso.ts:139`                                   |
+| 5   | GET    | `/api/oidc/config`                     | `/api/backend/oidc/config`                   | `/oidc/config` ≠ `/api/oidc/config` | `useSso.ts:87`                                    |
+| 6   | PUT    | `/api/oidc/config`                     | same                                         | same                                | `useSso.ts:110`                                   |
+| 7   | POST   | `/api/oidc/enable`                     | `/api/backend/oidc/enable`                   | `/oidc/enable` ≠ `/api/oidc/enable` | `useSso.ts:131`                                   |
+| 8   | POST   | `/api/oidc/disable`                    | dynamic                                      | dynamic                             | `useSso.ts:139`                                   |
+| 9   | GET    | `/trends/radar` (no existe en backend) | `/api/backend/trends/radar?accountId=...`    | `/trends/radar` → backend 404       | `apps/client/app/dashboard/ai/trends/page.tsx:43` |
 
-**Validation case 3 ✅** confirmed 8 PATH_MISMATCH. Live-reverse-orphans — admin SSO feature UI emits requests that 404 silently.
+**Validation case 3 ✅** confirmed 8 PATH_MISMATCH en D0-v2 + **1 adicional 2026-04-18** (#9 `/trends/radar` detectado en análisis D1 arquitectónico). Live-reverse-orphans — cliente emite requests que 404 silently.
+
+**`/trends/radar` (#9) — decisión de producto 2026-04-18:** NO es DELETE. Feature tiene UI construida (`trends/page.tsx` con shape `ScoredTrend[]`) + 5 endpoints backend relacionados en `trends/trendRoutes.ts` como building blocks. Decisión: **implementar backend `/trends/radar`** con shape esperado (topic, platform, relevanceScore, postIdea, bestPlatform, urgency, volume) + integrar con los 5 endpoints existentes. Los 5 endpoints legacy reclasificados ORPHAN → PLANNED en §3.5. Ver `D1_DECISIONS.md §5.2`.
 
 **Action:** sprint dedicated to fix. 3 options documented in `LATERAL_FINDINGS.md`:
 
