@@ -392,30 +392,88 @@ Si en cualquier momento aparece la tentación de "hagamos una revisión adiciona
 
 **Verificación de auditor:** si un agente reporta "0 hits" en un block-check, hacer al menos 1 spot-check manual sobre el mismo bloque antes de aceptar. Caso documentado PRE-D1B: agente reportó 0 FN_TEMPLATE en 82 ORPHAN; spot-check manual encontró 1 real. Métrica de confianza en el agente debe incluir verificación cruzada.
 
+### 5.8 Principio de lectura directa (REGLA OBLIGATORIA para auditorías autoritativas)
+
+**Cuando una auditoría requiere inventario o clasificación autoritativa, lectura directa del archivo es la fuente de verdad. Greps son instrumentos de localización o sanity cross-check, no sustitutos de lectura.**
+
+**Contexto:** §5.7 v3 (greps) mantiene su validez para consumer-detection rápida. Pero §5.7 tiene blind spots documentados (multi-line, template literals, wrappers custom, etc.) que hacen que greps solos no sean suficientes para auditorías que afirman cosas como "todos los endpoints tienen auth" o "este archivo no contiene X".
+
+**Regla operacional:**
+
+- **Greps permitidos** para: localización inicial de archivos, sanity cross-checks (count vs iteración), búsqueda de nombres específicos en dominios acotados.
+- **Greps NO permitidos** como verdad final para: clasificar endpoints, determinar si un middleware se ejecuta, contar endpoints por archivo, reportar "cero violaciones de X" sin haber leído todos los archivos.
+- **Lectura directa obligatoria** cuando el reporte tiene que afirmar algo sobre el archivo entero (patrón de auth, schema de validación, registraciones, etc.).
+
+**Aplicación:** D0-v4 piloto (backend routes, 2026-04-18) validó §5.8 con éxito. Lectura directa de 69 archivos reveló 3 hallazgos sustantivos que greps canónicos de §5.7 hubieran missed o mal clasificado.
+
+### 5.9 Principio de validación de producto antes de DELETE
+
+**Ningún agente puede clasificar código como DEAD_CODE sin validación explícita de Edward.**
+
+La ausencia de consumers en el codebase no es evidencia suficiente de que el código sea dead. Código sofisticado construido con arquitectura coherente pero sin wire-up a UI puede ser:
+
+- **PLANNED** — construido intencionalmente para feature futura (ej: `content/`, `CQRS`, `Analytics` aggregates según Edward 2026-04-18)
+- **INFRASTRUCTURE_READY** — infraestructura esperando integración (ej: `RateLimitingDashboard`, patterns de observabilidad)
+- **LEGACY** — tuvo consumers antes, se removieron, el código está ahí por migración gradual
+- **DEAD_CODE** — genuinamente nunca llegó a usarse, sin plan de uso, **confirmado por Edward**
+
+**Regla operacional:**
+
+Los agentes reportan candidatos a DEAD_CODE con evidencia (zero consumers + análisis de arquitectura) pero **nunca ejecutan delete sin validación previa de Edward**.
+
+Excepción — casos obvios que el agente puede marcar como DEAD_CODE sin validación previa (pero aún sin delete automático):
+
+- Backups olvidados (`.bak`, `.bak2`, `.old`, `.baseline`)
+- Scripts de debug one-off en `.claude/` o similar
+- Archivos de configuración superseded (ej: `REACT_STANDARDS.md` post-v2)
+- Commented-out code blocks con git history recuperable
+
+Todo lo demás — clases, módulos, services, use cases, componentes, hooks, endpoints que aparezcan sin consumer — requiere validación explícita de Edward antes de cualquier acción destructiva.
+
+**Lecciones que motivaron §5.9:**
+
+1. **content/ (D1):** agente inicial clasificó como ORPHAN/DELETE 18 endpoints. Edward confirmó que es "Git for content + sync bidireccional multi-plataforma" — corazón estratégico del producto. Reclasificado a PLANNED.
+2. **Approvals + ThreadAnalytics (D1 post-revisión):** patrón similar. 5+2 endpoints que el análisis mecánico habría eliminado.
+3. **CQRS + Analytics (D0-v4 piloto):** agente clasificó como DEAD_CODE por zero instantiations. Edward confirmó que ambos "están completamente desarrollados pero no están wired-up, cuestión de crear la interfaz gráfica".
+4. **RateLimitingDashboard (D0-v4 piloto):** mismo patrón. Agente clasificó BUILD_UI en D1 (incorrecto) → DEAD_CODE en D0-v4 piloto (también incorrecto). Realidad probable: INFRASTRUCTURE_READY.
+
+**Aplicación transversal:** §5.9 aplica a TODAS las dimensiones del Plan Maestro (D1 ya cerrado; D2-D7 adelante) y a cualquier audit futuro. No es exclusivo de D0-v4.
+
 ---
 
 ## 6. Estado del plan
 
-| Fase                                  | Estado                                                                                                                                                                                   | Fecha      |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| PRE-1 RBAC check                      | ✅ Ejecutado — Estado A (acceso funcional)                                                                                                                                               | 2026-04-17 |
-| PRE-2 DEAD_CODE cleanup               | ✅ Ejecutado — BLOQUEADO, reclasificados 3 hooks DEAD_CODE → LEGACY_WORKING (ver PRE-3A)                                                                                                 | 2026-04-17 |
-| PRE-3A Verificación consumer live     | ✅ Ejecutado — Conclusión B (falso negativo metodológico por truncación silenciosa)                                                                                                      | 2026-04-17 |
-| PRE-3B Housekeeping + seed fix        | ✅ Ejecutado — seed sincronizado, §5.7 añadido, D0 limpiado                                                                                                                              | 2026-04-17 |
-| PRE-3C Re-verificación 45 huérfanos   | ✅ Ejecutado — 43.75% FN rate, §10 added to ENDPOINT_AUDIT                                                                                                                               | 2026-04-17 |
-| D0 Inventario (v1)                    | ⚠️ Deprecated — contaminado por truncación silenciosa (ver PRE-3A/3C)                                                                                                                    | 2026-04-17 |
-| D0-v2 Inventario limpio               | ✅ Ejecutado — §5.7 aplicada globalmente, 4 validation cases confirmados                                                                                                                 | 2026-04-18 |
-| PATH_MISMATCH SSO fix                 | ✅ Ejecutado — Opción B (backend `/saml/*` y `/oidc/*` sin prefix `/api/`)                                                                                                               | 2026-04-18 |
-| Reclasificación 18 endpoints content/ | ✅ Ejecutado — ORPHAN → PLANNED                                                                                                                                                          | 2026-04-18 |
-| PRE-D1B re-scan ORPHAN + §5.7 v3      | ✅ Ejecutado — 1 FN_TEMPLATE reclasificado, §5.7 v3 con template literals                                                                                                                | 2026-04-18 |
-| D1 Endpoint ↔ UI Mapping              | ✅ Ejecutado — 104 decisiones sobre ORPHAN (revisado 2026-04-18: 42 BUILD_UI, 10 DELETE, 40 KEEP, 12 PLANNED, 0 INVESTIGATE) + 1 nuevo PATH_MISMATCH `/trends/radar` → `D1_DECISIONS.md` | 2026-04-18 |
-| D2 Standards Compliance               | Pendiente                                                                                                                                                                                | —          |
-| D3 Data Integrity                     | Pendiente                                                                                                                                                                                | —          |
-| D4 Functional Conformity              | Pendiente                                                                                                                                                                                | —          |
-| D5 Security                           | Pendiente                                                                                                                                                                                | —          |
-| D6 Pre-Production Cleanup             | Pendiente                                                                                                                                                                                | —          |
-| D7 Critical Tests Coverage            | Pendiente                                                                                                                                                                                | —          |
-| Revisión hallazgos laterales          | Pendiente                                                                                                                                                                                | —          |
+| Fase                                              | Estado                                                                                                                                                                                   | Fecha              |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| PRE-1 RBAC check                                  | ✅ Ejecutado — Estado A (acceso funcional)                                                                                                                                               | 2026-04-17         |
+| PRE-2 DEAD_CODE cleanup                           | ✅ Ejecutado — BLOQUEADO, reclasificados 3 hooks DEAD_CODE → LEGACY_WORKING (ver PRE-3A)                                                                                                 | 2026-04-17         |
+| PRE-3A Verificación consumer live                 | ✅ Ejecutado — Conclusión B (falso negativo metodológico por truncación silenciosa)                                                                                                      | 2026-04-17         |
+| PRE-3B Housekeeping + seed fix                    | ✅ Ejecutado — seed sincronizado, §5.7 añadido, D0 limpiado                                                                                                                              | 2026-04-17         |
+| PRE-3C Re-verificación 45 huérfanos               | ✅ Ejecutado — 43.75% FN rate, §10 added to ENDPOINT_AUDIT                                                                                                                               | 2026-04-17         |
+| D0 Inventario (v1)                                | ⚠️ Deprecated — contaminado por truncación silenciosa (ver PRE-3A/3C)                                                                                                                    | 2026-04-17         |
+| D0-v2 Inventario limpio                           | ✅ Ejecutado — §5.7 aplicada globalmente, 4 validation cases confirmados                                                                                                                 | 2026-04-18         |
+| PATH_MISMATCH SSO fix                             | ✅ Ejecutado — Opción B (backend `/saml/*` y `/oidc/*` sin prefix `/api/`)                                                                                                               | 2026-04-18         |
+| Reclasificación 18 endpoints content/             | ✅ Ejecutado — ORPHAN → PLANNED                                                                                                                                                          | 2026-04-18         |
+| PRE-D1B re-scan ORPHAN + §5.7 v3                  | ✅ Ejecutado — 1 FN_TEMPLATE reclasificado, §5.7 v3 con template literals                                                                                                                | 2026-04-18         |
+| D1 Endpoint ↔ UI Mapping                          | ✅ Ejecutado — 104 decisiones sobre ORPHAN (revisado 2026-04-18: 42 BUILD_UI, 10 DELETE, 40 KEEP, 12 PLANNED, 0 INVESTIGATE) + 1 nuevo PATH_MISMATCH `/trends/radar` → `D1_DECISIONS.md` | 2026-04-18         |
+| D0-v4 Piloto (backend routes §5.8)                | ✅ Ejecutado — 🟢 VERDE (3 sustantivos, 0 auth críticos). §5.8 demostrada viable. Ver `D0_v4_PILOT_BACKEND_ROUTES.md`. Decisión §8 `/api/` prefix pendiente antes de D2                  | 2026-04-18         |
+| **D0-v4 Completo** (9 sprints, Camino 1 aprobado) | 🔄 En planificación. Ver §9 estructura                                                                                                                                                   | Inicio: 2026-04-XX |
+| D0v4-0 Rename endpoints (α)                       | 📋 Pendiente                                                                                                                                                                             | —                  |
+| D0v4-1 Backend services/use cases/repos           | 📋 Pendiente                                                                                                                                                                             | —                  |
+| D0v4-2 Backend middlewares/DI/infra               | 📋 Pendiente                                                                                                                                                                             | —                  |
+| D0v4-3 Workers                                    | 📋 Pendiente                                                                                                                                                                             | —                  |
+| D0v4-4 Frontend client pages/components           | 📋 Pendiente                                                                                                                                                                             | —                  |
+| D0v4-5 Frontend client hooks                      | 📋 Pendiente                                                                                                                                                                             | —                  |
+| D0v4-6 Frontend admin                             | 📋 Pendiente                                                                                                                                                                             | —                  |
+| D0v4-7 Packages compartidos                       | 📋 Pendiente                                                                                                                                                                             | —                  |
+| D0v4-8 Infraestructura                            | 📋 Pendiente                                                                                                                                                                             | —                  |
+| **D2 Standards Compliance**                       | 🔒 Bloqueado hasta D0-v4 completo cerrado                                                                                                                                                | —                  |
+| D3 Data Integrity                                 | Pendiente                                                                                                                                                                                | —                  |
+| D4 Functional Conformity                          | Pendiente                                                                                                                                                                                | —                  |
+| D5 Security                                       | Pendiente                                                                                                                                                                                | —                  |
+| D6 Pre-Production Cleanup                         | Pendiente                                                                                                                                                                                | —                  |
+| D7 Critical Tests Coverage                        | Pendiente                                                                                                                                                                                | —                  |
+| Revisión hallazgos laterales                      | Pendiente                                                                                                                                                                                | —                  |
 
 ---
 
@@ -426,3 +484,59 @@ Si en cualquier momento aparece la tentación de "hagamos una revisión adiciona
 - **Por qué conservar docs previos:** trabajo hecho con evidencia no se descarta — se consolida. El ENDPOINT_AUDIT y el CLIENT_LIB_HOOKS_AUDIT son entradas legítimas del Plan, no ruido.
 - **Por qué criterios objetivos y no "completitud":** "completo" es subjetivo, se mueve, y genera ansiedad. Criterios objetivos son auditables y te dejan decir "hecho" con honestidad.
 - **Por qué "tranquilidad personal" cambia el diseño:** sin deadline, el riesgo es la perfección paralizante. El plan tiene que forzar cierres explícitos. Sin esto, la tranquilidad nunca llega.
+
+---
+
+## 9. D0-v4 Estructura de Sprints
+
+**Contexto:** el piloto D0-v4 (backend routes, 2026-04-18) validó §5.8 como metodología viable pero cubrió solo ~3-5% del codebase. El resto requiere lectura directa equivalente para construir un inventario autoritativo antes de D2-D7.
+
+**Decisión de Edward 2026-04-18:** Camino 1 — D0-v4 completo como prerrequisito de D2. Estructura secuencial de 9 sprints con review obligatoria entre cada uno.
+
+### 9.1 Estructura de sprints
+
+| #      | Sprint                                              | Scope                                                                                                  |            Archivos estimados | Tiempo calendario |
+| ------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------: | ----------------- |
+| D0v4-0 | Rename 159 endpoints (Opción α)                     | Rename `/api/` prefix en 26 archivos backend + actualizar todas las llamadas frontend correspondientes | ~26 backend + ~40-60 frontend | 3-5 días          |
+| D0v4-1 | Backend services + use cases + repositories         | Lógica de negocio principal (dominio con máxima densidad)                                              |                        80-150 | 5-7 días          |
+| D0v4-2 | Backend middlewares + DI container + infrastructure | Patterns transversales + identificar "built-not-wired"                                                 |                         40-70 | 3-4 días          |
+| D0v4-3 | Workers                                             | BullMQ jobs, adapters, idempotencia, retries                                                           |                         15-30 | 3 días            |
+| D0v4-4 | Frontend client — pages + layouts + components      | App Router + componentes principales                                                                   |                       ~80-120 | 5-7 días          |
+| D0v4-5 | Frontend client — hooks consolidation               | 5 carpetas paralelas + TanStack v5 migration readiness                                                 |                         40-80 | 3-4 días          |
+| D0v4-6 | Frontend admin                                      | Pages + layouts + components + hooks                                                                   |                           ~90 | 4-5 días          |
+| D0v4-7 | Packages compartidos                                | shared, ui, observability, adapters, core, ports                                                       |                       ~60-100 | 3-4 días          |
+| D0v4-8 | Infraestructura                                     | Prisma schema + migrations + configs + tsconfig cross-check                                            |                        ~20-40 | 2-3 días          |
+
+**Total estimado:** 31-42 días calendario = **5-8 semanas** con revisiones entre sprints.
+
+### 9.2 Reglas que rigen todos los sprints D0-v4
+
+1. **§5.8 vigente:** lectura directa, greps solo como localizadores
+2. **§5.9 vigente:** ningún DELETE sin validación Edward
+3. **Review obligatoria entre sprints:** Edward valida el reporte del sprint N antes de que arranque el sprint N+1
+4. **Checkpoints intermedios dentro de sprints largos** (>5 días): agente detiene después del primer ~30% para validar dirección
+5. **No modificar código** salvo en Sprint D0v4-0 (que es mecánico, rename puro) y excepciones explícitas autorizadas por Edward
+6. **Clasificaciones DEAD_CODE requieren validación Edward** antes de cualquier acción (§5.9)
+7. **Hallazgos fuera de scope D0-v4** (bugs, security, performance) van a LATERAL_FINDINGS con severidad
+8. **Cada sprint produce un doc `D0v4_N_<dominio>_REPORT.md`** en `docs/audits/`
+9. **Al final de cada sprint, PLAN_MAESTRO §6 se actualiza** con status del sprint
+10. **Principio de paso sostenible:** 1 sprint cada 5-7 días es el paso realista. No apurar.
+
+### 9.3 Dependencia entre sprints
+
+- **D0v4-0 debe terminar antes que D0v4-1 arranque** (codebase uniforme antes de auditoría profunda)
+- **D0v4-4 y D0v4-5 pueden paralelizarse** si Edward lo decide (requieren dos agentes)
+- **D0v4-7 (packages) se beneficia de haberse hecho D0v4-1,2,3,4,5,6 primero** (packages son consumidos, contexto de consumidores importa)
+- **D0v4-8 (infraestructura) al final** porque beneficia del contexto completo
+
+### 9.4 Criterio de cierre de D0-v4
+
+Cuando los 9 sprints estén completos:
+
+- Inventario integral de todo el código no-trivial
+- Clasificación rigurosa de DEAD_CODE vs PLANNED vs INFRASTRUCTURE_READY vs LEGACY
+- Identificación completa de duplicaciones, drift, patterns inconsistentes
+- LATERAL_FINDINGS poblado con hallazgos fuera de scope D2-D7
+- Base sólida para arrancar D2 (Standards Compliance) con confianza
+
+**Solo después de D0-v4 cerrado arranca D2.**

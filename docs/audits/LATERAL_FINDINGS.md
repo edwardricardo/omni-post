@@ -222,6 +222,8 @@ El módulo `apps/api/src/content/` es una implementación arquitectónicamente s
 
 **Acción propuesta:** D1 Fase 2 evalúa: (a) implementar el endpoint backend si la feature es válida, (b) remover el fetch del frontend si la feature se descontinuó, o (c) investigar con producto si era una feature a medio implementar. Candidato para lista BUILD_UI o DELETE del backlog Sprint 2.
 
+**[RESUELTO por D0-v4 piloto 2026-04-18]** Este hallazgo era un **falso positivo** del blind spot multi-line de §5.7 v3. El endpoint `PUT /admin/accounts/:id/settings` **sí existe**, registrado en `apps/api/src/admin/analyticsRoutes.ts:73-80` con auth correcto (`requireAdminAuth` + `requirePermission(Permission.ACCOUNT_MANAGE)`). El cliente llama `/api/backend/admin/accounts/${id}/settings` → proxy strip de `/api/backend/` → `/admin/accounts/:id/settings` → match backend registrado sin prefix. El endpoint funciona. Confirmado por lectura directa bajo §5.8.
+
 ### 2026-04-18 — PATH_MISMATCH #9: `/trends/radar` cliente llama endpoint inexistente (decisión producto: implementar)
 
 **Encontrado durante:** D1 Fase 2 feature-intent deep analysis (análisis arquitectónico post D1 inicial)
@@ -255,3 +257,73 @@ El módulo `apps/api/src/content/` es una implementación arquitectónicamente s
 
 **Severidad estimada:** alto
 **Acción propuesta:** **APLICADO.** D1 revisado publicado en `D1_DECISIONS.md` (2026-04-18). Para D2-D7, análisis arquitectónico profundo es pre-requisito obligatorio antes de clasificar DELETE en cualquier dimensión.
+
+### 2026-04-18 — `GET /analytics/project/:projectId` sin auth (decisión producto pendiente)
+
+**Encontrado durante:** D0-v4 Piloto Fase 3 lectura directa
+
+**Descripción:** `apps/api/src/analytics/analyticsRoutes.ts:685-689` registra endpoint sin `preHandler` auth middleware. El comentario en código (línea 684) declara "no auth required for read", pero:
+
+- No valida ownership del proyecto — cualquier requester con el `projectId` puede leer analytics.
+- Analytics de proyecto puede exponer métricas de negocio sensibles (engagement, audience, performance).
+
+Quote:
+
+```typescript
+// no auth required for read
+fastify.get(
+  "/analytics/project/:projectId",
+  { schema: { tags: ["Analytics"], summary: "Get project analytics summary" } },
+  async (request, reply) => handler.getProjectAnalytics(request, reply)
+);
+```
+
+**Severidad estimada:** medio-alto (potencial data leak si `projectId` es enumerable o predictible)
+
+**Acción propuesta:** validar con producto:
+
+- Opción 1: es diseño intencional de "public projects" (portfolios, demos) — añadir standard exception en BACKEND_STANDARDS §2.1 documentando "public read analytics".
+- Opción 2: es gap de auth — añadir `preHandler: [requireClientAuth, requireOwnershipOrPermission(projectResolver, ANALYTICS_READ)]`.
+
+Sin decisión: D2 audit reportaría como violation. Sprint de fix según opción elegida.
+
+### 2026-04-18 — `RateLimitingDashboard` clase nunca instanciada — D1 BUILD_UI misclassification
+
+**Encontrado durante:** D0-v4 Piloto Fase 5 verificación
+
+**Descripción:** `apps/api/src/monitoring/rateLimitingDashboard.ts` define clase `RateLimitingDashboard` con método `register(app)` que registra 5 endpoints `/admin/rate-limiting/*`. Grep exhaustivo confirma **cero instanciations** fuera del propio archivo (`grep -rn "new RateLimitingDashboard\|rateLimitingDashboard" apps/api/src/`). Clase nunca se registra en Fastify — endpoints nunca activos en prod.
+
+Mismo patrón que `cqrs/CQRSIntegration.ts` (DEAD_CODE confirmado en D0-v2 §2.41). Pero D1_DECISIONS.md clasificó `rateLimitingDashboard` como **BUILD_UI P1** (ops-critical), asumiendo que los endpoints estaban activos esperando UI. Incorrecto.
+
+**Severidad estimada:** bajo-medio (no hay auth crítico porque la clase está muerta; pero D1 roadmap y Sprint 2 planning están afectados — "5 endpoints de admin monitoring" listados en BUILD_UI priority P1 realmente son DEAD_CODE)
+
+**Acción propuesta:** reclasificar en `D1_DECISIONS.md §2.1 Admin Monitoring & Ops Tooling`:
+
+- Quitar `rateLimitingDashboard.ts (5 endpoints)` de BUILD_UI P1
+- Añadir a nueva categoría DEAD_CODE o PLANNED (requiere decisión producto si se quiere la feature → requeriría instanciar la clase + registrarla en index.ts + construir UI; o DELETE si no se quiere)
+
+**Paralelo con CQRS:** mismo patrón, D0-v2 ya lo clasificó correctamente como DEAD_CODE. Tratarlo similar.
+
+### 2026-04-18 — Decisión arquitectónica pendiente: `/api/` prefix convention (~60/40 split real)
+
+**Encontrado durante:** D0-v4 Piloto §8 + PRE-D2 §4.4 cross-confirmation
+
+**Descripción:** D0-v4 Piloto confirmó el finding de PRE-D2: **~39% de endpoints (~159) usan `/api/` prefix, ~61% (~245) no lo usan**. Split cercano a 60/40 real, NO "461 de 471 sin prefix" como declaró `BACKEND_STANDARDS.md §1.1` (cifra errónea también usada en commit SSO fix `7d16e66`).
+
+Patrón no es "outlier minoritario" — es patrón dominante en ~26 archivos con prefix uniforme vs ~40 sin prefix uniforme.
+
+**Dominios consistentes CON prefix:** billing (admin + client), compliance, settings, campaigns, inbox, assets, tasks, reports, crm, integrations (zapier + make), webhooks dashboard, utm, brand (kit + voice), ai (promptTemplate + image), onboarding, announcements, scheduling client, outbox, customReports, externalNotifications, optimizedPosts, usage, saga, cqrs.
+
+**Dominios consistentes SIN prefix:** admin (salvo 4 subset en analyticsRoutes), auth (todos 9), accounts, audit, analytics, content, approvals (ambos), templates, trends, notifications, health, linkRoutes, firstComment, cacheStats.
+
+**Severidad estimada:** alto estratégico (bloquea D2 arranque)
+
+**Acción propuesta — decisión Edward requerida antes de D2:**
+
+- **Opción α:** BACKEND_STANDARDS §1.1 correcto. Los ~159 endpoints con prefix son drift histórico. Sprint dedicado a rename (muy grande, ~10× el SSO fix). Riesgo: rompería consumers frontend.
+- **Opción β:** BACKEND_STANDARDS §1.1 incorrecto. Ambos patrones coexisten. Actualizar standard. SSO fix fue válido pero por razón distinta a la declarada.
+- **Opción γ (recomendada por piloto):** Coexistencia explícita documentada. Actualizar §1.1 para reflejar split real + describir cuándo aplica cada patrón. Migración gradual en nuevos archivos sin romper existentes.
+
+**D2 no puede arrancar sin esta decisión** — D2 Standards Compliance necesita saber si reportar los ~159 endpoints como violations (α), legítimos (β), o drift histórico aceptable (γ).
+
+Ver `D0_v4_PILOT_BACKEND_ROUTES.md §8` para contexto completo.
