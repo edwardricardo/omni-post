@@ -196,7 +196,7 @@ const conversationNoteRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/inbox/conversations/:id/notes",
+    "/inbox/conversations/:id/notes",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "List conversation notes" },
@@ -205,7 +205,7 @@ const conversationNoteRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/inbox/conversations/:id/notes",
+    "/inbox/conversations/:id/notes",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Add conversation note" },
@@ -214,7 +214,7 @@ const conversationNoteRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/inbox/conversations/:conversationId/notes/:noteId",
+    "/inbox/conversations/:conversationId/notes/:noteId",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Delete conversation note" },

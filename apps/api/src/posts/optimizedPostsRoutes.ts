@@ -141,7 +141,7 @@ export function registerOptimizedPostsRoutes(fastify: FastifyInstance) {
    * Get optimized posts list for dashboard with multi-level caching
    */
   fastify.get(
-    "/api/posts/optimized",
+    "/posts/optimized",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Posts"], summary: "Get optimized posts list for dashboard" },
@@ -156,7 +156,7 @@ export function registerOptimizedPostsRoutes(fastify: FastifyInstance) {
    * Get dashboard statistics with materialized view optimization
    */
   fastify.get(
-    "/api/dashboard/stats",
+    "/dashboard/stats",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Posts"], summary: "Get dashboard statistics" },
@@ -171,7 +171,7 @@ export function registerOptimizedPostsRoutes(fastify: FastifyInstance) {
    * Pre-warm cache for specific account
    */
   fastify.post(
-    "/api/cache/warm/:accountId",
+    "/cache/warm/:accountId",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Posts"], summary: "Warm cache for a specific account" },

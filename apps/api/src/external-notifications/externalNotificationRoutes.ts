@@ -194,7 +194,7 @@ export const externalNotificationRoutes: FastifyPluginAsync = async (fastify) =>
   );
 
   fastify.post(
-    "/api/external-notifications",
+    "/external-notifications",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["External Notifications"], summary: "Create external notification config" },
@@ -202,7 +202,7 @@ export const externalNotificationRoutes: FastifyPluginAsync = async (fastify) =>
     handler.create.bind(handler)
   );
   fastify.get(
-    "/api/external-notifications",
+    "/external-notifications",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["External Notifications"], summary: "List external notification configs" },
@@ -210,7 +210,7 @@ export const externalNotificationRoutes: FastifyPluginAsync = async (fastify) =>
     handler.list.bind(handler)
   );
   fastify.delete(
-    "/api/external-notifications/:id",
+    "/external-notifications/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["External Notifications"], summary: "Delete external notification config" },
@@ -218,7 +218,7 @@ export const externalNotificationRoutes: FastifyPluginAsync = async (fastify) =>
     handler.remove.bind(handler)
   );
   fastify.post(
-    "/api/external-notifications/:id/test",
+    "/external-notifications/:id/test",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["External Notifications"], summary: "Send test notification" },

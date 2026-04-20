@@ -199,7 +199,7 @@ export const promptTemplateRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/ai-templates",
+    "/ai-templates",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["AI Templates"], summary: "List prompt templates" },
@@ -208,7 +208,7 @@ export const promptTemplateRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/ai-templates",
+    "/ai-templates",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["AI Templates"], summary: "Create prompt template" },
@@ -217,7 +217,7 @@ export const promptTemplateRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.patch(
-    "/api/ai-templates/:id",
+    "/ai-templates/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["AI Templates"], summary: "Update prompt template" },
@@ -226,7 +226,7 @@ export const promptTemplateRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/ai-templates/:id",
+    "/ai-templates/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["AI Templates"], summary: "Delete prompt template" },
