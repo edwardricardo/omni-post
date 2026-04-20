@@ -9,6 +9,148 @@ This document defines conventions that apply across the entire monorepo, indepen
 
 ---
 
+## 0. Pre-implementation Discovery (NON-NEGOTIABLE)
+
+**Before creating or implementing ANY new artifact — class, function, hook, component, service, route, use case, repository, port, adapter, value object, entity, event, job, configuration, test helper, or utility — you MUST first verify that no equivalent or similar implementation already exists in the codebase.**
+
+This rule is non-negotiable. It applies to every contributor (human or AI), every sprint, every PR, with no exceptions beyond the escape hatch in §0.4.
+
+### 0.1 Why this rule exists
+
+The D0v4-1 backend audit (2026-04-20, `docs/audits/D0v4_1_BACKEND_SERVICES_REPORT.md`) found **6 duplications accumulated over time**, each representing unmaintainable parallel paths, asymmetric-sync bugs, and DRY violations:
+
+1. **MFA duality** — `auth/mfaService.ts` (OLD, 521 LOC, SHA-256, `passwordResetToken` field HACK) coexists with `admin/auth/MfaService.ts` (NEW, 244 LOC, argon2). **Both in production**; only OLD is wired in DI.
+2. **`reports/` vs `custom-reports/`** — two parallel scheduled-report systems with overlapping entities, repos, and UCs.
+3. **`content/SyncEngineImpl` stubs duplicating `content/ConflictDetector` + `content/SyncScheduler`** — identical method names, fully functional code in helpers, stubs in the main engine that never reference the helpers.
+4. **`providers/providerRegistry` + `providers/providerCapabilityManager`** — `getProvidersByCapability` implemented twice with near-identical logic; two module-level singletons.
+5. **Module-level cache pattern** repeated in `GetTopPerformersContextUseCase.ts:53` + `FetchTrendingTopicsUseCase.ts:36` without a shared `CachePort` abstraction.
+6. **Three client-side `useProviders` hooks** (`apps/client/lib/hooks/useProviders.ts`, `apps/client/lib/api/hooks.ts` re-export, `apps/client/hooks/api/useChannels.ts:72-76`) — registered in `LATERAL_FINDINGS.md` 2026-04-17.
+
+Every one of these would have been prevented by a mandatory discovery step before implementation. This never happens again.
+
+### 0.2 Discovery checklist (mandatory before writing code)
+
+Before writing a single line of new code, execute this checklist. Document the commands used in the PR (see §0.3).
+
+#### Step 1 — Name search (conceptual)
+
+Search for the conceptual name across all casings and naming styles:
+
+```bash
+# PascalCase / camelCase / kebab-case / SNAKE_CASE
+rg -i "(Name|Concept|Thing)" --type ts --type tsx
+rg "\b(nameOrConcept|name_or_concept|name-or-concept)\b" --type ts --type tsx
+```
+
+#### Step 2 — Responsibility search (verb+noun)
+
+Search for the action on the domain object. Use synonyms:
+
+```bash
+# Examples for "schedule a post"
+rg "(schedule|queue|defer|plan).*(Post|Publication|Content)" --type ts
+```
+
+#### Step 3 — Port / interface search
+
+Search for an existing port that might already define the contract:
+
+```bash
+rg "^export (interface|abstract class) .*(Repository|Port|Service|Manager|Dispatcher)" \
+   apps/api/src/domain/repositories/ packages/ports/ --type ts
+```
+
+#### Step 4 — Adapter / concrete class search
+
+Search for an existing adapter or concrete class that might implement what you need:
+
+```bash
+rg "^export class \w+(Repository|Service|Adapter|Handler|Manager)" \
+   apps/api/src/ packages/ --type ts
+```
+
+#### Step 5 — Hook / component search (frontend)
+
+```bash
+rg "^export (function|const) (use|[A-Z])" apps/admin/ apps/client/ --type tsx --type ts | \
+   grep -E "(use[A-Z]|[A-Z]\w+\s*[:=])"
+```
+
+#### Step 6 — Inventory review
+
+Check these living documents before implementing:
+
+- `docs/audits/ENDPOINT_AUDIT.md` — for API surface
+- `docs/audits/D0v4_1_BACKEND_SERVICES_REPORT.md` §2 — full backend inventory with classifications
+- `docs/audits/D1_DECISIONS.md` — prior classification decisions
+- `docs/audits/LATERAL_FINDINGS.md` — known issues + infrastructure-ready components
+- `docs/audits/CLIENT_LIB_HOOKS_AUDIT.md` — client hooks inventory
+
+Something classified as `PLANNED`, `INFRASTRUCTURE_READY`, `PARTIALLY_ACTIVE`, or `LEGACY` may already satisfy the need — extend or revive it, don't duplicate.
+
+#### Step 7 — Package search
+
+Before implementing a utility, search `packages/shared/`, `packages/api-common/`, `packages/ui/`, `packages/adapters/`:
+
+```bash
+rg "^export (function|const|class) <name>" packages/ --type ts
+```
+
+### 0.3 Required PR metadata
+
+Every PR that introduces a new artifact MUST include a `Discovery:` line in the commit message (or PR description) with exactly one of:
+
+- `Discovery: no equivalent found — grepped <patterns> across <paths>`
+- `Discovery: extending <file>:<line> — <existing artifact> lacks <capability>`
+- `Discovery: refactoring <file>:<line> into current work — previous impl was <state>`
+- `Discovery: consolidating <file A> + <file B> into <new file> — see <doc reference>`
+- `Discovery: escape hatch per §0.4 — <reason>, migration plan in <doc>`
+
+**PRs without this line are rejected in code review.** No exceptions. This is how the rule gets teeth.
+
+### 0.4 Escape hatch (only with explicit Edward approval)
+
+Creating a parallel implementation is acceptable only in three documented cases:
+
+1. **Planned migration** — documented in `docs/audits/` with owner, deadline, and delete plan for the old artifact (e.g., the MFA migration approved in Checkpoint 3 of D0v4-1).
+2. **Controlled A/B experimentation** — behind a feature flag, with a consolidation date, tracked in `docs/features/`.
+3. **Genuinely new abstraction layer** — a new port for a domain with no prior representation. Must be reviewed before implementation.
+
+In all three cases, the PR description must link to the authorizing doc/decision. The `Discovery:` line uses the escape-hatch form.
+
+### 0.5 Prohibited anti-patterns
+
+The following are always violations, independent of urgency or apparent convenience:
+
+- Creating a second service / hook / component with the same purpose "for speed"
+- Copying and pasting existing code into a new file
+- Introducing a parallel abstraction "because the existing one is confusing" — fix the existing one instead
+- Leaving the old version in production while introducing a new version without a delete plan (creates `LEGACY` duality)
+- Pattern replication in multiple sites without abstracting (e.g., the module-level cache pattern — see §0.1.5)
+
+### 0.6 If you find something equivalent
+
+Preferred actions, in order:
+
+1. **Reuse** — use the existing implementation as-is.
+2. **Extend** — add the missing capability to the existing artifact.
+3. **Refactor** — refactor the existing artifact as part of the current work.
+4. **Consolidate** — if multiple partial implementations exist, merge them into one before continuing.
+
+### 0.7 Enforcement
+
+- **Code review gate:** reviewers verify the `Discovery:` line is substantive (not `Discovery: none` or empty greps) and the approach chosen (reuse/extend/refactor/consolidate) matches what the code does.
+- **CI fitness function (target):** detect new files with high filename similarity (Levenshtein) to existing files; flag for manual review.
+- **Audit cadence:** quarterly grep for known duplication patterns registered in `LATERAL_FINDINGS.md`.
+
+### 0.8 AI-agent specific guidance
+
+AI agents working in this repository (Claude, Cursor, Copilot, etc.) must execute §0.2 steps explicitly and report findings in the user-facing message before writing any code. An agent that produces new code without evidence of discovery has violated this standard.
+
+If the user requests "create X", the agent's first action is the discovery checklist; only after reporting findings (and receiving confirmation when an equivalent exists) does the agent proceed with implementation.
+
+---
+
 ## 1. TypeScript Compiler Configuration
 
 Every `tsconfig.json` in the monorepo must extend `tsconfig.base.json` and inherit its strictness flags. Package-level overrides are allowed only to **add** strictness, never to relax it.

@@ -16,6 +16,96 @@ This is a **stub** intended to provide D2 (Standards Compliance audit) with a mi
 
 ---
 
+## 0. Pre-implementation Discovery (NON-NEGOTIABLE)
+
+**Before creating or implementing ANY new backend artifact — service, use case, query, command, repository, adapter, port, entity, value object, aggregate, domain event, route, middleware, worker, saga, or DI token — you MUST execute the discovery checklist in `CODE_STANDARDS.md` §0.**
+
+This rule is non-negotiable. The D0v4-1 backend audit (2026-04-20, `docs/audits/D0v4_1_BACKEND_SERVICES_REPORT.md`) found 6 duplications in backend code alone. No exceptions.
+
+### 0.1 Backend-specific discovery checklist
+
+In addition to `CODE_STANDARDS.md` §0.2, execute these searches before writing backend code:
+
+#### Step B1 — Existing use case search
+
+```bash
+# By verb+domain
+rg "^export class \w+UseCase" apps/api/src/application/ --type ts
+rg "^export class \w+Query" apps/api/src/application/ --type ts
+
+# By input/output shape
+rg "(Input|Output|Command|Query).*\w+" apps/api/src/application/**/types.ts
+```
+
+Before adding a use case, confirm no existing UC handles the same input → output shape. If one exists but is a query and you need a command (or vice versa), extend the existing module, don't create a parallel one.
+
+#### Step B2 — Repository port + adapter cross-reference
+
+```bash
+# List all domain ports
+rg "^export (interface|abstract class)" apps/api/src/domain/repositories/ --type ts
+
+# List all Prisma adapters
+rg "^export class Prisma\w+Repository" apps/api/src/infrastructure/repositories/ --type ts
+```
+
+If your domain needs persistence, first check if a matching port already exists. 17 orphan ports (ports without adapters) were found in D0v4-1 `LATERAL_FINDINGS` L-3 — consult that list before declaring a new port.
+
+#### Step B3 — Route path collision
+
+```bash
+# Verify the intended path is free
+rg "fastify\.(get|post|put|patch|delete)\(\"?<your-path>" apps/api/src/ --type ts
+```
+
+`ENDPOINT_AUDIT.md` has the full inventory of 466+ registered endpoints. Grep it before adding a route.
+
+#### Step B4 — DI token check
+
+```bash
+rg "TOKENS\.\w+" apps/api/src/infrastructure/container/types.ts
+```
+
+Before adding a `TOKENS.X`, verify X doesn't already exist under a different name. The container currently holds ~292 tokens — naming collisions happen.
+
+#### Step B5 — Middleware existence
+
+```bash
+rg "^export (function|const) require\w+" apps/api/src/auth/ --type ts
+rg "^export (function|const) \w+Middleware" apps/api/src/ --type ts
+```
+
+Before writing a new auth / validation / rate-limit middleware, confirm an equivalent doesn't exist in `apps/api/src/auth/` or `apps/api/src/middleware/`.
+
+#### Step B6 — Saga / event / job cross-reference
+
+```bash
+rg "^export (interface|class) \w+(Event|Job|Step)" apps/api/src/ packages/shared/src/events/ --type ts
+```
+
+Events and job types are often declared in multiple places. Before adding a new one, verify the semantic intent isn't already covered.
+
+### 0.2 Backend-specific anti-patterns (always prohibited)
+
+In addition to `CODE_STANDARDS.md` §0.5:
+
+- Creating a second service with the same dominant responsibility (e.g., the MFA duality in `auth/mfaService.ts` vs `admin/auth/MfaService.ts` — both in production).
+- Creating a second use case that calls the same aggregate method with different input shape — extend the existing UC's input instead.
+- Introducing a new repository interface when `domain/repositories/` already has one with the same entity target — extend the existing port.
+- Copy-pasting saga step logic across sagas — extract to a shared step factory.
+- Adding a new queue name without checking `packages/shared/src/queues/` — the queue registry is centralized.
+- Wrapping stub methods in a new class "to hide the incomplete implementation" — finish or revive the existing class instead (e.g., `content/SyncEngineImpl` stubs vs `content/ConflictDetector` + `SyncScheduler` functional code, registered in LATERAL_FINDINGS L-11).
+
+### 0.3 PR metadata for backend PRs
+
+Every backend PR introducing a new artifact includes the `Discovery:` line specified in `CODE_STANDARDS.md` §0.3. Backend reviewers verify that:
+
+1. The grep commands reported include the backend-specific steps above (B1–B6 as applicable).
+2. If extending/refactoring an existing artifact, the chosen artifact is classified `ACTIVE` or `PARTIALLY_ACTIVE` (not `LEGACY` — LEGACY should be replaced, not extended further).
+3. New DI tokens are accompanied by registration in `Container.ts`.
+
+---
+
 ## 1. Route Registration
 
 ### 1.1 Path conventions

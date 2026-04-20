@@ -9,6 +9,115 @@
 
 ---
 
+## 0. Pre-implementation Discovery (NON-NEGOTIABLE)
+
+**Before creating or implementing ANY new frontend artifact — React component, custom hook, page, layout, context provider, TanStack Query hook, form, validation schema, utility, type, icon, or asset — you MUST execute the discovery checklist in `CODE_STANDARDS.md` §0.**
+
+This rule is non-negotiable. The `CLIENT_LIB_HOOKS_AUDIT.md` found 3 parallel `useProviders` hooks and 3 parallel hooks folders (`apps/client/hooks/api/`, `apps/client/lib/hooks/`, `apps/client/lib/api/`). No exceptions.
+
+### 0.1 Frontend-specific discovery checklist
+
+In addition to `CODE_STANDARDS.md` §0.2, execute these searches before writing frontend code:
+
+#### Step F1 — Existing component search
+
+```bash
+# Search by PascalCase component name across all app + packages/ui
+rg "^export (function|const|default function) <ComponentName>" \
+   apps/admin/ apps/client/ packages/ui/ --type tsx --type ts
+
+# Search by filename
+rg --files -g "*<ComponentName>*" apps/admin/ apps/client/ packages/ui/
+```
+
+`packages/ui/` is the shared component library (shadcn/ui derivatives). **Always check there first** before building a UI primitive. Only app-specific compositions belong in `apps/*/components/`.
+
+#### Step F2 — Existing hook search (critical — 3 parallel hook folders exist)
+
+```bash
+# Custom hooks across the 3 known folders
+rg "^export (function|const) use[A-Z]\w+" \
+   apps/client/hooks/ apps/client/lib/hooks/ apps/client/lib/api/ \
+   apps/admin/hooks/ apps/admin/lib/ \
+   --type ts --type tsx
+
+# TanStack Query hooks
+rg "^export (function|const) use\w+(Query|Mutation|InfiniteQuery)" \
+   apps/ --type tsx --type ts
+```
+
+**Before creating any new `useXxx` hook, grep all three client hooks folders.** `LATERAL_FINDINGS.md` 2026-04-17 registered this problem explicitly. Never create a 4th parallel hook.
+
+#### Step F3 — Page / route search
+
+```bash
+# Next.js App Router pages
+rg --files -g "page.tsx" apps/admin/app/ apps/client/app/
+
+# Layouts
+rg --files -g "layout.tsx" apps/admin/app/ apps/client/app/
+```
+
+Before adding a new page, verify the route doesn't already exist (possibly as PLANNED or empty scaffold).
+
+#### Step F4 — API client / fetcher search
+
+```bash
+# API client methods
+rg "^export (function|const) (fetch|get|post|put|delete)\w+" \
+   apps/*/lib/api/ --type ts
+```
+
+Before adding a new API call, verify there isn't already a TanStack Query hook or fetcher for that endpoint.
+
+#### Step F5 — Form / validation schema search
+
+```bash
+# Zod schemas
+rg "^export const \w+Schema = z\." apps/ --type ts
+
+# Form hooks (react-hook-form)
+rg "useForm<" apps/ --type tsx
+```
+
+Schemas for common domain objects (Post, Channel, User) often exist already in `packages/shared/` — check there before duplicating.
+
+#### Step F6 — Context / provider search
+
+```bash
+rg "^export const \w+Context = createContext" apps/ --type ts --type tsx
+rg "^export (function|const) \w+Provider" apps/ --type tsx
+```
+
+Before creating a new React context, verify an equivalent provider doesn't already wrap the component tree higher up.
+
+#### Step F7 — Icon / asset search
+
+Before importing an icon from `lucide-react` or similar, confirm the icon isn't already imported by a sibling file with an alias — consolidate imports via barrel exports in `packages/ui/` when possible.
+
+### 0.2 Frontend-specific anti-patterns (always prohibited)
+
+In addition to `CODE_STANDARDS.md` §0.5:
+
+- Creating a 4th parallel `useProviders` / `useChannels` / `useX` when 2–3 already exist — consolidate first, extend after.
+- Copy-pasting a shadcn/ui primitive from `packages/ui/` into `apps/*/components/` to customize it — extend the primitive in `packages/ui/` with variants, or compose on top.
+- Adding a new TanStack Query hook when an equivalent exists in any of the 3 client hook folders — extend or consolidate.
+- Creating a parallel context for state already provided upstream — lift state or use existing provider.
+- Introducing a new form pattern when `packages/ui/` already has a form primitive that fits — extend instead.
+- Writing a second `api-client.ts` / `fetcher.ts` — the app has one canonical client; consolidate if a second has emerged.
+- Creating a new design token / color / spacing value when Tailwind config / theme already covers it.
+
+### 0.3 PR metadata for frontend PRs
+
+Every frontend PR introducing a new artifact includes the `Discovery:` line specified in `CODE_STANDARDS.md` §0.3. Frontend reviewers verify that:
+
+1. The grep commands reported include the frontend-specific steps above (F1–F7 as applicable).
+2. If creating a component/hook that belongs in `packages/ui/`, it was added there, not in app-local `components/` or `hooks/`.
+3. If creating a TanStack Query hook, the chosen folder matches the consolidation direction documented in `LATERAL_FINDINGS.md` (currently: 3 folders coexist — new hooks go to the canonical folder identified there, never to a 4th location).
+4. If the PR bumps a hooks count in a client folder, the author has confirmed no equivalent exists in the other two folders.
+
+---
+
 ## 1. Component Architecture
 
 ### 1.1 Size limits (mechanical)
