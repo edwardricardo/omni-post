@@ -1203,3 +1203,1031 @@ Sospecha: constants legacy de un intento previo de DLQ unificado que fue superse
 
 **Severidad estimada:** bajo (pending research CP1)
 **Acción propuesta:** Research intent original (git blame + historia). Si legacy → DEAD_CODE_CANDIDATE tras validación Edward. Si planned → clasificar como L-66.
+
+---
+
+## Hallazgos D0v4-4 (2026-04-20)
+
+### Críticos (L-68..L-87)
+
+### 2026-04-20 — L-68: Publishing subsystem DEAD_CODE (~2,711 LOC, 6 archivos huérfanos)
+
+**Encontrado durante:** D0v4-4 Batch 2+3
+**Descripción:** `components/publishing/UnifiedPublishingDashboard.tsx` (620 LOC) + su API helper + 4 componentes editor/ que solo lo consumen a él — subsistema completo NO importado por ningún page. Grep confirma: `UnifiedPublishingDashboard` solo aparece en su propio archivo + docs.
+
+Archivos:
+
+- `components/publishing/UnifiedPublishingDashboard.tsx` (620 LOC)
+- `components/publishing/publishingDashboardApi.ts` (306 LOC)
+- `components/editor/AdminContentEditor.tsx` (360 LOC) — naming mismatch (Admin en client app)
+- `components/editor/ContentPreviewSystem.tsx` (604 LOC)
+- `components/editor/ProviderAdaptationEngine.tsx` (494 LOC)
+- `components/editor/provider-previews.tsx` (327 LOC)
+
+La publishing experience real del cliente pasa por `PublishDialog` + `PublishingInterface` + `PlatformPreview` (otros componentes).
+
+**Severidad estimada:** crítico (candidato unificación/cleanup)
+**Acción propuesta:** Edward valida §5.9 → DELETE + unificar con PublishDialog flow o re-wire como entry point unificado.
+
+---
+
+### 2026-04-20 — L-69: Dual auth path — Server Action vs Proxy route con TTLs cookie inconsistentes
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** `app/actions/auth.ts` (Server Action login/register) y `app/api/backend/[...path]/route.ts` (proxy login/register handling) setean **la misma cookie** `customer-session` con TTLs distintos:
+
+| Path          | TTL session          | Refresh cookie            |
+| ------------- | -------------------- | ------------------------- |
+| Server Action | 24h-30d (rememberMe) | ❌ no setea               |
+| Proxy route   | 15 min fijo          | ✅ 7 días separate cookie |
+
+**Problema runtime**: usuario que loguea vía form (Server Action) obtiene session 24h pero **sin refresh cookie**. Cuando proxy intenta renovar token tras 15 min de uso, `injectRefreshToken` no encuentra cookie → backend rechaza → usuario logged out inesperadamente.
+
+**Severidad estimada:** crítico (security + UX breaking)
+**Acción propuesta:** Unificar auth flow. Opción 1: Server Action llama al proxy `/api/backend/auth/customer/login`. Opción 2: Server Action setea ambas cookies con TTLs alineados.
+
+---
+
+### 2026-04-20 — L-70: `app/providers.tsx` missing QueryCache + MutationCache global error handlers
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/providers.tsx:14-26](apps/client/app/providers.tsx#L14-L26) configura QueryClient sin `QueryCache({ onError })` ni `MutationCache({ onError })` globales. FRONTEND_STANDARDS §2.4 explicitly requires both for consistent global error handling.
+
+Cada hook debe implementar su propio error handling → patrones inconsistentes en todo el app (4+ UX feedback patterns en §10.1).
+
+**Severidad estimada:** crítico (arquitectura)
+**Acción propuesta:** Agregar `QueryCache({ onError: (error) => toast.error(...) })` + `MutationCache({ onError })` al QueryClient config. Replace redundant per-hook error handling.
+
+---
+
+### 2026-04-20 — L-71: SILENT-NO-OP billing gateway switch (confirma L-62)
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/settings/billing/page.tsx:332-405](apps/client/app/dashboard/settings/billing/page.tsx#L332-L405) renderiza `GatewaySection` con 3 estados (GatewaySelector, ActiveGatewayBanner, PendingSwitchBanner). Mutations `useInitiateGatewaySwitch` + `useCancelGatewaySwitch` encolan jobs a queue `GATEWAY_SWITCH`.
+
+Queue sin consumer (D0v4-3 L-62). UI muestra "Switch scheduled: your subscription moves to [Paddle] on [date]" pero el switch nunca ocurre. Reminder 24h + suspend 48h no disparan.
+
+**Severidad estimada:** crítico (compliance + billing)
+**Acción propuesta:** Fix L-62 backend primero. UI queda correcta.
+
+---
+
+### 2026-04-20 — L-72: SILENT-NO-OP publish/schedule UI (confirma L-52 compound)
+
+**Encontrado durante:** D0v4-4 Batch 1+3
+**Descripción:** 4 niveles superpuestos de mentira al usuario:
+
+1. Backend L-52 (publishHandler silent failure).
+2. Backend L-64 (saga fake status optimistic).
+3. `posts/[id]/page.tsx:68` + `posts/[id]/preview/page.tsx:41`: `await apiClient.publishPost(postId); alert("Post published successfully!")` sin verificar resultado.
+4. `PublishingInterface.tsx:138-236`: for-loop con `info({description:"Successfully published to..."})` por provider.
+
+UX irrecuperable sin fix coordinado en toda la pila.
+
+**Severidad estimada:** crítico (compound)
+**Acción propuesta:** Fix L-52 + L-64 backend + UI debe verificar job status real post-publish (polling + retry).
+
+---
+
+### 2026-04-20 — L-73: SILENT-NO-OP analytics (confirma L-61 + empty params)
+
+**Encontrado durante:** D0v4-4 Batch 1+3
+**Descripción:** `app/dashboard/analytics/page.tsx` usa `useAnalytics(projectId, timeRange)` correctamente. `app/dashboard/analytics/insights/page.tsx:22-25` pasa `accountId=""` + `projectId=""` HARDCODED empty → `PerformanceInsights` consume vía `usePerformanceInsights("")` → endpoint call con projectId vacío → probable 400 o empty response.
+
+Compuesto con L-61: si dispatcher de analytics intenta agregar datos, jobs van a queue equivocada. UI muestra "No performance data yet".
+
+**Severidad estimada:** crítico
+**Acción propuesta:** Fix insights page params (accountId/projectId del auth context). Fix L-61 backend.
+
+---
+
+### 2026-04-20 — L-74: SILENT-NO-OP inbox (confirma L-55+L-61)
+
+**Encontrado durante:** D0v4-4 Batch 3
+**Descripción:** 8 componentes inbox (InboxLayout, ConversationCard, ConversationHeader, ConversationList, ConversationThread, InboxSidebar, MessageBubble, ReplyComposer) usan `hooks/api/useInbox` canónico correctamente. UI **bien arquitectada**.
+
+Pero backend L-55 (inboxSyncWorker bypass domain layer) + L-61 (INBOX_SYNC misroute a PUBLISH queue) → comments sincronizados vía worker NO llegan al user.
+
+**Severidad estimada:** crítico
+**Acción propuesta:** Fix L-55 + L-61 backend. UI queda correcta.
+
+---
+
+### 2026-04-20 — L-75: SILENT-NO-OP repurpose (confirma L-61 GENERATE_REPURPOSE)
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** `app/dashboard/ai/repurpose/page.tsx` usa raw `fetch("/api/backend/repurpose/proposals")` + `/approvals/:id/:action`. Approve action dispatch jobs via `BullMQRepurposeJobDispatcher` que misroute a PUBLISH queue (L-61). Jobs nunca procesados.
+
+UI: `alert()` on error pattern + raw fetch.
+
+**Severidad estimada:** crítico
+**Acción propuesta:** Fix L-61 backend + migrar raw fetch a TanStack hook.
+
+---
+
+### 2026-04-20 — L-76: SILENT-NO-OP outgoing webhooks (confirma L-44)
+
+**Encontrado durante:** D0v4-4 Batch 3
+**Descripción:** `components/settings/ExternalNotificationConfigs.tsx` + `AddWebhookForm.tsx` permiten agregar webhooks Slack/Teams. UI muestra "Webhook added successfully" + "X event(s)" activos.
+
+Backend L-44: `AnalyticsEventHandler` + `WebhookEventHandler` no-op → **webhooks jamás reciben eventos**. Billing-differentiator feature completamente no funcional.
+
+**Severidad estimada:** crítico (compliance + feature diff)
+**Acción propuesta:** Fix L-44 backend. Handlers deben enviar POST a webhook URL del config.
+
+---
+
+### 2026-04-20 — L-77: `useContentLibraryState` stub — ContentLibrary page always empty
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** [components/content/library/useContentLibraryState.ts:100-115](apps/client/components/content/library/useContentLibraryState.ts#L100-L115):
+
+```ts
+const loadContentItems = useCallback(async () => {
+  setIsLoading(true);
+  try {
+    const emptyItems: ContentItem[] = [];
+    setContentItems(emptyItems);
+    ...
+```
+
+Comment explicit: "Initial load returns empty; the useContentLibrary API hook should be wired in by the parent component". **Hook NO fetch data**.
+
+Consecuencia: `app/dashboard/content/library/page.tsx` → `ContentLibrary` → siempre muestra `EmptyState`. Usuario no puede ver posts en library.
+
+Plus `DEFAULT_FILTER_OPTIONS` L20-25: 5 platforms, 5 categories, 6 tags hardcoded → filter panel UI muestra fake options.
+
+**Severidad estimada:** crítico (feature breaking)
+**Acción propuesta:** Wire real API fetch via useQuery. Remove hardcoded DEFAULT_FILTER_OPTIONS or derive from real data.
+
+---
+
+### 2026-04-20 — L-78: Fake-AI — SchedulePicker "optimal times" hardcoded heuristics
+
+**Encontrado durante:** D0v4-4 Batch 2
+**Descripción:** [editor/SchedulePicker.tsx:49-110](apps/client/components/editor/SchedulePicker.tsx#L49-L110) `getOptimalTimes()` retorna tiempos HARDCODED:
+
+```ts
+optimalTimes.push(
+  { hour: 9, minute: 0, score: 85, reason: "High engagement during morning commute" },
+  { hour: 12, minute: 0, score: 90, reason: "Peak lunch break activity" },
+  ...
+);
+```
+
+UI L271 label: **"Based on historical engagement data for your selected platforms"** — FALSO. Scores (85%, 90%, 92%) son inventados. **UI miente al usuario sobre datos**.
+
+**Severidad estimada:** crítico (engañoso)
+**Acción propuesta:** Remove label "historical engagement data" O conectar a backend real (`hooks/api/useOptimalTimes` style). Si no hay data real, no mostrar ratings.
+
+---
+
+### 2026-04-20 — L-79: Fake-AI — `generateRecommendations` hardcoded impact labels "AI"
+
+**Encontrado durante:** D0v4-4 Batch 3
+**Descripción:** [components/analytics/insights/utils.ts:22-165](apps/client/components/analytics/insights/utils.ts#L22-L165) `generateRecommendations()` es pure if/else rule-based con mensajes hardcoded:
+
+- `"20-30% improvement in engagement"` (L68)
+- `"15-25% increase in discoverability"` (L94)
+- `"Sustain or increase current growth rate"` (L116)
+- Priority/confidence hardcoded: `"high"`, `confidence: 0.85`, `0.82`, `0.75`, `0.68`.
+
+UI render `🎯 AI Recommendations` (RecommendationsList.tsx:46) + PerformanceInsightsHeader.tsx:33 "AI-driven recommendations". **Usuario cree que hay modelo ML, pero es plantilla estática**.
+
+**Severidad estimada:** crítico (engañoso)
+**Acción propuesta:** Renombrar UI label "AI Recommendations" → "Smart Recommendations" (honesto) O conectar a backend ML real.
+
+---
+
+### 2026-04-20 — L-80: Fake-AI — SmartContentOptimizer hashtag scoring fabricated by index
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** [ai/SmartContentOptimizer.tsx:132-139](apps/client/components/ai/SmartContentOptimizer.tsx#L132-L139):
+
+```ts
+relevanceScore: Math.max(10, 90 - i * 10),
+popularityIndex: Math.max(10, 80 - i * 8),
+competitionLevel: (i < 2 ? "low" : i < 4 ? "medium" : "high"),
+trendingStatus: (i < 2 ? "rising" : "stable"),
+expectedReach: Math.max(1000, 50000 - i * 8000),
+```
+
+Cuando API retorna hashtags pero no scores, UI **fabrica scoring basado en índice de array**. `SmartContentOptimizerHashtags.tsx` muestra "90% relevance", "80/10 popularity", "low competition" como datos reales.
+
+**Severidad estimada:** crítico (engañoso)
+**Acción propuesta:** Si API no provee scores, UI no debe mostrar porcentajes. Remove fabricated scoring.
+
+---
+
+### 2026-04-20 — L-81: Fake-AI — ai-content-templates estimatedEngagement hardcoded %
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** [components/ai/ai-content-templates.ts](apps/client/components/ai/ai-content-templates.ts) define 6 templates con `estimatedEngagement: 85/78/82/76/88/91` hardcoded.
+
+[ai/AITemplateSelector.tsx:83-85](apps/client/components/ai/AITemplateSelector.tsx#L83-L85) renderiza `{template.estimatedEngagement}% engagement` con green TrendingUp icon como si fuera real projection.
+
+**Severidad estimada:** crítico (engañoso)
+**Acción propuesta:** Remove estimatedEngagement field o vincular a métricas reales de uso del template.
+
+---
+
+### 2026-04-20 — L-82: Fake-AI — usePredictiveData hardcoded fallbacks
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** [ai/analytics/hooks/usePredictiveData.ts:248-354](apps/client/components/ai/analytics/hooks/usePredictiveData.ts#L248-L354) retorna hardcoded fake data cuando API retorna null:
+
+- L248-269: factor names "Content Reach" 35%, "Platform Activity" 25%, etc.
+- L307-318: demographics "25-44", "Global", "9 AM - 6 PM"
+- L319: engagement triggers inventados "Questions, Polls, Behind-the-scenes"
+- L333-354: "General Audience" fallback con todo inventado
+
+UI no distingue real vs fallback — muestra los fake datos como si fueran del API.
+
+**Severidad estimada:** crítico (engañoso + silent fallback)
+**Acción propuesta:** Remove fake fallbacks. Return empty states con indicación clara al usuario.
+
+---
+
+### 2026-04-20 — L-83: Fake-AI — AIContentGenerator "Powered by GPT-4" hardcoded
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** [ai/AIContentGenerator.tsx:99](apps/client/components/ai/AIContentGenerator.tsx#L99): `<span className="text-sm text-gray-600">Powered by GPT-4</span>`.
+
+Usuario BYOK puede configurar Anthropic/Claude/Gemini en `settings/ai/page.tsx`. UI **siempre** dice GPT-4 — engañoso.
+
+**Severidad estimada:** crítico (engañoso + BYOK mismatch)
+**Acción propuesta:** Fetch current provider de `useAiStatus()` hook y display dinámico.
+
+---
+
+### 2026-04-20 — L-84: Notifications bell + item target `/admin/*` en client app
+
+**Encontrado durante:** D0v4-4 Batch 2
+**Descripción:** [components/notifications/NotificationBell.tsx:226](apps/client/components/notifications/NotificationBell.tsx#L226): `<Link href="/admin/settings/notifications">` y [NotificationItem.tsx getTarget()](apps/client/components/notifications/NotificationItem.tsx#L33-L43) retorna:
+
+```ts
+case "APPROVAL_REQUESTED":  return "/admin/approvals";
+case "POST_APPROVED":       return postId ? `/admin/posts/${postId}` : "/admin/posts";
+default:                    return "/admin";
+```
+
+**Componentes consumidos en apps/client** (via dashboard layout) **pero todos los links apuntan a /admin/\***. Copy-paste desde admin sin adaptar navegación. Usuario client al hacer click sale del app o ve 404.
+
+**Severidad estimada:** crítico (UX breaking)
+**Acción propuesta:** Adaptar getTarget() para client routes (`/dashboard/approvals`, `/dashboard/posts/${postId}`, etc.). Similar para bell footer link.
+
+---
+
+### 2026-04-20 — L-85: ClientContentEditor handleSchedule stub — UI success sin backend
+
+**Encontrado durante:** D0v4-4 Batch 2
+**Descripción:** [editor/ClientContentEditor.tsx:174-182](apps/client/components/editor/ClientContentEditor.tsx#L174-L182):
+
+```ts
+const handleSchedule = useCallback(
+  async (scheduledAt: Date, _timezone?: string) => {
+    if (selectedProviders.length === 0) { ... return; }
+    // Scheduling API integration pending — show confirmation for now
+    success({ title: "Post Scheduled!", ... });
+    clearDraft();
+  },
+  ...
+);
+```
+
+**UI muestra "Post Scheduled!" sin llamar ningún endpoint backend**. Usuario piensa que programó un post, pero NO SE PROGRAMÓ NADA.
+
+**Severidad estimada:** crítico (silent failure L-52 tipo client-side)
+**Acción propuesta:** Wire `useSchedulePost` mutation from `hooks/api/usePosts` (o similar).
+
+---
+
+### 2026-04-20 — L-86: 3 `useProviders` hooks paralelos (confirmación + new evidence D0v4-4)
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** Ya documentado en LATERAL_FINDINGS 2026-04-17. D0v4-4 encuentra que las 3 variantes son consumidas activamente en el mismo sprint:
+
+- `@/hooks/api/useChannels.useProviders` — `channels/page.tsx:9`
+- `@/lib/hooks/useProviders` (LEGACY) — `posts/[id]/preview/page.tsx:14`, `ClientContentEditor.tsx:15`
+- `@/lib/api/hooks.useProviders` re-export (LEGACY) — `posts/new/page.tsx:5`, `posts/[id]/page.tsx:5`
+
+**5 pages/components con 3 hooks diferentes pero mismo propósito**.
+
+**Severidad estimada:** crítico (confusion, bugs, maintenance)
+**Acción propuesta:** Migration plan documentado. Consolidar en `@/hooks/api/useChannels.useProviders`. D0v4-5 scope.
+
+---
+
+### 2026-04-20 — L-87: Instagram stories page 4 callbacks `alert("Coming soon")` — DEAD UI
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/instagram/stories/page.tsx:22-34](apps/client/app/dashboard/instagram/stories/page.tsx#L22-L34):
+
+```ts
+onSave={() => { alert("Coming soon"); }}
+onSchedule={() => { alert("Coming soon"); }}
+onPublish={() => { alert("Coming soon"); }}
+onError={(_error) => { alert("Coming soon"); }}
+```
+
+StoriesEditor completa UI (15 files, ~2,100 LOC) renderiza botones Save/Schedule/Publish que no hacen nada. **El componente StoriesEditor es cuasi-DEAD_CODE** ya que sus callbacks están stub.
+
+**Severidad estimada:** crítico (feature completa dead)
+**Acción propuesta:** Wire callbacks a backend (save draft, schedule, publish) O hide/disable StoriesEditor hasta implementación.
+
+---
+
+### Altos (L-88..L-104)
+
+### 2026-04-20 — L-88: `(user as Record<unknown>).accountId` type hack repetido 8+ veces
+
+**Encontrado durante:** D0v4-4 Batch 1+B3
+**Descripción:** Patrón `const accountId = ((user as Record<string, unknown> | null)?.accountId as string) ?? "";` aparece en:
+
+- `tasks/page.tsx:25`
+- `campaigns/page.tsx:27`
+- `settings/ai/page.tsx` (via ProviderCard)
+- `settings/sso/page.tsx:15`
+- `settings/team/page.tsx:22`
+- `settings/usage/page.tsx:53`
+- `settings/referral/page.tsx:24`
+- `ai/repurpose/page.tsx:33`
+- `ai/trends/page.tsx:36`
+
+AuthContext.user type NO expone `accountId` correctamente. Cada consumer hace el mismo cast inseguro. Si auth shape cambia → bugs silenciosos.
+
+**Severidad estimada:** alto (type safety + maintenance)
+**Acción propuesta:** Fix AuthContext para exponer `user.accountId` correctamente typed. Remove 9 casts.
+
+---
+
+### 2026-04-20 — L-89: ContentLibrary DEFAULT_FILTER_OPTIONS fake hardcoded
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** [useContentLibraryState.ts:20-25](apps/client/components/content/library/useContentLibraryState.ts#L20-L25) hardcoded filter options:
+
+```ts
+const DEFAULT_FILTER_OPTIONS: FilterOptions = {
+  platforms: ["x", "instagram", "facebook", "youtube", "tiktok"],  // missing 6 platforms
+  categories: ["Product Updates", "Behind the Scenes", ...],
+  tags: ["#Innovation", "#TeamWork", ...],
+  authors: [],
+};
+```
+
+UI FilterPanel muestra estas opciones como si estuvieran disponibles. Compuesto con L-77 (no fetch): filter panel permite filtrar por categorías que no existen en data real.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Derive filter options de real data. Fix L-77 primero.
+
+---
+
+### 2026-04-20 — L-90: MultiPlatformSchedulerRefactored dead Edit button + raw fetches
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** [scheduling/MultiPlatformSchedulerRefactored.tsx:194-196](apps/client/components/scheduling/MultiPlatformSchedulerRefactored.tsx#L194-L196):
+
+```ts
+const handleEditRule = useCallback((ruleId: string) => {
+  // Edit requires a modal UI — pending rule-editing dialog implementation
+  void ruleId;
+}, []);
+```
+
+User click "Edit" en RulesView → nada. Plus L176 + L202 raw `fetch("/api/backend/scheduling/rules")` + PATCH `/toggle` en lugar de TanStack hooks.
+
+**Severidad estimada:** alto (UX + §2.1 violation)
+**Acción propuesta:** Implement edit modal. Migrar raw fetch a `hooks/api/useScheduling`.
+
+---
+
+### 2026-04-20 — L-91: MultiPlatformSchedulerRefactored orphan "Refactored" suffix
+
+**Encontrado durante:** D0v4-4 Batch 5
+**Descripción:** File named `MultiPlatformSchedulerRefactored.tsx` pero export es `MultiPlatformScheduler`. Git history confirma: **NO existe `MultiPlatformScheduler.tsx` sin sufijo**. Commits: `ed0f8c9`, `ec8cb2a`, `597bccc`. El sufijo "Refactored" es huérfano — sin contraparte original en historia.
+
+**Severidad estimada:** alto (naming debt)
+**Acción propuesta:** Rename a `MultiPlatformScheduler.tsx`. Update imports.
+
+---
+
+### 2026-04-20 — L-92: RecurringPostForm raw fetch + orphan navigation link
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** [components/scheduling/RecurringPostForm.tsx:104, 118](apps/client/components/scheduling/RecurringPostForm.tsx#L104):
+
+- L104 raw `fetch("/api/backend/recurring-posts")` (o PATCH edit) — no TanStack (viola §2.1).
+- L118 `router.push("/scheduling/recurring")` — **missing `/dashboard/` prefix** → CLIENT-REVERSE-ORPHAN-404.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Migrate to `useCreateRecurringPost` hook. Fix navigation path.
+
+---
+
+### 2026-04-20 — L-93: scheduling/page.tsx raw fetches + prompt() + alert() UX
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/scheduling/page.tsx](apps/client/app/dashboard/scheduling/page.tsx):
+
+- L47, L72, L99, L145, L176, L198 raw `fetch("/api/backend/...")` (6 calls) — all should be TanStack hooks.
+- L138, L141 `prompt()` para handleAddRule + handleEditRule.
+- L131, L162, L189, L213 `alert()` para feedback.
+- L210 "List view coming soon" placeholder.
+- L244 `<Link href="/scheduling/recurring">` missing `/dashboard/` prefix.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Rewrite con TanStack + toast + modal. Fix orphan link.
+
+---
+
+### 2026-04-20 — L-94: channels page OAuth connect button dead for 10/11 providers
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/channels/page.tsx:665-674](apps/client/app/dashboard/channels/page.tsx#L665-L674):
+
+```ts
+<button onClick={() => {
+  // OAuth flow not yet implemented — requires redirect to provider OAuth URL
+  setShowConnectModal(false);
+}}>Connect Account</button>
+```
+
+Solo Bluesky (L655) tiene handler real (`handleBlueskyConnect`). Los otros 10 providers (X, Instagram, Facebook, YouTube, TikTok, LinkedIn, Pinterest, Snapchat, Telegram, Threads) → button cierra el modal sin conectar nada.
+
+**Severidad estimada:** alto (feature completa no implementada)
+**Acción propuesta:** Implement OAuth flow. Backend tiene endpoints (`/auth/connect/{provider}`) según D0v4-1.
+
+---
+
+### 2026-04-20 — L-95: channels page Test/Settings buttons disabled "Coming soon"
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/channels/page.tsx:408-424](apps/client/app/dashboard/channels/page.tsx#L408-L424): "Test" + "Settings" buttons con `disabled title="Coming soon"`. Feature promised but not wired.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Implement o remove.
+
+---
+
+### 2026-04-20 — L-96: Instagram upload Create Stories/Reels/Carousel dead buttons
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/instagram/upload/page.tsx](apps/client/app/dashboard/instagram/upload/page.tsx):
+
+- L89 `handleCreateStories` comment "Navigation to Stories editor with selected files pending router integration" → button clickable pero no navega.
+- L498, L502 "Create Reels" + "Create Carousel" buttons sin `onClick`. Solo disabled state.
+- L517-520 metadata comment commented-out at EOF.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Implement router.push to stories editor con state. Implement Reels/Carousel flows o remove buttons.
+
+---
+
+### 2026-04-20 — L-97: posts/page.tsx raw fetch + no TanStack + 4x `any`
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/posts/page.tsx](apps/client/app/dashboard/posts/page.tsx) (669 LOC):
+
+- L71 `fetch("/api/posts?...")` — sin `/api/backend/` prefix, bypass auth injection, uses rewrite path directamente.
+- Uses custom `useConcurrentData`, `useBackgroundTasks`, `usePerformanceMonitoring` from `@/lib/scalability/ConcurrentRenderer` — no TanStack Query.
+- `post: any`, `StatusIcon: any`, `router: any` (4 `any` types).
+
+Viola §2.1 + zero-any rule.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Migrate to `usePosts` TanStack hook. Remove `any`.
+
+---
+
+### 2026-04-20 — L-98: posts/[id] + preview `alert()` + LEGACY hook imports
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** `app/dashboard/posts/[id]/page.tsx` + `posts/[id]/preview/page.tsx`:
+
+- Multiple `alert()` calls (5+ in each file) for success/error feedback.
+- Import `usePost`, `useProjects`, `useProviders` from `@/lib/api/hooks` (LEGACY) + `@/lib/hooks/useProviders` (LEGACY) — 2 diferentes LEGACY paths en same file.
+
+**Severidad estimada:** alto (UX + LEGACY path)
+**Acción propuesta:** Replace alerts with toast. Consolidate hooks to canonical `/hooks/api/`.
+
+---
+
+### 2026-04-20 — L-99: TemplateManagementDashboard LEGACY hooks con broken URLs (re-confirm)
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/templates/TemplateManagementDashboard.tsx:17,69](apps/client/app/dashboard/templates/TemplateManagementDashboard.tsx#L17) usa `useABTests`, `useTemplates`, `useTemplateVersions` de `@/lib/hooks/*` (LEGACY).
+
+CLIENT_LIB_HOOKS_AUDIT.md §3.1 documenta: 3/8 URLs broken (PUT `/api/ab-tests/:id`, POST `/pause`, DELETE `/ab-tests/:id` retornan 404).
+
+Consecuencia real: A/B test update + pause + delete silently fail via 404. UI TemplateManagementDashboard + ABTestManager muestran operación exitosa sin verificar response.
+
+**Severidad estimada:** alto (re-confirmación)
+**Acción propuesta:** Ya documentado. Pending fix D0v4-5.
+
+---
+
+### 2026-04-20 — L-100: ProjectProvider raw fetch + single-account stub + window.location.reload()
+
+**Encontrado durante:** D0v4-4 Batch 5
+**Descripción:** [providers/ProjectProvider.tsx](apps/client/providers/ProjectProvider.tsx) (327 LOC):
+
+- L102 raw `fetch("/api/backend/auth/customer/me")` — no TanStack.
+- L101-118 `fetchAccounts` retorna single-entry array con stub `email: ""`, `name: ""` porque backend solo da accountId. **Architectural mismatch**: provider designed multi-account, backend single.
+- L121 raw `fetch("/api/backend/accounts/${accountId}/projects")` — no TanStack.
+- L274 `window.location.reload()` anti-pattern en error state.
+
+**Severidad estimada:** alto (architectural + patterns)
+**Acción propuesta:** Migrate a TanStack hooks. Fix architectural mismatch (collapse multi-account logic si backend is truly single-account).
+
+---
+
+### 2026-04-20 — L-101: QueryClient config staleTime 60s + retry:1 inconsistente
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/providers.tsx:15-26](apps/client/app/providers.tsx#L15-L26) config:
+
+```ts
+staleTime: 60 * 1000,   // 60s generic — no por dominio
+gcTime: 5 * 60 * 1000,  // 5 min
+retry: 1,               // FRONTEND_STANDARDS §2.3 default: 2
+```
+
+Inconsistente con ejemplos de FRONTEND_STANDARDS §2.3.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Review + align. staleTime por dominio puede ir en hook individual.
+
+---
+
+### 2026-04-20 — L-102: Ai subsystem size violations (5+ componentes >400 LOC)
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** Ai folder tiene acumulación size violations:
+
+- `PromptTemplateManager.tsx` 439 LOC
+- `SmartContentOptimizer.tsx` 369 LOC
+- `AIContentGenerator.tsx` 173 LOC (OK)
+- Plus ai-content-templates.ts 263 LOC (utility limit 200)
+- Plus usePredictiveData.ts 629 LOC (hook limit 150)
+- Plus smartContentOptimizerUtils.ts 243 LOC
+
+Multiple violations in single folder.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Refactor per FRONTEND_STANDARDS §1.1.
+
+---
+
+### 2026-04-20 — L-103: Auth actions.ts type casts `as string` on FormData.get
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/actions/auth.ts:22-24](apps/client/app/actions/auth.ts#L22-L24):
+
+```ts
+const email = formData.get("email") as string;
+const password = formData.get("password") as string;
+const rememberMe = formData.get("rememberMe") === "on";
+```
+
+`FormData.get()` retorna `FormDataEntryValue | null`. Cast a string puede fail con null/File objects. No validación zod.
+
+**Severidad estimada:** alto (type safety)
+**Acción propuesta:** Validate con zod schema antes de cast.
+
+---
+
+### 2026-04-20 — L-104: Auth actions.ts name parsing bug (firstName/lastName)
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/actions/auth.ts:111-112](apps/client/app/actions/auth.ts#L111-L112):
+
+```ts
+const firstName = name.split(" ")[0] || name;
+const lastName = name.split(" ").slice(1).join(" ") || name;
+```
+
+Si `name = "John Smith Doe"`: firstName="John", lastName="Smith Doe" (OK). Si `name = "Madonna"`: firstName="Madonna", lastName="Madonna" (bug — lastName debería ser empty). Plus Spanish user could have 2 firstNames.
+
+**Severidad estimada:** alto (data quality)
+**Acción propuesta:** Separar inputs firstName + lastName explícito. No split.
+
+---
+
+### Medios (L-105..L-118)
+
+### 2026-04-20 — L-105: AIImageGenerator "DALL-E 3" hardcoded docstring
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** [ai/AIImageGenerator.tsx:3](apps/client/components/ai/AIImageGenerator.tsx#L3) docstring: "AI image generation form and gallery. Uses DALL-E 3 via the backend API." Hardcoded provider assumption en docstring. Si backend usa Stable Diffusion o Midjourney, documentación miente.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Generalize docstring o vincular a dynamic provider.
+
+---
+
+### 2026-04-20 — L-106: AIGenerationPreview fake progress steps sin vinculación
+
+**Encontrado durante:** D0v4-4 Batch 4
+**Descripción:** [ai/AIGenerationPreview.tsx:24-28](apps/client/components/ai/AIGenerationPreview.tsx#L24-L28):
+
+```ts
+<div>✨ Analyzing your template and variables</div>
+<div>🎯 Optimizing for each platform</div>
+<div>🧠 Applying AI creativity and brand consistency</div>
+<div>📊 Calculating engagement predictions</div>
+```
+
+Static list — no step actual progress tracking. Usuario ve 4 "steps" ficticios.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Vincular a stream de progress real del backend O simplificar a "Generating..." genérico.
+
+---
+
+### 2026-04-20 — L-107: providerMapper hardcoded DEFAULT_LIMITS missing 7 platforms
+
+**Encontrado durante:** D0v4-4 Batch 5
+**Descripción:** [lib/utils/providerMapper.ts:10-53](apps/client/lib/utils/providerMapper.ts#L10-L53) define `DEFAULT_LIMITS` solo para: x, twitter, instagram, linkedin, facebook (5 platforms).
+
+Missing: youtube, tiktok, pinterest, snapchat, telegram, bluesky, threads (7 platforms). Fallback L82-90 es Twitter limits → youtube (5000 chars max) fallback a 280 chars.
+
+Comment L9: "Default platform limits - these would normally come from the backend".
+
+**Severidad estimada:** medio
+**Acción propuesta:** Fetch limits del backend (ya hay endpoint `/providers`). O agregar entries missing.
+
+---
+
+### 2026-04-20 — L-108: providerMapper `authType: "oauth"` hardcoded default
+
+**Encontrado durante:** D0v4-4 Batch 5
+**Descripción:** [lib/utils/providerMapper.ts:106](apps/client/lib/utils/providerMapper.ts#L106): `authType: "oauth"`. Pero Bluesky usa `app_password` (per channels/page.tsx UI). Fallback incorrecto.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Fetch authType del backend o map per provider.
+
+---
+
+### 2026-04-20 — L-109: error.tsx + global-error.tsx missing ARIA alert roles
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/error.tsx](apps/client/app/error.tsx) + [app/global-error.tsx](apps/client/app/global-error.tsx) containers no tienen `role="alert"` + `aria-live="assertive"` a pesar de ser error screens. Viola FRONTEND_STANDARDS §8.
+
+**Severidad estimada:** medio (a11y)
+**Acción propuesta:** Agregar `role="alert"` + `aria-live="assertive"` al div container.
+
+---
+
+### 2026-04-20 — L-110: error.tsx uses console.error (viola logger port)
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/error.tsx:12](apps/client/app/error.tsx#L12): `console.error(error)`. CLAUDE.md requiere `@observability/logger` Pino — zero console.\* en production code.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Replace con logger port.
+
+---
+
+### 2026-04-20 — L-111: PublishingInterface `estimatedTime` hardcoded formula
+
+**Encontrado durante:** D0v4-4 Batch 3
+**Descripción:** [publishing/PublishingInterface.tsx:133](apps/client/components/publishing/PublishingInterface.tsx#L133): `stats.estimatedTime = Math.ceil(stats.totalProviders * 2 + (stats.rateLimit ? 30 : 0))`.
+
+UI muestra "Est. Time ~Xs" como si fuera estimación real. Es fórmula hardcoded.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Remove estimation o vincular a backend metrics.
+
+---
+
+### 2026-04-20 — L-112: PublishingInterface `rateLimit.postsPerHour < 10` hardcoded threshold
+
+**Encontrado durante:** D0v4-4 Batch 3
+**Descripción:** [publishing/PublishingInterface.tsx:127](apps/client/components/publishing/PublishingInterface.tsx#L127): `if (rateLimit.postsPerHour < 10) { stats.rateLimit = true; }`. Threshold hardcoded sin justificación.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Mover a config o derivar del provider config real.
+
+---
+
+### 2026-04-20 — L-113: Language mix Spanish/English sin i18n
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** Mix inconsistente en UI:
+
+- `scheduling/recurring/page.tsx` "Publicaciones recurrentes"
+- `RecurringPostForm.tsx` all Spanish labels
+- `channels/page.tsx` Bluesky connect form all Spanish ("Handle y App Password son obligatorios")
+- `billing/page.tsx` "Procesador de pago"
+- Rest of app English
+
+Sin i18n infrastructure detectada.
+
+**Severidad estimada:** medio
+**Acción propuesta:** i18n decision (single language or true i18n). Remove hardcoded Spanish strings.
+
+---
+
+### 2026-04-20 — L-114: dashboard/layout.tsx "Settings" hardcoded to `/dashboard/settings/brand-voice`
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/layout.tsx:54](apps/client/app/dashboard/layout.tsx#L54): Settings navigation item `href: "/dashboard/settings/brand-voice"`. **No index page `/dashboard/settings`** — nav directly jumps to brand-voice. Misleading.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Create settings index page O rename nav item a "Brand Voice".
+
+---
+
+### 2026-04-20 — L-115: dashboard/layout.tsx "AI Settings" separate item
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** Layout nav has "Settings" + "AI Settings" as separate top-level items. AI Settings link to `/dashboard/settings/ai` which is already a sub-setting. Inconsistent information architecture.
+
+**Severidad estimada:** medio
+**Acción propuesta:** IA revisión — mantener en Settings sub-nav o separar conceptualmente (AI as feature?).
+
+---
+
+### 2026-04-20 — L-116: TemplateSelector uses postTemplates static library (not API)
+
+**Encontrado durante:** D0v4-4 Batch 2
+**Descripción:** [editor/TemplateSelector.tsx](apps/client/components/editor/TemplateSelector.tsx) imports `postTemplates` + `templateCategories` from `@/lib/templates/postTemplates` (static).
+
+Parallel with dynamic templates via `hooks/api/useTemplates`. Two template systems coexist.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Consolidar a API-driven templates.
+
+---
+
+### 2026-04-20 — L-117: AnnouncementBanner uses `/api/announcements/active` (no `/backend/` prefix)
+
+**Encontrado durante:** D0v4-4 Batch 2
+**Descripción:** [announcements/AnnouncementBanner.tsx:53](apps/client/components/announcements/AnnouncementBanner.tsx#L53): `fetch("/api/announcements/active")` — no pasa por `/api/backend/` proxy. Uses direct rewrite path (per next.config.mjs). No auth injection. Probably OK because announcements endpoint is public.
+
+Pero inconsistente con resto del app.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Document intent public path. Or migrate to `/api/backend/announcements/active` for consistency.
+
+---
+
+### 2026-04-20 — L-118: Recharts used only in analytics page (bundle weight)
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** `recharts` library imported only en `app/dashboard/analytics/page.tsx:15-24`. If this is a heavy lib, consider dynamic import to avoid bloat.
+
+**Severidad estimada:** medio (perf)
+**Acción propuesta:** `const BarChart = dynamic(() => import("recharts").then(m => m.BarChart))` if bundle size concern.
+
+---
+
+### Bajos (L-119..L-122)
+
+### 2026-04-20 — L-119: instagram/upload Metadata commented-out at EOF
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/instagram/upload/page.tsx:517-520](apps/client/app/dashboard/instagram/upload/page.tsx#L517-L520): 4 lines of commented-out metadata export. Dead comment.
+
+**Severidad estimada:** bajo
+**Acción propuesta:** Remove comment.
+
+---
+
+### 2026-04-20 — L-120: `_customDateTime` unused state in SchedulePicker
+
+**Encontrado durante:** D0v4-4 Batch 2
+**Descripción:** [editor/SchedulePicker.tsx:129](apps/client/components/editor/SchedulePicker.tsx#L129): `const [_customDateTime, setCustomDateTime] = useState<Date | null>(null);`. Prefixed with `_` (unused) but still in state.
+
+**Severidad estimada:** bajo
+**Acción propuesta:** Remove state.
+
+---
+
+### 2026-04-20 — L-121: PlatformPreview unused `_createThreadSegments` function
+
+**Encontrado durante:** D0v4-4 Batch 2
+**Descripción:** [editor/PlatformPreview.tsx:51-83](apps/client/components/editor/PlatformPreview.tsx#L51-L83): 32 LOC `_createThreadSegments` function marked unused with underscore prefix but still in file. Thread segmentation already handled by `providerRegistry.getThreadSegments`.
+
+**Severidad estimada:** bajo
+**Acción propuesta:** Remove dead function.
+
+---
+
+### 2026-04-20 — L-122: ConversationThread eslint-disable sin documentar
+
+**Encontrado durante:** D0v4-4 Batch 3
+**Descripción:** [inbox/ConversationThread.tsx:59](apps/client/components/inbox/ConversationThread.tsx#L59): `// eslint-disable-next-line react-hooks/exhaustive-deps`. Disable sin explicación adjunta.
+
+**Severidad estimada:** bajo
+**Acción propuesta:** Agregar comment explicando intent (avoid markRead loop on every allMessages change).
+
+---
+
+### Over-clientization individual (L-123..L-134)
+
+**Per decisión Edward CP1**: cada wrapper page trivial over-clientized se registra individual.
+
+### 2026-04-20 — L-123: integrations/page.tsx — over-clientized wrapper
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/integrations/page.tsx](apps/client/app/dashboard/integrations/page.tsx) (29 LOC) `"use client"` pero solo renderiza `<IntegrationMarketplace />`. Sin estado local, sin hooks, sin event handlers. Viola FRONTEND_STANDARDS §1.4.
+
+**Severidad estimada:** medio (performance + bundle)
+**Acción propuesta:** Remove `"use client"`. Convert to Server Component.
+
+---
+
+### 2026-04-20 — L-124: settings/integrations/page.tsx — over-clientized wrapper + hardcoded TODO
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/settings/integrations/page.tsx](apps/client/app/dashboard/settings/integrations/page.tsx) (30 LOC): `"use client"` + `const projectId = "default"; // TODO: Replace with real project context`. Trivial wrapper.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Remove `"use client"`. Use Server Component + pass projectId from ProjectProvider or URL.
+
+---
+
+### 2026-04-20 — L-125: settings/crm/page.tsx — over-clientized wrapper
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/settings/crm/page.tsx](apps/client/app/dashboard/settings/crm/page.tsx) (26 LOC): trivial `<CrmSettings />` wrapper.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Remove `"use client"`.
+
+---
+
+### 2026-04-20 — L-126: settings/sso/page.tsx — over-clientized wrapper
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/settings/sso/page.tsx](apps/client/app/dashboard/settings/sso/page.tsx) (30 LOC): uses `useAuth()` for accountId but otherwise trivial. Could be SC passing accountId from cookies.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Review.
+
+---
+
+### 2026-04-20 — L-127: content/library/page.tsx — over-clientized wrapper
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/content/library/page.tsx](apps/client/app/dashboard/content/library/page.tsx) (27 LOC): uses `useProject()` + renders `<ContentLibrary />`. Could be SC.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Review.
+
+---
+
+### 2026-04-20 — L-128: content/templates/page.tsx — over-clientized wrapper
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/content/templates/page.tsx](apps/client/app/dashboard/content/templates/page.tsx) (20 LOC): trivial `<ContentTemplates showAutomation={true} />` wrapper.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Remove `"use client"`.
+
+---
+
+### 2026-04-20 — L-129: instagram/stories/page.tsx — over-clientized wrapper + L-87 compound
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/instagram/stories/page.tsx](apps/client/app/dashboard/instagram/stories/page.tsx) (38 LOC): trivial wrapper with 4 `alert("Coming soon")` callbacks (ver L-87). Could be Server Component if callbacks wired to server actions.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Fix L-87 primero.
+
+---
+
+### 2026-04-20 — L-130: analytics/insights/page.tsx — over-clientized wrapper + L-73 compound
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/analytics/insights/page.tsx](apps/client/app/dashboard/analytics/insights/page.tsx) (28 LOC): trivial wrapper with empty params (ver L-73).
+
+**Severidad estimada:** medio
+**Acción propuesta:** Fix L-73 + convert to SC.
+
+---
+
+### 2026-04-20 — L-131: ai/analytics/page.tsx — over-clientized wrapper
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/ai/analytics/page.tsx](apps/client/app/dashboard/ai/analytics/page.tsx) (24 LOC): trivial `<PredictiveAnalytics />` wrapper.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Remove `"use client"`.
+
+---
+
+### 2026-04-20 — L-132: ai/generate/page.tsx — over-clientized wrapper
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/ai/generate/page.tsx](apps/client/app/dashboard/ai/generate/page.tsx) (50 LOC): tab state only, could be URL-driven + SC.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Review.
+
+---
+
+### 2026-04-20 — L-133: ai/optimizer/page.tsx — over-clientized wrapper
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/dashboard/ai/optimizer/page.tsx](apps/client/app/dashboard/ai/optimizer/page.tsx) (49 LOC): textarea local state — could be moved to SmartContentOptimizer component. Page could be SC.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Move state.
+
+---
+
+### 2026-04-20 — L-134: reports/shared/[token]/page.tsx — public page over-clientized
+
+**Encontrado durante:** D0v4-4 Batch 1
+**Descripción:** [app/reports/shared/[token]/page.tsx](apps/client/app/reports/shared/[token]/page.tsx) (133 LOC): `"use client"` but **is public read-only** page. Perfect candidate for Server Component (fetch del backend con `await`, render static). **Biggest over-clientization impact** (bundled JS into public route).
+
+**Severidad estimada:** alto (SEO + perf)
+**Acción propuesta:** Convert to Server Component + Suspense.
+
+---
+
+### Size violations individual (L-135..L-204)
+
+**Per decisión Edward CP4**: uno por archivo. FRONTEND_STANDARDS §1.1 limits: Component `.tsx` 200 LOC, Page 800, Custom hook 150, Utility 200.
+
+Tabla consolidada (70 archivos). Cada uno es hallazgo individual:
+
+| # L-XX | Archivo                                              | LOC |     Límite |                                     Over |
+| ------ | ---------------------------------------------------- | --: | ---------: | ---------------------------------------: |
+| L-135  | `editor/PlatformPreview.tsx`                         | 705 |        200 |                                     +505 |
+| L-136  | `dashboard/channels/page.tsx`                        | 692 |        200 |                                     +492 |
+| L-137  | `settings/billing/page.tsx`                          | 687 |        200 |                                     +487 |
+| L-138  | `instagram/MediaUploadZone.tsx`                      | 672 |        200 |                                     +472 |
+| L-139  | `dashboard/posts/page.tsx`                           | 669 |        200 |                                     +469 |
+| L-140  | `usePredictiveData.ts`                               | 629 |        150 |                              +479 (hook) |
+| L-141  | `publishing/UnifiedPublishingDashboard.tsx`          | 620 |        200 |                        +420 (dead, L-68) |
+| L-142  | `instagram/VideoSplitPreview.tsx`                    | 613 |        200 |                                     +413 |
+| L-143  | `editor/ContentPreviewSystem.tsx`                    | 604 |        200 |                        +404 (dead, L-68) |
+| L-144  | `templates/VariableInserter.tsx`                     | 546 |        200 |                                     +346 |
+| L-145  | `instagram/upload/page.tsx`                          | 520 |        200 |                                     +320 |
+| L-146  | `publishing/PublishingInterface.tsx`                 | 496 |        200 |                                     +296 |
+| L-147  | `editor/ProviderAdaptationEngine.tsx`                | 494 |        200 |                        +294 (dead, L-68) |
+| L-148  | `posts/[id]/page.tsx`                                | 488 |        200 |                                     +288 |
+| L-149  | `templates/TemplateManagementDashboard.tsx`          | 460 |        200 |                                     +260 |
+| L-150  | `editor/SchedulePicker.tsx`                          | 442 |        200 |                                     +242 |
+| L-151  | `ai/PromptTemplateManager.tsx`                       | 439 |        200 |                                     +239 |
+| L-152  | `templates/TipTapEditor.tsx`                         | 421 |        200 |                                     +221 |
+| L-153  | `templates/TemplateEditorCanvas.tsx`                 | 417 |        200 |                                     +217 |
+| L-154  | `posts/[id]/preview/page.tsx`                        | 392 |        200 |                                     +192 |
+| L-155  | `analytics/page.tsx`                                 | 275 |        200 |                                      +75 |
+| L-156  | `editor/AdminContentEditor.tsx`                      | 360 |        200 |                        +160 (dead, L-68) |
+| L-157  | `templates/TemplateLibraryGrid.tsx`                  | 354 |        200 |                                     +154 |
+| L-158  | `templates/TemplateSelector.tsx`                     | 351 |        200 |                                     +151 |
+| L-159  | `templates/TemplateLibrary.tsx`                      | 335 |        200 |                                     +135 |
+| L-160  | `scheduling/SchedulingDashboardSidebar.tsx`          | 329 |        200 |                                     +129 |
+| L-161  | `providers/ProjectProvider.tsx`                      | 327 |        200 |                                     +127 |
+| L-162  | `editor/provider-previews.tsx`                       | 327 |        200 |                        +127 (dead, L-68) |
+| L-163  | `templates/TemplateVersionControl.tsx`               | 322 |        200 |                                     +122 |
+| L-164  | `useContentLibraryState.ts`                          | 290 |        150 |                              +140 (hook) |
+| L-165  | `scheduling/CSVBulkUpload.tsx`                       | 317 |        200 |                                     +117 |
+| L-166  | `scheduling/useSchedulingDashboard.ts`               | 318 |        150 |                              +168 (hook) |
+| L-167  | `templates/TemplateEditor.tsx`                       | 315 |        200 |                                     +115 |
+| L-168  | `scheduling/page.tsx`                                | 317 |        200 |                                     +117 |
+| L-169  | `publishing/publishingDashboardApi.ts`               | 306 |        200 |                   +106 (util, dead L-68) |
+| L-170  | `templates/ABTestCreateDialog.tsx`                   | 300 |        200 |                                     +100 |
+| L-171  | `ai/SmartContentOptimizer.tsx`                       | 369 |        200 |                                     +169 |
+| L-172  | `ai/PredictiveAnalytics.tsx`                         |  86 |        200 | OK (entry bundled por ai hallazgo L-102) |
+| L-173  | `settings/ai/page.tsx`                               | 293 | 800 (page) |            OK page, componentes internos |
+| L-174  | `ClientContentEditor.tsx`                            | 297 |        200 |                                      +97 |
+| L-175  | `scheduling/MultiPlatformSchedulerRefactored.tsx`    | 278 |        200 |                                      +78 |
+| L-176  | `scheduling/RecurringPostForm.tsx`                   | 275 |        200 |                                      +75 |
+| L-177  | `settings/privacy/page.tsx`                          | 271 |        800 |                                       OK |
+| L-178  | `PublishDialog.tsx`                                  | 272 |        200 |                                      +72 |
+| L-179  | `useABTestManager.ts`                                | 273 |        150 |                              +123 (hook) |
+| L-180  | `analytics/ScheduledReportsList.tsx`                 | 245 |        200 |                                      +45 |
+| L-181  | `approvals/ReviewPanel.tsx`                          | 244 |        200 |                                      +44 |
+| L-182  | `content/library/FilterPanel.tsx`                    | 244 |        200 |                                      +44 |
+| L-183  | `ai/smartContentOptimizerUtils.ts`                   | 243 |        200 |                               +43 (util) |
+| L-184  | `NotificationBell.tsx`                               | 239 |        200 |                                      +39 |
+| L-185  | `SchedulingDashboard.tsx`                            | 239 |        200 |                                      +39 |
+| L-186  | `NotificationPreferences.tsx`                        | 251 |        200 |                                      +51 |
+| L-187  | `scheduling/views/BulkScheduleView.tsx`              | 255 |        200 |                                      +55 |
+| L-188  | `PerformanceInsights.tsx`                            | 275 |        200 |                                      +75 |
+| L-189  | `ai/AIContentResults.tsx`                            | 208 |        200 |                                       +8 |
+| L-190  | `ai/ai-content-templates.ts`                         | 263 |        200 |                               +63 (util) |
+| L-191  | `useTemplateVersionControl.ts`                       | 281 |        150 |                              +131 (hook) |
+| L-192  | `content/ContentTemplates.tsx`                       | 217 |        200 |                                      +17 |
+| L-193  | `SchedulingDashboardPostModal.tsx`                   | 221 |        200 |                                      +21 |
+| L-194  | `RecurrenceSelector.tsx`                             | 209 |        200 |                                       +9 |
+| L-195  | `SamlConfigForm.tsx`                                 | 211 |        200 |                                      +11 |
+| L-196  | `analytics/CreateReportForm.tsx`                     | 206 |        200 |                                       +6 |
+| L-197  | `dashboard/layout.tsx`                               | 178 |        200 |                                       OK |
+| L-198  | `settings/brand-voice/BrandVoiceForm.tsx`            | 269 |        200 |                                      +69 |
+| L-199  | `settings/ExternalNotificationConfigs.tsx`           | 245 |        200 |                                      +45 |
+| L-200  | `instagram/StoriesEditor.tsx`                        | 197 |        200 |                                       OK |
+| L-201  | `analytics/PerformanceInsights.tsx`                  | 275 |        200 |                                      +75 |
+| L-202  | `settings/AddWebhookForm.tsx`                        | 191 |        200 |                                       OK |
+| L-203  | `editor/TemplateSelector.tsx` (duplicate ref L-158)  |   - |          - |                                        - |
+| L-204  | `publishing/PublishDialog.tsx` (duplicate ref L-178) |   - |          - |                                        - |
+
+**Nota**: algunos archivos listados OK en tabla pero se incluyen como sentinels para review. Acción global: Edward decide per archivo si refactor o accept.
+
+**Severidad estimada** (todos): medio (mantenibilidad)
+**Acción propuesta**: refactor por archivo.
