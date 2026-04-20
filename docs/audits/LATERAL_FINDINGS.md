@@ -891,3 +891,315 @@ Plus: `import { prisma } from "@infra/prisma"` L9 — viola fitness #1. `aggrega
 
 **Severidad estimada:** medio (ops)
 **Acción propuesta:** Agregar `.unref()` a todos. Contraste: `OutboxRelay` + `OutboxCleaner` + `RedisEventPublisher.healthCheck` SÍ usan `.unref()` — patrón existe pero no uniforme.
+
+---
+
+## Hallazgos D0v4-3 (2026-04-20)
+
+### 2026-04-20 — L-52: `publishHandler.handleJob` silent failure (catch-all sin re-throw)
+
+**Encontrado durante:** D0v4-3 Batch 1
+**Descripción:** [apps/workers/src/publishHandler.ts:606-627](apps/workers/src/publishHandler.ts#L606-L627) `handleJob` envuelve el cuerpo en `try { ... } catch (error) { logger.error(...); notifyFailure(...); return; }` sin re-throw. BullMQ interpreta el retorno como éxito → **job nunca es marcado como failed, no reintentado, y removido de la queue**.
+
+Combinado con L-53 (no retry policy explícita) → jobs con fallos transitorios de provider API son silenciosamente perdidos. El usuario ve "publicación confirmada" en UI pero el post nunca llega a Twitter/Instagram/etc.
+
+Compuesto con L-64 (saga fake job status) → double blind: worker reports "success", saga asks job status → stub returns "success". Ninguna capa detecta la pérdida.
+
+**Severidad estimada:** crítico
+**Decisión Edward (Cierre D0v4-3):** LATERAL_FINDINGS + crítico.
+**Acción propuesta:** Re-throw tras logging + notifyFailure. Permite a BullMQ retry (requiere también fix L-53 attempts explícitos). Alternativa: llamar `job.moveToFailed()` explícito.
+
+---
+
+### 2026-04-20 — L-53: 4/6 workers sin retry policy explícita
+
+**Encontrado durante:** D0v4-3 Batch 1+2
+**Descripción:** Tabla consolidada:
+
+| Worker                       | attempts                      | backoff                | Gold standard?                 |
+| ---------------------------- | ----------------------------- | ---------------------- | ------------------------------ |
+| `publishWorker`              | ❌ BullMQ default (0 retries) | ❌                     | No                             |
+| `autoRenewalWorker`          | ❌ default                    | ❌                     | No (cron 1x/día atenúa riesgo) |
+| `analyticsIngestWorker`      | ❌ default                    | ❌                     | No                             |
+| `inboxSyncWorker`            | ❌ default                    | ❌                     | No                             |
+| `webhookJobProcessor` (main) | ✅ 3                          | ✅ exponential 5000ms  | ✅                             |
+| `GatewaySwitchJobService`    | ✅ 3                          | ✅ exponential 30000ms | ✅                             |
+
+4 de 6 workers dependen del default BullMQ (**0 retries**). Transient errors de provider = job perdido.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Standardize `{ attempts: 3, backoff: { type: 'exponential', delay: 5000 } }` en los 4 workers faltantes. Adjust `delay` para jobs largos (analytics = 30000ms).
+
+---
+
+### 2026-04-20 — L-54: 3/4 workers dedicated sin graceful shutdown
+
+**Encontrado durante:** D0v4-3 Batch 1
+**Descripción:** Solo `autoRenewalWorker.ts:159` registra SIGTERM con `worker.close()` + `queue.close()` + Redis disconnect + `prisma.$disconnect()`.
+
+`publishWorker.ts`, `analyticsIngestWorker.ts`, `inboxSyncWorker.ts` NO tienen SIGTERM handler. Durante deploy:
+
+- `publishWorker` in-flight job → publicación parcial a platform social visible al usuario.
+- `analyticsIngestWorker` in-flight → metrics ingest incompleto.
+- `inboxSyncWorker` in-flight → conversación mid-sync.
+
+Pattern existe (autoRenewalWorker es referencia) pero no replicado.
+
+**Severidad estimada:** alto (ops)
+**Acción propuesta:** Extraer `workerShutdownHandler(worker, queue, redis, prisma)` helper. Replicar en los 3 workers faltantes.
+
+---
+
+### 2026-04-20 — L-55: `inboxSyncWorker` bypassa `IngestSocialMessageUseCase` + domain layer
+
+**Encontrado durante:** D0v4-3 Batch 1
+**Descripción:** [apps/workers/src/inboxSyncWorker.ts:101-134](apps/workers/src/inboxSyncWorker.ts#L101-L134) reimplementa logica de dedup + create directamente sobre `prisma.socialMessage`:
+
+- L101: `findFirst({ where: { providerMessageId, provider } })`
+- L115-134: `prisma.socialMessage.create(...)` directo
+
+D0v4-1 auditó `IngestSocialMessageUseCase` completo con:
+
+- `SocialMessageAggregate.create` + invariants
+- `findOrCreateByRoot` conversation linking
+- `eventDispatcher.dispatchAll` domain events (trigger triage AI + notifications)
+
+Worker **bypass completo del domain layer** → AI triage + downstream handlers **nunca ejecutan** para comments ingested vía sync. Drift entre webhook path (usa UC) y sync path (bypass). Usuarios ven comments sin triage label ni notifications.
+
+**Severidad estimada:** alto (unificación candidate)
+**Acción propuesta:** Refactor worker para invocar `IngestSocialMessageUseCase`. Inyectar via DI similar a `webhookJobProcessor`. Requiere workers compartir container con API (L-65 dependency).
+
+---
+
+### 2026-04-20 — L-56: `analyticsIngest` + `inboxSync` silent AUTH errors
+
+**Encontrado durante:** D0v4-3 Batch 1
+**Descripción:**
+
+- [apps/workers/src/analyticsIngestWorker.ts:82-85](apps/workers/src/analyticsIngestWorker.ts#L82-L85): si `channel.credentials` es null/invalid → `logger.warn + return` (skip silently).
+- [apps/workers/src/inboxSyncWorker.ts:90-94](apps/workers/src/inboxSyncWorker.ts#L90-L94): patrón idéntico.
+
+Token expirado o revoked → worker skipeando cada 6h (analytics) o 30m (inbox). Usuario **NO es notificado que necesita re-autorizar el canal**. Métricas + comments silently empty.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Emit domain event `ChannelAuthFailed` → notification handler → email/in-app al usuario. Alternativa: mark channel `status = 'AUTH_REVOKED'` y bloquear scheduling en UI.
+
+---
+
+### 2026-04-20 — L-57: `publishHandler.ts` God handler 629 LOC
+
+**Encontrado durante:** D0v4-3 Batch 1
+**Descripción:** Archivo único mezcla:
+
+- `publishSinglePost` (L105-261, ~157 LOC) — provider switch + DB write
+- `publishThreadPost` (L263-514, ~252 LOC) — thread management + batch
+- `handleJob` (L516-628, ~113 LOC) — orchestration + idempotency + saga notification + instrumentation
+
+Single Responsibility violado. Difícil testear unitariamente. publishThreadPost 252 LOC es mega-method.
+
+**Severidad estimada:** medio (mantenibilidad)
+**Acción propuesta:** Split a `PublishOrchestrator` (handleJob) + `SinglePostPublisher` + `ThreadPostPublisher` + `SagaNotifier` + `PublishMetrics`. Cada clase single concern. Tests granulares.
+
+---
+
+### 2026-04-20 — L-58: High cardinality Prometheus labels (`channel_id`)
+
+**Encontrado durante:** D0v4-3 Batch 1
+**Descripción:** [apps/workers/src/metrics/workerMetrics.ts](apps/workers/src/metrics/workerMetrics.ts) define ~35 métricas. Varios counters/histograms usan `channel_id` como label → cardinality explode. En multi-tenant con N accounts × M channels → Prometheus memory + query performance degradation.
+
+Best practice: `channel_id` como label solo en debugging gauges; en counters/histograms agregar por `platform` + `account_id`.
+
+**Severidad estimada:** medio (ops cost)
+**Acción propuesta:** Auditar label usage por métrica. Substituir `channel_id` → `platform` + categoría donde aplique.
+
+---
+
+### 2026-04-20 — L-59: `telemetry/initialization.ts:61-63` 3 `any` types exportados
+
+**Encontrado durante:** D0v4-3 Batch 1
+**Descripción:** [apps/workers/src/telemetry/initialization.ts:61-63](apps/workers/src/telemetry/initialization.ts#L61-L63):
+
+```ts
+export const tracer: any = ...
+export const meter: any = ...
+export const metrics: any = ...
+```
+
+Viola fitness function #3 (no `any` en infrastructure). Mock fallback ok, pero types reales (OpenTelemetry) disponibles.
+
+**Severidad estimada:** bajo (type safety)
+**Acción propuesta:** Tipar con `Tracer | MockTracer` + `Meter | MockMeter` explícitos.
+
+---
+
+### 2026-04-20 — L-60: Provider registry drift — 11 vs 10 providers en workers
+
+**Encontrado durante:** D0v4-3 Batch 1
+**Descripción:**
+
+- `publishWorker.ts` registra **11** providers (x, instagram, facebook, youtube, tiktok, snapchat, telegram, pinterest, linkedin, bluesky, threads)
+- `analyticsIngestWorker.ts` + `inboxSyncWorker.ts` registran **10** (missing `threads`)
+
+Además `apps/api/src/providers/providerRegistry.ts` (D0v4-1 L-14) es el canónico en API → **3 copias del registro de providers** en el monorepo con drift.
+
+Threads posts publican OK pero `analyticsIngestWorker` silently skip analytics + `inboxSyncWorker` silently skip comments.
+
+**Severidad estimada:** bajo (consistency bug)
+**Acción propuesta:** Extraer `packages/providers/src/providerRegistry.ts` shared. Workers + API importan del mismo source. Elimina drift.
+
+---
+
+### 2026-04-20 — L-61: **`QueuePort` adapter hardcoded PUBLISH queue → 3 dispatchers misroute jobs**
+
+**Encontrado durante:** D0v4-3 Batch 2
+**Descripción:** [packages/adapters/queue-bullmq/src/index.ts:51](packages/adapters/queue-bullmq/src/index.ts#L51):
+
+```ts
+const bullJob = await queue.add(QUEUE_NAMES.PUBLISH, job.payload, opts);
+```
+
+`createBullMQQueueAdapter` retorna una instancia que enqueue **siempre a `PUBLISH`** ignorando `job.queueName` del payload. Consumer adapter `createBullMQConsumerAdapter` es simétrico: hardcoded PUBLISH.
+
+Dispatchers afectados (3 confirmed, via shared QueuePort):
+
+1. `DispatchAnalyticsIngestionUseCase` — declara queue `ANALYTICS_AGGREGATION`, termina en `PUBLISH`.
+2. `DispatchInboxSyncUseCase` — declara `INBOX_SYNC`, termina en `PUBLISH`.
+3. `BullMQRepurposeJobDispatcher` — declara `GENERATE_REPURPOSE`, termina en `PUBLISH`.
+
+Resultado:
+
+- `publishWorker` recibe jobs alien payload shape. handleJob filtra por `payload.postId` existence → silently drops (L-52 composición).
+- `analyticsIngestWorker` + `inboxSyncWorker` esperan jobs en sus queues dedicadas → reciben 0.
+- `GENERATE_REPURPOSE` no tiene worker → doble fallo.
+
+**Severidad estimada:** crítico
+**Decisión Edward (Cierre D0v4-3):** LATERAL_FINDINGS + crítico.
+**Acción propuesta:** Refactor adapter para leer queue del payload: `const bullJob = await queue.add(job.queueName ?? QUEUE_NAMES.PUBLISH, job.payload, opts)`. Por defecto PUBLISH para retrocompat, pero permitir override. Consumer adapter similar. Añadir fitness function que verifique que queue name del payload existe en QUEUE_NAMES.
+
+---
+
+### 2026-04-20 — L-62: `GATEWAY_SWITCH` queue publisher activo pero consumer missing
+
+**Encontrado durante:** D0v4-3 Batch 2
+**Descripción:** [apps/api/src/billing/GatewaySwitchJobService.ts](apps/api/src/billing/GatewaySwitchJobService.ts):
+
+- L47: enqueue reminder 24h delayed `{ jobId: 'gateway-switch-reminder-{accountId}' }`
+- L56: enqueue suspend 48h delayed `{ jobId: 'gateway-switch-suspend-{accountId}' }`
+- Gold standard retry `{ attempts: 3, backoff: exponential 30000ms }` + jobId determinístico.
+
+**NINGÚN worker declara consumo de `GATEWAY_SWITCH`.** `grep "GATEWAY_SWITCH" apps/workers/src/` = 0. grep en API = 0 (solo publisher).
+
+Billing flow escalation flow roto: jobs se acumulan en Redis sin consumer, delayed 48h, nunca procesados. Usuario que debería ser suspendido por fallo de gateway queda activo.
+
+**Severidad estimada:** crítico (compliance + billing)
+**Decisión Edward (Cierre D0v4-3):** LATERAL_FINDINGS + crítico.
+**Acción propuesta:** Crear `apps/workers/src/gatewaySwitchWorker.ts` o inline handler en API. UC `ProcessGatewaySwitchReminderUseCase` + `ProcessGatewaySwitchSuspendUseCase` (D0v4-1 los tiene auditados).
+
+---
+
+### 2026-04-20 — L-63: `SagaIntegration:112-114` ejecuta commands via CQRSBus vacío (escalado L-47)
+
+**Encontrado durante:** D0v4-3 Batch 2
+**Descripción:** [apps/api/src/saga/SagaIntegration.ts:112-114](apps/api/src/saga/SagaIntegration.ts#L112-L114):
+
+```ts
+async (command: Command) => {
+  return await this.config.cqrsBus.executeCommand(command);
+};
+```
+
+Registra command executor en `createPostPublishingSagaDefinition` (imported de `@shared/saga`). `cqrsBus` es `CQRSBusImpl` — D0v4-2 L-47 confirmó que **handler registry está vacío**.
+
+Si saga step invoca command → `No handler registered for command type: X` runtime error. Si saga step solo enqueue jobs (probable mayoría) → no runtime. Dependencia de qué hace `@shared/saga` (out-of-scope D0v4-3, D0v4-7 scope).
+
+D0v4-2 L-47 severidad: medio (runtime risk condicional). Ahora confirmado **callsite real** — escalado a crítico por Edward.
+
+**Severidad estimada:** crítico
+**Decisión Edward (Cierre D0v4-3):** LATERAL_FINDINGS + crítico.
+**Acción propuesta (orden):**
+
+1. Leer `@shared/saga/createPostPublishingSagaDefinition` (pre-D0v4-7) para confirmar si invoca commands.
+2. Si SÍ: wire handlers al CQRSBusImpl **antes** de siguiente deploy, o remover bus injection (usar enqueue directo).
+3. Si NO: mantener pero documentar que bus está shell.
+
+---
+
+### 2026-04-20 — L-64: `SagaIntegration:143-152` job status checker STUB fake optimistic
+
+**Encontrado durante:** D0v4-3 Batch 2
+**Descripción:** [apps/api/src/saga/SagaIntegration.ts:143-152](apps/api/src/saga/SagaIntegration.ts#L143-L152) provee `jobStatusChecker` al saga manager:
+
+```ts
+async getJobStatuses(jobIds: string[]) {
+  return { completed: jobIds.length, failed: 0, pending: 0 };
+}
+```
+
+**Siempre retorna optimistic success.** No consulta BullMQ. Saga flow que depende de "wait all jobs complete" step → saga completa prematuramente, ignorando failures reales.
+
+Compuesto con L-52 (worker silent success) → double blind:
+
+- Worker catch-all → job "success" en BullMQ.
+- Saga asks status → stub retorna success.
+- Saga emite `SagaCompleted` → UI muestra "post publicado OK".
+- Realidad: post nunca llegó a Twitter.
+
+**Severidad estimada:** crítico
+**Decisión Edward (Cierre D0v4-3):** LATERAL_FINDINGS + crítico.
+**Acción propuesta:** Implementar real job status checker consultando BullMQ `queue.getJob(jobId).getState()`. Map a `completed | failed | waiting | active` del saga domain. Test con job failure injection.
+
+---
+
+### 2026-04-20 — L-65: 3 ubicaciones de workers BullMQ en el monorepo
+
+**Encontrado durante:** D0v4-3 Batch 2
+**Descripción:**
+
+1. `apps/workers/src/` — 4 workers dedicated (publish, autoRenewal, analyticsIngest, inboxSync)
+2. `apps/api/src/webhooks/webhookJobProcessor.ts` — inline worker en proceso API (WEBHOOK_PROCESSING + WEBHOOK_DEAD_LETTER)
+3. `apps/api/src/infrastructure/integration-events/IntegrationEventConsumer` instanciado inline en `apps/api/src/index.ts:531+` (INTEGRATION_EVENTS)
+
+Complejidad operacional:
+
+- ¿Qué worker corre en qué proceso? Depende del deploy config.
+- DI no compartido → cada worker bootstrap su propio singletons (L-60 contribuye).
+- Lifecycle + graceful shutdown inconsistentes (L-54).
+- Observability disperso: prometheus endpoint :9100 en apps/workers, inline en API.
+
+**Severidad estimada:** medio (ops + mantenibilidad)
+**Acción propuesta:** ADR sobre worker deployment topology. Opción 1: todos en `apps/workers/` (mover webhookJobProcessor + IntegrationEventConsumer). Opción 2: documentar explícitamente por qué híbrido (algunos necesitan acceso sincrónico al API context).
+
+---
+
+### 2026-04-20 — L-66: 5 queues PLANNED — workers missing (Edward CP4)
+
+**Encontrado durante:** D0v4-3 Batch 2
+**Descripción:** De las 16 queues en `QUEUE_NAMES`, 5 sin consumer detectable + sin publisher confirmado vía BullMQ directo:
+
+| Queue               | UC publisher D0v4-1 (si existe)                                            | Worker     |
+| ------------------- | -------------------------------------------------------------------------- | ---------- |
+| `REPORT_GENERATION` | `GenerateReportUseCase` NO usa queue directo                               | ❌ missing |
+| `RECURRING_POSTS`   | `ProcessRecurrenceUseCase` NO usa queue directo                            | ❌ missing |
+| `DETECT_REPURPOSE`  | Publisher unconfirmed                                                      | ❌ missing |
+| `TRIAGE_INBOX`      | `TriageInboxMessageUseCase` invocado via InboxEventHandlers (event-driven) | ❌ missing |
+| `TREND_RADAR`       | Publisher unconfirmed                                                      | ❌ missing |
+
+Queues declaradas en registry pero no wired. Edward decidió CP4: PLANNED, no DEAD_CODE. Sprint futuro cierra el wire-up.
+
+**Severidad estimada:** medio (consolidado Edward CP4)
+**Acción propuesta:** Documentar en `docs/architecture/` cada queue PLANNED + fecha target de wire-up. Si >6 meses sin wire → re-evaluar como DEAD_CODE_CANDIDATE.
+
+---
+
+### 2026-04-20 — L-67: `DEAD_LETTER_QUEUE` + `FAILED_OPERATIONS_DLQ` sin publisher ni consumer detectable
+
+**Encontrado durante:** D0v4-3 Batch 2
+**Descripción:** Declaradas en [packages/adapters/queue-bullmq/src/constants.ts](packages/adapters/queue-bullmq/src/constants.ts) pero:
+
+- `grep "DEAD_LETTER_QUEUE\|FAILED_OPERATIONS_DLQ" apps/ packages/` → solo referenced en el constants file.
+- `WEBHOOK_DEAD_LETTER` (diferente) sí tiene publisher + consumer en `webhookJobProcessor`.
+
+Sospecha: constants legacy de un intento previo de DLQ unificado que fue superseded por `WEBHOOK_DEAD_LETTER` específico. O planned feature nunca wired.
+
+**Severidad estimada:** bajo (pending research CP1)
+**Acción propuesta:** Research intent original (git blame + historia). Si legacy → DEAD_CODE_CANDIDATE tras validación Edward. Si planned → clasificar como L-66.
