@@ -34,7 +34,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── GDPR Settings ─────────────────────────────────────────────────────
 
   fastify.get(
-    "/api/admin/compliance/settings/gdpr",
+    "/admin/compliance/settings/gdpr",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (_request, reply) => {
       const settings = await service.getGdprSettings();
@@ -43,7 +43,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.put(
-    "/api/admin/compliance/settings/gdpr",
+    "/admin/compliance/settings/gdpr",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (request, reply) => {
       const parsed = updateGdprSettingsSchema.safeParse(request.body);
@@ -62,7 +62,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Security Settings ──────────────────────────────────────────────────
 
   fastify.get(
-    "/api/admin/compliance/settings/security",
+    "/admin/compliance/settings/security",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (_request, reply) => {
       const settings = await service.getSecuritySettings();
@@ -71,7 +71,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.put(
-    "/api/admin/compliance/settings/security",
+    "/admin/compliance/settings/security",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (request, reply) => {
       const parsed = updateSecuritySettingsSchema.safeParse(request.body);
@@ -90,7 +90,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Compliance Score ───────────────────────────────────────────────────
 
   fastify.get(
-    "/api/admin/compliance/score",
+    "/admin/compliance/score",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (_request, reply) => {
       const scoreResult = await service.getComplianceScore();
@@ -101,7 +101,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── DSAR Requests (Admin) ──────────────────────────────────────────────
 
   fastify.get(
-    "/api/admin/compliance/dsar",
+    "/admin/compliance/dsar",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (request, reply) => {
       const parsed = dsarFiltersSchema.safeParse(request.query);
@@ -114,7 +114,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.get(
-    "/api/admin/compliance/dsar/:id",
+    "/admin/compliance/dsar/:id",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (request, reply) => {
       const { id } = request.params as { id: string };
@@ -127,7 +127,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post(
-    "/api/admin/compliance/dsar/:id/acknowledge",
+    "/admin/compliance/dsar/:id/acknowledge",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (request, reply) => {
       const { id } = request.params as { id: string };
@@ -141,7 +141,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post(
-    "/api/admin/compliance/dsar/:id/complete",
+    "/admin/compliance/dsar/:id/complete",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (request, reply) => {
       const { id } = request.params as { id: string };
@@ -160,7 +160,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post(
-    "/api/admin/compliance/dsar/:id/reject",
+    "/admin/compliance/dsar/:id/reject",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (request, reply) => {
       const { id } = request.params as { id: string };
@@ -180,7 +180,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Breach Reports (Admin) ─────────────────────────────────────────────
 
   fastify.get(
-    "/api/admin/compliance/breaches",
+    "/admin/compliance/breaches",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (request, reply) => {
       const parsed = breachFiltersSchema.safeParse(request.query);
@@ -193,7 +193,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post(
-    "/api/admin/compliance/breaches",
+    "/admin/compliance/breaches",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (request, reply) => {
       const parsed = createBreachSchema.safeParse(request.body);
@@ -210,7 +210,7 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post(
-    "/api/admin/compliance/breaches/:id/notify",
+    "/admin/compliance/breaches/:id/notify",
     { preHandler, schema: { tags: ["Compliance"] } },
     async (request, reply) => {
       const { id } = request.params as { id: string };
@@ -225,39 +225,35 @@ export const complianceRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ─── Public DSAR Submission (no auth) ───────────────────────────────────
 
-  fastify.post(
-    "/api/compliance/dsar",
-    { schema: { tags: ["Compliance"] } },
-    async (request, reply) => {
-      const parsed = submitDsarSchema.safeParse(request.body);
-      if (!parsed.success) {
-        return reply.code(400).send({ error: "VALIDATION_ERROR", details: parsed.error.issues });
-      }
-
-      const result = await service.submitDsarRequest({
-        requestorEmail: parsed.data.email,
-        ...(parsed.data.name !== undefined && {
-          requestorName: parsed.data.name,
-        }),
-        type: parsed.data.type,
-        ...(parsed.data.jurisdiction !== undefined && {
-          jurisdiction: parsed.data.jurisdiction,
-        }),
-        ...(parsed.data.accountId !== undefined && {
-          accountId: parsed.data.accountId,
-        }),
-        ipAddress: request.ip,
-      });
-
-      if (!result.ok) {
-        const statusMap: Record<string, number> = {
-          RATE_LIMITED: 429,
-          VALIDATION_ERROR: 400,
-        };
-        return reply.code(statusMap[result.error] ?? 500).send({ error: result.error });
-      }
-
-      return reply.code(201).send({ ok: true, data: result.value });
+  fastify.post("/compliance/dsar", { schema: { tags: ["Compliance"] } }, async (request, reply) => {
+    const parsed = submitDsarSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "VALIDATION_ERROR", details: parsed.error.issues });
     }
-  );
+
+    const result = await service.submitDsarRequest({
+      requestorEmail: parsed.data.email,
+      ...(parsed.data.name !== undefined && {
+        requestorName: parsed.data.name,
+      }),
+      type: parsed.data.type,
+      ...(parsed.data.jurisdiction !== undefined && {
+        jurisdiction: parsed.data.jurisdiction,
+      }),
+      ...(parsed.data.accountId !== undefined && {
+        accountId: parsed.data.accountId,
+      }),
+      ipAddress: request.ip,
+    });
+
+    if (!result.ok) {
+      const statusMap: Record<string, number> = {
+        RATE_LIMITED: 429,
+        VALIDATION_ERROR: 400,
+      };
+      return reply.code(statusMap[result.error] ?? 500).send({ error: result.error });
+    }
+
+    return reply.code(201).send({ ok: true, data: result.value });
+  });
 };

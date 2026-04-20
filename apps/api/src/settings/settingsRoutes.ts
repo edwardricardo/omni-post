@@ -38,7 +38,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Admin: Configuration Status ─────────────────────────────────────
 
   fastify.get(
-    "/api/admin/settings/status",
+    "/admin/settings/status",
     { preHandler: adminPreHandler, schema: { tags: ["Settings"] } },
     async (_request, reply) => {
       const result = await service.getConfigurationStatus();
@@ -52,7 +52,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Admin: Get Group Settings (masked) ──────────────────────────────
 
   fastify.get(
-    "/api/admin/settings/:group",
+    "/admin/settings/:group",
     { preHandler: adminPreHandler, schema: { tags: ["Settings"] } },
     async (request, reply) => {
       const parsed = groupParamsSchema.safeParse(request.params);
@@ -73,7 +73,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Admin: Update Group Settings ────────────────────────────────────
 
   fastify.put(
-    "/api/admin/settings/:group",
+    "/admin/settings/:group",
     { preHandler: adminPreHandler, schema: { tags: ["Settings"] } },
     async (request, reply) => {
       const paramsParsed = groupParamsSchema.safeParse(request.params);
@@ -106,7 +106,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Admin: Test Connection ──────────────────────────────────────────
 
   fastify.post(
-    "/api/admin/settings/:group/test",
+    "/admin/settings/:group/test",
     { preHandler: adminPreHandler, schema: { tags: ["Settings"] } },
     async (request, reply) => {
       const parsed = groupParamsSchema.safeParse(request.params);
@@ -127,7 +127,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Admin: Delete Credential ────────────────────────────────────────
 
   fastify.delete(
-    "/api/admin/settings/:group/:key",
+    "/admin/settings/:group/:key",
     { preHandler: adminPreHandler, schema: { tags: ["Settings"] } },
     async (request, reply) => {
       const parsed = groupKeyParamsSchema.safeParse(request.params);
@@ -153,7 +153,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Admin: Encryption Key Rotation ──────────────────────────────────
 
   fastify.post(
-    "/api/admin/settings/encryption/rotate",
+    "/admin/settings/encryption/rotate",
     { preHandler: adminPreHandler, schema: { tags: ["Settings"] } },
     async (request, reply) => {
       const parsed = rotateEncryptionSchema.safeParse(request.body ?? {});
@@ -181,7 +181,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Client: AI Rate Limit Status ────────────────────────────────────
 
   fastify.get(
-    "/api/settings/ai",
+    "/settings/ai",
     { preHandler: clientPreHandler, schema: { tags: ["Settings"] } },
     async (request, reply) => {
       const accountId = request.customerUser?.accountId;
@@ -200,7 +200,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Client: Set BYOK Key ───────────────────────────────────────────
 
   fastify.put(
-    "/api/settings/ai/byok",
+    "/settings/ai/byok",
     { preHandler: clientPreHandler, schema: { tags: ["Settings"] } },
     async (request, reply) => {
       const accountId = request.customerUser?.accountId;
@@ -226,7 +226,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Client: Delete BYOK Key ────────────────────────────────────────
 
   fastify.delete(
-    "/api/settings/ai/byok/:provider",
+    "/settings/ai/byok/:provider",
     { preHandler: clientPreHandler, schema: { tags: ["Settings"] } },
     async (request, reply) => {
       const accountId = request.customerUser?.accountId;
@@ -252,7 +252,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Client: Test BYOK Key ──────────────────────────────────────────
 
   fastify.post(
-    "/api/settings/ai/byok/test",
+    "/settings/ai/byok/test",
     { preHandler: clientPreHandler, schema: { tags: ["Settings"] } },
     async (request, reply) => {
       const parsed = testByokSchema.safeParse(request.body);
@@ -273,7 +273,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Public: Non-secret Platform Settings (no auth) ──────────────────
 
   fastify.get(
-    "/api/settings/public",
+    "/settings/public",
     { schema: { tags: ["Settings"], summary: "Get public platform settings (no auth)" } },
     async (_request, reply) => {
       const result = await service.getPublicPlatformSettings();

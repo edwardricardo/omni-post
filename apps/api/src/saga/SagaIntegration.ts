@@ -185,7 +185,7 @@ export class SagaIntegration {
         priority?: "LOW" | "NORMAL" | "HIGH";
       };
     }>(
-      "/api/sagas/post-publishing/start",
+      "/sagas/post-publishing/start",
       { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
       async (request, _reply) => {
         try {
@@ -242,7 +242,7 @@ export class SagaIntegration {
     fastify.get<{
       Params: { sagaId: string };
     }>(
-      "/api/sagas/:sagaId",
+      "/sagas/:sagaId",
       { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
       async (request, _reply) => {
         try {
@@ -292,7 +292,7 @@ export class SagaIntegration {
     fastify.post<{
       Params: { sagaId: string };
     }>(
-      "/api/sagas/:sagaId/continue",
+      "/sagas/:sagaId/continue",
       { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
       async (request, _reply) => {
         try {
@@ -319,7 +319,7 @@ export class SagaIntegration {
     fastify.post<{
       Params: { sagaId: string };
     }>(
-      "/api/sagas/:sagaId/compensate",
+      "/sagas/:sagaId/compensate",
       { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
       async (request, _reply) => {
         try {
@@ -344,7 +344,7 @@ export class SagaIntegration {
 
     // List Active Sagas
     fastify.get(
-      "/api/sagas",
+      "/sagas",
       { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)] },
       async (_request, _reply) => {
         try {
@@ -371,7 +371,7 @@ export class SagaIntegration {
 
     // Saga Health Check
     fastify.get(
-      "/api/sagas/health",
+      "/sagas/health",
       { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)] },
       async (_request, _reply) => {
         try {
@@ -392,7 +392,7 @@ export class SagaIntegration {
 
     // Saga Metrics
     fastify.get(
-      "/api/sagas/metrics",
+      "/sagas/metrics",
       { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)] },
       async (_request, reply) => {
         try {
