@@ -2231,3 +2231,299 @@ Tabla consolidada (70 archivos). Cada uno es hallazgo individual:
 
 **Severidad estimada** (todos): medio (mantenibilidad)
 **Acción propuesta**: refactor por archivo.
+
+---
+
+## Hallazgos D0v4-5 (2026-04-20)
+
+### Críticos (L-205..L-210)
+
+### 2026-04-20 — L-205: `useAutoSave` stub — simulated backend save, drafts solo localStorage
+
+**Encontrado durante:** D0v4-5 CP0 deep-dive LEGACY
+**Descripción:** [lib/hooks/useAutoSave.ts:84](apps/client/lib/hooks/useAutoSave.ts#L84): `await new Promise((resolve) => setTimeout(resolve, 500));`. Comment explícito "simulate a backend save". `performSave` nunca llama backend real.
+
+Consumer: `ClientContentEditor.tsx:19` (via `usePostDraft`). Drafts solo en localStorage → pierde draft si cambia device/cache. UI muestra "Saved" indicator (false). Compuesto con L-85.
+
+**Severidad estimada:** crítico (data loss risk)
+**Acción propuesta:** Wire real backend call via `apiClient.updatePost` o endpoint draft específico.
+
+---
+
+### 2026-04-20 — L-206: `useInbox.markMessageRead` silent failure + no invalidation
+
+**Encontrado durante:** D0v4-5 B1
+**Descripción:** [hooks/api/useInbox.ts:170-172](apps/client/hooks/api/useInbox.ts#L170-L172) `markMessageRead` sin `res.ok` check. [L317-321](apps/client/hooks/api/useInbox.ts#L317-L321) `useMarkMessageRead` sin `onSuccess` invalidation → unread count stale.
+
+**Severidad estimada:** crítico (UX breaking)
+**Acción propuesta:** Add error check + invalidate `["inbox", "unread-count"]`.
+
+---
+
+### 2026-04-20 — L-207: `useProviders` 4 paths paralelos (upgrade L-86)
+
+**Encontrado durante:** D0v4-5 CP2
+**Descripción:** L-86 era 3 paths. D0v4-5 encontró un 4º: `@/lib/api/index.useProviders` (rename de `useApiProviders` → `apiClient.getProviders()` con return `{ok, providers, total}`). **4 paths, 2 implementaciones, 3 return shapes**.
+
+| #   | Path                                        | Impl                      | Return                 | Consumers |
+| --- | ------------------------------------------- | ------------------------- | ---------------------- | --------: |
+| 1   | `@/hooks/api/useChannels.useProviders`      | `fetch("/api/providers")` | `Provider[]`           |         1 |
+| 2   | `@/lib/hooks/useProviders.useProviders`     | LEGACY + helpers          | Rich object            |         4 |
+| 3   | `@/lib/api/hooks.useProviders` re-export #2 | Same                      | Same                   |         0 |
+| 4   | `@/lib/api/index.useProviders` rename       | `apiClient`               | `{ok,providers,total}` |   0 known |
+
+**Severidad estimada:** crítico (confusion + maintenance)
+**Acción propuesta:** Consolidar en #1. Remove 2/3/4. Migrate consumers.
+
+---
+
+### 2026-04-20 — L-208: Auth 3 paths paralelos (upgrade L-69)
+
+**Encontrado durante:** D0v4-5 CP2
+**Descripción:** L-69 era 2 paths. D0v4-5 encontró un 3º: `lib/auth/authApi.ts:93` `AuthAPI.login()` via proxy. **3 paths**:
+
+1. `app/actions/auth.ts:34` Server Action directo (bypass proxy)
+2. `app/api/backend/[...path]/route.ts` proxy intercept
+3. `lib/auth/authApi.ts` class AuthAPI via proxy
+
+Cookie TTL inconsistente entre paths.
+
+**Severidad estimada:** crítico (security + UX)
+**Acción propuesta:** Unificar. Server Action delega a authApi o remove.
+
+---
+
+### 2026-04-20 — L-209: Error handling inconsistent — `ApiError` vs plain `Error`
+
+**Encontrado durante:** D0v4-5 CP2
+**Descripción:** `lib/api/client.ts` lanza `ApiError` class (status, code, details). `lib/auth/authApi.ts:82` lanza `throw new Error(...)` plain. `instanceof ApiError` checks fail para auth errors. Consumer error handling diverges.
+
+**Severidad estimada:** crítico
+**Acción propuesta:** `authApi` usar `ApiError` o crear `AuthError extends ApiError`.
+
+---
+
+### 2026-04-20 — L-210: Naming conflict `useProviders` en `lib/api/*`
+
+**Encontrado durante:** D0v4-5 CP2
+**Descripción:** [lib/api/index.ts:31](apps/client/lib/api/index.ts#L31) exports `useApiProviders as useProviders`. [lib/api/hooks.ts:173](apps/client/lib/api/hooks.ts#L173) exports `useProviders` de `../hooks/useProviders`. **Ambos named `useProviders` en mismo module tree**.
+
+**Severidad estimada:** crítico
+**Acción propuesta:** Rename uno O retirar LEGACY re-export.
+
+---
+
+### Altos (L-211..L-215)
+
+### 2026-04-20 — L-211: `lib/api/providers.ts` misleading filename
+
+**Encontrado durante:** D0v4-5 CP2
+**Descripción:** [lib/api/providers.ts](apps/client/lib/api/providers.ts) (55 LOC) contiene **solo type definitions**, no API client pese a nombre.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Rename a `providerTypes.ts` o mover types a `types.ts`.
+
+---
+
+### 2026-04-20 — L-212: `lib/api/client.ts` 440 LOC god file — 30+ métodos
+
+**Encontrado durante:** D0v4-5 CP2
+**Descripción:** [lib/api/client.ts](apps/client/lib/api/client.ts) (440 LOC, limit utility 200) `ApiClient` singleton con 30+ métodos: health, projects, posts, channels, analytics, publishing, upload, AI. God class.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Split por domain: `PostsClient`, `ChannelsClient`, etc.
+
+---
+
+### 2026-04-20 — L-213: `useAIContentGenerator.mapApiTemplate` estimatedEngagement 75 hardcoded (new fake-AI site)
+
+**Encontrado durante:** D0v4-5 B1
+**Descripción:** [hooks/useAIContentGenerator.ts:39](apps/client/hooks/useAIContentGenerator.ts#L39) hardcodea `estimatedEngagement: 75`. UI AITemplateSelector muestra "75% engagement" como data real. **7º sitio fake-AI** (adds to L-78..L-83).
+
+**Severidad estimada:** alto (engañoso)
+**Acción propuesta:** Remove hardcoded value o fetch real analytics.
+
+---
+
+### 2026-04-20 — L-214: State hooks cadena a LEGACY mutations — composite L-99
+
+**Encontrado durante:** D0v4-5 B3
+**Descripción:** `useABTestManager` + `useTemplateVersionControl` (pure state) exponen callbacks cableadas en `TemplateManagementDashboard` a `useABTests/useTemplateVersions` LEGACY con URLs broken. Cadena state → LEGACY mutation → 404.
+
+**Severidad estimada:** alto (traceability)
+**Acción propuesta:** Fix L-99. Cadena se resuelve al retirar LEGACY.
+
+---
+
+### 2026-04-20 — L-215: `useBilling.useCheckout`/`useBillingPortal` `window.location.href` anti-pattern SPA
+
+**Encontrado durante:** D0v4-5 B1
+**Descripción:** [hooks/api/useBilling.ts:197,224](apps/client/hooks/api/useBilling.ts#L197) `onSuccess: ({ url }) => { window.location.href = url; }`. Intencional para redirect externo Stripe/Paddle pero rompe SPA (rehidratación al volver).
+
+**Severidad estimada:** alto
+**Acción propuesta:** `window.location.replace` evita history entry, o intermediate loading page.
+
+---
+
+### Medios — `client.ts` 13 `any` individuales (L-216..L-228)
+
+### 2026-04-20 — L-216..L-228: `lib/api/client.ts` `any` types individuales
+
+Per Edward CP2 individual:
+
+| #     |    Línea | Context                                                  |
+| ----- | -------: | -------------------------------------------------------- |
+| L-216 |     L141 | `addPostMedia` return `Promise<ApiResponse<any>>`        |
+| L-217 | L149-156 | `createPostThread` return `ApiResponse<any>`             |
+| L-218 |     L159 | `getPostThread` return `ApiResponse<any>`                |
+| L-219 | L286-295 | `getBestPostingTimes` return `ApiResponse<any>`          |
+| L-220 | L298-311 | `getContentPerformance` return `ApiResponse<any>`        |
+| L-221 | L334-345 | `publishPost` return `Promise<ApiResponse<any>>`         |
+| L-222 | L348-356 | `schedulePost` return `Promise<ApiResponse<any>>`        |
+| L-223 | L359-363 | `cancelScheduledPost` return `Promise<ApiResponse<any>>` |
+| L-224 |     L369 | `uploadFile` `metadata?: any`                            |
+| L-225 |     L410 | `generateContent` `metadata?: any`                       |
+| L-226 |     L430 | `analyzeContent` `analysis: any`                         |
+| L-227 |     L430 | `analyzeContent` inner `score?` inside loose type        |
+| L-228 |     L141 | `addPostMedia` media object loose typing                 |
+
+**Severidad estimada** (todos): medio (type safety)
+**Acción propuesta:** Define types specíficos en `types.ts` + replace.
+
+---
+
+### Medios — otros `any` individuales (L-229..L-235)
+
+### 2026-04-20 — L-229..L-235: types + hooks + LEGACY `any` individuales
+
+| #     | File                           | Context                                         |
+| ----- | ------------------------------ | ----------------------------------------------- |
+| L-229 | `lib/api/types.ts:76`          | `ProviderHealth.details?: Record<string, any>`  |
+| L-230 | `lib/api/types.ts:166`         | `ApiResponse<T = any>` generic default          |
+| L-231 | `lib/api/types.ts:192`         | `ApiError.details?: any`                        |
+| L-232 | `lib/api/hooks.ts:32`          | `queryKeys.posts(filters?: any)`                |
+| L-233 | `lib/api/hooks.ts:158`         | `UseMutationOptions metadata?: any`             |
+| L-234 | `lib/hooks/useProviders.ts:16` | `Provider.config: Record<string, any>` (LEGACY) |
+| L-235 | `lib/hooks/useAutoSave.ts:16`  | `onSave error?: any` (LEGACY)                   |
+
+**Severidad estimada** (todos): medio
+**Acción propuesta:** Types específicos.
+
+---
+
+### Medios — R11 size violations 23 individuales (L-236..L-258)
+
+Per Edward CP1 individual:
+
+### 2026-04-20 — L-236..L-258: R11 size violations
+
+| #     | File                                                   | LOC | Limit |                   Over |
+| ----- | ------------------------------------------------------ | --: | ----: | ---------------------: |
+| L-236 | `components/ai/analytics/hooks/usePredictiveData.ts`   | 629 |   150 |                   +479 |
+| L-237 | `lib/api/client.ts`                                    | 440 |   200 | +240 (cross-ref L-212) |
+| L-238 | `hooks/api/useInbox.ts`                                | 321 |   150 |                   +171 |
+| L-239 | `components/scheduling/useSchedulingDashboard.ts`      | 318 |   150 |                   +168 |
+| L-240 | `components/content/library/useContentLibraryState.ts` | 290 |   150 |                   +140 |
+| L-241 | `components/templates/useTemplateVersionControl.ts`    | 281 |   150 |                   +131 |
+| L-242 | `hooks/api/useBilling.ts`                              | 274 |   150 |                   +124 |
+| L-243 | `components/templates/useABTestManager.ts`             | 273 |   150 |                   +123 |
+| L-244 | `lib/auth/authApi.ts`                                  | 258 |   200 |                    +58 |
+| L-245 | `hooks/api/useTasks.ts`                                | 254 |   150 |                   +104 |
+| L-246 | `hooks/api/useSso.ts`                                  | 249 |   150 |                    +99 |
+| L-247 | `lib/hooks/useABTests.ts`                              | 230 |   150 |                    +80 |
+| L-248 | `hooks/api/useAssets.ts`                               | 224 |   150 |                    +74 |
+| L-249 | `lib/api/types.ts`                                     | 212 |   200 |                    +12 |
+| L-250 | `lib/hooks/useAutoSave.ts`                             | 207 |   150 |                    +57 |
+| L-251 | `hooks/api/useCampaigns.ts`                            | 201 |   150 |                    +51 |
+| L-252 | `hooks/api/useAIPromptTemplates.ts`                    | 177 |   150 |                    +27 |
+| L-253 | `lib/hooks/useTemplates.ts`                            | 172 |   150 |                    +22 |
+| L-254 | `hooks/api/useMultiPlatformScheduling.ts`              | 165 |   150 |                    +15 |
+| L-255 | `hooks/api/useApprovals.ts`                            | 165 |   150 |                    +15 |
+| L-256 | `hooks/useAIContentGenerator.ts`                       | 163 |   150 |                    +13 |
+| L-257 | `hooks/api/useTeam.ts`                                 | 159 |   150 |                     +9 |
+| L-258 | `hooks/api/usePerformanceInsights.ts`                  | 152 |   150 |                     +2 |
+
+**Severidad estimada** (todos): medio (mantenibilidad)
+**Acción propuesta:** Split por responsabilidad.
+
+---
+
+### Medios agrupados — R13 + otros (L-259..L-261)
+
+### 2026-04-20 — L-259: R13 strict — 97 raw `fetch()` inside `hooks/api/` queryFn/mutationFn
+
+**Encontrado durante:** D0v4-5 B1
+**Descripción:** Todos 31 hooks en `hooks/api/` usan raw `fetch()` inside queryFn/mutationFn vs `apiClient` wrapper. FRONTEND_STANDARDS §2.3 template usa `api.admin.getDashboardStats()`. Per Edward CP3 R13 strict.
+
+**Severidad estimada:** medio (consistency)
+**Acción propuesta:** Extender `ApiClient` (requires L-212 split) + migrar queryFn a `apiClient.method()`.
+
+---
+
+### 2026-04-20 — L-260: Missing per-mutation `onError` ~56 mutations — composite L-70
+
+**Encontrado durante:** D0v4-5 B1+B2
+**Descripción:** ~56 `useMutation` across canonical + LEGACY tienen `onSuccess` pero NO `onError`. Combinado con L-70 (no global MutationCache onError) → errores silenciosos.
+
+**Severidad estimada:** medio (composite)
+**Acción propuesta:** Fix L-70 (add MutationCache). Per-mutation onError solo para casos específicos.
+
+---
+
+### 2026-04-20 — L-261: Path inconsistency hooks/api/ — 3 fetches sin `/backend/`
+
+**Encontrado durante:** D0v4-5 B1
+**Descripción:** Per Edward CP1 individual (3 instances):
+
+1. `hooks/api/useChannels.ts:56` `fetch("/api/channels")` missing `/backend/`
+2. `hooks/api/useChannels.ts:105` `fetch("/api/channels/${channelId}")` missing `/backend/`
+3. `hooks/api/useBilling.ts:260` `fetch("/api/billing/invoices")` missing `/backend/`
+
+Bypass auth injection. Fragil.
+
+**Severidad estimada:** medio (auth inconsistency)
+**Acción propuesta:** Fix paths a `/api/backend/`.
+
+---
+
+### Bajos (L-262..L-266)
+
+### 2026-04-20 — L-262: `useChannels.disconnectChannel` L105 path inconsistency
+
+Ver L-261 #2 (duplicate reference). Listado separate per Edward CP1 individual.
+
+---
+
+### 2026-04-20 — L-263: `lib/api/index.ts:31` rename undocumented
+
+**Encontrado durante:** D0v4-5 B2
+**Descripción:** Rename `useApiProviders as useProviders` sin documentation. Confusion potential dado 4 paths (L-207).
+
+**Severidad estimada:** bajo
+**Acción propuesta:** Document o remove rename.
+
+---
+
+### 2026-04-20 — L-264: `useBilling.useMyInvoices:260` path inconsistency
+
+Ver L-261 #3.
+
+---
+
+### 2026-04-20 — L-265: `useNotificationStream` SSE bypass proxy — documentado OK
+
+**Encontrado durante:** D0v4-5 B1
+**Descripción:** [hooks/useNotificationStream.ts:7-9](apps/client/hooks/useNotificationStream.ts#L7-L9) comment explícito: SSE no puede ir por proxy Next.js (buffering). Pattern intencional.
+
+**Severidad estimada:** bajo (no-op)
+**Acción propuesta:** Ninguna — listed for awareness.
+
+---
+
+### 2026-04-20 — L-266: `useAIContentGenerator` composite complexity
+
+**Encontrado durante:** D0v4-5 B1
+**Descripción:** 163 LOC + local state + 2 internal hooks + fallback hardcoded + mapping con L-213. Testing complex.
+
+**Severidad estimada:** bajo
+**Acción propuesta:** Decompose cuando L-213 + R11 fixed.
