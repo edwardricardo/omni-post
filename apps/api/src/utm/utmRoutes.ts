@@ -169,7 +169,7 @@ const utmRoutes: FastifyPluginAsync = async (app) => {
   const handler = new UTMRouteHandler(generateUTMLinksUseCase, getTrackedLinkUseCase);
 
   app.post(
-    "/api/links/:id/utm",
+    "/links/:id/utm",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["UTM"], summary: "Generate UTM parameters for a tracked link" },
@@ -178,7 +178,7 @@ const utmRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/links/:id/utm-url",
+    "/links/:id/utm-url",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["UTM"], summary: "Get the UTM URL for a tracked link" },
