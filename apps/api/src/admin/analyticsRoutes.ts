@@ -29,7 +29,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/admin/analytics/metrics - Analytics dashboard KPIs
   fastify.get(
-    "/api/admin/analytics/metrics",
+    "/admin/analytics/metrics",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.ANALYTICS_READ)],
       schema: { tags: ["Admin Analytics"], summary: "Get analytics dashboard KPIs" },
@@ -39,7 +39,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/admin/compliance/metrics - Compliance status overview
   fastify.get(
-    "/api/admin/compliance/metrics",
+    "/admin/compliance/metrics",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)],
       schema: { tags: ["Admin Analytics"], summary: "Get compliance metrics" },
@@ -49,7 +49,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/admin/compliance/audit-logs - Fetch compliance audit logs
   fastify.get(
-    "/api/admin/compliance/audit-logs",
+    "/admin/compliance/audit-logs",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)],
       schema: { tags: ["Admin Analytics"], summary: "Get compliance audit logs" },
@@ -59,7 +59,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/admin/compliance/gdpr - GDPR compliance data
   fastify.get(
-    "/api/admin/compliance/gdpr",
+    "/admin/compliance/gdpr",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.AUDIT_READ)],
       schema: { tags: ["Admin Analytics"], summary: "Get GDPR compliance data" },

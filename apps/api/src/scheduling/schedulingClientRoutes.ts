@@ -19,7 +19,7 @@ export const schedulingClientRoutes: FastifyPluginAsync = async (fastify) => {
   const slotHandler = new SchedulingSlotRouteHandler(prisma);
 
   fastify.get(
-    "/api/scheduling/slots",
+    "/scheduling/slots",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Scheduling"], summary: "Get scheduling slots" },
@@ -28,7 +28,7 @@ export const schedulingClientRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.get(
-    "/api/analytics/optimal-times",
+    "/analytics/optimal-times",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Scheduling"], summary: "Get optimal posting times" },
@@ -37,7 +37,7 @@ export const schedulingClientRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.get(
-    "/api/scheduling/rules",
+    "/scheduling/rules",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Scheduling"], summary: "Get scheduling rules" },
@@ -46,7 +46,7 @@ export const schedulingClientRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post(
-    "/api/scheduling/slots",
+    "/scheduling/slots",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Scheduling"], summary: "Create schedule slot" },
@@ -55,7 +55,7 @@ export const schedulingClientRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post(
-    "/api/scheduling/slots/bulk",
+    "/scheduling/slots/bulk",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Scheduling"], summary: "Bulk create schedule slots" },

@@ -30,7 +30,7 @@ export const announcementRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Public: Active Announcements (no auth) ─────────────────────────
 
   fastify.get(
-    "/api/announcements/active",
+    "/announcements/active",
     { schema: { tags: ["Announcements"], summary: "Get active announcements (public)" } },
     async (_request, reply) => {
       const now = new Date();
@@ -58,7 +58,7 @@ export const announcementRoutes: FastifyPluginAsync = async (fastify) => {
   // ─── Admin CRUD ─────────────────────────────────────────────────────
 
   fastify.get(
-    "/api/admin/announcements",
+    "/admin/announcements",
     {
       preHandler: adminPreHandler,
       schema: { tags: ["Announcements"], summary: "List all announcements" },
@@ -72,7 +72,7 @@ export const announcementRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post(
-    "/api/admin/announcements",
+    "/admin/announcements",
     {
       preHandler: adminPreHandler,
       schema: { tags: ["Announcements"], summary: "Create announcement" },
@@ -98,7 +98,7 @@ export const announcementRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.put(
-    "/api/admin/announcements/:id",
+    "/admin/announcements/:id",
     {
       preHandler: adminPreHandler,
       schema: { tags: ["Announcements"], summary: "Update announcement" },
@@ -126,7 +126,7 @@ export const announcementRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.delete(
-    "/api/admin/announcements/:id",
+    "/admin/announcements/:id",
     {
       preHandler: adminPreHandler,
       schema: { tags: ["Announcements"], summary: "Delete announcement" },
