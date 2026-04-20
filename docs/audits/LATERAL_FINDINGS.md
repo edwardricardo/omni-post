@@ -354,3 +354,256 @@ Ver `D0_v4_PILOT_BACKEND_ROUTES.md §8` para contexto completo.
 **Severidad estimada:** alto (cambio estructural grande, base limpia para D0v4-1+)
 
 **Acción propuesta:** ~~decisión §8 prefix pendiente~~ → **RESUELTO 2026-04-18 por Sprint D0v4-0.** Ver `D0v4_0_RENAME_REPORT.md` para detalles completos y mapping de paths.
+
+---
+
+## Hallazgos durante D0v4-1
+
+### 2026-04-19 — D1 undercount sistemático + misclassification KEEP_AS_INTERNAL (69 endpoints reales vs 49 declarados, 21 mal clasificados)
+
+**Encontrado durante:** Sprint D0v4-1 Fase 0 (pre-B1) tras pregunta de Edward "¿por qué estos se mantienen como internos?"
+
+**Descripción:** Verificación directa (§5.8) de los 11 archivos backend clasificados KEEP_AS_INTERNAL en `D1_DECISIONS.md §4` encontró dos problemas sistemáticos:
+
+**Problema A — D1 undercount:** D1 declaró **49 endpoints** en estos 11 archivos. El conteo real con `grep "fastify\.\(get\|post\|put\|delete\)\|app\.\(get\|post\|put\|delete\)"` retorna **69 endpoints**. Diferencia: +20 endpoints que D1 no contó (saml 4 extra, oidc 4 extra, authRoutes 3 extra, providers 2 extra, zapier undercount de 1).
+
+**Problema B — Misclassification:** 21 de los 69 endpoints tienen consumer UI o deberían tenerlo (BUILD_UI), no son KEEP_AS_INTERNAL. Tabla:
+
+| Archivo                                     | Endpoints reales |                                  KEEP correcto |                                                          BUILD_UI reclasificar | Evidencia                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------- | ---------------: | ---------------------------------------------: | -----------------------------------------------------------------------------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth/oidcRoutes.ts`                        |                6 |                     2 (login/callback browser) | **3** (`/oidc/config` GET+PUT, `/oidc/enable`) + 1 candidato (`/oidc/disable`) | `apps/client/hooks/api/useSso.ts:87,110,131` consume `/oidc/config` + `/oidc/enable`                                                                                                                                                                                                                                    |
+| `auth/samlRoutes.ts`                        |                7 |                         3 (login/metadata/acs) |                **4** (`/saml/config` GET+PUT, `/saml/enable`, `/saml/disable`) | `apps/client/hooks/api/useSso.ts:77,97,123` consume `/saml/config` + `/saml/enable`                                                                                                                                                                                                                                     |
+| `auth/enhancedOAuthProvider.ts`             |                2 |                                           2 ✅ |                                                                              — | Browser redirects OAuth providers sociales. D1 correcto.                                                                                                                                                                                                                                                                |
+| `auth/authRoutes.ts`                        |                7 |                                              ? |                                                  ? + **7 DEAD_CODE_CANDIDATE** | Cero consumers UI directos a `/register`, `/login`, `/logout`, `/refresh`, `/me`, `/sessions`, `/revoke-all`. Apps reales usan endpoints paralelos `/auth/customer/*` (customer-auth service). Verificar en B5 si admin UI los usa vía `apps/admin/providers/AuthProvider.tsx` o son DEAD.                              |
+| `providers/providerRoutes.ts`               |                7 |                                              4 |                       **2** (`/providers/:id/health`, `/providers/health/all`) | `AdminContentEditor.tsx:109` consume `/providers/connections/:projectId`. Los health endpoints van a admin dashboard de "integrations status".                                                                                                                                                                          |
+| `saga/SagaIntegration.ts`                   |                7 |                                           7 ✅ |                                                                 — (discutible) | `SagaIntegration` **SÍ instanciado** en `apps/api/src/index.ts:538`. No es DEAD_CODE como CQRS. Cero UI consumers — razonable ops-tooling. Argumento débil BUILD_UI (panel "Active Sagas") queda para decisión producto.                                                                                                |
+| `audit/auditRoutes.ts` (compliance queries) |                2 |                                           2 ✅ |                                                                              — | `/admin/audit/users/:userId/logs`, `/admin/audit/resources/:resource/logs` — cero UI. Razonable queries programáticas compliance.                                                                                                                                                                                       |
+| `billing/billingWebhookRoutes.ts`           |                2 |                                           2 ✅ |                                                                              — | `POST /webhooks/stripe`, `POST /webhooks/paddle` — firma validada. D1 correcto.                                                                                                                                                                                                                                         |
+| `integrations/zapierRoutes.ts`              |   8 (D1 decía 9) |               3 (`/actions/*` + `/triggers/*`) |        **5** (`/zapier/keys` GET+POST+DELETE, `/zapier/subscribe` POST+DELETE) | Usuario OmniPost debe generar API key + configurar subscriptions — no todo se configura en zapier.com. `apps/client/lib/integrations/registry.ts:21` registra Zapier como integración disponible pero sin UI de gestión de keys.                                                                                        |
+| `integrations/makeRoutes.ts`                |                8 |                                              3 |                                                    **5** (mismo patrón Zapier) | `apps/client/lib/integrations/registry.ts:33` registra Make. Sin UI de gestión.                                                                                                                                                                                                                                         |
+| `health/healthRoutes.ts`                    |                5 | 3 (`/health`, `/health/live`, `/health/ready`) |                         **2** (`/health/detailed`, `/health/dependency/:name`) | Edward: dashboards de Monitoring/Maintenance consumen health checks para visualizar estado de servicios caídos/en línea. `apps/admin/app/(dashboard)/maintenance/page.tsx` usa `useQueueStats` + `useFailedJobs` pero **no consume** `/health/detailed` — falta panel "Dependencies Status" (DB, Redis, S3, providers). |
+| **Totales**                                 |           **69** |                                         **34** |                                                 **21** + 8 DEAD_CODE_CANDIDATE |                                                                                                                                                                                                                                                                                                                         |
+
+**Severidad estimada:** alto (D1 backlog Sprint 2 incompleto — 21 endpoints BUILD_UI no priorizados; 8 candidatos DEAD_CODE pueden rescatarse o eliminarse pero no están en cleanup list)
+
+**Implicaciones para Sprint 2 / D2 / cleanup:**
+
+1. **Sprint 2 BUILD_UI debe expandirse +21 endpoints** (de 42 a 63): integración bilateral Zapier/Make (10), SSO admin UI (7: `/oidc/config`+`/oidc/enable`/`/oidc/disable` + `/saml/config`+`/saml/enable`+`/saml/disable`), Providers health dashboard (2), Health dependency panel (2).
+2. **`auth/authRoutes.ts` (7 endpoints admin-side)** requiere decisión en B5: si admin UI realmente no los usa, son DEAD_CODE_CANDIDATE (clean pattern similar a CQRSIntegration pero activo — hay que ver si instanciado). Verificar durante lectura directa de Batch 5.
+3. **No sobreescribir D1_DECISIONS.md** — decisión Edward 2026-04-19: todo queda aquí en LATERAL_FINDINGS. D1 cerrado.
+
+**Acción propuesta:**
+
+- **No inmediata sobre código.** Sprint D0v4-1 continúa su trabajo de auditoría.
+- **Post-sprint:** Edward valida cada reclasificación caso-por-caso. Si aprueba, Sprint 2 backlog se expande. D1 update puede ser micro-sprint o ignorable si el plan maestro deja LATERAL_FINDINGS como fuente de verdad.
+- **B5 verificación obligatoria:** `auth/authRoutes.ts` admin-side — ¿cableado o DEAD_CODE? Determina los 7 endpoints.
+- **Metodología:** D1 usó greps básicos + heurística rápida; §5.8 lectura directa encontró 20 endpoints fantasma + 21 misclassifications en 11 archivos. **Todas las clasificaciones D1 que no fueron validadas con §5.8 son sospechosas** — no solo estas 11. Revisar extensión del problema.
+
+### 2026-04-19 — D1 classifications sin validación §5.8 son globalmente sospechosas
+
+**Encontrado durante:** Análisis post-hallazgo anterior
+
+**Descripción:** El hallazgo previo muestra que D1 undercount de endpoints en 11 archivos KEEP_AS_INTERNAL fue **+40.8% sobre el declarado** (49 → 69). Si este error rate aplica al resto del inventario D1 (BUILD_UI 42 + KEEP 40 + PLANNED 12 + DELETE 10 = 104 endpoints base), podría haber **~40 endpoints fantasma no contabilizados** en otras categorías. D1 no usó §5.8 porque §5.8 se formalizó post-D1 (durante D0-v4 piloto 2026-04-18). D1 es estadísticamente frágil.
+
+**Severidad estimada:** medio (no bloqueante, pero cualquier sprint posterior basado en D1 hereda imprecisión)
+
+**Acción propuesta:** Opciones a decisión Edward:
+
+- **(a)** Re-validar D1 completo con §5.8 (sprint pequeño dedicado, ~2-3 días). Resultado autoritativo.
+- **(b)** Aceptar D1 como baseline aproximada; LATERAL_FINDINGS captura correcciones incrementales sprint a sprint (patrón actual).
+- **(c)** Validación §5.8 solo de las categorías que realmente importan para Sprint 2 (BUILD_UI 42) — ignorar KEEP/PLANNED/DELETE precisión.
+
+---
+
+## Hallazgos D0v4-1 (2026-04-20)
+
+> 24 entradas generadas durante el sprint D0v4-1 (~395 archivos auditados: domain + infra repos + services + use cases). Ver `docs/audits/D0v4_1_BACKEND_SERVICES_REPORT.md` para contexto completo.
+
+### 2026-04-20 — L-1: MFA duality con OLD en producción
+
+**Encontrado durante:** D0v4-1 Batch 5
+**Descripción:** Coexisten dos implementaciones: `apps/api/src/auth/mfaService.ts` (OLD, 521 LOC, SHA-256 backup codes almacenados en campo `passwordResetToken` L85 HACK) y `apps/api/src/admin/auth/MfaService.ts` (NEW, 244 LOC, `mfaBackupCodes` array + `mfaBackupUsedAt` map + argon2). DI container [`setupServices.ts:84-85`](apps/api/src/infrastructure/container/setupServices.ts#L84-L85) registra **OLD** vía `TOKENS.MfaService`. NEW no está en DI.
+**Severidad estimada:** alto (seguridad + consistencia)
+**Acción propuesta:** Edward CP3 aprobó: mantener NEW, migrar rutas a NEW (+ data migration de backup codes SHA-256→argon2), eliminar OLD. Sprint dedicado.
+
+### 2026-04-20 — L-2: 3 domain events sin export en index
+
+**Encontrado durante:** D0v4-1 Batch 1
+**Descripción:** `apps/api/src/domain/events/PostEvents.ts` (354 LOC) define 13 event classes, pero `index.ts` solo exporta 10. Faltan: `PostUnscheduled`, `PostPublishingStarted`, `PostMediaRemoved`. Pueden ser unreachable o llamarse vía import directo — no verified en este sprint.
+**Severidad estimada:** bajo
+**Acción propuesta:** BACKLOG — verificar consumers de las 3 clases; si no hay, DEAD_CODE_CANDIDATE.
+
+### 2026-04-20 — L-3: 17 domain repository ports sin adapter Prisma detectable
+
+**Encontrado durante:** D0v4-1 Batch 2
+**Descripción:** Grep cross-ref entre `domain/repositories/*.ts` (56 ports) y `infrastructure/repositories/Prisma*.ts` encontró 17 ports sin adapter asociado detectable por naming convention. Posible: ports declarados en anticipación, adapters wired por otro path, ports legacy.
+**Severidad estimada:** medio
+**Acción propuesta:** Edward CP1: flag only. Pendiente triage caso por caso — algunos pueden ser DEAD_CODE_CANDIDATE.
+
+### 2026-04-20 — L-4: 3 adapters `@deprecated` aún activos
+
+**Encontrado durante:** D0v4-1 Batch 3+4
+**Descripción:** En `infrastructure/repositories/` hay 3 adapters marcados `@deprecated` en JSDoc pero sin migration path documentado ni replacement confirmado. Edward CP2: "Si muestra @deprecated muy probablemente lo está" → clasificar como DEAD_CODE_CANDIDATE + estructurar migración.
+**Severidad estimada:** medio
+**Acción propuesta:** Sprint dedicado de migration paths documentation + delete.
+
+### 2026-04-20 — L-5: `Repository<T,TId>` base usa `Result<void, Error>` (no `DomainError`)
+
+**Encontrado durante:** D0v4-1 Batch 1
+**Descripción:** `apps/api/src/domain/repositories/Repository.ts:108` define base con `Result<void, Error>`. Propaga a todos los 56 adapters. Violación §4.1 Backend Standards "Use domain error classes, not plain `Error`". Es infraestructural — cambio mass-scale.
+**Severidad estimada:** bajo (no rompe funcionalidad)
+**Acción propuesta:** BACKLOG. Migración a `Result<void, DomainError>` probable en sprint de refinamiento domain.
+
+### 2026-04-20 — L-6: `GatewayBillingService.ts` God service + fake eventId rompe idempotency
+
+**Encontrado durante:** D0v4-1 Batch 6
+**Descripción:** `apps/api/src/billing/GatewayBillingService.ts` es **1042 LOC** con responsabilidades: Stripe↔Paddle switching, invoice handling, BillingEvent idempotency, refunds, subscriptions. **L732 genera `eventId` sintético** — rompe garantía de idempotency de `BillingEvent` (el evento debería venir del provider webhook, no auto-generado).
+**Severidad estimada:** alto (billing consistency)
+**Acción propuesta:** Split en services especializados + fix L732 idempotency. Sprint dedicado post-D0v4.
+
+### 2026-04-20 — L-7: `webhookDashboardService.ts` God service + retry queue stub
+
+**Encontrado durante:** D0v4-1 Batch 6
+**Descripción:** `apps/api/src/webhooks/webhookDashboardService.ts` es **854 LOC**. Timeline query ejecuta **72 queries por call** (N+1 pattern). **L601 retry queue es stub** (no-op en lugar de enqueue real a BullMQ DLQ retry).
+**Severidad estimada:** alto (performance + reliability)
+**Acción propuesta:** Performance optimization + implement retry queue real. Sprint dedicado.
+
+### 2026-04-20 — L-8: `trendAnalysisService.ts` mock data hardcoded en 3 métodos críticos
+
+**Encontrado durante:** D0v4-1 Batch 7
+**Descripción:** `apps/api/src/trends/trendAnalysisService.ts` (533 LOC) retorna mock data en `analyzeViralContent`, `generateTrendPredictions`, `discoverContentOpportunities`. Código admite vía TODO: "Integrate with real TikTok APIs". Routes `/trends/*` están wired pero backend es ficticio.
+**Severidad estimada:** medio (UX degradado, no rompe nada)
+**Acción propuesta:** Integrar provider real (TikTok API, etc.) o clasificar como DEMO_MODE explícito en docs.
+
+### 2026-04-20 — L-9: `content/SyncEngineImpl.ts` MASIVOS STUBS con routes wired (CORE_CONCEPTUAL disclaimer)
+
+**Encontrado durante:** D0v4-1 Batch 7
+**Descripción:** `apps/api/src/content/SyncEngineImpl.ts` tiene 11 métodos placeholder: `detectChanges`, `detectConflicts`, `applyChanges`, `applyRealtimeChanges`, `getChannelMetrics`, `getGlobalMetrics`, `startTransactionProcessor`, `startConflictProcessor`, `resumeSyncTransaction`, `executeRollback`, `handleProviderStatusChange`. Todos los 20 endpoints `/content/*` están wired en [`index.ts:502`](apps/api/src/index.ts#L502), pero el backend principal es stub.
+**Severidad estimada:** alto
+**Acción propuesta:** Edward CP4: **mantener CORE_CONCEPTUAL (D1_DECISIONS) + DISCLAIMER** aquí. El sistema es conceptualmente el core del product MVP, pero la implementación está incompleta. Sprint dedicado de completion post-audit cycles.
+
+### 2026-04-20 — L-10: `content/VersionController.ts` DB persistence stub (Redis-only)
+
+**Encontrado durante:** D0v4-1 Batch 7
+**Descripción:** `apps/api/src/content/VersionController.ts:303` `storeVersion()` solo escribe Redis (cache + list). `getVersionHistoryFromDatabase` L333 retorna `[]`. `deactivatePreviousVersions` L313 comment-only vacío. `calculateChecksum` L292 admite "simple checksum, in production use proper hashing".
+**Severidad estimada:** alto (no hay persistencia permanente de versions de contenido)
+**Acción propuesta:** Implementación completa en sprint de content subsystem (complementa L-9).
+
+### 2026-04-20 — L-11: `content/` duplicación huérfana SyncEngineImpl vs ConflictDetector + SyncScheduler
+
+**Encontrado durante:** D0v4-1 Batch 7
+**Descripción:** `ConflictDetector.ts` (358 LOC, funcional) y `SyncScheduler.ts` (364 LOC, funcional) tienen métodos nombrados idénticos a los stubs de `SyncEngineImpl` (`detectChanges`, `detectConflicts`, `startContentChangeProcessor`). SyncEngineImpl **no los referencia**. Código funcional accessible solo vía paths alternativos.
+**Severidad estimada:** medio
+**Acción propuesta:** Refactor: `SyncEngineImpl` debe delegar a `ConflictDetector` + `SyncScheduler` en lugar de duplicar logic como stubs.
+
+### 2026-04-20 — L-12: `templates/*` triple violación standards
+
+**Encontrado durante:** D0v4-1 Batch 7
+**Descripción:** `apps/api/src/templates/templateService.ts`, `TemplateABTestService.ts`, `TemplateVersionService.ts`:
+
+- `import { prisma } from "@infra/prisma"` (fitness function rule #1 violation)
+- `export const templateService = new TemplateService()` module-level singleton L553
+- `any` en tipos de retorno de `compileTemplate` L329, `compileTemplateWithComponents` L396, `getPlatformLimits` L469 (fitness function rule #3 violation)
+- Dynamic imports L348/415/462/476/488 vs static imports resto del app
+
+**Severidad estimada:** medio
+**Acción propuesta:** Edward CP3: "Solo registrar, los fixes vendrán en próximas fases". Sprint de templates refactor post-audit.
+
+### 2026-04-20 — L-13: Module-level cache pattern (no testeable)
+
+**Encontrado durante:** D0v4-1 Batch 7
+**Descripción:** Mismo antipatrón en 2 lugares:
+
+- `application/ai/GetTopPerformersContextUseCase.ts:53` `const cache = new Map<...>()` TTL 6h
+- `application/trends/FetchTrendingTopicsUseCase.ts:36` `const cache = new Map<...>()` TTL 30min
+
+Cache a nivel módulo persiste entre tests, no es injectable, no es clearable externamente.
+**Severidad estimada:** medio (testing + ops)
+**Acción propuesta:** Introducir `CachePort` abstracto + adapter Redis/Memory. Refactor los 2 UCs.
+
+### 2026-04-20 — L-14: `providers/` triple service overlap + module-level singletons + placeholder
+
+**Encontrado durante:** D0v4-1 Batch 8
+**Descripción:** 3 módulos con responsabilidades solapadas:
+
+- `providerRegistry.ts` L271 `export const providerRegistry = new ProviderRegistryService()` + `getProvidersByCapability` L131
+- `providerCapabilityManager.ts` L497 `export const capabilityManager = new ProviderCapabilityManager()` + `getProvidersByCapability` L91 (duplicado) + `estimateReach` L441 hardcoded placeholder
+- `providerConstraintValidator.ts` validation rules — parcialmente solapa con registry
+
+**Severidad estimada:** medio
+**Acción propuesta:** Consolidación en un ProviderService unificado + DI.
+
+### 2026-04-20 — L-15: `application/ml/*` viola hexagonal (import de AIService concreto)
+
+**Encontrado durante:** D0v4-1 Batch 8
+**Descripción:**
+
+- `application/ml/OptimizeContentUseCase.ts:16` `import type { AIService } from "../../ai/aiService.js"`
+- `application/ml/PredictOptimalTimingUseCase.ts:18` idem
+
+Application layer importa concrete class de infrastructure. CLAUDE.md: "application/ imports domain only".
+**Severidad estimada:** alto (arquitectura)
+**Acción propuesta:** Edward CP4: solo registrar. Introducir `AIServicePort` en `domain/repositories/` + adapter en `infrastructure/`.
+
+### 2026-04-20 — L-16: `SyncProviderCommentsUseCase.ts` provider API calls dentro UoW
+
+**Encontrado durante:** D0v4-1 Batch 8
+**Descripción:** `application/inbox/SyncProviderCommentsUseCase.ts:172+` envuelve `doWork` completo dentro `unitOfWork.executeInTransaction`. `doWork` contiene loop con `adapter.getComments(...)` — llamada al provider externo (red HTTP con paginación vía cursor). Violación crítica CLAUDE.md: "Never put external API calls inside the transaction — only DB writes". Riesgo: long-held DB transaction + rollback sobre success parcial.
+**Severidad estimada:** crítico
+**Acción propuesta:** Fix inmediato en sprint de correcciones post-audit. Mover fetch fuera de UoW; cada ingestión interna (`ingestUseCase.execute`) es su propio UoW.
+
+### 2026-04-20 — L-17: `IngestChannelAnalyticsUseCase.ts` VO factory bypass
+
+**Encontrado durante:** D0v4-1 Batch 8
+**Descripción:** `application/analytics/IngestChannelAnalyticsUseCase.ts:61-62` raw cast `{ value: input.channelId } as ChannelId` bypassa `ChannelId.fromString()` validation.
+**Severidad estimada:** bajo
+**Acción propuesta:** Cambiar a `const idResult = ChannelId.fromString(input.channelId); if (!idResult.ok) return err(...); channelRepository.findById(idResult.value)`.
+
+### 2026-04-20 — L-18: `TriggerIntegrationEventService.ts` raw fetch sin port
+
+**Encontrado durante:** D0v4-1 Batch 8
+**Descripción:** `application/integrations/TriggerIntegrationEventService.ts:53` usa `fetch()` directo sin `HttpClientPort`. Fire-and-forget sin retry policy ni delivery guarantees. 10s timeout via `AbortSignal.timeout`. Errores silently consumed.
+**Severidad estimada:** medio (observability + reliability)
+**Acción propuesta:** Introducir `HttpClientPort` + adapter + delivery log tabla. Retry via BullMQ para idempotent delivery.
+
+### 2026-04-20 — L-19: Cross-domain type import `ChannelQueryForIngestion`
+
+**Encontrado durante:** D0v4-1 Batch 8
+**Descripción:** `application/inbox/DispatchInboxSyncUseCase.ts:12` importa `ChannelQueryForIngestion` desde `application/analytics/DispatchAnalyticsIngestionUseCase.ts`. Type debería vivir en `domain/repositories/` (shared interface).
+**Severidad estimada:** bajo
+**Acción propuesta:** Mover `ChannelQueryForIngestion` a `domain/repositories/ChannelQueryForIngestion.ts`.
+
+### 2026-04-20 — L-20: `reports/` vs `custom-reports/` sistemas paralelos (candidato unificación)
+
+**Encontrado durante:** D0v4-1 Batch 8
+**Descripción:** Dos sistemas paralelos con conceptos solapados: `application/reports/` (ScheduledReport entity, CSV/JSON via EmailPort) y `application/custom-reports/` (CustomReport entity, chart-ready via AnalyticsAggregationQueryPort, sharing support). `custom-reports` es el sistema más moderno (más features).
+**Severidad estimada:** medio
+**Acción propuesta:** Edward CP4: **DUPLICATION + candidato unificación**. Sprint dedicado de consolidación — migrar consumers de `reports/` a `custom-reports/` y eliminar.
+
+### 2026-04-20 — L-21: `GenerateUTMLinksUseCase.ts` mutante sin UoW
+
+**Encontrado durante:** D0v4-1 Batch 8
+**Descripción:** `application/utm/GenerateUTMLinksUseCase.ts` llama `link.setUTMParameters` + `repository.save(link)` sin envolver en `unitOfWork.executeInTransaction`. CLAUDE.md: "Every mutating use case MUST use UoW. No exceptions for new code."
+**Severidad estimada:** bajo (single save, riesgo mínimo)
+**Acción propuesta:** Agregar UoW wrapper para consistencia con patrón del resto de UCs mutantes.
+
+### 2026-04-20 — L-22: Outbox pattern — 3 issues detectados
+
+**Encontrado durante:** D0v4-1 Batch 3+4
+**Descripción:** Durante auditoría de `infrastructure/repositories/` y outbox-related adapters se detectaron 3 issues específicos en el dispatcher logic (concurrent claim race potencial, missing idempotency key en 1 code path, retry backoff inconsistente). Detalles in D0v4_1_BACKEND_SERVICES_REPORT.md §2.2 + mejor tratamiento en D0v4-2 (infra scope).
+**Severidad estimada:** medio
+**Acción propuesta:** Edward CP2: a LATERAL_FINDINGS, fix en sprint D0v4-2 o dedicated.
+
+### 2026-04-20 — L-23: `InviteTeamMemberUseCase.ts` hardcoded baseUrl
+
+**Encontrado durante:** D0v4-1 Batch 5
+**Descripción:** `application/team/InviteTeamMemberUseCase.ts:148` `let baseUrl = "https://app.omnipost.io"` como fallback. Solo se sobreescribe si `credentialService.getGroup("PLATFORM")` retorna `baseUrl`. Hardcoded URL en domain/application layer.
+**Severidad estimada:** bajo
+**Acción propuesta:** Inyectar `baseUrl` vía config port / environment variable obligatorio.
+
+### 2026-04-20 — L-24: `templates/templateService.ts` dynamic imports
+
+**Encontrado durante:** D0v4-1 Batch 7
+**Descripción:** `templates/templateService.ts` usa `await import("../lib/templates/templateEngine")` dinámico en L348, L415, L462, L476, L488 en lugar de import estático. Patrón inconsistente con el resto del app. Posiblemente para break circular dep — requiere verificación.
+**Severidad estimada:** bajo
+**Acción propuesta:** Investigar razón (circular dep?) y convertir a static si posible.
