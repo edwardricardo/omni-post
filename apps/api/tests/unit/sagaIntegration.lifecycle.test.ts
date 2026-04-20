@@ -43,7 +43,7 @@ describe("SagaIntegration - Event Handling", () => {
   });
 
   it("should emit saga started event when starting saga", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     await handler(makeStartRequest(), passthroughReply);
 
     // Allow the event to be published asynchronously.
@@ -87,7 +87,7 @@ describe("SagaIntegration - Graceful Shutdown", () => {
   });
 
   it("should persist running sagas during shutdown", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     const result = await handler(makeStartRequest(), passthroughReply);
 
     // Shutdown before the background executor finishes.
@@ -115,7 +115,7 @@ describe("SagaIntegration - Error Handling", () => {
   });
 
   it("should handle validation errors for invalid post data", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     const request = {
       body: {
         postData: {
@@ -143,7 +143,7 @@ describe("SagaIntegration - Error Handling", () => {
   });
 
   it("should handle errors when saga manager fails", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     const request = {
       body: {
         postData: {

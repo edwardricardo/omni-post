@@ -35,7 +35,7 @@ describe("SagaIntegration - Monitoring Routes", () => {
   });
 
   it("should return saga list with metrics", async () => {
-    const handler = routes.get("GET:/api/sagas");
+    const handler = routes.get("GET:/sagas");
     const result = await handler({}, passthroughReply);
 
     expect(result.success).toBeTruthy();
@@ -47,7 +47,7 @@ describe("SagaIntegration - Monitoring Routes", () => {
   });
 
   it("should return saga health check status", async () => {
-    const handler = routes.get("GET:/api/sagas/health");
+    const handler = routes.get("GET:/sagas/health");
     const result = await handler({}, passthroughReply);
 
     expect(result.status).toBeTruthy();
@@ -57,7 +57,7 @@ describe("SagaIntegration - Monitoring Routes", () => {
   });
 
   it("should return saga metrics with performance data", async () => {
-    const handler = routes.get("GET:/api/sagas/metrics");
+    const handler = routes.get("GET:/sagas/metrics");
     const result = await handler({}, passthroughReply);
 
     expect(result.success).toBeTruthy();
@@ -67,7 +67,7 @@ describe("SagaIntegration - Monitoring Routes", () => {
   });
 
   it("should calculate success rate in metrics", async () => {
-    const handler = routes.get("GET:/api/sagas/metrics");
+    const handler = routes.get("GET:/sagas/metrics");
     const result = await handler({}, passthroughReply);
 
     expect(typeof result.data.performance.successRate === "number").toBeTruthy();
@@ -77,7 +77,7 @@ describe("SagaIntegration - Monitoring Routes", () => {
   });
 
   it("should include definition count in metrics", async () => {
-    const handler = routes.get("GET:/api/sagas/metrics");
+    const handler = routes.get("GET:/sagas/metrics");
     const result = await handler({}, passthroughReply);
 
     expect(typeof result.data.active.definitions === "number").toBeTruthy();

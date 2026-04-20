@@ -268,7 +268,7 @@ describe("webhookDashboardRoutes", () => {
     it("should return metrics with valid authentication", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/metrics",
+        url: "/webhooks/dashboard/metrics",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -287,7 +287,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept valid timeRange query parameter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/metrics?timeRange=7d",
+        url: "/webhooks/dashboard/metrics?timeRange=7d",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -297,7 +297,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept valid provider filter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/metrics?provider=X",
+        url: "/webhooks/dashboard/metrics?provider=X",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -307,7 +307,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept valid projectId filter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/metrics?projectId=123e4567-e89b-12d3-a456-426614174000",
+        url: "/webhooks/dashboard/metrics?projectId=123e4567-e89b-12d3-a456-426614174000",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -317,7 +317,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept valid status filter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/metrics?status=COMPLETED",
+        url: "/webhooks/dashboard/metrics?status=COMPLETED",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -327,7 +327,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject invalid timeRange", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/metrics?timeRange=invalid",
+        url: "/webhooks/dashboard/metrics?timeRange=invalid",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -337,7 +337,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject invalid provider", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/metrics?provider=INVALID",
+        url: "/webhooks/dashboard/metrics?provider=INVALID",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -347,7 +347,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject invalid projectId format", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/metrics?projectId=not-a-uuid",
+        url: "/webhooks/dashboard/metrics?projectId=not-a-uuid",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -357,7 +357,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject invalid status", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/metrics?status=INVALID",
+        url: "/webhooks/dashboard/metrics?status=INVALID",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -367,7 +367,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject without authentication", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/metrics",
+        url: "/webhooks/dashboard/metrics",
       });
 
       expect(response.statusCode).toBe(401);
@@ -378,7 +378,7 @@ describe("webhookDashboardRoutes", () => {
     it("should return paginated events", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events",
+        url: "/webhooks/dashboard/events",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -396,7 +396,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept page parameter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events?page=2",
+        url: "/webhooks/dashboard/events?page=2",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -406,7 +406,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept limit parameter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events?limit=50",
+        url: "/webhooks/dashboard/events?limit=50",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -416,7 +416,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept provider filter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events?provider=INSTAGRAM",
+        url: "/webhooks/dashboard/events?provider=INSTAGRAM",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -426,7 +426,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept status filter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events?status=FAILED",
+        url: "/webhooks/dashboard/events?status=FAILED",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -436,7 +436,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept search parameter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events?search=post",
+        url: "/webhooks/dashboard/events?search=post",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -446,7 +446,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject page less than 1", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events?page=0",
+        url: "/webhooks/dashboard/events?page=0",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -456,7 +456,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject limit greater than 100", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events?limit=101",
+        url: "/webhooks/dashboard/events?limit=101",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -466,7 +466,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject invalid provider in events", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events?provider=INVALID",
+        url: "/webhooks/dashboard/events?provider=INVALID",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -476,7 +476,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject without authentication", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events",
+        url: "/webhooks/dashboard/events",
       });
 
       expect(response.statusCode).toBe(401);
@@ -487,7 +487,7 @@ describe("webhookDashboardRoutes", () => {
     it("should return event details with valid UUID", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events/123e4567-e89b-12d3-a456-426614174000",
+        url: "/webhooks/dashboard/events/123e4567-e89b-12d3-a456-426614174000",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -505,7 +505,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject invalid UUID format", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events/not-a-uuid",
+        url: "/webhooks/dashboard/events/not-a-uuid",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -515,7 +515,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject without authentication", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/events/123e4567-e89b-12d3-a456-426614174000",
+        url: "/webhooks/dashboard/events/123e4567-e89b-12d3-a456-426614174000",
       });
 
       expect(response.statusCode).toBe(401);
@@ -526,7 +526,7 @@ describe("webhookDashboardRoutes", () => {
     it("should return subscriptions list", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/subscriptions",
+        url: "/webhooks/dashboard/subscriptions",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -543,7 +543,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject without authentication", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/subscriptions",
+        url: "/webhooks/dashboard/subscriptions",
       });
 
       expect(response.statusCode).toBe(401);
@@ -554,7 +554,7 @@ describe("webhookDashboardRoutes", () => {
     it("should return dead letter queue events", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/dead-letter",
+        url: "/webhooks/dashboard/dead-letter",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -569,7 +569,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept pagination for dead letter queue", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/dead-letter?page=2&limit=10",
+        url: "/webhooks/dashboard/dead-letter?page=2&limit=10",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -579,7 +579,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept provider filter for DLQ", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/dead-letter?provider=X",
+        url: "/webhooks/dashboard/dead-letter?provider=X",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -589,7 +589,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject invalid pagination parameters", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/dead-letter?page=-1",
+        url: "/webhooks/dashboard/dead-letter?page=-1",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -599,7 +599,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject without authentication", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/dead-letter",
+        url: "/webhooks/dashboard/dead-letter",
       });
 
       expect(response.statusCode).toBe(401);
@@ -610,7 +610,7 @@ describe("webhookDashboardRoutes", () => {
     it("should retry dead letter event successfully", async () => {
       const response = await app.inject({
         method: "POST",
-        url: "/api/webhooks/dashboard/dead-letter/123e4567-e89b-12d3-a456-426614174000/retry",
+        url: "/webhooks/dashboard/dead-letter/123e4567-e89b-12d3-a456-426614174000/retry",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -625,7 +625,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject invalid event ID for retry", async () => {
       const response = await app.inject({
         method: "POST",
-        url: "/api/webhooks/dashboard/dead-letter/not-a-uuid/retry",
+        url: "/webhooks/dashboard/dead-letter/not-a-uuid/retry",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -635,7 +635,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject retry without authentication", async () => {
       const response = await app.inject({
         method: "POST",
-        url: "/api/webhooks/dashboard/dead-letter/123e4567-e89b-12d3-a456-426614174000/retry",
+        url: "/webhooks/dashboard/dead-letter/123e4567-e89b-12d3-a456-426614174000/retry",
       });
 
       expect(response.statusCode).toBe(401);
@@ -649,7 +649,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject SSE without authentication", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/stream",
+        url: "/webhooks/dashboard/stream",
       });
 
       expect(response.statusCode).toBe(401);
@@ -660,7 +660,7 @@ describe("webhookDashboardRoutes", () => {
     it("should export webhook events as CSV", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/export",
+        url: "/webhooks/dashboard/export",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -674,7 +674,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept timeRange for export", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/export?timeRange=7d",
+        url: "/webhooks/dashboard/export?timeRange=7d",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -688,7 +688,7 @@ describe("webhookDashboardRoutes", () => {
     it("should accept provider filter for export", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/export?provider=INSTAGRAM",
+        url: "/webhooks/dashboard/export?provider=INSTAGRAM",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -698,7 +698,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject invalid query params for export", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/export?timeRange=invalid",
+        url: "/webhooks/dashboard/export?timeRange=invalid",
         headers: { authorization: `Bearer ${testToken}` },
       });
 
@@ -708,7 +708,7 @@ describe("webhookDashboardRoutes", () => {
     it("should reject export without authentication", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/webhooks/dashboard/export",
+        url: "/webhooks/dashboard/export",
       });
 
       expect(response.statusCode).toBe(401);

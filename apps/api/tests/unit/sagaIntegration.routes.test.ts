@@ -40,7 +40,7 @@ describe("SagaIntegration - Post Publishing Routes", () => {
   });
 
   it("should start post publishing saga with valid request", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
     const request = {
@@ -70,7 +70,7 @@ describe("SagaIntegration - Post Publishing Routes", () => {
   });
 
   it("should validate required fields in post publishing request", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
 
     const request = {
       body: {
@@ -98,7 +98,7 @@ describe("SagaIntegration - Post Publishing Routes", () => {
   });
 
   it("should create saga context with user and request metadata", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
 
     const request = {
       body: {
@@ -123,7 +123,7 @@ describe("SagaIntegration - Post Publishing Routes", () => {
   });
 
   it("should support scheduled post publishing", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
 
     const scheduledDate = new Date(Date.now() + 3_600_000).toISOString();
 
@@ -147,7 +147,7 @@ describe("SagaIntegration - Post Publishing Routes", () => {
   });
 
   it("should support priority levels for post publishing", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
 
     const priorities = ["LOW", "NORMAL", "HIGH"] as const;
 
@@ -175,10 +175,10 @@ describe("SagaIntegration - Saga Status Routes", () => {
   });
 
   it("should retrieve saga status by ID", async () => {
-    const startHandler = routes.get("POST:/api/sagas/post-publishing/start");
+    const startHandler = routes.get("POST:/sagas/post-publishing/start");
     const startResult = await startHandler(makeStartRequest(), passthroughReply);
 
-    const statusHandler = routes.get("GET:/api/sagas/:sagaId");
+    const statusHandler = routes.get("GET:/sagas/:sagaId");
     const statusResult = await statusHandler(
       { params: { sagaId: startResult.data.sagaId } },
       passthroughReply
@@ -191,10 +191,10 @@ describe("SagaIntegration - Saga Status Routes", () => {
   });
 
   it("should calculate saga progress percentage", async () => {
-    const startHandler = routes.get("POST:/api/sagas/post-publishing/start");
+    const startHandler = routes.get("POST:/sagas/post-publishing/start");
     const startResult = await startHandler(makeStartRequest(), passthroughReply);
 
-    const statusHandler = routes.get("GET:/api/sagas/:sagaId");
+    const statusHandler = routes.get("GET:/sagas/:sagaId");
     const statusResult = await statusHandler(
       { params: { sagaId: startResult.data.sagaId } },
       passthroughReply
@@ -205,13 +205,13 @@ describe("SagaIntegration - Saga Status Routes", () => {
   });
 
   it("should return step results with saga status", async () => {
-    const startHandler = routes.get("POST:/api/sagas/post-publishing/start");
+    const startHandler = routes.get("POST:/sagas/post-publishing/start");
     const startResult = await startHandler(makeStartRequest(), passthroughReply);
 
     // Allow background execution to complete at least the first steps.
     await new Promise<void>((resolve) => setTimeout(resolve, 100));
 
-    const statusHandler = routes.get("GET:/api/sagas/:sagaId");
+    const statusHandler = routes.get("GET:/sagas/:sagaId");
     const statusResult = await statusHandler(
       { params: { sagaId: startResult.data.sagaId } },
       passthroughReply
@@ -221,7 +221,7 @@ describe("SagaIntegration - Saga Status Routes", () => {
   });
 
   it("should throw error for non-existent saga", async () => {
-    const handler = routes.get("GET:/api/sagas/:sagaId");
+    const handler = routes.get("GET:/sagas/:sagaId");
 
     try {
       await handler({ params: { sagaId: "non-existent-saga-id" } }, passthroughReply);
@@ -250,10 +250,10 @@ describe("SagaIntegration - Saga Control Routes", () => {
   });
 
   it("should continue saga execution via API", async () => {
-    const startHandler = routes.get("POST:/api/sagas/post-publishing/start");
+    const startHandler = routes.get("POST:/sagas/post-publishing/start");
     const startResult = await startHandler(makeStartRequest(), passthroughReply);
 
-    const continueHandler = routes.get("POST:/api/sagas/:sagaId/continue");
+    const continueHandler = routes.get("POST:/sagas/:sagaId/continue");
     const continueResult = await continueHandler(
       { params: { sagaId: startResult.data.sagaId } },
       passthroughReply
@@ -287,7 +287,7 @@ describe("SagaIntegration - Saga Control Routes", () => {
 
     await mockRedis.setex(`saga:${failedSagaId}`, 3_600, JSON.stringify(failedSaga));
 
-    const compensateHandler = routes.get("POST:/api/sagas/:sagaId/compensate");
+    const compensateHandler = routes.get("POST:/sagas/:sagaId/compensate");
     const compensateResult = await compensateHandler(
       { params: { sagaId: failedSagaId } },
       passthroughReply

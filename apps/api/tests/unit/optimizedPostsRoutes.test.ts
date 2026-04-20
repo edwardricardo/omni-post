@@ -108,7 +108,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should return paginated posts with default parameters", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/posts/optimized?accountId=${testAccountId}`,
+        url: `/posts/optimized?accountId=${testAccountId}`,
       });
 
       const body = JSON.parse(response.body);
@@ -128,7 +128,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should return paginated posts with custom page and limit", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/posts/optimized?accountId=${testAccountId}&page=2&limit=10`,
+        url: `/posts/optimized?accountId=${testAccountId}&page=2&limit=10`,
       });
 
       const body = JSON.parse(response.body);
@@ -142,7 +142,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should validate page parameter as positive integer", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/posts/optimized?accountId=${testAccountId}&page=0`,
+        url: `/posts/optimized?accountId=${testAccountId}&page=0`,
       });
 
       expect(response.statusCode).toBe(400);
@@ -153,7 +153,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should validate limit parameter as positive integer", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/posts/optimized?accountId=${testAccountId}&limit=-5`,
+        url: `/posts/optimized?accountId=${testAccountId}&limit=-5`,
       });
 
       expect(response.statusCode).toBe(400);
@@ -164,7 +164,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should enforce maximum limit (100)", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/posts/optimized?accountId=${testAccountId}&limit=150`,
+        url: `/posts/optimized?accountId=${testAccountId}&limit=150`,
       });
 
       expect(response.statusCode).toBe(400);
@@ -175,7 +175,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should require accountId parameter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/posts/optimized",
+        url: "/posts/optimized",
       });
 
       expect(response.statusCode).toBe(400);
@@ -186,7 +186,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should validate accountId as valid UUID", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/posts/optimized?accountId=invalid-uuid",
+        url: "/posts/optimized?accountId=invalid-uuid",
       });
 
       expect(response.statusCode).toBe(400);
@@ -197,7 +197,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should return posts with correct structure", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/posts/optimized?accountId=${testAccountId}`,
+        url: `/posts/optimized?accountId=${testAccountId}`,
       });
 
       const body = JSON.parse(response.body);
@@ -216,7 +216,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should calculate correct totalPages", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/posts/optimized?accountId=${testAccountId}&limit=5`,
+        url: `/posts/optimized?accountId=${testAccountId}&limit=5`,
       });
 
       const body = JSON.parse(response.body);
@@ -230,7 +230,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should return dashboard statistics", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/dashboard/stats?accountId=${testAccountId}`,
+        url: `/dashboard/stats?accountId=${testAccountId}`,
       });
 
       const body = JSON.parse(response.body);
@@ -249,7 +249,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should require accountId parameter", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/dashboard/stats",
+        url: "/dashboard/stats",
       });
 
       expect(response.statusCode).toBe(400);
@@ -260,7 +260,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should validate accountId as valid UUID", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/dashboard/stats?accountId=not-a-uuid",
+        url: "/dashboard/stats?accountId=not-a-uuid",
       });
 
       expect(response.statusCode).toBe(400);
@@ -271,7 +271,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should return stats with correct structure", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/dashboard/stats?accountId=${testAccountId}`,
+        url: `/dashboard/stats?accountId=${testAccountId}`,
       });
 
       const body = JSON.parse(response.body);
@@ -290,7 +290,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should include lastActivity timestamp", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/dashboard/stats?accountId=${testAccountId}`,
+        url: `/dashboard/stats?accountId=${testAccountId}`,
       });
 
       const body = JSON.parse(response.body);
@@ -305,7 +305,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should warm cache for valid accountId", async () => {
       const response = await app.inject({
         method: "POST",
-        url: `/api/cache/warm/${testAccountId}`,
+        url: `/cache/warm/${testAccountId}`,
       });
 
       const body = JSON.parse(response.body);
@@ -320,7 +320,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should validate accountId parameter", async () => {
       const response = await app.inject({
         method: "POST",
-        url: "/api/cache/warm/invalid-uuid",
+        url: "/cache/warm/invalid-uuid",
       });
 
       expect(response.statusCode).toBe(400);
@@ -333,7 +333,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should return consistent success response format", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/posts/optimized?accountId=${testAccountId}`,
+        url: `/posts/optimized?accountId=${testAccountId}`,
       });
 
       const body = JSON.parse(response.body);
@@ -346,7 +346,7 @@ describe("optimizedPostsRoutes Unit Tests", () => {
     it("should return consistent error response format", async () => {
       const response = await app.inject({
         method: "GET",
-        url: "/api/posts/optimized?accountId=invalid",
+        url: "/posts/optimized?accountId=invalid",
       });
 
       const body = JSON.parse(response.body);
@@ -360,14 +360,14 @@ describe("optimizedPostsRoutes Unit Tests", () => {
       // Success case
       const successResponse = await app.inject({
         method: "GET",
-        url: `/api/posts/optimized?accountId=${testAccountId}`,
+        url: `/posts/optimized?accountId=${testAccountId}`,
       });
       expect(successResponse.statusCode).toBe(200);
 
       // Validation error
       const validationResponse = await app.inject({
         method: "GET",
-        url: "/api/posts/optimized",
+        url: "/posts/optimized",
       });
       expect(validationResponse.statusCode).toBe(400);
     });
