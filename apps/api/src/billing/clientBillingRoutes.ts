@@ -21,7 +21,7 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/billing/gateway/status — current gateway + pending switch info
   fastify.get(
-    "/api/billing/gateway/status",
+    "/billing/gateway/status",
     {
       preHandler: [requireClientAuth],
       schema: {
@@ -42,7 +42,7 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // POST /api/billing/gateway/switch — initiate a gateway switch
   fastify.post(
-    "/api/billing/gateway/switch",
+    "/billing/gateway/switch",
     {
       preHandler: [requireClientAuth],
       schema: {
@@ -85,7 +85,7 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // DELETE /api/billing/gateway/switch — cancel a pending gateway switch
   fastify.delete(
-    "/api/billing/gateway/switch",
+    "/billing/gateway/switch",
     {
       preHandler: [requireClientAuth],
       schema: {
@@ -112,7 +112,7 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/billing/plans — public, no auth required
   fastify.get(
-    "/api/billing/plans",
+    "/billing/plans",
     {
       schema: {
         tags: ["Billing"],
@@ -127,7 +127,7 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // POST /api/billing/checkout — create checkout session
   fastify.post(
-    "/api/billing/checkout",
+    "/billing/checkout",
     {
       preHandler: [requireClientAuth],
       schema: {
@@ -173,7 +173,7 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/billing/portal — redirect to gateway billing portal
   fastify.get(
-    "/api/billing/portal",
+    "/billing/portal",
     {
       preHandler: [requireClientAuth],
       schema: {
@@ -206,7 +206,7 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
 
   fastify.get(
-    "/api/billing/invoices",
+    "/billing/invoices",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Client Billing"], summary: "List invoices for current account" },

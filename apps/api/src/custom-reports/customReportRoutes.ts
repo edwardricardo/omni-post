@@ -354,7 +354,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
 
   // Schema endpoint (no auth required)
   app.get(
-    "/api/reports/schema",
+    "/reports/schema",
     {
       schema: {
         tags: ["Custom Reports"],
@@ -366,7 +366,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
 
   // CRUD endpoints
   app.get(
-    "/api/custom-reports",
+    "/custom-reports",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "List custom reports" },
@@ -375,7 +375,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/custom-reports",
+    "/custom-reports",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Create custom report" },
@@ -384,7 +384,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/custom-reports/:id",
+    "/custom-reports/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Get custom report by ID" },
@@ -393,7 +393,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.patch(
-    "/api/custom-reports/:id",
+    "/custom-reports/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Update custom report" },
@@ -402,7 +402,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/custom-reports/:id",
+    "/custom-reports/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Delete custom report" },
@@ -411,7 +411,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/custom-reports/:id/run",
+    "/custom-reports/:id/run",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Execute custom report" },
@@ -420,7 +420,7 @@ export const customReportRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/custom-reports/:id/schedules",
+    "/custom-reports/:id/schedules",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Custom Reports"], summary: "Schedule custom report delivery" },

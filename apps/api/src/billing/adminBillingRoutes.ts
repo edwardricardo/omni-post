@@ -25,7 +25,7 @@ export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/admin/billing/gateway-switches — list with pagination/filtering
   fastify.get(
-    "/api/admin/billing/gateway-switches",
+    "/admin/billing/gateway-switches",
     {
       preHandler,
       schema: {
@@ -54,7 +54,7 @@ export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/admin/billing/gateway-switches/:id — detail view
   fastify.get(
-    "/api/admin/billing/gateway-switches/:id",
+    "/admin/billing/gateway-switches/:id",
     {
       preHandler,
       schema: {
@@ -76,7 +76,7 @@ export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // POST /api/admin/billing/gateway-switches/:id/extend — extend deadline
   fastify.post(
-    "/api/admin/billing/gateway-switches/:id/extend",
+    "/admin/billing/gateway-switches/:id/extend",
     {
       preHandler,
       schema: {
@@ -116,7 +116,7 @@ export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // POST /api/admin/billing/gateway-switches/:id/force-complete
   fastify.post(
-    "/api/admin/billing/gateway-switches/:id/force-complete",
+    "/admin/billing/gateway-switches/:id/force-complete",
     {
       preHandler,
       schema: {
@@ -144,7 +144,7 @@ export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
 
   // POST /api/admin/billing/gateway-switches/:id/force-suspend
   fastify.post(
-    "/api/admin/billing/gateway-switches/:id/force-suspend",
+    "/admin/billing/gateway-switches/:id/force-suspend",
     {
       preHandler,
       schema: {
@@ -175,7 +175,7 @@ export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
 
   fastify.get(
-    "/api/admin/billing/invoices",
+    "/admin/billing/invoices",
     {
       preHandler,
       schema: { tags: ["Admin Billing"], summary: "List all invoices (admin)" },
