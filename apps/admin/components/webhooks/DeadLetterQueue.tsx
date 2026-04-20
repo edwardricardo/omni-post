@@ -109,7 +109,7 @@ export function DeadLetterQueue() {
         ...(filters.search && { search: filters.search }),
       });
 
-      const response = await fetch(`/api/backend/api/webhooks/dashboard/dead-letter?${params}`, {
+      const response = await fetch(`/api/backend/webhooks/dashboard/dead-letter?${params}`, {
         credentials: "include",
       });
 
@@ -134,13 +134,10 @@ export function DeadLetterQueue() {
 
   const retryEvent = async (eventId: string) => {
     try {
-      const response = await fetch(
-        `/api/backend/api/webhooks/dashboard/dead-letter/${eventId}/retry`,
-        {
-          method: "POST",
-          credentials: "include",
-        }
-      );
+      const response = await fetch(`/api/backend/webhooks/dashboard/dead-letter/${eventId}/retry`, {
+        method: "POST",
+        credentials: "include",
+      });
 
       if (!response.ok) {
         const body = await response.text().catch(() => "");
@@ -157,7 +154,7 @@ export function DeadLetterQueue() {
   const bulkRetryAll = async () => {
     try {
       // This would need to be implemented in the API
-      const response = await fetch("/api/backend/api/webhooks/dashboard/dead-letter/retry-all", {
+      const response = await fetch("/api/backend/webhooks/dashboard/dead-letter/retry-all", {
         method: "POST",
         credentials: "include",
       });

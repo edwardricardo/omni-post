@@ -99,7 +99,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   // ── API Key Management (admin auth) ─────────────────────────────────────
 
   app.get(
-    "/api/zapier/keys",
+    "/zapier/keys",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Zapier"], summary: "List active Zapier API keys" },
@@ -120,7 +120,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/zapier/keys",
+    "/zapier/keys",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Zapier"], summary: "Generate a new Zapier API key" },
@@ -152,7 +152,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/zapier/keys/:id",
+    "/zapier/keys/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Zapier"], summary: "Revoke a Zapier API key" },
@@ -189,7 +189,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   // ── Zapier REST Hooks (integration auth) ──────────────────────────────
 
   app.post(
-    "/api/zapier/subscribe",
+    "/zapier/subscribe",
     {
       preHandler: [integrationAuthMiddleware],
       schema: { tags: ["Zapier"], summary: "Subscribe to a Zapier trigger event" },
@@ -224,7 +224,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/zapier/subscribe/:id",
+    "/zapier/subscribe/:id",
     {
       preHandler: [integrationAuthMiddleware],
       schema: { tags: ["Zapier"], summary: "Unsubscribe from a Zapier trigger event" },
@@ -261,7 +261,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   // ── Zapier Actions (integration auth) ─────────────────────────────────
 
   app.post(
-    "/api/zapier/actions/create-draft",
+    "/zapier/actions/create-draft",
     {
       preHandler: [integrationAuthMiddleware],
       schema: { tags: ["Zapier"], summary: "Create a draft post via Zapier" },
@@ -290,7 +290,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/zapier/actions/schedule-post",
+    "/zapier/actions/schedule-post",
     {
       preHandler: [integrationAuthMiddleware],
       schema: { tags: ["Zapier"], summary: "Create and schedule a post via Zapier" },
@@ -340,7 +340,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   // ── Zapier Polling Triggers (integration auth) ────────────────────────
 
   app.get(
-    "/api/zapier/triggers/posts-published",
+    "/zapier/triggers/posts-published",
     {
       preHandler: [integrationAuthMiddleware],
       schema: { tags: ["Zapier"], summary: "Poll last 25 published posts" },

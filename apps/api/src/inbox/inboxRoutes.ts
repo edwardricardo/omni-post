@@ -616,7 +616,7 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   // -- Query routes --
 
   app.get(
-    "/api/inbox",
+    "/inbox",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "List inbox messages" },
@@ -625,7 +625,7 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/inbox/unread-count",
+    "/inbox/unread-count",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Get unread message count" },
@@ -634,13 +634,13 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/inbox/mentions",
+    "/inbox/mentions",
     { preHandler: [requireClientAuth], schema: { tags: ["Inbox"], summary: "List mentions" } },
     (request: FastifyRequest, reply: FastifyReply) => handler.listMentions(request, reply)
   );
 
   app.get(
-    "/api/inbox/conversations/:id",
+    "/inbox/conversations/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Get conversation by ID" },
@@ -649,7 +649,7 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/inbox/conversations/:id/messages",
+    "/inbox/conversations/:id/messages",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Get conversation messages" },
@@ -661,7 +661,7 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   // -- Message lifecycle commands --
 
   app.patch(
-    "/api/inbox/messages/:id/read",
+    "/inbox/messages/:id/read",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Mark message as read" },
@@ -670,7 +670,7 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.patch(
-    "/api/inbox/messages/:id/archive",
+    "/inbox/messages/:id/archive",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Archive message" },
@@ -679,7 +679,7 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.patch(
-    "/api/inbox/messages/:id/assign",
+    "/inbox/messages/:id/assign",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Assign message to team member" },
@@ -688,7 +688,7 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/inbox/messages/:id/reply",
+    "/inbox/messages/:id/reply",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Send reply to message" },
@@ -699,7 +699,7 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   // -- Conversation lifecycle commands --
 
   app.patch(
-    "/api/inbox/conversations/:id/resolve",
+    "/inbox/conversations/:id/resolve",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Resolve conversation" },
@@ -708,7 +708,7 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.patch(
-    "/api/inbox/conversations/:id/reopen",
+    "/inbox/conversations/:id/reopen",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Reopen conversation" },
@@ -719,7 +719,7 @@ const inboxRoutes: FastifyPluginAsync = async (app) => {
   // -- Provider sync --
 
   app.post(
-    "/api/inbox/sync/:channelId",
+    "/inbox/sync/:channelId",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Inbox"], summary: "Sync provider comments" },

@@ -1,8 +1,9 @@
 /**
- * Tests for useAnalytics
+ * Tests for useAnalytics.
  *
- * The hook calls fetch directly to /api/backend/api/admin/analytics/metrics
- * with computed date-range params. We mock global.fetch.
+ * The hook performs 3 parallel fetches (analytics metrics, dashboard stats,
+ * billing stats) via an internal fetchJSON helper that silently returns `{}`
+ * on non-ok responses (no throw). All tests mock all 3 fetches explicitly.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
@@ -36,6 +37,39 @@ const MOCK_BACKEND_METRICS = {
   generatedAt: "2026-02-24T00:00:00.000Z",
 };
 
+const MOCK_DASHBOARD_STATS = {
+  accounts: { total: 100, active: 80 },
+  subscriptions: { active: 50, trialing: 10 },
+  projects: 250,
+};
+
+const MOCK_BILLING_STATS = {
+  totalRevenue: { mrr: 10000, arr: 120000 },
+  growthMetrics: { mrrGrowth: 0.1 },
+  churnRisk: {},
+  statusDistribution: {},
+};
+
+/** Mock the 3 parallel fetchJSON calls the hook performs. */
+function mockParallelFetches(
+  analytics: unknown = MOCK_BACKEND_METRICS,
+  dashboard: unknown = MOCK_DASHBOARD_STATS,
+  billing: unknown = MOCK_BILLING_STATS
+) {
+  mockFetch.mockImplementation(async (url: string) => {
+    if (url.includes("/admin/analytics/metrics")) {
+      return { ok: true, json: async () => ({ data: analytics }) };
+    }
+    if (url.includes("/admin/dashboard/stats")) {
+      return { ok: true, json: async () => ({ data: dashboard }) };
+    }
+    if (url.includes("/admin/billing/stats")) {
+      return { ok: true, json: async () => ({ data: billing }) };
+    }
+    return { ok: false, status: 404, json: async () => ({}) };
+  });
+}
+
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -57,10 +91,7 @@ describe("useAnalytics", () => {
   });
 
   it("fetches and maps analytics metrics for default 30d range", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ ok: true, data: MOCK_BACKEND_METRICS }),
-    });
+    mockParallelFetches();
 
     const { result } = renderHook(() => useAnalytics(), {
       wrapper: createWrapper(),
@@ -69,19 +100,16 @@ describe("useAnalytics", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     const data = result.current.data as AnalyticsSummary;
-    expect(data.operationalMetrics.activeUsers).toBe(80); // mapped from accounts.active
-    expect(data.growthMetrics.trialConversions).toBe(0.15); // mapped from accounts.trialRatio
-    expect(data.dashboardStats?.accounts.total).toBe(100);
-    expect(data.dashboardStats?.accounts.active).toBe(80);
-    expect(data.dashboardStats?.projects).toBe(250);
+    expect(data.operationalMetrics.activeUsers).toBe(80);
+    expect(data.growthMetrics.trialConversions).toBe(0.15);
+    expect(data.platformMetrics.totalAccounts).toBe(100);
+    expect(data.platformMetrics.activeAccounts).toBe(80);
+    expect(data.platformMetrics.totalProjects).toBe(250);
     expect(data.trends.period).toBe("30d");
   });
 
-  it("calls the correct URL with startDate/endDate params", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ ok: true, data: MOCK_BACKEND_METRICS }),
-    });
+  it("calls the correct URLs with startDate/endDate params", async () => {
+    mockParallelFetches();
 
     const { result } = renderHook(() => useAnalytics("7d"), {
       wrapper: createWrapper(),
@@ -89,17 +117,19 @@ describe("useAnalytics", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const [calledUrl] = mockFetch.mock.calls[0] as [string];
-    expect(calledUrl).toContain("/api/backend/api/admin/analytics/metrics");
-    expect(calledUrl).toContain("startDate=");
-    expect(calledUrl).toContain("endDate=");
+    const calls = mockFetch.mock.calls.map((c) => c[0] as string);
+    const metricsCall = calls.find((u) => u.includes("/admin/analytics/metrics"));
+    expect(metricsCall).toBeDefined();
+    expect(metricsCall).toContain("/api/backend/admin/analytics/metrics");
+    expect(metricsCall).toContain("startDate=");
+    expect(metricsCall).toContain("endDate=");
+
+    expect(calls.some((u) => u.includes("/api/backend/admin/dashboard/stats"))).toBe(true);
+    expect(calls.some((u) => u.includes("/api/backend/admin/billing/stats"))).toBe(true);
   });
 
   it("uses the timeRange in the query key", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ ok: true, data: MOCK_BACKEND_METRICS }),
-    });
+    mockParallelFetches();
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -115,40 +145,43 @@ describe("useAnalytics", () => {
     expect(cached).toBeDefined();
   });
 
-  it("throws when HTTP response is not ok", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      text: async () => "Internal Server Error",
+  it("returns fallback data when analytics endpoint fails (fetchJSON swallows errors)", async () => {
+    // Only the analytics endpoint fails; dashboard + billing still succeed.
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes("/admin/analytics/metrics")) {
+        return { ok: false, status: 500, json: async () => ({}) };
+      }
+      if (url.includes("/admin/dashboard/stats")) {
+        return { ok: true, json: async () => ({ data: MOCK_DASHBOARD_STATS }) };
+      }
+      return { ok: true, json: async () => ({ data: MOCK_BILLING_STATS }) };
     });
 
     const { result } = renderHook(() => useAnalytics(), {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
-    expect((result.current.error as Error).message).toContain("HTTP 500");
+    // Hook does not throw on endpoint failures; it succeeds with partial data.
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeDefined();
   });
 
-  it("throws when body.ok is false", async () => {
-    mockFetch.mockResolvedValueOnce({
+  it("succeeds with empty payload when body.data is absent", async () => {
+    mockFetch.mockImplementation(async () => ({
       ok: true,
-      json: async () => ({ ok: false, data: null }),
-    });
+      json: async () => ({}),
+    }));
 
     const { result } = renderHook(() => useAnalytics(), {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
-    expect((result.current.error as Error).message).toBe("Failed to fetch analytics metrics");
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeDefined();
   });
 
   it("maps trends.period to the supplied timeRange", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ ok: true, data: MOCK_BACKEND_METRICS }),
-    });
+    mockParallelFetches();
 
     const { result } = renderHook(() => useAnalytics("7d"), {
       wrapper: createWrapper(),

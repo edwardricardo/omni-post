@@ -26,7 +26,7 @@ let cache: AllowlistCache | null = null;
 const EXEMPT_PATHS = new Set([
   "/health",
   "/metrics",
-  "/api/settings/public",
+  "/settings/public",
   "/admin/auth/login",
   "/admin/auth/password/reset",
   "/admin/auth/password/reset/confirm",

@@ -83,7 +83,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
         ...(filters.search && { search: filters.search }),
       });
 
-      const response = await fetch(`/api/backend/api/webhooks/dashboard/events?${params}`, {
+      const response = await fetch(`/api/backend/webhooks/dashboard/events?${params}`, {
         credentials: "include",
       });
 
@@ -108,7 +108,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
 
   const fetchEventDetails = async (eventId: string) => {
     try {
-      const response = await fetch(`/api/backend/api/webhooks/dashboard/events/${eventId}`, {
+      const response = await fetch(`/api/backend/webhooks/dashboard/events/${eventId}`, {
         credentials: "include",
       });
 
@@ -183,7 +183,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
         ...(filters.status !== "all" && { status: filters.status }),
       });
 
-      const response = await fetch(`/api/backend/api/webhooks/dashboard/export?${params}`, {
+      const response = await fetch(`/api/backend/webhooks/dashboard/export?${params}`, {
         credentials: "include",
       });
 

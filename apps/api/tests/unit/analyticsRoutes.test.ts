@@ -138,7 +138,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return 401 without auth for analytics metrics", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/analytics/metrics",
+      url: "/admin/analytics/metrics",
     });
     expect(res.statusCode).toBe(401);
   });
@@ -146,7 +146,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return analytics metrics with auth", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/analytics/metrics",
+      url: "/admin/analytics/metrics",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -169,7 +169,7 @@ describe("analyticsRoutes Unit Tests", () => {
     const endDate = new Date().toISOString();
     const res = await app.inject({
       method: "GET",
-      url: `/api/admin/analytics/metrics?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
+      url: `/admin/analytics/metrics?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -182,7 +182,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return analytics metrics with provider filter", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/analytics/metrics?provider=X",
+      url: "/admin/analytics/metrics?provider=X",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -196,7 +196,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return 401 without auth for compliance metrics", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/metrics",
+      url: "/admin/compliance/metrics",
     });
     expect(res.statusCode).toBe(401);
   });
@@ -204,7 +204,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return compliance metrics with auth", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/metrics",
+      url: "/admin/compliance/metrics",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -231,7 +231,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return 401 without auth for compliance audit logs", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/audit-logs",
+      url: "/admin/compliance/audit-logs",
     });
     expect(res.statusCode).toBe(401);
   });
@@ -239,7 +239,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return paginated audit logs with auth", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/audit-logs",
+      url: "/admin/compliance/audit-logs",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -256,7 +256,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should respect page and limit pagination params", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/audit-logs?page=1&limit=5",
+      url: "/admin/compliance/audit-logs?page=1&limit=5",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -270,7 +270,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should accept sorting params for audit logs", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/audit-logs?sortBy=createdAt&sortOrder=asc",
+      url: "/admin/compliance/audit-logs?sortBy=createdAt&sortOrder=asc",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -282,7 +282,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should filter audit logs by action", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/audit-logs?action=LOGIN",
+      url: "/admin/compliance/audit-logs?action=LOGIN",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -296,7 +296,7 @@ describe("analyticsRoutes Unit Tests", () => {
     const endDate = new Date().toISOString();
     const res = await app.inject({
       method: "GET",
-      url: `/api/admin/compliance/audit-logs?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
+      url: `/admin/compliance/audit-logs?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -310,7 +310,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return 401 without auth for GDPR data", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/gdpr",
+      url: "/admin/compliance/gdpr",
     });
     expect(res.statusCode).toBe(401);
   });
@@ -318,7 +318,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return GDPR data with no query params", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/gdpr",
+      url: "/admin/compliance/gdpr",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -336,7 +336,7 @@ describe("analyticsRoutes Unit Tests", () => {
     const nonExistentId = "a0000000-0000-4000-8000-000000000000";
     const res = await app.inject({
       method: "GET",
-      url: `/api/admin/compliance/gdpr?accountId=${nonExistentId}`,
+      url: `/admin/compliance/gdpr?accountId=${nonExistentId}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -348,7 +348,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return GDPR data with requestType filter", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/gdpr?requestType=export",
+      url: "/admin/compliance/gdpr?requestType=export",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -360,7 +360,7 @@ describe("analyticsRoutes Unit Tests", () => {
   it("should return GDPR data with status filter", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/admin/compliance/gdpr?status=pending",
+      url: "/admin/compliance/gdpr?status=pending",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);

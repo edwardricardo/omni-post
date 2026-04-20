@@ -34,7 +34,7 @@ export function useScheduleSlots({ projectId, startDate, endDate }: UseSchedulin
         ...(startDate !== undefined && { startDate: startDate.toISOString() }),
         ...(endDate !== undefined && { endDate: endDate.toISOString() }),
       });
-      const response = await fetch(`/api/backend/api/scheduling/slots?${params}`);
+      const response = await fetch(`/api/backend/scheduling/slots?${params}`);
       if (!response.ok) throw new Error("Failed to fetch schedule slots");
       const data = (await response.json()) as {
         ok: boolean;
@@ -59,7 +59,7 @@ export function useOptimalTimes({ projectId }: Pick<UseSchedulingParams, "projec
     queryKey: ["optimal-times", projectId],
     queryFn: async (): Promise<OptimalTime[]> => {
       const params = new URLSearchParams({ projectId });
-      const response = await fetch(`/api/backend/api/analytics/optimal-times?${params}`);
+      const response = await fetch(`/api/backend/analytics/optimal-times?${params}`);
       if (!response.ok) throw new Error("Failed to fetch optimal times");
       const data = (await response.json()) as {
         ok: boolean;
@@ -84,7 +84,7 @@ export function useSchedulingRules({ projectId }: Pick<UseSchedulingParams, "pro
     queryKey: ["scheduling-rules", projectId],
     queryFn: async (): Promise<SchedulingRule[]> => {
       const params = new URLSearchParams({ projectId });
-      const response = await fetch(`/api/backend/api/scheduling/rules?${params}`);
+      const response = await fetch(`/api/backend/scheduling/rules?${params}`);
       if (!response.ok) throw new Error("Failed to fetch scheduling rules");
       const data = (await response.json()) as {
         ok: boolean;
@@ -108,7 +108,7 @@ export function useCreateSchedule() {
 
   return useMutation({
     mutationFn: async (scheduleData: CreateScheduleInput): Promise<CreatedSlot> => {
-      const response = await fetch("/api/backend/api/scheduling/slots", {
+      const response = await fetch("/api/backend/scheduling/slots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(scheduleData),
@@ -139,7 +139,7 @@ export function useBulkCreateSchedules() {
 
   return useMutation({
     mutationFn: async (input: BulkCreateScheduleInput): Promise<CreatedSlot[]> => {
-      const response = await fetch("/api/backend/api/scheduling/slots/bulk", {
+      const response = await fetch("/api/backend/scheduling/slots/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),

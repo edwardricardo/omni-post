@@ -140,7 +140,7 @@ export const brandKitRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/brand-kit/:accountId",
+    "/brand-kit/:accountId",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Brand Kit"], summary: "Get brand kit for account" },
@@ -149,7 +149,7 @@ export const brandKitRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.put(
-    "/api/brand-kit/:accountId",
+    "/brand-kit/:accountId",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Brand Kit"], summary: "Upsert brand kit for account" },
@@ -158,7 +158,7 @@ export const brandKitRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/brand-kit/:accountId",
+    "/brand-kit/:accountId",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Brand Kit"], summary: "Delete brand kit for account" },

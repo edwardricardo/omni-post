@@ -98,8 +98,8 @@ export function useCompliance() {
     queryKey: ["compliance", "overview"],
     queryFn: async (): Promise<ComplianceData> => {
       const [metricsResponse, auditLogsResponse] = await Promise.all([
-        fetch("/api/backend/api/admin/compliance/metrics"),
-        fetch("/api/backend/api/admin/compliance/audit-logs"),
+        fetch("/api/backend/admin/compliance/metrics"),
+        fetch("/api/backend/admin/compliance/audit-logs"),
       ]);
 
       if (!metricsResponse.ok) {
@@ -217,7 +217,7 @@ export function useGdprSettings() {
   return useQuery({
     queryKey: ["compliance", "gdpr-settings"],
     queryFn: async (): Promise<GdprSettings> => {
-      const res = await fetch("/api/backend/api/admin/compliance/settings/gdpr", {
+      const res = await fetch("/api/backend/admin/compliance/settings/gdpr", {
         credentials: "include",
       });
       if (!res.ok) {
@@ -242,7 +242,7 @@ export function useUpdateGdprSettings() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (settings: Partial<GdprSettings>): Promise<GdprSettings> => {
-      const res = await fetch("/api/backend/api/admin/compliance/settings/gdpr", {
+      const res = await fetch("/api/backend/admin/compliance/settings/gdpr", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -288,7 +288,7 @@ export function useSecuritySettings() {
   return useQuery({
     queryKey: ["compliance", "security-settings"],
     queryFn: async (): Promise<SecuritySettings> => {
-      const res = await fetch("/api/backend/api/admin/compliance/settings/security", {
+      const res = await fetch("/api/backend/admin/compliance/settings/security", {
         credentials: "include",
       });
       if (!res.ok) {
@@ -313,7 +313,7 @@ export function useUpdateSecuritySettings() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (settings: Partial<SecuritySettings>): Promise<SecuritySettings> => {
-      const res = await fetch("/api/backend/api/admin/compliance/settings/security", {
+      const res = await fetch("/api/backend/admin/compliance/settings/security", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -359,7 +359,7 @@ export function useComplianceScore() {
   return useQuery({
     queryKey: ["compliance", "score"],
     queryFn: async (): Promise<ComplianceScoreData> => {
-      const res = await fetch("/api/backend/api/admin/compliance/score", {
+      const res = await fetch("/api/backend/admin/compliance/score", {
         credentials: "include",
       });
       if (!res.ok) {
@@ -421,7 +421,7 @@ export function useDsarRequests(filters: DsarFilters) {
       if (filters.type) params.set("type", filters.type);
       if (filters.page) params.set("page", String(filters.page));
       if (filters.limit) params.set("limit", String(filters.limit));
-      const res = await fetch(`/api/backend/api/admin/compliance/dsar?${params.toString()}`, {
+      const res = await fetch(`/api/backend/admin/compliance/dsar?${params.toString()}`, {
         credentials: "include",
       });
       if (!res.ok) {
@@ -445,7 +445,7 @@ export function useAcknowledgeDsar() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const res = await fetch(`/api/backend/api/admin/compliance/dsar/${id}/acknowledge`, {
+      const res = await fetch(`/api/backend/admin/compliance/dsar/${id}/acknowledge`, {
         method: "POST",
         credentials: "include",
       });
@@ -469,7 +469,7 @@ export function useCompleteDsar() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: { id: string; exportUrl?: string }): Promise<void> => {
-      const res = await fetch(`/api/backend/api/admin/compliance/dsar/${params.id}/complete`, {
+      const res = await fetch(`/api/backend/admin/compliance/dsar/${params.id}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -497,7 +497,7 @@ export function useRejectDsar() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: { id: string; reason: string }): Promise<void> => {
-      const res = await fetch(`/api/backend/api/admin/compliance/dsar/${params.id}/reject`, {
+      const res = await fetch(`/api/backend/admin/compliance/dsar/${params.id}/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -567,7 +567,7 @@ export function useBreachReports(filters: BreachFilters) {
       if (filters.resolved !== undefined) params.set("resolved", String(filters.resolved));
       if (filters.page) params.set("page", String(filters.page));
       if (filters.limit) params.set("limit", String(filters.limit));
-      const res = await fetch(`/api/backend/api/admin/compliance/breaches?${params.toString()}`, {
+      const res = await fetch(`/api/backend/admin/compliance/breaches?${params.toString()}`, {
         credentials: "include",
       });
       if (!res.ok) {
@@ -591,7 +591,7 @@ export function useCreateBreachReport() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: CreateBreachInput): Promise<BreachReport> => {
-      const res = await fetch("/api/backend/api/admin/compliance/breaches", {
+      const res = await fetch("/api/backend/admin/compliance/breaches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -619,7 +619,7 @@ export function useSendBreachNotification() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const res = await fetch(`/api/backend/api/admin/compliance/breaches/${id}/notify`, {
+      const res = await fetch(`/api/backend/admin/compliance/breaches/${id}/notify`, {
         method: "POST",
         credentials: "include",
       });

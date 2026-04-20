@@ -290,7 +290,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
 
   // Dashboard overview metrics
   fastify.get(
-    "/api/webhooks/dashboard/metrics",
+    "/webhooks/dashboard/metrics",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get webhook dashboard metrics" },
@@ -300,7 +300,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
 
   // Recent webhook events with pagination
   fastify.get(
-    "/api/webhooks/dashboard/events",
+    "/webhooks/dashboard/events",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get recent webhook events with pagination" },
@@ -310,7 +310,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
 
   // Webhook event details
   fastify.get(
-    "/api/webhooks/dashboard/events/:eventId",
+    "/webhooks/dashboard/events/:eventId",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get webhook event details" },
@@ -320,7 +320,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
 
   // Webhook subscriptions overview
   fastify.get(
-    "/api/webhooks/dashboard/subscriptions",
+    "/webhooks/dashboard/subscriptions",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get webhook subscriptions overview" },
@@ -330,7 +330,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
 
   // Dead letter queue events
   fastify.get(
-    "/api/webhooks/dashboard/dead-letter",
+    "/webhooks/dashboard/dead-letter",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get dead letter queue events" },
@@ -340,7 +340,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
 
   // DLQ metrics
   fastify.get(
-    "/api/webhooks/dashboard/dead-letter/metrics",
+    "/webhooks/dashboard/dead-letter/metrics",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Get DLQ metrics and trends" },
@@ -353,7 +353,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
 
   // Retry ALL dead letter events (bulk)
   fastify.post(
-    "/api/webhooks/dashboard/dead-letter/retry-all",
+    "/webhooks/dashboard/dead-letter/retry-all",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Retry all unresolved dead letter events" },
@@ -363,7 +363,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
 
   // Retry single dead letter event
   fastify.post(
-    "/api/webhooks/dashboard/dead-letter/:eventId/retry",
+    "/webhooks/dashboard/dead-letter/:eventId/retry",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Retry a dead letter event" },
@@ -373,7 +373,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
 
   // Real-time webhook monitoring endpoint (Server-Sent Events)
   fastify.get(
-    "/api/webhooks/dashboard/stream",
+    "/webhooks/dashboard/stream",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Stream real-time webhook events via SSE" },
@@ -383,7 +383,7 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
 
   // Export webhook events for analysis
   fastify.get(
-    "/api/webhooks/dashboard/export",
+    "/webhooks/dashboard/export",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)],
       schema: { tags: ["Webhooks"], summary: "Export webhook events as CSV" },

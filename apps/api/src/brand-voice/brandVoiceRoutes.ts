@@ -126,7 +126,7 @@ export const brandVoiceRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/ai/brand-voice",
+    "/ai/brand-voice",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Brand Voice"], summary: "Get brand voice profiles" },
@@ -135,7 +135,7 @@ export const brandVoiceRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/ai/brand-voice",
+    "/ai/brand-voice",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Brand Voice"], summary: "Create brand voice profile" },
@@ -144,7 +144,7 @@ export const brandVoiceRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.put(
-    "/api/ai/brand-voice/:accountId",
+    "/ai/brand-voice/:accountId",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Brand Voice"], summary: "Update brand voice profile" },
@@ -153,7 +153,7 @@ export const brandVoiceRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/ai/brand-voice/:accountId",
+    "/ai/brand-voice/:accountId",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Brand Voice"], summary: "Delete brand voice profile" },

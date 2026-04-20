@@ -26,7 +26,7 @@ export const onboardingRoutes: FastifyPluginAsync = async (fastify) => {
    *   Creates record on first access.
    */
   fastify.get(
-    "/api/onboarding",
+    "/onboarding",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Onboarding"], summary: "Get onboarding progress" },
@@ -87,7 +87,7 @@ export const onboardingRoutes: FastifyPluginAsync = async (fastify) => {
    * @description Marks a specific onboarding step as completed.
    */
   fastify.post(
-    "/api/onboarding/step/:stepKey/complete",
+    "/onboarding/step/:stepKey/complete",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Onboarding"], summary: "Complete an onboarding step" },
@@ -129,7 +129,7 @@ export const onboardingRoutes: FastifyPluginAsync = async (fastify) => {
    * @description Dismisses the onboarding checklist permanently.
    */
   fastify.post(
-    "/api/onboarding/dismiss",
+    "/onboarding/dismiss",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Onboarding"], summary: "Dismiss onboarding checklist" },

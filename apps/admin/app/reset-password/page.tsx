@@ -37,7 +37,7 @@ function ResetPasswordForm() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    fetch("/api/backend/api/settings/public")
+    fetch("/api/backend/settings/public")
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
         const key = json?.data?.turnstileSiteKey;

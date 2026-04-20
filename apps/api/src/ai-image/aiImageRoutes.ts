@@ -147,7 +147,7 @@ export const aiImageRoutes: FastifyPluginAsync = async (app) => {
 
   // Generate an AI image from a prompt
   app.post(
-    "/api/ai/generate-image",
+    "/ai/generate-image",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["AI Images"], summary: "Generate AI image from prompt" },
@@ -157,7 +157,7 @@ export const aiImageRoutes: FastifyPluginAsync = async (app) => {
 
   // List generated images for a project
   app.get(
-    "/api/ai/generated-images",
+    "/ai/generated-images",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["AI Images"], summary: "List generated images" },

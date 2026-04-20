@@ -127,7 +127,7 @@ export function WebhookSubscriptions() {
   const fetchSubscriptions = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/backend/api/webhooks/dashboard/subscriptions", {
+      const response = await fetch("/api/backend/webhooks/dashboard/subscriptions", {
         credentials: "include",
       });
 
@@ -169,7 +169,7 @@ export function WebhookSubscriptions() {
 
   const createSubscription = async () => {
     try {
-      const response = await fetch("/api/backend/api/webhooks/subscriptions", {
+      const response = await fetch("/api/backend/webhooks/subscriptions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -193,7 +193,7 @@ export function WebhookSubscriptions() {
 
   const toggleSubscription = async (id: string, isActive: boolean) => {
     try {
-      const response = await fetch(`/api/backend/api/webhooks/subscriptions/${id}`, {
+      const response = await fetch(`/api/backend/webhooks/subscriptions/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -215,7 +215,7 @@ export function WebhookSubscriptions() {
 
   const deleteSubscription = async (id: string) => {
     try {
-      const response = await fetch(`/api/backend/api/webhooks/subscriptions/${id}`, {
+      const response = await fetch(`/api/backend/webhooks/subscriptions/${id}`, {
         method: "DELETE",
         credentials: "include",
       });

@@ -192,7 +192,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/crm/connections",
+    "/crm/connections",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "List CRM connections for account" },
@@ -201,7 +201,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/crm/:platform/connect",
+    "/crm/:platform/connect",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Connect a CRM platform" },
@@ -210,7 +210,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/crm/:platform/sync",
+    "/crm/:platform/sync",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Trigger CRM contact sync" },
@@ -219,7 +219,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/crm/:platform/disconnect",
+    "/crm/:platform/disconnect",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Disconnect a CRM platform" },
@@ -228,7 +228,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/crm/:platform/sync-logs",
+    "/crm/:platform/sync-logs",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Get CRM sync logs for platform" },
@@ -238,7 +238,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
 
   // ── HubSpot OAuth Flow ──────────────────────────────────────────────
   app.get(
-    "/api/crm/hubspot/authorize",
+    "/crm/hubspot/authorize",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Get HubSpot OAuth authorization URL" },
@@ -260,7 +260,7 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
 
   // ── Salesforce OAuth Flow ───────────────────────────────────────────
   app.get(
-    "/api/crm/salesforce/authorize",
+    "/crm/salesforce/authorize",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["CRM"], summary: "Get Salesforce OAuth authorization URL" },

@@ -285,7 +285,7 @@ describe("schedulingRoutes Unit Tests", () => {
   // ── GET /api/scheduling/slots ──────────────────────────────────────────────
 
   it("should return 401 without auth for scheduling slots", async () => {
-    const res = await app.inject({ method: "GET", url: "/api/scheduling/slots" });
+    const res = await app.inject({ method: "GET", url: "/scheduling/slots" });
     expect(res.statusCode).toBe(401);
   });
 
@@ -294,7 +294,7 @@ describe("schedulingRoutes Unit Tests", () => {
     const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const res = await app.inject({
       method: "GET",
-      url: `/api/scheduling/slots?projectId=a0000000-0000-4000-8000-000000000000&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
+      url: `/scheduling/slots?projectId=a0000000-0000-4000-8000-000000000000&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(404);
@@ -307,7 +307,7 @@ describe("schedulingRoutes Unit Tests", () => {
     const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const res = await app.inject({
       method: "GET",
-      url: `/api/scheduling/slots?projectId=${testProjectId}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
+      url: `/scheduling/slots?projectId=${testProjectId}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -323,14 +323,14 @@ describe("schedulingRoutes Unit Tests", () => {
   // ── GET /api/analytics/optimal-times ─────────────────────────────────────
 
   it("should return 401 without auth for optimal posting times", async () => {
-    const res = await app.inject({ method: "GET", url: "/api/analytics/optimal-times" });
+    const res = await app.inject({ method: "GET", url: "/analytics/optimal-times" });
     expect(res.statusCode).toBe(401);
   });
 
   it("should return 404 for non-existent project in optimal times", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/analytics/optimal-times?projectId=a0000000-0000-4000-8000-000000000000",
+      url: "/analytics/optimal-times?projectId=a0000000-0000-4000-8000-000000000000",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(404);
@@ -341,7 +341,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should return optimal posting times for a valid project", async () => {
     const res = await app.inject({
       method: "GET",
-      url: `/api/analytics/optimal-times?projectId=${testProjectId}`,
+      url: `/analytics/optimal-times?projectId=${testProjectId}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -356,7 +356,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should return optimal times with lookbackDays param", async () => {
     const res = await app.inject({
       method: "GET",
-      url: `/api/analytics/optimal-times?projectId=${testProjectId}&lookbackDays=7`,
+      url: `/analytics/optimal-times?projectId=${testProjectId}&lookbackDays=7`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -368,14 +368,14 @@ describe("schedulingRoutes Unit Tests", () => {
   // ── GET /api/scheduling/rules ──────────────────────────────────────────────
 
   it("should return 401 without auth for scheduling rules", async () => {
-    const res = await app.inject({ method: "GET", url: "/api/scheduling/rules" });
+    const res = await app.inject({ method: "GET", url: "/scheduling/rules" });
     expect(res.statusCode).toBe(401);
   });
 
   it("should return 404 for non-existent project in scheduling rules", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/api/scheduling/rules?projectId=a0000000-0000-4000-8000-000000000000",
+      url: "/scheduling/rules?projectId=a0000000-0000-4000-8000-000000000000",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(404);
@@ -386,7 +386,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should return scheduling rules for a valid project", async () => {
     const res = await app.inject({
       method: "GET",
-      url: `/api/scheduling/rules?projectId=${testProjectId}`,
+      url: `/scheduling/rules?projectId=${testProjectId}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -402,7 +402,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should filter scheduling rules by isActive", async () => {
     const res = await app.inject({
       method: "GET",
-      url: `/api/scheduling/rules?projectId=${testProjectId}&isActive=true`,
+      url: `/scheduling/rules?projectId=${testProjectId}&isActive=true`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
@@ -416,7 +416,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should return 401 without auth for create slot", async () => {
     const res = await app.inject({
       method: "POST",
-      url: "/api/scheduling/slots",
+      url: "/scheduling/slots",
       payload: { projectId: testProjectId, dayOfWeek: 1, hour: 9, providers: ["X"] },
     });
     expect(res.statusCode).toBe(401);
@@ -425,7 +425,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should return 404 when creating slot for non-existent project", async () => {
     const res = await app.inject({
       method: "POST",
-      url: "/api/scheduling/slots",
+      url: "/scheduling/slots",
       headers: { authorization: `Bearer ${adminToken}` },
       payload: {
         projectId: "a0000000-0000-4000-8000-000000000000",
@@ -442,7 +442,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should create a schedule slot successfully", async () => {
     const res = await app.inject({
       method: "POST",
-      url: "/api/scheduling/slots",
+      url: "/scheduling/slots",
       headers: { authorization: `Bearer ${adminToken}` },
       payload: {
         projectId: testProjectId,
@@ -470,7 +470,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should return 400 for missing required fields when creating slot", async () => {
     const res = await app.inject({
       method: "POST",
-      url: "/api/scheduling/slots",
+      url: "/scheduling/slots",
       headers: { authorization: `Bearer ${adminToken}` },
       payload: { projectId: testProjectId },
     });
@@ -484,7 +484,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should return 401 without auth for bulk create slots", async () => {
     const res = await app.inject({
       method: "POST",
-      url: "/api/scheduling/slots/bulk",
+      url: "/scheduling/slots/bulk",
       payload: {
         projectId: testProjectId,
         slots: [{ dayOfWeek: 2, hour: 10, providers: ["INSTAGRAM"] }],
@@ -496,7 +496,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should return 404 when bulk creating slots for non-existent project", async () => {
     const res = await app.inject({
       method: "POST",
-      url: "/api/scheduling/slots/bulk",
+      url: "/scheduling/slots/bulk",
       headers: { authorization: `Bearer ${adminToken}` },
       payload: {
         projectId: "a0000000-0000-4000-8000-000000000000",
@@ -511,7 +511,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should bulk create schedule slots successfully", async () => {
     const res = await app.inject({
       method: "POST",
-      url: "/api/scheduling/slots/bulk",
+      url: "/scheduling/slots/bulk",
       headers: { authorization: `Bearer ${adminToken}` },
       payload: {
         projectId: testProjectId,
@@ -538,7 +538,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should return 400 for empty slots array in bulk create", async () => {
     const res = await app.inject({
       method: "POST",
-      url: "/api/scheduling/slots/bulk",
+      url: "/scheduling/slots/bulk",
       headers: { authorization: `Bearer ${adminToken}` },
       payload: { projectId: testProjectId, slots: [] },
     });

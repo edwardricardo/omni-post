@@ -169,7 +169,7 @@ describe("useUpdateAccount", () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/backend/admin/accounts/acc-1",
+      "/api/backend/admin/accounts/acc-1/status",
       expect.objectContaining({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -177,14 +177,14 @@ describe("useUpdateAccount", () => {
       })
     );
 
-    // Mutation state settles asynchronously after the act block
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
 
-  it("throws when response is not ok", async () => {
+  it("throws ApiError when response is not ok (403 uses standard message)", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
-      json: async () => ({ message: "Forbidden" }),
+      status: 403,
+      text: async () => JSON.stringify({ message: "Forbidden" }),
     });
 
     const { result } = renderHook(() => useUpdateAccount(), {
@@ -192,16 +192,18 @@ describe("useUpdateAccount", () => {
     });
 
     await act(async () => {
+      // ApiError.fromResponse overrides server messages for 401/403.
       await expect(
         result.current.mutateAsync({ id: "acc-1", data: { isActive: false } })
-      ).rejects.toThrow("Forbidden");
+      ).rejects.toThrow(/permission|access|authoriz/i);
     });
   });
 
-  it("falls back to default message when error body lacks message field", async () => {
+  it("falls back to status-based message when error body lacks details", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
-      json: async () => ({}),
+      status: 500,
+      text: async () => "",
     });
 
     const { result } = renderHook(() => useUpdateAccount(), {
@@ -210,7 +212,7 @@ describe("useUpdateAccount", () => {
 
     await act(async () => {
       await expect(result.current.mutateAsync({ id: "acc-1", data: {} })).rejects.toThrow(
-        "Failed to update account"
+        /unexpected|error/i
       );
     });
   });

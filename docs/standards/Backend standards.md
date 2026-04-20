@@ -20,7 +20,9 @@ This is a **stub** intended to provide D2 (Standards Compliance audit) with a mi
 
 ### 1.1 Path conventions
 
-Backend routes register **without** the `/api/` prefix. This is enforced in `CODE_STANDARDS.md` §3.1 and has been validated as the dominant pattern in the codebase (461 of 471 endpoints).
+Backend routes register **without** the `/api/` prefix. This is enforced in `CODE_STANDARDS.md` §3.1.
+
+**Historical context (2026-04-18):** inicialmente el codebase tenía un split ~60/40 (sin/con prefix) derivado de drift histórico — la cifra previamente declarada "461 de 471" era incorrecta (real: ~284 sin vs ~187 con prefix, confirmado por PRE-D2 §4.4 y D0-v4 Piloto §8). Sprint D0v4-0 (Opción α, 2026-04-18) estandarizó ~141 endpoints a convención sin prefix. Los 9 endpoints CQRS (`CQRSIntegration.ts`) que aún usan prefix están marcados como DEAD_CODE y pendientes de decisión §5.9 en Sprint D0v4-2.
 
 ```ts
 // Correct

@@ -16,7 +16,7 @@ export const outboxAdminRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/admin/outbox/dead-letter — paginated list
   fastify.get(
-    "/api/admin/outbox/dead-letter",
+    "/admin/outbox/dead-letter",
     { preHandler, schema: { tags: ["Outbox DLQ"] } },
     async (request, reply) => {
       const query = request.query as { page?: string; limit?: string };
@@ -39,7 +39,7 @@ export const outboxAdminRoutes: FastifyPluginAsync = async (fastify) => {
 
   // POST /api/admin/outbox/dead-letter/:id/retry — re-insert into OutboxEvent
   fastify.post(
-    "/api/admin/outbox/dead-letter/:id/retry",
+    "/admin/outbox/dead-letter/:id/retry",
     { preHandler, schema: { tags: ["Outbox DLQ"] } },
     async (request, reply) => {
       const { id } = request.params as { id: string };
@@ -80,7 +80,7 @@ export const outboxAdminRoutes: FastifyPluginAsync = async (fastify) => {
 
   // POST /api/admin/outbox/dead-letter/:id/resolve — mark as resolved without retry
   fastify.post(
-    "/api/admin/outbox/dead-letter/:id/resolve",
+    "/admin/outbox/dead-letter/:id/resolve",
     { preHandler, schema: { tags: ["Outbox DLQ"] } },
     async (request, reply) => {
       const { id } = request.params as { id: string };

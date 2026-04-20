@@ -19,8 +19,8 @@ import { SagaIntegration } from "../../src/saga/SagaIntegration";
 
 export interface MockFastifyInstance {
   prisma: { $queryRaw: () => Promise<{ result: number }[]> };
-  post: (path: string, handler: (req: any, reply: any) => any) => void;
-  get: (path: string, handler: (req: any, reply: any) => any) => void;
+  post: (path: string, optionsOrHandler: unknown, handler?: (req: any, reply: any) => any) => void;
+  get: (path: string, optionsOrHandler: unknown, handler?: (req: any, reply: any) => any) => void;
   registeredRoutes: Map<string, (req: any, reply: any) => any>;
 }
 
@@ -90,13 +90,25 @@ export function createMockPrisma(): MockPrisma {
 
 export function createMockFastify(): MockFastifyInstance {
   const registeredRoutes = new Map<string, (req: any, reply: any) => any>();
+  const resolveHandler = (
+    optionsOrHandler: unknown,
+    handler?: (req: any, reply: any) => any
+  ): ((req: any, reply: any) => any) => {
+    if (typeof optionsOrHandler === "function") {
+      return optionsOrHandler as (req: any, reply: any) => any;
+    }
+    if (typeof handler !== "function") {
+      throw new Error("Mock fastify: handler must be a function");
+    }
+    return handler;
+  };
   return {
     prisma: { $queryRaw: async () => [{ result: 1 }] },
-    post: (path, handler) => {
-      registeredRoutes.set(`POST:${path}`, handler);
+    post: (path, optionsOrHandler, handler) => {
+      registeredRoutes.set(`POST:${path}`, resolveHandler(optionsOrHandler, handler));
     },
-    get: (path, handler) => {
-      registeredRoutes.set(`GET:${path}`, handler);
+    get: (path, optionsOrHandler, handler) => {
+      registeredRoutes.set(`GET:${path}`, resolveHandler(optionsOrHandler, handler));
     },
     registeredRoutes,
   };

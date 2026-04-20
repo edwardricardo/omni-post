@@ -317,7 +317,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/tasks",
+    "/tasks",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "List tasks with filters" },
@@ -326,7 +326,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/tasks",
+    "/tasks",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Create a new task" },
@@ -335,7 +335,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/tasks/:id",
+    "/tasks/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Get a single task" },
@@ -344,7 +344,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.patch(
-    "/api/tasks/:id",
+    "/tasks/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Update a task" },
@@ -353,7 +353,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/tasks/:id/complete",
+    "/tasks/:id/complete",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Complete a task" },
@@ -362,7 +362,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/tasks/:id/cancel",
+    "/tasks/:id/cancel",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Cancel a task" },
@@ -371,7 +371,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/tasks/:id",
+    "/tasks/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Tasks"], summary: "Soft-delete a task" },

@@ -74,7 +74,7 @@ export const usageRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/accounts/:accountId/usage",
+    "/accounts/:accountId/usage",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Usage"], summary: "Get usage metering for an account" },

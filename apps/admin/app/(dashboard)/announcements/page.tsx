@@ -52,7 +52,7 @@ function useAnnouncements() {
   return useQuery({
     queryKey: ["announcements"],
     queryFn: async () => {
-      const res = await fetch("/api/backend/api/admin/announcements", { credentials: "include" });
+      const res = await fetch("/api/backend/admin/announcements", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load");
       const json = await res.json();
       return json.data as Announcement[];
@@ -89,8 +89,8 @@ export default function AnnouncementsPage() {
         ...(form.endsAt && { endsAt: new Date(form.endsAt).toISOString() }),
       };
       const url = editId
-        ? `/api/backend/api/admin/announcements/${editId}`
-        : "/api/backend/api/admin/announcements";
+        ? `/api/backend/admin/announcements/${editId}`
+        : "/api/backend/admin/announcements";
       const res = await fetch(url, {
         method: editId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,7 +112,7 @@ export default function AnnouncementsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/backend/api/admin/announcements/${id}`, {
+      const res = await fetch(`/api/backend/admin/announcements/${id}`, {
         method: "DELETE",
         credentials: "include",
       });

@@ -558,7 +558,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   // -- Tag routes (registered BEFORE parameterized asset routes to avoid conflicts) --
 
   app.get(
-    "/api/assets/tags",
+    "/assets/tags",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "List asset tags" },
@@ -567,7 +567,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/assets/tags",
+    "/assets/tags",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Create asset tag" },
@@ -576,7 +576,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/assets/tags/:id",
+    "/assets/tags/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Delete asset tag" },
@@ -587,7 +587,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   // -- Folder routes --
 
   app.get(
-    "/api/assets/folders",
+    "/assets/folders",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "List asset folders" },
@@ -596,7 +596,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/assets/folders",
+    "/assets/folders",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Create asset folder" },
@@ -607,7 +607,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   // -- Import routes (before parameterized asset routes to avoid conflicts) --
 
   app.post(
-    "/api/assets/import/google-drive",
+    "/assets/import/google-drive",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Import file from Google Drive" },
@@ -618,7 +618,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   // -- Media Asset routes --
 
   app.get(
-    "/api/assets",
+    "/assets",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "List media assets" },
@@ -627,7 +627,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/assets",
+    "/assets",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Create media asset" },
@@ -636,7 +636,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/assets/:id",
+    "/assets/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Get media asset by ID" },
@@ -645,7 +645,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.patch(
-    "/api/assets/:id",
+    "/assets/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Update media asset" },
@@ -654,7 +654,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/assets/:id",
+    "/assets/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Delete media asset" },
@@ -663,7 +663,7 @@ const assetRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/assets/:id/tags",
+    "/assets/:id/tags",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Assets"], summary: "Tag media asset" },

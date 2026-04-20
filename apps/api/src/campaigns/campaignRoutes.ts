@@ -426,7 +426,7 @@ const campaignRoutes: FastifyPluginAsync = async (app) => {
   // -- Command routes --
 
   app.post(
-    "/api/campaigns",
+    "/campaigns",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Campaigns"], summary: "Create campaign" },
@@ -435,7 +435,7 @@ const campaignRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.patch(
-    "/api/campaigns/:id",
+    "/campaigns/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Campaigns"], summary: "Update campaign" },
@@ -444,7 +444,7 @@ const campaignRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/campaigns/:id/archive",
+    "/campaigns/:id/archive",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Campaigns"], summary: "Archive campaign" },
@@ -453,7 +453,7 @@ const campaignRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/campaigns/:id/posts/:postId",
+    "/campaigns/:id/posts/:postId",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Campaigns"], summary: "Tag post with campaign" },
@@ -462,7 +462,7 @@ const campaignRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/campaigns/:id/posts/:postId",
+    "/campaigns/:id/posts/:postId",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Campaigns"], summary: "Remove post from campaign" },
@@ -473,7 +473,7 @@ const campaignRoutes: FastifyPluginAsync = async (app) => {
   // -- Query routes --
 
   app.get(
-    "/api/campaigns",
+    "/campaigns",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Campaigns"], summary: "List campaigns" },
@@ -482,7 +482,7 @@ const campaignRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/campaigns/:id",
+    "/campaigns/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Campaigns"], summary: "Get campaign by ID" },
@@ -491,7 +491,7 @@ const campaignRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/campaigns/:id/analytics",
+    "/campaigns/:id/analytics",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Campaigns"], summary: "Get campaign analytics" },

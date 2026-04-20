@@ -321,7 +321,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   // -- Command routes --
 
   app.post(
-    "/api/reports",
+    "/reports",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "Create scheduled report" },
@@ -330,7 +330,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.patch(
-    "/api/reports/:id",
+    "/reports/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "Update scheduled report" },
@@ -339,7 +339,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/reports/:id",
+    "/reports/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "Delete scheduled report" },
@@ -348,7 +348,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/reports/:id/generate",
+    "/reports/:id/generate",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "Generate report manually" },
@@ -359,7 +359,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   // -- Query routes --
 
   app.get(
-    "/api/reports",
+    "/reports",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "List scheduled reports" },
@@ -368,7 +368,7 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    "/api/reports/:id",
+    "/reports/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Reports"], summary: "Get scheduled report by ID" },

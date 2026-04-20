@@ -102,7 +102,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   // ── API Key Management (admin auth) ─────────────────────────────────────
 
   app.get(
-    "/api/make/keys",
+    "/make/keys",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Make"], summary: "List active Make API keys" },
@@ -125,7 +125,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/make/keys",
+    "/make/keys",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Make"], summary: "Generate a new Make API key" },
@@ -157,7 +157,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/make/keys/:id",
+    "/make/keys/:id",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Make"], summary: "Revoke a Make API key" },
@@ -194,7 +194,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   // ── Make REST Hooks (integration auth) ────────────────────────────────
 
   app.post(
-    "/api/make/subscribe",
+    "/make/subscribe",
     {
       preHandler: [integrationAuthMiddleware],
       schema: { tags: ["Make"], summary: "Subscribe to a Make trigger event" },
@@ -229,7 +229,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    "/api/make/subscribe/:id",
+    "/make/subscribe/:id",
     {
       preHandler: [integrationAuthMiddleware],
       schema: { tags: ["Make"], summary: "Unsubscribe from a Make trigger event" },
@@ -266,7 +266,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   // ── Make Actions (integration auth) ───────────────────────────────────
 
   app.post(
-    "/api/make/actions/create-draft",
+    "/make/actions/create-draft",
     {
       preHandler: [integrationAuthMiddleware],
       schema: { tags: ["Make"], summary: "Create a draft post via Make" },
@@ -295,7 +295,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    "/api/make/actions/schedule-post",
+    "/make/actions/schedule-post",
     {
       preHandler: [integrationAuthMiddleware],
       schema: { tags: ["Make"], summary: "Create and schedule a post via Make" },
@@ -345,7 +345,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   // ── Make Polling Triggers (integration auth) ──────────────────────────
 
   app.get(
-    "/api/make/triggers/posts-published",
+    "/make/triggers/posts-published",
     {
       preHandler: [integrationAuthMiddleware],
       schema: { tags: ["Make"], summary: "Poll last 25 published posts" },

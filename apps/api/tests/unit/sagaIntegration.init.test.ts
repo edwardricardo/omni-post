@@ -107,10 +107,10 @@ describe("SagaIntegration - Initialization", () => {
 
     await integration.initialize();
 
-    expect(mockFastify.registeredRoutes.has("POST:/api/sagas/post-publishing/start")).toBeTruthy();
-    expect(mockFastify.registeredRoutes.has("GET:/api/sagas/:sagaId")).toBeTruthy();
-    expect(mockFastify.registeredRoutes.has("POST:/api/sagas/:sagaId/continue")).toBeTruthy();
-    expect(mockFastify.registeredRoutes.has("POST:/api/sagas/:sagaId/compensate")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("POST:/sagas/post-publishing/start")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("GET:/sagas/:sagaId")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("POST:/sagas/:sagaId/continue")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("POST:/sagas/:sagaId/compensate")).toBeTruthy();
   });
 
   it("should register monitoring routes during initialization", async () => {
@@ -125,9 +125,9 @@ describe("SagaIntegration - Initialization", () => {
 
     await integration.initialize();
 
-    expect(mockFastify.registeredRoutes.has("GET:/api/sagas")).toBeTruthy();
-    expect(mockFastify.registeredRoutes.has("GET:/api/sagas/health")).toBeTruthy();
-    expect(mockFastify.registeredRoutes.has("GET:/api/sagas/metrics")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("GET:/sagas")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("GET:/sagas/health")).toBeTruthy();
+    expect(mockFastify.registeredRoutes.has("GET:/sagas/metrics")).toBeTruthy();
   });
 });
 

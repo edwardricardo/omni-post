@@ -31,7 +31,7 @@ export interface ByokTestResult {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const BASE = "/api/backend/api/settings/ai";
+const BASE = "/api/backend/settings/ai";
 
 async function aiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: "include", ...init });

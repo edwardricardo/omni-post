@@ -45,7 +45,7 @@ describe("SagaIntegration - Queue Integration", () => {
   });
 
   it("should start a saga and transition through steps asynchronously", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
@@ -70,7 +70,7 @@ describe("SagaIntegration - Queue Integration", () => {
   });
 
   it("should emit saga started event containing the sagaId", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
@@ -94,7 +94,7 @@ describe("SagaIntegration - Queue Integration", () => {
   });
 
   it("should include sagaId in the correlationId of the context", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
@@ -109,7 +109,7 @@ describe("SagaIntegration - Queue Integration", () => {
   });
 
   it("should execute the validate-post-data step with channel data", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
     const channelIds = ["ch-1", "ch-2", "ch-3"];
@@ -134,7 +134,7 @@ describe("SagaIntegration - Queue Integration", () => {
   });
 
   it("should schedule publishing jobs with sagaId in the job payload", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
@@ -188,7 +188,7 @@ describe("SagaIntegration - Job Payload Shape", () => {
   });
 
   it("should pass postData through the saga context metadata", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
@@ -216,7 +216,7 @@ describe("SagaIntegration - Job Payload Shape", () => {
   });
 
   it("should include priority in context metadata when provided", async () => {
-    const handler = routes.get("POST:/api/sagas/post-publishing/start");
+    const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
