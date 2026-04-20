@@ -327,3 +327,30 @@ Patrón no es "outlier minoritario" — es patrón dominante en ~26 archivos con
 **D2 no puede arrancar sin esta decisión** — D2 Standards Compliance necesita saber si reportar los ~159 endpoints como violations (α), legítimos (β), o drift histórico aceptable (γ).
 
 Ver `D0_v4_PILOT_BACKEND_ROUTES.md §8` para contexto completo.
+
+### 2026-04-18 — Sprint D0v4-0 ejecutado: estandarización α completada
+
+**Encontrado durante:** Sprint D0v4-0 (Opción α aprobada por Edward)
+
+**Descripción:** Rename masivo de ~141 endpoints para eliminar `/api/` prefix (de 30 archivos backend + 18 hooks/components frontend correspondientes). Motivación: Edward decisión 2026-04-18 — código aún en desarrollo, dos approaches no aceptables, estandarización antes que todo.
+
+**Detalles del sprint (branch `refactor/d0v4-0-rename-api-prefix`):**
+
+- 5 commits de rename backend (archivos agrupados por dominio)
+- 1 commit de rename frontend consumers
+- Pattern backend: `"/api/<path>"` → `"/<path>"` (replace_all por archivo tras lectura directa §5.8)
+- Pattern frontend: `"/api/backend/api/<path>"` → `"/api/backend/<path>"` + idem para backticks
+- `ipAllowlistMiddleware.ts:29` EXEMPT_PATHS actualizado: `/api/settings/public` → `/settings/public`
+- Grep post-rename: 9 paths con `/api/` restantes — todos CQRS DEAD_CODE esperados
+- Grep post-rename frontend: 0 paths con `/api/backend/api/` en source files
+
+**Pendientes derivados:**
+
+- 9 endpoints CQRS (`CQRSIntegration.ts`) NO renombrados — pendientes de decisión §5.9 (DEAD_CODE vs PLANNED vs INFRASTRUCTURE_READY) en Sprint D0v4-2. Si DEAD_CODE se borran; si no se renombran.
+- `BACKEND_STANDARDS.md §1.1` + `CODE_STANDARDS.md §3.1` actualizados reflejando contexto histórico real (cifra "461 de 471" corregida).
+- Tests NO corridos en sesión — Edward valida al merge.
+- Decisión §8 del piloto D0-v4 queda **resuelta como α aplicada**.
+
+**Severidad estimada:** alto (cambio estructural grande, base limpia para D0v4-1+)
+
+**Acción propuesta:** ~~decisión §8 prefix pendiente~~ → **RESUELTO 2026-04-18 por Sprint D0v4-0.** Ver `D0v4_0_RENAME_REPORT.md` para detalles completos y mapping de paths.

@@ -200,7 +200,7 @@ fastify.post("/webhooks/stripe", handler);
 fastify.get("/api/admin/users", handler);
 ```
 
-**Historical context:** 461 of 471 endpoints follow this convention. The 8 SAML/OIDC endpoints that used `/api/` prefix were fixed 2026-04-18 (PLAN_MAESTRO §6). The 2 CQRS endpoints that still use it are DEAD_CODE pending removal.
+**Historical context:** initialmente el codebase tenía un split ~60/40 (sin/con prefix). La cifra previa "461 de 471" era incorrecta (real: ~284 sin vs ~187 con prefix, confirmado PRE-D2 §4.4 y D0-v4 Piloto §8). Sprint D0v4-0 (Opción α, 2026-04-18) estandarizó ~141 endpoints a convención sin prefix. Los 9 endpoints CQRS (`CQRSIntegration.ts`) que aún usan prefix son DEAD_CODE pendiente de decisión §5.9. SSO fix previo (commit `7d16e66`, 8 endpoints) fue correcto pero por razón de coherencia de dominio, no por ser outlier.
 
 ### 3.2 Frontend fetch URLs
 

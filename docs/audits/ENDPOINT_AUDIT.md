@@ -33,6 +33,8 @@ Exact per-file counts in §2. PATH_MISMATCH list in §4.
 
 ## 2. Inventario completo con clasificación
 
+> **Nota 2026-04-18 (Sprint D0v4-0):** se renombraron ~141 endpoints eliminando el prefix `/api/` (30 archivos backend + 18 consumers frontend). Los paths listados abajo pueden reflejar estado pre-rename. Para mapping completo ver `D0v4_0_RENAME_REPORT.md`. Los 9 endpoints CQRS (`CQRSIntegration.ts`) con prefix siguen presentes — DEAD_CODE pendiente §5.9 en Sprint D0v4-2. SSO fix (commit `7d16e66`) ya aplicado previamente.
+
 Organized by backend route file, in alphabetical order by file path. For each file:
 
 - **Summary line:** count of endpoints + dominant class
