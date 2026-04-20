@@ -607,3 +607,287 @@ Application layer importa concrete class de infrastructure. CLAUDE.md: "applicat
 **Descripción:** `templates/templateService.ts` usa `await import("../lib/templates/templateEngine")` dinámico en L348, L415, L462, L476, L488 en lugar de import estático. Patrón inconsistente con el resto del app. Posiblemente para break circular dep — requiere verificación.
 **Severidad estimada:** bajo
 **Acción propuesta:** Investigar razón (circular dep?) y convertir a static si posible.
+
+---
+
+## Hallazgos D0v4-2 (2026-04-20)
+
+> 27 entradas generadas durante el sprint D0v4-2 (91 archivos auditados: middlewares + DI container + events + integration-events + outbox + CQRS + libs + observability + bootstrap). Ver `docs/audits/D0v4_2_MIDDLEWARES_DI_INFRA_REPORT.md` para contexto completo. Regla CP1 vigente: todo "no wired" va a LATERAL_FINDINGS con research de intent pending antes de DEAD_CODE_CANDIDATE.
+
+### 2026-04-20 — L-25: 4 tokens DI orfanados — possible implementables
+
+**Encontrado durante:** D0v4-2 Batch 2
+**Descripción:** 4 tokens declarados en `infrastructure/container/types.ts` pero NUNCA registrados ni resueltos en el codebase:
+
+- `TOKENS.EnableReportSharingUseCase` (types.ts:415) — grupo "Report Sharing (Sprint 6 — Batch 3)"
+- `TOKENS.DisableReportSharingUseCase` (types.ts:416) — grupo "Report Sharing (Sprint 6 — Batch 3)"
+- `TOKENS.GenerateContentCalendarUseCase` (types.ts:422) — grupo "AI Differentiation"
+- `TOKENS.PaymentAdapter` (types.ts:400) — grupo "Payment Billing (Sprint 6 — Batch 5)"
+
+**Severidad estimada:** medio
+**Acción propuesta:** Edward CP2 decidió: LATERAL_FINDINGS con research de intent. Verificar si fueron concebidos para implementación futura, si ya se implementaron bajo otro nombre, o si son genuinamente DEAD. Regla CP1: no DEAD_CODE_CANDIDATE hasta completar investigación.
+
+### 2026-04-20 — L-26: `rbacMiddleware.roleBasedRateLimit` FAKE rate limiter
+
+**Encontrado durante:** D0v4-2 Batch 1
+**Descripción:** `apps/api/src/auth/rbacMiddleware.ts:200-221` `roleBasedRateLimit` declara límites distintos por rol (SUPER_ADMIN: 1000 req/15min, ADMIN: 500, SUPPORT: 200) pero solo setea headers `X-RateLimit-Limit` y `X-RateLimit-Window` — NO enforce nada. Security theater. Si código consumidor asume que limita, hay bypass silencioso.
+**Severidad estimada:** alto (security)
+**Acción propuesta:** Implementar enforcement real usando Redis sorted sets (como security/rateLimit.ts) o eliminar método + docs.
+
+### 2026-04-20 — L-27: `auditLogger.extractUserId` STUB — audit logs sin userId
+
+**Encontrado durante:** D0v4-2 Batch 1
+**Descripción:** `apps/api/src/security/auditLogger.ts:430-434` `extractUserId(_req)` retorna `undefined` con comment admitido: "This would be implemented based on your authentication system. For now, return undefined as we don't have auth implemented yet". Todos los audit logs escritos vía `AuditLogger.log()` carecen de userId. Contraste: `PlatformCredentialService.setCredential` L69 SÍ loguea userId correctamente (sistema paralelo de audit logging). Incumplimiento compliance — SOC2/GDPR requieren trazabilidad user-level.
+**Severidad estimada:** crítico (compliance)
+**Acción propuesta:** Edward CP1 marcó crítico. Extraer userId de `request.auth.user.id` (admin) o `request.customerUser.id` (customer) usando mismo pattern que PlatformCredentialService. Sprint dedicado de compliance + migración de audit logs históricos.
+
+### 2026-04-20 — L-28: `fileUploadValidator` placeholder + simulated scanner
+
+**Encontrado durante:** D0v4-2 Batch 1
+**Descripción:** `apps/api/src/security/fileUploadValidator.ts` tiene múltiples placeholders críticos:
+
+- L495-522 `scanForMalware` admite "Simulate ClamAV or other antivirus integration. In production, this would call actual antivirus API"
+- L499-503 solo check against `knownMaliciousHashes` array con 2 hashes hardcoded (EICAR test signatures)
+- L527-541 `quarantineFile` solo agrega a `Set<string>` en memoria, no escribe al filesystem
+- L605-626 `getPlugin()` retorna un hook placeholder con comment "This is a placeholder for the integration point" — NO valida files reales
+
+**Consecuencia**: cualquier file upload pasa sin validación real en producción.
+**Severidad estimada:** crítico (security)
+**Acción propuesta:** Sprint dedicado: integración real antivirus (ClamAV-REST, VirusTotal, AWS GuardDuty), persistencia de quarantine, wire el plugin a rutas de upload.
+
+### 2026-04-20 — L-29: `slidingWindowRateLimit.extractUserId` STUB
+
+**Encontrado durante:** D0v4-2 Batch 1
+**Descripción:** `apps/api/src/security/slidingWindowRateLimit.ts:248-259` `extractUserId(req)` retorna `null` siempre con comment "Would need to decode JWT here - simplified for now". User tracking para rate limiting está roto.
+**Severidad estimada:** alto
+**Acción propuesta:** Implementar JWT decode o wire solo post-auth donde `request.auth.user.id` esté disponible.
+
+### 2026-04-20 — L-30: 5 rate limiters paralelos — 1 wired, 4 INFRASTRUCTURE_READY
+
+**Encontrado durante:** D0v4-2 Batch 1
+**Descripción:** Coexisten 5 sistemas:
+
+- `rbacMiddleware.roleBasedRateLimit` — FAKE (L-26)
+- `adminAuthMiddleware.rateLimit` — in-memory Map, NO cluster-safe
+- `security/rateLimit.ts` — Redis sorted set (único wired en index.ts:348)
+- `security/advancedRateLimit.ts` — Redis + progressive blocking + UA fingerprint (NO wired)
+- `security/slidingWindowRateLimit.ts` — sub-window + geo + progressive (NO wired + L-29 STUB)
+
+Plus: `RateLimitConfigs` export duplicado entre `rateLimit.ts:124` y `advancedRateLimit.ts:286` con contenidos distintos.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Edward CP1 decidió INFRASTRUCTURE_READY (no DEAD). Investigar intent — ¿advancedRateLimit/slidingWindow eran reemplazo planeado del básico? Si sí, completar migration. Si no, eliminar no-wired.
+
+### 2026-04-20 — L-31: 3 validators paralelos con patrones SQL distintos
+
+**Encontrado durante:** D0v4-2 Batch 1
+**Descripción:** 3 implementaciones de validación con lógica solapante pero patrones distintos:
+
+- `security/enhancedValidator.ts` (582 LOC) — OOP stateful + DOMPurify (NO wired)
+- `security/inputValidation.ts` (303 LOC) — static `SecurityValidator` + Zod schemas
+- `security/securityHeaders.validateRequest` (L279-324) — patterns sqlmap/nmap/XSS/path traversal
+
+Los patrones SQL injection SON DIFERENTES entre los 3. Una request puede pasar uno y fallar otro si se usan en rutas distintas — inconsistencia crítica.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Consolidar en un único `ValidationPort` + adapter. Eliminar los 2 no usados. Unificar patterns.
+
+### 2026-04-20 — L-32: 2 sistemas API key hashing paralelos (SHA-256 vs argon2)
+
+**Encontrado durante:** D0v4-2 Batch 1
+**Descripción:** Dos sistemas de API key hashing coexisten:
+
+- `security/credentialManager.hashApiKey` L335 — SHA-256 (débil, no adaptive)
+- `integrationAuthMiddleware` + `GenerateIntegrationApiKeyUseCase` — argon2id (D0v4-1 confirmed)
+
+Coexisten en producción con hashing distinto según path de entrada: `/api-keys/*` (credentialManager) vs `/zapier/*` + `/make/*` (integrationAuth).
+
+**Severidad estimada:** alto (security)
+**Acción propuesta:** Migrar credentialManager a argon2. Data migration de keys hashed con SHA-256 (forzar re-generation o wrapped hash).
+
+### 2026-04-20 — L-33: 2 sistemas paralelos de correlation ID generation
+
+**Encontrado durante:** D0v4-2 Batch 1
+**Descripción:**
+
+- `middleware/correlationMiddleware.ts` (128 LOC) — hooks onRequest + onResponse + onError + child logger. Completo pero NO wired en index.ts.
+- `middleware/metricsMiddleware.ts:19-22` — también genera correlation ID via `apiMetrics.generateCorrelationId`. Sí wired.
+
+Solo metricsMiddleware es el que corre. correlationMiddleware.ts es DEAD-by-not-wired.
+
+**Severidad estimada:** bajo
+**Acción propuesta:** Wire correlationMiddleware (superior: child logger with context) + remover correlation ID generation de metricsMiddleware. O eliminar correlationMiddleware si metricsMiddleware cubre.
+
+### 2026-04-20 — L-34: `index.ts` God file 688 LOC + 37 route registrations
+
+**Encontrado durante:** D0v4-2 Batch 1
+**Descripción:** `apps/api/src/index.ts` hace: 37 route registrations + middleware chain + DI container setup + SAGA integration + OTel init + graceful shutdown + daily setInterval jobs + Sentry init. Split candidato a múltiples archivos: `bootstrap.ts`, `routes.ts`, `middlewareChain.ts`, `shutdown.ts`.
+**Severidad estimada:** medio (mantenimiento)
+**Acción propuesta:** Split en sprint dedicado de refactor.
+
+### 2026-04-20 — L-35: `createRedisConnection()` llamado 13 veces en DI factories
+
+**Encontrado durante:** D0v4-2 Batch 2
+**Descripción:** `apps/api/src/infrastructure/container/setupServices.ts` llama `createRedisConnection()` en L177, 198, 215, 232, 259, 275, 284, 313, 337, 360 (+ más en index.ts y otros). Cada factory crea SU propia conexión Redis — ~15+ conexiones simultáneas al iniciar. No hay token DI `Redis`. Redis tiene límite conexiones (default 10000 en Railway, menos en local).
+**Severidad estimada:** medio (ops)
+**Acción propuesta:** Registrar `TOKENS.Redis` con factory singleton. Todas las factories resolve vs crear nueva.
+
+### 2026-04-20 — L-36: `EventService` sin token DI — 6+ instancias paralelas (unificación candidate)
+
+**Encontrado durante:** D0v4-2 Batch 2+3
+**Descripción:** `events/EventService` es un servicio infra completo (Event Sourcing con PostgreSQLEventStore + RedisEventPublisher) pero NUNCA registrado en `TOKENS`. Se instancia 6 veces en `setupServices.ts` factories (L200, 217, 234, 261, 315, 362) + 1 vez en `index.ts:531` para SagaIntegration. Cada instancia:
+
+- Crea su propio PostgreSQLEventStore
+- Intenta `ensureTable()` at init → race potencial
+- Crea su propio subscriber Redis connection (via `redis.duplicate()`)
+- Registra su propio health check interval 30s
+
+Edward CP3 decision: **unificación candidate**. Arquitectónicamente también coexiste con `EventDispatcher`/`ComposedEventDispatcher` (domain events path) — son 2 sistemas event paralelos.
+
+**Severidad estimada:** alto
+**Acción propuesta:** Sprint dedicado de event system unification. Registrar `TOKENS.EventService` singleton. Decidir si EventService (Event Sourcing completo) reemplaza EventDispatcher (domain events simples) o son sistemas complementarios con boundary claro.
+
+### 2026-04-20 — L-37: `{} as ApiMetrics` mock vacío en ThreadAnalytics registration
+
+**Encontrado durante:** D0v4-2 Batch 2
+**Descripción:** `apps/api/src/infrastructure/container/setupServices.ts:262` registra ThreadAnalytics con `{} as ApiMetrics` — mock vacío. ThreadAnalytics en producción recibe un objeto sin ninguno de los Prometheus counters → cualquier intento de `metrics.rateLimitBlocked.inc()` o similar crash silencioso (el objeto vacío tira TypeError).
+**Severidad estimada:** crítico (Edward CP2)
+**Acción propuesta:** Registrar `TOKENS.ApiMetrics` correctamente + resolve en factory. Crear shared ApiMetrics instance que se use en toda la app.
+
+### 2026-04-20 — L-38: `UpdatePricingConfigUseCase` registrado con 4 no-op stubs
+
+**Encontrado durante:** D0v4-2 Batch 2
+**Descripción:** `apps/api/src/infrastructure/container/setupBillingUseCases.ts:69-81` registra UC con 4 argumentos no-op (`updateEntity`, `findAffectedSubscriptions`, `setSubscriptionStatus`, `createPriceHistory`, `dispatch`). Comentario admite "will be created when the grandfathering flow is wired through the use case. For now, pricing CRUD goes through pricingRoutes.ts handlers directly".
+
+**Severidad estimada:** medio (revisar utilidad negocio per Edward CP2)
+**Acción propuesta:** Investigar intent original — ¿grandfathering flow es útil para negocio? Si sí, implementar adapters reales. Si no, decidir eliminar UC o mantener como placeholder documentado.
+
+### 2026-04-20 — L-39: `GenerateRepurposeVariantsUseCase` noOpNotification hardcoded
+
+**Encontrado durante:** D0v4-2 Batch 2
+**Descripción:** `apps/api/src/infrastructure/container/setupRepurposeUseCases.ts:90-92` inyecta `NotificationPort` no-op: `{ notify: async () => {} }`. Notifications de repurpose variants nunca se envían.
+**Severidad estimada:** medio (revisar utilidad negocio per Edward CP2)
+**Acción propuesta:** Investigar intent — ¿usuarios deberían recibir notification cuando variants están listos? Si sí, wire `CreateNotificationUseCase` como en otros UCs. Si no, eliminar dependency.
+
+### 2026-04-20 — L-40: 9 setup files usan Prisma singleton vs resto DI pattern
+
+**Encontrado durante:** D0v4-2 Batch 2
+**Descripción:** Patrón inconsistente en DI setup. Mayoría usa lazy factory `container.resolve(TOKENS.PrismaClient)`. 9 files usan `import { prisma } from "@infra/prisma"` singleton + eager `new PrismaXxx(prisma)`:
+
+- setupAssetUseCases.ts
+- setupCrmUseCases.ts
+- setupCustomReportUseCases.ts
+- setupSamlUseCases.ts
+- setupBrandVoiceUseCases.ts
+- setupBrandKitUseCases.ts
+- setupReferralUseCases.ts
+- setupTrendUseCases.ts
+- setupInboxUseCases.ts (parcial L45, L247, L251)
+
+**Severidad estimada:** medio
+**Acción propuesta:** Unificar todos a lazy factory pattern. Registrar repos via `container.register` no `container.registerInstance`.
+
+### 2026-04-20 — L-41: `EventStore.ensureTable` crea tabla via runtime DDL
+
+**Encontrado durante:** D0v4-2 Batch 3
+**Descripción:** `apps/api/src/events/EventStore.ts:62-88` usa `$executeRaw\`CREATE TABLE IF NOT EXISTS stored_events...\``al inicializar. Bypass total del sistema Prisma schema + migrations. Tabla existe en DB pero no en`infra/prisma/schema.prisma`. Schema divergence grave — cualquier re-generación de Prisma Client no incluye esta tabla, tests pueden romperse, CI/CD lint no valida.
+**Severidad estimada:** crítico (Edward CP3)
+**Acción propuesta:** Migrar `stored_events`tabla a`schema.prisma`+ generar migration. Eliminar`ensureTable()`.
+
+### 2026-04-20 — L-42: `EventStore` referencia `EventSnapshots` table no declarada
+
+**Encontrado durante:** D0v4-2 Batch 3
+**Descripción:** `apps/api/src/events/EventStore.ts:291-339` `createSnapshot` + `getSnapshot` usan tabla `"EventSnapshots"` (camelCase con quotes). Esa tabla no existe ni en `ensureTable()` runtime DDL ni en Prisma schema. Cualquier llamada: `relation "EventSnapshots" does not exist`. Path de código inalcanzable/broken.
+**Severidad estimada:** crítico (Edward CP3)
+**Acción propuesta:** Eliminar snapshot methods + tokens, o crear tabla + migration si feature se activa.
+
+### 2026-04-20 — L-43: `OutboxRelay` sin `SELECT FOR UPDATE SKIP LOCKED` — concurrent claim race
+
+**Encontrado durante:** D0v4-2 Batch 3 (confirma L-22 D0v4-1)
+**Descripción:** `apps/api/src/infrastructure/outbox/OutboxRelay.ts:58-66` usa `findMany` sin row-level lock. Si hay múltiples instancias del API (multi-pod), ambas pueden claim el mismo outbox event antes de que una marque `publishedAt` → duplicate dispatch. CLAUDE.md explícitamente dice: "Outbox relay uses `SELECT FOR UPDATE SKIP LOCKED` — no double-dispatch".
+**Severidad estimada:** crítico (data consistency)
+**Acción propuesta:** Implementar `$queryRaw\`SELECT ... FOR UPDATE SKIP LOCKED LIMIT ${batchSize}\`` + transaction wrap del claim+update.
+
+### 2026-04-20 — L-44: `AnalyticsEventHandler` + `WebhookEventHandler` STUBS NO-OP — webhook system fantasma
+
+**Encontrado durante:** D0v4-2 Batch 3
+**Descripción:** 2 handlers de integration events son explícitos no-op:
+
+- `apps/api/src/infrastructure/integration-events/handlers/AnalyticsEventHandler.ts:34` — comentado "Stub: intentional no-op. Future implementation will forward to analytics pipeline". Maneja `PostCreated/PostPublished/PostPublishingFailed` — sin acción.
+- `apps/api/src/infrastructure/integration-events/handlers/WebhookEventHandler.ts:41` — idem. Maneja `PostPublished/PostPublishingFailed/PostScheduled/PostCancelled` — sin acción.
+
+**Consecuencia grave**: todo el sistema de webhooks externos está fantasma. Suscriptores registrados en `IntegrationSubscription` (Zapier/Make/custom webhooks) no reciben eventos pese a tener registraciones.
+
+**Severidad estimada:** crítico (Edward CP3 — webhook system subsystem)
+**Acción propuesta:** Sprint dedicado de webhook activation. `AnalyticsEventHandler` debería: increment Prometheus counters + forward to analytics event store. `WebhookEventHandler` debería: lookup `IntegrationSubscription` + enqueue delivery job + track status.
+
+### 2026-04-20 — L-45: `EventService.setupDefaultHandlers` 3 no-op handlers
+
+**Encontrado durante:** D0v4-2 Batch 3
+**Descripción:** `apps/api/src/events/EventService.ts:379-408` registra 3 handlers default:
+
+- `POST_PUBLISHED` — body vacío con comment "Here you could trigger analytics collection"
+- `USER_ACTION` — body vacío con comment "Could integrate with audit logging"
+- `SYSTEM_HEALTH` — solo if status unhealthy, pero también empty body
+
+**Severidad estimada:** alto
+**Acción propuesta:** Wire análisis real o eliminar registración. Considerar en contexto de L-36 unificación event system.
+
+### 2026-04-20 — L-46: `ComposedEventDispatcher` swallows BullMQ errors silently
+
+**Encontrado durante:** D0v4-2 Batch 3
+**Descripción:** `apps/api/src/infrastructure/integration-events/ComposedEventDispatcher.ts:54-57,76-78` catches errors de `publisher.publish()` y `publishBatch()` con comment "Swallow BullMQ errors — do NOT propagate to callers. In production this would write to a structured logger (e.g., pino)". Pero nunca loguea — error loss completo. Double failure mode: (a) eventos no se publican a BullMQ, (b) nadie sabe que no se publicaron.
+**Severidad estimada:** alto (ops visibility)
+**Acción propuesta:** Wire logger (ya existe `lib/logger.ts`). Agregar metric counter para failed dispatches.
+
+### 2026-04-20 — L-47: CQRS subsystem = PLANNED + CQRSBus shell usado por SagaIntegration
+
+**Encontrado durante:** D0v4-2 Batch 4 (Cierre Final)
+**Descripción:** Edward §5.9 decision = PLANNED. CQRS subsystem (611 LOC CQRSIntegration + 421 LOC CQRSBus + 4 command handlers + 4 query handlers = ~2,130 LOC) se mantiene para wire futuro. CQRSIntegration nunca instanciado en producción (solo tests). CQRSBusImpl sí instanciado en index.ts:532 para SagaIntegration pero el bus queda vacío sin handlers (sin CQRSIntegration.initialize, no se registran handlers). SagaIntegration que intenta ejecutar commands/queries vía bus recibirá `No handler registered for command type: X` — posible runtime error en flows saga. Verificar en D0v4-3 (Workers).
+**Severidad estimada:** medio (con riesgo runtime para sagas)
+**Acción propuesta:** Edward CP4 PLANNED. Sprint futuro de CQRS activation debe: decidir relación con postRoutes.ts + instanciar CQRSIntegration en index.ts + rename `/api/cqrs/*` prefix. MIENTRAS TANTO: auditar D0v4-3 saga flows para confirmar que no ejecutan commands/queries via bus vacío.
+
+### 2026-04-20 — L-48: `lib/errors/errorPlugin.ts` DEAD por no-wired
+
+**Encontrado durante:** D0v4-2 Batch 4
+**Descripción:** `apps/api/src/lib/errors/errorPlugin.ts` (33 LOC) declara Fastify plugin wrapping `createErrorHandler`. NUNCA se registra en index.ts — `index.ts:342-343` llama `createErrorHandler` directamente sin usar el plugin.
+**Severidad estimada:** bajo
+**Acción propuesta:** Wire el plugin (pattern más clean) o eliminar + usar directamente (como ahora).
+
+### 2026-04-20 — L-49: 3 sistemas paralelos de caching
+
+**Encontrado durante:** D0v4-2 Batch 4
+**Descripción:** Coexisten 3 sistemas de caching sin coordinación:
+
+- `middleware/autoCacheMiddleware.ts` (355 LOC) — Fastify plugin global onRequest+onSend+onResponse (wired en index.ts:216)
+- `lib/cache/cacheDecorators.ts` (421 LOC) — `withCache`/`withInvalidation` HOC decorators
+- Module-level `Map` caches en application UCs (D0v4-1 L-13: `GetTopPerformersContextUseCase.ts:53`, `FetchTrendingTopicsUseCase.ts:36`)
+
+Plus: `cacheConfig.ts` + `cacheDecorators.ts` cada uno crea su propio `pino` instance en lugar de usar `cacheLogger` exportado.
+
+**Severidad estimada:** medio
+**Acción propuesta:** Consolidar en `CachePort` único + adapter RedisCacheManager. Eliminar module-level caches. Unificar logging.
+
+### 2026-04-20 — L-50: `outboxAdminRoutes` comments `/api/` prefix obsoletos
+
+**Encontrado durante:** D0v4-2 Batch 3
+**Descripción:** `apps/api/src/outbox/outboxAdminRoutes.ts` L17, L40, L81 comments dicen `GET /api/admin/outbox/*` pero las URLs reales registradas (L19, L42, L83) NO tienen `/api/` prefix post-D0v4-0 rename. Documentación en código obsoleta.
+
+Plus: `import { prisma } from "@infra/prisma"` L9 — viola fitness #1. `aggregateType: "unknown"` L58 en retry endpoint — loss de info.
+
+**Severidad estimada:** bajo
+**Acción propuesta:** Sync comments con URLs reales. Migrar a `container.resolve(TOKENS.PrismaClient)`. Preservar `aggregateType` original en retry.
+
+### 2026-04-20 — L-51: `setInterval` sin `unref()` bloquea graceful shutdown
+
+**Encontrado durante:** D0v4-2 Batch 1+3
+**Descripción:** Al menos 5 lugares usan `setInterval` sin `.unref()` — bloquean `process.exit()` tras graceful shutdown hasta que el interval se ejecute:
+
+- `apps/api/src/index.ts:630` (DLQ archival 24h)
+- `apps/api/src/index.ts:644` (data retention 24h)
+- `apps/api/src/security/auditLogger.ts:64` (log cleanup 24h)
+- `apps/api/src/security/slidingWindowRateLimit.ts:81` (suspicious patterns 1h)
+- `apps/api/src/security/enhancedValidator.ts:119` (suspicious attempts 1h)
+
+**Severidad estimada:** medio (ops)
+**Acción propuesta:** Agregar `.unref()` a todos. Contraste: `OutboxRelay` + `OutboxCleaner` + `RedisEventPublisher.healthCheck` SÍ usan `.unref()` — patrón existe pero no uniforme.
