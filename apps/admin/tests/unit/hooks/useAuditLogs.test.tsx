@@ -65,7 +65,8 @@ describe("useAuditLogs", () => {
   it("fetches and returns audit logs on success", async () => {
     mockGetLogs.mockResolvedValueOnce({
       ok: true,
-      data: { logs: MOCK_LOGS, filters: {} },
+      logs: MOCK_LOGS,
+      filters: {},
     });
 
     const { result } = renderHook(() => useAuditLogs(), {
@@ -81,7 +82,8 @@ describe("useAuditLogs", () => {
   it("passes filters to the API call", async () => {
     mockGetLogs.mockResolvedValueOnce({
       ok: true,
-      data: { logs: [], filters: {} },
+      logs: [],
+      filters: {},
     });
 
     const filters = { action: "LOGIN", limit: 10 };
@@ -99,7 +101,8 @@ describe("useAuditLogs", () => {
     // Hook has retry: 2, so provide persistent failure for all attempts
     mockGetLogs.mockResolvedValue({
       ok: false,
-      data: { logs: [], filters: {} },
+      logs: [],
+      filters: {},
     });
 
     const { result } = renderHook(() => useAuditLogs(), {
@@ -125,7 +128,8 @@ describe("useAuditLogs", () => {
   it("uses the correct query key [audit, logs, filters]", async () => {
     mockGetLogs.mockResolvedValueOnce({
       ok: true,
-      data: { logs: MOCK_LOGS, filters: {} },
+      logs: MOCK_LOGS,
+      filters: {},
     });
 
     const queryClient = new QueryClient({

@@ -2,8 +2,8 @@
  * Tests for useCompliance
  *
  * The hook fires two parallel fetch calls:
- *   1. /api/backend/api/admin/compliance/metrics
- *   2. /api/backend/api/admin/compliance/audit-logs
+ *   1. /api/backend/admin/compliance/metrics
+ *   2. /api/backend/admin/compliance/audit-logs
  * We mock global.fetch for both.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -18,7 +18,7 @@ global.fetch = mockFetch;
 
 const MOCK_METRICS_BODY = {
   ok: true,
-  value: {
+  data: {
     summary: {
       complianceScore: 85,
       totalAuditLogs: 5000,
@@ -37,7 +37,7 @@ const MOCK_METRICS_BODY = {
 
 const MOCK_AUDIT_LOGS_BODY = {
   ok: true,
-  value: {
+  data: {
     ok: true,
     data: [
       {
@@ -158,7 +158,7 @@ describe("useCompliance", () => {
     expect(logs[1]?.result).toBe("failure");
   });
 
-  it("throws when metrics endpoint returns HTTP error", async () => {
+  it("throws ApiError when metrics endpoint returns HTTP error", async () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: false,
@@ -172,10 +172,11 @@ describe("useCompliance", () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect((result.current.error as Error).message).toContain("HTTP 500");
+    const error = result.current.error as { status?: number };
+    expect(error.status).toBe(500);
   });
 
-  it("throws when audit-logs endpoint returns HTTP error", async () => {
+  it("throws ApiError when audit-logs endpoint returns HTTP error", async () => {
     mockFetch
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_METRICS_BODY })
       .mockResolvedValueOnce({
@@ -189,7 +190,8 @@ describe("useCompliance", () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect((result.current.error as Error).message).toContain("HTTP 403");
+    const error = result.current.error as { status?: number };
+    expect(error.status).toBe(403);
   });
 
   it("uses [compliance, overview] as query key", async () => {

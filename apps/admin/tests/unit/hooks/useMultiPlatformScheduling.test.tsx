@@ -128,7 +128,7 @@ describe("useScheduleSlots", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toContain("/api/backend/api/scheduling/slots");
+    expect(url).toContain("/api/backend/scheduling/slots");
     expect(url).toContain(`projectId=${PROJECT_ID}`);
   });
 
@@ -187,7 +187,7 @@ describe("useOptimalTimes", () => {
     expect(result.current.data).toEqual(MOCK_OPTIMAL_TIMES);
 
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toContain("/api/backend/api/analytics/optimal-times");
+    expect(url).toContain("/api/backend/analytics/optimal-times");
     expect(url).toContain(`projectId=${PROJECT_ID}`);
   });
 
@@ -259,7 +259,7 @@ describe("useCreateSchedule", () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/backend/api/scheduling/slots",
+      "/api/backend/scheduling/slots",
       expect.objectContaining({ method: "POST" })
     );
     expect(created?.id).toBe("slot-99");
@@ -318,7 +318,7 @@ describe("useBulkCreateSchedules", () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/backend/api/scheduling/slots/bulk",
+      "/api/backend/scheduling/slots/bulk",
       expect.objectContaining({ method: "POST" })
     );
     expect(slots).toHaveLength(1);
