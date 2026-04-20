@@ -50,7 +50,7 @@ export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
   useEffect(() => {
     if (isRealTime) {
       // Connect to Server-Sent Events for real-time updates
-      eventSourceRef.current = new EventSource("/api/backend/api/webhooks/dashboard/stream", {
+      eventSourceRef.current = new EventSource("/api/backend/webhooks/dashboard/stream", {
         withCredentials: true,
       });
 

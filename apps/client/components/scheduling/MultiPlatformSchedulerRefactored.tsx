@@ -173,7 +173,7 @@ export function MultiPlatformScheduler({
 
   const handleAddRule = useCallback(async () => {
     try {
-      const response = await fetch("/api/backend/api/scheduling/rules", {
+      const response = await fetch("/api/backend/scheduling/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -199,7 +199,7 @@ export function MultiPlatformScheduler({
   const handleToggleRule = useCallback(
     async (ruleId: string, active: boolean) => {
       try {
-        const response = await fetch(`/api/backend/api/scheduling/rules/${ruleId}/toggle`, {
+        const response = await fetch(`/api/backend/scheduling/rules/${ruleId}/toggle`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ active }),

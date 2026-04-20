@@ -42,7 +42,7 @@ export interface InitiateGatewaySwitchResult {
 // ---------------------------------------------------------------------------
 
 async function fetchGatewayStatus(): Promise<GatewayStatusDto> {
-  const res = await fetch("/api/backend/api/billing/gateway/status", {
+  const res = await fetch("/api/backend/billing/gateway/status", {
     cache: "no-store",
     credentials: "include",
   });
@@ -58,7 +58,7 @@ async function fetchGatewayStatus(): Promise<GatewayStatusDto> {
 async function initiateGatewaySwitch(
   newProvider: GatewayProvider
 ): Promise<InitiateGatewaySwitchResult> {
-  const res = await fetch("/api/backend/api/billing/gateway/switch", {
+  const res = await fetch("/api/backend/billing/gateway/switch", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -74,7 +74,7 @@ async function initiateGatewaySwitch(
 }
 
 async function cancelGatewaySwitch(): Promise<void> {
-  const res = await fetch("/api/backend/api/billing/gateway/switch", {
+  const res = await fetch("/api/backend/billing/gateway/switch", {
     method: "DELETE",
     credentials: "include",
   });
@@ -154,7 +154,7 @@ export function useAvailablePlans() {
   return useQuery({
     queryKey: ["billing", "plans"],
     queryFn: async (): Promise<BillingPlan[]> => {
-      const res = await fetch("/api/backend/api/billing/plans", {
+      const res = await fetch("/api/backend/billing/plans", {
         cache: "no-store",
       });
       if (!res.ok) throw new Error("Failed to fetch plans");
@@ -176,7 +176,7 @@ export function useAvailablePlans() {
 export function useCheckout() {
   return useMutation({
     mutationFn: async (params: { gatewayProvider: GatewayProvider }): Promise<{ url: string }> => {
-      const res = await fetch("/api/backend/api/billing/checkout", {
+      const res = await fetch("/api/backend/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -207,7 +207,7 @@ export function useCheckout() {
 export function useBillingPortal() {
   return useMutation({
     mutationFn: async (): Promise<{ url: string }> => {
-      const res = await fetch("/api/backend/api/billing/portal", {
+      const res = await fetch("/api/backend/billing/portal", {
         credentials: "include",
       });
       if (!res.ok) {

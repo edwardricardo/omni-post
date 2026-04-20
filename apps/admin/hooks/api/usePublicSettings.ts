@@ -29,7 +29,7 @@ export function usePublicSettings() {
   return useQuery({
     queryKey: ["settings", "public"],
     queryFn: async () => {
-      const res = await fetch("/api/backend/api/settings/public");
+      const res = await fetch("/api/backend/settings/public");
       if (!res.ok) throw new Error("Failed to load platform settings");
       const json = await res.json();
       return json.data as PublicPlatformSettings;

@@ -81,7 +81,7 @@ export function useAnalytics(timeRange: "7d" | "30d" | "90d" = "30d") {
 
       // Fetch all 3 sources in parallel
       const [analytics, dashboard, billing] = await Promise.all([
-        fetchJSON(`/api/backend/api/admin/analytics/metrics?${params.toString()}`),
+        fetchJSON(`/api/backend/admin/analytics/metrics?${params.toString()}`),
         fetchJSON("/api/backend/admin/dashboard/stats"),
         fetchJSON("/api/backend/admin/billing/stats"),
       ]);

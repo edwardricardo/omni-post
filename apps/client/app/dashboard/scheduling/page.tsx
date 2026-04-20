@@ -44,7 +44,7 @@ export default function SchedulingPage() {
 
     (async () => {
       try {
-        const res = await fetch("/api/backend/api/analytics/optimal-times", {
+        const res = await fetch("/api/backend/analytics/optimal-times", {
           credentials: "include",
         });
         if (!res.ok) return;
@@ -69,7 +69,7 @@ export default function SchedulingPage() {
 
     (async () => {
       try {
-        const res = await fetch("/api/backend/api/scheduling/slots", {
+        const res = await fetch("/api/backend/scheduling/slots", {
           credentials: "include",
         });
         if (!res.ok) return;
@@ -97,7 +97,7 @@ export default function SchedulingPage() {
       interval: number
     ) => {
       try {
-        const res = await fetch("/api/backend/api/scheduling/slots/bulk", {
+        const res = await fetch("/api/backend/scheduling/slots/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -142,7 +142,7 @@ export default function SchedulingPage() {
     if (!platforms) return;
 
     try {
-      const res = await fetch("/api/backend/api/scheduling/slots", {
+      const res = await fetch("/api/backend/scheduling/slots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -173,7 +173,7 @@ export default function SchedulingPage() {
     if (!name) return;
 
     try {
-      const res = await fetch(`/api/backend/api/scheduling/slots/${ruleId}`, {
+      const res = await fetch(`/api/backend/scheduling/slots/${ruleId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -195,7 +195,7 @@ export default function SchedulingPage() {
   // C8: Toggle rule handler
   const handleToggleRule = useCallback(async (ruleId: string, active: boolean) => {
     try {
-      const res = await fetch(`/api/backend/api/scheduling/slots/${ruleId}`, {
+      const res = await fetch(`/api/backend/scheduling/slots/${ruleId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

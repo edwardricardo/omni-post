@@ -50,7 +50,7 @@ export function useWebhookMetrics(timeRange: string, selectedProvider?: string) 
         ...(selectedProvider && selectedProvider !== "all" && { provider: selectedProvider }),
       });
 
-      const response = await fetch(`/api/backend/api/webhooks/dashboard/metrics?${params}`, {
+      const response = await fetch(`/api/backend/webhooks/dashboard/metrics?${params}`, {
         credentials: "include",
       });
 
@@ -80,7 +80,7 @@ export function useDlqMetrics() {
   return useQuery({
     queryKey: ["dlq", "metrics"],
     queryFn: async () => {
-      const res = await fetch("/api/backend/api/webhooks/dashboard/dead-letter/metrics", {
+      const res = await fetch("/api/backend/webhooks/dashboard/dead-letter/metrics", {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch DLQ metrics");
@@ -103,10 +103,9 @@ export function useOutboxDeadLetter(page = 1, limit = 20) {
   return useQuery({
     queryKey: ["outbox", "dead-letter", page, limit],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/backend/api/admin/outbox/dead-letter?page=${page}&limit=${limit}`,
-        { credentials: "include" }
-      );
+      const res = await fetch(`/api/backend/admin/outbox/dead-letter?page=${page}&limit=${limit}`, {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Failed to fetch outbox DLQ");
       const json = await res.json();
       return json.data;
@@ -124,7 +123,7 @@ export function useRetryOutboxDlq() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/backend/api/admin/outbox/dead-letter/${id}/retry`, {
+      const res = await fetch(`/api/backend/admin/outbox/dead-letter/${id}/retry`, {
         method: "POST",
         credentials: "include",
       });
@@ -145,7 +144,7 @@ export function useResolveOutboxDlq() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/backend/api/admin/outbox/dead-letter/${id}/resolve`, {
+      const res = await fetch(`/api/backend/admin/outbox/dead-letter/${id}/resolve`, {
         method: "POST",
         credentials: "include",
       });
