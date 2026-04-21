@@ -533,6 +533,8 @@ Cache a nivel módulo persiste entre tests, no es injectable, no es clearable ex
 **Severidad estimada:** medio
 **Acción propuesta:** Consolidación en un ProviderService unificado + DI.
 
+**D0v4-7 additions:** 5-way overlap confirmed (supersede via **L-386**). `apps/api/src/providers/{providerAdapter.interface, providerCapabilityManager, providerConstraintValidator}.ts` 1,440 LOC duplicate + PlatformContentAdapter\* 6-file family. RESOLUTION via consolidation to `@providers/shared` + `@ports/core`. Severidad escalada a **CRITICAL** (post D0v4-7 L-386 replaces L-14 scope expansion).
+
 ### 2026-04-20 — L-15: `application/ml/*` viola hexagonal (import de AIService concreto)
 
 **Encontrado durante:** D0v4-1 Batch 8
@@ -2470,6 +2472,8 @@ Per Edward CP1 individual:
 
 **D0v4-6 additions:** admin B3 añade **31 mutations adicionales sin onError** en 20 hooks admin. Total cross-app ahora **~87 mutations** sin `onError`. Hooks admin: `useAccounts`, `useAccountSessions`, `useAdminUsers` (3), `useAdminPasswordReset`, `useAnalytics`, `useChangePassword`, `useCompliance` (5), `useContentLibrary`, `useGatewaySwitches` (2), `useMfa` (2), `useMultiPlatformScheduling` (2), `useNotifications`, `usePricingTiers` (4), `useQueueManagement`, `useResetAccountPassword`, `useSecurity` (2), `useSettings` (2), `useSubscriptionMutations` (2), `useWebhooks` (3). Cuando se fix L-336 (QueryProvider cross-app L-70 equivalent admin), esto debería propagarse automáticamente.
 
+**D0v4-7 additions:** packages level clean. Per-mutation `onError` composite remains frontend-app-level responsibility. `packages/shared/cqrs` interfaces N/A (server-side). `packages/ui` mutation surface audited — any mutation ocurre en hook consumido por admin/client, nunca dentro de `@ui` directamente (consistency with leaf UI pattern). No new entries desde packages layer.
+
 ---
 
 ### 2026-04-20 — L-261: Path inconsistency hooks/api/ — 3 fetches sin `/backend/`
@@ -2699,6 +2703,8 @@ Ver L-261 #3.
 
 **Severidad estimada:** medio
 **Acción propuesta:** Normalize todos a `domain`/`application`/`infrastructure`. Components UI → `infrastructure`. Utility libs → `infrastructure`. Hooks que wrap raw fetch → `infrastructure`.
+
+**D0v4-7 additions:** packages-level `@layer` drift — `packages/shared/logger` header drift observed (console-based + no `@layer` normalization). B3 composite **L-388** 38 providers files missing `@file`. B5 **L-527** 17 files missing `@file` en observability + monitoring + api-common. Cross-app composite now **~130 files sin `@file` header** (admin ~40 + apps/api residuales + packages ~90). Fix path unified en sprint post-auditoría junto con L-388 + L-527.
 
 ---
 
@@ -3161,3 +3167,919 @@ Widget "System Health" muestra `99.97% uptime` a admin real. Replica patrón D0v
 **Descripción:** `generateCaption` returns `Exciting update about ${theme}! 🚀` — si `theme` contiene surrogate pair (emoji multi-byte), truncation al concatenar con string literal + toast render puede romper. Bug en código ORPHAN L-339, irrelevante hasta wire.
 **Severidad estimada:** bajo (bug en dead code)
 **Acción propuesta:** Si L-339 wired → fix; si delete → no action.
+
+---
+
+## Hallazgos durante D0v4-7 Packages Full Audit (L-350..L-527)
+
+### CP0 saga deep-dive L-63 RESOLUTION (REAL confirmado)
+
+CP0 pre-batch deep-dive sobre `@shared/saga` confirma que **L-63 = REAL runtime risk**. El saga `PostPublishingSaga` invoca `sagaCQRSBus.dispatch(CreatePostCommand)` sobre instancia de `CQRSBus` creada fresh y vacía en `apps/api/src/index.ts:529-547`. El primer step mutante falla siempre. Feature visible UI pero backend nunca persiste. Ver §3 del reporte `D0v4_7_PACKAGES_REPORT.md`. Fix obligatorio post-auditoría: wire handlers autoritativos al saga o introducir `PostSagaPort`.
+
+---
+
+### B1 — Core + Ports + Shared (sin saga)
+
+### 2026-04-20 — L-350: `packages/shared/src/client.ts` DEAD_CODE
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** Re-export file sin consumer (4-grep confirmed). Orphan cemetery.
+**Severidad estimada:** alto (dead)
+**Acción propuesta:** Delete.
+
+---
+
+### 2026-04-20 — L-351: `packages/shared/src/templates/types.ts` DEAD_CODE
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** Types sin consumer (4-grep confirmed). Cluster orphan cemetery con L-350.
+**Severidad estimada:** medio (dead)
+**Acción propuesta:** Delete.
+
+---
+
+### 2026-04-20 — L-352: `ProviderLimits` DUP_TYPE_DIVERGENT CRITICAL
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** `@ports/core` tiene rich version con per-provider limits; `@shared/types` tiene lean version básica. Divergencia semántica (no identical). Cualquier rewire cross-package arriesga bug silencioso.
+**Severidad estimada:** crítico
+**Acción propuesta:** Unify — ports versión es SoT. Delete `@shared/types` version + migrate consumers.
+
+---
+
+### 2026-04-20 — L-353: `ProviderId` DUP_TYPE_IDENTICAL (ports vs shared)
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** Mismo type definido en `@ports/core` y `@shared/types`. Identical pero dual-declared.
+**Severidad estimada:** medio
+**Acción propuesta:** Keep en `@shared/types` (donde viven brand types), re-export desde `@ports/core`.
+
+---
+
+### 2026-04-20 — L-354: `ProviderName` NAMING_COLLISION (type vs value)
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** `ProviderName` declarado como type union en un archivo y como const object en otro. Shadow-collision.
+**Severidad estimada:** medio
+**Acción propuesta:** Renombrar const a `PROVIDER_NAMES`.
+
+---
+
+### 2026-04-20 — L-355: I-prefix Crm/Payment interfaces
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** `ICrmAdapter`, `IPaymentProvider` violan CLAUDE.md naming (no I-prefix).
+**Severidad estimada:** bajo (naming)
+**Acción propuesta:** Rename a `CrmAdapter`, `PaymentProvider`.
+
+---
+
+### 2026-04-20 — L-356: `@core/threading` alias drift vs relative paths
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** `tsconfig.base.json` declara path `@core/threading` pero consumers importan con relative path. Scope prefix drift.
+**Severidad estimada:** medio
+**Acción propuesta:** Normalize — replace relative imports with scope alias.
+
+---
+
+### 2026-04-20 — L-357: `SubscriptionTier` deprecated usage
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** Enum `SubscriptionTier` marcado `@deprecated` pero aún consumido en 4 sites.
+**Severidad estimada:** medio
+**Acción propuesta:** Complete migration; delete enum.
+
+---
+
+### 2026-04-20 — L-358: `cqrs.ts`/`analytics.ts`/`orchestration.ts` grab-bag (3 files)
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** 3 archivos en `packages/shared/src/` con mezcla de tipos no-cohesivos (grab-bag). Split en sub-modules.
+**Severidad estimada:** medio
+**Acción propuesta:** Mover tipos a sub-barrels por dominio.
+
+---
+
+### 2026-04-20 — L-359: `planPublication` drops thread silently
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** Helper `planPublication` silenciosamente descarta el parámetro `thread[]` cuando provider adapter no soporta threading. No error + no warn log.
+**Severidad estimada:** alto (silent bug)
+**Acción propuesta:** Log warning + return explicit `ThreadingNotSupportedError`.
+
+---
+
+### 2026-04-20 — L-360: Template types dup
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** Types `Template*` duplicados entre `packages/shared/src/templates/` y `packages/ports/core/templates/`.
+**Severidad estimada:** medio
+**Acción propuesta:** Mover a ports (contract), re-export desde shared.
+
+---
+
+### 2026-04-20 — L-361: Shadowed logger
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** Var `logger` shadowed en closure (inner scope re-declara).
+**Severidad estimada:** medio
+**Acción propuesta:** Rename inner logger.
+
+---
+
+### 2026-04-20 — L-362: RepoPort GOD_INTERFACE CRITICAL
+
+**Encontrado durante:** D0v4-7 B1
+**Descripción:** `packages/ports/core/RepoPort.ts` define un único `Repository<T>` interface de 199 LOC que cubre **8 aggregates distintos** (Post, Channel, User, Account, Saga, etc.). Viola SRP + CQRS (single interface para command + query). Tests cross-aggregate se vuelven frágiles.
+**Severidad estimada:** crítico (arquitectura)
+**Acción propuesta:** Split per aggregate + CQRS separation (`PostCommandRepo` vs `PostQueryRepo` vs `PostOutboxRepo`). Effort ~48h.
+
+---
+
+### B2 — Adapters
+
+### 2026-04-20 — L-363: queue-bullmq L32/L51/L180 hardcoded + `_opts` ignored
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** `packages/adapters/queue-bullmq/src/BullMQQueueAdapter.ts` L32 `const queueName = QUEUES.PUBLISH`, L51 `new Queue(queueName, ...)`, L180 `this.queue = new Queue(QUEUES.PUBLISH, ...)` — todos hardcoded. `_opts` parameter received but ignored. Cualquier caller a `queue.add(otherQueueName, ...)` termina en PUBLISH. Workers analytics+inbox funcionan por accidente (mismo processor). **L-61 REAL confirmed**.
+**Severidad estimada:** crítico
+**Acción propuesta:** Parametrize `queueName` via constructor + respect `_opts`.
+
+---
+
+### 2026-04-20 — L-364: cache-redis fastify boundary leak CRITICAL
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** `packages/adapters/cache-redis/src/*` importa `fastify` para middleware helper. Infrastructure adapter acoplado a framework. Cross-compound con L-483.
+**Severidad estimada:** crítico (hexagonal)
+**Acción propuesta:** Split — core adapter en `@adapters/cache-redis` puro; middleware a `apps/api/_shared/`.
+
+---
+
+### 2026-04-20 — L-365: cloudinary runtime bug L192 (en ORPHAN)
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** `packages/adapters/storage-cloudinary/src/*` L192 bug runtime (argument shape incorrect). Adapter ORPHAN (L-368 overlap consumer) — bug irrelevante hasta wire.
+**Severidad estimada:** alto (bug en dead)
+**Acción propuesta:** Fix si Edward decide wire; delete si no. Esperar post-auditoría.
+
+---
+
+### 2026-04-20 — L-366: `@adapters/storage-azure` ORPHAN
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** 456 LOC. 4-grep confirmed NO consumer. Orphan cemetery.
+**Severidad estimada:** alto
+**Acción propuesta:** Edward decide wire vs delete.
+
+---
+
+### 2026-04-20 — L-367: `@adapters/storage-gcs` ORPHAN
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** 445 LOC. ORPHAN.
+**Severidad estimada:** alto
+**Acción propuesta:** Edward decide wire vs delete.
+
+---
+
+### 2026-04-20 — L-368: opossum 3-way version drift + central monitor DEAD_SCAFFOLD (promoted composite)
+
+**Encontrado durante:** D0v4-7 B2 + B5 (cross-ref L-473/L-506)
+**Descripción:** `opossum` lib tiene 3 declaraciones con versiones inconsistentes: (1) `@monitoring/circuit-breaker/package.json`, (2) `apps/api/package.json` (via consumer), (3) un third re-declaration en adapter internal. Upgrade path tripartito. **D0v4-7 UPGRADE:** `@monitoring/circuit-breaker` central monitor es **95% DEAD SCAFFOLD** (L-506) — `updateMetrics()` nunca llamado desde producción. Double consolidation required: unify versions + wire or delete monitor.
+**Severidad estimada:** alto
+**Acción propuesta:** (1) Consolidar opossum a single declaration. (2) Decidir wire-or-delete monitor. Ver L-473 + L-506.
+
+---
+
+### 2026-04-20 — L-369: `@adapters/crm-salesforce` ORPHAN
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** 293 LOC. ORPHAN.
+**Severidad estimada:** alto
+**Acción propuesta:** Edward decide wire vs delete.
+
+---
+
+### 2026-04-20 — L-370: `@adapters/storage-do-spaces` ORPHAN
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** 198 LOC. ORPHAN.
+**Severidad estimada:** alto
+**Acción propuesta:** Edward decide wire vs delete.
+
+---
+
+### 2026-04-20 — L-371: `@adapters/crm-hubspot` ORPHAN
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** 267 LOC. ORPHAN.
+**Severidad estimada:** alto
+**Acción propuesta:** Edward decide wire vs delete.
+
+---
+
+### 2026-04-20 — L-372: `@adapters/db-prisma` missing typed export
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** Sub-barrel exporta clase pero no tipos acompañantes.
+**Severidad estimada:** bajo
+**Acción propuesta:** Add type re-exports.
+
+---
+
+### 2026-04-20 — L-373: Storage 0.0.x version placeholders (3 packages)
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** `@adapters/storage-s3`, `@adapters/storage-azure`, `@adapters/storage-gcs` todas con `version: "0.0.1"` placeholder.
+**Severidad estimada:** medio
+**Acción propuesta:** Versioning policy — sync cross-packages.
+
+---
+
+### 2026-04-20 — L-374: opossum version drift
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** Sub-finding L-368 — specific versions drift en opossum declarations.
+**Severidad estimada:** medio
+**Acción propuesta:** Ver L-368.
+
+---
+
+### 2026-04-20 — L-375: SubscriptionTier deprecation unremoved
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** Re-confirma L-357 desde package.json audit — consumers aún listados.
+**Severidad estimada:** bajo
+**Acción propuesta:** Ver L-357.
+
+---
+
+### 2026-04-20 — L-376: queue-bullmq test mocks
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** Test mocks en tests/ usan old API shape post-L-363 fix.
+**Severidad estimada:** bajo
+**Acción propuesta:** Update mocks cuando L-363 se fix.
+
+---
+
+### 2026-04-20 — L-377: cache-redis TTL defaults hardcoded
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** Default TTL 3600s hardcoded.
+**Severidad estimada:** bajo
+**Acción propuesta:** Env var `CACHE_TTL_DEFAULT`.
+
+---
+
+### 2026-04-20 — L-378: storage-s3 bucket fallback
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** Default bucket name `"omnipost-media"` hardcoded fallback.
+**Severidad estimada:** bajo
+**Acción propuesta:** Require env var, no fallback.
+
+---
+
+### 2026-04-20 — L-379: Missing exports in sub-barrels
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** Varios `index.ts` sub-barrels no re-exportan todos los tipos necesarios. Fuerza imports deep-path.
+**Severidad estimada:** medio
+**Acción propuesta:** Add re-exports.
+
+---
+
+### 2026-04-20 — L-380: queue-bullmq `concurrency` ignored
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** `concurrency` option en `_opts` ignored (parte de L-363).
+**Severidad estimada:** medio
+**Acción propuesta:** Ver L-363.
+
+---
+
+### 2026-04-20 — L-381: cache-redis missing health check
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** No `ping()` method exposed via port.
+**Severidad estimada:** medio
+**Acción propuesta:** Add healthcheck method.
+
+---
+
+### 2026-04-20 — L-382: db-prisma logger integration
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** Logger no inyectado — usa console en errores.
+**Severidad estimada:** bajo
+**Acción propuesta:** Inject `LoggerPort`.
+
+---
+
+### 2026-04-20 — L-383: queue-bullmq DLQ wiring no official
+
+**Encontrado durante:** D0v4-7 B2
+**Descripción:** DLQ handling ad-hoc (no port-based).
+**Severidad estimada:** medio
+**Acción propuesta:** Formalize DLQ port.
+
+---
+
+### B3 — Providers
+
+### 2026-04-20 — L-384: `AbstractProviderAdapter` dynamic db-prisma import CRITICAL
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** `packages/providers/shared/src/AbstractProviderAdapter.ts:176` `await import("@adapters/db-prisma")` dynamic import. Provider layer acoplado a DB adapter concreto (hexagonal boundary breach). Adapters deben acceder credenciales vía port.
+**Severidad estimada:** crítico
+**Acción propuesta:** Inject `CredentialsPort` en constructor. Remove dynamic import.
+
+---
+
+### 2026-04-20 — L-385: Instagram worker-layer en package CRITICAL
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** `packages/providers/instagram/src/publishingWorker.ts` + `schedulingService.ts` contienen código de capa worker (setInterval loops, job dispatching). Provider package ≠ worker package. Viola SRP + deployment boundary (workers se redeplogan separados de api).
+**Severidad estimada:** crítico
+**Acción propuesta:** Move a `apps/workers/providers/instagram/`.
+
+---
+
+### 2026-04-20 — L-386: L-14 upgrade 5-way (1,440 LOC apps/api duplicate) CRITICAL
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** L-14 triple overlap revela ser 5-way. 1,440 LOC en `apps/api/src/providers/` son duplicate de `@providers/shared` SoT. Files: `providerAdapter.interface.ts` 474 + `providerCapabilityManager.ts` 497 + `providerConstraintValidator.ts` 469.
+**Severidad estimada:** crítico
+**Acción propuesta:** Delete apps/api/src/providers/\* + migrate consumers a `@providers/shared`. Supersede L-14.
+
+---
+
+### 2026-04-20 — L-387: Relative path threadPlanner
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** Provider package importa helper `threadPlanner` vía relative path en vez de alias.
+**Severidad estimada:** medio
+**Acción propuesta:** Use `@core/threading`.
+
+---
+
+### 2026-04-20 — L-388: `@file` composite 38 providers files
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** 38 archivos en providers/ sin `@file` JSDoc header. Composite finding. Extiende L-298.
+**Severidad estimada:** medio
+**Acción propuesta:** Add `@file` headers.
+
+---
+
+### 2026-04-20 — L-389: `_template` deprecated pattern
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** `packages/providers/_template/` usa pattern `providerRegistry.register(...)` deprecated. Intentional scaffolding but pattern outdated.
+**Severidad estimada:** medio
+**Acción propuesta:** Update template a pattern actual.
+
+---
+
+### 2026-04-20 — L-390: tiktok axios version drift
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** `@providers/tiktok/package.json` axios version ≠ siblings.
+**Severidad estimada:** medio
+**Acción propuesta:** Align.
+
+---
+
+### 2026-04-20 — L-391: telegram missing `@observability/logger` dep
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** `@providers/telegram` consume logger vía raw pino import.
+**Severidad estimada:** medio
+**Acción propuesta:** Add dep + use port.
+
+---
+
+### 2026-04-20 — L-392: `@providers/shared` `@types/node` drift
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** `@types/node` versión ≠ monorepo root.
+**Severidad estimada:** medio
+**Acción propuesta:** Align.
+
+---
+
+### 2026-04-20 — L-393: tiktok missing devDeps
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** Missing `vitest`, `@types/*` devDeps.
+**Severidad estimada:** medio
+**Acción propuesta:** Add devDeps.
+
+---
+
+### 2026-04-20 — L-394..L-436: 43 providers R11 lenient (individuales)
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** 43 archivos providers >400 LOC (R11 lenient violation).
+
+**Top 10 (cada uno finding individual):**
+
+| L-#   | File                             | LOC |
+| ----- | -------------------------------- | --- |
+| L-394 | youtube/communityFeatures.ts     | 752 |
+| L-395 | youtube/apiClient.ts             | 745 |
+| L-396 | youtube/liveStreaming.ts         | 690 |
+| L-397 | facebook/reels.ts                | 681 |
+| L-398 | facebook/community.ts            | 672 |
+| L-399 | telegram/apiClient.ts            | 670 |
+| L-400 | facebook/apiClient.ts            | 667 |
+| L-401 | instagram/publishingWorker.ts    | 663 |
+| L-402 | tiktok/contentAnalyticsClient.ts | 658 |
+| L-403 | instagram/InstagramAdapter.ts    | 620 |
+
+**L-404..L-436:** 33 archivos adicionales 400-620 LOC (full list en `D0v4_7_PACKAGES_REPORT.md` §8).
+
+**Severidad estimada (cada uno):** medio
+**Acción propuesta:** Split helper functions a sub-modules.
+
+---
+
+### 2026-04-20 — L-437: bluesky import after export
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** `@providers/bluesky/src/index.ts` import aparece después de re-export statement.
+**Severidad estimada:** medio
+**Acción propuesta:** Reorder.
+
+---
+
+### 2026-04-20 — L-438: shared re-export dup a types
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** `@shared/src/index.ts` re-exports tipos que también vienen de `@shared/types`. Dup path.
+**Severidad estimada:** medio
+**Acción propuesta:** Consolidate.
+
+---
+
+### 2026-04-20 — L-439: `@providers/instagram` raw pino (not via port)
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** `AbstractProviderAdapter` + Instagram adapter usan `import pino from "pino"` directo. Debe usar `LoggerPort`.
+**Severidad estimada:** alto
+**Acción propuesta:** Inject logger.
+
+---
+
+### 2026-04-20 — L-440: `ProviderUtils` unreachable branch
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** Dead branch en switch cover-all.
+**Severidad estimada:** bajo
+**Acción propuesta:** Remove branch.
+
+---
+
+### 2026-04-20 — L-441: apiClient boilerplate 11-way consolidation opportunity
+
+**Encontrado durante:** D0v4-7 B3
+**Descripción:** 11 providers replican mismo pattern de HTTP client wrapper (auth header + retry + error mapping). ~200 LOC cada = 2,200 LOC duplicate.
+**Severidad estimada:** medio
+**Acción propuesta:** Extract `@providers/shared/apiClient` base class.
+
+---
+
+### B4 — Packages/UI
+
+### 2026-04-20 — L-442: `usePublishingEngine` ORPHAN (272 LOC) CRITICAL
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** `packages/ui/hooks/usePublishingEngine.ts` 272 LOC. 4-grep confirmed NO consumer admin ni client. Dead scaffolding para feature never shipped.
+**Severidad estimada:** crítico (ORPHAN large)
+**Acción propuesta:** Edward decide wire vs delete. Si wire → pair con content editor chain L-444.
+
+---
+
+### 2026-04-20 — L-443: `useProviderConstraints` ORPHAN (215 LOC) CRITICAL
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** 215 LOC. ORPHAN + hardcoded API URL (L-446). Dead scaffolding.
+**Severidad estimada:** crítico
+**Acción propuesta:** Edward decide wire vs delete.
+
+---
+
+### 2026-04-20 — L-444..L-453: 10 editor chain ORPHAN CRITICAL (individuales)
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Editor chain 10 archivos ~2,515 LOC ORPHAN:
+
+| L-#   | File                    | LOC  |
+| ----- | ----------------------- | ---- |
+| L-444 | TipTapContentEditor     | 359  |
+| L-445 | ValidationContentEditor | 261  |
+| L-446 | ContentVersioning       | 299  |
+| L-447 | VersionCompactView      | 344  |
+| L-448 | VersionTimelineView     | 287  |
+| L-449 | VersionCompareView      | ~220 |
+| L-450 | VersionDetailDialog     | ~180 |
+| L-451 | VersionRestoreDialog    | ~140 |
+| L-452 | VersionFilterBar        | ~110 |
+| L-453 | useContentVersioning    | 316  |
+
+**Severidad estimada (cada uno):** crítico
+**Acción propuesta:** Edward decide wire (content editor feature) vs delete.
+
+---
+
+### 2026-04-20 — L-454: `useVirtualScroll` + memo HOC ORPHAN
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Hook + HOC utility no consumidos.
+**Severidad estimada:** alto
+**Acción propuesta:** Delete si no wire planificado.
+
+---
+
+### 2026-04-20 — L-455: BOUNDARY_LEAK useProviderConstraints hardcoded API URL CRITICAL
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** `useProviderConstraints` contiene `const API_URL = "http://..."` hardcoded. UI layer no puede hardcodear API endpoint. Violation.
+**Severidad estimada:** crítico
+**Acción propuesta:** Inject API function via hook argument or context.
+
+---
+
+### 2026-04-20 — L-456..L-469: 14 UI R11 individuales
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** 14 archivos UI >200 LOC (R11 strict):
+
+| L-#   | File                    | LOC |
+| ----- | ----------------------- | --- |
+| L-456 | useContentEditor        | 492 |
+| L-457 | VirtualScrollList       | 405 |
+| L-458 | ContentEditorCore       | 393 |
+| L-459 | TipTapContentEditor     | 359 |
+| L-460 | VersionCompactView      | 344 |
+| L-461 | useContentVersioning    | 316 |
+| L-462 | ContentVersioning       | 299 |
+| L-463 | contentVersioningTypes  | 299 |
+| L-464 | VersionTimelineView     | 287 |
+| L-465 | contentEditorTypes      | 275 |
+| L-466 | usePublishingEngine     | 272 |
+| L-467 | ValidationContentEditor | 261 |
+| L-468 | use-toast               | 229 |
+| L-469 | useProviderConstraints  | 215 |
+
+**Severidad estimada (cada uno):** medio
+**Acción propuesta:** Split helpers.
+
+---
+
+### 2026-04-20 — L-470..L-482: 13 i18n drift UI individuales
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** 13 componentes UI con strings user-facing hardcoded en inglés. Extiende L-296 i18n composite. Componentes: 11 business + VirtualScrollList + use-toast.
+
+**Severidad estimada (cada uno):** medio
+**Acción propuesta:** Externalize i18n keys.
+
+---
+
+### 2026-04-20 — L-483..L-491: Design token drift
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Archivos con colores/spacing hardcoded vs design tokens. Files: 7 Version\* + ValidationContentEditor + VirtualScrollList.
+
+**Severidad estimada (cada uno):** bajo
+**Acción propuesta:** Migrate a Tailwind tokens.
+
+---
+
+### 2026-04-20 — L-492: `formatVersionDate` en-US lock
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Locale hardcoded `"en-US"`.
+**Severidad estimada:** bajo
+**Acción propuesta:** Use user locale.
+
+---
+
+### 2026-04-20 — L-493: VirtualScrollList sprint comment
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Comment `// Added in Sprint 2` viola CLAUDE.md "no sprint references".
+**Severidad estimada:** bajo
+**Acción propuesta:** Remove.
+
+---
+
+### 2026-04-20 — L-494: VirtualScrollList hardcoded emoji
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** UI emoji literal user-facing.
+**Severidad estimada:** bajo
+**Acción propuesta:** Extract.
+
+---
+
+### 2026-04-20 — L-495: `console.error` VirtualScrollList
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Raw `console.error` en producción.
+**Severidad estimada:** medio
+**Acción propuesta:** Use logger port (post L-347 fix).
+
+---
+
+### 2026-04-20 — L-496: `throw new Error` useProviderConstraints
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Raw throw en layer no permitida CLAUDE.md.
+**Severidad estimada:** medio
+**Acción propuesta:** Result type.
+
+---
+
+### 2026-04-20 — L-497: a11y gaps business components
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Componentes business sin ARIA labels ni keyboard handlers.
+**Severidad estimada:** medio
+**Acción propuesta:** Audit a11y pass post-auditoría.
+
+---
+
+### 2026-04-20 — L-498: VirtualScrollList `startTransition` shadowed
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Variable `startTransition` shadowed en closure.
+**Severidad estimada:** bajo
+**Acción propuesta:** Rename.
+
+---
+
+### 2026-04-20 — L-499: tabs.tsx reimplementa Radix
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Custom tabs cuando `@radix-ui/react-tabs` disponible.
+**Severidad estimada:** medio
+**Acción propuesta:** Use Radix.
+
+---
+
+### 2026-04-20 — L-500: progress.tsx missing `aria-valuenow`
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Progress component sin ARIA values.
+**Severidad estimada:** medio
+**Acción propuesta:** Add ARIA.
+
+---
+
+### 2026-04-20 — L-501: separator.tsx missing `role`
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Sin `role="separator"`.
+**Severidad estimada:** medio
+**Acción propuesta:** Add role.
+
+---
+
+### 2026-04-20 — L-502: Empty interface extends
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** `interface Foo extends Bar {}` empty.
+**Severidad estimada:** bajo
+**Acción propuesta:** Use type alias or remove.
+
+---
+
+### 2026-04-20 — L-503: `useContentEditor` exhaustive-deps suppression
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** `// eslint-disable react-hooks/exhaustive-deps` suppression.
+**Severidad estimada:** medio
+**Acción propuesta:** Fix deps array.
+
+---
+
+### 2026-04-20 — L-504: Tailwind safelist missing client CRITICAL
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** `apps/client/tailwind.config.ts` no tiene safelist para dynamic class names usados en runtime. Riesgo build con classes purged. `apps/admin` sí tiene safelist.
+**Severidad estimada:** crítico (build risk)
+**Acción propuesta:** Add safelist equivalent a admin.
+
+---
+
+### 2026-04-20 — L-505: Tailwind safelist duplication candidate
+
+**Encontrado durante:** D0v4-7 B4
+**Descripción:** Admin safelist duplicable a client. Candidato extract shared.
+**Severidad estimada:** bajo
+**Acción propuesta:** Extract a `packages/ui/tailwind-safelist.ts`.
+
+---
+
+### B5 — Observability + Monitoring + API-Common
+
+### 2026-04-20 — L-506: `@monitoring/circuit-breaker` central monitor 95% DEAD CRITICAL (cross-ref L-368)
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Package entero diseñado alrededor de central monitor (`updateMetrics`, `getStatus`, health aggregation) pero `updateMetrics()` **nunca se llama** desde producción (solo desde tests). 3 opossum breakers en apps/api **jamás feed** el monitor. Apps/api `_circuitBreakerMonitor` = stub sin datos. 95% del package es dead scaffolding.
+**Severidad estimada:** crítico
+**Acción propuesta:** Decidir wire (inject opossum breakers) o delete package. Cross-ref L-368 + L-517 + L-521.
+
+---
+
+### 2026-04-20 — L-507: `@api-common` BaseRouteHandler Fastify import CRITICAL (cross-ref L-364)
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** `packages/api-common/src/BaseRouteHandler.ts` importa `FastifyRequest`/`FastifyReply` directamente. 75 consumers apps/api. Second boundary leak (primer fue cache-redis L-364).
+**Severidad estimada:** crítico (hexagonal)
+**Acción propuesta:** Relocate a `apps/api/_shared/` o abstract via framework-neutral `RouteContext` interface.
+
+---
+
+### 2026-04-20 — L-508: OTel 9 `any` leak
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** 9 `any` en `@observability/otel` instrumentation code. Viola CLAUDE.md zero-any.
+**Severidad estimada:** alto
+**Acción propuesta:** Narrow types.
+
+---
+
+### 2026-04-20 — L-509: OTel fs instrumentation doubled
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** `fs` instrumentation registered twice.
+**Severidad estimada:** medio
+**Acción propuesta:** De-dup.
+
+---
+
+### 2026-04-20 — L-510: `CorrelationTracker` `setInterval` no cleanup
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** `setInterval` sin `clearInterval` on shutdown. Leak.
+**Severidad estimada:** alto
+**Acción propuesta:** Add shutdown hook.
+
+---
+
+### 2026-04-20 — L-511: `CorrelationTracker` singleton DI violation
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Module-level singleton `export const tracker = new CorrelationTracker()`. Debe ser DI registered.
+**Severidad estimada:** alto
+**Acción propuesta:** Move a Container.
+
+---
+
+### 2026-04-20 — L-512: `ContextPropagation` span leak
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Spans no cerrados en catch branches.
+**Severidad estimada:** medio
+**Acción propuesta:** Use finally.
+
+---
+
+### 2026-04-20 — L-513: OTel `PublishingInstrumentation` name drift
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Span names drift vs OTel semantic conventions.
+**Severidad estimada:** medio
+**Acción propuesta:** Align a semantic conventions.
+
+---
+
+### 2026-04-20 — L-514: workers telemetry 3x `any`
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** 3 `any` en workers telemetry code.
+**Severidad estimada:** alto
+**Acción propuesta:** Narrow types.
+
+---
+
+### 2026-04-20 — L-515: `DatabaseHealthChecker` `listAccounts` probe
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Health check ejecuta full `listAccounts` en vez de lightweight `SELECT 1`.
+**Severidad estimada:** medio
+**Acción propuesta:** Use `prisma.$queryRaw\`SELECT 1\``.
+
+---
+
+### 2026-04-20 — L-516: `StorageHealthChecker` SigV4 generation
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** SigV4 generation side-effect on health check — expensive + unnecessary.
+**Severidad estimada:** medio
+**Acción propuesta:** Replace con lightweight head request.
+
+---
+
+### 2026-04-20 — L-517: `checkers/circuitBreaker.ts` dead (paired L-473)
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Checker depende de monitor L-473 — si monitor dead, checker no produce signal útil.
+**Severidad estimada:** alto
+**Acción propuesta:** Fix L-473 or delete.
+
+---
+
+### 2026-04-20 — L-518: `tenantHealth.ts` `channels[]` empty hardcoded
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** `tenantHealth.ts` retorna `channels: []` hardcoded.
+**Severidad estimada:** medio
+**Acción propuesta:** Query real data.
+
+---
+
+### 2026-04-20 — L-519: `tenantHealth.ts` `tenant_id="system"` label
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Metric label usa `"system"` placeholder.
+**Severidad estimada:** bajo
+**Acción propuesta:** Remove or populate real tenant.
+
+---
+
+### 2026-04-20 — L-520: `types.ts` duplicate re-exports
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Dup re-exports en barrel.
+**Severidad estimada:** bajo
+**Acción propuesta:** Consolidate.
+
+---
+
+### 2026-04-20 — L-521: `CircuitBreakerHealthChecker` never registered
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Checker class defined but never `container.register(...)`. Dead.
+**Severidad estimada:** alto
+**Acción propuesta:** Register or delete.
+
+---
+
+### 2026-04-20 — L-522: No `SagaHealthChecker` (L-63 gap)
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Saga es feature crítica — no health checker existe para detectar saga failures. Gap observability. Post L-63 fix obligatorio.
+**Severidad estimada:** alto
+**Acción propuesta:** Implement `SagaHealthChecker` que query saga_state FAILED count últimos N min.
+
+---
+
+### 2026-04-20 — L-523: `QueueHealthChecker` misfiled `redis.ts`
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Queue health checker vive en archivo `redis.ts`. Misfiled.
+**Severidad estimada:** medio
+**Acción propuesta:** Move a `queue.ts`.
+
+---
+
+### 2026-04-20 — L-524: `handleOAuthError` inconsistente con `sendError`
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** `@api-common/handleOAuthError` returns raw object en vez de usar `sendError` helper. Inconsistent error envelope.
+**Severidad estimada:** medio
+**Acción propuesta:** Use `sendError`.
+
+---
+
+### 2026-04-20 — L-525: `verifyWebhookSignature` fake ctx cast
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Helper construye objeto fake Fastify `ctx` via cast `as unknown as FastifyRequest`. Type hack.
+**Severidad estimada:** alto
+**Acción propuesta:** Refactor — pass real request or use framework-neutral signature verifier.
+
+---
+
+### 2026-04-20 — L-526: admin CSV exports bypass safe util
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** Admin CSV export en varios sitios bypass `csvSanitize` helper (CSV injection risk).
+**Severidad estimada:** alto (security)
+**Acción propuesta:** Force all CSV via `@api-common/csvSanitize`.
+
+---
+
+### 2026-04-20 — L-527: 17 files missing `@file` (B5)
+
+**Encontrado durante:** D0v4-7 B5
+**Descripción:** 17 archivos observability/monitoring/api-common sin `@file` JSDoc. Extiende L-388 y L-298.
+**Severidad estimada:** medio
+**Acción propuesta:** Add `@file` headers.
