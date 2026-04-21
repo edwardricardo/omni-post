@@ -535,6 +535,8 @@ Cache a nivel módulo persiste entre tests, no es injectable, no es clearable ex
 
 **D0v4-7 additions:** 5-way overlap confirmed (supersede via **L-386**). `apps/api/src/providers/{providerAdapter.interface, providerCapabilityManager, providerConstraintValidator}.ts` 1,440 LOC duplicate + PlatformContentAdapter\* 6-file family. RESOLUTION via consolidation to `@providers/shared` + `@ports/core`. Severidad escalada a **CRITICAL** (post D0v4-7 L-386 replaces L-14 scope expansion).
 
+**D0v4-8 additions:** cross-ref resolved with billing domain L-538 (Invoice Float precision) + RBAC L-545 (SUPER_ADMIN double source of truth). L-14 se expande como composite conceptual "domain multi-overlap" que abarca providers + billing + RBAC.
+
 ### 2026-04-20 — L-15: `application/ml/*` viola hexagonal (import de AIService concreto)
 
 **Encontrado durante:** D0v4-1 Batch 8
@@ -2474,6 +2476,8 @@ Per Edward CP1 individual:
 
 **D0v4-7 additions:** packages level clean. Per-mutation `onError` composite remains frontend-app-level responsibility. `packages/shared/cqrs` interfaces N/A (server-side). `packages/ui` mutation surface audited — any mutation ocurre en hook consumido por admin/client, nunca dentro de `@ui` directamente (consistency with leaf UI pattern). No new entries desde packages layer.
 
+**D0v4-8 additions:** coverage gap composite expande — `seed.ts` 828 LOC zero test coverage (L-560), root `vitest.config.*` ausente (L-599) → cross-sprint composite "error handling + coverage gap" ahora incluye seed.ts + falta root vitest config. Cuando L-70 + L-336 + L-560 + L-599 se resuelvan conjuntos, la postura de error handling sube de "silenciosa" a "auditable".
+
 ---
 
 ### 2026-04-20 — L-261: Path inconsistency hooks/api/ — 3 fetches sin `/backend/`
@@ -2705,6 +2709,8 @@ Ver L-261 #3.
 **Acción propuesta:** Normalize todos a `domain`/`application`/`infrastructure`. Components UI → `infrastructure`. Utility libs → `infrastructure`. Hooks que wrap raw fetch → `infrastructure`.
 
 **D0v4-7 additions:** packages-level `@layer` drift — `packages/shared/logger` header drift observed (console-based + no `@layer` normalization). B3 composite **L-388** 38 providers files missing `@file`. B5 **L-527** 17 files missing `@file` en observability + monitoring + api-common. Cross-app composite now **~130 files sin `@file` header** (admin ~40 + apps/api residuales + packages ~90). Fix path unified en sprint post-auditoría junto con L-388 + L-527.
+
+**D0v4-8 RESOLVED:** validated via CLAUDE.md fitness function #10 ejecutada B5 → `grep -rn "@layer" apps/api/src/ --include="*.ts" | grep -v "@layer application\|@layer domain\|@layer infrastructure" | wc -l` = **0 invalid @layer values**. Cross-sprint `@layer` drift **CLOSED**. Nota: la sub-parte de `@file` missing (~130 files) sigue abierta — composite L-298 ahora se limita al `@file` header issue; la dimensión `@layer` está resuelta. Ver `D0v4_8_INFRASTRUCTURE_REPORT.md` §11.1 fitness functions table.
 
 ---
 
@@ -3350,6 +3356,8 @@ CP0 pre-batch deep-dive sobre `@shared/saga` confirma que **L-63 = REAL runtime 
 **Descripción:** `opossum` lib tiene 3 declaraciones con versiones inconsistentes: (1) `@monitoring/circuit-breaker/package.json`, (2) `apps/api/package.json` (via consumer), (3) un third re-declaration en adapter internal. Upgrade path tripartito. **D0v4-7 UPGRADE:** `@monitoring/circuit-breaker` central monitor es **95% DEAD SCAFFOLD** (L-506) — `updateMetrics()` nunca llamado desde producción. Double consolidation required: unify versions + wire or delete monitor.
 **Severidad estimada:** alto
 **Acción propuesta:** (1) Consolidar opossum a single declaration. (2) Decidir wire-or-delete monitor. Ver L-473 + L-506.
+
+**D0v4-8 additions:** composite "domain quality" expande — add `PricingCalculator` raw throws (L-643) + Invoice `Float` billing precision (L-538). L-368 ahora abarca circuit breaker + pricing + invoice como cluster "domain/infrastructure quality debt".
 
 ---
 
@@ -4083,3 +4091,869 @@ CP0 pre-batch deep-dive sobre `@shared/saga` confirma que **L-63 = REAL runtime 
 **Descripción:** 17 archivos observability/monitoring/api-common sin `@file` JSDoc. Extiende L-388 y L-298.
 **Severidad estimada:** medio
 **Acción propuesta:** Add `@file` headers.
+
+---
+
+## Hallazgos durante D0v4-8 Infrastructure Audit (L-528..L-647)
+
+Ejecutado 2026-04-20. Scope: ~145 archivos infrastructure (Prisma schema + migrations, seeds, configs root, CI/CD, scripts, Docker, docs, fitness functions). 5 batches + CP0 EventStore deep-dive.
+
+**Ver reporte completo:** `docs/audits/D0v4_8_INFRASTRUCTURE_REPORT.md`
+
+### CP0 EventStore deep-dive — L-41 + L-42 RESOLUTION
+
+Referencia §3 reporte D0v4-8. `stored_events` + `event_snapshots` auditadas binariamente contra `schema.prisma`:
+
+- **L-41 stored_events** — schema divergence REAL confirmado. Raw SQL `CREATE TABLE IF NOT EXISTS` en `apps/api/src/events/EventStore.ts:62-88`, NO declarado en Prisma schema, NO migration track.
+- **L-42 EventSnapshots** — FULL_ORPHAN confirmed. `createSnapshot`/`getSnapshot` en EventStore.ts:291-339 sin caller production.
+
+---
+
+### B1 — Prisma schema + migrations (L-528..L-544)
+
+### 2026-04-20 — L-528: EventStore silent failure catch (CRITICAL)
+
+**Encontrado durante:** D0v4-8 CP0
+**Archivo:** `apps/api/src/events/EventStore.ts:85-87`
+**Descripción:** `catch (error) { /* Table may already exist — silent fail */ }` swallow total. Si `CREATE TABLE` falla por razón distinta a "relation already exists" (permissions, connection, schema conflict), EventStore inicializa sin tabla y el primer `append()` falla en runtime lejos del boot. Observability cero.
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** Inspect error code; swallow solo `42P07`; propagate el resto con LoggerPort.ERROR.
+
+---
+
+### 2026-04-20 — L-529: plan count discrepancy schema ↔ seed
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** `schema.prisma` declara N subscription plans, `seed.ts` crea M (divergencia silenciosa).
+**Severidad estimada:** medio
+**Acción propuesta:** Single source: declarar plans en seed + idempotent seed run.
+
+---
+
+### 2026-04-20 — L-530: `prisma.config.ts` usa `npx` en vez de `pnpm exec`
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** Config bootstrap usa `npx` — viola user feedback `use pnpm not npm`.
+**Severidad estimada:** medio
+**Acción propuesta:** Replace `npx` → `pnpm exec`.
+
+---
+
+### 2026-04-20 — L-531: `.bak` files git-tracked (prisma.config.ts.bak2)
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** `infra/prisma/prisma.config.ts.bak2` en git. Coexiste con L-562 (B2) y L-601 (B3) — 3 `.bak` instances en repo.
+**Severidad estimada:** medio
+**Acción propuesta:** `git rm` + add pattern `*.bak` a `.gitignore`.
+
+---
+
+### 2026-04-20 — L-532: `SHADOW_DATABASE_URL` hardcoded password
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** Shadow DB URL contiene password hardcoded en config file en vez de env var.
+**Severidad estimada:** medio
+**Acción propuesta:** Use `process.env.SHADOW_DATABASE_URL` + documentar en `.env.example`.
+
+---
+
+### 2026-04-20 — L-533: generator no `previewFeatures`
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** Prisma client generator sin `previewFeatures` — pierde features opt-in (metricas, topology, etc.).
+**Severidad estimada:** bajo
+**Acción propuesta:** Evaluar preview features relevantes.
+
+---
+
+### 2026-04-20 — L-534: Composite unique NULL-trap (3 files)
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** 3 modelos con `@@unique([a, b])` donde `b` es nullable — PostgreSQL considera NULLs distintos, unique constraint effectively bypassed si `b = NULL`.
+**Severidad estimada:** alto
+**Acción propuesta:** `@@unique(..., map: "...", where: "...")` partial index OR coerce `b` a non-null.
+
+---
+
+### 2026-04-20 — L-535: CHECK constraints composite (5+ fields)
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** 5+ campos de modelos Prisma sin CHECK constraints declarativos (rango, enum subset, etc.).
+**Severidad estimada:** alto
+**Acción propuesta:** Raw migration con `ALTER TABLE ... ADD CONSTRAINT ... CHECK (...)`.
+
+---
+
+### 2026-04-20 — L-536: Partial indexes missing soft-delete
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** Indexes sobre tablas soft-deletable no filtran `deleted_at IS NULL` — queries contra active-only pagan index bloat.
+**Severidad estimada:** alto
+**Acción propuesta:** Partial indexes `CREATE INDEX ... WHERE deleted_at IS NULL`.
+
+---
+
+### 2026-04-20 — L-537: Rollback docs gap
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** 5 migrations aplicadas — 0 rollback docs. Rollback plan no existe.
+**Severidad estimada:** bajo
+**Acción propuesta:** Doc `docs/deployment/MIGRATION_ROLLBACK.md` per migration.
+
+---
+
+### 2026-04-20 — L-538: Invoice `amount: Float` billing precision (CRITICAL)
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** `model Invoice { amount Float }` — Float para dinero es prohibición financiera universal. Precision loss acumulativa en billing aggregations. Cross-ref L-368 domain quality composite.
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** Migrar `Float` → `Decimal @db.Decimal(19,4)`. Migration con cast + data backfill.
+
+---
+
+### 2026-04-20 — L-539: `DataBreachReport` FK gap
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** `DataBreachReport` referencia tenantId via string pero sin FK declarada.
+**Severidad estimada:** medio
+**Acción propuesta:** Declarar relation `tenant Tenant @relation(...)`.
+
+---
+
+### 2026-04-20 — L-540: `ConsentRecord` FK gap
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** Mismo patrón que L-539 — user reference sin FK.
+**Severidad estimada:** medio
+**Acción propuesta:** Declarar relation + cascade strategy.
+
+---
+
+### 2026-04-20 — L-541: Decimal precision inconsistency
+
+**Encontrado durante:** D0v4-8 B1
+**Descripción:** Decimal fields en distintos modelos usan precisions diferentes (19,4 vs 10,2 vs 12,6). Cross-domain type drift.
+**Severidad estimada:** bajo
+**Acción propuesta:** Standard: money `Decimal @db.Decimal(19,4)`; rates `Decimal @db.Decimal(10,6)`.
+
+---
+
+### 2026-04-20 — L-542: POSITIVE — Baseline schema clean
+
+**Descripción:** 114 modelos naming convention `@@map("snake_case")` consistente, `@id @default(uuid())` uniforme, cascade strategy correcta mayoría.
+
+---
+
+### 2026-04-20 — L-543: POSITIVE — Cascade strategy correct
+
+**Descripción:** FKs majority declaran `onDelete: Cascade` o `Restrict` explícito — no drift.
+
+---
+
+### 2026-04-20 — L-544: POSITIVE — Enum coverage exhaustivo
+
+**Descripción:** 54 enums cover domain states. Permission enum 17/17 intacto PRE-3B.
+
+---
+
+### B2 — Seeds (L-545..L-570)
+
+### 2026-04-20 — L-545: RBAC SUPER_ADMIN double source of truth (CRITICAL)
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** RBAC SUPER_ADMIN definido en dos lugares:
+
+1. `infra/prisma/seed.ts` — 17 permissions hardcoded en super-admin binding
+2. `packages/shared/rbac/roles.ts` (o equiv) — role→permissions mapping
+
+Sincronización manual. Divergence silent si una cambia.
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** Single SoT en `@shared/rbac/roles.ts`. Seed importa desde ahí, no hardcode.
+
+---
+
+### 2026-04-20 — L-546: ADMIN_PASSWORD fallback weak (CRITICAL)
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** `seed.ts` asigna `process.env.ADMIN_PASSWORD ?? "password123"` al super-admin bootstrap. Si env no está set, password default hardcoded. Producción risk.
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** Fail fast si `ADMIN_PASSWORD` missing: `if (!process.env.ADMIN_PASSWORD) throw new Error("ADMIN_PASSWORD required")`.
+
+---
+
+### 2026-04-20 — L-547: HIGH composite seed-mixing
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Bootstrap users + test users + demo accounts en mismo `seed.ts` sin gate `NODE_ENV`. Producción puede recibir demo accounts si seed corre inadvertidamente. Composite absorbe L-548 (bootstrap + test + demo).
+**Severidad estimada:** alto
+**Acción propuesta:** Split: `seed-bootstrap.ts` (always) + `seed-demo.ts` (DEV only, gated).
+
+---
+
+### 2026-04-20 — L-548: absorbed en L-547
+
+Entry reservado — finding absorbido en composite L-547.
+
+---
+
+### 2026-04-20 — L-549: `dev-x` pattern REEMPLAZAR
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Test users `dev-1`, `dev-2`, etc. hardcoded. Factory-based es mejor.
+**Severidad estimada:** bajo
+**Acción propuesta:** Factory `createTestUser({ suffix })`.
+
+---
+
+### 2026-04-20 — L-550: `systemTemplates` reviewable
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Seed declara system templates — contenido reviewable (hardcoded text que podría ser localizable).
+**Severidad estimada:** bajo
+**Acción propuesta:** Evaluar i18n path.
+
+---
+
+### 2026-04-20 — L-551: test accounts un-gated
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Test accounts sin `if (NODE_ENV !== 'production')` guard.
+**Severidad estimada:** medio
+**Acción propuesta:** Gate.
+
+---
+
+### 2026-04-20 — L-552: `console.log` en seed.ts
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Seed usa `console.log` — debería usar LoggerPort o script-level logger.
+**Severidad estimada:** bajo
+**Acción propuesta:** Inject logger.
+
+---
+
+### 2026-04-20 — L-553: `multi-tenant-security.sql` MARK_OBSOLETE
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Script legacy en `infra/prisma/` no referenciado. Candidate delete — Edward CP2 decide MARK_OBSOLETE (mantener hasta revisión).
+**Severidad estimada:** medio
+**Acción propuesta:** Edward decide delete vs wire en review.
+
+---
+
+### 2026-04-20 — L-554: snake_case mismatch
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Algún `@@map` no sigue snake_case convention.
+**Severidad estimada:** bajo
+**Acción propuesta:** Normalize.
+
+---
+
+### 2026-04-20 — L-555: dangling doc ref `performance-monitoring.md`
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Seed o doc referencia `docs/performance-monitoring.md` que no existe.
+**Severidad estimada:** bajo
+**Acción propuesta:** Create o remove ref.
+
+---
+
+### 2026-04-20 — L-556: `@layer test-infrastructure` invalid
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Test utility files usan `@layer test-infrastructure` — no canónico (los 3 permitidos son domain/application/infrastructure).
+**Severidad estimada:** medio
+**Acción propuesta:** Normalize a `infrastructure`.
+
+---
+
+### 2026-04-20 — L-557: wildcard exports `@infra/prisma`
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Barrel `@infra/prisma/index.ts` con `export *` — over-exposes internals.
+**Severidad estimada:** medio
+**Acción propuesta:** Named exports.
+
+---
+
+### 2026-04-20 — L-558: postinstall reproducibility
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** `postinstall: "husky install"` — crea drift en CI (`--frozen-lockfile` + postinstall).
+**Severidad estimada:** bajo
+**Acción propuesta:** Conditional: `test -d .git && husky install || true`.
+
+---
+
+### 2026-04-20 — L-559: seed not in CI
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** No hay `pnpm db:seed` en workflow integration — tests que dependan de seed data corren contra DB vacía.
+**Severidad estimada:** medio
+**Acción propuesta:** Add seed step a `ci.yml` integration job.
+
+---
+
+### 2026-04-20 — L-560: zero test coverage seed.ts
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** seed.ts 828 LOC sin un solo test. Cross-ref L-260 composite.
+**Severidad estimada:** alto
+**Acción propuesta:** Integration tests que validen seed idempotency + user/role/permission count.
+
+---
+
+### 2026-04-20 — L-561: event sourcing bypass seed
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Seed escribe directo a tablas sin emitir domain events — outbox quedaría desincronizado si event sourcing se activa.
+**Severidad estimada:** medio
+**Acción propuesta:** Decidir si seed emite events o se marca como "pre-event-sourcing boundary".
+
+---
+
+### 2026-04-20 — L-562: `.bak` git-tracked (B2 instance)
+
+**Encontrado durante:** D0v4-8 B2
+**Descripción:** Cross-ref L-531 + L-601. Mantener hasta revisión Edward.
+**Severidad estimada:** medio
+**Acción propuesta:** `git rm` + `.gitignore`.
+
+---
+
+### 2026-04-20 — L-563..L-570: POSITIVES
+
+- **L-563** rbac binding completo (17/17 permissions SUPER_ADMIN)
+- **L-564** gdpr consent seed correcto
+- **L-565** bcrypt hashing applied uniform
+- **L-566** idempotency via `upsert` pattern
+- **L-567** ordering constraint-safe (users before profiles, etc.)
+- **L-568** tenant isolation correcta en seeds multi-tenant
+- **L-569** factory pattern parcial (podría extenderse)
+- **L-570** no PII real en seed
+
+---
+
+### B3 — Configs root (L-571..L-615)
+
+### 2026-04-20 — L-571: workspaces npm-style dead config
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** `package.json:workspaces` contiene `["packages/*"]` — npm-style. pnpm ignora y lee `pnpm-workspace.yaml`. Dead config confuso.
+**Severidad estimada:** bajo
+**Acción propuesta:** Remove `workspaces` field.
+
+---
+
+### 2026-04-20 — L-572: pnpm-workspace duplicate `infra/prisma`
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** `pnpm-workspace.yaml` declara `infra/prisma` dos veces.
+**Severidad estimada:** medio
+**Acción propuesta:** Deduplicate.
+
+---
+
+### 2026-04-20 — L-573: tsconfig `@packages/providers` convention drift
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Mayoría de path mappings usa `@providers/*`, uno usa `@packages/providers/*` — inconsistencia.
+**Severidad estimada:** bajo
+**Acción propuesta:** Unificar a `@providers/*`.
+
+---
+
+### 2026-04-20 — L-574: tsconfig missing 6 package paths (HIGH)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** `tsconfig.base.json` falta 6 path mappings: `@adapters/db-prisma`, `@adapters/cache-redis`, `@monitoring/*`, `@observability/*`, `@shared/cqrs`, `@shared/rbac`. Cada consumer los declara localmente — drift.
+**Severidad estimada:** alto
+**Acción propuesta:** Add al base.
+
+---
+
+### 2026-04-20 — L-575: project references 5/40 coverage
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Solo 5 de ~40 packages con `tsconfig.json` declarados en `references` — build incremental broken.
+**Severidad estimada:** medio
+**Acción propuesta:** Audit + add restantes.
+
+---
+
+### 2026-04-20 — L-576: ESLint no `no-console` rule (HIGH composite)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** CLAUDE.md: "zero `console.*` en production code". ESLint no enforza `no-console`.
+**Severidad estimada:** alto
+**Acción propuesta:** Add rule `"no-console": "error"` con overrides para scripts/.
+
+---
+
+### 2026-04-20 — L-577: ESLint no `no-restricted-imports` rule (HIGH composite)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** CLAUDE.md: "Domain imports nothing external". ESLint no restringe imports desde `domain/`.
+**Severidad estimada:** alto
+**Acción propuesta:** `no-restricted-imports` pattern que bloquee prisma/fastify/redis desde `apps/api/src/domain/`.
+
+---
+
+### 2026-04-20 — L-578: ESLint no `no-explicit-any` rule (HIGH composite)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** CLAUDE.md: "Zero `any` en domain/application/infrastructure". ESLint no lo enforza.
+**Severidad estimada:** alto
+**Acción propuesta:** `@typescript-eslint/no-explicit-any: "error"`.
+
+---
+
+### 2026-04-20 — L-579: ESLint no `no-floating-promises` rule (HIGH composite)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Floating promises causan silent failures. ESLint no warning.
+**Severidad estimada:** alto
+**Acción propuesta:** `@typescript-eslint/no-floating-promises: "error"`.
+
+**L-576..L-579 composite conceptual:** "ESLint CLAUDE.md non-compliance" — política declarada pero no enforzada via linter.
+
+---
+
+### 2026-04-20 — L-580: eslint-config-prettier not referenced
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Prettier + ESLint pueden conflict en stylistic rules. eslint-config-prettier disable conflicts — no declarado.
+**Severidad estimada:** bajo
+**Acción propuesta:** Add extends `prettier`.
+
+---
+
+### 2026-04-20 — L-581: turbo env not declared (HIGH)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** `turbo.json` `env` section no declarada — builds no invalidate cache cuando env vars cambian.
+**Severidad estimada:** alto
+**Acción propuesta:** Declarar `env: ["DATABASE_URL", "REDIS_URL", "NODE_ENV", ...]` por task.
+
+---
+
+### 2026-04-20 — L-582: turbo test outputs gap
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** `test` task sin `outputs` — coverage reports regenerate sin cache.
+**Severidad estimada:** medio
+**Acción propuesta:** `outputs: ["coverage/**"]`.
+
+---
+
+### 2026-04-20 — L-583: root `.env.example` 11 vs 80 used (HIGH)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** `.env.example` declara 11 vars, código consume ~80. 87% undocumented. Onboarding broken.
+**Severidad estimada:** alto
+**Acción propuesta:** Auto-gen `.env.example` desde code scan.
+
+---
+
+### 2026-04-20 — L-584: `apps/api/.env.example` TWITTER\_\* ghost (HIGH)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Vars `TWITTER_*` — el provider es `x/*`, rename D0v4-0 no propagó.
+**Severidad estimada:** alto
+**Acción propuesta:** Rename a `X_*`.
+
+---
+
+### 2026-04-20 — L-585: ghost vars second tier
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Vars declaradas en `.env.example` pero no consumidas en código — dead config.
+**Severidad estimada:** medio
+**Acción propuesta:** Audit cross-ref code → declaration.
+
+---
+
+### 2026-04-20 — L-586: double SoT `.env` (HIGH)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** `.env` root + `apps/api/.env` con overlap. Divergence silent.
+**Severidad estimada:** alto
+**Acción propuesta:** Single `.env` root. apps/api leen desde root via `dotenv-cli` o process.env propagation.
+
+---
+
+### 2026-04-20 — L-587: `.gitattributes` missing
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** No LF normalization cross-platform. Windows devs pueden introducir CRLF.
+**Severidad estimada:** bajo
+**Acción propuesta:** Add `.gitattributes` con `* text=auto eol=lf`.
+
+---
+
+### 2026-04-20 — L-588: CODEOWNERS missing
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** No review routing automation.
+**Severidad estimada:** bajo
+**Acción propuesta:** Add `CODEOWNERS`.
+
+---
+
+### 2026-04-20 — L-589: `.gitignore` missing `*.bak` pattern
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Cross-ref L-531/L-562/L-601.
+**Severidad estimada:** bajo
+**Acción propuesta:** Add pattern.
+
+---
+
+### 2026-04-20 — L-590: `.gitignore` missing `pnpm-lock.yaml.baseline`
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Baseline file untracked pero no ignored.
+**Severidad estimada:** bajo
+**Acción propuesta:** Add pattern OR commit baseline.
+
+---
+
+### 2026-04-20 — L-591: `apps/api/.env` git-tracked con secrets reales (CRITICAL)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** `apps/api/.env` está tracked en git (revelado en `git status` como `M .env`) y contiene `DATABASE_URL`, `JWT_SECRET`, provider API keys reales. Seguridad producción comprometida si repo público.
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** (1) `git rm --cached apps/api/.env` (2) rotate ALL secrets (3) add `.env` a `.gitignore` si no está (4) forzar review git history + clear with `bfg` si exposure fue público.
+
+---
+
+### 2026-04-20 — L-592: no `commit-msg` hook
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Husky solo pre-commit — no conventional commits enforcement.
+**Severidad estimada:** medio
+**Acción propuesta:** Add `commit-msg` hook con commitlint.
+
+---
+
+### 2026-04-20 — L-593: no `pre-push` hook
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** No typecheck/test antes de push.
+**Severidad estimada:** medio
+**Acción propuesta:** Add `pre-push` con `pnpm -w typecheck && pnpm -w test`.
+
+---
+
+### 2026-04-20 — L-594: stryker sandbox cleanup failed
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Stryker logs muestran sandbox cleanup failure — disk accumulation.
+**Severidad estimada:** medio
+**Acción propuesta:** Investigate stryker version/config.
+
+---
+
+### 2026-04-20 — L-595: knip no declara ORPHAN packages (HIGH compound L-366..L-370)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** `knip.json` no reporta los 4 adapters ORPHAN que D0v4-7 encontró (CRM-salesforce/storage-do-spaces/crm-hubspot/etc). knip debería flaggearlos.
+**Severidad estimada:** alto
+**Acción propuesta:** Update knip rules OR delete adapters (Edward decide).
+
+---
+
+### 2026-04-20 — L-596: docker-compose no `env_file`
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Envs inline hardcoded.
+**Severidad estimada:** medio
+**Acción propuesta:** `env_file: - .env`.
+
+---
+
+### 2026-04-20 — L-597: port bindings `0.0.0.0` (HIGH)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** docker-compose expone services a LAN. Debe ser `127.0.0.1`.
+**Severidad estimada:** alto
+**Acción propuesta:** Bind `127.0.0.1:PORT:PORT`.
+
+---
+
+### 2026-04-20 — L-598: minio doc drift
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Docs mencionan port distinto al de compose.
+**Severidad estimada:** bajo
+**Acción propuesta:** Unificar.
+
+---
+
+### 2026-04-20 — L-599: root `vitest.config` missing
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Cada workspace declara su propio vitest config — no base compartido. Cross-ref L-260.
+**Severidad estimada:** medio
+**Acción propuesta:** `vitest.config.base.ts` root.
+
+---
+
+### 2026-04-20 — L-600: password123 triple match (HIGH, ESCALATED)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Inline `"password123"` en 3 files (seed.ts + scripts/seed-demo.ts + test-user.ts). **Escalado CRITICAL en B4 como L-623** cuando se encuentra sexto match en workflows.
+**Severidad estimada:** alto (pre-B4) / CRITICAL via L-623
+**Acción propuesta:** Ver L-623.
+
+---
+
+### 2026-04-20 — L-601: `.bak` both filesystem (B3 instance)
+
+**Encontrado durante:** D0v4-8 B3
+**Descripción:** Cross-ref L-531/L-562.
+**Severidad estimada:** medio
+**Acción propuesta:** Ver L-531.
+
+---
+
+### 2026-04-20 — L-602..L-615: POSITIVES
+
+- **L-602** tsconfig `strict: true` uniforme
+- **L-603** Biome no usado (no tool proliferation)
+- **L-604** Husky v9 (latest)
+- **L-605** bcrypt en dependencies (no md5)
+- **L-606** pnpm `--frozen-lockfile` en CI
+- **L-607** prettier minimal
+- **L-608** `.editorconfig` present
+- **L-609** `.nvmrc` present (node lock)
+- **L-610** typescript version modern
+- **L-611** turbo version modern
+- **L-612** no legacy jest config
+- **L-613** zod versions aligned cross-workspace
+- **L-614** pino structured logging adopted
+- **L-615** husky postinstall behind test
+
+---
+
+### B4 — CI/CD + scripts (L-616..L-639)
+
+### 2026-04-20 — L-616: CI/CD broken pipeline composite (CRITICAL)
+
+**Encontrado durante:** D0v4-8 B4
+**Descripción:** Composite absorbe L-617/L-618/L-619/L-620 (NO crear individuales):
+
+1. `security-testing.yml` — 8 dead refs (scripts inexistentes)
+2. `production-ci.yml` — `.eslintrc.security.js` missing
+3. Branch coverage — `Genesis` no triggered por ningún workflow
+4. 27 acciones sin SHA pinning (supply chain risk)
+5. `dependency-updates.yml` — broken jq filters
+
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** REMEDIATION-2 Week 1. Fix cada sub-item.
+
+---
+
+### 2026-04-20 — L-617/L-618/L-619/L-620: absorbed en L-616
+
+Entries reservados — findings absorbidos en composite L-616.
+
+---
+
+### 2026-04-20 — L-621: DEPENDENCY_UPDATE_TOKEN PAT blast radius (HIGH)
+
+**Encontrado durante:** D0v4-8 B4
+**Descripción:** PAT con scope `repo` write — blast radius toda la org/user. Debería ser deploy key o GITHUB_APP token.
+**Severidad estimada:** alto
+**Acción propuesta:** Migrar a GitHub App token (scope restrictivo).
+
+---
+
+### 2026-04-20 — L-622: ci.yml silent test skip (CRITICAL)
+
+**Encontrado durante:** D0v4-8 B4
+**Archivo:** `.github/workflows/ci.yml`
+**Descripción:** `pnpm test || true` — CUALQUIER fallo de test se convierte en success. CI verde aun con 100% tests failing. Safety net roto.
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** Remove `|| true`.
+
+---
+
+### 2026-04-20 — L-623: password123 séxtuple (CRITICAL, cross-sprint)
+
+**Encontrado durante:** D0v4-8 B4 (update L-600 cross-sprint)
+**Descripción:** 6 instances totales:
+
+1. `infra/prisma/seed.ts` (ADMIN_PASSWORD fallback)
+2. `scripts/seed-demo.ts`
+3. `apps/api/tests/integration/helpers/test-user.ts`
+4. `.github/workflows/ci.yml`
+5. `.github/workflows/performance.yml`
+6. `.github/workflows/nightly.yml`
+
+Attacker con acceso a repo tiene password dev+CI environments.
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** Replace con passwords únicos por env, inject via CI secrets.
+
+---
+
+### 2026-04-20 — L-624: seed scripts no compilan (HIGH)
+
+**Encontrado durante:** D0v4-8 B4
+**Descripción:** `scripts/seed-demo.ts` + `scripts/seed-fixtures.ts` no compilan con TS strict (tipos drift post-migrations). Mantener hasta revisión Edward (NO delete).
+**Severidad estimada:** alto
+**Acción propuesta:** Fix types OR archive si Edward decide.
+
+---
+
+### 2026-04-20 — L-625: baseline-capture compilation errors (HIGH)
+
+**Encontrado durante:** D0v4-8 B4
+**Descripción:** `scripts/baseline-capture.ts` 380 LOC con 12 errores TS. Orphan (no corre en CI).
+**Severidad estimada:** alto
+**Acción propuesta:** Fix OR delete.
+
+---
+
+### 2026-04-20 — L-626: orphan chain performance/scripts (HIGH)
+
+**Encontrado durante:** D0v4-8 B4
+**Descripción:** `.github/workflows/performance.yml` referencia `scripts/performance.ts` que NO existe.
+**Severidad estimada:** alto
+**Acción propuesta:** Create script OR remove workflow.
+
+---
+
+### 2026-04-20 — L-627: performance/k6 dir missing (HIGH)
+
+**Encontrado durante:** D0v4-8 B4
+**Descripción:** `performance/k6/*.js` referenced — directorio no existe.
+**Severidad estimada:** alto
+**Acción propuesta:** Ver L-626.
+
+---
+
+### 2026-04-20 — L-628: dependabot assignees literal (HIGH)
+
+**Encontrado durante:** D0v4-8 B4
+**Descripción:** `assignees: ["{{team_lead}}"]` — literal string, no sustitución. Dependabot asigna usuario llamado literalmente `{{team_lead}}`.
+**Severidad estimada:** alto
+**Acción propuesta:** Replace con actual GitHub handle.
+
+---
+
+### 2026-04-20 — L-629: cleanup.yml org account assumption (HIGH)
+
+**Encontrado durante:** D0v4-8 B4
+**Descripción:** Workflow asume org account permissions. User account → 403.
+**Severidad estimada:** alto
+**Acción propuesta:** Remove workflow OR gate `if: ${{ github.event.organization }}`.
+
+---
+
+### 2026-04-20 — L-630: CLAUDE.md fitness functions ausentes CI (CRITICAL)
+
+**Encontrado durante:** D0v4-8 B4
+**Descripción:** CLAUDE.md §"Automated Compliance Checks" declara 10 greps que "must stay at zero". CERO wireados en CI. Política declarada no enforzada. **Ver L-647 escalation B5.**
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** Create `.github/workflows/fitness.yml` que ejecuta 10 greps.
+
+---
+
+### 2026-04-20 — L-631..L-639: MEDIUM misc
+
+- **L-631** secrets naming inconsistency cross-workflows
+- **L-632** timeout defaults too high (some >60min)
+- **L-633** artifact retention not set (default 90d bloats)
+- **L-634** concurrency groups missing (workflow races)
+- **L-635** cache keys brittle (no lockfile hash)
+- **L-636** matrix strategy no fail-fast
+- **L-637** reusable-workflows no aprovechados
+- **L-638** environment protection rules ausentes
+- **L-639** job permissions sin `contents: read` default restrictive
+
+---
+
+### B5 — Docker + docs + fitness + síntesis (L-640..L-647)
+
+### 2026-04-20 — L-640: apps/api/Dockerfile broken shared-base (CRITICAL)
+
+**Encontrado durante:** D0v4-8 B5
+**Archivo:** `apps/api/Dockerfile:8`
+**Descripción:** `FROM omnipost-base:latest AS builder` — imagen `omnipost-base:latest` NO existe en ningún registry, NO construida en CI. `infra/docker/base.Dockerfile` tiene el código pero ningún workflow hace `docker build -t omnipost-base:latest`. API NO DEPLOYABLE via Docker.
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** (1) Crear workflow `build-base-image.yml` que construye + push base antes de apps, O (2) inline-multistage (eliminar shared-base dependency).
+
+---
+
+### 2026-04-20 — L-641: .dockerignore missing (HIGH)
+
+**Encontrado durante:** D0v4-8 B5
+**Descripción:** Root `.dockerignore` ausente → `docker build` copia `node_modules/`, `.env`, `.git/`, `coverage/` al build context. Build 10x slower, image bloated, secrets leakable.
+**Severidad estimada:** alto
+**Acción propuesta:** Add `.dockerignore` exhaustivo.
+
+---
+
+### 2026-04-20 — L-642: Workers Dockerfile single-worker (HIGH)
+
+**Encontrado durante:** D0v4-8 B5
+**Descripción:** `apps/workers/Dockerfile` ENTRYPOINT único corre 3 workers (publish/analytics/inbox) en serie. Producción necesita 3 containers separados con distintos `WORKER_TYPE`. Cross-ref L-65.
+**Severidad estimada:** alto
+**Acción propuesta:** Parametrizar ENTRYPOINT con `WORKER_TYPE` env var OR multi-Dockerfile split.
+
+---
+
+### 2026-04-20 — L-643: PricingCalculator raw throws (MEDIUM)
+
+**Encontrado durante:** D0v4-8 B5
+**Archivo:** `apps/api/src/application/billing/PricingCalculator.ts:150,162` (aprox)
+**Descripción:** Raw `throw new Error(...)` en application layer. CLAUDE.md: "Zero throw en domain/application — use Result<T, DomainError>". Cross-ref L-368 domain quality composite + fitness function #4.
+**Severidad estimada:** medio
+**Acción propuesta:** Refactor a `Result<Output, PricingError>`.
+
+---
+
+### 2026-04-20 — L-644: docs/ taxonomy drift (MEDIUM)
+
+**Encontrado durante:** D0v4-8 B5
+**Descripción:** docs/ tiene 14 subdirs (audits/ + standards/ adicionales) vs CLAUDE.md §Documentation Policy declara 12. Política docs no matchea realidad.
+**Severidad estimada:** medio
+**Acción propuesta:** Edward CP5: mantener en reporte infra hasta revisión. Fix path: update CLAUDE.md tabla con audits/ + standards/.
+
+---
+
+### 2026-04-20 — L-645: Root README.md missing (MEDIUM)
+
+**Encontrado durante:** D0v4-8 B5
+**Descripción:** Repo root sin README.md. Onboarding nuevo contributor sin entry point. Edward CP5: mantener en reporte infra hasta revisión.
+**Severidad estimada:** medio
+**Acción propuesta:** Create README.md con architecture + getting started + docs index.
+
+---
+
+### 2026-04-20 — L-646: docs/standards filenames spaces (LOW)
+
+**Encontrado durante:** D0v4-8 B5
+**Descripción:** `docs/standards/React Component Standards.md` con espacios. Breaks URL anchors, complicates scripts.
+**Severidad estimada:** bajo
+**Acción propuesta:** Rename a kebab-case.
+
+---
+
+### 2026-04-20 — L-647: CI fitness functions completamente ausentes (CRITICAL, escalado CP5)
+
+**Encontrado durante:** D0v4-8 B5
+**Descripción:** Confirmación + escalation de L-630. Los 10 greps CLAUDE.md ejecutados B5 dan resultados concretos (7 PASS / 3 FAIL-soft ver `D0v4_8_INFRASTRUCTURE_REPORT.md` §11). Pero **ninguno corre en CI**. Política declarada sin enforcement = política no existente en la práctica.
+**Severidad estimada:** CRITICAL
+**Acción propuesta:** `.github/workflows/fitness.yml` con los 10 greps. Umbrales iniciales [0,0,8,3,0,0,0,0,130,0] — descender a 0 via sprints REMEDIATION.
+
+---
+
+**Total D0v4-8 nuevos findings:** 120 (L-528..L-647).
+**Cross-sprint composite extensions:** L-14, L-260, L-298 RESOLVED, L-368, L-600 → L-623.
+**CRITICAL escalados D0v4-8:** 13 (L-41, L-42, L-528, L-538, L-545, L-546, L-591, L-616, L-622, L-623, L-630, L-640, L-647).
+
+**Cierre D0v4-8:** 2026-04-20.
+**Tramo D0-v4 CERRADO.** 647 findings totales (L-1..L-647) consolidados.
