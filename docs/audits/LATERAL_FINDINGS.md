@@ -2468,6 +2468,8 @@ Per Edward CP1 individual:
 **Severidad estimada:** medio (composite)
 **Acción propuesta:** Fix L-70 (add MutationCache). Per-mutation onError solo para casos específicos.
 
+**D0v4-6 additions:** admin B3 añade **31 mutations adicionales sin onError** en 20 hooks admin. Total cross-app ahora **~87 mutations** sin `onError`. Hooks admin: `useAccounts`, `useAccountSessions`, `useAdminUsers` (3), `useAdminPasswordReset`, `useAnalytics`, `useChangePassword`, `useCompliance` (5), `useContentLibrary`, `useGatewaySwitches` (2), `useMfa` (2), `useMultiPlatformScheduling` (2), `useNotifications`, `usePricingTiers` (4), `useQueueManagement`, `useResetAccountPassword`, `useSecurity` (2), `useSettings` (2), `useSubscriptionMutations` (2), `useWebhooks` (3). Cuando se fix L-336 (QueryProvider cross-app L-70 equivalent admin), esto debería propagarse automáticamente.
+
 ---
 
 ### 2026-04-20 — L-261: Path inconsistency hooks/api/ — 3 fetches sin `/backend/`
@@ -2527,3 +2529,635 @@ Ver L-261 #3.
 
 **Severidad estimada:** bajo
 **Acción propuesta:** Decompose cuando L-213 + R11 fixed.
+
+---
+
+## Hallazgos durante D0v4-6 Frontend Admin (L-267..L-349)
+
+**Sprint:** D0v4-6 ejecutado 2026-04-20 — 141 archivos admin auditados (app 30 + components 62 + hooks 29 + providers 4 + lib 9 + types 3 + colocated 1 + extras 3). Reporte completo: `docs/audits/D0v4_6_FRONTEND_ADMIN_REPORT.md`.
+
+---
+
+### 2026-04-20 — L-267: `proxy.ts` root-level dead middleware (wrong filename)
+
+**Encontrado durante:** D0v4-6 B1
+**Descripción:** Root-level `apps/admin/proxy.ts` exports `proxy(request)` + `config.matcher` mimicking Next.js middleware syntax pero es silenciosamente ignorado porque Next.js requiere `middleware.ts` con export `middleware`. Stated intent (cookie-based route protection) no se ejecuta — real protection en `app/(dashboard)/layout.tsx` server guard.
+**Severidad estimada:** crítico
+**Acción propuesta:** rename a `middleware.ts` con export `middleware` OR delete entirely.
+
+---
+
+### 2026-04-20 — L-268: `announcements/page.tsx` triple violation composite
+
+**Encontrado durante:** D0v4-6 B1
+**Descripción:** Composite: (1) colocated inline hook con fetch directo en page; (2) mutations PUT/POST/DELETE con raw fetch sin TanStack (no cache, no invalidation); (3) strings hardcoded EN sin i18n. 3 fetches totales (L55, L94, L115).
+**Severidad estimada:** medio
+**Acción propuesta:** Decompose — create `useAnnouncements` hook + mutations con TanStack + i18n.
+
+---
+
+### 2026-04-20 — L-269: Admin metadata gap 0/17 dashboard pages
+
+**Encontrado durante:** D0v4-6 B1
+**Descripción:** Cero pages `(dashboard)/**` con export `metadata` explícito. Next.js default genérico. SEO/UX indirecto en admin (interno, pero tabs de browser vacíos).
+**Severidad estimada:** bajo (SEO/UX)
+**Acción propuesta:** Add `export const metadata = {title: "..."}` por page.
+
+---
+
+### 2026-04-20 — L-270: `loading.tsx` index-as-key antipattern
+
+**Encontrado durante:** D0v4-6 B1
+**Descripción:** `Array.from({length: 5}).map((_, i) => <Skeleton key={i} />)`. React antipattern. Benigno aquí (skeleton estático) pero viola regla general.
+**Severidad estimada:** bajo
+**Acción propuesta:** Use stable keys (`key={` `skeleton-${i}` `}` o similar).
+
+---
+
+### 2026-04-20 — L-271: `error.tsx` exposes `error.message` (security leak)
+
+**Encontrado durante:** D0v4-6 B1
+**Descripción:** Next.js `error.tsx` renders `<pre>{error.message}</pre>`. Si error incluye stack trace, DB error, secrets, o PII → leak al cliente en producción.
+**Severidad estimada:** security
+**Acción propuesta:** Sanitize error + generic user message + log full error server-side.
+
+---
+
+### 2026-04-20 — L-272: proxy route buffers full body
+
+**Encontrado durante:** D0v4-6 B1
+**Descripción:** `app/api/backend/[...path]/route.ts` POST handler: `const body = await request.text();` — buffers todo el request body. No soporta streaming (uploads grandes fallan).
+**Severidad estimada:** bajo (performance)
+**Acción propuesta:** Pipe request body as stream.
+
+---
+
+### 2026-04-20 — L-273: dashboard layout 2-hop redirect chain
+
+**Encontrado durante:** D0v4-6 B1
+**Descripción:** `(dashboard)/layout.tsx` → invalid session → redirect `/login`. `/login/page.tsx` → valid session → redirect `/dashboard`. 2 hops visibles + UX flash.
+**Severidad estimada:** bajo (performance/UX)
+**Acción propuesta:** Consolidar en real middleware post-L-267.
+
+---
+
+### 2026-04-20 — L-274..L-292: R11 size violations components (19 individuales)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** Per Edward CP1 individual (19 files >200 LOC limit):
+
+| #     | File                                  | LOC |
+| ----- | ------------------------------------- | --: |
+| L-274 | `webhooks/DeadLetterQueue.tsx`        | 732 |
+| L-275 | `webhooks/WebhookSubscriptions.tsx`   | 689 |
+| L-276 | `webhooks/WebhookEventsList.tsx`      | 505 |
+| L-277 | `subscriptions/ChangePlanDialog.tsx`  | 488 |
+| L-278 | `security/RbacManager.tsx`            | 481 |
+| L-279 | `shared/SidebarNav.tsx`               | 446 |
+| L-280 | `accounts/AccountBillingPanel.tsx`    | 383 |
+| L-281 | `pricing/ProviderTiersTab.tsx`        | 365 |
+| L-282 | `pricing/AccountTiersTab.tsx`         | 355 |
+| L-283 | `compliance/BreachTable.tsx`          | 354 |
+| L-284 | `maintenance/ScheduledJobsPanel.tsx`  | 350 |
+| L-285 | `compliance/DsarTable.tsx`            | 340 |
+| L-286 | `security/MfaSelfService.tsx`         | 331 |
+| L-287 | `compliance/GdprSettingsForm.tsx`     | 323 |
+| L-288 | `webhooks/WebhookMetrics.tsx`         | 319 |
+| L-289 | `security/MfaManager.tsx`             | 307 |
+| L-290 | `webhooks/WebhookTimeline.tsx`        | 267 |
+| L-291 | `compliance/SecuritySettingsForm.tsx` | 252 |
+| L-292 | `security/PermissionGrid.tsx`         | 215 |
+
+**Severidad estimada** (todos): medio (mantenibilidad)
+**Acción propuesta:** Split por responsabilidad — extract subcomponents, lift sub-hooks.
+
+---
+
+### 2026-04-20 — L-293: `ScheduledJobsPanel` fake-persistence cron (new category)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** Componente renderiza cron jobs estáticos en-memory array + toggle local sin persistencia backend. Usuario ve "job enabled" → reload → vuelve estado inicial. **Nueva categoría fake-persistence** (análogo a fake-AI pero para admin ops). Da impresión de control real donde no hay.
+**Severidad estimada:** crítico
+**Acción propuesta:** Wire a backend `/admin/scheduled-jobs` endpoints (verificar existence) + `useScheduledJobs` hook + persistence.
+
+---
+
+### 2026-04-20 — L-294: `WebhookEventsList` TanStack bypass
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** useState + useEffect + raw `fetch()` 3 veces en un solo componente (events list, event details, export blob). Sin TanStack → no cache, no retry, no invalidation. Backend `webhookRoutes.getEvents` existe.
+**Severidad estimada:** crítico
+**Acción propuesta:** Create `useWebhookEvents(filters)` + `useWebhookEventDetails(id)` + `useExportWebhookEvents()` en `hooks/useWebhooks.ts` (extender, root cause L-327).
+
+---
+
+### 2026-04-20 — L-295: `WebhookSubscriptions` TanStack bypass (5 raw fetches)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** 5 raw fetches en un solo componente: list subs, list projects, create, toggle, delete. useState dispersos + no invalidation cross-operation. Backend endpoints existen.
+**Severidad estimada:** crítico
+**Acción propuesta:** Extend `useWebhooks` con `useWebhookSubscriptions` + mutations (root cause L-327).
+
+---
+
+### 2026-04-20 — L-296: i18n drift composite admin (17 components)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** 17 components con strings hardcoded EN sin next-intl. Notable: `ui/ConfirmDialog.tsx` y `ui/InputDialog.tsx` app-wide consumed — strings "Confirm"/"Cancel"/"OK" hardcoded → drift se propaga a todo admin. Lista: `announcements/page.tsx`, `ui/ConfirmDialog`, `ui/InputDialog`, `webhooks/DeadLetterQueue`, `webhooks/WebhookSubscriptions`, `webhooks/WebhookEventsList`, `subscriptions/ChangePlanDialog`, `security/RbacManager`, `security/MfaManager`, `security/MfaSelfService`, `security/PermissionGrid`, `pricing/ProviderTiersTab`, `pricing/AccountTiersTab`, `compliance/BreachTable`, `compliance/DsarTable`, `maintenance/ScheduledJobsPanel`, `shared/SidebarNav`.
+**Severidad estimada:** crítico (composite)
+**Acción propuesta:** Introduce next-intl messages + refactor gradual. Start con `ui/` components (app-wide consumed).
+
+---
+
+### 2026-04-20 — L-297: default export violation composite (MfaManager + RbacManager)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** 2 components violan REACT_STANDARDS (named exports only for components, default para pages):
+
+- `components/security/MfaManager.tsx` → `export default function MfaManager`
+- `components/security/RbacManager.tsx` → `export default function RbacManager`
+
+**Severidad estimada:** medio
+**Acción propuesta:** Convert a named export + update imports.
+
+---
+
+### 2026-04-20 — L-298: `@layer` mismapping composite (~40 files admin)
+
+**Encontrado durante:** D0v4-6 B2+B3+B4
+**Descripción:** Multi-archivos con JSDoc `@layer` header usando valores no canónicos (`presentation`, `ui`, `component`, ausente) vs los 3 permitidos por CLAUDE.md (`domain`/`application`/`infrastructure`). Composite B2 (11) + B3 (26/29 hooks) + B4 (3+) = **~40 archivos admin**.
+
+**Ejemplos:**
+
+- `components/shared/ErrorBoundary.tsx` — sin `@layer`
+- `components/ui/ConfirmDialog.tsx` — `@layer ui` (no canónico)
+- `components/shared/SidebarNav.tsx` — sin `@layer`
+- `hooks/useAccounts.ts` — `@layer application` (consume raw fetch infra → debería infrastructure)
+- `lib/parseApiError.ts` — `@layer presentation` (utility, debería infrastructure)
+- `lib/apiClient.ts` — `@layer application` (siendo infrastructure)
+- `lib/logger.ts` — sin `@layer`
+
+**Severidad estimada:** medio
+**Acción propuesta:** Normalize todos a `domain`/`application`/`infrastructure`. Components UI → `infrastructure`. Utility libs → `infrastructure`. Hooks que wrap raw fetch → `infrastructure`.
+
+---
+
+### 2026-04-20 — L-299: unimplemented `retry-all` backend endpoint (DeadLetterQueue)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** `DeadLetterQueue.tsx:157` hace `fetch("/api/backend/admin/webhooks/dlq/retry-all", {method: "POST"})`. Backend search: endpoint **NO REGISTERED** en `webhookRoutes.ts`. Solo existe `/admin/webhooks/dlq/:eventId/retry` singular. Usuario click "Retry All" → ve toast success mientras request falla. Feature anunciada UI inexistente backend.
+**Severidad estimada:** crítico
+**Acción propuesta:** Implementar backend `/admin/webhooks/dlq/retry-all` POST handler OR remover botón UI.
+
+---
+
+### 2026-04-20 — L-300..L-302: Missing `@component` JSDoc shared a11y files (3 individuales)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** Per CLAUDE.md "every new React component requires JSDoc @component":
+
+- **L-300** `components/shared/ErrorBoundary.tsx` — sin `@component`
+- **L-301** `components/shared/SkipLink.tsx` — sin `@component`
+- **L-302** `components/shared/VisuallyHidden.tsx` — sin `@component`
+
+Los 3 fueron añadidos en commit 6b48996 sin header JSDoc mandatorio.
+**Severidad estimada** (todos): medio
+**Acción propuesta:** Add `@component` + `@description` + key props JSDoc headers.
+
+---
+
+### 2026-04-20 — L-303: `ErrorBoundary` `console.error` viola CLAUDE.md
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** `components/shared/ErrorBoundary.tsx` `componentDidCatch()` hace `console.error('ErrorBoundary caught:', error, info)`. CLAUDE.md: "zero console.\* in production code" (§Logging & Observability).
+**Severidad estimada:** medio (observability)
+**Acción propuesta:** Replace con logger browser (post-L-347 resolution).
+
+---
+
+### 2026-04-20 — L-304: `ErrorBoundary` raw `error.message` security leak (replica L-271)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** `render()` fallback retorna `<div>{this.state.error?.message}</div>`. Mismo problema que L-271 pero en client-side boundary. Leak potencial de stack/DB/secrets a cliente.
+**Severidad estimada:** security
+**Acción propuesta:** Sanitize + generic fallback message.
+
+---
+
+### 2026-04-20 — L-305: `SidebarNav` `document.cookie` + `window.location.reload` direct manipulation
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** `handleLogout` hace `document.cookie = "admin_token=; Max-Age=0; path=/"` + `window.location.reload()`. Bypass Next.js router + manual cookie manipulation. Fragile.
+**Severidad estimada:** medio
+**Acción propuesta:** Use NextAuth `signOut()` OR Server Action que clear cookie via Headers API.
+
+---
+
+### 2026-04-20 — L-306: silent catch composite (6 components)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** 6 components con `try { ... } catch { /* swallow */ }`:
+`RbacManager`, `MfaManager`, `WebhookSubscriptions`, `DeadLetterQueue`, `ScheduledJobsPanel`, `BreachTable`.
+**Severidad estimada:** medio (composite)
+**Acción propuesta:** Add logger.error + user feedback (toast.error).
+
+---
+
+### 2026-04-20 — L-307: missing `htmlFor` a11y composite (6 components)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** 6 components con `<label>` sin `htmlFor={id}` + `<input id={id}>`. Screen reader pierde asociación label↔input.
+**Severidad estimada:** medio (a11y WCAG AA)
+**Acción propuesta:** Add htmlFor + matching id; use `useId()` React hook.
+
+---
+
+### 2026-04-20 — L-308: admin→client URL questionable `/projects` (WebhookSubscriptions)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** `webhooks/WebhookSubscriptions.tsx:152` hace `fetch("/api/backend/projects", ...)`. Admin fetchea `/projects` que parece endpoint cliente. ¿Intencional (multi-tenant admin)? Sospechoso.
+**Severidad estimada:** bajo
+**Acción propuesta:** Clarify — si admin legítimamente consume, documentar. Si error → fix URL.
+
+---
+
+### 2026-04-20 — L-309: unused imports composite (4 files)
+
+**Encontrado durante:** D0v4-6 B2
+**Descripción:** 4 components con `import { X }` no usados. Linter debería detectar. Hygiene minor.
+**Severidad estimada:** bajo
+**Acción propuesta:** ESLint `no-unused-vars` + auto-fix.
+
+---
+
+### 2026-04-20 — L-310: `useCompliance.ts` 635 LOC mega-aggregator (R11)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** Hook 635 LOC contiene 15 fetches (breaches, dsars, consents, settings, gdpr settings sub-operations). Testing imposible granular. +485 LOC sobre límite 150.
+**Severidad estimada:** crítico (R11)
+**Acción propuesta:** Split en `useBreaches`, `useDsars`, `useConsents`, `useComplianceSettings`, `useGdprSettings`.
+
+---
+
+### 2026-04-20 — L-311: `usePricingTiers.ts` 305 LOC (R11)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 8 fetches (account tiers + provider tiers). +155 LOC.
+**Severidad estimada:** alto
+**Acción propuesta:** Split en `useAccountTiers` + `useProviderTiers`.
+
+---
+
+### 2026-04-20 — L-312: `useGatewaySwitches.ts` 216 LOC (R11)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 5 fetches via `fetchJson` helper local. +66 LOC.
+**Severidad estimada:** medio
+**Acción propuesta:** Split + refactor helper → apiClient namespace.
+
+---
+
+### 2026-04-20 — L-313: `useSettings.ts` 179 LOC (R11)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 6 fetches via `settingsFetch` helper. +29 LOC.
+**Severidad estimada:** medio
+**Acción propuesta:** Split + refactor helper.
+
+---
+
+### 2026-04-20 — L-314: `useAdminUsers.ts` 172 LOC (R11)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 5 operaciones (list, get, create, update, delete). +22 LOC.
+**Severidad estimada:** medio
+**Acción propuesta:** Split query vs mutations.
+
+---
+
+### 2026-04-20 — L-315: `useAnalytics.ts` 166 LOC (R11)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 3 queries + combinado con L-325 (fake-data) + L-331 (silent catch) + L-325 (staleTime missing). +16 LOC.
+**Severidad estimada:** medio (composite)
+**Acción propuesta:** Split + fix fake-data + fix error handling.
+
+---
+
+### 2026-04-20 — L-316: `useMultiPlatformScheduling.ts` 159 LOC (R11 + ORPHAN)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 5 fetches. +9 LOC. Además **ORPHAN** (L-320).
+**Severidad estimada:** bajo (R11) + alto (ORPHAN crosslink)
+**Acción propuesta:** Decide wire vs delete antes de split.
+
+---
+
+### 2026-04-20 — L-317: `useAuditLogs` ORPHAN (hook sin consumer)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 62 LOC. `<useAuditLogs` grep admin/ → **0 hits**. Backend endpoint existe. ScheduledJobsPanel intenta consume vía raw fetch (entry #13 catálogo) pero no usa el hook.
+**Severidad estimada:** alto (dead-code)
+**Acción propuesta:** Wire consumer (ScheduledJobsPanel per-job view) OR delete per §5.9 validation.
+
+---
+
+### 2026-04-20 — L-318: `useAuditStats` ORPHAN
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 48 LOC. 0 consumers. Además `api.audit.getStats` existe en apiClient pero **no se usa** — L-332 inconsistency caso.
+**Severidad estimada:** alto
+**Acción propuesta:** Wire a admin dashboard stats widget OR delete.
+
+---
+
+### 2026-04-20 — L-319: `useContentLibrary` ORPHAN
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 120 LOC. 0 consumers. Admin no tiene page Content Library (cliente sí tiene). Quizás admin debería pero no fue construido.
+**Severidad estimada:** alto
+**Acción propuesta:** Edward decide: construir UI OR delete.
+
+---
+
+### 2026-04-20 — L-320: `useMultiPlatformScheduling` ORPHAN
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 159 LOC. 0 consumers. Admin no tiene scheduling UI multi-platform. Ver también L-316 (R11) + `schedulingCsvParser` L-341 ORPHAN.
+**Severidad estimada:** alto (orphan cluster)
+**Acción propuesta:** Edward decide cluster orphan scheduling (hook + parser + types).
+
+---
+
+### 2026-04-20 — L-321: `usePerformanceInsights` ORPHAN
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 108 LOC. 0 consumers.
+**Severidad estimada:** alto
+**Acción propuesta:** Wire a analytics dashboard OR delete.
+
+---
+
+### 2026-04-20 — L-322: `usePosts` ORPHAN
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 82 LOC. 0 consumers admin. Admin no gestiona posts (esa es función cliente). Además weak typing `unknown[]` (L-333).
+**Severidad estimada:** alto
+**Acción propuesta:** Delete per §5.9 validation.
+
+---
+
+### 2026-04-20 — L-323: `usePublicSettings` ORPHAN TOTAL
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 65 LOC. 0 consumers admin. Ironically, `reset-password/page.tsx:40` hace raw fetch a `/settings/public` (entry #1 catálogo) **sin usar este hook**.
+**Severidad estimada:** alto
+**Acción propuesta:** Wire consumer desde reset-password page OR delete.
+
+---
+
+### 2026-04-20 — L-324: `useUniversalAnalytics` ORPHAN
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 72 LOC. 0 consumers.
+**Severidad estimada:** alto
+**Acción propuesta:** Wire a analytics dashboard OR delete.
+
+---
+
+### 2026-04-20 — L-325: `useAnalytics` fake-data composite (6 fake fields)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** Hook returns data enriched con 6 fake/hardcoded fields:
+
+1. `systemUptime: 99.97` — hardcoded
+2. `supportTickets: 0` — hardcoded
+3. `customerSatisfaction: 4.8` — hardcoded
+4. `trends: []` — empty array masquerading as data
+5. `cac: 42.5` — hardcoded CAC
+6. `securityScore: 95` — hardcoded + inconsistente con otras metrics reales
+
+Widget "System Health" muestra `99.97% uptime` a admin real. Replica patrón D0v4-4 L-100 fake-AI pero en admin analytics.
+**Severidad estimada:** crítico (composite 6 fields)
+**Acción propuesta:** Implement real metrics endpoints backend + remove hardcoded enrichment.
+
+---
+
+### 2026-04-20 — L-326: `useBillingStats` `grandfatheredRevenue:0` hardcoded
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** Hook returns `{...data, grandfatheredRevenue: 0}`. Hardcoded field. No existe data real.
+**Severidad estimada:** alto (fake-data)
+**Acción propuesta:** Implement real aggregation backend OR remove field.
+
+---
+
+### 2026-04-20 — L-327: `useWebhooks` GAPs (missing hooks — root cause L-294/L-295)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** Hook `useWebhooks` ACTIVE pero coverage limitado (metrics, dashboard). **Faltan:** subscriptions CRUD, events CRUD, DLQ operations. Esto causa L-294 + L-295 (components hacen raw fetch bypass TanStack).
+**Severidad estimada:** alto (missing-hooks)
+**Acción propuesta:** Expand `useWebhooks` con todos los ops webhook. Unblock L-294 + L-295.
+
+---
+
+### 2026-04-20 — L-328: `useUsageMetrics` sin `credentials: "include"` (security)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** `fetch("/api/backend/admin/usage/metrics")` **sin credentials**. Session cookie no enviada → backend responde unauthorized; error handling silencia + UI muestra estado vacío como "legítimo no data".
+**Severidad estimada:** security
+**Acción propuesta:** Add `credentials: "include"`.
+
+---
+
+### 2026-04-20 — L-329: `useCompliance` L101-103 3 fetches sin credentials (security)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** `useCompliance.ts:L101-103` 3 fetches (breaches, dsars, consents) **sin credentials**. Mismo problema L-328. Crítico porque compliance data es PII-sensitive.
+**Severidad estimada:** security
+**Acción propuesta:** Add `credentials: "include"` a los 3.
+
+---
+
+### 2026-04-20 — L-330: `useAdminPasswordReset` totalmente silencioso
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** `mutationFn: async (email) => { await fetch(...); /* no return, no error check */ }`. Sin `onSuccess` ni `onError`. Admin reseted password → UI muestra success mientras backend falla silencioso. User nunca recibe email.
+**Severidad estimada:** alto (silent-feedback)
+**Acción propuesta:** Add `res.ok` check + throw + onSuccess + onError.
+
+---
+
+### 2026-04-20 — L-331: `useAnalytics.fetchJSON` error silencing
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** `const fetchJSON = async (url) => { try { ... } catch { return {}; } }`. Swallow error → UI muestra `{}` como si fuera data vacía.
+**Severidad estimada:** alto (silent-feedback)
+**Acción propuesta:** Let errors propagate a TanStack (queryFn debe throw).
+
+---
+
+### 2026-04-20 — L-332: `apiClient` vs raw fetch inconsistency (useAccounts Q/M + useAuditStats)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** `useAccounts` queries usan raw fetch, mutations usan `apiClient.accounts.delete` — inconsistente within same hook. `useAuditStats` raw fetch pero `api.audit.getStats` exists in apiClient — inconsistency caso.
+**Severidad estimada:** medio (apiclient-inconsistency)
+**Acción propuesta:** Normalize a uniform apiClient usage per hook. useSecurity is the reference (uniform apiClient Q+M).
+
+---
+
+### 2026-04-20 — L-333: `usePosts` weak typing `unknown[]`/`unknown`
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** `export function usePosts(filters: unknown[]) { ... queryKey: ["posts", ...filters] as unknown[] }`. `unknown` sin narrowing — técnicamente no `any` pero débil.
+**Severidad estimada:** bajo (weak-typing)
+**Acción propuesta:** Define `PostFilters` type.
+
+---
+
+### 2026-04-20 — L-334: `useSecurity` queries serializadas (podrían paralelas)
+
+**Encontrado durante:** D0v4-6 B3
+**Descripción:** 3 queries con `enabled: prev.isSuccess` cadena — innecesaria (no hay dependencia real de data).
+**Severidad estimada:** bajo (performance)
+**Acción propuesta:** Remove `enabled` serialization, let queries parallel.
+
+---
+
+### 2026-04-20 — L-335: `ProjectProvider` 322 LOC ORPHAN completo
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** Provider sofisticado con context `currentProject`, `switchProject`, `availableProjects` + 2 raw fetches (L-346). **0 consumers** en `apps/admin/`. Admin no tiene concept de "proyecto" en su UI. **Divergencia con cliente**: cliente tiene `ProjectProvider` stub fake-AI usado (L-100 D0v4-4); admin tiene `ProjectProvider` **real pero sin consumer**.
+**Severidad estimada:** crítico (dead-code)
+**Acción propuesta:** Edward decide: delete (admin no necesita proyectos) OR mantener si planned feature.
+
+---
+
+### 2026-04-20 — L-336: `QueryProvider` replica L-70+L-101 cliente (cross-app)
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** Config idéntico al cliente (L-70+L-101): MISSING `QueryCache({onError})` + `MutationCache({onError})` + `retry:1` default + `staleTime: 60*1000` genérico + `defaultOptions.mutations` NOT SET. Cross-app finding **promoted §9.1** del reporte.
+**Severidad estimada:** crítico (cross-app)
+**Acción propuesta:** Fix unified — candidate natural para extraer `@packages/shared-frontend/queryClient` en D0v4-7.
+
+---
+
+### 2026-04-20 — L-337: `apiClient.ts` 464 LOC R11 + namespace coverage inconsistency
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** 464 LOC (R11 viol utility ≤200). 13 namespaces (`accounts`, `audit`, `billing`, `compliance`, `gatewaySwitches`, `mfa`, `pricing`, `rbac`, `security`, `settings`, `subscriptions`, `webhooks`, etc.). Coverage desigual: e.g. `webhooks.retryAll` no existe (L-299 backend gap) mientras otros namespaces completos. **0 `any`** (superior a cliente 13 any §9.2) — pero LOC alto.
+**Severidad estimada:** crítico (R11 + arch)
+**Acción propuesta:** Split por namespace (cada namespace en file separado) + unify coverage cross-hooks.
+
+---
+
+### 2026-04-20 — L-338: `useQueueManager` 213 LOC ORPHAN colocated + 4 raw fetches + no onError
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** `components/queue/useQueueManager.tsx`. Colocated hook. 213 LOC (R11). 4 raw fetches (L128, L129, L178, L191). **0 consumers**. Además sin onError en mutations.
+**Severidad estimada:** crítico (dead + R11 + raw)
+**Acción propuesta:** Delete per §5.9 validation OR wire admin queue UI (queue page exists pero usa QueueDashboard sin este hook).
+
+---
+
+### 2026-04-20 — L-339: `ai-content-utils.ts` 178 LOC ORPHAN + 4 fake-AI generators
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** `lib/ai-content-utils.ts`. 4 generators fake-AI: `generateCaption`, `suggestHashtags`, `analyzeEngagement`, `transformTone`. **0 consumers** en admin. Similar a cliente L-100 fake-AI pattern pero admin es completamente orphan (cliente al menos usa su stub).
+**Severidad estimada:** crítico (dead + fake-data)
+**Acción propuesta:** Delete per §5.9 validation.
+
+---
+
+### 2026-04-20 — L-340: `notificationStore` 80 LOC ORPHAN + Phase 2/3 broken promise
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** `lib/stores/notificationStore.ts`. Zustand store con `persist`. JSDoc `@todo Phase 2: wire to backend. Phase 3: replace with TanStack`. **0 consumers**. Phase 2/3 commitment jamás cumplido.
+**Severidad estimada:** crítico (dead + broken-promise)
+**Acción propuesta:** Delete per §5.9 validation.
+
+---
+
+### 2026-04-20 — L-341: `schedulingCsvParser.ts` 178 LOC ORPHAN
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** `lib/parsers/schedulingCsvParser.ts`. Parses CSV for bulk scheduling upload. Consumer: `types/scheduling.ts` (también ORPHAN L-343). Ninguna page consume. Cluster orphan (L-320 + L-341 + L-343).
+**Severidad estimada:** crítico
+**Acción propuesta:** Delete cluster completo per §5.9 validation.
+
+---
+
+### 2026-04-20 — L-342: `types/ai-content.ts` ORPHAN
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** Types consumidos solo por `ai-content-utils.ts` orphan (L-339). Double orphan.
+**Severidad estimada:** medio (dead)
+**Acción propuesta:** Delete con L-339.
+
+---
+
+### 2026-04-20 — L-343: `types/scheduling.ts` ORPHAN
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** Types consumidos solo por `schedulingCsvParser.ts` orphan (L-341). Double orphan cluster.
+**Severidad estimada:** medio (dead)
+**Acción propuesta:** Delete con L-341.
+
+---
+
+### 2026-04-20 — L-344: `parseApiError.ts` `@layer presentation` mismapping (extend L-298)
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** `lib/parseApiError.ts` header JSDoc `@layer presentation` (siendo utility, debería `infrastructure`). Clase bien diseñada + consumers abundantes, solo drift docs.
+**Severidad estimada:** medio (docs-layer, extiende L-298)
+**Acción propuesta:** Change a `@layer infrastructure` en normalización general L-298.
+
+---
+
+### 2026-04-20 — L-345: `AuthProvider` raw fetch + dual envelope + silent fallback SUPER_ADMIN
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** `providers/AuthProvider.tsx:58`:
+
+1. Raw fetch fuera de TanStack (no cache, no retry)
+2. Dual envelope parsing: `Array.isArray(data) ? data : data.permissions ?? []` (flag de drift backend contract)
+3. Silent fallback: si respuesta es `[]` Y `user.role === "SUPER_ADMIN"` → retorna `ALL_PERMS` (**si backend legítimamente responde vacío por bug, SUPER_ADMIN bypass implícito**)
+
+**Severidad estimada:** medio (raw-fetch + security)
+**Acción propuesta:** (1) use TanStack; (2) consolidate backend envelope shape; (3) remove silent fallback — SUPER_ADMIN expansion debe estar en backend, no en frontend.
+
+---
+
+### 2026-04-20 — L-346: `ProjectProvider` 2 raw fetches dead (en código ORPHAN L-335)
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** `providers/ProjectProvider.tsx:103` GET `/api/backend/projects` + `:115` POST `/api/backend/projects/:id/activate`. Código ORPHAN (L-335), las fetches nunca se ejecutan.
+**Severidad estimada:** medio (raw-fetch dead)
+**Acción propuesta:** Delete con L-335.
+
+---
+
+### 2026-04-20 — L-347: `lib/logger.ts` console-based viola CLAUDE.md (cross-app §9.1)
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** `apps/admin/lib/logger.ts` wrapper simple `console.*` (info/warn/error). CLAUDE.md: "zero `console.*` in production code" + "Use `@observability/logger` (Pino)". Identicamente replicado en `apps/client/lib/logger.ts`. **Cross-app finding promoted §9.1** — ambos apps.
+**Severidad estimada:** medio (observability cross-app)
+**Acción propuesta:** Extract `@observability/browser-logger` en D0v4-7 + replace en ambos apps.
+
+---
+
+### 2026-04-20 — L-348: `proxy.ts` re-confirmed ORPHAN (extend L-267)
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** Durante B4 audit (lib + extras), re-verified proxy.ts root-level — mismo dead middleware de L-267. Listed separado para orphan cemetery completeness.
+**Severidad estimada:** bajo (ya documentado L-267)
+**Acción propuesta:** Ver L-267.
+
+---
+
+### 2026-04-20 — L-349: `ai-content-utils` emoji truncation bug (en ORPHAN)
+
+**Encontrado durante:** D0v4-6 B4
+**Descripción:** `generateCaption` returns `Exciting update about ${theme}! 🚀` — si `theme` contiene surrogate pair (emoji multi-byte), truncation al concatenar con string literal + toast render puede romper. Bug en código ORPHAN L-339, irrelevante hasta wire.
+**Severidad estimada:** bajo (bug en dead code)
+**Acción propuesta:** Si L-339 wired → fix; si delete → no action.
