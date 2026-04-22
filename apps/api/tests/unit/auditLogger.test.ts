@@ -7,6 +7,7 @@
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { FastifyRequest } from "fastify";
 
 // ---------------------------------------------------------------------------
@@ -42,9 +43,8 @@ vi.mock("../../src/lib/logger.js", () => {
 // Import SUT after mocks are in place
 // ---------------------------------------------------------------------------
 
-const { AuditLogger, createAuditLogger, AuditConfigs } = await import(
-  "../../src/security/auditLogger.js"
-);
+const { AuditLogger, createAuditLogger, AuditConfigs } =
+  await import("../../src/security/auditLogger.js");
 const Redis = (await import("ioredis")).default;
 
 // ---------------------------------------------------------------------------
@@ -71,6 +71,7 @@ function createMockRequest(overrides?: Partial<FastifyRequest>): FastifyRequest 
 
 let redis: InstanceType<typeof Redis>;
 let auditLogger: InstanceType<typeof AuditLogger>;
+const scheduler = new NoopBackgroundTaskScheduler();
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
@@ -104,7 +105,7 @@ describe("AuditLogger Tests", () => {
     // Clear stores
     stores.auditLog.clear();
 
-    auditLogger = new AuditLogger(redis, {
+    auditLogger = new AuditLogger(redis, scheduler, {
       enableRealTimeAlerts: false,
       retentionDays: 7,
       enableDetailedLogging: true,
@@ -539,12 +540,12 @@ describe("AuditLogger Tests", () => {
 
   describe("Factory Function and Configs", () => {
     it("should create audit logger with factory function", () => {
-      const logger = createAuditLogger(redis);
+      const logger = createAuditLogger(redis, scheduler);
       expect(logger).toBeTruthy();
     });
 
     it("should create audit logger with custom config", () => {
-      const logger = createAuditLogger(redis, {
+      const logger = createAuditLogger(redis, scheduler, {
         enableRealTimeAlerts: false,
         retentionDays: 30,
       });
@@ -586,7 +587,7 @@ describe("AuditLogger Tests", () => {
         retryStrategy: () => null,
       });
 
-      const badLogger = new AuditLogger(badRedis, {
+      const badLogger = new AuditLogger(badRedis, scheduler, {
         enableRealTimeAlerts: false,
       });
 

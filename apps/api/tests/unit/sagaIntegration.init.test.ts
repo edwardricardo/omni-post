@@ -9,8 +9,11 @@
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { SagaIntegration } from "../../src/saga/SagaIntegration";
 import { Command } from "@shared/cqrs";
+
+const scheduler = new NoopBackgroundTaskScheduler();
 import {
   createMockFastify,
   createMockEventService,
@@ -69,6 +72,7 @@ describe("SagaIntegration - Initialization", () => {
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
       queue: mockQueue,
+      scheduler,
     });
 
     await integration.initialize();
@@ -85,6 +89,7 @@ describe("SagaIntegration - Initialization", () => {
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
       queue: mockQueue,
+      scheduler,
     });
 
     await integration.initialize();
@@ -103,6 +108,7 @@ describe("SagaIntegration - Initialization", () => {
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
       queue: mockQueue,
+      scheduler,
     });
 
     await integration.initialize();
@@ -121,6 +127,7 @@ describe("SagaIntegration - Initialization", () => {
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
       queue: mockQueue,
+      scheduler,
     });
 
     await integration.initialize();
@@ -159,6 +166,7 @@ describe("SagaIntegration - Saga Definition Registration", () => {
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
       queue: mockQueue,
+      scheduler,
     });
   });
 

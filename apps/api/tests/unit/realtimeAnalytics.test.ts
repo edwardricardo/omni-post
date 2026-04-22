@@ -13,7 +13,18 @@
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { RealtimeAnalyticsService } from "../../src/analytics/realtimeAnalytics.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import Redis from "ioredis";
+
+const scheduler = new NoopBackgroundTaskScheduler();
+
+// Minimal AccountQueryRepository stub. The engagement-rate and connection-id
+// tests never exercise account-lookup paths, so a no-op stub is sufficient.
+const stubAccountRepository = {
+  findByUserId: async () => null,
+  findById: async () => null,
+  findByProjectId: async () => [],
+} as unknown as never;
 
 // ========================================
 // SETUP
@@ -30,7 +41,7 @@ beforeAll(() => {
     lazyConnect: true, // Don't actually connect
   });
 
-  realtimeService = new RealtimeAnalyticsService(mockRedis);
+  realtimeService = new RealtimeAnalyticsService(mockRedis, stubAccountRepository, scheduler);
 });
 
 afterAll(() => {

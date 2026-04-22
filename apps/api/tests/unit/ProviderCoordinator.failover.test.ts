@@ -11,6 +11,7 @@ import {
   createMockEventService,
   createMockProviderAdapter,
   createMockCanonicalPost,
+  createMockScheduler,
   mockProviders,
   mockAdapters,
   setupMockProviders,
@@ -59,6 +60,7 @@ describe("ProviderCoordinator - failover and health", () => {
         prisma: mockPrisma,
         redis: mockRedis,
         eventService: mockEventService,
+        scheduler: createMockScheduler(),
       });
 
       await coordinator.initialize();
@@ -79,11 +81,8 @@ describe("ProviderCoordinator - failover and health", () => {
       }
     });
 
-    afterEach(() => {
-      (coordinator as any).healthCheckInterval &&
-        clearInterval((coordinator as any).healthCheckInterval);
-      (coordinator as any).metricsCollectionInterval &&
-        clearInterval((coordinator as any).metricsCollectionInterval);
+    afterEach(async () => {
+      await (coordinator as any).scheduler?.shutdownAll();
     });
 
     it("should handle failover when provider fails", async () => {
@@ -201,16 +200,14 @@ describe("ProviderCoordinator - failover and health", () => {
         prisma: mockPrisma,
         redis: mockRedis,
         eventService: mockEventService,
+        scheduler: createMockScheduler(),
       });
 
       await coordinator.initialize();
     });
 
-    afterEach(() => {
-      (coordinator as any).healthCheckInterval &&
-        clearInterval((coordinator as any).healthCheckInterval);
-      (coordinator as any).metricsCollectionInterval &&
-        clearInterval((coordinator as any).metricsCollectionInterval);
+    afterEach(async () => {
+      await (coordinator as any).scheduler?.shutdownAll();
     });
 
     it("should return overall health status", async () => {

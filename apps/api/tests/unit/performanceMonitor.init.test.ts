@@ -5,6 +5,7 @@ import {
   createMockRedis,
   createMockRequest,
   createMockReply,
+  createPerformanceMonitor,
 } from "./performanceMonitor.test-helpers.js";
 
 describe("PerformanceMonitor - Initialization", () => {
@@ -12,7 +13,7 @@ describe("PerformanceMonitor - Initialization", () => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
 
-    const monitor = new PerformanceMonitor(metrics, redis);
+    const monitor = createPerformanceMonitor(metrics, redis);
 
     expect(monitor).toBeTruthy();
   });
@@ -21,7 +22,7 @@ describe("PerformanceMonitor - Initialization", () => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
 
-    const monitor = new PerformanceMonitor(metrics, redis);
+    const monitor = createPerformanceMonitor(metrics, redis);
 
     const monitorAny = monitor as any;
     expect(monitorAny.slowRequestThreshold).toBe(200);
@@ -35,7 +36,7 @@ describe("PerformanceMonitor - Request Recording", () => {
   beforeEach(() => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
-    monitor = new PerformanceMonitor(metrics, redis);
+    monitor = createPerformanceMonitor(metrics, redis);
   });
 
   it("should record request metrics", async () => {
@@ -127,7 +128,7 @@ describe("PerformanceMonitor - Route Extraction", () => {
   beforeEach(() => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
-    monitor = new PerformanceMonitor(metrics, redis);
+    monitor = createPerformanceMonitor(metrics, redis);
   });
 
   it("should extract clean route from URL", async () => {
@@ -191,7 +192,7 @@ describe("PerformanceMonitor - System Health Calculation", () => {
   beforeEach(() => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
-    monitor = new PerformanceMonitor(metrics, redis);
+    monitor = createPerformanceMonitor(metrics, redis);
   });
 
   it("should calculate healthy system status", async () => {
@@ -273,7 +274,7 @@ describe("PerformanceMonitor - Edge Cases", () => {
   beforeEach(() => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
-    monitor = new PerformanceMonitor(metrics, redis);
+    monitor = createPerformanceMonitor(metrics, redis);
   });
 
   it("should handle zero response time", async () => {
@@ -341,7 +342,7 @@ describe("PerformanceMonitor - Edge Cases", () => {
     } as any;
 
     const metrics = createMockApiMetrics();
-    const monitorWithBadRedis = new PerformanceMonitor(metrics, badRedis);
+    const monitorWithBadRedis = createPerformanceMonitor(metrics, badRedis);
 
     const req = createMockRequest();
     const reply = createMockReply(200);

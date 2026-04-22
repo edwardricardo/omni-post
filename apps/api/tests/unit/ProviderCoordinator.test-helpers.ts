@@ -3,6 +3,14 @@ import type Redis from "ioredis";
 import type { EventService } from "../../src/events/EventService.js";
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderId, ProviderAdapter } from "../../src/providers/providerAdapter.interface.js";
+import {
+  NoopBackgroundTaskScheduler,
+  type BackgroundTaskScheduler,
+} from "@observability/background-scheduler";
+
+export function createMockScheduler(): BackgroundTaskScheduler {
+  return new NoopBackgroundTaskScheduler();
+}
 
 export interface MockProviderAdapter extends ProviderAdapter {
   healthCheck(): Promise<{ ok: boolean; value?: { latency?: number } }>;

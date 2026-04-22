@@ -4,9 +4,11 @@
  *              and command injection detection using DOMPurify and pattern matching.
  * @layer infrastructure
  */
+import { randomUUID } from "node:crypto";
 import DOMPurify from "isomorphic-dompurify";
 import validator from "validator";
 import type { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { logger } from "../lib/logger.js";
 
 type RiskLevel = "low" | "medium" | "high" | "critical";
@@ -95,10 +97,12 @@ interface ValidationConfig {
 
 export class EnhancedValidator {
   private config: ValidationConfig;
+  private scheduler: BackgroundTaskScheduler;
   private suspiciousAttempts: Map<string, number> = new Map();
-  private cleanupTimer: NodeJS.Timeout | null = null;
+  private readonly taskId: string;
 
-  constructor(config: Partial<ValidationConfig> = {}) {
+  constructor(scheduler: BackgroundTaskScheduler, config: Partial<ValidationConfig> = {}) {
+    this.scheduler = scheduler;
     this.config = {
       enableXSSProtection: true,
       enableSQLInjectionProtection: true,
@@ -114,9 +118,10 @@ export class EnhancedValidator {
       trustedDomains: [],
       ...config,
     };
+    this.taskId = `enhanced-validator-cleanup-${randomUUID()}`;
 
-    // Clean up suspicious attempts every hour
-    this.cleanupTimer = setInterval(() => this.cleanupSuspiciousAttempts(), 60 * 60 * 1000);
+    // Clean up suspicious attempts every hour.
+    this.scheduler.register(this.taskId, () => this.cleanupSuspiciousAttempts(), 60 * 60 * 1000);
   }
 
   // Main validation function for request data
@@ -508,14 +513,13 @@ export class EnhancedValidator {
   }
 
   /**
-   * Cleanup method to clear the internal timer
-   * Should be called when the validator is no longer needed (e.g., in tests or during shutdown)
+   * Cleanup method — unregisters the scheduled cleanup task and clears the
+   * in-memory attempts map. Safe to call multiple times. The scheduler's
+   * shutdownAll() also clears the task; explicit destroy() is only required
+   * when disposing the validator mid-process (e.g., in tests).
    */
   public destroy(): void {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-      this.cleanupTimer = null;
-    }
+    this.scheduler.unregister(this.taskId);
     this.suspiciousAttempts.clear();
   }
 

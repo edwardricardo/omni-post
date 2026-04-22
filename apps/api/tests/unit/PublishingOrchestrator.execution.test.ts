@@ -25,6 +25,7 @@ import {
   stubOrchestratorInternals,
   mockProviderRegistry,
 } from "./PublishingOrchestrator.test-helpers.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 describe("PublishingOrchestrator", () => {
   let orchestrator: PublishingOrchestrator;
@@ -41,6 +42,7 @@ describe("PublishingOrchestrator", () => {
       prisma: asPrisma(mockPrisma),
       redis: asRedis(mockRedis),
       eventService: asEventService(mockEvents),
+      scheduler: new NoopBackgroundTaskScheduler(),
     });
 
     stubOrchestratorInternals(orchestrator);
@@ -83,6 +85,7 @@ describe("PublishingOrchestrator", () => {
         prisma: asPrisma(mockPrisma),
         redis: asRedis(mockRedis),
         eventService: asEventService(mockEvents),
+        scheduler: new NoopBackgroundTaskScheduler(),
         config,
       });
 

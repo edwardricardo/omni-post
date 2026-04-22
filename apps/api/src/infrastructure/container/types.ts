@@ -63,6 +63,10 @@ export const TOKENS = {
   OutboxRelay: Symbol.for("OutboxRelay"),
   OutboxCleaner: Symbol.for("OutboxCleaner"),
 
+  // Background task scheduler — centralised setInterval registry for all
+  // recurring in-process work (cleanup jobs, health checks, metrics pushes).
+  BackgroundTaskScheduler: Symbol.for("BackgroundTaskScheduler"),
+
   // Unit of Work (P2-4)
   UnitOfWork: Symbol.for("UnitOfWork"),
 

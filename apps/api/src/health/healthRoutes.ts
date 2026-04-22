@@ -21,6 +21,8 @@ import { createS3StorageAdapter } from "@adapters/storage-s3";
 import { providerRegistry } from "../providers/providerRegistry.js";
 import type Redis from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import { TOKENS } from "../infrastructure/container/types.js";
 
 /**
  * Health check routes for monitoring and Kubernetes probes
@@ -40,21 +42,27 @@ export async function healthRoutes(
   }
 ) {
   const { redis, cacheManager } = options;
+  const scheduler = fastify.container!.resolve<BackgroundTaskScheduler>(
+    TOKENS.BackgroundTaskScheduler
+  );
 
   // Initialize health check manager
-  const healthManager = createHealthCheckManager({
-    timeout: 5000,
-    interval: 30000,
-    retries: 3,
-    alertThresholds: {
-      degradedLatency: 1000,
-      unhealthyLatency: 5000,
-      criticalFailureCount: 3,
+  const healthManager = createHealthCheckManager(
+    {
+      timeout: 5000,
+      interval: 30000,
+      retries: 3,
+      alertThresholds: {
+        degradedLatency: 1000,
+        unhealthyLatency: 5000,
+        criticalFailureCount: 3,
+      },
     },
-  });
+    scheduler
+  );
 
   // Initialize adapters
-  const repoAdapter = createPrismaRepoAdapter();
+  const repoAdapter = createPrismaRepoAdapter({ scheduler });
   const queueAdapter = createBullMQQueueAdapter();
   const storageAdapter = createS3StorageAdapter({
     bucket: process.env.S3_BUCKET || "omni-post-media",

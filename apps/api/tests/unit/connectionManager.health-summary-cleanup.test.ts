@@ -5,7 +5,11 @@
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { ConnectionManager } from "../../src/auth/connectionManager.js";
 import type { ConnectionManagerPrisma } from "../../src/auth/connectionManager.js";
-import { createMockConnection, createMockDb } from "./connectionManager.test-helpers.js";
+import {
+  createConnectionManager,
+  createMockConnection,
+  createMockDb,
+} from "./connectionManager.test-helpers.js";
 
 // ============================================================================
 // ConnectionManager - Health Check Tests
@@ -17,7 +21,7 @@ describe("ConnectionManager - Health Check", () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
 
@@ -30,7 +34,7 @@ describe("ConnectionManager - Health Check", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const health = await manager.checkConnectionHealth("conn-123");
@@ -47,7 +51,7 @@ describe("ConnectionManager - Health Check", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const health = await manager.checkConnectionHealth("conn-123");
@@ -61,7 +65,7 @@ describe("ConnectionManager - Health Check", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const health = await manager.checkConnectionHealth("conn-123");
@@ -77,7 +81,7 @@ describe("ConnectionManager - Health Check", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const health = await manager.checkConnectionHealth("conn-123");
@@ -93,7 +97,7 @@ describe("ConnectionManager - Health Check", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const health = await manager.checkConnectionHealth("conn-123");
@@ -107,7 +111,7 @@ describe("ConnectionManager - Health Check", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const health = await manager.checkConnectionHealth("conn-123");
@@ -122,7 +126,7 @@ describe("ConnectionManager - Health Check", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const health = await manager.checkConnectionHealth("conn-123");
@@ -135,7 +139,7 @@ describe("ConnectionManager - Health Check", () => {
     const mockConnection = createMockConnection();
     const findUniqueMock = vi.fn(async () => mockConnection);
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = findUniqueMock;
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.checkConnectionHealth("conn-123");
@@ -167,7 +171,7 @@ describe("ConnectionManager - Connection Summary", () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
 
@@ -183,7 +187,7 @@ describe("ConnectionManager - Connection Summary", () => {
     (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnections
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const summary = await manager.getConnectionsSummary("acc-123");
@@ -201,7 +205,7 @@ describe("ConnectionManager - Connection Summary", () => {
     (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnections
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const summary = await manager.getConnectionsSummary("acc-123");
@@ -220,7 +224,7 @@ describe("ConnectionManager - Connection Summary", () => {
     (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnections
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const summary = await manager.getConnectionsSummary("acc-123");
@@ -238,7 +242,7 @@ describe("ConnectionManager - Connection Summary", () => {
     (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnections
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const summary = await manager.getConnectionsSummary("acc-123");
@@ -265,7 +269,7 @@ describe("ConnectionManager - Cleanup Operations", () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
 
@@ -281,7 +285,7 @@ describe("ConnectionManager - Cleanup Operations", () => {
         return { count: 3 };
       }
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const count = await manager.cleanupExpiredConnections();
@@ -301,7 +305,7 @@ describe("ConnectionManager - Cleanup Operations", () => {
         return { count: 1 };
       }
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.cleanupExpiredConnections();

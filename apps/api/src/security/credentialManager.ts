@@ -7,6 +7,7 @@
 import crypto from "crypto";
 import Redis from "ioredis";
 import { prisma } from "@infra/prisma";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { logger } from "../lib/logger.js";
 
 interface ApiKey {
@@ -34,11 +35,13 @@ interface CredentialConfig {
 export class CredentialManager {
   private redis: Redis;
   private config: CredentialConfig;
-  private rotationTimer?: NodeJS.Timeout;
+  private scheduler: BackgroundTaskScheduler | undefined;
+  private readonly rotationTaskId = "credential-manager-auto-rotation";
 
-  constructor(redis: Redis, config: CredentialConfig) {
+  constructor(redis: Redis, config: CredentialConfig, scheduler?: BackgroundTaskScheduler) {
     this.redis = redis;
     this.config = config;
+    this.scheduler = scheduler;
 
     if (config.enableAutoRotation) {
       this.startAutoRotation();
@@ -388,13 +391,24 @@ export class CredentialManager {
   }
 
   private startAutoRotation(): void {
-    // Run rotation check every 24 hours
-    this.rotationTimer = setInterval(
-      async () => {
-        await this.performScheduledRotations();
-      },
-      24 * 60 * 60 * 1000
+    if (!this.scheduler) {
+      logger.warn("CredentialManager: auto-rotation enabled but no scheduler provided; skipping");
+      return;
+    }
+    this.scheduler.register(
+      this.rotationTaskId,
+      () => this.performScheduledRotations(),
+      24 * 60 * 60 * 1000,
+      {
+        onError: (err) => logger.error({ err }, "Scheduled credential rotation error"),
+      }
     );
+  }
+
+  destroy(): void {
+    if (this.scheduler) {
+      this.scheduler.unregister(this.rotationTaskId);
+    }
   }
 
   private async performScheduledRotations(): Promise<void> {
@@ -426,8 +440,6 @@ export class CredentialManager {
 
   // Cleanup method
   async cleanup(): Promise<void> {
-    if (this.rotationTimer) {
-      clearInterval(this.rotationTimer);
-    }
+    this.destroy();
   }
 }

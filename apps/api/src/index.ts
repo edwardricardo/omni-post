@@ -45,6 +45,7 @@ import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { closeDatabaseConnections, prisma } from "@infra/prisma";
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
 import { createStorageAdapter } from "./infrastructure/storage/createStorageAdapter.js";
 import { RateLimit, RateLimitConfigs, EXPENSIVE_ENDPOINT_RULES } from "./security/rateLimit.js";
@@ -198,13 +199,24 @@ async function createApp(): Promise<FastifyInstance> {
   // Initialize unified authentication service with Redis
   setRedisInstance(redis);
 
+  // Initialize DI container and decorate Fastify instance (needed so scheduler is
+  // available to downstream adapters/managers created below).
+  const container = setupContainer({ prisma });
+  typedApp.decorate("container", container);
+  const bootstrapScheduler = container.resolve<BackgroundTaskScheduler>(
+    TOKENS.BackgroundTaskScheduler
+  );
+
   // Initialize cache manager
-  const cacheManager = createCacheManager({
-    redisUrl: getRedisUrl(),
-    keyPrefix: "api:",
-    defaultTtl: 300,
-    enableMetrics: true,
-  });
+  const cacheManager = createCacheManager(
+    {
+      redisUrl: getRedisUrl(),
+      keyPrefix: "api:",
+      defaultTtl: 300,
+      enableMetrics: true,
+    },
+    bootstrapScheduler
+  );
 
   // Decorate fastify instance with cache manager (accessible as fastify.cacheManager and fastify.cache)
   typedApp.decorate("redis", redis);
@@ -221,17 +233,13 @@ async function createApp(): Promise<FastifyInstance> {
     excludeRoutes: ["/health", "/metrics"],
   });
 
-  // Initialize DI container and decorate Fastify instance
-  const container = setupContainer({ prisma });
-  typedApp.decorate("container", container);
-
   // Initialize cookie support
   await typedApp.register(fastifyCookie, {
     secret: getRequiredSecret("COOKIE_SECRET", "cookie-secret-dev-only"),
   });
 
   // Initialize components
-  const repoAdapter = createPrismaRepoAdapter();
+  const repoAdapter = createPrismaRepoAdapter({ scheduler: bootstrapScheduler });
   const queueAdapter = createBullMQQueueAdapter();
   const storageAdapter = createStorageAdapter();
 
@@ -290,7 +298,11 @@ async function createApp(): Promise<FastifyInstance> {
   });
 
   // Initialize performance monitor
-  const performanceMonitor = new PerformanceMonitor(apiMetrics, redis);
+  const performanceMonitor = new PerformanceMonitor(
+    apiMetrics,
+    redis,
+    container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+  );
 
   // Initialize database optimizer
   const _dbOptimizer = new DatabaseOptimizer(apiMetrics);
@@ -514,7 +526,10 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(cacheStatsRoutes);
 
   // Register OAuth routes
-  await registerOAuthRoutes(typedApp);
+  await registerOAuthRoutes(
+    typedApp,
+    typedApp.container!.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+  );
 
   // Register CRM routes
   await typedApp.register(crmRoutes);
@@ -528,7 +543,11 @@ async function createApp(): Promise<FastifyInstance> {
   const { EventService } = await import("./events/EventService.js");
   const { CQRSBusImpl } = await import("./cqrs/CQRSBus.js");
 
-  const sagaEventService = new EventService({ prisma, redis });
+  const sagaEventService = new EventService({
+    prisma,
+    redis,
+    scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+  });
   const sagaCQRSBus = new CQRSBusImpl({
     eventService: sagaEventService,
     redis,
@@ -542,6 +561,7 @@ async function createApp(): Promise<FastifyInstance> {
     cqrsBus: sagaCQRSBus,
     redis,
     queue: queueAdapter,
+    scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
   });
   await sagaIntegration.initialize();
   typedApp.decorate("sagaIntegration", sagaIntegration);
@@ -621,16 +641,22 @@ async function start() {
     );
     logger.info("GatewaySwitchProcessor started");
 
+    // Resolve the background task scheduler once and register daily maintenance jobs.
+    const scheduler = app.container!.resolve<BackgroundTaskScheduler>(
+      TOKENS.BackgroundTaskScheduler
+    );
+
     // DLQ archival — daily (Sprint D)
     const { DlqArchivalService: _DlqArchivalType } =
       await import("./webhooks/DlqArchivalService.js");
     const dlqArchival = app.container!.resolve<InstanceType<typeof _DlqArchivalType>>(
       TOKENS.DlqArchivalService
     );
-    setInterval(
-      () => {
-        dlqArchival.archiveResolvedEvents(90).catch(() => {});
-        dlqArchival.flagStaleEvents(30).catch(() => {});
+    scheduler.register(
+      "dlq-archival",
+      async () => {
+        await dlqArchival.archiveResolvedEvents(90);
+        await dlqArchival.flagStaleEvents(30);
       },
       24 * 60 * 60 * 1000
     );
@@ -641,10 +667,9 @@ async function start() {
     const dataRetention = app.container!.resolve<InstanceType<typeof _DataRetentionType>>(
       TOKENS.DataRetentionService
     );
-    setInterval(
-      () => {
-        dataRetention.runRetentionCleanup().catch(() => {});
-      },
+    scheduler.register(
+      "data-retention-cleanup",
+      () => dataRetention.runRetentionCleanup(),
       24 * 60 * 60 * 1000
     );
 
@@ -657,8 +682,8 @@ async function start() {
     logger.info("Outbox relay and cleaner started");
 
     // Graceful shutdown — inside start() so we have access to app and outbox references
-    process.on("SIGINT", async () => {
-      logger.info("Shutting down gracefully...");
+    const shutdown = async (signal: string): Promise<void> => {
+      logger.info({ signal }, "Shutting down gracefully...");
       outboxRelay.stop();
       outboxCleaner.stop();
 
@@ -670,9 +695,22 @@ async function start() {
         await saga.shutdown();
       }
 
+      // Tear down all BackgroundTaskScheduler-registered recurring tasks.
+      const scheduler = app.container!.resolve<BackgroundTaskScheduler>(
+        TOKENS.BackgroundTaskScheduler
+      );
+      await scheduler.shutdownAll();
+
       await app.close();
       await closeDatabaseConnections();
       process.exit(0);
+    };
+
+    process.on("SIGINT", () => {
+      void shutdown("SIGINT");
+    });
+    process.on("SIGTERM", () => {
+      void shutdown("SIGTERM");
     });
   } catch (err) {
     logger.error({ err }, "Error starting server");

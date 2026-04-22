@@ -12,6 +12,7 @@ import {
   IdSchema,
   type OAuthErrorContext,
 } from "@packages/api-common";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ProviderId } from "../providers/providerAdapter.interface.js";
 import type { ProviderConnection, Provider as PrismaProvider } from "@infra/prisma";
 import { prisma } from "@infra/prisma";
@@ -68,20 +69,7 @@ interface OAuthStateData {
   createdAt: Date;
 }
 
-const oauthStates = new Map<string, OAuthStateData>();
-
-// Clean up expired states every 10 minutes
-setInterval(
-  () => {
-    const now = new Date();
-    for (const [state, data] of oauthStates.entries()) {
-      if (now.getTime() - data.createdAt.getTime() > 10 * 60 * 1000) {
-        oauthStates.delete(state);
-      }
-    }
-  },
-  10 * 60 * 1000
-);
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
 // ===========================
 // Route Handler Implementation
@@ -89,6 +77,26 @@ setInterval(
 
 export class ProviderOAuthHandler extends BaseRouteHandler {
   protected routeName = "provider-oauth";
+
+  private readonly oauthStates = new Map<string, OAuthStateData>();
+
+  constructor(scheduler: BackgroundTaskScheduler) {
+    super();
+    // Clean up expired OAuth states every 10 minutes. TTL equals cadence;
+    // an entry older than its TTL on the sweep is discarded.
+    scheduler.register(
+      "provider-oauth-state-cleanup",
+      () => {
+        const now = Date.now();
+        for (const [state, data] of this.oauthStates.entries()) {
+          if (now - data.createdAt.getTime() > OAUTH_STATE_TTL_MS) {
+            this.oauthStates.delete(state);
+          }
+        }
+      },
+      OAUTH_STATE_TTL_MS
+    );
+  }
 
   /**
    * Generate OAuth authorization URL for the given provider.
@@ -117,7 +125,7 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     }
 
     const state = randomBytes(32).toString("hex");
-    oauthStates.set(state, {
+    this.oauthStates.set(state, {
       providerId,
       accountId,
       projectId,
@@ -155,12 +163,12 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     code: string,
     state: string
   ): Promise<ProviderConnection> {
-    const stateData = oauthStates.get(state);
+    const stateData = this.oauthStates.get(state);
     if (!stateData || stateData.providerId !== providerId) {
       throw AppError.unauthorized("OAuth state validation failed");
     }
 
-    oauthStates.delete(state);
+    this.oauthStates.delete(state);
 
     const provider = oauthProviders[providerId];
     if (!provider) {

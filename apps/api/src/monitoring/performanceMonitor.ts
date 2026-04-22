@@ -7,6 +7,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
 import Redis from "ioredis";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { createLogger } from "../lib/logger.js";
 
 const monitoringLogger = createLogger("monitoring");
@@ -63,15 +64,17 @@ interface AlertRule {
 export class PerformanceMonitor {
   private metrics: ApiMetrics;
   private redis: Redis;
+  private scheduler: BackgroundTaskScheduler;
   private recentMetrics: PerformanceMetrics[] = [];
   private maxRecentMetrics: number = 1000;
   private alertRules: AlertRule[] = [];
   private slowRequestThreshold: number = 200; // ms
   private criticalRequestThreshold: number = 1000; // ms
 
-  constructor(metrics: ApiMetrics, redis: Redis) {
+  constructor(metrics: ApiMetrics, redis: Redis, scheduler: BackgroundTaskScheduler) {
     this.metrics = metrics;
     this.redis = redis;
+    this.scheduler = scheduler;
     this.initializeAlertRules();
     this.startBackgroundTasks();
   }
@@ -430,27 +433,30 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Start background monitoring tasks
+   * Start background monitoring tasks via the centralised scheduler.
    */
   private startBackgroundTasks(): void {
-    // Clean up old metrics every 10 minutes
-    const cleanupInterval = setInterval(
+    // Clean up metrics older than one hour, every 10 minutes.
+    this.scheduler.register(
+      "performance-monitor-metrics-cleanup",
       () => {
-        const cutoff = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
+        const cutoff = new Date(Date.now() - 60 * 60 * 1000);
         this.recentMetrics = this.recentMetrics.filter((m) => m.timestamp > cutoff);
       },
       10 * 60 * 1000
     );
-    cleanupInterval.unref();
 
-    // Health check every 30 seconds
-    const healthCheckInterval = setInterval(async () => {
-      const health = await this.getSystemHealth();
-      if (health.status !== "healthy") {
-        monitoringLogger.warn({ health }, "System health check");
-      }
-    }, 30 * 1000);
-    healthCheckInterval.unref();
+    // Health check every 30 seconds.
+    this.scheduler.register(
+      "performance-monitor-health-check",
+      async () => {
+        const health = await this.getSystemHealth();
+        if (health.status !== "healthy") {
+          monitoringLogger.warn({ health }, "System health check");
+        }
+      },
+      30 * 1000
+    );
   }
 
   /**

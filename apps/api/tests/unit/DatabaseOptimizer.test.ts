@@ -18,7 +18,10 @@
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { DatabaseOptimizer } from "../../src/database/DatabaseOptimizer";
+
+const scheduler = new NoopBackgroundTaskScheduler();
 
 // ============================================================================
 // Mock Factories
@@ -49,7 +52,7 @@ describe("DatabaseOptimizer - Initialization", () => {
     const prisma = createMockPrismaClient();
     const logger = createMockLogger();
 
-    const optimizer = new DatabaseOptimizer(prisma as any, logger as any);
+    const optimizer = new DatabaseOptimizer(prisma as any, logger as any, scheduler);
 
     expect(optimizer).toBeTruthy();
   });
@@ -67,7 +70,7 @@ describe("DatabaseOptimizer - Materialized View Refresh", () => {
   beforeEach(() => {
     mockPrisma = createMockPrismaClient();
     mockLogger = createMockLogger();
-    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
+    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any, scheduler);
   });
 
   it("should refresh materialized views successfully", async () => {
@@ -107,7 +110,7 @@ describe("DatabaseOptimizer - Database Health Report", () => {
   beforeEach(() => {
     mockPrisma = createMockPrismaClient();
     mockLogger = createMockLogger();
-    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
+    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any, scheduler);
 
     // Mock connection stats
     mockPrisma.$queryRaw = vi.fn(async (query: any) => {
@@ -260,7 +263,7 @@ describe("DatabaseOptimizer - Dashboard Posts", () => {
   beforeEach(() => {
     mockPrisma = createMockPrismaClient();
     mockLogger = createMockLogger();
-    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
+    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any, scheduler);
 
     mockPrisma.$queryRaw = vi.fn(async () => [
       {
@@ -333,7 +336,7 @@ describe("DatabaseOptimizer - Tenant Dashboard Stats", () => {
   beforeEach(() => {
     mockPrisma = createMockPrismaClient();
     mockLogger = createMockLogger();
-    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
+    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any, scheduler);
 
     mockPrisma.$queryRaw = vi.fn(async () => [
       {
@@ -399,7 +402,7 @@ describe("DatabaseOptimizer - Hourly Analytics Summary", () => {
   beforeEach(() => {
     mockPrisma = createMockPrismaClient();
     mockLogger = createMockLogger();
-    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
+    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any, scheduler);
 
     mockPrisma.$queryRaw = vi.fn(async () => [
       {
@@ -478,7 +481,7 @@ describe("DatabaseOptimizer - Performance Metrics", () => {
   beforeEach(() => {
     mockPrisma = createMockPrismaClient();
     mockLogger = createMockLogger();
-    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
+    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any, scheduler);
   });
 
   it("should record performance metric", async () => {
@@ -512,7 +515,7 @@ describe("DatabaseOptimizer - Performance Baselines", () => {
   beforeEach(() => {
     mockPrisma = createMockPrismaClient();
     mockLogger = createMockLogger();
-    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
+    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any, scheduler);
 
     mockPrisma.$queryRaw = vi.fn(async () => [
       {
@@ -572,7 +575,7 @@ describe("DatabaseOptimizer - Table Optimization", () => {
   beforeEach(() => {
     mockPrisma = createMockPrismaClient();
     mockLogger = createMockLogger();
-    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
+    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any, scheduler);
   });
 
   it("should optimize tables successfully", async () => {
@@ -605,7 +608,7 @@ describe("DatabaseOptimizer - Automatic Refresh", () => {
   beforeEach(() => {
     mockPrisma = createMockPrismaClient();
     mockLogger = createMockLogger();
-    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any);
+    optimizer = new DatabaseOptimizer(mockPrisma as any, mockLogger as any, scheduler);
   });
 
   it("should schedule automatic refresh", async () => {

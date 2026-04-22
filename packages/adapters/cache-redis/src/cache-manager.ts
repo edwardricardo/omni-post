@@ -6,6 +6,7 @@
 import { ok, err, type Result } from "@shared/types";
 import Redis from "ioredis";
 import pino from "pino";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   cacheHits,
   cacheMisses,
@@ -58,11 +59,13 @@ export class RedisCacheManager {
     warmups: 0,
   };
 
-  private cleanupInterval?: NodeJS.Timeout;
-  private patternCleanupInterval?: NodeJS.Timeout;
+  private scheduler: BackgroundTaskScheduler | undefined;
+  private readonly l1CleanupTaskId = "redis-cache-manager-l1-cleanup";
+  private readonly patternCleanupTaskId = "redis-cache-manager-pattern-cleanup";
   private isWarming = false;
 
-  constructor(config: CacheConfig) {
+  constructor(config: CacheConfig, scheduler?: BackgroundTaskScheduler) {
+    this.scheduler = scheduler;
     this.config = {
       keyPrefix: "cache:",
       defaultTtl: 3600, // 1 hour
@@ -529,11 +532,9 @@ export class RedisCacheManager {
    * Close Redis connection and cleanup
    */
   async close(): Promise<void> {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-    if (this.patternCleanupInterval) {
-      clearInterval(this.patternCleanupInterval);
+    if (this.scheduler) {
+      this.scheduler.unregister(this.l1CleanupTaskId);
+      this.scheduler.unregister(this.patternCleanupTaskId);
     }
     this.l1Cache.clear();
     this.accessTracker.clear();
@@ -568,17 +569,26 @@ export class RedisCacheManager {
   // Background tasks
 
   private startBackgroundTasks(): void {
+    if (!this.scheduler) {
+      // If no scheduler provided, background tasks are disabled. Consumer is
+      // expected to handle cleanup cadence via their own mechanism.
+      return;
+    }
     // Cleanup expired L1 entries every minute
-    this.cleanupInterval = setInterval(() => {
-      this.l1Cache.cleanupExpired();
-    }, 60000);
-    this.cleanupInterval.unref(); // Don't prevent process exit
-
+    this.scheduler.register(this.l1CleanupTaskId, () => this.l1Cache.cleanupExpired(), 60_000, {
+      onError: (err) => logger.warn({ err }, "L1 cleanup task error"),
+    });
     // Cleanup old access patterns every hour
-    this.patternCleanupInterval = setInterval(() => {
-      const cutoff = Date.now() - 3600000; // 1 hour
-      this.accessTracker.cleanupOldPatterns(cutoff);
-    }, 3600000);
-    this.patternCleanupInterval.unref(); // Don't prevent process exit
+    this.scheduler.register(
+      this.patternCleanupTaskId,
+      () => {
+        const cutoff = Date.now() - 3600000; // 1 hour
+        this.accessTracker.cleanupOldPatterns(cutoff);
+      },
+      3_600_000,
+      {
+        onError: (err) => logger.warn({ err }, "Pattern cleanup task error"),
+      }
+    );
   }
 }

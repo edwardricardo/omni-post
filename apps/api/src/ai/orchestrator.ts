@@ -5,6 +5,7 @@
  *   injection — no module-level singleton.
  * @layer infrastructure
  */
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   AIProvider,
   AITask,
@@ -57,10 +58,12 @@ export class AIOrchestrator {
   /**
    * @constructor
    * @param providers - Pre-built provider map (use AIProviderFactory to create)
+   * @param scheduler - Registers the rate-limit-reset background task. Required.
    * @param onTokensUsed - Optional callback invoked after each successful request
    */
   constructor(
     providers: Map<string, AIProvider>,
+    private readonly scheduler: BackgroundTaskScheduler,
     private readonly onTokensUsed?: TokenUsageCallback
   ) {
     this.providers = providers;
@@ -72,7 +75,7 @@ export class AIOrchestrator {
    * @description Creates an orchestrator from environment variables.
    * @deprecated Use AIProviderFactory + constructor injection instead.
    */
-  static createFromEnv(): AIOrchestrator {
+  static createFromEnv(scheduler: BackgroundTaskScheduler): AIOrchestrator {
     const providers = new Map<string, AIProvider>();
 
     if (process.env.OPENAI_API_KEY) {
@@ -130,7 +133,7 @@ export class AIOrchestrator {
       );
     }
 
-    return new AIOrchestrator(providers);
+    return new AIOrchestrator(providers, scheduler);
   }
 
   private startMetricsCollection() {
@@ -147,19 +150,24 @@ export class AIOrchestrator {
       });
     }
 
-    // Reset rate limits every minute
-    setInterval(() => {
-      const now = Date.now();
-      for (const [provider, limits] of this.rateLimits) {
-        if (now >= limits.resetTime) {
-          this.rateLimits.set(provider, {
-            requests: 0,
-            tokens: 0,
-            resetTime: now + 60000, // Reset in 1 minute
-          });
+    // Reset rate limits every minute — registered via the scheduler so the
+    // interval is unref'd, error-wrapped, and cleared during graceful shutdown.
+    this.scheduler.register(
+      "ai-orchestrator-rate-limit-reset",
+      () => {
+        const now = Date.now();
+        for (const [provider, limits] of this.rateLimits) {
+          if (now >= limits.resetTime) {
+            this.rateLimits.set(provider, {
+              requests: 0,
+              tokens: 0,
+              resetTime: now + 60000, // Reset in 1 minute
+            });
+          }
         }
-      }
-    }, 60000);
+      },
+      60000
+    );
   }
 
   private getOptimalProvider(task: AITask): ("openai" | "perplexity" | "gemini")[] {

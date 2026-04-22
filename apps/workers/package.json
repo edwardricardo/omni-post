@@ -14,6 +14,7 @@
   "dependencies": {
     "@adapters/db-prisma": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
+    "@observability/background-scheduler": "workspace:*",
     "@observability/opentelemetry": "workspace:*",
     "@ports/core": "workspace:*",
     "@providers/bluesky": "workspace:*",

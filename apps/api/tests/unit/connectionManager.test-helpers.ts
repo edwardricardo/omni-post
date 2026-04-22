@@ -2,8 +2,21 @@
  * Shared test helpers for ConnectionManager tests
  */
 
+import { vi } from "vitest";
 import type { ProviderConnection } from "@infra/prisma";
-import type { ConnectionManagerPrisma } from "../../src/auth/connectionManager.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import {
+  ConnectionManager,
+  type ConnectionManagerPrisma,
+} from "../../src/auth/connectionManager.js";
+
+/**
+ * Build a ConnectionManager for tests, wiring a Noop scheduler so the class
+ * under test does not register real timers.
+ */
+export function createConnectionManager(db: ConnectionManagerPrisma): ConnectionManager {
+  return new ConnectionManager(new NoopBackgroundTaskScheduler(), db);
+}
 
 export function createMockConnection(
   overrides: Partial<ProviderConnection> = {}

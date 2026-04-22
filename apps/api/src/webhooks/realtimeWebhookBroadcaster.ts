@@ -8,6 +8,7 @@ import * as WebSocket from "ws";
 import Redis from "ioredis";
 import { prisma } from "@infra/prisma";
 import type { Provider, WebhookEventType } from "@infra/prisma";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { webhookLogger } from "../lib/logger.js";
 
 export interface WebhookEventBroadcast {
@@ -63,15 +64,17 @@ export interface SSESubscription {
  */
 export class RealtimeWebhookBroadcaster {
   private redis: Redis;
+  private scheduler: BackgroundTaskScheduler;
   private connections: Map<string, WebhookSubscription> = new Map();
   private subscriptionsByProject: Map<string, Set<string>> = new Map(); // projectId -> connectionIds
   private subscriptionsByAccount: Map<string, Set<string>> = new Map(); // accountId -> connectionIds
-  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private readonly heartbeatTaskId = "realtime-webhook-broadcaster-heartbeat";
   private sseSubscriptions: Map<string, SSESubscription> = new Map();
   private sseByAccount: Map<string, Set<string>> = new Map(); // accountId -> sseSubscription ids
 
-  constructor(redis: Redis) {
+  constructor(redis: Redis, scheduler: BackgroundTaskScheduler) {
     this.redis = redis;
+    this.scheduler = scheduler;
     this.startHeartbeat();
     this.setupRedisSubscription();
   }
@@ -668,7 +671,8 @@ export class RealtimeWebhookBroadcaster {
    * Start heartbeat to cleanup inactive connections
    */
   private startHeartbeat(): void {
-    this.heartbeatInterval = setInterval(
+    this.scheduler.register(
+      this.heartbeatTaskId,
       () => {
         const now = new Date();
         const timeout = 30 * 60 * 1000; // 30 minutes
@@ -717,9 +721,7 @@ export class RealtimeWebhookBroadcaster {
    * Shutdown the broadcaster
    */
   shutdown(): void {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-    }
+    this.scheduler.unregister(this.heartbeatTaskId);
 
     // Close all WebSocket connections
     for (const subscription of Array.from(this.connections.values())) {

@@ -10,12 +10,14 @@
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
 import type { SagaInstance } from "@shared/saga";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { EventService } from "../events/EventService";
 
 export interface SagaManagerConfig {
   prisma: PrismaClient;
   redis: Redis;
   eventService: EventService;
+  scheduler: BackgroundTaskScheduler;
   enableMetrics?: boolean;
   defaultTimeout?: number;
   maxConcurrentSagas?: number;

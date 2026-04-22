@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ok, err, type Result } from "@shared/types";
 import * as pino from "pino";
 import * as client from "prom-client";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type {
   HealthStatus,
   DependencyHealth,
@@ -58,7 +59,8 @@ export class HealthCheckManager {
   private results = new Map<string, DependencyHealth>();
   private alerts: HealthAlert[] = [];
   private isRunning = false;
-  private intervalId: NodeJS.Timeout | undefined = undefined;
+  private scheduler: BackgroundTaskScheduler | undefined;
+  private readonly periodicTaskId = "health-check-manager-periodic";
 
   constructor(
     private globalConfig: HealthCheckConfig = {
@@ -70,8 +72,11 @@ export class HealthCheckManager {
         unhealthyLatency: 5000,
         criticalFailureCount: 3,
       },
-    }
-  ) {}
+    },
+    scheduler?: BackgroundTaskScheduler
+  ) {
+    this.scheduler = scheduler;
+  }
 
   /**
    * Register a health checker
@@ -221,19 +226,26 @@ export class HealthCheckManager {
       return;
     }
 
+    if (!this.scheduler) {
+      throw new Error(
+        "HealthCheckManager.start() requires a BackgroundTaskScheduler; pass one via the constructor."
+      );
+    }
+
     this.isRunning = true;
-    this.intervalId = setInterval(() => {
-      this.checkAll().catch((error) => {
-        logger.error("Periodic health check failed:", error);
-      });
-    }, this.globalConfig.interval);
+    this.scheduler.register(
+      this.periodicTaskId,
+      async () => {
+        await this.checkAll();
+      },
+      this.globalConfig.interval,
+      {
+        immediate: true,
+        onError: (err) => logger.error({ err }, "Periodic health check failed"),
+      }
+    );
 
     logger.info(`Health check manager started (interval: ${this.globalConfig.interval}ms)`);
-
-    // Perform initial check
-    this.checkAll().catch((error) => {
-      logger.error("Initial health check failed:", error);
-    });
   }
 
   /**
@@ -243,9 +255,8 @@ export class HealthCheckManager {
     if (!this.isRunning) return;
 
     this.isRunning = false;
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = undefined;
+    if (this.scheduler) {
+      this.scheduler.unregister(this.periodicTaskId);
     }
 
     logger.info("Health check manager stopped");
@@ -483,7 +494,10 @@ export class HealthCheckManager {
 // Global health check manager instance
 let globalHealthManager: HealthCheckManager | null = null;
 
-export function createHealthCheckManager(config?: Partial<HealthCheckConfig>): HealthCheckManager {
+export function createHealthCheckManager(
+  config?: Partial<HealthCheckConfig>,
+  scheduler?: BackgroundTaskScheduler
+): HealthCheckManager {
   if (!globalHealthManager) {
     const fullConfig: HealthCheckConfig = {
       timeout: config?.timeout ?? 5000,
@@ -495,7 +509,7 @@ export function createHealthCheckManager(config?: Partial<HealthCheckConfig>): H
         criticalFailureCount: config?.alertThresholds?.criticalFailureCount ?? 3,
       },
     };
-    globalHealthManager = new HealthCheckManager(fullConfig);
+    globalHealthManager = new HealthCheckManager(fullConfig, scheduler);
   }
   return globalHealthManager;
 }

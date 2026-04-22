@@ -7,6 +7,7 @@
  */
 
 import type Redis from "ioredis";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
 const REDIS_CHANNEL_PREFIX = "notifications:";
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -43,15 +44,17 @@ interface NotificationSSESubscription {
 export class NotificationBroadcaster {
   private readonly publisher: Redis;
   private readonly subscriber: Redis;
+  private readonly scheduler: BackgroundTaskScheduler;
   private subscriptions: Map<string, NotificationSSESubscription> = new Map();
   private byRecipient: Map<string, Set<string>> = new Map();
-  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private readonly heartbeatTaskId = "notification-broadcaster-heartbeat";
   private initialized = false;
 
-  constructor(redis: Redis) {
+  constructor(redis: Redis, scheduler: BackgroundTaskScheduler) {
     this.publisher = redis;
     this.subscriber = redis.duplicate();
     this.subscriber.on("error", () => {});
+    this.scheduler = scheduler;
   }
 
   /**
@@ -138,10 +141,7 @@ export class NotificationBroadcaster {
    * @description Cleans up all subscriptions, heartbeat, and Redis subscriber.
    */
   async shutdown(): Promise<void> {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
+    this.scheduler.unregister(this.heartbeatTaskId);
 
     this.subscriptions.clear();
     this.byRecipient.clear();
@@ -206,14 +206,14 @@ export class NotificationBroadcaster {
    * @description Sends periodic heartbeat comments to keep SSE connections alive.
    */
   private startHeartbeat(): void {
-    this.heartbeatInterval = setInterval(() => {
-      // Heartbeat is sent at the route level via reply.raw.write
-      // This interval exists to clean up stale subscriptions if needed
-    }, HEARTBEAT_INTERVAL_MS);
-
-    // Allow process to exit without waiting for this timer
-    if (this.heartbeatInterval.unref) {
-      this.heartbeatInterval.unref();
-    }
+    this.scheduler.register(
+      this.heartbeatTaskId,
+      () => {
+        // Heartbeat is sent at the route level via reply.raw.write.
+        // This tick exists so the broadcaster retains a hook for future
+        // stale-subscription cleanup without reintroducing a raw setInterval.
+      },
+      HEARTBEAT_INTERVAL_MS
+    );
   }
 }

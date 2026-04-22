@@ -5,7 +5,11 @@
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { ConnectionManager } from "../../src/auth/connectionManager.js";
 import type { ConnectionManagerPrisma } from "../../src/auth/connectionManager.js";
-import { createMockConnection, createMockDb } from "./connectionManager.test-helpers.js";
+import {
+  createConnectionManager,
+  createMockConnection,
+  createMockDb,
+} from "./connectionManager.test-helpers.js";
 
 // ============================================================================
 // ConnectionManager - Credential Updates Tests
@@ -17,7 +21,7 @@ describe("ConnectionManager - Credential Updates", () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
 
@@ -32,7 +36,7 @@ describe("ConnectionManager - Credential Updates", () => {
       capturedArgs = args;
       return updatedConnection;
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const result = await manager.updateCredentials("conn-123", {
@@ -51,7 +55,7 @@ describe("ConnectionManager - Credential Updates", () => {
       capturedArgs = args;
       return updatedConnection;
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.updateCredentials("conn-123", {
@@ -70,7 +74,7 @@ describe("ConnectionManager - Credential Updates", () => {
       capturedArgs = args;
       return updatedConnection;
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.updateCredentials("conn-123", { expiresAt });
@@ -85,7 +89,7 @@ describe("ConnectionManager - Credential Updates", () => {
       capturedArgs = args;
       return createMockConnection();
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.updateCredentials("conn-123", { accessToken: "new-token" });
@@ -101,7 +105,7 @@ describe("ConnectionManager - Credential Updates", () => {
       capturedArgs = args;
       return createMockConnection();
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.updateCredentials("conn-123", {
@@ -127,7 +131,7 @@ describe("ConnectionManager - Usage Tracking", () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
 
@@ -145,7 +149,7 @@ describe("ConnectionManager - Usage Tracking", () => {
       updateArgs = args;
       return createMockConnection();
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.recordUsage("conn-123");
@@ -165,7 +169,7 @@ describe("ConnectionManager - Usage Tracking", () => {
       updateArgs = args;
       return createMockConnection({ healthScore: 51 });
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.recordUsage("conn-123");
@@ -184,7 +188,7 @@ describe("ConnectionManager - Usage Tracking", () => {
       updateArgs = args;
       return createMockConnection();
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.recordUsage("conn-123");
@@ -204,7 +208,7 @@ describe("ConnectionManager - Error Recording", () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
 
@@ -222,7 +226,7 @@ describe("ConnectionManager - Error Recording", () => {
       updateArgs = args;
       return createMockConnection();
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.recordError("conn-123", "Test error");
@@ -243,7 +247,7 @@ describe("ConnectionManager - Error Recording", () => {
       updateArgs = args;
       return createMockConnection();
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.recordError("conn-123", "Test error");
@@ -262,7 +266,7 @@ describe("ConnectionManager - Error Recording", () => {
       updateArgs = args;
       return createMockConnection();
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.recordError("conn-123", "Critical error");
@@ -283,7 +287,7 @@ describe("ConnectionManager - Error Recording", () => {
       updateArgs = args;
       return createMockConnection();
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.recordError("conn-123", "Another error");
@@ -294,7 +298,7 @@ describe("ConnectionManager - Error Recording", () => {
 
   it("should handle non-existent connection gracefully", async () => {
     // mockDb.providerConnection.findUnique returns null by default
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     // Should not throw

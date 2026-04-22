@@ -368,27 +368,35 @@ export class SagaManagerLifecycle implements SagaManager {
   }
 
   private startTimeoutChecker(): void {
-    setInterval(async () => {
-      for (const [sagaId, instance] of this.activeInstances) {
-        const definition = this.definitions.get(instance.definitionId);
-        if (!definition) continue;
+    this.config.scheduler.register(
+      "saga-timeout-checker",
+      async () => {
+        for (const [sagaId, instance] of this.activeInstances) {
+          const definition = this.definitions.get(instance.definitionId);
+          if (!definition) continue;
 
-        const timeout = definition.timeout || this.config.defaultTimeout || 30 * 60 * 1000;
-        const elapsed = Date.now() - instance.startedAt.getTime();
+          const timeout = definition.timeout || this.config.defaultTimeout || 30 * 60 * 1000;
+          const elapsed = Date.now() - instance.startedAt.getTime();
 
-        if (elapsed > timeout) {
-          logger.warn({ sagaId, elapsedMs: elapsed, timeoutMs: timeout }, "Saga timeout");
-          await this.executionEngine.failSaga(instance, "Saga timeout exceeded");
+          if (elapsed > timeout) {
+            logger.warn({ sagaId, elapsedMs: elapsed, timeoutMs: timeout }, "Saga timeout");
+            await this.executionEngine.failSaga(instance, "Saga timeout exceeded");
+          }
         }
-      }
-    }, 60000).unref();
+      },
+      60000
+    );
   }
 
   private startMetricsCollector(): void {
     if (!this.config.enableMetrics) return;
 
-    setInterval(() => {
-      this.metrics.activeInstances = this.activeInstances.size;
-    }, 30000).unref();
+    this.config.scheduler.register(
+      "saga-metrics-collector",
+      () => {
+        this.metrics.activeInstances = this.activeInstances.size;
+      },
+      30000
+    );
   }
 }

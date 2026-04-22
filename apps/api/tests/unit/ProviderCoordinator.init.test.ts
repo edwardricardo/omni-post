@@ -11,6 +11,7 @@ import {
   createMockEventService,
   createMockProviderAdapter,
   createMockCanonicalPost,
+  createMockScheduler,
   mockProviders,
   mockAdapters,
   setupMockProviders,
@@ -55,14 +56,12 @@ describe("ProviderCoordinator - init and selection", () => {
         prisma: mockPrisma,
         redis: mockRedis,
         eventService: mockEventService,
+        scheduler: createMockScheduler(),
       });
     });
 
-    afterEach(() => {
-      (coordinator as any).healthCheckInterval &&
-        clearInterval((coordinator as any).healthCheckInterval);
-      (coordinator as any).metricsCollectionInterval &&
-        clearInterval((coordinator as any).metricsCollectionInterval);
+    afterEach(async () => {
+      await (coordinator as any).scheduler?.shutdownAll();
     });
 
     it("should initialize with provider nodes loaded", async () => {
@@ -149,16 +148,14 @@ describe("ProviderCoordinator - init and selection", () => {
         prisma: mockPrisma,
         redis: mockRedis,
         eventService: mockEventService,
+        scheduler: createMockScheduler(),
       });
 
       await coordinator.initialize();
     });
 
-    afterEach(() => {
-      (coordinator as any).healthCheckInterval &&
-        clearInterval((coordinator as any).healthCheckInterval);
-      (coordinator as any).metricsCollectionInterval &&
-        clearInterval((coordinator as any).metricsCollectionInterval);
+    afterEach(async () => {
+      await (coordinator as any).scheduler?.shutdownAll();
     });
 
     it("should select provider with highest score", async () => {

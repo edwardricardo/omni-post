@@ -18,6 +18,7 @@
 import type Redis from "ioredis";
 import type { ComponentHealth } from "@shared/orchestration";
 import type { CanonicalPost } from "@shared/types";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ProviderId } from "../providers/providerAdapter.interface";
 import type { EventService } from "../events/EventService";
 import { createLogger } from "../lib/logger.js";
@@ -62,19 +63,22 @@ interface ProviderScore {
 export class ProviderHealthMonitor {
   private redis: Redis;
   private eventService: EventService;
+  private scheduler: BackgroundTaskScheduler;
   private providerNodes: Map<ProviderId, ProviderNodeExtended>;
   private failoverStrategies: Map<ProviderId, FailoverStrategy>;
-  private healthCheckInterval?: NodeJS.Timeout;
-  private metricsCollectionInterval?: NodeJS.Timeout;
+  private readonly healthTaskId = "provider-health-monitor-health-check";
+  private readonly metricsTaskId = "provider-health-monitor-metrics-collection";
 
   constructor(dependencies: {
     redis: Redis;
     eventService: EventService;
+    scheduler: BackgroundTaskScheduler;
     providerNodes: Map<ProviderId, ProviderNodeExtended>;
     failoverStrategies: Map<ProviderId, FailoverStrategy>;
   }) {
     this.redis = dependencies.redis;
     this.eventService = dependencies.eventService;
+    this.scheduler = dependencies.scheduler;
     this.providerNodes = dependencies.providerNodes;
     this.failoverStrategies = dependencies.failoverStrategies;
   }
@@ -88,14 +92,11 @@ export class ProviderHealthMonitor {
    * {@link ProviderCoordinatorMonitoring.performHealthChecks}.
    */
   startHealthMonitoring(): void {
-    this.healthCheckInterval = setInterval(async () => {
-      try {
-        await _performHealthChecks(this.providerNodes);
-      } catch (error: unknown) {
-        log.error({ err: error }, "Health check error");
-      }
-    }, 30000);
-    this.healthCheckInterval.unref();
+    this.scheduler.register(
+      this.healthTaskId,
+      () => _performHealthChecks(this.providerNodes),
+      30000
+    );
     log.info("Started provider health monitoring");
   }
 
@@ -106,14 +107,11 @@ export class ProviderHealthMonitor {
    * {@link ProviderCoordinatorMonitoring.collectProviderMetrics}.
    */
   startMetricsCollection(): void {
-    this.metricsCollectionInterval = setInterval(async () => {
-      try {
-        await _collectMetrics(this.providerNodes, this.redis);
-      } catch (error: unknown) {
-        log.error({ err: error }, "Metrics collection error");
-      }
-    }, 60000);
-    this.metricsCollectionInterval.unref();
+    this.scheduler.register(
+      this.metricsTaskId,
+      () => _collectMetrics(this.providerNodes, this.redis),
+      60000
+    );
     log.info("Started provider metrics collection");
   }
 

@@ -3,10 +3,31 @@
  */
 
 import type { FastifyRequest } from "fastify";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import {
+  SlidingWindowRateLimit,
+  type SlidingWindowConfig,
+} from "../../src/security/slidingWindowRateLimit.js";
 
 // Track all limiter instances for cleanup (exported so each file can push to it)
-export const limiterInstances: import("../../src/security/slidingWindowRateLimit.js").SlidingWindowRateLimit[] =
-  [];
+export const limiterInstances: SlidingWindowRateLimit[] = [];
+
+/**
+ * Build a SlidingWindowRateLimit with a Noop scheduler wired in, matching the
+ * current production constructor signature `(redis, metrics, scheduler, config)`.
+ */
+export function createLimiter(
+  redis: unknown,
+  metrics: unknown,
+  config: SlidingWindowConfig
+): SlidingWindowRateLimit {
+  return new SlidingWindowRateLimit(
+    redis as never,
+    metrics as never,
+    new NoopBackgroundTaskScheduler(),
+    config
+  );
+}
 
 // ============================================================================
 // Mock Redis Client (Enhanced)

@@ -10,6 +10,7 @@ import type * as WebSocket from "ws";
 import Redis from "ioredis";
 import { z } from "zod";
 import { prisma } from "@infra/prisma";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { createLogger } from "../lib/logger.js";
 import { getRequiredSecret } from "../lib/envValidation.js";
 
@@ -52,11 +53,13 @@ export class RealtimeAnalyticsService extends BaseService {
   private connections: Map<string, ConnectionManager> = new Map();
   private subscriptions: Map<string, Set<string>> = new Map(); // postId -> Set<connectionId>
   private metricsCache: Map<string, RealtimeMetrics> = new Map();
-  private updateInterval: NodeJS.Timeout | null = null;
+  private readonly metricsTaskId = "realtime-analytics-metrics-updater";
+  private readonly connectionCleanerTaskId = "realtime-analytics-connection-cleaner";
 
   constructor(
     redis: Redis,
-    private readonly accountRepository: AccountQueryRepositoryPort
+    private readonly accountRepository: AccountQueryRepositoryPort,
+    private readonly scheduler: BackgroundTaskScheduler
   ) {
     super("RealtimeAnalyticsService");
     this.redis = redis;
@@ -334,9 +337,7 @@ export class RealtimeAnalyticsService extends BaseService {
    * Start periodic metrics updater
    */
   private startMetricsUpdater(): void {
-    this.updateInterval = setInterval(async () => {
-      await this.updateAllMetrics();
-    }, 30000); // Update every 30 seconds
+    this.scheduler.register(this.metricsTaskId, () => this.updateAllMetrics(), 30000);
   }
 
   /**
@@ -422,15 +423,18 @@ export class RealtimeAnalyticsService extends BaseService {
    * Start connection cleaner
    */
   private startConnectionCleaner(): void {
-    setInterval(() => {
-      const cutoff = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago
-
-      for (const [connectionId, connection] of this.connections) {
-        if (connection.lastActivity < cutoff || connection.socket.readyState !== 1) {
-          this.handleWebSocketClose(connectionId);
+    this.scheduler.register(
+      this.connectionCleanerTaskId,
+      () => {
+        const cutoff = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago
+        for (const [connectionId, connection] of this.connections) {
+          if (connection.lastActivity < cutoff || connection.socket.readyState !== 1) {
+            this.handleWebSocketClose(connectionId);
+          }
         }
-      }
-    }, 60000); // Check every minute
+      },
+      60000
+    );
   }
 
   /**
@@ -646,9 +650,8 @@ export class RealtimeAnalyticsService extends BaseService {
    * Cleanup on service shutdown
    */
   shutdown(): void {
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-    }
+    this.scheduler.unregister(this.metricsTaskId);
+    this.scheduler.unregister(this.connectionCleanerTaskId);
 
     // Close all connections
     for (const connection of this.connections.values()) {

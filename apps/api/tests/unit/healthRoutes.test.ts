@@ -10,6 +10,9 @@ import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import type Redis from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { createTestContainer } from "../../src/infrastructure/container/setup.js";
+import { TOKENS } from "../../src/infrastructure/container/types.js";
 
 // ─── Mock Types ─────────────────────────────────────────────────────
 type MockRedis = Pick<Redis, "ping" | "get" | "set" | "del" | "keys">;
@@ -209,6 +212,11 @@ describe("healthRoutes - Unit Tests", () => {
     );
 
     app = Fastify({ logger: false });
+
+    // Provide a DI container so healthRoutes can resolve BackgroundTaskScheduler.
+    const container = createTestContainer();
+    container.registerInstance(TOKENS.BackgroundTaskScheduler, new NoopBackgroundTaskScheduler());
+    app.decorate("container", container);
 
     const { healthRoutes } = await import("../../src/health/healthRoutes.js");
     await app.register(healthRoutes, {

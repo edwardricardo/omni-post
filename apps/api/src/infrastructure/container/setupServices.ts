@@ -41,7 +41,7 @@ import { DataRetentionService } from "../../compliance/DataRetentionService.js";
 import { DlqArchivalService } from "../../webhooks/DlqArchivalService.js";
 import { DatabaseOptimizer } from "../../database/DatabaseOptimizer.js";
 import { RedisCacheManager } from "@adapters/cache-redis";
-import { dbLogger } from "../../lib/logger.js";
+import { dbLogger, createLogger } from "../../lib/logger.js";
 import { CredentialManager } from "../../orchestration/CredentialManager.js";
 import { RateLimitManager } from "../../orchestration/RateLimitManager.js";
 import { ProviderCoordinator } from "../../orchestration/ProviderCoordinator.js";
@@ -58,6 +58,10 @@ import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import { ResendEmailAdapter } from "../adapters/ResendEmailAdapter.js";
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import {
+  DefaultBackgroundTaskScheduler,
+  type BackgroundTaskScheduler,
+} from "@observability/background-scheduler";
 
 /**
  * Register all services in the container
@@ -70,6 +74,14 @@ export function setupServices(
   if (integrationEventPublisher) {
     container.registerInstance(TOKENS.IntegrationEventPublisher, integrationEventPublisher);
   }
+
+  // Register BackgroundTaskScheduler (centralised setInterval registry).
+  // Singleton — one registry per process, flushed on SIGTERM/SIGINT.
+  container.register<BackgroundTaskScheduler>(
+    TOKENS.BackgroundTaskScheduler,
+    () => new DefaultBackgroundTaskScheduler({ logger: createLogger("scheduler") }),
+    true
+  );
 
   // Register Event Versioning infrastructure (P2-5)
   container.register<EventSchemaRegistry>(
@@ -108,14 +120,19 @@ export function setupServices(
     () =>
       new AiRequestService(
         container.resolve(TOKENS.PrismaClient),
-        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
+        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService),
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
       ),
     true
   );
 
   container.register<AIService>(
     TOKENS.AIService,
-    () => new AIService(container.resolve<AiRequestService>(TOKENS.AiRequestService)),
+    () =>
+      new AIService(
+        container.resolve<AiRequestService>(TOKENS.AiRequestService),
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      ),
     true
   );
   container.registerInstance(TOKENS.DashboardService, dashboardService);
@@ -176,7 +193,10 @@ export function setupServices(
     () => {
       const redis = createRedisConnection();
       redis.on("error", () => {});
-      return new RealtimeWebhookBroadcaster(redis);
+      return new RealtimeWebhookBroadcaster(
+        redis,
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      );
     },
     true
   );
@@ -200,6 +220,7 @@ export function setupServices(
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       return new ContentVersionManager({
         prisma: container.resolve(TOKENS.PrismaClient),
@@ -217,6 +238,7 @@ export function setupServices(
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       return new PlatformContentAdapter({
         prisma: container.resolve(TOKENS.PrismaClient),
@@ -234,12 +256,14 @@ export function setupServices(
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       const versionManager = container.resolve<ContentVersionManager>(TOKENS.ContentVersionManager);
       const synchronizer = new ContentSynchronizer({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
         eventService,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       return new SyncEngine({
         prisma: container.resolve(TOKENS.PrismaClient),
@@ -247,6 +271,7 @@ export function setupServices(
         eventService,
         synchronizer,
         versionManager,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
     },
     true
@@ -293,14 +318,21 @@ export function setupServices(
     TOKENS.PostsService,
     () => {
       const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
-      const dbOptimizer = new DatabaseOptimizer(container.resolve(TOKENS.PrismaClient), dbLogger);
-      const cacheManager = new RedisCacheManager({
-        redisUrl,
-        keyPrefix: "posts:",
-        defaultTtl: 300,
-        enableCompression: true,
-        enableMetrics: true,
-      });
+      const dbOptimizer = new DatabaseOptimizer(
+        container.resolve(TOKENS.PrismaClient),
+        dbLogger,
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      );
+      const cacheManager = new RedisCacheManager(
+        {
+          redisUrl,
+          keyPrefix: "posts:",
+          defaultTtl: 300,
+          enableCompression: true,
+          enableMetrics: true,
+        },
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      );
       return createPostsService(dbOptimizer, cacheManager);
     },
     true
@@ -315,11 +347,13 @@ export function setupServices(
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       return new ProviderCoordinator({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
         eventService,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
     },
     true
@@ -336,7 +370,10 @@ export function setupServices(
     () => {
       const redis = createRedisConnection();
       redis.on("error", () => {});
-      const broadcaster = new NotificationBroadcaster(redis);
+      const broadcaster = new NotificationBroadcaster(
+        redis,
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      );
       broadcaster.initialize();
       return broadcaster;
     },
@@ -362,11 +399,13 @@ export function setupServices(
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       return new SagaManagerImpl({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
         eventService,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
         enableMetrics: true,
         defaultTimeout: 30 * 60 * 1000,
         maxConcurrentSagas: 100,

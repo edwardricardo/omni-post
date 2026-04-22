@@ -6,11 +6,13 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { EventDispatcher, DomainEvent } from "../../domain/events/DomainEvent.js";
 
 export interface OutboxRelayOptions {
   prisma: PrismaClient;
   eventDispatcher: EventDispatcher;
+  scheduler: BackgroundTaskScheduler;
   pollIntervalMs?: number;
   batchSize?: number;
 }
@@ -20,7 +22,8 @@ export interface OutboxRelayOptions {
  * Uses exponential backoff for failed dispatches and stops after maxRetries.
  */
 export class OutboxRelay {
-  private timer: ReturnType<typeof setInterval> | null = null;
+  private readonly taskId = "outbox-relay";
+  private scheduled = false;
   private running = false;
   private readonly pollIntervalMs: number;
   private readonly batchSize: number;
@@ -30,24 +33,23 @@ export class OutboxRelay {
     this.batchSize = options.batchSize ?? 100;
   }
 
-  /** Start polling the outbox table on a fixed interval. */
+  /** Start polling the outbox table on a fixed interval. Idempotent. */
   start(): void {
-    if (this.timer) return;
-    this.timer = setInterval(() => void this.poll(), this.pollIntervalMs);
-    this.timer.unref();
+    if (this.scheduled) return;
+    this.options.scheduler.register(this.taskId, () => this.poll(), this.pollIntervalMs);
+    this.scheduled = true;
   }
 
-  /** Stop the polling interval. */
+  /** Stop the polling task. Idempotent. */
   stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
+    if (!this.scheduled) return;
+    this.options.scheduler.unregister(this.taskId);
+    this.scheduled = false;
   }
 
-  /** Returns true if the relay is currently polling. */
+  /** Returns true if the relay is currently scheduled. */
   get isRunning(): boolean {
-    return this.timer !== null;
+    return this.scheduled;
   }
 
   /** Exposed for testing — runs a single poll cycle. */

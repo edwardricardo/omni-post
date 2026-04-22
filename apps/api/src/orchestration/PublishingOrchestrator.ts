@@ -24,6 +24,7 @@ import {
 } from "@shared/orchestration";
 import type { ProviderId } from "../providers/providerAdapter.interface";
 import { EventService } from "../events/EventService";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { PublishingOrchestratorExecution } from "./PublishingOrchestratorExecution";
 import type { OrchestrationDependencies } from "./publishingOrchestratorTypes";
 import { createLogger } from "../lib/logger.js";
@@ -35,6 +36,7 @@ export class PublishingOrchestrator extends PublishingOrchestratorExecution {
   protected override redis: Redis;
   protected override eventService: EventService;
   protected override config: OrchestrationConfig;
+  protected override scheduler: BackgroundTaskScheduler;
   protected override activeExecutions = new Map<string, OrchestrationExecution>();
   private isInitialized = false;
 
@@ -60,6 +62,7 @@ export class PublishingOrchestrator extends PublishingOrchestratorExecution {
     this.prisma = dependencies.prisma;
     this.redis = dependencies.redis;
     this.eventService = dependencies.eventService;
+    this.scheduler = dependencies.scheduler;
     this.config = { ...this.defaultConfig, ...dependencies.config };
   }
 

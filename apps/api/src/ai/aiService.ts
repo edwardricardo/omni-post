@@ -5,6 +5,7 @@
  *   BYOK/pool routing and rate limiting.
  * @layer infrastructure
  */
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { BaseService } from "../services/BaseService.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { AIOrchestrator } from "./orchestrator.js";
@@ -57,7 +58,10 @@ interface SmartAnalysisResult {
 export class AIService extends BaseService {
   private adminOrchestrator: AIOrchestrator | null = null;
 
-  constructor(private readonly aiRequestService: AiRequestService) {
+  constructor(
+    private readonly aiRequestService: AiRequestService,
+    private readonly scheduler: BackgroundTaskScheduler
+  ) {
     super("AIService");
   }
 
@@ -68,7 +72,7 @@ export class AIService extends BaseService {
    */
   private getAdminOrchestrator(): AIOrchestrator {
     if (!this.adminOrchestrator) {
-      this.adminOrchestrator = AIOrchestrator.createFromEnv();
+      this.adminOrchestrator = AIOrchestrator.createFromEnv(this.scheduler);
     }
     return this.adminOrchestrator;
   }

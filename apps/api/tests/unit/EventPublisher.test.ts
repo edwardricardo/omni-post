@@ -4,7 +4,10 @@
  */
 
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { DomainEvent, EventHandler, createDomainEvent, EVENT_TYPES } from "@shared/events";
+
+const scheduler = new NoopBackgroundTaskScheduler();
 
 // Mock Redis client
 class MockRedis {
@@ -126,6 +129,7 @@ describe("EventPublisher - Event Publishing", () => {
     mockRedis = new MockRedis();
     publisher = new RedisEventPublisher({
       redis: mockRedis as any,
+      scheduler,
       enableMetrics: true,
     });
   });
@@ -245,6 +249,7 @@ describe("EventPublisher - Batch Publishing", () => {
     mockRedis = new MockRedis();
     publisher = new RedisEventPublisher({
       redis: mockRedis as any,
+      scheduler,
       enableMetrics: true,
     });
   });
@@ -320,6 +325,7 @@ describe("EventPublisher - Subscription Management", () => {
     mockRedis = new MockRedis();
     publisher = new RedisEventPublisher({
       redis: mockRedis as any,
+      scheduler,
     });
   });
 
@@ -406,6 +412,7 @@ describe("EventPublisher - Retry Logic", () => {
     mockRedis = new MockRedis();
     publisher = new RedisEventPublisher({
       redis: mockRedis as any,
+      scheduler,
       maxRetries: 3,
       retryDelay: 100,
     });
@@ -443,6 +450,7 @@ describe("EventPublisher - Metrics", () => {
     mockRedis = new MockRedis();
     publisher = new RedisEventPublisher({
       redis: mockRedis as any,
+      scheduler,
       enableMetrics: true,
     });
   });
@@ -552,6 +560,7 @@ describe("EventPublisher - Health Check", () => {
     mockRedis = new MockRedis();
     publisher = new RedisEventPublisher({
       redis: mockRedis as any,
+      scheduler,
     });
   });
 
@@ -604,6 +613,7 @@ describe("EventPublisher - Shutdown", () => {
     mockRedis = new MockRedis();
     publisher = new RedisEventPublisher({
       redis: mockRedis as any,
+      scheduler,
     });
   });
 

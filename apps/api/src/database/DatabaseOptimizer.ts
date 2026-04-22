@@ -7,6 +7,7 @@
 
 import { prisma } from "@infra/prisma";
 import { Logger } from "pino";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
 type PrismaClient = typeof prisma;
 
@@ -49,9 +50,12 @@ export interface PerformanceBaseline {
 }
 
 export class DatabaseOptimizer {
+  private readonly refreshTaskId = "database-optimizer-materialized-view-refresh";
+
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly scheduler: BackgroundTaskScheduler
   ) {}
 
   /**
@@ -478,16 +482,18 @@ export class DatabaseOptimizer {
   async scheduleAutomaticRefresh(): Promise<void> {
     const refreshInterval = parseInt(process.env.MATERIALIZED_VIEW_REFRESH_INTERVAL || "900000"); // 15 minutes default
 
-    const interval = setInterval(async () => {
-      try {
+    this.scheduler.register(
+      this.refreshTaskId,
+      async () => {
         await this.refreshMaterializedViews();
         await this.optimizeTables();
         this.logger.info("Automatic database optimization completed");
-      } catch (error) {
-        this.logger.error({ error }, "Automatic database optimization failed");
+      },
+      refreshInterval,
+      {
+        onError: (err) => this.logger.error({ err }, "Automatic database optimization failed"),
       }
-    }, refreshInterval);
-    interval.unref();
+    );
 
     this.logger.info({ refreshInterval }, "Automatic materialized view refresh scheduled");
   }

@@ -402,6 +402,24 @@ execute(command: CreatePostCommand): Promise<Post>  // hides failure
 
 ---
 
+## Background Tasks
+
+**All recurring work MUST be registered via `BackgroundTaskScheduler` — never call `setInterval` / `setTimeout` directly in backend production code.**
+
+The scheduler lives at `packages/observability/background-scheduler/` and is wired into DI as `TOKENS.BackgroundTaskScheduler`. It applies `.unref()` by default, wraps callbacks with try/catch + logger, tracks in-flight async work, and is torn down on SIGINT/SIGTERM via `scheduler.shutdownAll()`.
+
+- **Register:** `scheduler.register(taskId, callback, intervalMs, options?)` — `taskId` is a stable string constant (one per task, one per class, not a UUID unless the task is per-connection), `callback` may be sync or async, errors go through `options.onError` or the injected logger.
+- **Unregister:** `scheduler.unregister(taskId)` on teardown (`stop()` / `shutdown()` / `destroy()` / `onClose` hook / request `close` event).
+- **Use `critical: true`** only when the task must NOT let the process exit while still running (rare — default is safer).
+- **Use `immediate: true`** when the first execution must fire synchronously instead of after one interval.
+- **Libraries in `packages/`** accept `scheduler?: BackgroundTaskScheduler` as an **optional** dependency to stay pure when consumed outside the DI graph. The app's composition root passes the scheduler explicitly.
+- **Workers** (apps/workers) construct their own `DefaultBackgroundTaskScheduler` and call `scheduler.shutdownAll()` in their `SIGINT`/`SIGTERM` handlers.
+- **Tests** inject a `NoopBackgroundTaskScheduler` and fire callbacks manually via `noopScheduler.triggerTask(taskId)` when the test needs to exercise the task body.
+
+The only legitimate raw `setInterval` call in the entire backend is inside `DefaultBackgroundTaskScheduler` itself. The CI fitness grep blocks new occurrences.
+
+---
+
 ## Testing
 
 **Write the test first. If you can't write a test for it, reconsider the design.**
@@ -699,6 +717,10 @@ grep -rL "@file" apps/api/src/ --include="*.ts" | grep -v node_modules | wc -l
 # 10. No invalid @layer values
 grep -rn "@layer" apps/api/src/ --include="*.ts" | \
   grep -v "@layer application\|@layer domain\|@layer infrastructure" | wc -l
+
+# 11. No raw setInterval in backend (scheduler-adapter excepted)
+grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" | \
+  grep -v "default-scheduler\|node_modules\|dist\|\.test\.\|/tests/\|/\.stryker-tmp/\|eslint\.config\|DANGEROUS_STRINGS" | wc -l
 ```
 
 ---

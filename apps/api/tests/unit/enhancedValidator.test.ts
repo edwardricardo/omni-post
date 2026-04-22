@@ -18,12 +18,13 @@
 
 import { describe, it, afterAll, expect } from "vitest";
 import { EnhancedValidator } from "../../src/security/enhancedValidator.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 // ========================================
 // SETUP
 // ========================================
 
-const validator = new EnhancedValidator();
+const validator = new EnhancedValidator(new NoopBackgroundTaskScheduler());
 
 // Cleanup the validator's internal setInterval timer after all tests
 afterAll(() => {

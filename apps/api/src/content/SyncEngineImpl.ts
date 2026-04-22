@@ -143,14 +143,9 @@ export class SyncEngine extends SyncEngineBase {
   }
 
   protected startMetricsCollection(): void {
-    this.metricsCollectionInterval = setInterval(async () => {
-      try {
-        await this.collectAndStoreMetrics();
-      } catch (error) {
-        logger.error({ err: error }, "Metrics collection error");
-      }
-    }, 60000); // Every minute
-    this.metricsCollectionInterval.unref();
+    this.scheduler.register(this.metricsTaskId, () => this.collectAndStoreMetrics(), 60000, {
+      onError: (err) => logger.error({ err }, "Metrics collection error"),
+    });
   }
 
   /**

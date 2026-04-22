@@ -47,6 +47,7 @@ import { prisma } from "@infra/prisma";
 import { createTestContainer } from "../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { RbacService } from "../../src/auth/rbacService.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { ok, err } from "@shared/types";
 import jwt from "jsonwebtoken";
 
@@ -215,6 +216,7 @@ async function createTestApp(): Promise<FastifyInstance> {
   container.registerInstance(TOKENS.WebhookDashboardService, webhookDashboardService);
   container.registerInstance(TOKENS.RealtimeWebhookBroadcaster, mockBroadcaster);
   container.registerInstance(TOKENS.RbacService, new RbacService(adminUserRepo));
+  container.registerInstance(TOKENS.BackgroundTaskScheduler, new NoopBackgroundTaskScheduler());
   typedApp.decorate("container", container);
 
   await typedApp.register(registerWebhookDashboardRoutes);

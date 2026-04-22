@@ -75,6 +75,7 @@
     "@monitoring/circuit-breaker": "workspace:*",
     "@monitoring/health-checks": "workspace:*",
     "@node-saml/node-saml": "5.1.0",
+    "@observability/background-scheduler": "workspace:*",
     "@observability/opentelemetry": "workspace:*",
     "@packages/api-common": "workspace:*",
     "@paddle/paddle-node-sdk": "3.6.1",

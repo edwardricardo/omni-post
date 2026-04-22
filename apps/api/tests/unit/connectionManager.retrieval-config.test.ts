@@ -5,7 +5,11 @@
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { ConnectionManager } from "../../src/auth/connectionManager.js";
 import type { ConnectionManagerPrisma } from "../../src/auth/connectionManager.js";
-import { createMockConnection, createMockDb } from "./connectionManager.test-helpers.js";
+import {
+  createConnectionManager,
+  createMockConnection,
+  createMockDb,
+} from "./connectionManager.test-helpers.js";
 
 // ============================================================================
 // ConnectionManager - Connection Retrieval Tests
@@ -17,7 +21,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     // Stop health monitoring to avoid interference
     manager.stopHealthMonitoring();
   });
@@ -31,7 +35,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const result = await manager.getConnection("conn-123");
@@ -54,7 +58,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
     (mockDb.providerConnection.findMany as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnections
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const result = await manager.getConnections("acc-123");
@@ -69,7 +73,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
       capturedArgs = args;
       return [];
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.getConnections("acc-123", undefined, "x" as any);
@@ -84,7 +88,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
       capturedArgs = args;
       return [];
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.getConnections("acc-123", "proj-123");
@@ -99,7 +103,7 @@ describe("ConnectionManager - Connection Retrieval", () => {
       capturedArgs = args;
       return [];
     });
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     await manager.getConnections("acc-123");
@@ -121,7 +125,7 @@ describe("ConnectionManager - Connection Configuration", () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
   });
 
@@ -144,7 +148,7 @@ describe("ConnectionManager - Connection Configuration", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const config = await manager.getConnectionConfig("conn-123");
@@ -160,7 +164,7 @@ describe("ConnectionManager - Connection Configuration", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const config = await manager.getConnectionConfig("conn-123");
@@ -181,7 +185,7 @@ describe("ConnectionManager - Connection Configuration", () => {
     (mockDb.providerConnection.findUnique as ReturnType<typeof vi.fn>) = vi.fn(
       async () => mockConnection
     );
-    manager = new ConnectionManager(mockDb);
+    manager = createConnectionManager(mockDb);
     manager.stopHealthMonitoring();
 
     const config = await manager.getConnectionConfig("conn-123");

@@ -7,6 +7,7 @@
 
 import { PrismaClient } from "@infra/prisma";
 import Redis from "ioredis";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   SyncConfiguration,
   VersionDiff,
@@ -35,6 +36,7 @@ export abstract class SyncEngineBase {
   protected eventService: EventService;
   protected synchronizer: ContentSynchronizer;
   protected versionManager: ContentVersionManager;
+  protected scheduler: BackgroundTaskScheduler;
 
   protected syncChannels = new Map<string, SyncChannel>();
   protected activeTransactions = new Map<string, SyncTransaction>();
@@ -42,7 +44,7 @@ export abstract class SyncEngineBase {
 
   protected isInitialized = false;
   protected processorRunning = false;
-  protected metricsCollectionInterval: NodeJS.Timeout | undefined;
+  protected readonly metricsTaskId = "sync-engine-metrics-collection";
 
   constructor(dependencies: {
     prisma: PrismaClient;
@@ -50,12 +52,14 @@ export abstract class SyncEngineBase {
     eventService: EventService;
     synchronizer: ContentSynchronizer;
     versionManager: ContentVersionManager;
+    scheduler: BackgroundTaskScheduler;
   }) {
     this.prisma = dependencies.prisma;
     this.redis = dependencies.redis;
     this.eventService = dependencies.eventService;
     this.synchronizer = dependencies.synchronizer;
     this.versionManager = dependencies.versionManager;
+    this.scheduler = dependencies.scheduler;
   }
 
   /**
@@ -516,11 +520,8 @@ export abstract class SyncEngineBase {
     // Stop the real-time processor loop
     this.processorRunning = false;
 
-    // Clear metrics collection interval
-    if (this.metricsCollectionInterval) {
-      clearInterval(this.metricsCollectionInterval);
-      this.metricsCollectionInterval = undefined;
-    }
+    // Unregister the metrics collection task from the scheduler
+    this.scheduler.unregister(this.metricsTaskId);
 
     // Clear active state
     this.activeTransactions.clear();

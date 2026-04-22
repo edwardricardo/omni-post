@@ -8,6 +8,7 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { EventDispatcher } from "../../domain/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { OutboxRelay } from "../outbox/OutboxRelay.js";
 import { OutboxCleaner } from "../outbox/OutboxCleaner.js";
 import type { CrisisProjectRepository } from "../../application/crisis/types.js";
@@ -38,12 +39,17 @@ export function setupCrisisUseCases(container: Container): void {
       new OutboxRelay({
         prisma: container.resolve(TOKENS.PrismaClient),
         eventDispatcher: container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       }),
     true
   );
   container.register<OutboxCleaner>(
     TOKENS.OutboxCleaner,
-    () => new OutboxCleaner(container.resolve(TOKENS.PrismaClient)),
+    () =>
+      new OutboxCleaner(
+        container.resolve(TOKENS.PrismaClient),
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      ),
     true
   );
 

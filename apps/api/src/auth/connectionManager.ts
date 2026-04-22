@@ -7,6 +7,7 @@
 import type { ProviderId, ConnectionConfig } from "../providers/providerAdapter.interface.js";
 import type { ProviderConnection } from "@infra/prisma";
 import { prisma as defaultPrisma } from "@infra/prisma";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { capabilityManager } from "../providers/providerCapabilityManager.js";
 import { authLogger } from "../lib/logger.js";
 
@@ -43,13 +44,17 @@ export interface ConnectionManagerPrisma {
  * Manages provider connections, health monitoring, and credential management
  */
 export class ConnectionManager {
-  private healthCheckInterval: NodeJS.Timeout | null = null;
   private healthCache = new Map<string, { health: ConnectionHealth; expires: Date }>();
   private db: ConnectionManagerPrisma;
+  private scheduler: BackgroundTaskScheduler;
+  private readonly healthTaskId = "connection-manager-health-monitoring";
+  private readonly cleanupTaskId = "connection-manager-expired-cleanup";
 
-  constructor(db?: ConnectionManagerPrisma) {
+  constructor(scheduler: BackgroundTaskScheduler, db?: ConnectionManagerPrisma) {
     this.db = db || (defaultPrisma as unknown as ConnectionManagerPrisma);
+    this.scheduler = scheduler;
     this.startHealthMonitoring();
+    this.startExpiredCleanup();
   }
 
   /**
@@ -400,43 +405,57 @@ export class ConnectionManager {
   }
 
   /**
-   * Start background health monitoring
+   * Start background health monitoring — 30 minute cadence.
    */
   private startHealthMonitoring(): void {
-    // Run health checks every 30 minutes
-    this.healthCheckInterval = setInterval(
+    this.scheduler.register(
+      this.healthTaskId,
       async () => {
-        try {
-          const connections = await this.db.providerConnection.findMany({
-            where: {
-              isActive: true,
-              status: { in: ["CONNECTED", "ERROR"] },
-            },
-          });
+        const connections = await this.db.providerConnection.findMany({
+          where: {
+            isActive: true,
+            status: { in: ["CONNECTED", "ERROR"] },
+          },
+        });
 
-          // Check health for up to 10 connections per interval
-          const connectionsToCheck = connections.slice(0, 10);
+        // Check health for up to 10 connections per interval
+        const connectionsToCheck = connections.slice(0, 10);
 
-          await Promise.allSettled(
-            connectionsToCheck.map((conn) => this.checkConnectionHealth(conn.id))
-          );
-        } catch (error: unknown) {
-          authLogger.error({ err: error }, "Health monitoring error");
-        }
+        await Promise.allSettled(
+          connectionsToCheck.map((conn) => this.checkConnectionHealth(conn.id))
+        );
       },
-      30 * 60 * 1000
+      30 * 60 * 1000,
+      {
+        onError: (err) => authLogger.error({ err }, "Health monitoring error"),
+      }
     );
-    this.healthCheckInterval.unref();
   }
 
   /**
-   * Stop health monitoring
+   * Start background cleanup of expired provider connections — 1 hour cadence,
+   * fires once immediately so stale rows from a previous process are flushed
+   * on boot.
+   */
+  private startExpiredCleanup(): void {
+    this.scheduler.register(
+      this.cleanupTaskId,
+      () => this.cleanupExpiredConnections().then(() => undefined),
+      60 * 60 * 1000,
+      {
+        immediate: true,
+        onError: (err) => authLogger.error({ err }, "Expired connection cleanup error"),
+      }
+    );
+  }
+
+  /**
+   * Stop health monitoring and expired-connection cleanup. Safe to call
+   * multiple times; the scheduler's shutdownAll() also clears these tasks.
    */
   stopHealthMonitoring(): void {
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-      this.healthCheckInterval = null;
-    }
+    this.scheduler.unregister(this.healthTaskId);
+    this.scheduler.unregister(this.cleanupTaskId);
   }
 
   /**
@@ -460,19 +479,3 @@ export class ConnectionManager {
     return result.count;
   }
 }
-
-// Singleton instance
-const connectionManager = new ConnectionManager();
-
-// Cleanup expired connections on startup and then every hour
-connectionManager.cleanupExpiredConnections().catch(() => {
-  // Ignore startup cleanup errors (DB may not be available)
-});
-
-const cleanupInterval = setInterval(
-  () => {
-    connectionManager.cleanupExpiredConnections().catch(() => {});
-  },
-  60 * 60 * 1000
-); // Every hour
-cleanupInterval.unref();

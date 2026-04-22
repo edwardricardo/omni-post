@@ -4,14 +4,18 @@
  */
 
 import type { CacheConfig } from "./types.js";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { RedisCacheManager } from "./cache-manager.js";
 
 // Global cache instance
 let globalCache: RedisCacheManager | null = null;
 
-export function createCacheManager(config: CacheConfig): RedisCacheManager {
+export function createCacheManager(
+  config: CacheConfig,
+  scheduler?: BackgroundTaskScheduler
+): RedisCacheManager {
   if (!globalCache) {
-    globalCache = new RedisCacheManager(config);
+    globalCache = new RedisCacheManager(config, scheduler);
   }
   return globalCache;
 }

@@ -7,6 +7,7 @@
 import { prisma } from "@infra/prisma";
 import Redis from "ioredis";
 import type { FastifyRequest } from "fastify";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { logger } from "../lib/logger.js";
 
 interface AuditEvent {
@@ -38,10 +39,12 @@ interface AuditConfig {
 export class AuditLogger {
   private redis: Redis;
   private config: AuditConfig;
+  private scheduler: BackgroundTaskScheduler;
   private alertQueue: string = "security_alerts";
 
-  constructor(redis: Redis, config?: Partial<AuditConfig>) {
+  constructor(redis: Redis, scheduler: BackgroundTaskScheduler, config?: Partial<AuditConfig>) {
     this.redis = redis;
+    this.scheduler = scheduler;
     this.config = {
       enableRealTimeAlerts: true,
       retentionDays: 90,
@@ -60,8 +63,22 @@ export class AuditLogger {
       logger.error({ err }, "Redis connection error in audit logger");
     });
 
-    // Start cleanup routine for old audit logs
-    setInterval(() => this.cleanupOldLogs(), 24 * 60 * 60 * 1000); // Daily cleanup
+    // Register daily cleanup task via the centralised scheduler.
+    this.scheduler.register(
+      "audit-logger-cleanup",
+      () => this.cleanupOldLogs(),
+      24 * 60 * 60 * 1000
+    );
+  }
+
+  /**
+   * @method destroy
+   * @description Unregister the cleanup task so the instance can be garbage
+   *              collected. Called implicitly by the scheduler's shutdownAll()
+   *              but exposed for explicit teardown.
+   */
+  destroy(): void {
+    this.scheduler.unregister("audit-logger-cleanup");
   }
 
   // Log audit event with automatic enrichment
@@ -610,8 +627,12 @@ export class AuditLogger {
 }
 
 // Factory function for creating audit logger
-export function createAuditLogger(redis: Redis, config?: Partial<AuditConfig>): AuditLogger {
-  return new AuditLogger(redis, config);
+export function createAuditLogger(
+  redis: Redis,
+  scheduler: BackgroundTaskScheduler,
+  config?: Partial<AuditConfig>
+): AuditLogger {
+  return new AuditLogger(redis, scheduler, config);
 }
 
 // Predefined audit configurations

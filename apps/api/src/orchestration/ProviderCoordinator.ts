@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@infra/prisma";
 import Redis from "ioredis";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   OrchestrationError as _OrchestrationError,
   OrchestrationResult,
@@ -63,6 +64,7 @@ export class ProviderCoordinator {
   private prisma: PrismaClient;
   private redis: Redis;
   private eventService: EventService;
+  private scheduler: BackgroundTaskScheduler;
   private registry: ProviderRegistryLike;
 
   private providerNodes = new Map<ProviderId, ProviderNode>();
@@ -70,19 +72,21 @@ export class ProviderCoordinator {
   private loadBalancer: LoadBalancingStrategy;
   private failoverStrategies = new Map<ProviderId, FailoverStrategy>();
 
-  private healthCheckInterval?: NodeJS.Timeout;
-  private metricsCollectionInterval?: NodeJS.Timeout;
+  private readonly healthTaskId = "provider-coordinator-health-monitoring";
+  private readonly metricsTaskId = "provider-coordinator-metrics-collection";
   private isInitialized = false;
 
   constructor(dependencies: {
     prisma: PrismaClient;
     redis: Redis;
     eventService: EventService;
+    scheduler: BackgroundTaskScheduler;
     registry?: ProviderRegistryLike;
   }) {
     this.prisma = dependencies.prisma;
     this.redis = dependencies.redis;
     this.eventService = dependencies.eventService;
+    this.scheduler = dependencies.scheduler;
     this.registry = (dependencies.registry ?? defaultProviderRegistry) as ProviderRegistryLike;
 
     // Default load balancing strategy
@@ -106,6 +110,7 @@ export class ProviderCoordinator {
     return new ProviderHealthMonitor({
       redis: this.redis,
       eventService: this.eventService,
+      scheduler: this.scheduler,
       providerNodes: this.providerNodes as unknown as Map<
         ProviderId,
         import("./providerCoordinatorTypes.js").ProviderNodeExtended
@@ -497,28 +502,20 @@ export class ProviderCoordinator {
   }
 
   private startHealthMonitoring(): void {
-    this.healthCheckInterval = setInterval(async () => {
-      try {
-        await performHealthChecks(this.providerNodes);
-      } catch (error: unknown) {
-        log.error({ err: error }, "Health check error");
-      }
-    }, 30_000);
-    this.healthCheckInterval.unref();
-
+    this.scheduler.register(
+      this.healthTaskId,
+      () => performHealthChecks(this.providerNodes),
+      30_000
+    );
     log.info("Started provider health monitoring");
   }
 
   private startMetricsCollection(): void {
-    this.metricsCollectionInterval = setInterval(async () => {
-      try {
-        await collectProviderMetrics(this.providerNodes, this.redis);
-      } catch (error: unknown) {
-        log.error({ err: error }, "Metrics collection error");
-      }
-    }, 60_000);
-    this.metricsCollectionInterval.unref();
-
+    this.scheduler.register(
+      this.metricsTaskId,
+      () => collectProviderMetrics(this.providerNodes, this.redis),
+      60_000
+    );
     log.info("Started provider metrics collection");
   }
 

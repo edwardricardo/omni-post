@@ -6,7 +6,10 @@
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { OutboxRelay } from "../../../src/infrastructure/outbox/OutboxRelay.js";
+
+const scheduler = new NoopBackgroundTaskScheduler();
 
 function createMockPrisma() {
   return {
@@ -36,6 +39,7 @@ describe("OutboxRelay", () => {
     relay = new OutboxRelay({
       prisma: mockPrisma as never,
       eventDispatcher: mockDispatcher,
+      scheduler,
       pollIntervalMs: 100000,
       batchSize: 10,
     });

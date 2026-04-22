@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@infra/prisma": "workspace:*",
+    "@observability/background-scheduler": "workspace:*",
     "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
     "@prisma/client": "7.4.1",

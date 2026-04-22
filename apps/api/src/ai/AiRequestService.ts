@@ -8,6 +8,7 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import type { PrismaClient } from "@infra/prisma";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { PlatformCredentialService } from "../security/PlatformCredentialService.js";
 import type { AITask, AIResponse, AIProvider } from "./types.js";
 import { AIOrchestrator } from "./orchestrator.js";
@@ -66,7 +67,8 @@ const BASE_TOKENS_PER_UNIT = 10_000;
 export class AiRequestService {
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly credentialService: PlatformCredentialService
+    private readonly credentialService: PlatformCredentialService,
+    private readonly scheduler: BackgroundTaskScheduler
   ) {}
 
   /**
@@ -113,7 +115,7 @@ export class AiRequestService {
     const provider = AIProviderFactory.createProvider(providerName, apiKey);
     const providers = new Map<string, AIProvider>([[providerName, provider]]);
 
-    const orchestrator = new AIOrchestrator(providers, async (prov, tokens) => {
+    const orchestrator = new AIOrchestrator(providers, this.scheduler, async (prov, tokens) => {
       await this.trackUsage(accountId, prov, tokens, true);
     });
 
@@ -155,7 +157,7 @@ export class AiRequestService {
       return err("NO_PROVIDERS_CONFIGURED");
     }
 
-    const orchestrator = new AIOrchestrator(providers, async (prov, tokens) => {
+    const orchestrator = new AIOrchestrator(providers, this.scheduler, async (prov, tokens) => {
       await this.trackUsage(accountId, prov, tokens, false);
     });
 

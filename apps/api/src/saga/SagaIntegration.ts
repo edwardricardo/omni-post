@@ -33,6 +33,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { PrismaClient } from "@infra/prisma";
 import type { QueuePort } from "@ports/core";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { SagaManagerImpl } from "./SagaManager";
 import type { EventService } from "../events/EventService";
 import type { CQRSBusImpl } from "../cqrs/CQRSBus";
@@ -56,6 +57,7 @@ interface SagaIntegrationConfig {
   cqrsBus: CQRSBusImpl;
   redis: Redis;
   queue: QueuePort;
+  scheduler: BackgroundTaskScheduler;
 }
 
 export class SagaIntegration {
@@ -68,6 +70,7 @@ export class SagaIntegration {
       prisma: config.prisma,
       redis: config.redis,
       eventService: config.eventService,
+      scheduler: config.scheduler,
       enableMetrics: true,
       defaultTimeout: 30 * 60 * 1000, // 30 minutes
       maxConcurrentSagas: 100,

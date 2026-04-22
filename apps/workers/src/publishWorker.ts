@@ -21,6 +21,7 @@ import { blueskyAdapter } from "@providers/bluesky";
 import { threadsAdapter } from "@providers/threads";
 import { createBullMQConsumerAdapter } from "@adapters/queue-bullmq";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
 import http from "http";
 import pino from "pino";
@@ -30,8 +31,15 @@ import { PublishHandler } from "./publishHandler.js";
 import type { PublishProvider } from "./publishHandler.js";
 
 const consumer = createBullMQConsumerAdapter();
-const repo = createPrismaRepoAdapter();
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
+const scheduler = new DefaultBackgroundTaskScheduler({
+  logger: {
+    error: (msg, data) => logger.error({ data }, msg),
+    info: (msg, data) => logger.info({ data }, msg),
+    debug: (msg, data) => logger.debug({ data }, msg),
+  },
+});
+const repo = createPrismaRepoAdapter({ scheduler });
 
 /**
  * Registry of provider adapters indexed by provider name.
@@ -132,3 +140,16 @@ async function start() {
 }
 
 start();
+
+async function shutdown(signal: string): Promise<void> {
+  logger.info({ signal }, "Worker shutting down");
+  await scheduler.shutdownAll();
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => {
+  void shutdown("SIGTERM");
+});
+process.on("SIGINT", () => {
+  void shutdown("SIGINT");
+});
