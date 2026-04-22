@@ -42,6 +42,3 @@ export type {
   TemplateContext,
   TemplateCompilationResult,
 } from "./templates/BaseTemplateEngine";
-
-// Lightweight server-side logger (console-based, for Next.js Server Actions)
-export { createLogger } from "./logger";

@@ -2,9 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { createLogger } from "@/lib/logger";
+import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
-const log = createLogger("auth-actions");
+const log = new ConsoleLoggerAdapter("client.auth-actions", { alwaysEmit: true });
 
 // Action state type
 export interface AuthActionState {

@@ -196,7 +196,7 @@ module.exports = [
   },
   // Logger implementation — legitimate console.* wrapper
   {
-    files: ["packages/shared/src/logger.ts"],
+    files: ["packages/observability/browser-logger/src/console-adapter.ts"],
     rules: {
       "no-console": "off",
     },
@@ -216,18 +216,6 @@ module.exports = [
       "performance/**/*.ts",
       "quality/**/*.ts",
       "security/**/*.ts",
-    ],
-    rules: {
-      "no-console": "off",
-    },
-  },
-  // Frontend error handlers — no browser-side logger port available yet.
-  // Remove these entries once the browser logger port is wired.
-  {
-    files: [
-      "apps/admin/components/shared/ErrorBoundary.tsx",
-      "apps/client/app/error.tsx",
-      "packages/ui/src/components/VirtualScrollList.tsx",
     ],
     rules: {
       "no-console": "off",

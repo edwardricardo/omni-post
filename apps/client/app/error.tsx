@@ -1,6 +1,14 @@
+/**
+ * @file error.tsx
+ * @description Next.js global error boundary for the client app. Uses the
+ *              browser logger port to report uncaught errors from the render
+ *              tree so the sink can be swapped (console → APM) centrally.
+ * @layer infrastructure
+ */
 "use client";
 
 import { useEffect } from "react";
+import { useLogger } from "@observability/browser-logger";
 
 export default function Error({
   error,
@@ -9,10 +17,13 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const logger = useLogger("client.error-page");
+
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error(error);
-  }, [error]);
+    logger.error("Unhandled app error", error, {
+      ...(error.digest !== undefined && { digest: error.digest }),
+    });
+  }, [error, logger]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center">

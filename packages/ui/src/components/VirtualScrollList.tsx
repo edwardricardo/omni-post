@@ -19,6 +19,9 @@ import React, {
   useTransition,
   startTransition,
 } from "react";
+import { ConsoleLoggerAdapter } from "@observability/browser-logger";
+
+const virtualScrollListLogger = new ConsoleLoggerAdapter("VirtualScrollList");
 
 interface VirtualScrollListProps<T> {
   items: T[];
@@ -382,7 +385,7 @@ export function useVirtualScroll<T>({
         setCurrentPage((prev) => prev + 1);
       });
     } catch (error) {
-      console.error("Failed to load more items:", error);
+      virtualScrollListLogger.error("Failed to load more items", error as Error);
     } finally {
       setIsLoading(false);
     }

@@ -3154,7 +3154,7 @@ Widget "System Health" muestra `99.97% uptime` a admin real. Replica patrón D0v
 **Encontrado durante:** D0v4-6 B4
 **Descripción:** `apps/admin/lib/logger.ts` wrapper simple `console.*` (info/warn/error). CLAUDE.md: "zero `console.*` in production code" + "Use `@observability/logger` (Pino)". Identicamente replicado en `apps/client/lib/logger.ts`. **Cross-app finding promoted §9.1** — ambos apps.
 **Severidad estimada:** medio (observability cross-app)
-**Acción propuesta:** Extract `@observability/browser-logger` en D0v4-7 + replace en ambos apps.
+**Acción propuesta:** ~~Extract `@observability/browser-logger` en D0v4-7 + replace en ambos apps.~~ → **RESUELTO 2026-04-22 (T1-A followup).** Nuevo package `@observability/browser-logger` creado con `BrowserLoggerPort` abstracta + `ConsoleLoggerAdapter` + `LoggerProvider` + `useLogger`. Legacy `packages/shared/src/logger.ts`, `apps/admin/lib/logger.ts`, `apps/client/lib/logger.ts` eliminados. Todos los consumers migrados. APM swap (Sentry/Datadog) queda como cambio de adapter futuro sin refactor en call sites.
 
 ---
 

@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@monaco-editor/react": "4.6.0",
+    "@observability/browser-logger": "workspace:*",
     "@packages/ui": "workspace:*",
     "@providers/instagram": "workspace:*",
     "@radix-ui/react-popover": "1.1.15",

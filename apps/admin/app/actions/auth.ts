@@ -9,11 +9,12 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
+import { ConsoleLoggerAdapter } from "@observability/browser-logger";
+
 import type { AdminAuthState } from "@/lib/auth/types";
 import { authenticateAdmin, logoutFromBackend } from "@/lib/auth/backend-client";
-import { createLogger } from "@/lib/logger";
 
-const log = createLogger("auth-actions");
+const log = new ConsoleLoggerAdapter("admin.auth-actions", { alwaysEmit: true });
 
 // ---------------------------------------------------------------------------
 // Constants

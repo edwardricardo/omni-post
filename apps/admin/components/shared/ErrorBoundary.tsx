@@ -1,16 +1,20 @@
 /**
  * @file ErrorBoundary.tsx
  * @description React error boundary that catches render-time errors in its
- *   subtree and shows a fallback UI. Supports an optional custom fallback.
- * @layer presentation
+ *   subtree and shows a fallback UI. Routes caught errors through the
+ *   BrowserLoggerPort for structured reporting. Accepts an optional logger
+ *   prop; defaults to a ConsoleLoggerAdapter when omitted.
+ * @layer infrastructure
  */
 "use client";
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { ConsoleLoggerAdapter, type BrowserLoggerPort } from "@observability/browser-logger";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
+  logger?: BrowserLoggerPort;
 }
 
 interface ErrorBoundaryState {
@@ -21,12 +25,21 @@ interface ErrorBoundaryState {
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   override state: ErrorBoundaryState = { hasError: false, error: null };
 
+  private readonly logger: BrowserLoggerPort;
+
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.logger = props.logger ?? new ConsoleLoggerAdapter("ErrorBoundary");
+  }
+
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error("ErrorBoundary caught error:", error, info.componentStack);
+    this.logger.error("ErrorBoundary caught error", error, {
+      componentStack: info.componentStack ?? undefined,
+    });
   }
 
   override render() {

@@ -281,9 +281,10 @@ Progresivo durante T4-I (workers), T4-X (webhook retry), T2-C (silent catches) q
 ### PR-6 — Frontend error handlers pending browser-logger port
 
 **Fecha de aplicación:** 2026-04-22
+**Fecha de cierre:** 2026-04-22 (mismo día — cerrado por creación de `@observability/browser-logger`)
 **Batch de origen:** T1-A tightening (post-commit follow-up para alinear `no-console` al estándar CLAUDE.md "zero `console.*` in production code")
 **Severidad del bug pre-existente:** medio — error logs sin correlation ID, sin routing a APM, sin redacción PII
-**Tipo:** config (scope override temporal)
+**Tipo:** config (scope override temporal) → **resuelto con port abstracto**
 
 **Fix paliativo aplicado.**
 
@@ -321,7 +322,7 @@ Cuando se wire el browser-side logger port (batch que introduce `@observability/
 
 Cuando se ejecute el batch que entrega browser-logger port. Hasta entonces, los 3 archivos quedan exentos.
 
-**Estado:** APLICADO (2026-04-22) — scope temporal narrow
+**Estado:** FIXED (2026-04-22) — resuelto por creación de `@observability/browser-logger` package. Override ESLint removido. Los 3 archivos migrados a `BrowserLoggerPort`. Legacy `packages/shared/src/logger.ts` + `apps/admin/lib/logger.ts` + `apps/client/lib/logger.ts` eliminados. L-347 resuelto.
 
 ---
 

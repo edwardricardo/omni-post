@@ -5,10 +5,11 @@
  * verification, token refresh, logout, and health-check functions.
  */
 
-import type { AdminUserProfile, AuthenticateAdminResult, TokenPair } from "./types";
-import { createLogger } from "../logger";
+import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
-const log = createLogger("backend-client");
+import type { AdminUserProfile, AuthenticateAdminResult, TokenPair } from "./types";
+
+const log = new ConsoleLoggerAdapter("admin.backend-client", { alwaysEmit: true });
 
 // ============================================================================
 // Constants & Configuration
