@@ -90,8 +90,9 @@ module.exports = [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", ignoreRestSiblings: true },
       ],
-      // Disallow console.log in production code; override per-path for CLI/tooling.
-      "no-console": ["error", { allow: ["warn", "error"] }],
+      // Production code must use @observability/logger (Pino) for all log levels.
+      // Overrides below allow console.* in CLI tooling, Storybook, seeds, and tests.
+      "no-console": "error",
       // Default off; enforced as error only in backend core layers via override below.
       "@typescript-eslint/no-explicit-any": "off",
     },
@@ -137,8 +138,8 @@ module.exports = [
       // React Hooks rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
-      // Disallow console.log in TSX components (CLI tooling covered by override).
-      "no-console": ["error", { allow: ["warn", "error"] }],
+      // TSX components must use logger port; CLI tooling covered by override blocks below.
+      "no-console": "error",
       // Default off; no core layer files are TSX.
       "@typescript-eslint/no-explicit-any": "off",
     },
@@ -215,6 +216,18 @@ module.exports = [
       "performance/**/*.ts",
       "quality/**/*.ts",
       "security/**/*.ts",
+    ],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  // Frontend error handlers — no browser-side logger port available yet.
+  // Remove these entries once the browser logger port is wired.
+  {
+    files: [
+      "apps/admin/components/shared/ErrorBoundary.tsx",
+      "apps/client/app/error.tsx",
+      "packages/ui/src/components/VirtualScrollList.tsx",
     ],
     rules: {
       "no-console": "off",

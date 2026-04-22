@@ -278,6 +278,53 @@ Progresivo durante T4-I (workers), T4-X (webhook retry), T2-C (silent catches) q
 
 ---
 
+### PR-6 — Frontend error handlers pending browser-logger port
+
+**Fecha de aplicación:** 2026-04-22
+**Batch de origen:** T1-A tightening (post-commit follow-up para alinear `no-console` al estándar CLAUDE.md "zero `console.*` in production code")
+**Severidad del bug pre-existente:** medio — error logs sin correlation ID, sin routing a APM, sin redacción PII
+**Tipo:** config (scope override temporal)
+
+**Fix paliativo aplicado.**
+
+`eslint.config.cjs` — `"no-console": "error"` global (tightened — removido `allow: ["warn", "error"]`). Override temporal para 3 archivos frontend:
+
+```js
+{
+  files: [
+    "apps/admin/components/shared/ErrorBoundary.tsx",
+    "apps/client/app/error.tsx",
+    "packages/ui/src/components/VirtualScrollList.tsx",
+  ],
+  rules: { "no-console": "off" },
+}
+```
+
+**Root cause real.**
+
+Los 3 archivos usan `console.error(error)` para reportar errores de render/boundary. Son el único path disponible porque:
+
+- No existe `@observability/browser-logger` port (backend tiene Pino, frontend no tiene equivalente wireado).
+- Sin browser-logger port, `console.error` es el único sink disponible.
+- Error boundaries/pages son puntos críticos donde NO logear es peor que logear sin estructura.
+
+**Fix definitivo recomendado.**
+
+Cuando se wire el browser-side logger port (batch que introduce `@observability/browser-logger` o similar, cross-ref LATERAL_FINDINGS L-347):
+
+1. Crear port + adapter browser (envía a Sentry/Datadog RUM/similar con correlation ID, PII redact, structured fields).
+2. Inyectar vía context provider en apps/admin + apps/client.
+3. Reemplazar los 3 `console.error` por `logger.error(error, context)`.
+4. Remover el override block de `eslint.config.cjs`.
+
+**Cuándo revisar.**
+
+Cuando se ejecute el batch que entrega browser-logger port. Hasta entonces, los 3 archivos quedan exentos.
+
+**Estado:** APLICADO (2026-04-22) — scope temporal narrow
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
