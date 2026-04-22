@@ -4,6 +4,33 @@ const tsParser = require("@typescript-eslint/parser");
 const tsPlugin = require("@typescript-eslint/eslint-plugin");
 const reactPlugin = require("eslint-plugin-react");
 const reactHooksPlugin = require("eslint-plugin-react-hooks");
+const prettierConfig = require("eslint-config-prettier");
+
+// Restricted import patterns for hexagonal boundary enforcement (apps/api/src/domain/).
+// Domain layer must not import framework/infrastructure concretions.
+const domainRestrictedPatterns = [
+  "@prisma/client",
+  "@prisma/client/*",
+  "@infra/prisma",
+  "@infra/prisma/*",
+  "prisma",
+  "fastify",
+  "@fastify/*",
+  "redis",
+  "ioredis",
+  "bullmq",
+  "@adapters/*",
+];
+
+// Paths that benefit from type-aware linting (no-floating-promises).
+// Scoped narrowly to keep memory usage bounded — full-monorepo projectService OOMs.
+// Backend core layers only: fire-and-forget in workers/services/webhooks is intentional,
+// documented as pending review in docs/audits/POST_REMEDIATION_BACKLOG.md.
+const typeAwareBackendPaths = [
+  "apps/api/src/domain/**/*.ts",
+  "apps/api/src/application/**/*.ts",
+  "apps/api/src/infrastructure/**/*.ts",
+];
 
 /** @type {import('eslint').Linter.FlatConfig[]} */
 module.exports = [
@@ -23,6 +50,8 @@ module.exports = [
       // Prisma generated files
       "infra/prisma/src/**/*.js",
       "infra/prisma/generated/**",
+      // ESLint config file itself (Node CJS globals not recognized)
+      "eslint.config.cjs",
     ],
   },
   js.configs.recommended,
@@ -61,6 +90,10 @@ module.exports = [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", ignoreRestSiblings: true },
       ],
+      // Disallow console.log in production code; override per-path for CLI/tooling.
+      "no-console": ["error", { allow: ["warn", "error"] }],
+      // Default off; enforced as error only in backend core layers via override below.
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
   // React/Next.js specific configuration
@@ -104,6 +137,10 @@ module.exports = [
       // React Hooks rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+      // Disallow console.log in TSX components (CLI tooling covered by override).
+      "no-console": ["error", { allow: ["warn", "error"] }],
+      // Default off; no core layer files are TSX.
+      "@typescript-eslint/no-explicit-any": "off",
     },
     settings: {
       react: {
@@ -120,6 +157,87 @@ module.exports = [
       "no-undef": "off",
     },
   },
+  // Type-aware linting for backend: floating promises enforcement.
+  // projectService is scoped to this block only to bound memory usage.
+  {
+    files: typeAwareBackendPaths,
+    languageOptions: {
+      parser: tsParser,
+      ecmaVersion: 2022,
+      sourceType: "module",
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: __dirname,
+      },
+    },
+    plugins: { "@typescript-eslint": tsPlugin },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
+    },
+  },
+  // Hexagonal domain boundary: block framework/infra imports
+  {
+    files: ["apps/api/src/domain/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: domainRestrictedPatterns }],
+    },
+  },
+  // Backend core layers: zero explicit any (per project coding standards)
+  {
+    files: [
+      "apps/api/src/domain/**/*.ts",
+      "apps/api/src/application/**/*.ts",
+      "apps/api/src/infrastructure/**/*.ts",
+    ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
+  // Logger implementation — legitimate console.* wrapper
+  {
+    files: ["packages/shared/src/logger.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  // CLI scripts, seeds, Storybook, and tooling — console.* is the intended output
+  {
+    files: [
+      "**/scripts/**/*.ts",
+      "**/scripts/**/*.tsx",
+      "**/*.stories.ts",
+      "**/*.stories.tsx",
+      "**/stories/**/*.ts",
+      "**/stories/**/*.tsx",
+      "infra/prisma/seed.ts",
+      "infra/prisma/seed-*.ts",
+      "infra/prisma/src/**/*.ts",
+      "performance/**/*.ts",
+      "quality/**/*.ts",
+      "security/**/*.ts",
+    ],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  // Test files — allow console.* (debugging), any (mocks), and fire-and-forget promises
+  {
+    files: [
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/*.spec.tsx",
+      "**/tests/**/*.ts",
+      "**/tests/**/*.tsx",
+    ],
+    rules: {
+      "no-console": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+    },
+  },
+  // Disable stylistic rules that conflict with Prettier. Must be last to override all preceding.
+  prettierConfig,
   // K6 performance test files
   {
     files: ["performance/k6/**/*.js"],

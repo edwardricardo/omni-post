@@ -167,6 +167,117 @@ N/A — resuelto. Idealmente el CI fitness function de CLAUDE.md (fitness.yml pe
 
 ---
 
+### PR-4 — Deferred `no-explicit-any` enforcement (apps/admin, apps/client, packages, stories)
+
+**Fecha de aplicación:** 2026-04-22
+**Batch de origen:** T1-A (ESLint rules wire)
+**Severidad del bug pre-existente:** medio — 92 `any` types fuera de backend core; no rompen producción pero degradan type safety
+**Tipo:** config (scope temporal del rule)
+
+**Fix paliativo aplicado.**
+
+`eslint.config.cjs` — regla `@typescript-eslint/no-explicit-any` configurada como:
+
+- `error` en `apps/api/src/{domain,application,infrastructure}/**/*.ts` (core layers — 0 violations actuales)
+- `off` (default) en el resto del monorepo
+
+Esto permite que lint quede verde en T1-A mientras mantiene enforcement en el scope crítico.
+
+**Root cause real.**
+
+~92 ocurrencias de `: any`, `as any`, `<any>` fuera de core layers:
+
+- `apps/admin/stories/**` (Storybook — algunos legítimos por callbacks de demos)
+- `apps/client/components/**` (especialmente `PublishDialog.tsx`, `BulkScheduleView.tsx`, content/templates)
+- `apps/client/.storybook/**`
+- `packages/ui/**` (tipos legacy en componentes compartidos)
+
+Type safety debilitada; refactor requiere definir tipos específicos caso por caso.
+
+**Fix definitivo recomendado.**
+
+Iterativo por dominio:
+
+1. **apps/admin**: durante T3-G (admin small god files split) — refactor types al paso.
+2. **apps/client**: durante T3-F (client small god files split) + T2-K (type narrowing) — batch dedicado.
+3. **packages/ui**: durante T5-D/T5-E (consolidaciones) — tipos compartidos definidos.
+4. **Storybook (.stories)**: aceptable — scope override permanente en config.
+
+Cuando cada cluster tenga `any` = 0, remover override correspondiente de `eslint.config.cjs`.
+
+**Cuándo revisar.**
+
+Progresivo durante T2-K, T3-F, T3-G, T4-R. Cierre total al final del tramo de remediación.
+
+**Estado:** APLICADO (2026-04-22) — scope temporal
+
+---
+
+### PR-5 — Deferred `no-floating-promises` enforcement (backend orchestration/services/video/webhooks/workers)
+
+**Fecha de aplicación:** 2026-04-22
+**Batch de origen:** T1-A (ESLint rules wire)
+**Severidad del bug pre-existente:** medio-alto — 30 fire-and-forget promises sin `void`/`await`/`.catch()`; errores asíncronos pueden perderse silenciosamente
+**Tipo:** config (scope temporal) + code (violations reales pendientes)
+
+**Fix paliativo aplicado.**
+
+`eslint.config.cjs` — regla `@typescript-eslint/no-floating-promises` configurada con `projectService: true` (type-aware parser) scoped exclusivamente a:
+
+- `apps/api/src/domain/**/*.ts`
+- `apps/api/src/application/**/*.ts`
+- `apps/api/src/infrastructure/**/*.ts`
+
+No aplicada a `apps/api/src/orchestration/**`, `services/`, `video/`, `webhooks/processors/`, `apps/workers/src/**`.
+
+**Root cause real.**
+
+30 violations pre-existentes detectadas en el primer lint run:
+
+| Archivo                                                                | Violations |
+| ---------------------------------------------------------------------- | ---------: |
+| `apps/api/src/index.ts:685`                                            |          1 |
+| `apps/api/src/orchestration/PublishingOrchestrator.ts:297`             |          1 |
+| `apps/api/src/orchestration/sync/StreamProcessor.ts:41,124`            |          2 |
+| `apps/api/src/services/NotificationBroadcaster.ts:162`                 |          1 |
+| `apps/api/src/video/thumbnailGeneration.ts:39`                         |          1 |
+| `apps/api/src/video/uploadPipeline.ts:124,378`                         |          2 |
+| `apps/api/src/video/videoProcessor.ts:102`                             |          1 |
+| `apps/api/src/webhooks/processors/linkedinWebhookProcessor.ts:278,310` |          2 |
+| `apps/api/src/webhooks/processors/snapchatWebhookProcessor.ts:227,253` |          2 |
+| `apps/api/src/webhooks/realtimeWebhookBroadcaster.ts:608,621`          |          2 |
+| `apps/workers/src/analyticsIngestWorker.ts:182`                        |          1 |
+| `apps/workers/src/inboxSyncWorker.ts:180`                              |          1 |
+| `apps/workers/src/publishWorker.ts:134`                                |          1 |
+
+**Adicional:** `eslint.config.cjs` está en `ignores` (no linted — usa `__dirname` que requiere Node CJS globals no wireados).
+
+**Fix definitivo recomendado.**
+
+Per-file audit con 3 fixes posibles por cada floating promise:
+
+1. `void promise` — si fire-and-forget es intencional (documenta intent)
+2. `await promise` — si el resultado importa
+3. `promise.catch(logger.error)` — si errores deben loggearse pero flujo continúa
+
+Cluster de trabajo sugerido:
+
+- **Workers** (3 violations): típicamente `main()` calls — review startup error handling. Cross-ref T4-I (workers retry + shutdown).
+- **Video pipelines** (4 violations): fire-and-forget processing — probablemente necesitan `.catch()` con retry/notification. Cross-ref T4-X (webhook N+1 + retry queue).
+- **Webhook processors** (6 violations): async acks. Similar a video.
+- **Orchestration** (3): publishing + sync flows.
+- **Services/broadcasters** (2): notifications.
+
+Cuando cada cluster quede sin violations, expandir `typeAwareBackendPaths` en `eslint.config.cjs`.
+
+**Cuándo revisar.**
+
+Progresivo durante T4-I (workers), T4-X (webhook retry), T2-C (silent catches) que tocan paths relacionados. Cierre total al final del tramo.
+
+**Estado:** APLICADO (2026-04-22) — scope temporal
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
