@@ -50,13 +50,16 @@ export function ConversationThread({ conversationId, userId }: ConversationThrea
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [allMessages.length]);
 
-  // Mark unread messages as read on thread open
+  // Mark unread messages as read on thread open. Only react to conversation
+  // switches — re-running on every `allMessages` change would re-fire mutations
+  // after each poll/refetch; markRead is a stable TanStack mutation.
   useEffect(() => {
     if (!allMessages.length) return;
     allMessages
       .filter((m) => !m.read && m.direction === "INBOUND")
       .forEach((m) => markRead.mutate(m.id));
-  }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   const lastMessageId = allMessages.at(-1)?.id ?? null;
 

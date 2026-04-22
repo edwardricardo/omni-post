@@ -126,7 +126,7 @@ export function SchedulePicker({
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [timezone, setTimezone] = useState<string>("America/New_York");
-  const [_customDateTime, setCustomDateTime] = useState<Date | null>(null);
+  const [, setCustomDateTime] = useState<Date | null>(null);
   const [showOptimalTimes, setShowOptimalTimes] = useState(true);
 
   // Initialize with user's local timezone

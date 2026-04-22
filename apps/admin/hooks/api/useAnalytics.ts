@@ -101,11 +101,6 @@ export function useAnalytics(timeRange: "7d" | "30d" | "90d" = "30d") {
       const billStats = (billing.stats ?? billing) as Record<string, unknown>;
       const totalRevenue = (billStats.totalRevenue ?? {}) as Record<string, number>;
       const growthMetrics = (billStats.growthMetrics ?? {}) as Record<string, number>;
-      const _churnRisk = (billStats.churnRisk ?? {}) as Record<string, number>;
-      const _statusDist = (billStats.statusDistribution ?? {}) as Record<
-        string,
-        Record<string, number>
-      >;
 
       // Calculate derived metrics
       const mrr = Number(billStats.totalMRR ?? totalRevenue.monthly ?? 0);

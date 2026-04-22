@@ -21,7 +21,7 @@ export interface TemplateEditorProps {
   categories?: Array<{ id: string; name: string; description: string }>;
 }
 
-export interface TemplateFormData extends Partial<Template> {}
+export type TemplateFormData = Partial<Template>;
 
 export interface TemplateEditorToolbarProps {
   template?: Template;

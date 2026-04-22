@@ -25,12 +25,6 @@ interface PlatformPreviewProps {
   };
 }
 
-interface ThreadSegment {
-  text: string;
-  index: number;
-  charCount: number;
-}
-
 /**
  * @component PlatformPreview
  * @description Live preview rendering post content as it would appear on each selected
@@ -46,41 +40,6 @@ export function PlatformPreview({
   const [activeProvider, setActiveProvider] = useState<string>(selectedProviders[0] || "x");
 
   const activeProviderData = providerRegistry.getProvider(activeProvider);
-
-  // Split content into threads based on character limits
-  const _createThreadSegments = (text: string, charLimit: number): ThreadSegment[] => {
-    if (text.length <= charLimit) {
-      return [{ text, index: 1, charCount: text.length }];
-    }
-
-    const segments: ThreadSegment[] = [];
-    let remaining = text;
-    let index = 1;
-
-    while (remaining.length > 0) {
-      let segmentText = remaining.substring(0, charLimit);
-
-      // Try to break at word boundaries for better readability
-      if (remaining.length > charLimit) {
-        const lastSpace = segmentText.lastIndexOf(" ");
-        if (lastSpace > charLimit * 0.7) {
-          // Only break at word if it's not too short
-          segmentText = segmentText.substring(0, lastSpace);
-        }
-      }
-
-      segments.push({
-        text: segmentText,
-        index,
-        charCount: segmentText.length,
-      });
-
-      remaining = remaining.substring(segmentText.length).trim();
-      index++;
-    }
-
-    return segments;
-  };
 
   const threadSegments = activeProviderData
     ? providerRegistry.getThreadSegments(activeProvider, content).map((text, index) => ({

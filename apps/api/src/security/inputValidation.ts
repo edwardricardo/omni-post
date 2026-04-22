@@ -108,7 +108,8 @@ export class SecurityValidator {
       threats.push("NULL_BYTE");
     }
 
-    // Unicode control character check
+    // Detect control chars as a security threat — the regex intentionally
+    // matches the control-char range, so no-control-regex is expected here.
     // eslint-disable-next-line no-control-regex
     if (/[\u0000-\u001f\u007f-\u009f]/.test(value) && !context.includes("body")) {
       threats.push("CONTROL_CHARACTERS");
@@ -120,6 +121,7 @@ export class SecurityValidator {
   static sanitizeString(value: string): string {
     return (
       value
+        // Strip control chars — regex intentionally matches control range.
         // eslint-disable-next-line no-control-regex
         .replace(/[\u0000-\u001f\u007f-\u009f]/g, "") // Remove control characters
         .replace(/\0/g, "") // Remove null bytes

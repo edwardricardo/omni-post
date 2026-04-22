@@ -87,10 +87,12 @@ export function useConcurrentData<T>(
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
-  // Memoize fetch function to prevent unnecessary re-renders
+  // Memoize fetch function. `...dependencies` is a caller-provided spread so
+  // ESLint cannot statically verify the dep list — the hook contract is that
+  // the caller owns stability of those deps.
   const memoizedFetchData = useCallback(() => {
     return fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- caller-owned spread
   }, [fetchData, ...dependencies]);
 
   // Background data fetching
