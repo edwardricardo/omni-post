@@ -1,7 +1,6 @@
 /**
  * Domain Layer - Aggregates & Events Unit Tests
  *
- * Part of Sprint 5: DDD Architecture Implementation
  * Tests for aggregates, domain events, and event dispatching.
  */
 

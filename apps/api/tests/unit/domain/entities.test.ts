@@ -1,7 +1,6 @@
 /**
  * Domain Layer - Entities Unit Tests
  *
- * Part of Sprint 4: DDD Architecture Implementation
  * Tests for all domain entities.
  */
 

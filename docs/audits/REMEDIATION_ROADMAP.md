@@ -354,7 +354,7 @@ grep -E "^\*\.bak" .gitignore | wc -l   # → ≥1
 
 ---
 
-#### T1-D — Comments obsoletos + dead refs ⚡
+#### T1-D — Comments obsoletos + dead refs ⚡ ✅ 2026-04-22
 
 **Scope.** Comments tipo "Added in Sprint X", dangling doc refs, obsolete notes.
 
@@ -2718,7 +2718,7 @@ grep -rn "UnifiedPublishingDashboard\|ContentPreviewSystem\|ProviderAdaptationEn
 
 ## §6. Matriz de dependencias cross-tier
 
-```
+```text
 T0-A (secrets) ───────────────────────────────────────────── [semana 1, único]
                      │
                      │
@@ -2874,7 +2874,7 @@ Los conteos por sección difieren de v1 (13/34/49/27/16/13/205/12/8/10/29/34 + 2
 
 ### Formato de commit
 
-```
+```text
 chore(remediation): T<n>-<letter> — <short summary> (closes L-<#>[, L-<#>...])
 ```
 

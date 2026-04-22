@@ -1,6 +1,6 @@
 /**
  * @file setupAssetUseCases.ts
- * @description DI registrations for Asset Library feature (Phase 2: Asset Tags).
+ * @description DI registrations for Asset Library feature (asset tags + metadata).
  *              Registers Prisma repository adapters and all 8 asset use cases as singletons.
  * @layer infrastructure
  */

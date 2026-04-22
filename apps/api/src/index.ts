@@ -120,7 +120,6 @@ import { customReportRoutes } from "./custom-reports/customReportRoutes.js";
 import { crmRoutes } from "./crm/crmRoutes.js";
 import { customerAuthRoutes } from "./auth/customerAuthRoutes.js";
 
-// Phase 3 imports
 import { DatabaseOptimizer } from "./utils/dbOptimization.js";
 import { SecurityManager } from "./security/securityHeaders.js";
 import { PerformanceMonitor } from "./monitoring/performanceMonitor.js";
@@ -399,7 +398,7 @@ async function createApp(): Promise<FastifyInstance> {
     });
   }
 
-  // Register Phase 3 security and performance middleware
+  // Register security and performance middleware
   await securityManager.register(typedApp);
 
   // IP allowlist enforcement (reads SecuritySettings from DB, 60s cache)
@@ -646,7 +645,7 @@ async function start() {
       TOKENS.BackgroundTaskScheduler
     );
 
-    // DLQ archival — daily (Sprint D)
+    // DLQ archival — daily
     const { DlqArchivalService: _DlqArchivalType } =
       await import("./webhooks/DlqArchivalService.js");
     const dlqArchival = app.container!.resolve<InstanceType<typeof _DlqArchivalType>>(
@@ -661,7 +660,7 @@ async function start() {
       24 * 60 * 60 * 1000
     );
 
-    // Data retention cleanup — daily (Sprint C)
+    // Data retention cleanup — daily
     const { DataRetentionService: _DataRetentionType } =
       await import("./compliance/DataRetentionService.js");
     const dataRetention = app.container!.resolve<InstanceType<typeof _DataRetentionType>>(

@@ -67,8 +67,40 @@ services:
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
 
+  minio:
+    image: minio/minio:latest
+    container_name: omnipost-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # Web console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: omnipost-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (mc alias set local http://minio:9000 minioadmin minioadmin123) do sleep 2; done;
+      mc mb --ignore-existing local/omni-post-media;
+      exit 0;
+      "
+
 volumes:
   pgdata:
   redisdata:
   grafana-data:
   prometheus-data:
+  minio-data:

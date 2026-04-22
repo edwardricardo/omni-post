@@ -1,7 +1,6 @@
 /**
  * Integration Tests - Crisis Mode Routes
  *
- * Part of Sprint 19: Crisis Mode Feature
  * Tests the full HTTP request/response cycle for crisis mode endpoints.
  *
  * NOTE: These tests require the API server to be running.

@@ -1,7 +1,6 @@
 /**
  * Infrastructure Layer - Prisma Post Repository Unit Tests
  *
- * Part of Sprint 6: DDD Architecture Implementation
  * Tests for the PrismaPostRepository implementation.
  */
 

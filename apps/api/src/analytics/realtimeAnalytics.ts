@@ -513,7 +513,6 @@ export class RealtimeAnalyticsService extends BaseService {
         return null;
       }
 
-      // ✅ Phase 1: Verify account exists in database using repository
       const accountResult = await this.accountRepository.findById(userId);
 
       if (!accountResult.ok) {

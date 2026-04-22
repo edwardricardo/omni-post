@@ -114,7 +114,7 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // Campaign Use Cases (Phase 3)
+  // Campaign Use Cases
   container.register<CreateCampaignUseCase>(
     TOKENS.CreateCampaignUseCase,
     () =>
@@ -186,7 +186,7 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // Register Historical Analytics Query (Phase 3 Step 5)
+  // Register Historical Analytics Query
   container.register<GetHistoricalAnalyticsQuery>(
     TOKENS.GetHistoricalAnalyticsQuery,
     () =>
@@ -196,7 +196,7 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // Register UTM Use Cases (Phase 3 Step 4: UTM/GA4 Integration)
+  // Register UTM Use Cases
   container.register<GenerateUTMLinksUseCase>(
     TOKENS.GenerateUTMLinksUseCase,
     () =>
@@ -206,7 +206,7 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // Analytics Ingestion (Sprint Gaps — Batch 1)
+  // Analytics Ingestion
   container.register<AnalyticsWriteRepository>(
     TOKENS.AnalyticsWriteRepository,
     () => new PrismaAnalyticsWriteRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient)),

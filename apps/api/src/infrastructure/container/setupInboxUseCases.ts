@@ -58,7 +58,7 @@ import type { BrandVoiceRepository } from "../../domain/repositories/BrandVoiceR
  * Register social inbox commands, queries, and event handlers
  */
 export function setupInboxUseCases(container: Container): void {
-  // Social Inbox Use Cases (Phase 2)
+  // Social Inbox Use Cases
   container.register<IngestSocialMessageUseCase>(
     TOKENS.IngestSocialMessageUseCase,
     () =>
@@ -147,7 +147,7 @@ export function setupInboxUseCases(container: Container): void {
     true
   );
 
-  // Social Inbox Queries (Phase 2)
+  // Social Inbox Queries
   container.register<GetInboxQuery>(
     TOKENS.GetInboxQuery,
     () =>
@@ -218,7 +218,7 @@ export function setupInboxUseCases(container: Container): void {
     true
   );
 
-  // Inbox Sync Coordinator (Sprint Gaps — Batch 3)
+  // Inbox Sync Coordinator
   container.register<DispatchInboxSyncUseCase>(
     TOKENS.DispatchInboxSyncUseCase,
     () =>
@@ -231,7 +231,7 @@ export function setupInboxUseCases(container: Container): void {
     true
   );
 
-  // Social Inbox Event Handlers (Phase 2)
+  // Social Inbox Event Handlers
   container.register<InboxEventHandlers>(
     TOKENS.InboxEventHandlers,
     () =>

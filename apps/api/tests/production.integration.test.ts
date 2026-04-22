@@ -167,7 +167,7 @@ describe("Comprehensive Production Integration Test", () => {
     return false;
   };
 
-  describe("Phase 1: Account Management", () => {
+  describe("Account Management", () => {
     it("should create account successfully", async (t) => {
       if (skipIfApiUnavailable(t)) return;
       console.log("\nPHASE 1: Account Management");
@@ -209,7 +209,7 @@ describe("Comprehensive Production Integration Test", () => {
     });
   });
 
-  describe("Phase 2: Project Management", () => {
+  describe("Project Management", () => {
     it("should create project", async (t) => {
       if (skipIfApiUnavailable(t)) return;
       console.log("\nPHASE 2: Project Management");
@@ -256,7 +256,7 @@ describe("Comprehensive Production Integration Test", () => {
     });
   });
 
-  describe("Phase 3: Channel Configuration", () => {
+  describe("Channel Configuration", () => {
     it("should create X channel", async (t) => {
       if (skipIfApiUnavailable(t)) return;
       console.log("\nPHASE 3: Channel Configuration");
@@ -295,7 +295,7 @@ describe("Comprehensive Production Integration Test", () => {
     });
   });
 
-  describe("Phase 4: Content Creation & Publishing", () => {
+  describe("Content Creation & Publishing", () => {
     it("should create post", async (t) => {
       if (skipIfApiUnavailable(t)) return;
       console.log("\nPHASE 4: Content Creation & Publishing");
@@ -345,7 +345,7 @@ describe("Comprehensive Production Integration Test", () => {
     });
   });
 
-  describe("Phase 5: Analytics & Monitoring", () => {
+  describe("Analytics & Monitoring", () => {
     it("should get project analytics", async (t) => {
       if (skipIfApiUnavailable(t)) return;
       console.log("\nPHASE 5: Analytics & Monitoring");
@@ -365,7 +365,7 @@ describe("Comprehensive Production Integration Test", () => {
     });
   });
 
-  describe("Phase 6: Admin Interface Verification", () => {
+  describe("Admin Interface Verification", () => {
     it("should check admin dashboard access", async (t) => {
       if (skipIfAdminUnavailable(t)) return;
       console.log("\nPHASE 6: Admin Interface Verification");
@@ -391,7 +391,7 @@ describe("Comprehensive Production Integration Test", () => {
     });
   });
 
-  describe("Phase 7: Client Interface Verification", () => {
+  describe("Client Interface Verification", () => {
     it("should verify client interface features", async (t) => {
       if (skipIfApiUnavailable(t)) return;
       console.log("\nPHASE 7: Client Interface Verification");
@@ -404,7 +404,7 @@ describe("Comprehensive Production Integration Test", () => {
     });
   });
 
-  describe("Phase 8: Background Workers & Queues", () => {
+  describe("Background Workers & Queues", () => {
     it("should check worker metrics", async (t) => {
       if (skipIfWorkerUnavailable(t)) return;
       console.log("\nPHASE 8: Background Workers & Queues");
@@ -425,7 +425,7 @@ describe("Comprehensive Production Integration Test", () => {
     });
   });
 
-  describe("Phase 9: Error Handling & Edge Cases", () => {
+  describe("Error Handling & Edge Cases", () => {
     it("should test duplicate account email", async (t) => {
       if (skipIfApiUnavailable(t)) return;
       console.log("\nPHASE 9: Error Handling & Edge Cases");
@@ -468,14 +468,14 @@ describe("Comprehensive Production Integration Test", () => {
     });
   });
 
-  describe("Phase 10: Cleanup", () => {
+  describe("Cleanup", () => {
     it("should delete post", async (t) => {
       if (skipIfApiUnavailable(t)) return;
       console.log("\nPHASE 10: Cleanup");
       console.log("-".repeat(40));
 
       const deletePostResponse = await apiCall("DELETE", `/posts/${postId}`);
-      // The post was scheduled in Phase 4, so its status is SCHEDULED.
+      // The post was scheduled in the earlier publishing test block, so its status is SCHEDULED.
       // The domain rule forbids deleting non-editable posts (only DRAFT,
       // FAILED or CANCELLED can be deleted). A 403 is the correct response
       // for a SCHEDULED post. The post will be cleaned up by account cascade.

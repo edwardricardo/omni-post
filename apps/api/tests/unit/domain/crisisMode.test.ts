@@ -1,9 +1,6 @@
 /**
  * Domain Layer - Crisis Mode Unit Tests
  *
- * Part of Sprint 19: Crisis Mode Feature
- * TDD: RED phase - Tests written before implementation
- *
  * Crisis Mode allows pausing all scheduled posts for a project
  * with a single action (e.g., during PR crisis, breaking news, etc.)
  */

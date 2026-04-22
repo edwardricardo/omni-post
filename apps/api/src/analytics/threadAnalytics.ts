@@ -116,7 +116,6 @@ export class ThreadAnalytics {
 
       if (!thread) return null;
 
-      // ✅ Phase 1: Fixed N+1 query - use repository method to get analytics
       const tweetIds = thread.tweets
         .filter((tweet) => tweet.tweetId)
         .map((tweet) => tweet.tweetId!);
@@ -261,7 +260,6 @@ export class ThreadAnalytics {
   }
 
   // Get engagement trends for a thread
-  // ✅ Phase 1: Fixed N+1 query - was fetching analytics for each tweet in a loop
   async getEngagementTrends(threadId: string): Promise<EngagementTrend[]> {
     try {
       const thread = await prisma.thread.findUnique({
@@ -364,7 +362,6 @@ export class ThreadAnalytics {
         t.tweets.every((tweet) => tweet.status === "PUBLISHED")
       ).length;
 
-      // ✅ Phase 1: Calculate metrics for each thread (batch processing instead of individual queries)
       const threadMetrics = await this.getThreadMetricsBatch(threads.map((t) => t.id));
       const validMetrics = threadMetrics.filter(Boolean) as ThreadMetrics[];
 
@@ -478,7 +475,6 @@ export class ThreadAnalytics {
         }
       >();
 
-      // ✅ Phase 1: Batch process metrics instead of calling getThreadMetrics for each thread
       const threadIds = threads.map((t) => t.id);
       const allMetrics = await this.getThreadMetricsBatch(threadIds);
       const metricsMap = new Map(allMetrics.filter(Boolean).map((m) => [m!.threadId, m!]));
@@ -590,8 +586,7 @@ export class ThreadAnalytics {
   }
 
   /**
-   * ✅ Phase 1: Batch version of getThreadMetrics to avoid N+1 queries
-   * Gets metrics for multiple threads in a single database round-trip
+   * Gets metrics for multiple threads in a single database round-trip to avoid N+1 queries.
    */
   private async getThreadMetricsBatch(threadIds: string[]): Promise<(ThreadMetrics | null)[]> {
     try {

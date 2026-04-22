@@ -24,7 +24,7 @@ import {
  * Register notification use cases and event handlers
  */
 export function setupNotificationUseCases(container: Container): void {
-  // Register Notification Use Cases (Phase 1.2)
+  // Register Notification Use Cases
   container.register<CreateNotificationUseCase>(
     TOKENS.CreateNotificationUseCase,
     () =>
@@ -71,7 +71,7 @@ export function setupNotificationUseCases(container: Container): void {
     true
   );
 
-  // Register Notification Event Handlers (Phase 1.5)
+  // Register Notification Event Handlers
   container.register<NotificationEventHandlers>(
     TOKENS.NotificationEventHandlers,
     () =>

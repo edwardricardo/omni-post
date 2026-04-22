@@ -512,9 +512,3 @@ export default function InstagramUploadPage() {
     </div>
   );
 }
-
-// Metadata cannot be exported from client components
-// export const metadata = {
-//   title: "Instagram Media Upload | Admin Dashboard",
-//   description: "Upload and process media files for Instagram content creation",
-// };

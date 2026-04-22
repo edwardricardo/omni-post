@@ -39,17 +39,17 @@ export { TrackedLink, type TrackedLinkProps, type TrackedLinkCreateProps } from 
 
 export { LinkClick, type LinkClickProps, type LinkClickCreateProps } from "./LinkClick.js";
 
-// Team entities (Phase 1: TeamMember foundation)
+// Team entities
 export { TeamMemberEntity } from "./TeamMember.js";
 
-// Notification entities (Phase 1 Step 2: Notification system)
+// Notification entities
 export {
   NotificationEntity,
   type NotificationProps,
   type CreateNotificationParams,
 } from "./Notification.js";
 
-// Campaign entities (Phase 3: Analytics & Reporting)
+// Campaign entities
 export {
   Campaign,
   type CampaignProps,
@@ -63,7 +63,7 @@ export {
   PostUntaggedFromCampaign,
 } from "./Campaign.js";
 
-// Scheduled Report entities (Phase 3: Analytics & Reporting)
+// Scheduled Report entities
 export {
   ScheduledReport,
   type ScheduledReportProps,
@@ -87,7 +87,7 @@ export {
   type UpdateBrandKitInput,
 } from "./BrandKit.js";
 
-// Social Inbox entities (Phase 2: Social Inbox)
+// Social Inbox entities
 export {
   SocialConversation,
   type CreateSocialConversationInput,

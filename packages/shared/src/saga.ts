@@ -1,11 +1,9 @@
 /**
- * Phase 2: Week 3-4 - Saga Pattern Implementation
- *
- * Saga pattern for orchestrating complex business workflows:
- * - Long-running business processes across multiple aggregates
- * - Compensating actions for rollback in case of failures
- * - Stateful workflow management with persistence
- * - Event-driven saga orchestration
+ * @file saga.ts
+ * @description Saga pattern for orchestrating complex business workflows:
+ *              long-running processes across aggregates, compensating actions
+ *              for rollback on failure, stateful workflow persistence, and
+ *              event-driven orchestration.
  */
 
 import { randomUUID } from "node:crypto";

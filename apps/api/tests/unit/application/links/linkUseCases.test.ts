@@ -1,7 +1,6 @@
 /**
  * Application Layer - Link Tracking Use Cases Tests
  *
- * Part of Sprint 19: Link Tracking Feature
  * Tests for CreateTrackedLink, GetTrackedLink, RedirectAndTrackClick,
  * GetLinkStats, and DeleteTrackedLink use cases.
  */

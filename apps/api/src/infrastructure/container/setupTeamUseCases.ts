@@ -45,7 +45,7 @@ import {
  * Register approval workflow, team member, and comment use cases
  */
 export function setupTeamUseCases(container: Container): void {
-  // Register Approval Workflow Use Cases (Phase 1.3)
+  // Register Approval Workflow Use Cases
   container.register<SubmitForReviewUseCase>(
     TOKENS.SubmitForReviewUseCase,
     () =>
@@ -129,7 +129,7 @@ export function setupTeamUseCases(container: Container): void {
     true
   );
 
-  // Register Team Member Use Cases (Phase 1.1)
+  // Register Team Member Use Cases
   container.register<InviteTeamMemberUseCase>(
     TOKENS.InviteTeamMemberUseCase,
     () =>
@@ -184,7 +184,7 @@ export function setupTeamUseCases(container: Container): void {
     true
   );
 
-  // Register Comment Use Cases (Phase 1.4)
+  // Register Comment Use Cases
   container.register<CreateCommentUseCase>(
     TOKENS.CreateCommentUseCase,
     () =>

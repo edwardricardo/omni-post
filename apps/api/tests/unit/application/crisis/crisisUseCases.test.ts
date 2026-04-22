@@ -1,7 +1,6 @@
 /**
  * Application Layer - Crisis Mode Use Cases Tests
  *
- * Part of Sprint 19: Crisis Mode Feature
  * Tests for EnterCrisisMode, ExitCrisisMode, and GetCrisisStatus use cases.
  */
 

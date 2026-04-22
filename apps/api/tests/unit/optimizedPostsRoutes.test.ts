@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Unit Tests for optimizedPostsRoutes
- * Testing Phase 2 React 19 Server Components optimized API endpoints
+ * Tests React 19 Server Components optimized API endpoints.
  *
  * Coverage Target: 95%+
  */

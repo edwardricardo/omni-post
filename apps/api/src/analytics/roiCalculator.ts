@@ -366,7 +366,6 @@ export class ROICalculator {
     }
   }
 
-  // ✅ Phase 1: Uses repository pattern — eliminates N+1 query
   private async getAnalyticsData(
     options: ROICalculationOptions,
     startDate: Date,
@@ -397,7 +396,6 @@ export class ROICalculator {
     }) as Promise<AnalyticsDataPoint[]>;
   }
 
-  // ✅ Phase 1: Uses repository pattern — eliminates N+1 query
   private async getPostsData(
     options: ROICalculationOptions,
     startDate: Date,

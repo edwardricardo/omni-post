@@ -1,7 +1,6 @@
 /**
  * Infrastructure Layer - Prisma TrackedLink Repository Unit Tests
  *
- * Part of Sprint 19: Link Tracking Feature
  * Tests PrismaTrackedLinkRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
  */

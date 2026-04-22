@@ -83,7 +83,7 @@ export function setupCrisisUseCases(container: Container): void {
     true
   );
 
-  // Register Scheduled Report Use Cases (Phase 3 Step 7)
+  // Register Scheduled Report Use Cases
   const reportRepo = () =>
     container.resolve<ScheduledReportRepository>(TOKENS.ScheduledReportRepository);
   const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);

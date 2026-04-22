@@ -1,7 +1,6 @@
 /**
  * Infrastructure Layer - Container Unit Tests
  *
- * Part of Sprint 7: DDD Architecture Implementation
  * Tests for the dependency injection container.
  */
 

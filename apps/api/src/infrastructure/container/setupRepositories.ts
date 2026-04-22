@@ -175,7 +175,7 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register ApprovalRequest Repository (Phase 1.3)
+  // Register ApprovalRequest Repository
   container.register<ApprovalRequestRepository>(
     TOKENS.ApprovalRequestRepository,
     () => new PrismaApprovalRequestRepository(container.resolve(TOKENS.PrismaClient)),
@@ -189,14 +189,14 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register TeamMember Repository (Phase 1.1)
+  // Register TeamMember Repository
   container.register<TeamMemberRepository>(
     TOKENS.TeamMemberRepository,
     () => new PrismaTeamMemberRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 
-  // Register Notification Repositories (Phase 1.2)
+  // Register Notification Repositories
   // Single adapter implements both command and preference ports
   container.register<NotificationRepository>(
     TOKENS.NotificationRepository,
@@ -209,14 +209,14 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register PostComment Repository (Phase 1.4)
+  // Register PostComment Repository
   container.register<PostCommentRepository>(
     TOKENS.PostCommentRepository,
     () => new PrismaPostCommentRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 
-  // Register Social Inbox Repositories (Phase 2)
+  // Register Social Inbox Repositories
   container.register<SocialMessageRepository>(
     TOKENS.SocialMessageRepository,
     () => new PrismaSocialMessageRepository(container.resolve(TOKENS.PrismaClient)),
@@ -245,7 +245,7 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register Campaign Repositories (Phase 3)
+  // Register Campaign Repositories
   container.register<CampaignRepository>(
     TOKENS.CampaignRepository,
     () => new PrismaCampaignRepository(container.resolve(TOKENS.PrismaClient)),
@@ -257,7 +257,7 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register ScheduledReport Repository (Phase 3 Step 7)
+  // Register ScheduledReport Repository
   container.register<ScheduledReportRepository>(
     TOKENS.ScheduledReportRepository,
     () => new PrismaScheduledReportRepository(container.resolve(TOKENS.PrismaClient)),

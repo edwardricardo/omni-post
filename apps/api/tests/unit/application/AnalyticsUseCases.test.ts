@@ -1,7 +1,6 @@
 /**
  * Application Layer - Analytics Use Cases Unit Tests
  *
- * Part of Sprint 11: TDD Implementation
  * Tests for GetCrossPlatformAnalytics, ComparePerformance, and CalculateROI use cases.
  */
 

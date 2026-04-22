@@ -1,8 +1,7 @@
 /**
- * Phase 2: Week 3-4 - Event-Driven Architecture Foundation
- *
- * Core Domain Events system implementing Event Sourcing patterns.
- * This provides the foundation for CQRS, Saga patterns, and distributed processing.
+ * @file events.ts
+ * @description Core Domain Events system implementing Event Sourcing patterns.
+ *              Foundation for CQRS, Saga patterns, and distributed processing.
  *
  * Key Features:
  * - Type-safe event definitions

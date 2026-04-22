@@ -1,12 +1,9 @@
 /**
- * Phase 2: Week 5-6 - React 19 Concurrent Renderer
- *
- * Advanced React 19 concurrent features for scalability:
- * - Time-slicing for smooth UI updates
- * - Priority-based rendering
- * - Background data fetching with Suspense
- * - Selective hydration for performance
- * - Concurrent state updates
+ * @file ConcurrentRenderer.tsx
+ * @description React 19 concurrent renderer for scalability: time-slicing,
+ *              priority-based rendering, background fetching with Suspense,
+ *              selective hydration, and concurrent state updates.
+ * @layer infrastructure
  */
 
 "use client";

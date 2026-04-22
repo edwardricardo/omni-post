@@ -46,7 +46,6 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      // ✅ Phase 1: Check if user exists using repository
       const userResult = await this.userRepo.findActiveUser(userId, "id");
 
       if (isErr(userResult)) {
@@ -124,7 +123,6 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      // ✅ Phase 1: Check if user exists using repository
       const userResult = await this.userRepo.findById(userId);
 
       if (!userResult.ok) {
@@ -228,7 +226,6 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      // ✅ Phase 1: Check if user exists using repository
       const userResult = await this.userRepo.findById(userId);
 
       if (!userResult.ok) {
@@ -464,7 +461,6 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      // ✅ Phase 1: Check if user exists using repository
       const userResult = await this.userRepo.findById(userId);
 
       if (!userResult.ok) {

@@ -91,35 +91,27 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 ---
 
-## Step 3: Add MinIO for Local S3 Storage
+## Step 3: MinIO for Local S3 Storage
 
-MinIO provides S3-compatible object storage for media files. Add it to your local setup:
-
-```bash
-docker run -d \
-  --name omnipost-minio \
-  -p 9000:9000 \
-  -p 9001:9001 \
-  -e MINIO_ROOT_USER=minioadmin \
-  -e MINIO_ROOT_PASSWORD=minioadmin123 \
-  -v minio-data:/data \
-  minio/minio server /data --console-address ":9001"
-```
-
-Create the default bucket:
-
-```bash
-docker exec omnipost-minio \
-  mc alias set local http://localhost:9000 minioadmin minioadmin123
-
-docker exec omnipost-minio \
-  mc mb local/omni-post-media
-```
+MinIO provides S3-compatible object storage for media files. It is included in
+`docker-compose.yml` and starts automatically with `pnpm db:up`, along with a
+`minio-init` one-shot container that creates the default `omni-post-media`
+bucket.
 
 | Service | Port | Purpose         | Credentials                |
 | ------- | ---- | --------------- | -------------------------- |
 | MinIO   | 9000 | S3 API endpoint | minioadmin / minioadmin123 |
 | MinIO   | 9001 | Web console     | minioadmin / minioadmin123 |
+
+If you need to manually re-create the bucket (e.g. after wiping the volume),
+run:
+
+```bash
+docker exec omnipost-minio \
+  mc alias set local http://localhost:9000 minioadmin minioadmin123
+docker exec omnipost-minio \
+  mc mb --ignore-existing local/omni-post-media
+```
 
 ---
 

@@ -160,7 +160,7 @@ export function setupServices(
   container.registerInstance(TOKENS.SubscriptionService, subscriptionService);
   container.registerInstance(TOKENS.WebhookDashboardService, webhookDashboardService);
 
-  // Compliance (Sprint C)
+  // Compliance
   container.register<ComplianceService>(
     TOKENS.ComplianceService,
     () => {
@@ -364,7 +364,7 @@ export function setupServices(
     true
   );
 
-  // Register NotificationBroadcaster (Phase 1.2 -- SSE real-time notifications)
+  // Register NotificationBroadcaster
   container.register<NotificationBroadcaster>(
     TOKENS.NotificationBroadcaster,
     () => {
@@ -380,14 +380,14 @@ export function setupServices(
     true
   );
 
-  // Register GA4 Tracking Adapter (Phase 3 Step 4: UTM/GA4 Integration)
+  // Register GA4 Tracking Adapter
   container.register<GA4TrackingAdapter>(
     TOKENS.GA4TrackingPort,
     () => new GA4TrackingAdapter(),
     true
   );
 
-  // Register EmailPort (Phase 3 Step 7: Scheduled Reports)
+  // Register EmailPort
   container.register<EmailPort>(TOKENS.EmailPort, () => new ResendEmailAdapter(), true);
 
   // Register SagaManager (P3-A)

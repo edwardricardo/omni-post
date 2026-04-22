@@ -1,7 +1,6 @@
 /**
  * Integration Tests - Link Tracking Routes
  *
- * Part of Sprint 19: Link Tracking Feature
  * Tests the full HTTP request/response cycle for link tracking endpoints.
  *
  * NOTE: These tests require the API server to be running.

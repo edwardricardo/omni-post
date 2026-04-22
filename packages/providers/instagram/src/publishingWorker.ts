@@ -53,8 +53,8 @@ export interface InstagramPublishPayload {
   };
   accountId: string;
   projectId: string;
-  postId?: string; // Added for database operations
-  channelId?: string; // Added for database operations
+  postId?: string;
+  channelId?: string;
   queueId: string;
   retryCount: number;
   maxRetries: number;

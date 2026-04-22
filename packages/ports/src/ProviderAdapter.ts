@@ -96,7 +96,7 @@ export interface ProviderAdapter {
   }): Promise<Result<unknown, "AUTH" | "NETWORK">>;
   handleWebhook?(payload: unknown): Promise<Result<unknown, "IGNORE" | "PARSE_ERROR">>;
 
-  // Social Inbox methods (Phase 2)
+  // Social Inbox methods
   getComments?(params: {
     channelCredentials: unknown;
     postExternalId?: string;

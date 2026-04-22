@@ -93,8 +93,8 @@ const TEST_MODULES: TestModule[] = [
 
   // Integration Tests
   {
-    name: "Phase 4C Integration",
-    path: "./phase4c-integration.test.ts",
+    name: "Universal Client Dashboard Integration",
+    path: "./universal-client-dashboard.integration.test.ts",
     enabled: true,
     category: "integration",
   },

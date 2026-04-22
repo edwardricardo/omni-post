@@ -233,7 +233,7 @@ export class AnalyticsDashboardHandler extends BaseRouteHandler {
           ? ((auditLogsLast30Days - failedActionsLast30Days) / auditLogsLast30Days) * 100
           : 100;
 
-      // Compliance score from injected ComplianceService (Sprint DI)
+      // Compliance score from injected ComplianceService
       let complianceScore = 0;
       if (this.complianceService) {
         const scoreResult = await this.complianceService.getComplianceScore();

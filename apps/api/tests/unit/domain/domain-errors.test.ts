@@ -1,8 +1,7 @@
 /**
  * Domain Errors Tests
  *
- * Tests for Sprint 3: Domain Layer - Error Classes
- * Following TDD principles - validating domain error implementations.
+ * Validates domain error class implementations.
  */
 
 import { describe, it, expect } from "vitest";
