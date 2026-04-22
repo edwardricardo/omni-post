@@ -1,0 +1,14 @@
+# Normalize line endings across platforms — prevents CRLF/LF churn
+# in diffs and keeps lint-staged / prettier deterministic on Windows/WSL.
+* text=auto eol=lf
+
+# Binary files (no text normalization, no diff)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary

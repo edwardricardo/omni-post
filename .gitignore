@@ -109,6 +109,15 @@ prometheus/data/
 *.tsbuildinfo
 tsconfig.tsbuildinfo
 
+# Backup files (any .bak, .bak2, .bak.contaminated, etc.)
+*.bak
+*.bak[0-9]*
+*.contaminated.bak
+
 # Optional: Local development overrides
 docker-compose.local.yml
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/run-batches.sh
+.claude/run-tiktok-stryker.sh
+.claude/run-tiktok-stryker-final.sh

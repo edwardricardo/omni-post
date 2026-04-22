@@ -321,7 +321,7 @@ grep -rn "setInterval(" apps/api/src/ --include="*.ts" | grep -v ".unref()" | gr
 
 ---
 
-#### T1-C — .gitignore + git hygiene ⚡
+#### T1-C — .gitignore + git hygiene ⚡ ✅ 2026-04-22
 
 **Scope.** 3 `.bak` files tracked, `.gitattributes` missing, CODEOWNERS missing, patterns missing en `.gitignore`.
 
