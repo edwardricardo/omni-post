@@ -8,7 +8,7 @@
 
 import { useTranslations } from "next-intl";
 import { Badge } from "../ui/Badge";
-import { CREDENTIAL_KEYS, SOCIAL_GROUPS, TAB_GROUP_MAP } from "./constants";
+import { SOCIAL_GROUPS, TAB_GROUP_MAP } from "./constants";
 import type { SettingsStatus } from "@/hooks/api/useSettings";
 
 interface OverviewTabProps {

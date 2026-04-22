@@ -10,7 +10,7 @@
 import { useCallback } from "react";
 import Link from "next/link";
 import { X, Check, Circle, Link2, FileText, Users, CreditCard } from "lucide-react";
-import { useOnboarding, useCompleteStep, useDismissOnboarding } from "@/hooks/api/useOnboarding";
+import { useOnboarding, useDismissOnboarding } from "@/hooks/api/useOnboarding";
 
 const STEP_CONFIG: Record<string, { icon: typeof Link2; href: string }> = {
   connectedFirstProvider: { icon: Link2, href: "/dashboard/channels" },
@@ -25,7 +25,6 @@ const STEP_CONFIG: Record<string, { icon: typeof Link2; href: string }> = {
  */
 export function OnboardingChecklist() {
   const { data, isLoading } = useOnboarding();
-  const completeMutation = useCompleteStep();
   const dismissMutation = useDismissOnboarding();
 
   const handleDismiss = useCallback(() => {

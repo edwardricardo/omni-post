@@ -8,7 +8,7 @@ import { PlatformCredentialService } from "../../../src/security/PlatformCredent
 import type { EncryptionService, EncryptedValue } from "../../../src/security/EncryptionService.js";
 import type { PrismaClient } from "@infra/prisma";
 
-function makeMockEncryptionService(overrides: Partial<EncryptionService> = {}): EncryptionService {
+function makeMockEncryptionService(_overrides: Partial<EncryptionService> = {}): EncryptionService {
   return {
     encrypt: vi.fn().mockReturnValue({
       encryptedValue: "encrypted_base64",

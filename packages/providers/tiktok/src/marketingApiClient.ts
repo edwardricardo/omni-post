@@ -77,10 +77,28 @@ export interface TikTokCreativeInsight {
   videoUrl?: string;
 }
 
+/**
+ * Dimensions returned by TikTok reporting APIs. Most fields are plain strings,
+ * but `location` is returned as an object `{ country?: string }` from the
+ * audience insights endpoint (other endpoints may omit it entirely).
+ */
+interface TikTokDimensions {
+  gender?: string;
+  age?: string;
+  location?: string | { country?: string };
+  interest_category?: string;
+  ac_subtype?: string;
+  ad_id?: string;
+  ad_name?: string;
+  ad_format?: string;
+  thumbnail_url?: string;
+  video_url?: string;
+}
+
 /** Raw response item from TikTok reporting APIs with metrics. */
 interface TikTokReportItem {
   metrics: Record<string, string>;
-  dimensions: Record<string, string>;
+  dimensions: TikTokDimensions;
 }
 
 /** Raw campaign item from TikTok campaign list API. */
@@ -445,9 +463,10 @@ export class TikTokMarketingApiClient {
         }
 
         const locationValue = dimension.location;
-        if (locationValue) {
+        const country = typeof locationValue === "string" ? locationValue : locationValue?.country;
+        if (country) {
           audienceInsight.location.push({
-            country: locationValue,
+            country,
             percentage: impressions,
           });
         }
