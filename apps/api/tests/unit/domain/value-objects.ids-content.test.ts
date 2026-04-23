@@ -1,3 +1,8 @@
+/**
+ * @file value-objects.ids-content.test.ts
+ * @description Tests for Domain Value Objects
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import {
   PostId,

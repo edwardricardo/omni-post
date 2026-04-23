@@ -782,10 +782,10 @@ grep -rn "prisma\." apps/api/src/cqrs/handlers/ --include="*.ts" | wc -l
 grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" \
   apps/api/src/ packages/ --include="*.ts" | wc -l
 
-# 8. No sprint references in source comments
-grep -rn "Part of Sprint\|Phase.*Sprint\|Sprint [0-9]" \
-  apps/api/src/ apps/admin/src/ apps/client/src/ \
-  --include="*.ts" --include="*.tsx" | wc -l
+# 8. No sprint references in source comments (repo-wide, excluding test sandboxes)
+grep -rn "Part of Sprint\|Phase.*Sprint\|Sprint [0-9]" apps/ packages/ \
+  --include="*.ts" --include="*.tsx" | \
+  grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation" | wc -l
 
 # 9. No files missing @file header (all repo, target: 0)
 grep -rL "@file" apps/ packages/ --include="*.ts" --include="*.tsx" | \

@@ -5,6 +5,10 @@
  *
  * NOTE: These tests require the API server to be running.
  * Run `pnpm dev:api` before running these tests.
+ *
+ * @file linkRoutes.test.ts
+ * @description Tests for Link Tracking Routes Integration
+ * @layer infrastructure
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";

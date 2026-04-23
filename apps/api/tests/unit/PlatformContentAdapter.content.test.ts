@@ -3,6 +3,10 @@
  *
  * Tests character-limit enforcement with ellipsis truncation and word-boundary
  * preservation, plus hashtag count limits and preservation logic.
+ *
+ * @file PlatformContentAdapter.content.test.ts
+ * @description Tests for PlatformContentAdapter - Content Truncation and Hashtag Optimization
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

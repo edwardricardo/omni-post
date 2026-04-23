@@ -1,3 +1,8 @@
+/**
+ * @file ProviderDependencyManager.validation.test.ts
+ * @description Tests for ProviderDependencyManager - Dependency Validation
+ * @layer infrastructure
+ */
 import { describe, it, beforeAll, beforeEach, expect } from "vitest";
 import { ProviderDependencyManager } from "../../src/orchestration/ProviderDependencyManager.js";
 import type { ProviderDependency } from "@shared/orchestration";

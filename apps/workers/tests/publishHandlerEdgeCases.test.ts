@@ -5,6 +5,10 @@
  *   1. Unknown provider → job resolves but records failure metrics
  *   2. Provider error propagation → publishSinglePost throws, handleJob catches
  *   3. Multi-provider independence → one provider failure does not affect others
+ *
+ * @file publishHandlerEdgeCases.test.ts
+ * @description Tests for PublishHandler.handleJob edge cases
+ * @layer infrastructure
  */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";

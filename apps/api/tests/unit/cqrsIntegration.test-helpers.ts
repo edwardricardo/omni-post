@@ -1,3 +1,8 @@
+/**
+ * @file cqrsIntegration.test-helpers.ts
+ * @description Test helpers for cqrs integration test helpers
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import type { DomainEvent } from "@shared/events";
 

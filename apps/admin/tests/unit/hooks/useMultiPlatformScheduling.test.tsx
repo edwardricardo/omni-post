@@ -4,6 +4,10 @@
  *   useCreateSchedule, useBulkCreateSchedules
  *
  * All hooks call fetch directly — we mock global.fetch.
+ *
+ * @file useMultiPlatformScheduling.test.tsx
+ * @description Tests for useScheduleSlots
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";

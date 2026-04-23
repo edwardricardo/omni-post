@@ -8,6 +8,10 @@
  * - Custom formatters
  * - Header generation
  * - Edge cases (empty data, special characters)
+ *
+ * @file csvExport.test.ts
+ * @description Tests for CSV Export - Basic Functionality
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

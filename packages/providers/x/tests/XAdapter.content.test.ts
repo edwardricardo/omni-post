@@ -12,6 +12,10 @@
  *    handling, multi-line content, special characters
  *
  * All tests are Tier 0 (no network, no DB, no Redis).
+ *
+ * @file XAdapter.content.test.ts
+ * @description Tests for XAdapter - validateContent()
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

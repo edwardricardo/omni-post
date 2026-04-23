@@ -105,6 +105,10 @@
  * Coverage Target: 95%+
  * Test Framework: node:test
  * Dependencies: NONE (pure logic tests, no database required)
+ *
+ * @file inputValidation.test.ts
+ * @description Tests for Input Validation - SQL Injection Detection
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

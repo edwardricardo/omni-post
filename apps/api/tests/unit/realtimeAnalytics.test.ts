@@ -9,6 +9,10 @@
  * - Connection statistics aggregation
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/realtimeAnalytics.test.ts
+ *
+ * @file realtimeAnalytics.test.ts
+ * @description Tests for RealtimeAnalyticsService - calculateEngagementRate
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

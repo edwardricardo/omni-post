@@ -9,6 +9,10 @@
  * - Health monitoring
  * - Provider connections
  * - Error handling
+ *
+ * @file providerRegistry.test.ts
+ * @description Tests for Provider Registry System
+ * @layer infrastructure
  */
 
 import { describe, it, before } from "node:test";

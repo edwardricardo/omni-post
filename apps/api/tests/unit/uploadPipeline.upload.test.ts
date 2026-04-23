@@ -8,6 +8,10 @@
  * resumeUpload(). Without this, finalizeLocalUpload() tries to readFile()
  * those chunks and throws ENOENT because they were only marked as uploaded in
  * memory but were never physically written.
+ *
+ * @file uploadPipeline.upload.test.ts
+ * @description Tests for VideoUploadPipeline - File Upload
+ * @layer infrastructure
  */
 import { describe, it, beforeAll, expect } from "vitest";
 import {

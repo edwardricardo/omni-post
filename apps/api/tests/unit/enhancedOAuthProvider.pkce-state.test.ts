@@ -1,5 +1,9 @@
 /**
  * EnhancedOAuthService Tests - PKCE Challenge Generation & State Management
+ *
+ * @file enhancedOAuthProvider.pkce-state.test.ts
+ * @description Tests for EnhancedOAuthService - PKCE Challenge Generation
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

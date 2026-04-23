@@ -4,6 +4,10 @@
  * Testing cache statistics and monitoring endpoints
  *
  * Coverage Target: 95%+
+ *
+ * @file cacheStatsRoutes.test.ts
+ * @description Tests for cacheStatsRoutes - Unit Tests
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";

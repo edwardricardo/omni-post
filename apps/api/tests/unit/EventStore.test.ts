@@ -1,6 +1,10 @@
 /**
  * Unit Tests for EventStore (PostgreSQLEventStore)
  * Tests event persistence, retrieval, and event sourcing patterns
+ *
+ * @file EventStore.test.ts
+ * @description Tests for EventStore - Event Appending
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

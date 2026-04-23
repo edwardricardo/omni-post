@@ -10,6 +10,10 @@
  * - Cache management endpoints
  * - Health check and metrics endpoints
  * - Graceful shutdown
+ *
+ * @file CQRSIntegration.test.ts
+ * @description Tests for CQRSIntegration - Initialization
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

@@ -4,6 +4,10 @@
  * The hook delegates to api.admin.getDashboardStats() from @/lib/apiClient,
  * which internally makes two fetch calls to derive stats.
  * We mock the whole api module to keep tests self-contained.
+ *
+ * @file useDashboardStats.test.tsx
+ * @description Tests for useDashboardStats
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";

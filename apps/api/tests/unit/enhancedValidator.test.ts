@@ -14,6 +14,10 @@
  * - File upload validation
  *
  * Run with: node --test apps/api/tests/unit/enhancedValidator.test.ts
+ *
+ * @file enhancedValidator.test.ts
+ * @description Tests for SQL Injection Detection
+ * @layer infrastructure
  */
 
 import { describe, it, afterAll, expect } from "vitest";

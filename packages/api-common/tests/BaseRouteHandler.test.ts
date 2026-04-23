@@ -6,6 +6,10 @@
  * - Webhook signature verification (constant-time comparison)
  * - Enhanced Zod validation helpers
  * - Result type mapping
+ *
+ * @file BaseRouteHandler.test.ts
+ * @description Tests for BaseRouteHandler - OAuth Error Handling
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

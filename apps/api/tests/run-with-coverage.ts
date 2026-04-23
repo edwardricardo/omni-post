@@ -1,3 +1,8 @@
+/**
+ * @file run-with-coverage.ts
+ * @description Tests for run with coverage
+ * @layer infrastructure
+ */
 // Enhanced test runner with coverage reporting capabilities
 // This runner supports both regular test execution and coverage analysis
 

@@ -1,5 +1,9 @@
 /**
  * ConnectionManager Tests - Health Check, Connection Summary & Cleanup Operations
+ *
+ * @file connectionManager.health-summary-cleanup.test.ts
+ * @description Tests for ConnectionManager - Health Check
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";

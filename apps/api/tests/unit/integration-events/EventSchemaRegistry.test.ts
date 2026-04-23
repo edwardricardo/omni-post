@@ -8,6 +8,10 @@
  * - All tests are pure in-memory — no database, no Redis, no I/O.
  * - The default constructor pre-registers 12 production events at v1.
  * - Custom schemas are registered via registry.register() for multi-version tests.
+ *
+ * @file EventSchemaRegistry.test.ts
+ * @description Tests for EventSchemaRegistry — default constructor
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, expect } from "vitest";

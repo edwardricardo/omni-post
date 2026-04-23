@@ -1,3 +1,8 @@
+/**
+ * @file assertions.ts
+ * @description Tests for assertions
+ * @layer infrastructure
+ */
 // Page type not used directly '@playwright/test';
 import { AxeBuilder } from "@axe-core/playwright";
 

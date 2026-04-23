@@ -52,7 +52,10 @@ const TYPE_LABELS: Record<string, { label: string; description: string }> = {
 // ---------------------------------------------------------------------------
 
 async function fetchPreferences(): Promise<NotificationPreference[]> {
-  const res = await fetch("/api/backend/notifications/preferences", { cache: "no-store" });
+  const res = await fetch("/api/backend/notifications/preferences", {
+    cache: "no-store",
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to fetch preferences");
   const data = (await res.json()) as { ok: boolean; value?: NotificationPreference[] };
   return data.ok && data.value ? data.value : [];
@@ -61,6 +64,7 @@ async function fetchPreferences(): Promise<NotificationPreference[]> {
 async function savePreferences(preferences: NotificationPreference[]): Promise<void> {
   const res = await fetch("/api/backend/notifications/preferences", {
     method: "PUT",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ preferences }),
   });

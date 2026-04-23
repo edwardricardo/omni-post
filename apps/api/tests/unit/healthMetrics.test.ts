@@ -34,6 +34,10 @@
  *
  * @module HealthMetricsTests
  * @category UnitTests
+ *
+ * @file healthMetrics.test.ts
+ * @description Tests for HealthMetrics - Health Status Conversion
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

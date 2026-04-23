@@ -4,6 +4,10 @@
  * Part of FASE H4b / H12: Hexagonal Architecture - Prisma Adapters + Soft Delete
  * Tests PrismaChannelRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
+ *
+ * @file PrismaChannelRepository.test.ts
+ * @description Tests for PrismaChannelRepository
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

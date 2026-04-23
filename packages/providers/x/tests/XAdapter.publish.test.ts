@@ -11,6 +11,10 @@
  *    accepts date range parameters
  *
  * All tests are Tier 0 (no network, no DB, no Redis).
+ *
+ * @file XAdapter.publish.test.ts
+ * @description Tests for XAdapter - publish()
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

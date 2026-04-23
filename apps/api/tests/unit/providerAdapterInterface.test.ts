@@ -33,6 +33,10 @@
  *
  * @module ProviderAdapterInterfaceTests
  * @category UnitTests
+ *
+ * @file providerAdapterInterface.test.ts
+ * @description Tests for ProviderAdapterInterface - Type Guard
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

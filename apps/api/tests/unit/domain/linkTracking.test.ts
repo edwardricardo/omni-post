@@ -2,6 +2,10 @@
  * Domain Layer - Link Tracking Unit Tests
  *
  * Tests for TrackedLink aggregate, value objects, and link-tracking domain events.
+ *
+ * @file linkTracking.test.ts
+ * @description Tests for Link Tracking Domain
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

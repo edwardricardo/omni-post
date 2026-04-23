@@ -15,6 +15,10 @@
  * - MOCK_CREDENTIALS            -- standard valid mock credential object
  * - PLACEHOLDER_CREDENTIALS     -- credentials with "placeholder" values
  * - SHORT_BODY / LONG_BODY      -- pre-built body strings for common tests
+ *
+ * @file XAdapter.test-helpers.ts
+ * @description Test helpers for xadapter test helpers
+ * @layer infrastructure
  */
 
 import { vi } from "vitest";

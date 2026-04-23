@@ -4,6 +4,10 @@
  * Provides shared Prisma + Redis connections, mock EventService, and
  * setup/teardown utilities so every test file can initialize its own
  * isolated SyncEngine instance without duplicating infrastructure code.
+ *
+ * @file syncEngine.helpers.ts
+ * @description Test helpers for sync engine helpers
+ * @layer infrastructure
  */
 
 import { createTestPrismaClient } from "@infra/prisma";

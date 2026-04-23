@@ -12,6 +12,10 @@
  *
  * Environment Variables:
  * - USE_REAL_ADAPTERS=true - Use real provider adapters instead of mocks (makes network calls)
+ *
+ * @file providerRegistry.test.ts
+ * @description Tests for Provider Registry - Initialization & Built-in Providers
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

@@ -4,6 +4,10 @@
  * Part of P2-3: CQRS Read Side Implementation
  * Tests PrismaPostQueryRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
+ *
+ * @file PrismaPostQueryRepository.test.ts
+ * @description Tests for PrismaPostQueryRepository
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

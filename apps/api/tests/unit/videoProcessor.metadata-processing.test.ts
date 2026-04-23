@@ -1,3 +1,8 @@
+/**
+ * @file videoProcessor.metadata-processing.test.ts
+ * @description Tests for VideoProcessor - Metadata Extraction
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import {
   VideoProcessor,

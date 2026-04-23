@@ -4,6 +4,10 @@
  * Part of P2-2: Integration Events via BullMQ
  * Tier-0 tests for the ComposedEventDispatcher class.
  * Uses mocked InMemoryEventDispatcher and IntegrationEventPublisher — no external deps.
+ *
+ * @file ComposedEventDispatcher.test.ts
+ * @description Tests for ComposedEventDispatcher
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

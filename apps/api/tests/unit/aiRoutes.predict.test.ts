@@ -1,3 +1,8 @@
+/**
+ * @file aiRoutes.predict.test.ts
+ * @description Tests for aiRoutes - POST /ai/optimize
+ * @layer infrastructure
+ */
 import { describe, it, beforeAll, afterAll, beforeEach, expect, vi } from "vitest";
 
 vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({

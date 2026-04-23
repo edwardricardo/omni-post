@@ -13,6 +13,10 @@
  * These tests are Tier 0: pure filesystem reads, zero external dependencies.
  *
  * @module tests/unit/architecture
+ *
+ * @file architecture.test.ts
+ * @description Tests for Architecture Enforcement
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

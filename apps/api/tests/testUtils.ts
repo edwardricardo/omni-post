@@ -2,6 +2,10 @@
  * Test Utilities
  *
  * Shared utilities for integration and unit tests
+ *
+ * @file testUtils.ts
+ * @description Tests for test utils
+ * @layer infrastructure
  */
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";

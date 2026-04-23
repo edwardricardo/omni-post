@@ -1,3 +1,8 @@
+/**
+ * @file webhookSignatureVerification.providers2.test.ts
+ * @description Tests for Webhook signature verification — TikTokWebhookProcessor
+ * @layer infrastructure
+ */
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import { createHmac } from "node:crypto";
 

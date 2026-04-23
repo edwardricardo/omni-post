@@ -2,6 +2,10 @@
  * Infrastructure Layer - Prisma Post Repository Unit Tests
  *
  * Tests for the PrismaPostRepository implementation.
+ *
+ * @file PrismaPostRepository.test.ts
+ * @description Tests for PrismaPostRepository
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

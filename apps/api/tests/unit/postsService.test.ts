@@ -4,6 +4,10 @@
  *
  * Pure unit test — no database, no Redis, no env-setup imports.
  * All dependencies are injected via constructor with vi.fn() mocks.
+ *
+ * @file postsService.test.ts
+ * @description Tests for PostsService
+ * @layer infrastructure
  */
 
 import { describe, it, vi, expect } from "vitest";

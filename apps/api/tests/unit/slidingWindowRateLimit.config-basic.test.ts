@@ -2,6 +2,10 @@
 /**
  * Unit Tests for SlidingWindowRateLimit - Constructor, Basic Rate Limiting,
  * Window Info, IP Extraction, User Agent Tracking
+ *
+ * @file slidingWindowRateLimit.config-basic.test.ts
+ * @description Tests for SlidingWindowRateLimit - Constructor & Configuration
+ * @layer infrastructure
  */
 
 import { describe, it, afterAll, expect } from "vitest";

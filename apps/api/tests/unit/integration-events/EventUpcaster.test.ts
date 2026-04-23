@@ -9,6 +9,10 @@
  * - All tests are pure in-memory — no I/O, no database, no Redis.
  * - Tests use simple literal upcasters that add/transform fields.
  * - The `UpcasterChain` is exercised in isolation of the consumer.
+ *
+ * @file EventUpcaster.test.ts
+ * @description Tests for UpcasterChain — single upcaster v1→v2
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

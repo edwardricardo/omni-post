@@ -1,3 +1,8 @@
+/**
+ * @file templateService.test-helpers.ts
+ * @description Test helpers for template service test helpers
+ * @layer infrastructure
+ */
 import { vi } from "vitest";
 
 export type MockedMethod = ReturnType<typeof vi.fn>;

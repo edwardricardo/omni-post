@@ -1,3 +1,8 @@
+/**
+ * @file ProviderDependencyManager.graph.test.ts
+ * @description Tests for ProviderDependencyManager - Graph Construction
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { ProviderDependencyManager } from "../../src/orchestration/ProviderDependencyManager.js";
 import type { ProviderDependency } from "@shared/orchestration";

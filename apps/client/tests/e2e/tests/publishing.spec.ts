@@ -1,3 +1,8 @@
+/**
+ * @file publishing.spec.ts
+ * @description Tests for Publishing Workflows
+ * @layer infrastructure
+ */
 import { test, expect } from "../config/test-setup";
 // Page type not used directly '../pages/PublishingPage';
 // Page type not used directly '../pages/DashboardPage';

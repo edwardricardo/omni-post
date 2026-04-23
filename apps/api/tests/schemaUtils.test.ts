@@ -5,6 +5,10 @@
  * - Zod schema passthrough (for fastify-type-provider-zod)
  * - Fastify schema creation
  * - Schema validation behavior
+ *
+ * @file schemaUtils.test.ts
+ * @description Tests for Schema Utilities
+ * @layer infrastructure
  */
 
 import { describe, it } from "node:test";

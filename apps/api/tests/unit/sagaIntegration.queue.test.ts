@@ -8,6 +8,10 @@
  *
  * These tests exercise the integration between SagaIntegration, SagaManager,
  * and the SchedulePublishingJobsStep from @shared/saga.
+ *
+ * @file sagaIntegration.queue.test.ts
+ * @description Tests for SagaIntegration - Queue Integration
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

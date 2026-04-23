@@ -2,6 +2,10 @@
  * Domain Layer - Aggregates & Events Unit Tests
  *
  * Tests for aggregates, domain events, and event dispatching.
+ *
+ * @file aggregates.test.ts
+ * @description Tests for Domain Aggregates & Events
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

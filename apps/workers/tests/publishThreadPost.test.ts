@@ -1,3 +1,8 @@
+/**
+ * @file publishThreadPost.test.ts
+ * @description Tests for PublishHandler.publishThreadPost
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import {

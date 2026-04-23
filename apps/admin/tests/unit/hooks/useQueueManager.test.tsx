@@ -4,6 +4,10 @@
  * The hook makes two parallel fetch calls (jobs + stats) and exposes
  * filtering/sorting logic, plus retry/cancel/delete mutations.
  * We mock global.fetch throughout.
+ *
+ * @file useQueueManager.test.tsx
+ * @description Tests for useQueueManager
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";

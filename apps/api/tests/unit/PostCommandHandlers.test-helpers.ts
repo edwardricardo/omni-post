@@ -3,6 +3,10 @@
  *
  * Provides mock implementations of use cases, repositories, and Redis
  * for testing CQRS command handlers that delegate to Application Layer.
+ *
+ * @file PostCommandHandlers.test-helpers.ts
+ * @description Test helpers for post command handlers test helpers
+ * @layer infrastructure
  */
 
 // Suppress noisy logger output during tests

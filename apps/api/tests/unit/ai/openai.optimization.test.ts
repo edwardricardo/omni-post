@@ -1,3 +1,8 @@
+/**
+ * @file openai.optimization.test.ts
+ * @description Tests for OpenAIProvider - Content Optimization
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { OpenAIProvider } from "../../../src/ai/providers/openai.js";
 import { mockConfig } from "./openai.test-helpers.js";

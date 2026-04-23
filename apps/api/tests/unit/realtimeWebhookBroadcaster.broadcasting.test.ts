@@ -1,6 +1,10 @@
 /**
  * Tests for RealtimeWebhookBroadcaster — Event Broadcasting
  * Covers: broadcasting to accounts/projects, event type/provider filtering, dead connections, Redis pub/sub
+ *
+ * @file realtimeWebhookBroadcaster.broadcasting.test.ts
+ * @description Tests for RealtimeWebhookBroadcaster - Event Broadcasting
+ * @layer infrastructure
  */
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import { type WebhookEventBroadcast } from "../../src/webhooks/realtimeWebhookBroadcaster.js";

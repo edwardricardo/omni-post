@@ -12,6 +12,10 @@
  * Tier 1: requires PostgreSQL (DI container setup) but no Redis.
  * The TrendAnalysisService uses mock data so all endpoints return 200
  * without any external API calls.
+ *
+ * @file trendRoutes.test.ts
+ * @description Tests for trendRoutes
+ * @layer infrastructure
  */
 
 const originalConsole = {

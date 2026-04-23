@@ -12,6 +12,10 @@
  *
  * Note: These tests mock external services (YouTubeApiClient, etc.)
  * to focus on business logic validation without external dependencies.
+ *
+ * @file YouTubeAdapter.routing.test.ts
+ * @description Tests for YouTubeAdapter - YouTube Live Stream Publishing
+ * @layer infrastructure
  */
 
 import { describe, it, vi } from "vitest";

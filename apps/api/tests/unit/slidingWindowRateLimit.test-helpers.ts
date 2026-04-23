@@ -1,5 +1,9 @@
 /**
  * Shared test helpers for SlidingWindowRateLimit tests
+ *
+ * @file slidingWindowRateLimit.test-helpers.ts
+ * @description Test helpers for sliding window rate limit test helpers
+ * @layer infrastructure
  */
 
 import type { FastifyRequest } from "fastify";

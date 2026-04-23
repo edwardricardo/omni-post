@@ -2,6 +2,10 @@
 /**
  * Unit Tests for SlidingWindowRateLimit - Progressive Blocking, Error Handling,
  * Custom Key Generator, Limit Reached Callback, Different Clients
+ *
+ * @file slidingWindowRateLimit.advanced.test.ts
+ * @description Tests for SlidingWindowRateLimit - Progressive Blocking
+ * @layer infrastructure
  */
 
 import { describe, it, afterAll, expect } from "vitest";

@@ -9,6 +9,10 @@
  * - Client dashboard accessibility
  * - Provider-specific details
  * - Error handling for invalid requests
+ *
+ * @file universal-client-dashboard.integration.test.ts
+ * @description Tests for Universal Client Dashboard Integration Tests
+ * @layer infrastructure
  */
 
 import { describe, it, before } from "node:test";

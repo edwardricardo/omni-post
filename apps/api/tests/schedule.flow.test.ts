@@ -1,3 +1,8 @@
+/**
+ * @file schedule.flow.test.ts
+ * @description Tests for Schedule Flow
+ * @layer infrastructure
+ */
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { setupTest, TestContext, makeFlowCleanup } from "./setup.js";

@@ -4,6 +4,10 @@
  * Testing health check endpoints for monitoring and Kubernetes probes
  *
  * Coverage Target: 95%+
+ *
+ * @file healthRoutes.test.ts
+ * @description Tests for healthRoutes - Unit Tests
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";

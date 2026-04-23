@@ -1,3 +1,8 @@
+/**
+ * @file global-teardown.ts
+ * @description Tests for global teardown
+ * @layer infrastructure
+ */
 import { FullConfig } from "@playwright/test";
 
 /**

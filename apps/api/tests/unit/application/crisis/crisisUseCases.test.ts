@@ -2,6 +2,10 @@
  * Application Layer - Crisis Mode Use Cases Tests
  *
  * Tests for EnterCrisisMode, ExitCrisisMode, and GetCrisisStatus use cases.
+ *
+ * @file crisisUseCases.test.ts
+ * @description Tests for EnterCrisisModeUseCase
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

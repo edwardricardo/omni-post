@@ -1,5 +1,9 @@
 /**
  * Shared test helpers for ConflictResolver tests
+ *
+ * @file ConflictResolver.test-helpers.ts
+ * @description Test helpers for conflict resolver test helpers
+ * @layer infrastructure
  */
 
 import type { OrchestrationConflict, PublishResult } from "@shared/orchestration";

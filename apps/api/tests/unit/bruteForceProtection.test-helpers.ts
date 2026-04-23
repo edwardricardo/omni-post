@@ -10,6 +10,10 @@
  * The test-helpers file also provides a cleanup helper that only removes keys
  * matching the namespace, so concurrent test processes cannot accidentally
  * delete each other's keys.
+ *
+ * @file bruteForceProtection.test-helpers.ts
+ * @description Test helpers for brute force protection test helpers
+ * @layer infrastructure
  */
 import Redis from "ioredis";
 import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";

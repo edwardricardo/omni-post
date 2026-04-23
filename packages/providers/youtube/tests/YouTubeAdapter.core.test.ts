@@ -11,6 +11,10 @@
  * 7. getCredentialsFromEnvironment() - Environment variable reading
  *
  * Framework: vitest + node:assert/strict
+ *
+ * @file YouTubeAdapter.core.test.ts
+ * @description Tests for YouTubeAdapter - Metadata
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi } from "vitest";

@@ -8,6 +8,10 @@
  * - CreatePostUseCase without UoW (backward compat) → works normally
  * - UpdatePostUseCase with UoW → calls executeInTransaction
  * - If save fails inside UoW → transaction is rolled back (error propagates)
+ *
+ * @file unitOfWork.useCases.test.ts
+ * @description Tests for D3.3: CreatePostUseCase with UnitOfWork
+ * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";

@@ -1,3 +1,8 @@
+/**
+ * @file jobHandler.test.ts
+ * @description Tests for PublishHandler.handleJob
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import {

@@ -3,6 +3,10 @@
  *
  * Tests service instantiation, method exposure, trending content retrieval with
  * filters and limits, required field validation, and circuit breaker/cache utilities.
+ *
+ * @file trendAnalysisService.init-trending.test.ts
+ * @description Tests for TrendAnalysisService - Initialization
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

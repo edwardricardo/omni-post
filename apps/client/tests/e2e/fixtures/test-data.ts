@@ -1,6 +1,10 @@
 /**
  * Test Data Fixtures
  * Provides consistent test data for E2E tests
+ *
+ * @file test-data.ts
+ * @description Test data fixtures for client E2E tests
+ * @layer infrastructure
  */
 
 export const TestUsers = {

@@ -1,3 +1,8 @@
+/**
+ * @file EventService.integration.test.ts
+ * @description Tests for Integration Tests
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import {
   createPostEvent,

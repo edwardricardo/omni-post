@@ -3,6 +3,10 @@
  *
  * Tests the newly integrated Stories and Reels publishing functionality
  * Framework: Vitest
+ *
+ * @file InstagramAdapter.stories-reels.test.ts
+ * @description Tests for InstagramAdapter - Stories and Reels Publishing
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll } from "vitest";

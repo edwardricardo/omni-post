@@ -13,6 +13,10 @@
  * - Error handling and edge cases
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/AccountRepository.test.ts
+ *
+ * @file AccountRepository.test.ts
+ * @description Tests for AccountRepository - Basic Operations
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

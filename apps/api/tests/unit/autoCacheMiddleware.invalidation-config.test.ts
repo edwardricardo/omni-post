@@ -1,4 +1,9 @@
 #!/usr/bin/env tsx
+/**
+ * @file autoCacheMiddleware.invalidation-config.test.ts
+ * @description Tests for autoCacheMiddleware - Invalidation, Key Variations and Config
+ * @layer infrastructure
+ */
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import Fastify from "fastify";
 import { autoCachePlugin } from "../../src/middleware/autoCacheMiddleware.js";

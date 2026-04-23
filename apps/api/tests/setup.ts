@@ -1,3 +1,8 @@
+/**
+ * @file setup.ts
+ * @description Test setup for setup
+ * @layer infrastructure
+ */
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";

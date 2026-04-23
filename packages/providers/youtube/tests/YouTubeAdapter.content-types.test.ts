@@ -11,6 +11,10 @@
  *
  * Note: These tests mock external services (YouTubeApiClient, YouTubeShortsService, etc.)
  * to focus on business logic validation without external dependencies.
+ *
+ * @file YouTubeAdapter.content-types.test.ts
+ * @description Tests for YouTubeAdapter - Content Type Detection
+ * @layer infrastructure
  */
 
 import { describe, it, vi } from "vitest";

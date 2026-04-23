@@ -1,3 +1,8 @@
+/**
+ * @file value-objects.fixtures.ts
+ * @description Test fixtures for value objects fixtures
+ * @layer infrastructure
+ */
 export {
   PostId,
   ChannelId,

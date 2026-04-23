@@ -1,3 +1,8 @@
+/**
+ * @file mfa.test.ts
+ * @description Tests for MFA System
+ * @layer infrastructure
+ */
 import { describe, it, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { AuthService } from "../src/auth/authService.js";

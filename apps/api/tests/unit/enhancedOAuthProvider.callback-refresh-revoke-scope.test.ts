@@ -1,6 +1,10 @@
 /**
  * EnhancedOAuthService Tests - Callback Handling, Token Refresh,
  * Connection Revocation & Scope Validation
+ *
+ * @file enhancedOAuthProvider.callback-refresh-revoke-scope.test.ts
+ * @description Tests for EnhancedOAuthService - Callback Handling
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

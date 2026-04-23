@@ -1,3 +1,8 @@
+/**
+ * @file aiRoutes.smartanalysis.test.ts
+ * @description Tests for aiRoutes - POST /ai/smart-analysis
+ * @layer infrastructure
+ */
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 
 vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({

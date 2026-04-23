@@ -15,6 +15,10 @@
  * 8. Query Sanitization - Safe logging of queries and params
  * 9. Stack Trace Capture - Debugging slow queries
  * 10. Prisma Middleware - Performance monitoring integration
+ *
+ * @file dbOptimization.test.ts
+ * @description Tests for DatabaseOptimizer - Initialization
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

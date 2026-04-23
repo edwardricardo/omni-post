@@ -2,6 +2,10 @@
  * L1CacheManager tests
  * Pure unit tests — no Redis, no network, no external services.
  * Tier 0: tests pure in-memory logic.
+ *
+ * @file l1-cache.test.ts
+ * @description Tests for L1CacheManager — basic CRUD
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

@@ -6,6 +6,10 @@
  * 8. Health status monitoring
  * 9. Error handling and rollback scenarios
  * 10. Event emission
+ *
+ * @file PublishingOrchestrator.lifecycle.test.ts
+ * @description Tests for PublishingOrchestrator
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

@@ -1,3 +1,8 @@
+/**
+ * @file ProviderCoordinator.failover.test.ts
+ * @description Tests for ProviderCoordinator - failover and health
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
 import { ProviderCoordinator } from "../../src/orchestration/ProviderCoordinator.js";
 import type { PrismaClient } from "@infra/prisma";

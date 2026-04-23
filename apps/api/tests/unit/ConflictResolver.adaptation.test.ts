@@ -3,6 +3,10 @@
  *
  * These tests require monkey-patching the providerRegistry singleton
  * since ConflictResolver imports it statically.
+ *
+ * @file ConflictResolver.adaptation.test.ts
+ * @description Tests for ConflictResolver - Content Adaptation
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";

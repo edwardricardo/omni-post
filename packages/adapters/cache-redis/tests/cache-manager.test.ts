@@ -4,6 +4,10 @@
  * We replace ALL internal references (redis + invalidationManager.redis) with a
  * FakeRedis after construction so the manager is fully isolated from real Redis.
  * Tier 0: no real Redis required.
+ *
+ * @file cache-manager.test.ts
+ * @description Tests for RedisCacheManager — set() and get()
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterAll, afterEach, expect } from "vitest";

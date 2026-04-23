@@ -1,3 +1,8 @@
+/**
+ * @file facebookWebhookProcessor.test-helpers.ts
+ * @description Test helpers for facebook webhook processor test helpers
+ * @layer infrastructure
+ */
 import { createHmac } from "crypto";
 
 export function generateHmacSignature(payload: string, secret: string): string {

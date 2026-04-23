@@ -3,6 +3,10 @@
  * Provides mock spawn infrastructure, fs mocks, and spawn response queue.
  *
  * spawn is injected via constructor DI -- no module-level mock needed.
+ *
+ * @file videoProcessor.test-helpers.ts
+ * @description Tests for data
+ * @layer infrastructure
  */
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "events";

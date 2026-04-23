@@ -2,6 +2,10 @@
  * API Response Caching Tests
  *
  * Tests the cache middleware, decorators, and configuration
+ *
+ * @file cache.test.ts
+ * @description Tests for API Response Caching
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach } from "node:test";

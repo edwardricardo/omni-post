@@ -13,6 +13,10 @@
  * - Only explicitly allowed keys are extracted from source objects
  *
  * No database dependencies - pure logic functions
+ *
+ * @file typeUtils.test.ts
+ * @description Tests for typeUtils
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

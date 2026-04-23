@@ -10,6 +10,10 @@
  *    both individually and in combination.
  *
  * All tests are Tier 0 (no network, no DB, no Redis).
+ *
+ * @file TikTokAdapter.errors.test.ts
+ * @description Tests for TikTokAdapter - Error Handling
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

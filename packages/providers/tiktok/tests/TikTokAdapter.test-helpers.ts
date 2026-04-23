@@ -17,6 +17,10 @@
  * - createTestPublishInput()      — factory for PublishInput
  * - MOCK_CREDENTIALS              — standard valid mock credential object
  * - EMPTY_CREDENTIALS             — credentials with empty strings (simulate auth failure)
+ *
+ * @file TikTokAdapter.test-helpers.ts
+ * @description Test helpers for tik tok adapter test helpers
+ * @layer infrastructure
  */
 
 import { vi } from "vitest";

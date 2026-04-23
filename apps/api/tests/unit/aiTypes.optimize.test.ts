@@ -1,6 +1,10 @@
 /**
  * Tests for AI route optimization and prediction schemas.
  * Imports the real Zod schemas from routes.ts.
+ *
+ * @file aiTypes.optimize.test.ts
+ * @description Tests for AI Schemas - OptimizeContentBodySchema
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

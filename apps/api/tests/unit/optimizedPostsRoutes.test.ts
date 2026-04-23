@@ -4,6 +4,10 @@
  * Tests React 19 Server Components optimized API endpoints.
  *
  * Coverage Target: 95%+
+ *
+ * @file optimizedPostsRoutes.test.ts
+ * @description Tests for optimizedPostsRoutes Unit Tests
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";

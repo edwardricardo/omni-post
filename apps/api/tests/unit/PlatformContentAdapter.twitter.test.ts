@@ -3,6 +3,10 @@
  *
  * Tests content adaptation for Twitter/X (280 char limit, 4 media max)
  * and Instagram (2200 char caption, 30 hashtag max, carousel support).
+ *
+ * @file PlatformContentAdapter.twitter.test.ts
+ * @description Tests for PlatformContentAdapter - Twitter/X and Instagram
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, beforeEach, afterAll, expect, vi } from "vitest";

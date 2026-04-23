@@ -7,6 +7,10 @@
  * - compensate() without cancelJob (backward compat) → no crash
  * - compensate() with partial cancellation failures → best-effort continues
  * - compensate() without jobIds → returns success immediately
+ *
+ * @file sagaCompensation.test.ts
+ * @description Tests for V3: SchedulePublishingJobsStep compensation
+ * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
 import { SchedulePublishingJobsStep, createSagaContext } from "@shared/saga";

@@ -1,3 +1,8 @@
+/**
+ * @file gemini.generation.test.ts
+ * @description Tests for GeminiProvider - Message Conversion
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { GeminiProvider } from "../../../src/ai/providers/gemini.js";
 import type { AIMessage, GenerationOptions } from "../../../src/ai/types.js";

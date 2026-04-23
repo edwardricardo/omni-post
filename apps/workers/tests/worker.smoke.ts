@@ -1,3 +1,8 @@
+/**
+ * @file worker.smoke.ts
+ * @description Tests for worker smoke
+ * @layer infrastructure
+ */
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 

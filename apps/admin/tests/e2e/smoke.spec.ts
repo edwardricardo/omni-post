@@ -10,6 +10,10 @@
  * - Posts        (/posts)
  * - Scheduling   (/scheduling)
  * - Accounts     (/accounts)
+ *
+ * @file smoke.spec.ts
+ * @description Tests for Smoke Tests — Critical Pages
+ * @layer infrastructure
  */
 import { test, expect } from "@playwright/test";
 import { TEST_CREDENTIALS, loginAs, clearAuth } from "./helpers";

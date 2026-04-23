@@ -5,6 +5,10 @@
  * 4. Plan execution (executePlan)
  * 5. Execution strategies (SIMULTANEOUS, SEQUENTIAL, DEPENDENCY_BASED, OPTIMIZED_TIMING)
  * 6. Retry logic with exponential backoff
+ *
+ * @file PublishingOrchestrator.execution.test.ts
+ * @description Tests for PublishingOrchestrator
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

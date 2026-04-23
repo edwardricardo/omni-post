@@ -1,3 +1,8 @@
+/**
+ * @file webhookHandler.init.test.ts
+ * @description Tests for WebhookHandler - Initialization
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import { UniversalWebhookHandler } from "../../src/webhooks/webhookHandler.js";
 import { createSignature } from "./webhookHandler.test-helpers.js";

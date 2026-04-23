@@ -5,6 +5,10 @@
  *
  * Coverage Target: 95%+
  * Test Count: 25
+ *
+ * @file auditMiddleware.test.ts
+ * @description Tests for auditMiddleware Tests
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

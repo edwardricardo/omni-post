@@ -1,3 +1,8 @@
+/**
+ * @file ProviderCoordinator.test-helpers.ts
+ * @description Test helpers for provider coordinator test helpers
+ * @layer infrastructure
+ */
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
 import type { EventService } from "../../src/events/EventService.js";

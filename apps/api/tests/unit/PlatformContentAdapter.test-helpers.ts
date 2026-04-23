@@ -1,3 +1,8 @@
+/**
+ * @file PlatformContentAdapter.test-helpers.ts
+ * @description Test helpers for platform content adapter test helpers
+ * @layer infrastructure
+ */
 import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import Redis from "ioredis";

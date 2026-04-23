@@ -3,6 +3,10 @@
  *
  * Part of P2-1: Transactional Outbox Implementation
  * Tier-0 tests with mocked Prisma and EventDispatcher.
+ *
+ * @file OutboxRelay.test.ts
+ * @description Tests for OutboxRelay
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";

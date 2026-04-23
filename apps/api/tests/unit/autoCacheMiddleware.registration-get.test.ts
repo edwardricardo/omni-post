@@ -1,4 +1,9 @@
 #!/usr/bin/env tsx
+/**
+ * @file autoCacheMiddleware.registration-get.test.ts
+ * @description Tests for autoCacheMiddleware - Registration and GET Caching
+ * @layer infrastructure
+ */
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import Fastify from "fastify";
 import {

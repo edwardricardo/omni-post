@@ -4,6 +4,10 @@
  * Testing account data transformation and mapping logic
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/AccountMapper.test.ts
+ *
+ * @file AccountMapper.test.ts
+ * @description Tests for AccountMapper - toSubscriptionInfo
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

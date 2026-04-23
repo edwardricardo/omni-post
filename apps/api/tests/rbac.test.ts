@@ -1,3 +1,8 @@
+/**
+ * @file rbac.test.ts
+ * @description Tests for RBAC System
+ * @layer infrastructure
+ */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { AuthService } from "../src/auth/authService.js";

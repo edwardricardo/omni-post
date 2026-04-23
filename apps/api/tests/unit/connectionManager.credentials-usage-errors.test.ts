@@ -1,5 +1,9 @@
 /**
  * ConnectionManager Tests - Credential Updates, Usage Tracking & Error Recording
+ *
+ * @file connectionManager.credentials-usage-errors.test.ts
+ * @description Tests for ConnectionManager - Credential Updates
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";

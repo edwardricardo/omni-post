@@ -1,3 +1,8 @@
+/**
+ * @file apiClient.smoke.test.ts
+ * @description Tests for api client smoke
+ * @layer infrastructure
+ */
 const API_CLIENT_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 async function apiClientHttp(path: string, init?: RequestInit) {

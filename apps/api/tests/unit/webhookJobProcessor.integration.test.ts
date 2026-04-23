@@ -3,6 +3,10 @@
  *
  * Tests complex payload object handling, header case sensitivity, retry count
  * behavior, timestamp preservation, and end-to-end business logic coordination.
+ *
+ * @file webhookJobProcessor.integration.test.ts
+ * @description Tests for WebhookJobProcessor - Job Data Payload and Headers
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

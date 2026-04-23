@@ -3,6 +3,10 @@
  *
  * Part of P2-1: Transactional Outbox Implementation
  * Tier-0 tests with mocked Prisma.
+ *
+ * @file OutboxCleaner.test.ts
+ * @description Tests for OutboxCleaner
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";

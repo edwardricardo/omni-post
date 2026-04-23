@@ -2,6 +2,10 @@
  * Infrastructure Layer - Container Unit Tests
  *
  * Tests for the dependency injection container.
+ *
+ * @file Container.test.ts
+ * @description Tests for Container
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

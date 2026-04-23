@@ -1,3 +1,8 @@
+/**
+ * @file sagaManager.execution.test.ts
+ * @description Tests for SagaManager - Saga Execution
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SAGA_EVENTS } from "@shared/saga";
 import { DomainEvent } from "@shared/events";

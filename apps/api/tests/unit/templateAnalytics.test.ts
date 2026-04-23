@@ -5,6 +5,10 @@
  * - Template analytics retrieval
  * - Usage tracking
  * - A/B test results
+ *
+ * @file templateAnalytics.test.ts
+ * @description Tests for Template Analytics - Analytics Retrieval
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

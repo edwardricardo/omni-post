@@ -5,6 +5,10 @@
  * mocks are scoped to each test and automatically restored afterwards.
  * This avoids the dangerous pattern of module-level `mock.method()` calls
  * that persist across all tests in a file.
+ *
+ * @file thumbnailGenerator.test-helpers.ts
+ * @description Tests for Feature
+ * @layer infrastructure
  */
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "events";

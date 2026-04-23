@@ -4,6 +4,10 @@
  * Testing all webhook dashboard HTTP endpoints
  *
  * Coverage Target: 95%+
+ *
+ * @file webhookDashboardRoutes.test.ts
+ * @description Tests for webhookDashboardRoutes
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";

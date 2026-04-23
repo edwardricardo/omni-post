@@ -2,6 +2,10 @@
  * AccessPatternTracker tests
  * Pure unit tests — no Redis, no network, no external services.
  * Tier 0: tracks access frequency and response times in memory.
+ *
+ * @file access-patterns.test.ts
+ * @description Tests for AccessPatternTracker — updatePattern
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

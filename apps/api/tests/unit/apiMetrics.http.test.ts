@@ -1,3 +1,8 @@
+/**
+ * @file apiMetrics.http.test.ts
+ * @description Tests for ApiMetrics - Initialization
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import * as client from "prom-client";
 import { ApiMetrics } from "../../src/metrics/apiMetrics.js";

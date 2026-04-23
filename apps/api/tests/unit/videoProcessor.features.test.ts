@@ -1,3 +1,8 @@
+/**
+ * @file videoProcessor.features.test.ts
+ * @description Tests for VideoProcessor - Platform Optimizations
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import { VideoProcessor, type VideoProcessingOptions } from "../../src/video/videoProcessor";
 import {

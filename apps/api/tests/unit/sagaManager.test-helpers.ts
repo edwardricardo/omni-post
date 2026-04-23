@@ -1,3 +1,8 @@
+/**
+ * @file sagaManager.test-helpers.ts
+ * @description Test helpers for saga manager test helpers
+ * @layer infrastructure
+ */
 import { SagaManagerImpl } from "../../src/saga/SagaManager";
 import { SagaDefinition, SagaStep, SagaContext, SagaStepResult } from "@shared/saga";
 import { DomainEvent } from "@shared/events";

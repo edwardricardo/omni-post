@@ -1,3 +1,8 @@
+/**
+ * @file trialPeriod.test.ts
+ * @description Tests for Trial Period Management
+ * @layer infrastructure
+ */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { subscriptionService } from "../src/billing/subscriptionService.js";

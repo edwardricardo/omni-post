@@ -3,6 +3,10 @@
  *
  * Pure Tier 0 unit tests. Post use cases accept repositories via DI,
  * so we mock the PostRepository and PostQueryRepository interfaces.
+ *
+ * @file UseCases.test.ts
+ * @description Tests for Post Use Cases
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

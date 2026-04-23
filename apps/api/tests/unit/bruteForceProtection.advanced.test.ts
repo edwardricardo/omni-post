@@ -6,6 +6,10 @@
  *
  * Uses keyNamespace="bfadv" so Redis keys are isolated from
  * bruteForceProtection.core.test.ts which runs concurrently.
+ *
+ * @file bruteForceProtection.advanced.test.ts
+ * @description Tests for BruteForceProtection — advanced
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

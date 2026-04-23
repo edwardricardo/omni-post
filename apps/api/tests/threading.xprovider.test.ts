@@ -7,6 +7,10 @@
  * - Character limits (280 chars)
  * - Media handling for tweets
  * - Provider capabilities and limits
+ *
+ * @file threading.xprovider.test.ts
+ * @description Tests for X/Twitter Provider Threading
+ * @layer infrastructure
  */
 
 import { describe, it } from "node:test";

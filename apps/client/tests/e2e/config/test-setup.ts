@@ -1,3 +1,8 @@
+/**
+ * @file test-setup.ts
+ * @description Test setup for test setup
+ * @layer infrastructure
+ */
 import { test as base, expect } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
 import type { Page } from "@playwright/test";

@@ -1,3 +1,8 @@
+/**
+ * @file webhookSignatureVerification.abstract.test.ts
+ * @description Tests for Webhook signature verification — AbstractWebhookProcessor.verify()
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import { createHmac } from "node:crypto";
 import {

@@ -1,3 +1,8 @@
+/**
+ * @file perplexity.init.test.ts
+ * @description Tests for PerplexityProvider - Initialization and Configuration
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PerplexityProvider } from "../../../src/ai/providers/perplexity.js";
 import type { AIMessage, GenerationOptions, AIProviderConfig } from "../../../src/ai/types.js";

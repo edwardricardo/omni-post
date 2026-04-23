@@ -1,3 +1,8 @@
+/**
+ * @file ContentVersionManager.create.test.ts
+ * @description Tests for ContentVersionManager - createVersion
+ * @layer infrastructure
+ */
 const _origConsoleError = console.error;
 const _origConsoleLog = console.log;
 const _origConsoleWarn = console.warn;

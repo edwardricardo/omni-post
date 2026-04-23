@@ -1,3 +1,8 @@
+/**
+ * @file webhookJobProcessor.test-helpers.ts
+ * @description Test helpers for webhook job processor test helpers
+ * @layer infrastructure
+ */
 import type { WebhookJobData } from "../../src/webhooks/webhookJobProcessor.js";
 import type { Provider, WebhookEventType } from "@infra/prisma";
 

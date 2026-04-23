@@ -6,6 +6,10 @@
  * Tests cover platform-specific configurations and helper methods.
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/engagementPredictor.test.ts
+ *
+ * @file engagementPredictor.test.ts
+ * @description Tests for EngagementPredictor - Initialization
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

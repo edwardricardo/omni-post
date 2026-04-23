@@ -1,3 +1,8 @@
+/**
+ * @file playwright.config.ts
+ * @description Tests for playwright config
+ * @layer infrastructure
+ */
 import { defineConfig, devices } from "@playwright/test";
 import path from "path";
 import { fileURLToPath } from "url";

@@ -1,3 +1,8 @@
+/**
+ * @file gemini.analysis.test.ts
+ * @description Tests for GeminiProvider - Content Analysis
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { GeminiProvider } from "../../../src/ai/providers/gemini.js";
 import { mockConfig, makeMockClient } from "./gemini.test-helpers.js";

@@ -2,6 +2,10 @@
  * Correlation ID Middleware Tests
  *
  * Tests for the correlation ID middleware following TDD principles.
+ *
+ * @file correlationMiddleware.test.ts
+ * @description Tests for Correlation ID Middleware
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

@@ -1,5 +1,9 @@
 /**
  * Shared test helpers for ConnectionManager tests
+ *
+ * @file connectionManager.test-helpers.ts
+ * @description Test helpers for connection manager test helpers
+ * @layer infrastructure
  */
 
 import { vi } from "vitest";

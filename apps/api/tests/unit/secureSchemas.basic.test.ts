@@ -1,3 +1,8 @@
+/**
+ * @file secureSchemas.basic.test.ts
+ * @description Tests for SecurityValidatedSchemas - Email Validation
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import { SecurityValidatedSchemas } from "../../src/validation/secureSchemas.js";
 

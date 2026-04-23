@@ -3,6 +3,10 @@
  *
  * Exports mockFsData (shared mutable state) and setupFsMocks() which applies
  * vi.spyOn() overrides for all fs.promises operations used by uploadPipeline.ts.
+ *
+ * @file uploadPipeline.test-helpers.ts
+ * @description Test helpers for upload pipeline test helpers
+ * @layer infrastructure
  */
 import { vi } from "vitest";
 import { promises as fs } from "fs";

@@ -13,6 +13,10 @@
  * - Published posts filtering
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/ProjectRepository.test.ts
+ *
+ * @file ProjectRepository.test.ts
+ * @description Tests for ProjectRepository - Basic Operations
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

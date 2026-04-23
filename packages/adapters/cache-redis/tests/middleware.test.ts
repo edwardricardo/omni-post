@@ -7,6 +7,10 @@
  * (key generation, shouldCacheRequest, CacheInvalidator) directly and use
  * inline hook registration for the Fastify integration scenarios.
  * Tier 0: no DB, no Redis, no network.
+ *
+ * @file middleware.test.ts
+ * @description Tests for CacheInvalidator
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterAll, expect, vi } from "vitest";

@@ -13,6 +13,10 @@
  * - Cache statistics
  *
  * Converted to node:test standard
+ *
+ * @file cacheDecorators.test.ts
+ * @description Tests for Cache Decorators - withCache
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

@@ -1,3 +1,8 @@
+/**
+ * @file gemini.test-helpers.ts
+ * @description Test helpers for gemini test helpers
+ * @layer infrastructure
+ */
 import type { AIProviderConfig } from "../../../src/ai/types.js";
 
 export const mockConfig: AIProviderConfig = {

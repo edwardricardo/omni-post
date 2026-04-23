@@ -15,6 +15,10 @@
  * 8. Connection Statistics - Pool usage and efficiency
  * 9. Query Performance - Slow query detection and metrics
  * 10. Index Efficiency - Usage tracking and recommendations
+ *
+ * @file DatabaseOptimizer.test.ts
+ * @description Tests for DatabaseOptimizer - Initialization
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

@@ -4,6 +4,10 @@
  * Provides the MockAIProvider class and an `createOrchestrator()` factory
  * so every test file can initialize its own isolated AIOrchestrator instance
  * without duplicating setup code.
+ *
+ * @file aiOrchestrator.helpers.ts
+ * @description Test helpers for ai orchestrator helpers
+ * @layer infrastructure
  */
 
 import { AIOrchestrator } from "../../src/ai/orchestrator.js";

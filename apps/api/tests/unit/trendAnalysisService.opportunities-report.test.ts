@@ -4,6 +4,10 @@
  * Tests content gaps, emerging topics, saturated topics, seasonal trends,
  * and full trend report generation with summary statistics, categorization,
  * opportunities, insights, recommendations, and filter support.
+ *
+ * @file trendAnalysisService.opportunities-report.test.ts
+ * @description Tests for TrendAnalysisService - Content Opportunity Discovery
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

@@ -24,26 +24,38 @@ import Link from "next/link";
 // ---------------------------------------------------------------------------
 
 async function fetchNotifications(limit = 20): Promise<NotificationItemType[]> {
-  const res = await fetch(`/api/backend/notifications?limit=${limit}`, { cache: "no-store" });
+  const res = await fetch(`/api/backend/notifications?limit=${limit}`, {
+    cache: "no-store",
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to fetch notifications");
   const data = (await res.json()) as { ok: boolean; value?: { items: NotificationItemType[] } };
   return data.ok && data.value ? data.value.items : [];
 }
 
 async function fetchUnreadCount(): Promise<number> {
-  const res = await fetch("/api/backend/notifications/unread-count", { cache: "no-store" });
+  const res = await fetch("/api/backend/notifications/unread-count", {
+    cache: "no-store",
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to fetch unread count");
   const data = (await res.json()) as { ok: boolean; value?: { count: number } };
   return data.ok && data.value ? data.value.count : 0;
 }
 
 async function markAllReadApi(): Promise<void> {
-  const res = await fetch("/api/backend/notifications/mark-all-read", { method: "POST" });
+  const res = await fetch("/api/backend/notifications/mark-all-read", {
+    method: "POST",
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to mark all read");
 }
 
 async function markReadApi(id: string): Promise<void> {
-  await fetch(`/api/backend/notifications/${id}/read`, { method: "PATCH" });
+  await fetch(`/api/backend/notifications/${id}/read`, {
+    method: "PATCH",
+    credentials: "include",
+  });
 }
 
 // ---------------------------------------------------------------------------

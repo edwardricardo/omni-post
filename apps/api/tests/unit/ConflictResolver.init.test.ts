@@ -1,5 +1,9 @@
 /**
  * ConflictResolver Tests - Initialization, Pattern Detection, and Conflict Resolution
+ *
+ * @file ConflictResolver.init.test.ts
+ * @description Tests for ConflictResolver - Initialization
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

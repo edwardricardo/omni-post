@@ -3,6 +3,10 @@
  *
  * Tests PrismaTrackedLinkRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
+ *
+ * @file TrackedLinkRepository.test.ts
+ * @description Tests for PrismaTrackedLinkRepository
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

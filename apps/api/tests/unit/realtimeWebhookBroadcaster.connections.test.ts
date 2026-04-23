@@ -1,3 +1,8 @@
+/**
+ * @file realtimeWebhookBroadcaster.connections.test.ts
+ * @description Tests for RealtimeWebhookBroadcaster - Connection Management
+ * @layer infrastructure
+ */
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import {
   MockWebSocket,

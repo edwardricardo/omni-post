@@ -2,6 +2,10 @@
  * Domain Layer - Entities Unit Tests
  *
  * Tests for all domain entities.
+ *
+ * @file entities.test.ts
+ * @description Tests for Domain Entities
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

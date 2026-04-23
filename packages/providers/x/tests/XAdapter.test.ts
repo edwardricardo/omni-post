@@ -14,6 +14,10 @@
  *                                  placeholders, all valid
  *
  * All tests are Tier 0 (no network, no DB, no Redis).
+ *
+ * @file XAdapter.test.ts
+ * @description Tests for XAdapter - Metadata
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

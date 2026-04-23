@@ -1,3 +1,8 @@
+/**
+ * @file apiMetrics.test-helpers.ts
+ * @description Test helpers for api metrics test helpers
+ * @layer infrastructure
+ */
 import * as client from "prom-client";
 
 export function createTestRegistry(): client.Registry {

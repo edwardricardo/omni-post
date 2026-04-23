@@ -12,6 +12,10 @@
  * - Process termination decisions
  *
  * Converted to node:test standard
+ *
+ * @file errorHandler.test.ts
+ * @description Tests for Error Handler - createErrorHandler
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

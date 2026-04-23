@@ -8,6 +8,10 @@
  * - Fallback Handling (fallback chain, all-fail, exponential backoff)
  * - Load Balancing (distribution, speed preference)
  * - Cost Optimization (cost tracking, per-provider reporting)
+ *
+ * @file aiOrchestrator.providers.test.ts
+ * @description Tests for AIOrchestrator — Providers
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";

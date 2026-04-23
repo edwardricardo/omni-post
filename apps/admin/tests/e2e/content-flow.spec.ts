@@ -8,6 +8,10 @@
  * - No critical JavaScript errors across pages
  *
  * These tests complement the smoke tests by focusing on content workflows.
+ *
+ * @file content-flow.spec.ts
+ * @description Tests for Content Flow — Post Creation & Navigation
+ * @layer infrastructure
  */
 import { test, expect } from "@playwright/test";
 import { TEST_CREDENTIALS, loginAs, clearAuth } from "./helpers";

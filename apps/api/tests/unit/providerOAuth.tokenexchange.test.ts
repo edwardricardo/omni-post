@@ -1,3 +1,8 @@
+/**
+ * @file providerOAuth.tokenexchange.test.ts
+ * @description Tests for ProviderOAuth - Token Exchange (X/Twitter)
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { oauthProviders } from "../../src/auth/providerOAuth.js";
 

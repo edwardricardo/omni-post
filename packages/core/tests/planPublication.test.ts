@@ -3,6 +3,10 @@
  *
  * Tests the publication planning logic that converts canonical posts into
  * provider-specific rendered posts.
+ *
+ * @file planPublication.test.ts
+ * @description Tests for planPublication
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

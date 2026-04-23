@@ -3,6 +3,10 @@
  *
  * The hook calls fetch directly to /api/backend/admin/analytics/overview
  * with an optional projectId param. We mock global.fetch.
+ *
+ * @file usePerformanceInsights.test.tsx
+ * @description Tests for usePerformanceInsights
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";

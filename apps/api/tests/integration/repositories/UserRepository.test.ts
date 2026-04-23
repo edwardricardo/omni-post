@@ -14,6 +14,10 @@
  * - Edge cases and concurrent operations
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/UserRepository.test.ts
+ *
+ * @file UserRepository.test.ts
+ * @description Tests for UserRepository - Basic Operations
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

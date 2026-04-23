@@ -1,3 +1,8 @@
+/**
+ * @file context.test.tsx
+ * @description Tests for ApiProvider and useApi
+ * @layer infrastructure
+ */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";

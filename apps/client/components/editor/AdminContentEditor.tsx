@@ -106,7 +106,9 @@ export function AdminContentEditor({
   useEffect(() => {
     async function fetchProviders() {
       try {
-        const response = await fetch(`/api/backend/auth/connections/${projectId}`);
+        const response = await fetch(`/api/backend/auth/connections/${projectId}`, {
+          credentials: "include",
+        });
         if (!response.ok) throw new Error("Failed to fetch providers");
 
         const data = await response.json();

@@ -4,6 +4,10 @@
  * Testing rate limiting monitoring dashboard endpoints
  *
  * Coverage Target: 95%+
+ *
+ * @file rateLimitingDashboard.test.ts
+ * @description Tests for rateLimitingDashboard - Unit Tests
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";

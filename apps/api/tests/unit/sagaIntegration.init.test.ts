@@ -6,6 +6,10 @@
  * - All expected API and monitoring routes are registered.
  * - The post-publishing saga definition is registered with the manager.
  * - The CQRS bus and job-queue function are wired up and callable.
+ *
+ * @file sagaIntegration.init.test.ts
+ * @description Tests for SagaIntegration - Initialization
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

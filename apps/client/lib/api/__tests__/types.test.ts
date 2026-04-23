@@ -1,3 +1,8 @@
+/**
+ * @file types.test.ts
+ * @description Tests for API Types
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import { ApiError } from "../types";
 

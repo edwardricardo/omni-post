@@ -8,6 +8,10 @@
  * 4. generatePreview() - Preview generation (inherited from AbstractProviderAdapter)
  *
  * Framework: vitest + node:assert/strict
+ *
+ * @file YouTubeAdapter.publish-analytics.test.ts
+ * @description Tests for YouTubeAdapter - publish()
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

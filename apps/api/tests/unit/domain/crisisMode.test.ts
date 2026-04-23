@@ -3,6 +3,10 @@
  *
  * Crisis Mode allows pausing all scheduled posts for a project
  * with a single action (e.g., during PR crisis, breaking news, etc.)
+ *
+ * @file crisisMode.test.ts
+ * @description Tests for Crisis Mode Domain
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

@@ -9,6 +9,10 @@
  * - Result type assertions
  *
  * Usage: Copy this file and rename for your test
+ *
+ * @file testTemplate.ts
+ * @description Tests for Feature Name
+ * @layer infrastructure
  */
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";

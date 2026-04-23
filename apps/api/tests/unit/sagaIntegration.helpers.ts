@@ -4,6 +4,10 @@
  * Provides lightweight mock factories for Fastify, EventService, CQRSBus,
  * Redis and QueuePort so every test file can set up its own isolated
  * integration instance without sharing mutable state.
+ *
+ * @file sagaIntegration.helpers.ts
+ * @description Test helpers for saga integration helpers
+ * @layer infrastructure
  */
 
 import { DomainEvent } from "@shared/events";

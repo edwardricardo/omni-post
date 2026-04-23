@@ -1,3 +1,8 @@
+/**
+ * @file openai.generation.test.ts
+ * @description Tests for OpenAIProvider - Text Generation
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { OpenAIProvider } from "../../../src/ai/providers/openai.js";
 import type { AIMessage, GenerationOptions } from "../../../src/ai/types.js";

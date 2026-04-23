@@ -1,5 +1,9 @@
 /**
  * Shared test helpers for EnhancedOAuthProvider tests
+ *
+ * @file enhancedOAuthProvider.test-helpers.ts
+ * @description Test helpers for enhanced oauth provider test helpers
+ * @layer infrastructure
  */
 
 import type {

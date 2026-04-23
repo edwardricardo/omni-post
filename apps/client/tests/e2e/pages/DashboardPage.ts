@@ -1,3 +1,8 @@
+/**
+ * @file DashboardPage.ts
+ * @description Tests for dashboard page
+ * @layer infrastructure
+ */
 // Page type not used directly '@playwright/test';
 // Page type not used directly './BasePage';
 

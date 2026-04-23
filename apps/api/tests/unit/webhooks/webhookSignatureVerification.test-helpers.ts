@@ -1,3 +1,8 @@
+/**
+ * @file webhookSignatureVerification.test-helpers.ts
+ * @description Test helpers for webhook signature verification test helpers
+ * @layer infrastructure
+ */
 import { createHmac } from "node:crypto";
 import {
   AbstractWebhookProcessor,

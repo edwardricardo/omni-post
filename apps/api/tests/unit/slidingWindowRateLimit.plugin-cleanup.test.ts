@@ -2,6 +2,10 @@
 /**
  * Unit Tests for SlidingWindowRateLimit - Reset Time, JWT Extraction,
  * Suspicious Activity Detection, Fastify Plugin Integration, Cleanup
+ *
+ * @file slidingWindowRateLimit.plugin-cleanup.test.ts
+ * @description Tests for SlidingWindowRateLimit - Reset Time
+ * @layer infrastructure
  */
 
 import { describe, it, afterAll, expect } from "vitest";

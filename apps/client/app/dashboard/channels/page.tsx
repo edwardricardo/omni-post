@@ -102,6 +102,7 @@ function ChannelsPageContent() {
     try {
       const response = await fetch("/api/backend/channels/bluesky/connect", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           identifier: blueskyHandle.trim(),

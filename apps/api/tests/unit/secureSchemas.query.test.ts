@@ -1,3 +1,8 @@
+/**
+ * @file secureSchemas.query.test.ts
+ * @description Tests for SecurityValidatedSchemas - Search Query Validation
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import {
   SecurityValidatedSchemas,

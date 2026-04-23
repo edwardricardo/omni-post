@@ -1,6 +1,10 @@
 /**
  * Unit Tests for EventPublisher (RedisEventPublisher)
  * Tests event publishing, subscription management, and retry logic
+ *
+ * @file EventPublisher.test.ts
+ * @description Tests for EventPublisher - Event Publishing
+ * @layer infrastructure
  */
 
 import { describe, it, afterEach, beforeEach, expect } from "vitest";

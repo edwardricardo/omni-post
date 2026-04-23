@@ -11,6 +11,10 @@
  * - Security sanitization
  *
  * Converted to node:test standard
+ *
+ * @file errorPlugin.test.ts
+ * @description Tests for Error Handler Plugin - Registration
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

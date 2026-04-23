@@ -1,3 +1,8 @@
+/**
+ * @file ProviderDependencyManager.deadlock.test.ts
+ * @description Tests for ProviderDependencyManager - Ready Providers
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { ProviderDependencyManager } from "../../src/orchestration/ProviderDependencyManager.js";
 import type { ProviderDependency, ConflictResolutionStrategy } from "@shared/orchestration";

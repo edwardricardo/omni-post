@@ -4,6 +4,10 @@
  * Testing all error handling, validation, and logging functionality
  *
  * Converted to node:test standard
+ *
+ * @file BaseService.test.ts
+ * @description Tests for BaseService
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, expect } from "vitest";

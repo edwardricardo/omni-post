@@ -1,6 +1,10 @@
 /**
  * Unit Tests for VideoUploadPipeline — Upload Session Management
  * Tests session creation, chunk boundary calculation, retrieval, and listing.
+ *
+ * @file uploadPipeline.sessions.test.ts
+ * @description Tests for VideoUploadPipeline - Upload Session Management
+ * @layer infrastructure
  */
 import { describe, it, beforeAll, expect } from "vitest";
 import { VideoUploadPipeline, type UploadOptions } from "../../src/video/uploadPipeline";

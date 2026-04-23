@@ -5,6 +5,10 @@
  * - Renders with correct href and text
  * - Shows/hides on focus/blur (position style)
  * - WCAG 2.1 compliance (bypass navigation block)
+ *
+ * @file SkipLink.test.tsx
+ * @description Tests for SkipLink
+ * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";

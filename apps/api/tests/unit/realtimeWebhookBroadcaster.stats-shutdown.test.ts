@@ -1,6 +1,10 @@
 /**
  * Tests for RealtimeWebhookBroadcaster — Filtering Logic, Connection Statistics, and Shutdown
  * Covers: multi-connection broadcasts, combined filters, system alerts, stats tracking, shutdown behavior
+ *
+ * @file realtimeWebhookBroadcaster.stats-shutdown.test.ts
+ * @description Tests for RealtimeWebhookBroadcaster - Broadcast Filtering Logic
+ * @layer infrastructure
  */
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import { type WebhookEventBroadcast } from "../../src/webhooks/realtimeWebhookBroadcaster.js";

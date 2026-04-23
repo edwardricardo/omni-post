@@ -3,6 +3,10 @@
  *
  * Tests job ID format, uniqueness, idempotency across providers and event IDs,
  * plus required and optional field validation in WebhookJobData.
+ *
+ * @file webhookJobProcessor.jobid-structure.test.ts
+ * @description Tests for WebhookJobProcessor - Job ID Generation
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

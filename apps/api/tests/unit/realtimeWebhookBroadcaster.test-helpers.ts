@@ -1,3 +1,8 @@
+/**
+ * @file realtimeWebhookBroadcaster.test-helpers.ts
+ * @description Tests for close
+ * @layer infrastructure
+ */
 import { EventEmitter } from "events";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { RealtimeWebhookBroadcaster } from "../../src/webhooks/realtimeWebhookBroadcaster.js";

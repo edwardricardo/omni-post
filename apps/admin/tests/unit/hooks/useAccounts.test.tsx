@@ -3,6 +3,10 @@
  *
  * useAccounts delegates to api.admin.getAccountSummary() — we mock the api module.
  * useUpdateAccount calls fetch directly — we mock global.fetch.
+ *
+ * @file useAccounts.test.tsx
+ * @description Tests for useAccounts
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";

@@ -5,6 +5,10 @@
  * 1. Initialization and setup
  * 2. Plan creation and validation
  * 3. Plan updates with conflict handling
+ *
+ * @file PublishingOrchestrator.init-plans.test.ts
+ * @description Tests for PublishingOrchestrator
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

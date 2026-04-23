@@ -34,6 +34,10 @@
  *
  * @module YouTubeWebhookProcessorTests
  * @category UnitTests
+ *
+ * @file youtubeWebhookProcessor.test.ts
+ * @description Tests for YouTubeWebhookProcessor - Signature Verification
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, expect } from "vitest";

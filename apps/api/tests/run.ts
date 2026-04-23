@@ -1,3 +1,8 @@
+/**
+ * @file run.ts
+ * @description Tests for run
+ * @layer infrastructure
+ */
 // Test aggregator with proper async handling and timeout management
 
 // Test configuration

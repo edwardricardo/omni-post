@@ -2,6 +2,10 @@
  * Domain Errors Tests
  *
  * Validates domain error class implementations.
+ *
+ * @file domain-errors.test.ts
+ * @description Tests for Domain Errors
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

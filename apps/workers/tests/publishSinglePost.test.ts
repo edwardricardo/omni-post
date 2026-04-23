@@ -1,3 +1,8 @@
+/**
+ * @file publishSinglePost.test.ts
+ * @description Tests for PublishHandler.publishSinglePost
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { createTestDeps, createTestRenderedPost, createTestPublishReceipt } from "./setup.js";

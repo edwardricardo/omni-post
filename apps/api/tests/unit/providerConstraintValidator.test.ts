@@ -4,6 +4,10 @@
  *
  * Environment Variables:
  * - USE_REAL_PROVIDERS=true - Use real provider metadata (default: uses mock providers)
+ *
+ * @file providerConstraintValidator.test.ts
+ * @description Tests for Provider Constraint Validator - Initialization & Basic Validation
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, expect } from "vitest";

@@ -1,3 +1,8 @@
+/**
+ * @file performanceMonitor.test-helpers.ts
+ * @description Test helpers for performance monitor test helpers
+ * @layer infrastructure
+ */
 import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type Redis from "ioredis";

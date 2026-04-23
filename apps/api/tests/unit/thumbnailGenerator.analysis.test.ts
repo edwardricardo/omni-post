@@ -7,6 +7,10 @@
  * so we cannot pre-populate frame paths with a fixed UUID.
  * Instead, the fs mocks in this file use wildcard matching for frame paths:
  * any path matching /frame_\d+\.jpg$/ is treated as an existing frame file.
+ *
+ * @file thumbnailGenerator.analysis.test.ts
+ * @description Tests for ThumbnailGenerator - Video Analysis
+ * @layer infrastructure
  */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { ThumbnailGenerator } from "../../src/video/thumbnailGenerator";

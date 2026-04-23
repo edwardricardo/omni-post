@@ -2,6 +2,10 @@
  * Tests for Fase 1 compliance fixes:
  *   V4: dedupeKey must be deterministic (no randomUUID)
  *   V5: executeSaga must reject sagas in terminal state
+ *
+ * @file sagaExecution.terminal-guard.test.ts
+ * @description Tests for V5: Terminal State Guard
+ * @layer infrastructure
  */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";

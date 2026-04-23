@@ -67,7 +67,7 @@ export function SchedulingDashboardSidebar({
   useEffect(() => {
     if (!projectId) return;
 
-    void fetch(`/api/backend/campaigns?projectId=${projectId}`)
+    void fetch(`/api/backend/campaigns?projectId=${projectId}`, { credentials: "include" })
       .then((r) => r.json() as Promise<{ ok: boolean; data?: CampaignOption[] }>)
       .then((d) => {
         if (d.ok && d.data) setCampaigns(d.data);
@@ -81,7 +81,7 @@ export function SchedulingDashboardSidebar({
         });
       });
 
-    void fetch(`/api/backend/team?projectId=${projectId}`)
+    void fetch(`/api/backend/team?projectId=${projectId}`, { credentials: "include" })
       .then((r) => r.json() as Promise<{ ok: boolean; data?: { members?: TeamMemberOption[] } }>)
       .then((d) => {
         if (d.ok && d.data?.members) setTeamMembers(d.data.members);

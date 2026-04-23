@@ -1,5 +1,9 @@
 /**
  * ConnectionManager Tests - Connection Retrieval & Configuration
+ *
+ * @file connectionManager.retrieval-config.test.ts
+ * @description Tests for ConnectionManager - Connection Retrieval
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";

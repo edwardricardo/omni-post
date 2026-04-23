@@ -100,7 +100,9 @@ function writeStoredSelection(accountId: string, projectId: string): void {
 // ---------------------------------------------------------------------------
 
 async function fetchAccounts(): Promise<AccountEntry[]> {
-  const res = await fetch("/api/backend/admin/accounts?page=1&limit=100&isActive=true");
+  const res = await fetch("/api/backend/admin/accounts?page=1&limit=100&isActive=true", {
+    credentials: "include",
+  });
   if (!res.ok) return [];
   const data: {
     ok: boolean;
@@ -112,7 +114,9 @@ async function fetchAccounts(): Promise<AccountEntry[]> {
 }
 
 async function fetchProjects(accountId: string): Promise<ProjectEntry[]> {
-  const res = await fetch(`/api/backend/accounts/${accountId}/projects`);
+  const res = await fetch(`/api/backend/accounts/${accountId}/projects`, {
+    credentials: "include",
+  });
   if (!res.ok) return [];
   const data: { ok: boolean; value?: ProjectEntry[] } = await res.json();
   return data.ok && Array.isArray(data.value) ? data.value : [];

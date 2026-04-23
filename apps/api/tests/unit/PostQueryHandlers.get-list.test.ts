@@ -1,3 +1,8 @@
+/**
+ * @file PostQueryHandlers.get-list.test.ts
+ * @description Tests for GetPostQueryHandler - Basic Functionality
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import {
   GetPostQueryHandler,

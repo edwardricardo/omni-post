@@ -7,6 +7,10 @@
  *
  * @module FacebookWebhookProcessorTests
  * @category UnitTests
+ *
+ * @file facebookWebhookProcessor.events.test.ts
+ * @description Tests for FacebookWebhookProcessor - Comment Event Parsing
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, expect } from "vitest";

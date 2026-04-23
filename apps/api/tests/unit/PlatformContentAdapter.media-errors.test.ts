@@ -4,6 +4,10 @@
  *
  * Tests media count limits, media preservation, error handling for invalid providers,
  * confidence scoring, warnings, and content recommendation generation.
+ *
+ * @file PlatformContentAdapter.media-errors.test.ts
+ * @description Tests for PlatformContentAdapter - Media, Errors, and Recommendations
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

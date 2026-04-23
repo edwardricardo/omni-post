@@ -1,5 +1,9 @@
 /**
  * EnhancedOAuthService Tests - Authorization URL Generation & Token Encryption
+ *
+ * @file enhancedOAuthProvider.authurl-encryption.test.ts
+ * @description Tests for EnhancedOAuthService - Authorization URL Generation
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";

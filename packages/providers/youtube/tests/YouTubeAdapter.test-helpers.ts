@@ -8,6 +8,10 @@
  *
  * Note: These helpers mock external services to focus on business logic
  * validation without external dependencies.
+ *
+ * @file YouTubeAdapter.test-helpers.ts
+ * @description Test helpers for you tube adapter test helpers
+ * @layer infrastructure
  */
 
 import { vi } from "vitest";

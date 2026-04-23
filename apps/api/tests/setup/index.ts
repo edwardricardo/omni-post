@@ -2,6 +2,10 @@
  * Test Setup Utilities
  *
  * Central export for all test infrastructure
+ *
+ * @file index.ts
+ * @description Tests for index
+ * @layer infrastructure
  */
 
 // Lifecycle management

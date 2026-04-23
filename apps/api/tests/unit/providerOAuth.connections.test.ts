@@ -1,3 +1,8 @@
+/**
+ * @file providerOAuth.connections.test.ts
+ * @description Tests for ProviderOAuth - Connection Storage
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 interface MockPrisma {
   providerConnection: {

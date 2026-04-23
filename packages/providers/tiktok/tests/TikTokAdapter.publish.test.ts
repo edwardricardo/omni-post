@@ -10,6 +10,10 @@
  *    soundTempo, marketingBudget, targetDemographics.
  *
  * All tests are Tier 0 (no network, no DB, no Redis).
+ *
+ * @file TikTokAdapter.publish.test.ts
+ * @description Tests for TikTokAdapter - Enhanced Publish Integration
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

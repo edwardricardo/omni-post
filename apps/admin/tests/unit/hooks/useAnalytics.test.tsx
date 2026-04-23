@@ -4,6 +4,10 @@
  * The hook performs 3 parallel fetches (analytics metrics, dashboard stats,
  * billing stats) via an internal fetchJSON helper that silently returns `{}`
  * on non-ok responses (no throw). All tests mock all 3 fetches explicitly.
+ *
+ * @file useAnalytics.test.tsx
+ * @description Tests for useAnalytics
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";

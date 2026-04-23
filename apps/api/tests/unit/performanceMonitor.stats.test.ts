@@ -1,3 +1,8 @@
+/**
+ * @file performanceMonitor.stats.test.ts
+ * @description Tests for PerformanceMonitor - Endpoint Statistics
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import { PerformanceMonitor } from "../../src/monitoring/performanceMonitor.js";
 import {

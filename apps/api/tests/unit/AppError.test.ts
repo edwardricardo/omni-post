@@ -12,6 +12,10 @@
  * - JSON serialization
  *
  * Converted to node:test standard
+ *
+ * @file AppError.test.ts
+ * @description Tests for AppError - Construction
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

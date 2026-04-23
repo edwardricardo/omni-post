@@ -23,7 +23,9 @@ export default function EditRecurringPostPage() {
   } = useQuery({
     queryKey: ["recurring-post", id],
     queryFn: async (): Promise<RecurringPost> => {
-      const response = await fetch(`/api/backend/recurring-posts/${id}`);
+      const response = await fetch(`/api/backend/recurring-posts/${id}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch recurring post");
       const data = (await response.json()) as {
         ok: boolean;

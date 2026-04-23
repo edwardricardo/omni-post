@@ -5,6 +5,10 @@
  *
  * Uses keyNamespace="bfcore" so Redis keys are isolated from
  * bruteForceProtection.advanced.test.ts which runs concurrently.
+ *
+ * @file bruteForceProtection.core.test.ts
+ * @description Tests for BruteForceProtection — core
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

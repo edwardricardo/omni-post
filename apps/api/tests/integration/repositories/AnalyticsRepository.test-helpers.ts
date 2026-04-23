@@ -1,3 +1,8 @@
+/**
+ * @file AnalyticsRepository.test-helpers.ts
+ * @description Test helpers for analytics repository test helpers
+ * @layer infrastructure
+ */
 import { prisma } from "@infra/prisma";
 
 export let testAccountId: string;

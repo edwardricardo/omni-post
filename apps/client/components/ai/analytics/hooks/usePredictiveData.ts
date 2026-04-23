@@ -493,6 +493,7 @@ export const usePredictiveData = ({
           try {
             const res = await fetch("/api/backend/ai/predict-timing", {
               method: "POST",
+              credentials: "include",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 accountId,
@@ -551,6 +552,7 @@ export const usePredictiveData = ({
       try {
         const res = await fetch("/api/backend/ai/predict-audience", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             accountId,

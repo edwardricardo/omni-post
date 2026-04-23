@@ -31,6 +31,10 @@
  *
  * @module ProviderServiceTests
  * @category UnitTests
+ *
+ * @file providerService.test.ts
+ * @description Tests for ProviderService - Get All Providers
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

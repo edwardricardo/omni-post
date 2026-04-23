@@ -1,4 +1,9 @@
 #!/usr/bin/env tsx
+/**
+ * @file templateRoutes.features.test.ts
+ * @description Tests for Template Routes - Template Versions
+ * @layer infrastructure
+ */
 import "./templateRoutes.env-setup.js";
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 

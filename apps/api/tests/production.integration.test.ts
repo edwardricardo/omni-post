@@ -2,6 +2,10 @@
  * Comprehensive Production Integration Test
  * Tests the complete flow from account creation to content publication
  * Covers both admin and client functionality
+ *
+ * @file production.integration.test.ts
+ * @description Tests for Comprehensive Production Integration Test
+ * @layer infrastructure
  */
 
 import { describe, it, before } from "node:test";

@@ -7,6 +7,10 @@
  * - Custom fallback is respected
  * - Raw error.message is sanitized in non-development environments (security)
  * - Raw error.message is shown in development (debug friction)
+ *
+ * @file ErrorBoundary.test.tsx
+ * @description Tests for ErrorBoundary
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";

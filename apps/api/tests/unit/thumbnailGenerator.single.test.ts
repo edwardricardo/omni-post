@@ -2,6 +2,10 @@
  * Unit Tests for ThumbnailGenerator -- Single Thumbnail Generation
  * Tests basic generateThumbnail() for jpg/png/webp, filters, ffmpeg failure,
  * checksum calculation, and processing-time recording.
+ *
+ * @file thumbnailGenerator.single.test.ts
+ * @description Tests for ThumbnailGenerator - Single Thumbnail Generation
+ * @layer infrastructure
  */
 import { describe, it, beforeEach, expect } from "vitest";
 import { ThumbnailGenerator, type ThumbnailOptions } from "../../src/video/thumbnailGenerator";

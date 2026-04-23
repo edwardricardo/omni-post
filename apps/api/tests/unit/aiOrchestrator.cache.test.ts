@@ -6,6 +6,10 @@
  * - Cache Management (hit, TTL expiry, skip, clear, stats)
  * - Rate Limiting (enforce limits, skip rate-limited providers, token tracking)
  * - Metrics Collection (usage, success rate, cost, latency)
+ *
+ * @file aiOrchestrator.cache.test.ts
+ * @description Tests for AIOrchestrator — Cache & Metrics
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";

@@ -2,6 +2,10 @@
  * RealtimeWebhookBroadcaster Tests
  *
  * Validates the real-time broadcast system for webhook processors.
+ *
+ * @file realtimeWebhookBroadcaster.test.ts
+ * @description Tests for RealtimeWebhookBroadcaster
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

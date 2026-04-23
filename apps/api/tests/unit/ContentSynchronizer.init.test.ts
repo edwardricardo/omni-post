@@ -1,3 +1,8 @@
+/**
+ * @file ContentSynchronizer.init.test.ts
+ * @description Tests for ContentSynchronizer - Initialization
+ * @layer infrastructure
+ */
 import "./ContentSynchronizer.test-helpers.js";
 import { describe, it, expect } from "vitest";
 import { ContentSynchronizer } from "../../src/orchestration/ContentSynchronizer.js";

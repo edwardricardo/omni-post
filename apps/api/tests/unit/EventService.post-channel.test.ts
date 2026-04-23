@@ -1,3 +1,8 @@
+/**
+ * @file EventService.post-channel.test.ts
+ * @description Tests for createPostEvent
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import { createPostEvent, createChannelEvent } from "../../src/events/EventService";
 import { EVENT_TYPES, validateEvent } from "@shared/events";

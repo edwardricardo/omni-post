@@ -1,5 +1,9 @@
 /**
  * ConflictResolver Tests - Statistics, Built-in Patterns, and Edge Cases
+ *
+ * @file ConflictResolver.stats.test.ts
+ * @description Tests for ConflictResolver - Statistics
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";

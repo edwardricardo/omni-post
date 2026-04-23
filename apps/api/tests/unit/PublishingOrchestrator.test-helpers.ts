@@ -3,6 +3,10 @@
  *
  * Common mock classes, bridge functions, and factory helpers
  * used across the PublishingOrchestrator test suite.
+ *
+ * @file PublishingOrchestrator.test-helpers.ts
+ * @description Test helpers for publishing orchestrator test helpers
+ * @layer infrastructure
  */
 
 import { PublishingOrchestrator } from "../../src/orchestration/PublishingOrchestrator.js";

@@ -1,3 +1,8 @@
+/**
+ * @file workerMetrics.test.ts
+ * @description Tests for WorkerMetrics
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import client from "prom-client";

@@ -34,6 +34,10 @@
  *
  * @module InstagramWebhookProcessorTests
  * @category UnitTests
+ *
+ * @file instagramWebhookProcessor.test.ts
+ * @description Tests for InstagramWebhookProcessor - Signature Verification
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, expect } from "vitest";
