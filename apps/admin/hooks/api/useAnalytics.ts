@@ -52,7 +52,9 @@ export interface AnalyticsSummary {
 
 async function fetchJSON(url: string): Promise<Record<string, unknown>> {
   const res = await fetch(url, { credentials: "include" });
-  if (!res.ok) return {};
+  if (!res.ok) {
+    throw new Error(`Analytics request failed: ${res.status} ${res.statusText} (${url})`);
+  }
   const json = await res.json();
   return (json.data ?? json) as Record<string, unknown>;
 }

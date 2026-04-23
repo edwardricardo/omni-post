@@ -7,6 +7,7 @@
  * @layer infrastructure
  */
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { ConsoleLoggerAdapter, extractErrorInfo } from "@observability/browser-logger";
 import type {
   MediaFile,
   ProviderConstraints,
@@ -20,6 +21,11 @@ import {
   getMinMediaLimit,
   debounce,
 } from "./contentEditorTypes";
+
+// packages/ui is framework-agnostic and cannot assume a LoggerProvider is in
+// scope — instantiate the console adapter directly. Consumers that want richer
+// telemetry can capture failures via the onSave promise they pass in.
+const contentEditorLogger = new ConsoleLoggerAdapter("ui.content-editor");
 
 /**
  * Configuration for the useContentEditor hook.
@@ -185,8 +191,10 @@ export function useContentEditor(options: UseContentEditorOptions): UseContentEd
     () =>
       debounce((saveContent: ContentEditorContent) => {
         if (onSave && enabledFeatures.autoSave) {
-          onSave(saveContent).catch(() => {
-            // Auto-save failure is non-critical; next save attempt will retry
+          onSave(saveContent).catch((err: unknown) => {
+            // Auto-save failure is non-critical; next save attempt will retry.
+            // Log so recurring failures surface in APM even when the user is unaware.
+            contentEditorLogger.warn("Auto-save failed", { err: extractErrorInfo(err) });
           });
         }
       }, 1000),

@@ -620,7 +620,7 @@ grep -rn "role=\"alert\"\|aria-live" apps/*/src/app/error.tsx apps/*/src/app/glo
 
 ---
 
-#### T2-C — Silent catches ⚡
+#### T2-C — Silent catches ⚡ ✅ 2026-04-23 (L-528 deferred to T4-B)
 
 **Scope.** `catch {}` sin logging o sin propagación. No incluye L-528 (EventStore silent failure — se upgrade a T4-B).
 

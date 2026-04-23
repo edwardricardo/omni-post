@@ -145,11 +145,18 @@ describe("useAnalytics", () => {
     expect(cached).toBeDefined();
   });
 
-  it("returns fallback data when analytics endpoint fails (fetchJSON swallows errors)", async () => {
+  it("surfaces the error via TanStack Query when the analytics endpoint fails", async () => {
     // Only the analytics endpoint fails; dashboard + billing still succeed.
+    // After the T2-C fix fetchJSON throws on !res.ok, so the query must expose
+    // the failure through isError instead of silently returning partial data.
     mockFetch.mockImplementation(async (url: string) => {
       if (url.includes("/admin/analytics/metrics")) {
-        return { ok: false, status: 500, json: async () => ({}) };
+        return {
+          ok: false,
+          status: 500,
+          statusText: "Internal Server Error",
+          json: async () => ({}),
+        };
       }
       if (url.includes("/admin/dashboard/stats")) {
         return { ok: true, json: async () => ({ data: MOCK_DASHBOARD_STATS }) };
@@ -161,9 +168,9 @@ describe("useAnalytics", () => {
       wrapper: createWrapper(),
     });
 
-    // Hook does not throw on endpoint failures; it succeeds with partial data.
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toBeDefined();
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error).toBeInstanceOf(Error);
+    expect((result.current.error as Error).message).toContain("Analytics request failed: 500");
   });
 
   it("succeeds with empty payload when body.data is absent", async () => {

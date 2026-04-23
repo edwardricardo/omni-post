@@ -12,13 +12,16 @@ import type {
 } from "../../domain/events/DomainEvent.js";
 import type { IntegrationEventPublisher } from "./IntegrationEventPort.js";
 import { toIntegrationEvent } from "./IntegrationEvent.js";
+import { createLogger } from "../../lib/logger.js";
+
+const log = createLogger("events:composed-dispatcher");
 
 /**
  * ComposedEventDispatcher — dual-path event dispatcher.
  *
  * Dispatches every domain event through two channels:
  * 1. `inMemory` — synchronous in-process handlers (always fires, primary path)
- * 2. `publisher` — cross-process BullMQ queue (best-effort, errors swallowed)
+ * 2. `publisher` — cross-process BullMQ queue (best-effort, errors logged and swallowed)
  *
  * The `register()` method only affects the in-process dispatcher — integration
  * event consumers subscribe via BullMQ worker configuration, not here.
@@ -51,9 +54,15 @@ export class ComposedEventDispatcher implements EventDispatcher {
     try {
       const integrationEvent = toIntegrationEvent(event);
       await this.publisher.publish(integrationEvent);
-    } catch {
-      // Swallow BullMQ errors — do NOT propagate to callers.
-      // In production this would write to a structured logger (e.g., pino).
+    } catch (err: unknown) {
+      // Swallow BullMQ errors — do NOT propagate to callers (in-process dispatch
+      // is the authoritative path; outbox relay provides at-least-once recovery).
+      // Log so the failure is visible in observability — T4-F will add a metric
+      // counter to alert on sustained publisher failures.
+      log.error(
+        { err, eventType: event.eventType, aggregateId: event.aggregateId },
+        "Integration event publish failed (swallowed)"
+      );
     }
   }
 
@@ -73,8 +82,13 @@ export class ComposedEventDispatcher implements EventDispatcher {
     try {
       const integrationEvents = events.map(toIntegrationEvent);
       await this.publisher.publishBatch(integrationEvents);
-    } catch {
-      // Swallow BullMQ errors — do NOT propagate to callers.
+    } catch (err: unknown) {
+      // Swallow BullMQ errors — do NOT propagate to callers. See dispatch()
+      // above for the full rationale; T4-F will add a counter metric.
+      log.error(
+        { err, batchSize: events.length, eventTypes: events.map((e) => e.eventType) },
+        "Integration event batch publish failed (swallowed)"
+      );
     }
   }
 }

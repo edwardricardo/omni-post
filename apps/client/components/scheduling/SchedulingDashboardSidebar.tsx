@@ -8,6 +8,7 @@
  */
 
 import React, { useEffect, useState } from "react";
+import { useLogger, extractErrorInfo } from "@observability/browser-logger";
 import type { DashboardScheduledPost, DashboardFilters } from "./schedulingDashboardTypes";
 import {
   getStatusColor,
@@ -58,6 +59,7 @@ export function SchedulingDashboardSidebar({
   onPostClick,
   projectId,
 }: SchedulingDashboardSidebarProps) {
+  const logger = useLogger("client.scheduling-sidebar");
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMemberOption[]>([]);
 
@@ -70,8 +72,13 @@ export function SchedulingDashboardSidebar({
       .then((d) => {
         if (d.ok && d.data) setCampaigns(d.data);
       })
-      .catch(() => {
-        /* graceful degradation — filters still usable without options */
+      .catch((err: unknown) => {
+        // Graceful degradation — filters stay usable without the campaigns dropdown.
+        // Log so persistent failures are still visible in APM.
+        logger.warn("Failed to load campaign filter options", {
+          err: extractErrorInfo(err),
+          projectId,
+        });
       });
 
     void fetch(`/api/backend/team?projectId=${projectId}`)
@@ -79,10 +86,14 @@ export function SchedulingDashboardSidebar({
       .then((d) => {
         if (d.ok && d.data?.members) setTeamMembers(d.data.members);
       })
-      .catch(() => {
-        /* graceful degradation */
+      .catch((err: unknown) => {
+        // Graceful degradation — filters stay usable without the assignee dropdown.
+        logger.warn("Failed to load team filter options", {
+          err: extractErrorInfo(err),
+          projectId,
+        });
       });
-  }, [projectId]);
+  }, [projectId, logger]);
 
   const hasActiveFilters =
     filters.platforms.length > 0 ||

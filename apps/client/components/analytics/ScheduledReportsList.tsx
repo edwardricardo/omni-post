@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import cronstrue from "cronstrue";
+import { useLogger, extractErrorInfo } from "@observability/browser-logger";
 import { useReports, useDeleteReport, useGenerateReport } from "@/hooks/api/useReports";
 
 interface ScheduledReportsListProps {
@@ -51,6 +52,7 @@ const TABLE_HEADERS = [
 ] as const;
 
 export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledReportsListProps) {
+  const logger = useLogger("client.scheduled-reports");
   const { data: reports, isLoading, error, refetch } = useReports(projectId);
   const deleteReport = useDeleteReport();
   const generateReport = useGenerateReport();
@@ -58,8 +60,13 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
 
   async function handleDelete(id: string, name: string) {
     if (!window.confirm(`Delete report "${name}"? This cannot be undone.`)) return;
-    await deleteReport.mutateAsync(id).catch(() => {
-      /* mutation state handles the error */
+    await deleteReport.mutateAsync(id).catch((err: unknown) => {
+      // TanStack mutation state (deleteReport.isError) surfaces the failure in the UI.
+      // Log for observability so persistent failures are still visible in APM.
+      logger.debug("Report delete failed (mutation state handles user-facing error)", {
+        err: extractErrorInfo(err),
+        reportId: id,
+      });
     });
   }
 
