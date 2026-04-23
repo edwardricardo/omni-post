@@ -143,8 +143,8 @@ export function SchedulingDashboardSidebar({
 
         <div className="space-y-4">
           {/* Platform Filter */}
-          <div>
-            <span className="block text-sm font-medium text-gray-700 mb-2">Platforms</span>
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Platforms</legend>
             <div className="space-y-1">
               {["instagram", "facebook", "x"].map((platform) => (
                 <label key={platform} className="flex items-center">
@@ -165,11 +165,13 @@ export function SchedulingDashboardSidebar({
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Content Type Filter */}
-          <div>
-            <span className="block text-sm font-medium text-gray-700 mb-2">Content Type</span>
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
+              Content Type
+            </legend>
             <div className="space-y-1">
               {(["FEED", "STORIES", "REELS", "CAROUSEL"] as const).map((type) => (
                 <label key={type} className="flex items-center">
@@ -192,11 +194,11 @@ export function SchedulingDashboardSidebar({
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Status Filter */}
-          <div>
-            <span className="block text-sm font-medium text-gray-700 mb-2">Status</span>
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Status</legend>
             <div className="space-y-1">
               {["scheduled", "publishing", "published", "failed", "cancelled"].map((status) => (
                 <label key={status} className="flex items-center">
@@ -217,7 +219,7 @@ export function SchedulingDashboardSidebar({
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Campaign Filter */}
           <div>

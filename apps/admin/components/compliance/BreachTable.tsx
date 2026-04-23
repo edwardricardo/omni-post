@@ -83,6 +83,7 @@ export function BreachTable() {
   const discoveredAtId = useId();
   const severityId = useId();
   const affectedUsersId = useId();
+  const dataTypesHeadingId = useId();
 
   const handleCreate = useCallback(async () => {
     if (!form.title.trim() || !form.description.trim()) return;
@@ -326,16 +327,24 @@ export function BreachTable() {
             </div>
             {/* Data Types */}
             <div>
-              <span className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              <span
+                id={dataTypesHeadingId}
+                className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+              >
                 {t("dataTypes")}
               </span>
-              <div className="flex flex-wrap gap-2">
+              <div
+                role="group"
+                aria-labelledby={dataTypesHeadingId}
+                className="flex flex-wrap gap-2"
+              >
                 {DATA_TYPE_OPTIONS.map((dtype) => {
                   const selected = form.dataTypes.includes(dtype);
                   return (
                     <button
                       key={dtype}
                       type="button"
+                      aria-pressed={selected}
                       onClick={() => toggleDataType(dtype)}
                       className={[
                         "px-2 py-1 text-xs rounded-md border transition-colors",

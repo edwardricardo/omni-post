@@ -45,6 +45,7 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
   const nameId = useId();
   const systemPromptId = useId();
   const examplesIdPrefix = useId();
+  const toneHeadingId = useId();
 
   useEffect(() => {
     if (existing) {
@@ -180,12 +181,15 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
 
       {/* Tone Chips */}
       <div>
-        <span className="block text-sm font-medium text-gray-700 mb-2">Tone</span>
-        <div className="flex flex-wrap gap-2">
+        <span id={toneHeadingId} className="block text-sm font-medium text-gray-700 mb-2">
+          Tone
+        </span>
+        <div role="group" aria-labelledby={toneHeadingId} className="flex flex-wrap gap-2">
           {TONE_OPTIONS.map((tone) => (
             <button
               key={tone}
               type="button"
+              aria-pressed={selectedTones.includes(tone)}
               onClick={() => toggleTone(tone)}
               className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
                 selectedTones.includes(tone)

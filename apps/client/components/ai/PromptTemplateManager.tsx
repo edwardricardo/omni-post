@@ -223,8 +223,8 @@ function CreateTemplateForm({
         />
       </div>
 
-      <div>
-        <span className="block text-sm font-medium text-gray-700 mb-2">Platforms *</span>
+      <fieldset className="border-0 p-0 m-0 min-w-0">
+        <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Platforms *</legend>
         <div className="flex flex-wrap gap-2">
           {AVAILABLE_PLATFORMS.map((p) => (
             <label key={p} className="flex items-center gap-1.5 cursor-pointer">
@@ -238,7 +238,7 @@ function CreateTemplateForm({
             </label>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       <div>
         <label htmlFor="tpl-prompt" className="block text-sm font-medium text-gray-700 mb-1">

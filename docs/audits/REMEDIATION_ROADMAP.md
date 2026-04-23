@@ -653,7 +653,7 @@ grep -rn "catch" apps/api/src/ apps/admin/src/ apps/client/src/ --include="*.ts"
 
 - **Categoría A (semantic misuse, ~33 casos):** `<label>` usado como heading visual sobre datos display → convertido a `<span>`.
 - **Categoría B (orphan form labels, ~48 casos):** `<label>` sin `htmlFor` precediendo a `<input>`/`<select>`/`<textarea>` → `useId()` + `htmlFor` + `id` matching.
-- **Casos ambiguous (16 casos):** `<label>` como heading de grupos de checkboxes/radios → convertido a `<span>`. El fix canonical `<fieldset><legend>` queda como follow-up futuro.
+- **Casos ambiguous (16 casos):** `<label>` como heading de grupos de checkboxes/radios → inicialmente convertido a `<span>` en T2-D; **elevado a canon en T2-D.5** con `<fieldset><legend>` para grupos de form controls y `<div role="group" aria-labelledby>` para grupos de `<button>`.
 - **Valid implicit association (23 casos):** `<label>` envolviendo `<input>` como hijo directo — patrón HTML válido, NO requiere `htmlFor`. No tocados.
 
 Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (18 archivos incluyendo `packages/ui/src/components/business/VersionFilterBar.tsx`).
@@ -676,6 +676,36 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 **Estimación.** 1 h (real: ~3 h por scope real 32× mayor al roadmap).
 
 **Dependencias.** ⚡ PARALELIZABLE.
+
+---
+
+#### T2-D.5 — fieldset/legend canonical refactor ✅ 2026-04-23
+
+**Scope.** Elevación del fix ambiguous de T2-D al patrón canónico (research-backed). En T2-D convertimos 16 `<label>` group-heading a `<span>` pragmáticamente; T2-D.5 los corrige al canon después de investigación formal (MDN fieldset/legend/ARIA group role).
+
+**Fuentes citadas:**
+
+- MDN `<fieldset>`: implicit role=group, legend provee accessible name nativo, patrón preferido sobre aria-labelledby para form control grouping.
+- MDN `<legend>`: "No corresponding ARIA role — this is a unique semantic relationship that ARIA cannot fully replicate".
+- MDN ARIA group role: "For form control grouping, use `<fieldset>` and `<legend>` instead of `role='group'`".
+
+**Aplicado:**
+
+- **Categoría I (13 grupos de checkbox/radio) → `<fieldset className="border-0 p-0 m-0 min-w-0">` + `<legend>`** con reset explícito (documentado: default `2px groove` border, margin-block, min-inline-size chocan con Tailwind). Archivos: `PromptTemplateManager.tsx`, `AddWebhookForm.tsx` (2), `BulkScheduleView.tsx`, `SchedulingDashboardSidebar.tsx` (3), `RecurringPostForm.tsx` (2), `FilterPanel.tsx` (4).
+- **Categoría II (3 grupos de `<button>` toggle) → `<div role="group" aria-labelledby={headingId}>`** + `aria-pressed` en cada button. Archivos: `BrandVoiceForm.tsx` (Tone), `StoryEditorControls.tsx` (Background), `BreachTable.tsx` (dataTypes).
+- **Composite adicional (Video Split Options en StoryEditorControls):** detectado durante re-auditoría, ahora fieldset+legend porque contiene selects.
+- **RecurringPostForm "Recurrencia":** wrap con `<div role="group" aria-labelledby>` (widget compuesto con mezcla button+select, fieldset no aplica). Drive-by: `aria-label="Cron expression"` en el custom cron input de `RecurrenceSelector` que carecía de label.
+
+**Exit criteria alcanzados:**
+
+- 14 `<fieldset>` + 4 `<div role="group">` aplicados ✅
+- Lint 0 errors ✅
+- Turbo test 37/37 ✅
+- Build 9/9 ✅
+
+**Estimación.** 2 h.
+
+**Dependencias.** T2-D (previo).
 
 ---
 

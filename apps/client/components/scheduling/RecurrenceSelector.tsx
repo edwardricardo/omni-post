@@ -203,6 +203,7 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
         <div className="space-y-1">
           <input
             type="text"
+            aria-label="Cron expression"
             value={custom}
             onChange={(e) => handleCustomChange(e.target.value)}
             placeholder="0 9 * * 1"

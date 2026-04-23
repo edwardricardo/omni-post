@@ -64,6 +64,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
   const timezoneId = useId();
   const maxOccurrencesId = useId();
   const endDateId = useId();
+  const recurrenceHeadingId = useId();
 
   const handleCronChange = useCallback((cron: string) => {
     setCronExpression(cron);
@@ -148,10 +149,12 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
 
       {/* Recurrence */}
       <div>
-        <span className="block text-sm font-medium text-gray-700 mb-2">
+        <span id={recurrenceHeadingId} className="block text-sm font-medium text-gray-700 mb-2">
           Recurrencia <span className="text-red-500">*</span>
         </span>
-        <RecurrenceSelector value={cronExpression} onChange={handleCronChange} />
+        <div role="group" aria-labelledby={recurrenceHeadingId}>
+          <RecurrenceSelector value={cronExpression} onChange={handleCronChange} />
+        </div>
         {errors.cron && <p className="mt-1 text-xs text-red-600">{errors.cron}</p>}
       </div>
 
@@ -175,10 +178,10 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
       </div>
 
       {/* Channels */}
-      <div>
-        <span className="block text-sm font-medium text-gray-700 mb-2">
+      <fieldset className="border-0 p-0 m-0 min-w-0">
+        <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
           Canales <span className="text-red-500">*</span>
-        </span>
+        </legend>
         {channels.length === 0 ? (
           <p className="text-sm text-gray-500">No hay canales conectados.</p>
         ) : (
@@ -206,11 +209,13 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
           </div>
         )}
         {errors.channels && <p className="mt-1 text-xs text-red-600">{errors.channels}</p>}
-      </div>
+      </fieldset>
 
       {/* Content variation */}
-      <div>
-        <span className="block text-sm font-medium text-gray-700 mb-2">Variación de contenido</span>
+      <fieldset className="border-0 p-0 m-0 min-w-0">
+        <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
+          Variación de contenido
+        </legend>
         <div className="space-y-2">
           {CONTENT_VARIATION_OPTIONS.map((opt) => (
             <label key={opt.value} className="flex cursor-pointer items-start gap-3">
@@ -229,7 +234,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
             </label>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {/* Optional limits */}
       <div className="grid grid-cols-2 gap-4">

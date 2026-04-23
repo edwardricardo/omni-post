@@ -108,8 +108,8 @@ export function FilterPanel({
     <div className="bg-white border rounded-lg p-6 mb-6">
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* Status filter */}
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-2">Status</span>
+        <fieldset className="border-0 p-0 m-0 min-w-0">
+          <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Status</legend>
           <div className="space-y-1">
             {(["published", "scheduled", "draft", "archived"] as const).map((status) => (
               <label key={status} className="flex items-center">
@@ -123,11 +123,11 @@ export function FilterPanel({
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         {/* Platform filter */}
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-2">Platforms</span>
+        <fieldset className="border-0 p-0 m-0 min-w-0">
+          <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Platforms</legend>
           <div className="space-y-1">
             {filterOptions.platforms.map((platform) => (
               <label key={platform} className="flex items-center">
@@ -141,11 +141,11 @@ export function FilterPanel({
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         {/* Category filter */}
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-2">Categories</span>
+        <fieldset className="border-0 p-0 m-0 min-w-0">
+          <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Categories</legend>
           <div className="space-y-1">
             {filterOptions.categories.map((category) => (
               <label key={category} className="flex items-center">
@@ -159,7 +159,7 @@ export function FilterPanel({
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         {/* Author filter */}
         <div>
@@ -182,8 +182,8 @@ export function FilterPanel({
         </div>
 
         {/* Additional filters */}
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-2">Options</span>
+        <fieldset className="border-0 p-0 m-0 min-w-0">
+          <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Options</legend>
           <div className="space-y-1">
             <label className="flex items-center">
               <input
@@ -195,7 +195,7 @@ export function FilterPanel({
               <span className="text-sm">Has Media</span>
             </label>
           </div>
-        </div>
+        </fieldset>
       </div>
 
       {/* Tag filter */}

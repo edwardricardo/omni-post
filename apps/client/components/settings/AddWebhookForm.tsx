@@ -85,8 +85,8 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
 
         <div className="mt-4 space-y-4">
           {/* Channel */}
-          <div>
-            <span className="block text-xs font-medium text-gray-700 mb-1.5">Channel</span>
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="block text-xs font-medium text-gray-700 mb-1.5 p-0">Channel</legend>
             <div className="flex gap-3">
               {(["slack", "teams"] as const).map((c) => (
                 <label key={c} className="flex items-center gap-2 cursor-pointer">
@@ -104,7 +104,7 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Label */}
           <div>
@@ -147,10 +147,10 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
           </div>
 
           {/* Events */}
-          <div>
-            <span className="block text-xs font-medium text-gray-700 mb-2">
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="block text-xs font-medium text-gray-700 mb-2 p-0">
               Events (select at least 1)
-            </span>
+            </legend>
             <div className="space-y-2">
               {SUPPORTED_EVENTS.map((e) => (
                 <label key={e.value} className="flex items-center gap-2 cursor-pointer">
@@ -167,7 +167,7 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
             {events.length === 0 && (
               <p className="mt-1 text-xs text-amber-600">Select at least one event</p>
             )}
-          </div>
+          </fieldset>
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
