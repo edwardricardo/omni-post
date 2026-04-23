@@ -325,7 +325,7 @@ export class AIService extends BaseService {
 
   /**
    * @method generateImage
-   * @description Generates an image via the admin orchestrator (DALL-E 3).
+   * @description Generates an image via the admin orchestrator using OpenAI image generation.
    *   Image generation always uses pool credentials (no BYOK for images).
    */
   async generateImage(options: ImageGenerationOptions): Promise<AIResponse<ImageGenerationResult>> {

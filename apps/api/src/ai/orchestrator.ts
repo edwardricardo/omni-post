@@ -503,7 +503,7 @@ export class AIOrchestrator {
   /**
    * @method generateImage
    * @description Generates an image by delegating to the first available provider
-   *              that supports image generation (currently OpenAI with DALL-E 3).
+   *              that supports OpenAI image generation.
    * @param options - Image generation options
    * @returns AIResponse with the generated image URL and revised prompt
    */

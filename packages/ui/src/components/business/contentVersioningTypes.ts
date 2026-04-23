@@ -156,11 +156,12 @@ export const getVersionMedia = (version: ContentVersion) =>
 
 /**
  * Format a date for display inside a version card.
- * Returns a locale string like "Jan 5, 2026, 10:30 AM".
+ * Uses the browser/runtime locale (passes `undefined` to `Intl.DateTimeFormat`)
+ * so the output respects the user's language and region preferences.
  */
 export const formatVersionDate = (date: Date | string): string => {
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  return dateObj.toLocaleDateString("en-US", {
+  return dateObj.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",

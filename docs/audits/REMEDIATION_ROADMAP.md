@@ -446,7 +446,7 @@ grep -rn "@layer" apps/api/src/ --include="*.ts" | grep -v "@layer application\|
 
 ---
 
-#### T1-G — Hardcoded labels menores ⚡
+#### T1-G — Hardcoded labels menores ⚡ ✅ 2026-04-22 (L-549 deferido a T4-W)
 
 **Scope.** Labels hardcoded de bajo impacto (no fake-AI, no i18n blocker).
 
