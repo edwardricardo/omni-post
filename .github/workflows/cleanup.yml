@@ -20,6 +20,10 @@ on:
           - preview-envs
           - all
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   RETENTION_DAYS_ARTIFACTS: 30
   RETENTION_DAYS_IMAGES: 60
@@ -97,6 +101,7 @@ jobs:
     if: github.event.inputs.cleanup_type == 'images' || github.event.inputs.cleanup_type == 'all' || github.event.inputs.cleanup_type == ''
 
     strategy:
+      fail-fast: false
       matrix:
         service: [api, workers, admin, client]
 

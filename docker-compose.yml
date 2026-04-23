@@ -3,6 +3,9 @@ services:
     image: postgres:16
     container_name: omnipost-postgres
     restart: always
+    env_file:
+      - path: .env
+        required: false
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password123
@@ -16,6 +19,9 @@ services:
     image: redis:7
     container_name: omnipost-redis
     restart: always
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "6379:6379"
     volumes:
@@ -25,6 +31,9 @@ services:
     image: grafana/grafana:11.2.2
     container_name: omnipost-grafana
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "3001:3000"
     environment:
@@ -43,6 +52,9 @@ services:
     image: prom/prometheus:v2.48.1
     container_name: omnipost-prometheus
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "9090:9090"
     command:
@@ -61,6 +73,9 @@ services:
     image: jaegertracing/jaeger:latest
     container_name: omnipost-jaeger
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "16686:16686" # Jaeger UI
       - "4318:4318" # OTLP HTTP receiver
@@ -71,6 +86,9 @@ services:
     image: minio/minio:latest
     container_name: omnipost-minio
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "9000:9000" # S3 API
       - "9001:9001" # Web console

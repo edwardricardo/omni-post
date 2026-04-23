@@ -234,6 +234,7 @@ jobs:
     if: ${{ inputs.scan_type == 'comprehensive' || github.event_name != 'workflow_dispatch' }}
 
     strategy:
+      fail-fast: false
       matrix:
         service: [api, workers, admin, client]
 

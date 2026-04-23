@@ -1,0 +1,111 @@
+# .dockerignore — files excluded from `docker build` context across all Dockerfiles
+# in the repo (apps/api/Dockerfile*, apps/workers/Dockerfile, apps/admin/Dockerfile, apps/client/Dockerfile).
+#
+# Keeping the build context minimal speeds up `docker build` (less to copy into the daemon)
+# and prevents secrets, local state, and dev-only tooling from landing in the image.
+
+# Dependencies
+node_modules
+**/node_modules
+.pnpm-store
+.pnpm-debug.log*
+
+# Build outputs
+dist
+**/dist
+build
+**/build
+.next
+**/.next
+.turbo
+**/.turbo
+out
+**/out
+storybook-static
+**/storybook-static
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Testing artifacts
+coverage
+**/coverage
+.nyc_output
+**/__snapshots__
+playwright-report
+**/playwright-report
+test-results
+**/test-results
+
+# Mutation testing (Stryker)
+.stryker-tmp
+**/.stryker-tmp
+reports/mutation
+**/reports/mutation
+**/reports/stryker-incremental.json
+stryker-output-*.json
+**/stryker-output-*.json
+
+# Environment / secrets — never ship to an image
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Cache
+.cache
+.parcel-cache
+.eslintcache
+.stylelintcache
+
+# Docs + source control — runtime doesn't need them
+.git
+.github
+README.md
+docs
+.claude
+CLAUDE.md
+CODEOWNERS
+
+# IDE / editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
+# Prisma generated client is regenerated in the image; local copy not needed
+**/node_modules/.prisma
+**/node_modules/@prisma
+infra/prisma/generated
+
+# Backup files
+*.bak
+*.bak[0-9]*
+*.contaminated.bak
+
+# Local dev overrides
+docker-compose.local.yml
+docker-compose.override.yml
+
+# Performance / quality local scans
+performance/reports
+quality/dashboards

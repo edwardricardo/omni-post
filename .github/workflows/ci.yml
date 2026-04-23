@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, omni-post-cc]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-format:
     name: Lint and Format Check

@@ -521,7 +521,7 @@ diff <(grep -oE 'process\.env\.[A-Z_]+' apps/ packages/ infra/ -r --include="*.t
 
 ---
 
-#### T1-J — Docker/CI one-liners ⚡
+#### T1-J — Docker/CI one-liners ⚡ ✅ 2026-04-22 (TRAMO T1 CERRADO)
 
 **Scope.** Docker/CI configs triviales (no el Dockerfile base completo — eso va T4-Y).
 
