@@ -469,7 +469,7 @@ grep -rn "@layer" apps/api/src/ --include="*.ts" | grep -v "@layer application\|
 
 ---
 
-#### T1-H — Missing ARIA triviales ⚡
+#### T1-H — Missing ARIA triviales ⚡ ✅ 2026-04-22
 
 **Scope.** ARIA attributes missing en 2 UI components triviales (progress, separator). Resto de ARIA gaps van a T3-J.
 
