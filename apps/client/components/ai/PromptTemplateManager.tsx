@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useCallback } from "react";
+import { ConfirmDialog } from "@packages/ui";
 import {
   useAIPromptTemplates,
   useCreateAIPromptTemplate,
@@ -301,6 +302,7 @@ function CreateTemplateForm({
 export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const { data: templates = [], isLoading, error } = useAIPromptTemplates(accountId);
   const deleteMutation = useDeleteAIPromptTemplate();
@@ -313,13 +315,18 @@ export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps)
   const systemTemplates = filtered.filter((t) => t.isSystem);
   const accountTemplates = filtered.filter((t) => !t.isSystem);
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      if (!window.confirm("Delete this template? This cannot be undone.")) return;
-      void deleteMutation.mutateAsync({ templateId: id, accountId });
-    },
-    [deleteMutation, accountId]
-  );
+  const handleDelete = useCallback((id: string) => {
+    setDeleteTarget(id);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteMutation.mutateAsync({ templateId: deleteTarget, accountId });
+    } finally {
+      setDeleteTarget(null);
+    }
+  }, [deleteMutation, deleteTarget, accountId]);
 
   if (isLoading) {
     return (
@@ -433,6 +440,19 @@ export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps)
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete template?"
+        description="Delete this template? This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        loading={deleteMutation.isPending}
+      />
     </div>
   );
 }

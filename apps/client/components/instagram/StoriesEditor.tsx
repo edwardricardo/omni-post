@@ -9,7 +9,8 @@
  * presentation to child components.
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useRef, useState, useCallback } from "react";
+import { ConfirmDialog } from "@packages/ui";
 import type { VideoSplitOptions } from "@providers/instagram/src/mediaProcessor";
 import type { StoriesProject, StoriesEditorProps, StoryContent } from "./stories/types";
 import { StoriesHeader } from "./stories/StoriesHeader";
@@ -50,6 +51,25 @@ export function StoriesEditor({
   const selectedStory =
     selectedStoryIndex !== null ? project.stories[selectedStoryIndex] : undefined;
 
+  // Video split confirmation dialog state
+  const [splitConfirmOpen, setSplitConfirmOpen] = useState(false);
+  const [splitConfirmDuration, setSplitConfirmDuration] = useState<number>(0);
+  const splitResolverRef = useRef<((value: boolean) => void) | null>(null);
+
+  const confirmVideoSplit = useCallback((durationSeconds: number): Promise<boolean> => {
+    return new Promise((resolve) => {
+      splitResolverRef.current = resolve;
+      setSplitConfirmDuration(durationSeconds);
+      setSplitConfirmOpen(true);
+    });
+  }, []);
+
+  const resolveSplit = useCallback((decision: boolean) => {
+    splitResolverRef.current?.(decision);
+    splitResolverRef.current = null;
+    setSplitConfirmOpen(false);
+  }, []);
+
   // Story list updater for hooks
   const handleStoriesUpdate = useCallback(
     (updater: (stories: StoryContent[]) => StoryContent[]) => {
@@ -76,6 +96,7 @@ export function StoriesEditor({
         stories: [...prev.stories, ...stories],
       }));
     }, []),
+    confirmVideoSplit,
     ...(onError !== undefined && { onError }),
   });
 
@@ -192,6 +213,20 @@ export function StoriesEditor({
       </div>
 
       <LoadingOverlay isUploading={isUploading} isProcessing={isProcessing} />
+
+      <ConfirmDialog
+        open={splitConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) resolveSplit(false);
+        }}
+        title="Split video into stories?"
+        description={`This video is ${splitConfirmDuration.toFixed(
+          1
+        )} seconds long. Instagram Stories are limited to 15 seconds each. Split it automatically?`}
+        confirmLabel="Split"
+        cancelLabel="Keep first 15s"
+        onConfirm={() => resolveSplit(true)}
+      />
     </div>
   );
 }

@@ -171,3 +171,121 @@ export function useBulkCreateSchedules() {
     },
   });
 }
+
+interface CreateSchedulingRuleInput {
+  projectId: string;
+  name: string;
+  providers: string[];
+  frequency?: string;
+  active?: boolean;
+}
+
+interface UpdateSchedulingRuleInput {
+  ruleId: string;
+  name: string;
+}
+
+interface ToggleSchedulingRuleInput {
+  ruleId: string;
+  active: boolean;
+}
+
+async function parseRuleError(response: Response, fallback: string): Promise<string> {
+  const err = (await response.json().catch(() => ({ error: fallback }))) as { error?: string };
+  return err.error ?? fallback;
+}
+
+/**
+ * @hook useCreateSchedulingRule
+ * @description Mutation hook for creating a scheduling rule. Invalidates rules cache on success.
+ */
+export function useCreateSchedulingRule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: CreateSchedulingRuleInput): Promise<SchedulingRule> => {
+      const response = await fetch("/api/backend/scheduling/rules", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: input.projectId,
+          name: input.name,
+          providers: input.providers,
+          frequency: input.frequency ?? "daily",
+          active: input.active ?? true,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await parseRuleError(response, "Failed to create rule"));
+      }
+      const data = (await response.json()) as {
+        ok: boolean;
+        value?: SchedulingRule;
+        error?: string;
+      };
+      if (!data.ok || !data.value) throw new Error(data.error ?? "API error");
+      return data.value;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["scheduling-rules"] });
+    },
+  });
+}
+
+/**
+ * @hook useUpdateSchedulingRule
+ * @description Mutation hook for editing a scheduling rule's name.
+ */
+export function useUpdateSchedulingRule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ruleId, name }: UpdateSchedulingRuleInput): Promise<SchedulingRule> => {
+      const response = await fetch(`/api/backend/scheduling/rules/${ruleId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) {
+        throw new Error(await parseRuleError(response, "Failed to update rule"));
+      }
+      const data = (await response.json()) as {
+        ok: boolean;
+        value?: SchedulingRule;
+        error?: string;
+      };
+      if (!data.ok || !data.value) throw new Error(data.error ?? "API error");
+      return data.value;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["scheduling-rules"] });
+    },
+  });
+}
+
+/**
+ * @hook useToggleSchedulingRule
+ * @description Mutation hook for activating/deactivating a scheduling rule.
+ */
+export function useToggleSchedulingRule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ruleId, active }: ToggleSchedulingRuleInput): Promise<void> => {
+      const response = await fetch(`/api/backend/scheduling/rules/${ruleId}/toggle`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active }),
+      });
+      if (!response.ok) {
+        throw new Error(await parseRuleError(response, "Failed to toggle rule"));
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["scheduling-rules"] });
+    },
+  });
+}

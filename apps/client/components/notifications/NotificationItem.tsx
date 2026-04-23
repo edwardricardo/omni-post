@@ -31,15 +31,15 @@ function getTarget(notification: NotificationItemType): string {
   const postId = notification.metadata?.postId as string | undefined;
   switch (notification.type) {
     case "APPROVAL_REQUESTED":
-      return "/admin/approvals";
+      return "/dashboard/approvals";
     case "POST_APPROVED":
     case "POST_REJECTED":
     case "COMMENT_ADDED":
     case "COMMENT_REPLY":
     case "MENTION":
-      return postId ? `/admin/posts/${postId}` : "/admin/posts";
+      return postId ? `/dashboard/posts/${postId}` : "/dashboard/posts";
     default:
-      return "/admin";
+      return "/dashboard";
   }
 }
 

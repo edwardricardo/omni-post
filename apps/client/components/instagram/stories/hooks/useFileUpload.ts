@@ -12,6 +12,12 @@ interface UseFileUploadProps {
   videoSplitOptions: VideoSplitOptions;
   onStoryCreate: (story: StoryContent) => void;
   onStoriesCreate: (stories: StoryContent[]) => void;
+  /**
+   * Called when a video longer than 15s is uploaded. Should resolve to `true`
+   * when the user agrees to split the video, `false` to keep the first 15s.
+   * Consumers typically implement this with a ConfirmDialog.
+   */
+  confirmVideoSplit: (durationSeconds: number) => Promise<boolean>;
   onError?: (error: string) => void;
 }
 
@@ -19,6 +25,7 @@ export function useFileUpload({
   videoSplitOptions,
   onStoryCreate,
   onStoriesCreate,
+  confirmVideoSplit,
   onError,
 }: UseFileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
@@ -60,9 +67,7 @@ export function useFileUpload({
 
             // If video is longer than 15 seconds, offer to split
             if (duration > 15) {
-              const shouldSplit = window.confirm(
-                `This video is ${duration.toFixed(1)} seconds long. Instagram Stories are limited to 15 seconds. Would you like to split it automatically?`
-              );
+              const shouldSplit = await confirmVideoSplit(duration);
 
               if (shouldSplit) {
                 setIsProcessing(true);
@@ -124,7 +129,7 @@ export function useFileUpload({
         setIsUploading(false);
       }
     },
-    [videoSplitOptions, onStoryCreate, onStoriesCreate, onError]
+    [videoSplitOptions, onStoryCreate, onStoriesCreate, confirmVideoSplit, onError]
   );
 
   return {

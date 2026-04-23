@@ -12,7 +12,14 @@ import { Button } from "@packages/ui";
 import { Input } from "@packages/ui";
 import { Label } from "@packages/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@packages/ui";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@packages/ui";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  toast,
+} from "@packages/ui";
 import { Calendar, Clock, Globe, TrendingUp, AlertCircle } from "lucide-react";
 import { format, addDays, setHours, setMinutes, parse, isAfter } from "date-fns";
 
@@ -191,7 +198,11 @@ export function SchedulePicker({
 
     // Validate that the scheduled time is in the future
     if (!isAfter(scheduledDateTime, new Date())) {
-      alert("Scheduled time must be in the future");
+      toast({
+        title: "Invalid schedule time",
+        description: "Scheduled time must be in the future.",
+        variant: "destructive",
+      });
       return;
     }
 

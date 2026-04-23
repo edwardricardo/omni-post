@@ -1,14 +1,15 @@
 "use client";
 
 /**
- * @file MultiPlatformSchedulerRefactored.tsx
+ * @file MultiPlatformScheduler.tsx
  * @component MultiPlatformScheduler
  * @description Multi-platform post scheduler component that manages scheduling slots across
  * social media platforms, supporting bulk scheduling, optimal time suggestions, and rules.
+ * @layer infrastructure
  */
 
 import React, { useState, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { toast, InputDialog } from "@packages/ui";
 import type {
   CreatedSlot,
   SchedulerView,
@@ -21,6 +22,9 @@ import {
   useSchedulingRules,
   useCreateSchedule,
   useBulkCreateSchedules,
+  useCreateSchedulingRule,
+  useUpdateSchedulingRule,
+  useToggleSchedulingRule,
 } from "../../hooks/api/useMultiPlatformScheduling";
 import { CalendarView } from "./views/CalendarView";
 import { OptimalTimesView } from "./views/OptimalTimesView";
@@ -49,9 +53,7 @@ export function MultiPlatformScheduler({
   // State
   const [view, setView] = useState<SchedulerView>("calendar");
   const [currentWeek, setCurrentWeek] = useState(new Date());
-
-  // Query client for cache invalidation
-  const queryClient = useQueryClient();
+  const [editRuleTarget, setEditRuleTarget] = useState<string | null>(null);
 
   // API hooks
   const { data: slots = [] } = useScheduleSlots({ projectId });
@@ -59,6 +61,9 @@ export function MultiPlatformScheduler({
   const { data: schedulingRules = [] } = useSchedulingRules({ projectId });
   const createScheduleMutation = useCreateSchedule();
   const bulkCreateMutation = useBulkCreateSchedules();
+  const createRuleMutation = useCreateSchedulingRule();
+  const updateRuleMutation = useUpdateSchedulingRule();
+  const toggleRuleMutation = useToggleSchedulingRule();
 
   // Handlers
   const handleWeekChange = useCallback((direction: "prev" | "next") => {
@@ -172,45 +177,52 @@ export function MultiPlatformScheduler({
   );
 
   const handleAddRule = useCallback(async () => {
+    const name = `Rule ${schedulingRules.length + 1}`;
     try {
-      const response = await fetch("/api/backend/scheduling/rules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          name: `Rule ${schedulingRules.length + 1}`,
-          providers: selectedProviders.length > 0 ? selectedProviders : ["x"],
-          frequency: "daily",
-          active: true,
-        }),
+      await createRuleMutation.mutateAsync({
+        projectId,
+        name,
+        providers: selectedProviders.length > 0 ? selectedProviders : ["x"],
+        frequency: "daily",
+        active: true,
       });
-      if (!response.ok) throw new Error("Failed to create rule");
-      await queryClient.invalidateQueries({ queryKey: ["scheduling-rules"] });
-    } catch {
-      // Error toast pending UI notification package
+      toast({ title: "Rule created", description: name });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create rule.";
+      toast({ title: "Rule creation failed", description: message, variant: "destructive" });
     }
-  }, [projectId, schedulingRules.length, selectedProviders, queryClient]);
+  }, [createRuleMutation, projectId, schedulingRules.length, selectedProviders]);
 
   const handleEditRule = useCallback((ruleId: string) => {
-    // Edit requires a modal UI — pending rule-editing dialog implementation
-    void ruleId;
+    setEditRuleTarget(ruleId);
   }, []);
+
+  const handleEditRuleName = useCallback(
+    async (name: string) => {
+      if (!editRuleTarget) return;
+      try {
+        await updateRuleMutation.mutateAsync({ ruleId: editRuleTarget, name });
+        toast({ title: "Rule updated", description: name });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to update rule.";
+        toast({ title: "Rule update failed", description: message, variant: "destructive" });
+      } finally {
+        setEditRuleTarget(null);
+      }
+    },
+    [editRuleTarget, updateRuleMutation]
+  );
 
   const handleToggleRule = useCallback(
     async (ruleId: string, active: boolean) => {
       try {
-        const response = await fetch(`/api/backend/scheduling/rules/${ruleId}/toggle`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ active }),
-        });
-        if (!response.ok) throw new Error("Failed to toggle rule");
-        await queryClient.invalidateQueries({ queryKey: ["scheduling-rules"] });
-      } catch {
-        // Error toast pending UI notification package
+        await toggleRuleMutation.mutateAsync({ ruleId, active });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to toggle rule.";
+        toast({ title: "Toggle failed", description: message, variant: "destructive" });
       }
     },
-    [queryClient]
+    [toggleRuleMutation]
   );
 
   return (
@@ -273,6 +285,20 @@ export function MultiPlatformScheduler({
 
         {view === "bulk" && <BulkScheduleView onBulkSchedule={handleBulkSchedule} />}
       </div>
+
+      <InputDialog
+        open={editRuleTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditRuleTarget(null);
+        }}
+        title="Rename rule"
+        description="Enter a new name for this scheduling rule."
+        inputLabel="New rule name"
+        inputPlaceholder="Updated rule name"
+        confirmLabel="Save"
+        loading={updateRuleMutation.isPending}
+        onConfirm={handleEditRuleName}
+      />
     </div>
   );
 }

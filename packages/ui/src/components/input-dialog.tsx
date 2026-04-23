@@ -1,24 +1,25 @@
 /**
- * @file InputDialog.tsx
- * @description A dialog with a text input field built on Dialog from @packages/ui.
+ * @file input-dialog.tsx
+ * @description A dialog with a text input field built on Dialog.
  * Replaces native browser text input dialogs with an accessible, styled modal.
+ * Shared across admin and client apps via `@packages/ui`.
  * @layer infrastructure
  */
 
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { Button } from "./button";
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Input,
-  Label,
-} from "@packages/ui";
+} from "./dialog";
+import { Input } from "./input";
+import { Label } from "./label";
 
 interface InputDialogProps {
   open: boolean;
@@ -27,6 +28,9 @@ interface InputDialogProps {
   description: string;
   inputLabel: string;
   inputPlaceholder?: string;
+  initialValue?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
   onConfirm: (value: string) => void | Promise<void>;
   loading?: boolean;
 }
@@ -34,10 +38,6 @@ interface InputDialogProps {
 /**
  * @component InputDialog
  * @description A modal dialog that prompts the user for text input before confirming an action.
- * @param props.title - Dialog heading text
- * @param props.description - Explanatory text shown below the title
- * @param props.inputLabel - Label for the text input field
- * @param props.onConfirm - Callback receiving the trimmed input value on confirmation
  */
 export function InputDialog({
   open,
@@ -46,22 +46,24 @@ export function InputDialog({
   description,
   inputLabel,
   inputPlaceholder = "",
+  initialValue = "",
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
   onConfirm,
   loading = false,
 }: InputDialogProps) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
+  const fieldId = useId();
 
   const handleConfirm = async () => {
     if (!value.trim()) return;
     await onConfirm(value.trim());
-    setValue("");
+    setValue(initialValue);
     onOpenChange(false);
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      setValue("");
-    }
+    setValue(initialValue);
     onOpenChange(nextOpen);
   };
 
@@ -73,26 +75,26 @@ export function InputDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-2">
-          <Label htmlFor="input-dialog-field">{inputLabel}</Label>
+          <Label htmlFor={fieldId}>{inputLabel}</Label>
           <Input
-            id="input-dialog-field"
+            id={fieldId}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={inputPlaceholder}
             disabled={loading}
             onKeyDown={(e) => {
               if (e.key === "Enter" && value.trim()) {
-                handleConfirm();
+                void handleConfirm();
               }
             }}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
-            Cancel
+            {cancelLabel}
           </Button>
           <Button onClick={handleConfirm} disabled={loading || !value.trim()}>
-            {loading ? "Processing..." : "Confirm"}
+            {loading ? "Processing..." : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

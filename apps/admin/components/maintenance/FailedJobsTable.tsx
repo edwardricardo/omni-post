@@ -13,7 +13,7 @@ import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ConfirmDialog } from "@packages/ui";
 import type { FailedJob } from "@/hooks/api/useQueueManagement";
 
 interface FailedJobsTableProps {

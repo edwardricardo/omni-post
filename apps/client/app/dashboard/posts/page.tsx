@@ -10,7 +10,7 @@
 import React, { useState, Suspense, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useDeletePost } from "@/lib/api/hooks";
-import { Button } from "@packages/ui";
+import { Button, ConfirmDialog, toast } from "@packages/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Badge } from "@packages/ui";
 import { Input } from "@packages/ui";
@@ -120,24 +120,27 @@ export default function PostsPage() {
     });
   }, [recordRender]);
 
-  const handleDelete = useCallback(
-    async (postId: string) => {
-      if (confirm("Are you sure you want to delete this post?")) {
-        // Run deletion in background for better UX
-        runBackgroundTask(
-          `delete-post-${postId}`,
-          async () => {
-            await deletePost.mutateAsync(postId);
-            recordConcurrentUpdate();
-            await refreshPosts();
-            return { success: true };
-          },
-          { priority: "high" }
-        );
-      }
-    },
-    [deletePost, runBackgroundTask, recordConcurrentUpdate, refreshPosts]
-  );
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  const handleDelete = useCallback((postId: string) => {
+    setDeleteTarget(postId);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    const postId = deleteTarget;
+    if (!postId) return;
+    runBackgroundTask(
+      `delete-post-${postId}`,
+      async () => {
+        await deletePost.mutateAsync(postId);
+        recordConcurrentUpdate();
+        await refreshPosts();
+        return { success: true };
+      },
+      { priority: "high" }
+    );
+    toast({ title: "Post deleted" });
+  }, [deletePost, deleteTarget, runBackgroundTask, recordConcurrentUpdate, refreshPosts]);
 
   const handlePriorityChange = useCallback(
     (newPriority: "high" | "normal" | "low") => {
@@ -527,6 +530,19 @@ export default function PostsPage() {
           </>
         )}
       </Suspense>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete post?"
+        description="Are you sure you want to delete this post? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        loading={deletePost.isPending}
+      />
     </div>
   );
 }

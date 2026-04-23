@@ -13,7 +13,7 @@ import { toast } from "@packages/ui";
 
 import { useRotateEncryption } from "@/hooks/api/useSettings";
 import { ActionButton } from "../ui/ActionButton";
-import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { ConfirmDialog } from "@packages/ui";
 
 /**
  * @component SecurityTab

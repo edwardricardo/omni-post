@@ -12,12 +12,23 @@ import { useRouter, useParams } from "next/navigation";
 import { usePost, useProjects, useProviders } from "@/lib/api/hooks";
 import { apiClient } from "@/lib/api/client";
 import { ClientContentEditor } from "@/components/editor/ClientContentEditor";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
-import { Button } from "@packages/ui";
-import { Input } from "@packages/ui";
-import { Label } from "@packages/ui";
-import { Badge } from "@packages/ui";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@packages/ui";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Button,
+  Input,
+  Label,
+  Badge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  toast,
+} from "@packages/ui";
 import { ArrowLeft, Save, Send, Calendar, BarChart3, Clock } from "lucide-react";
 import { format } from "date-fns";
 
@@ -72,37 +83,41 @@ export default function EditPostPage() {
     setIsPublishing(true);
     try {
       await apiClient.publishPost(postId);
-      alert("Post published successfully!");
+      toast({ title: "Post published" });
       refetch();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to publish post.");
+      const message = error instanceof Error ? error.message : "Failed to publish post.";
+      toast({ title: "Publish failed", description: message, variant: "destructive" });
     } finally {
       setIsPublishing(false);
     }
   }, [postId, refetch]);
 
-  // C9 & C11: Schedule or reschedule post
   const handleSchedulePost = useCallback(async () => {
     if (!scheduleDate) {
-      alert("Please select a date and time.");
+      toast({
+        title: "Date required",
+        description: "Please select a date and time.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsScheduling(true);
     try {
       await apiClient.schedulePost(postId, new Date(scheduleDate).toISOString());
-      alert("Post scheduled successfully!");
+      toast({ title: "Post scheduled" });
       setShowScheduleDialog(false);
       setScheduleDate("");
       refetch();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to schedule post.");
+      const message = error instanceof Error ? error.message : "Failed to schedule post.";
+      toast({ title: "Schedule failed", description: message, variant: "destructive" });
     } finally {
       setIsScheduling(false);
     }
   }, [postId, scheduleDate, refetch]);
 
-  // C10: Save changes
   const handleSaveChanges = useCallback(async () => {
     if (!post) return;
 
@@ -119,10 +134,11 @@ export default function EditPostPage() {
         ...(post.title && { title: post.title }),
         ...(post.body && { body: post.body }),
       });
-      alert("Changes saved successfully!");
+      toast({ title: "Changes saved" });
       refetch();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to save changes.");
+      const message = error instanceof Error ? error.message : "Failed to save changes.";
+      toast({ title: "Save failed", description: message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }

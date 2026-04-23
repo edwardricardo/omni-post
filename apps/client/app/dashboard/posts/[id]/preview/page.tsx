@@ -12,9 +12,16 @@ import { useRouter, useParams } from "next/navigation";
 import { usePost } from "@/lib/api/hooks";
 import { apiClient } from "@/lib/api/client";
 import { PlatformPreview } from "@/components/editor/PlatformPreview";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
-import { Button } from "@packages/ui";
-import { Badge } from "@packages/ui";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Button,
+  Badge,
+  toast,
+} from "@packages/ui";
 import { ArrowLeft, Edit, Send, Calendar, Share2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth/authContext";
@@ -46,10 +53,11 @@ export default function PreviewPostPage() {
     setIsPublishing(true);
     try {
       await apiClient.publishPost(postId);
-      alert("Post published successfully!");
+      toast({ title: "Post published" });
       refetch();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to publish post.");
+      const message = error instanceof Error ? error.message : "Failed to publish post.";
+      toast({ title: "Publish failed", description: message, variant: "destructive" });
     } finally {
       setIsPublishing(false);
     }
@@ -61,26 +69,34 @@ export default function PreviewPostPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      alert("Failed to copy link to clipboard.");
+      toast({
+        title: "Copy failed",
+        description: "Failed to copy link to clipboard.",
+        variant: "destructive",
+      });
     }
   }, []);
 
-  // C12: Schedule post from preview
   const handleSchedulePost = useCallback(async () => {
     if (!scheduleDate) {
-      alert("Please select a date and time.");
+      toast({
+        title: "Date required",
+        description: "Please select a date and time.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsScheduling(true);
     try {
       await apiClient.schedulePost(postId, new Date(scheduleDate).toISOString());
-      alert("Post scheduled successfully!");
+      toast({ title: "Post scheduled" });
       setShowScheduleDialog(false);
       setScheduleDate("");
       refetch();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to schedule post.");
+      const message = error instanceof Error ? error.message : "Failed to schedule post.";
+      toast({ title: "Schedule failed", description: message, variant: "destructive" });
     } finally {
       setIsScheduling(false);
     }

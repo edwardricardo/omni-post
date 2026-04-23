@@ -7,7 +7,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Button, Input } from "@packages/ui";
+import { Button, Input, toast } from "@packages/ui";
 import { Upload, Search, Loader2 } from "lucide-react";
 import { FolderSidebar } from "@/components/assets/FolderSidebar";
 import { AssetGrid } from "@/components/assets/AssetGrid";
@@ -42,7 +42,7 @@ export default function AssetsPage() {
       setUploadKey((prev) => prev + 1);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Upload failed";
-      alert(`Upload failed: ${msg}`);
+      toast({ title: "Upload failed", description: msg, variant: "destructive" });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

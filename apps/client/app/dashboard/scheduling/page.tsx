@@ -3,18 +3,27 @@
  * @component SchedulingPage
  * @description Scheduling page with tabbed views for calendar, multi-platform, bulk scheduling,
  * optimal times, and rules. Integrates multiple scheduling components driven by the active project.
+ * @layer infrastructure
  */
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
+import { toast, InputDialog } from "@packages/ui";
 import { SchedulingDashboard } from "@/components/scheduling";
-import { MultiPlatformScheduler } from "@/components/scheduling/MultiPlatformSchedulerRefactored";
+import { MultiPlatformScheduler } from "@/components/scheduling/MultiPlatformScheduler";
 import { BulkScheduleView } from "@/components/scheduling/views/BulkScheduleView";
 import { OptimalTimesView } from "@/components/scheduling/views/OptimalTimesView";
 import { RulesView } from "@/components/scheduling/views/RulesView";
 import { useProject } from "@/providers/ProjectProvider";
-import type { OptimalTime, SchedulingRule } from "@/types/multi-platform-scheduling";
+import {
+  useOptimalTimes,
+  useSchedulingRules,
+  useBulkCreateSchedules,
+  useCreateSchedulingRule,
+  useUpdateSchedulingRule,
+  useToggleSchedulingRule,
+} from "@/hooks/api/useMultiPlatformScheduling";
 
 type TabId = "calendar" | "multi-platform" | "bulk" | "optimal" | "rules";
 
@@ -31,63 +40,32 @@ const TABS: Tab[] = [
   { id: "rules", label: "Rules" },
 ];
 
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
 export default function SchedulingPage() {
   const { projectId, accountId } = useProject();
   const [activeTab, setActiveTab] = useState<TabId>("calendar");
-  const [optimalTimes, setOptimalTimes] = useState<OptimalTime[]>([]);
-  const [rules, setRules] = useState<SchedulingRule[]>([]);
+  const [addRuleOpen, setAddRuleOpen] = useState(false);
+  const [addRulePlatformsOpen, setAddRulePlatformsOpen] = useState(false);
+  const [pendingRuleName, setPendingRuleName] = useState<string | null>(null);
+  const [editRuleTarget, setEditRuleTarget] = useState<string | null>(null);
 
-  // C7: Fetch optimal times when the tab is active
-  useEffect(() => {
-    if (activeTab !== "optimal") return;
-    let cancelled = false;
+  const { data: optimalTimes = [] } = useOptimalTimes({ projectId });
+  const { data: rules = [] } = useSchedulingRules({ projectId });
 
-    (async () => {
-      try {
-        const res = await fetch("/api/backend/analytics/optimal-times", {
-          credentials: "include",
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && Array.isArray(data?.data)) {
-          setOptimalTimes(data.data);
-        }
-      } catch {
-        // Silently fail — empty state is shown
-      }
-    })();
+  const bulkCreateMutation = useBulkCreateSchedules();
+  const createRuleMutation = useCreateSchedulingRule();
+  const updateRuleMutation = useUpdateSchedulingRule();
+  const toggleRuleMutation = useToggleSchedulingRule();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab]);
-
-  // Fetch rules when the rules tab is active
-  useEffect(() => {
-    if (activeTab !== "rules") return;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const res = await fetch("/api/backend/scheduling/slots", {
-          credentials: "include",
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && Array.isArray(data?.data)) {
-          setRules(data.data);
-        }
-      } catch {
-        // Silently fail — empty state is shown
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab]);
-
-  // C6: Bulk schedule handler
   const handleBulkSchedule = useCallback(
     async (
       contents: string[],
@@ -96,123 +74,130 @@ export default function SchedulingPage() {
       frequency: "daily" | "weekly" | "monthly",
       interval: number
     ) => {
-      try {
-        const res = await fetch("/api/backend/scheduling/slots/bulk", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            contents,
-            providers,
-            startDate: startDate.toISOString(),
-            frequency,
-            interval,
-          }),
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ message: "Request failed" }));
-          alert(`Bulk schedule failed: ${errorData.message || res.statusText}`);
-          return;
+      const slotInputs = contents.map((_, index) => {
+        const scheduleDate = new Date(startDate);
+        switch (frequency) {
+          case "daily":
+            scheduleDate.setDate(startDate.getDate() + index * interval);
+            break;
+          case "weekly":
+            scheduleDate.setDate(startDate.getDate() + index * interval * 7);
+            break;
+          case "monthly":
+            scheduleDate.setMonth(startDate.getMonth() + index * interval);
+            break;
         }
+        return {
+          dayOfWeek: scheduleDate.getDay(),
+          hour: scheduleDate.getHours(),
+          minute: scheduleDate.getMinutes(),
+          providers,
+        };
+      });
 
-        alert("Bulk schedule created successfully!");
+      try {
+        const created = await bulkCreateMutation.mutateAsync({
+          projectId,
+          slots: slotInputs,
+        });
+        toast({
+          title: "Bulk schedule created",
+          description: `${created.length} slot${created.length === 1 ? "" : "s"} scheduled.`,
+        });
       } catch (error) {
-        alert(error instanceof Error ? error.message : "Failed to create bulk schedule.");
+        const message = error instanceof Error ? error.message : "Failed to create bulk schedule.";
+        toast({ title: "Bulk schedule failed", description: message, variant: "destructive" });
       }
     },
-    []
+    [bulkCreateMutation, projectId]
   );
 
-  // C7: Schedule at optimal time handler
   const handleScheduleAtTime = useCallback((dayOfWeek: number, hour: number) => {
-    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const dayName = dayNames[dayOfWeek] || "Unknown";
-    alert(
-      `Selected optimal time: ${dayName} at ${hour}:00.\nNavigate to a post to schedule it at this time.`
-    );
+    const dayName = DAY_NAMES[dayOfWeek] ?? "Unknown";
+    toast({
+      title: "Optimal time selected",
+      description: `${dayName} at ${hour}:00. Open a post to schedule it at this time.`,
+    });
   }, []);
 
-  // C8: Add rule handler
-  const handleAddRule = useCallback(async () => {
-    const name = prompt("Enter rule name:");
-    if (!name) return;
+  const handleAddRuleName = useCallback((name: string) => {
+    setPendingRuleName(name);
+    setAddRuleOpen(false);
+    setAddRulePlatformsOpen(true);
+  }, []);
 
-    const platforms = prompt("Enter platforms (comma-separated, e.g. x,instagram,facebook):");
-    if (!platforms) return;
-
-    try {
-      const res = await fetch("/api/backend/scheduling/slots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          name,
-          platforms: platforms.split(",").map((p) => p.trim()),
-          isActive: true,
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: "Request failed" }));
-        alert(`Failed to add rule: ${errorData.message || res.statusText}`);
+  const handleAddRulePlatforms = useCallback(
+    async (raw: string) => {
+      if (!pendingRuleName) return;
+      const providers = raw
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean);
+      if (providers.length === 0) {
+        toast({
+          title: "Rule not created",
+          description: "At least one platform is required.",
+          variant: "destructive",
+        });
+        setAddRulePlatformsOpen(false);
+        setPendingRuleName(null);
         return;
       }
-
-      alert("Rule created successfully!");
-      // Refresh rules
-      setActiveTab("rules");
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to add rule.");
-    }
-  }, []);
-
-  // C8: Edit rule handler
-  const handleEditRule = useCallback(async (ruleId: string) => {
-    const name = prompt("Enter new rule name:");
-    if (!name) return;
-
-    try {
-      const res = await fetch(`/api/backend/scheduling/slots/${ruleId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: "Request failed" }));
-        alert(`Failed to edit rule: ${errorData.message || res.statusText}`);
-        return;
+      try {
+        await createRuleMutation.mutateAsync({
+          projectId,
+          name: pendingRuleName,
+          providers,
+          active: true,
+        });
+        toast({ title: "Rule created", description: pendingRuleName });
+        setActiveTab("rules");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to add rule.";
+        toast({ title: "Rule creation failed", description: message, variant: "destructive" });
+      } finally {
+        setAddRulePlatformsOpen(false);
+        setPendingRuleName(null);
       }
+    },
+    [createRuleMutation, pendingRuleName, projectId]
+  );
 
-      alert("Rule updated successfully!");
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to edit rule.");
-    }
+  const handleAddRule = useCallback(() => {
+    setAddRuleOpen(true);
   }, []);
 
-  // C8: Toggle rule handler
-  const handleToggleRule = useCallback(async (ruleId: string, active: boolean) => {
-    try {
-      const res = await fetch(`/api/backend/scheduling/slots/${ruleId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ isActive: active }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: "Request failed" }));
-        alert(`Failed to toggle rule: ${errorData.message || res.statusText}`);
-        return;
+  const handleEditRuleName = useCallback(
+    async (name: string) => {
+      if (!editRuleTarget) return;
+      try {
+        await updateRuleMutation.mutateAsync({ ruleId: editRuleTarget, name });
+        toast({ title: "Rule updated", description: name });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to edit rule.";
+        toast({ title: "Rule update failed", description: message, variant: "destructive" });
+      } finally {
+        setEditRuleTarget(null);
       }
+    },
+    [editRuleTarget, updateRuleMutation]
+  );
 
-      setRules((prev) => prev.map((r) => (r.id === ruleId ? { ...r, isActive: active } : r)));
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to toggle rule.");
-    }
+  const handleEditRule = useCallback((ruleId: string) => {
+    setEditRuleTarget(ruleId);
   }, []);
+
+  const handleToggleRule = useCallback(
+    async (ruleId: string, active: boolean) => {
+      try {
+        await toggleRuleMutation.mutateAsync({ ruleId, active });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to toggle rule.";
+        toast({ title: "Toggle failed", description: message, variant: "destructive" });
+      }
+    },
+    [toggleRuleMutation]
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -241,7 +226,7 @@ export default function SchedulingPage() {
       {/* Recurring posts shortcut */}
       <div className="border-b border-gray-100 bg-gray-50 px-6 py-2 text-right">
         <Link
-          href="/scheduling/recurring"
+          href="/dashboard/scheduling/recurring"
           className="text-sm font-medium text-blue-600 hover:text-blue-700"
         >
           Publicaciones recurrentes →
@@ -255,18 +240,10 @@ export default function SchedulingPage() {
             <SchedulingDashboard
               projectId={projectId}
               accountId={accountId}
-              onPostScheduled={(_post) => {
-                // Success toast pending UI notification package
-              }}
-              onPostUpdated={(_post) => {
-                // Success toast pending UI notification package
-              }}
-              onPostCancelled={(_postId) => {
-                // Success toast pending UI notification package
-              }}
-              onError={(_error) => {
-                // Error toast pending UI notification package
-              }}
+              onPostScheduled={(_post) => {}}
+              onPostUpdated={(_post) => {}}
+              onPostCancelled={(_postId) => {}}
+              onError={(_error) => {}}
             />
           </div>
         )}
@@ -281,9 +258,7 @@ export default function SchedulingPage() {
             <MultiPlatformScheduler
               projectId={projectId}
               accountId={accountId}
-              onScheduleCreated={(_schedule) => {
-                // Success toast pending UI notification package
-              }}
+              onScheduleCreated={(_schedule) => {}}
             />
           </div>
         )}
@@ -311,6 +286,45 @@ export default function SchedulingPage() {
           </div>
         )}
       </div>
+
+      {/* Dialogs */}
+      <InputDialog
+        open={addRuleOpen}
+        onOpenChange={setAddRuleOpen}
+        title="New scheduling rule"
+        description="Name this rule so you can identify it in the list."
+        inputLabel="Rule name"
+        inputPlaceholder="e.g. Weekday morning posts"
+        confirmLabel="Next"
+        onConfirm={handleAddRuleName}
+      />
+      <InputDialog
+        open={addRulePlatformsOpen}
+        onOpenChange={(open) => {
+          setAddRulePlatformsOpen(open);
+          if (!open) setPendingRuleName(null);
+        }}
+        title="Platforms for this rule"
+        description="Comma-separated list of platform identifiers."
+        inputLabel="Platforms"
+        inputPlaceholder="x,instagram,facebook"
+        confirmLabel="Create rule"
+        loading={createRuleMutation.isPending}
+        onConfirm={handleAddRulePlatforms}
+      />
+      <InputDialog
+        open={editRuleTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditRuleTarget(null);
+        }}
+        title="Rename rule"
+        description="Enter a new name for this scheduling rule."
+        inputLabel="New rule name"
+        inputPlaceholder="Updated rule name"
+        confirmLabel="Save"
+        loading={updateRuleMutation.isPending}
+        onConfirm={handleEditRuleName}
+      />
     </div>
   );
 }

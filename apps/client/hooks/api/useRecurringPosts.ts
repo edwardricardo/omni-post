@@ -79,3 +79,93 @@ export function useDeactivateRecurringPost() {
     },
   });
 }
+
+export interface RecurringPostInput {
+  projectId: string;
+  name: string;
+  cronExpression: string;
+  timezone: string;
+  channels: string[];
+  contentVariation: RecurringPost["contentVariation"];
+  maxOccurrences?: number;
+  endDate?: string;
+}
+
+async function parseApiError(response: Response, fallback: string): Promise<string> {
+  const err = (await response.json().catch(() => ({ error: fallback }))) as {
+    error?: string;
+  };
+  return err.error ?? fallback;
+}
+
+/**
+ * @hook useCreateRecurringPost
+ * @description Mutation hook for creating a new recurring post schedule.
+ * @returns TanStack Query mutation that invalidates the recurring posts list on success
+ */
+export function useCreateRecurringPost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: RecurringPostInput): Promise<RecurringPost> => {
+      const response = await fetch("/api/backend/recurring-posts", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Failed to create recurring post"));
+      }
+      const data = (await response.json()) as {
+        ok: boolean;
+        value?: RecurringPost;
+        error?: string;
+      };
+      if (!data.ok || !data.value) throw new Error(data.error ?? "API error");
+      return data.value;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["recurring-posts"] });
+    },
+  });
+}
+
+/**
+ * @hook useUpdateRecurringPost
+ * @description Mutation hook for updating an existing recurring post schedule.
+ * @returns TanStack Query mutation that invalidates the recurring posts list on success
+ */
+export function useUpdateRecurringPost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: RecurringPostInput;
+    }): Promise<RecurringPost> => {
+      const response = await fetch(`/api/backend/recurring-posts/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Failed to update recurring post"));
+      }
+      const data = (await response.json()) as {
+        ok: boolean;
+        value?: RecurringPost;
+        error?: string;
+      };
+      if (!data.ok || !data.value) throw new Error(data.error ?? "API error");
+      return data.value;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["recurring-posts"] });
+    },
+  });
+}

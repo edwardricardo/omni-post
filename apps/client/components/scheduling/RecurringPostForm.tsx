@@ -9,10 +9,16 @@
 
 import { useState, useCallback, useId } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "@packages/ui";
 import { useProject } from "@/providers/ProjectProvider";
 import { useChannels } from "@/hooks/api/useChannels";
 import { RecurrenceSelector } from "./RecurrenceSelector";
-import type { RecurringPost } from "@/hooks/api/useRecurringPosts";
+import {
+  useCreateRecurringPost,
+  useUpdateRecurringPost,
+  type RecurringPost,
+  type RecurringPostInput,
+} from "@/hooks/api/useRecurringPosts";
 
 interface RecurringPostFormProps {
   /** Existing post for edit mode; undefined = create mode */
@@ -43,6 +49,8 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
   const router = useRouter();
   const { projectId } = useProject();
   const { data: channels = [] } = useChannels();
+  const createMutation = useCreateRecurringPost();
+  const updateMutation = useUpdateRecurringPost();
 
   const [name, setName] = useState(existing?.name ?? "");
   const [cronExpression, setCronExpression] = useState(existing?.cronExpression ?? "0 9 * * *");
@@ -57,8 +65,9 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
     existing?.maxOccurrences?.toString() ?? ""
   );
   const [endDate, setEndDate] = useState(existing?.endDate ? existing.endDate.slice(0, 10) : "");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const nameId = useId();
   const timezoneId = useId();
@@ -89,43 +98,34 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
     e.preventDefault();
     if (!validate() || !projectId) return;
 
-    setIsSubmitting(true);
+    const input: RecurringPostInput = {
+      projectId,
+      name: name.trim(),
+      cronExpression,
+      timezone,
+      channels: selectedChannels,
+      contentVariation,
+      ...(maxOccurrences && { maxOccurrences: parseInt(maxOccurrences, 10) }),
+      ...(endDate && { endDate: new Date(endDate).toISOString() }),
+    };
+
     try {
-      const body: Record<string, unknown> = {
-        projectId,
-        name: name.trim(),
-        cronExpression,
-        timezone,
-        channels: selectedChannels,
-        contentVariation,
-        ...(maxOccurrences && { maxOccurrences: parseInt(maxOccurrences, 10) }),
-        ...(endDate && { endDate: new Date(endDate).toISOString() }),
-      };
-
-      const url = existing
-        ? `/api/backend/recurring-posts/${existing.id}`
-        : "/api/backend/recurring-posts";
-      const method = existing ? "PATCH" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const data = (await response.json().catch(() => ({ error: "Error desconocido" }))) as {
-          error?: string;
-        };
-        setErrors({ submit: data.error ?? "Error al guardar" });
-        return;
+      if (existing) {
+        await updateMutation.mutateAsync({ id: existing.id, input });
+        toast({ title: "Cambios guardados", description: name.trim() });
+      } else {
+        await createMutation.mutateAsync(input);
+        toast({ title: "Publicación recurrente creada", description: name.trim() });
       }
-
-      router.push("/scheduling/recurring");
-    } catch (_err) {
-      setErrors({ submit: "Error de conexión. Intenta de nuevo." });
-    } finally {
-      setIsSubmitting(false);
+      router.push("/dashboard/scheduling/recurring");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error al guardar";
+      setErrors({ submit: message });
+      toast({
+        title: existing ? "No se pudo guardar" : "No se pudo crear",
+        description: message,
+        variant: "destructive",
+      });
     }
   }
 
@@ -275,7 +275,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
       <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
         <button
           type="button"
-          onClick={() => router.push("/scheduling/recurring")}
+          onClick={() => router.push("/dashboard/scheduling/recurring")}
           className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Cancelar

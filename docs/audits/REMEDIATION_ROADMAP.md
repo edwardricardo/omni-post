@@ -709,26 +709,51 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 ---
 
-#### T2-E — Path/nav corrections ⚡
+#### T2-E — Path/nav corrections ⚡ ✅ 2026-04-23
 
-**Scope.** Fix de paths cross-app y rename de "Refactored" suffix.
+**Scope real.** Fix de paths cross-app + rename "Refactored" suffix + migración de `prompt/alert/confirm` a Dialog/toast + raw fetch → TanStack hooks. Auditoría extendida reveló scope 5× mayor al roadmap.
 
-**Findings table (4):**
+**Investigación previa (fuentes citadas):**
 
-| L-#  | Título corto                                                | Esfuerzo | Acción   | §5.9 | Notas                      |
-| ---- | ----------------------------------------------------------- | -------- | -------- | ---- | -------------------------- |
-| L-84 | Notifications target `/admin/*` en client app               | QUICK    | FIX      | AUTO | NotificationItem/Bell path |
-| L-91 | MultiPlatformSchedulerRefactored orphan "Refactored" suffix | TRIVIAL  | REFACTOR | AUTO | Rename                     |
-| L-92 | RecurringPostForm raw fetch + orphan path                   | QUICK    | FIX      | AUTO |                            |
-| L-93 | scheduling/page.tsx raw fetches + prompt/alert              | MEDIUM   | REFACTOR | AUTO | TanStack + toast + modal   |
+- Next.js useRouter (v15/v16): https://nextjs.org/docs/app/api-reference/functions/use-router — _"Use the `<Link>` component for navigation unless you have a specific requirement for using `useRouter`"_. `router.push` se reserva para nav programática post-mutación; `window.location.href` es el canon para redirects externos.
+- React declarative UI: https://react.dev/learn/managing-state — construir componentes modales con state-driven UI, NO usar `prompt/alert/confirm` nativos.
+- WAI-ARIA APG Modal Dialog: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/ — `role="dialog"` + `aria-modal="true"` + `aria-labelledby`, Escape, focus trap, focus return. Radix Dialog primitive cumple out-of-the-box.
+
+**Findings table (4 documentados + descubiertos):**
+
+| L-#   | Título corto                                                      | Real scope                                                                         | §5.9 |
+| ----- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---- |
+| L-84  | Notifications target `/admin/*` en client app                     | 2 archivos, 4 paths                                                                | AUTO |
+| L-91  | MultiPlatformSchedulerRefactored orphan "Refactored" suffix       | 1 rename + 1 importer                                                              | AUTO |
+| L-92  | RecurringPostForm raw fetch + orphan path                         | 7 sitios + hook migration                                                          | AUTO |
+| L-93  | scheduling/page.tsx raw fetches + prompt/alert                    | page.tsx + MultiPlatformScheduler (L-90 cross-ref)                                 | AUTO |
+| L-215 | `useCheckout`/`useBillingPortal` window.location.href (cross-ref) | FALSO POSITIVO — redirects externos legítimos a Stripe/OAuth (documentado en PR-9) | —    |
+
+**Extensión del patrón** (aplicando regla "extender búsqueda más allá del roadmap"):
+
+- posts pages: 14 alerts, 1 confirm (3 archivos)
+- channels / assets / repurpose / stories: 6 alerts/confirms + 2 raw fetch
+- editor / analytics / AI misc: TipTapEditor (prompt muerto eliminado), SchedulePicker (alert), ScheduledReportsList (confirm), PromptTemplateManager (confirm), useFileUpload (confirm — refactor a `confirmVideoSplit` callback con `ConfirmDialog` en StoriesEditor)
+
+**Infra compartida creada:** movidos `ConfirmDialog.tsx` e `InputDialog.tsx` de `apps/admin/components/ui/` a `packages/ui/src/components/` para reuso cross-app. Actualizados 7 archivos admin importadores.
+
+**Archivos nuevos:** `apps/client/hooks/api/useRecurringPosts.ts` extendido con `useCreateRecurringPost`/`useUpdateRecurringPost`. `apps/client/hooks/api/useMultiPlatformScheduling.ts` extendido con `useCreateSchedulingRule`/`useUpdateSchedulingRule`/`useToggleSchedulingRule`.
 
 **Entry criteria.** Ninguno.
 
-**Exit criteria:** visual review + tests.
+**Exit criteria alcanzados:**
 
-**Estimación.** 1-1.5 h.
+- 0 alert/prompt/confirm residuales en apps/client (excepto `.test.` y `.stories.`) ✅
+- 0 `/admin/*` paths residuales en apps/client ✅
+- 0 `/scheduling` sin prefix `/dashboard/` residuales ✅
+- 0 fitness violations ✅
+- Lint 0 errors ✅
+- Turbo test 37/37 ✅
+- Build 9/9 ✅
 
-**Dependencias.** ⚡ PARALELIZABLE.
+**Estimación.** 1-1.5 h (real: ~5 h por scope real 5× mayor al roadmap).
+
+**Dependencias.** ⚡ PARALELIZABLE. Documenta PR-8 (endpoint `/slots` vs `/rules`) y PR-9 (L-215 false positive) en POST_REMEDIATION_BACKLOG.md.
 
 ---
 

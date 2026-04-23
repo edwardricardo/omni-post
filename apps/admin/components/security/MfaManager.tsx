@@ -16,7 +16,7 @@ import { getErrorMessage } from "@/lib/parseApiError";
 import { api } from "../../lib/apiClient";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import { ActionButton } from "../ui/ActionButton";
-import { InputDialog } from "../ui/InputDialog";
+import { InputDialog } from "@packages/ui";
 import { Badge } from "../ui/Badge";
 
 interface User {

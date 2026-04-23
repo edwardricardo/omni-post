@@ -47,7 +47,7 @@ export function RecurringPostsList({ projectId }: RecurringPostsListProps) {
       <div className="rounded-lg border-2 border-dashed border-gray-200 py-16 text-center">
         <p className="text-gray-500">No hay publicaciones recurrentes configuradas.</p>
         <Link
-          href="/scheduling/recurring/new"
+          href="/dashboard/scheduling/recurring/new"
           className="mt-3 inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
           Crear primera publicación recurrente

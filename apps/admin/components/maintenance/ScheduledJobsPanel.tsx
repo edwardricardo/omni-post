@@ -15,7 +15,7 @@ import { useCurrentUser } from "@/providers/AuthProvider";
 import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ConfirmDialog } from "@packages/ui";
 
 interface LastRunInfo {
   timestamp: string;

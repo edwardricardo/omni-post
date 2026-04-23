@@ -1,12 +1,14 @@
 /**
- * @file ConfirmDialog.tsx
- * @description Reusable confirm/cancel dialog built on AlertDialog from @packages/ui.
+ * @file confirm-dialog.tsx
+ * @description Reusable confirm/cancel dialog built on AlertDialog.
  * Replaces native browser confirmation dialogs with an accessible, styled modal.
+ * Shared across admin and client apps via `@packages/ui`.
  * @layer infrastructure
  */
 
 "use client";
 
+import type { ReactNode } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +18,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@packages/ui";
+} from "./alert-dialog";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -24,10 +26,11 @@ interface ConfirmDialogProps {
   title: string;
   description: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   variant?: "default" | "danger";
   onConfirm: () => void | Promise<void>;
   loading?: boolean;
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
 /**
@@ -44,6 +47,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
   variant = "default",
   onConfirm,
   loading = false,
@@ -61,7 +65,7 @@ export function ConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}

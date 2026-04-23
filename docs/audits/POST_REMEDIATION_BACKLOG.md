@@ -384,6 +384,81 @@ Post-roadmap (fuera del alcance de los Tiers T0-T6). Cuando se ejecute el batch 
 
 ---
 
+### PR-8 — Scheduling rules endpoint discrepancy (`/slots` vs `/rules`)
+
+**Fecha de aplicación:** 2026-04-23
+**Batch de origen:** T2-E (Path/nav corrections)
+**Severidad del bug pre-existente:** medio — dos componentes del mismo dominio usan endpoints backend distintos para la misma entidad conceptual.
+**Tipo:** code (endpoint routing)
+
+**Fix paliativo aplicado.**
+
+Durante T2-E migré dos componentes de scheduling a hooks TanStack + Dialogs:
+
+- `apps/client/app/dashboard/scheduling/page.tsx` usa los endpoints `/api/backend/scheduling/slots` (GET/POST/PATCH) para manipular "rules" — pre-existente, se mantuvo.
+- `apps/client/components/scheduling/MultiPlatformScheduler.tsx` usa `/api/backend/scheduling/rules` (GET/POST/PATCH + `/:id/toggle`) — pre-existente, se mantuvo.
+
+Los nuevos hooks `useCreateSchedulingRule` / `useUpdateSchedulingRule` / `useToggleSchedulingRule` en `apps/client/hooks/api/useMultiPlatformScheduling.ts` apuntan al endpoint `/rules` (el que MultiPlatformScheduler ya usaba). `scheduling/page.tsx` refactorizó su handler para usar su Dialog + toast pero mantuvo el llamado a `/slots`.
+
+**Root cause real.**
+
+El backend tiene dos rutas distintas para lo que semánticamente parece ser la misma entidad: "scheduling rules":
+
+- `apps/api/src/**/schedulingRoutes.ts` (o equivalente) expone tanto `/slots` como `/rules`.
+- No está documentado cuál es el canónico ni cuál se considera deprecado.
+- Posible escenario: evolución del esquema en que "slots" fue renombrado a "rules" pero la ruta antigua nunca se eliminó, y page.tsx fue escrito antes del rename.
+
+**Fix definitivo recomendado.**
+
+Batch dedicado (sugerido `T4-M` o futuro tier):
+
+1. Auditar backend: identificar controller/route que maneja cada path; verificar si el schema/tabla es la misma.
+2. Decidir endpoint canónico (probablemente `/rules` por semántica; `/slots` sugiere "slot" como unidad de tiempo, no como regla).
+3. Migrar todos los consumidores al endpoint canónico (incluye `scheduling/page.tsx`).
+4. Deprecar la ruta duplicada con un 301 a la canónica por ~1 release; luego remover.
+5. Documentar en OpenAPI el endpoint canónico y la razón del rename.
+
+Estimación: 3-4 horas (audit backend + migrar ~5 call sites + deprecation path + docs).
+
+**Cuándo revisar.**
+
+Post-roadmap o en un batch T4 dedicado a backend consolidation. No bloquea T2-E porque ambos endpoints funcionan en producción hoy (cada componente llama al suyo). Riesgo real: usuarios pueden ver comportamiento inconsistente entre las dos tabs (Multi-Platform Scheduler vs Rules tab del schedule page) si el backend trata `/slots` y `/rules` como tablas separadas.
+
+**Estado:** APLICADO (documentado — ningún componente cambia de endpoint en T2-E).
+
+---
+
+### PR-9 — `window.location.href` en Stripe checkout / OAuth redirects (L-215 false positive)
+
+**Fecha de aplicación:** 2026-04-23 (documentación)
+**Batch de origen:** T2-E (Path/nav corrections) — durante re-audit del patrón nav
+**Severidad del bug pre-existente:** N/A — no es bug
+**Tipo:** docs (aclaración de falso positivo del roadmap)
+
+**Descubrimiento.**
+
+El roadmap (línea 3311) lista **L-215 — `useCheckout`/`useBillingPortal` window.location.href** como hallazgo de T2-E ("path/nav corrections"). La extensión de búsqueda durante T2-E encontró 3 usos de `window.location.href =` en el client:
+
+- `apps/client/hooks/api/useBilling.ts:198` — redirect a Stripe Checkout hosted URL
+- `apps/client/hooks/api/useBilling.ts:226` — redirect a Stripe Billing Portal hosted URL
+- `apps/client/components/settings/crm/CrmConnectionCard.tsx:49` — redirect a provider OAuth authorization URL
+
+**Los 3 son correctos.** `next/navigation`'s `router.push` solo navega dentro de la app Next.js (client-side, same-origin). Para redirigir a un dominio externo (Stripe, OAuth provider), el único método soportado es `window.location.href = externalUrl` (o equivalentemente `window.location.assign()`). El MDN docs confirma: _"Assigning a value to location.href makes the browser navigate to the new URL"_.
+
+Usar `router.push` con una URL de otro origen produce el error: _"The `href` prop must point to a path starting with "/" or a valid external URL_.
+
+**Conclusión.**
+
+L-215 es un **falso positivo** del audit original. Los tres usos son canon para redirects externos. No se toca ningún archivo.
+
+**Cuándo revisar.**
+
+N/A — cerrado como WONT_FIX documentado. Si un lector futuro del roadmap cuestiona L-215, esta entrada explica la razón.
+
+**Estado:** WONT_FIX (falso positivo — uso correcto para redirects externos).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

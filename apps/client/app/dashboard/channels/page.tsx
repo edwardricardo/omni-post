@@ -6,6 +6,7 @@
 "use client";
 
 import { useState, useId } from "react";
+import { ConfirmDialog, toast } from "@packages/ui";
 import { useChannels, useProviders, useDisconnectChannel } from "@/hooks/api/useChannels";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -121,13 +122,22 @@ function ChannelsPageContent() {
     }
   };
 
-  const handleDisconnectChannel = async (channelId: string) => {
-    if (confirm("Are you sure you want to disconnect this channel?")) {
-      try {
-        await disconnectChannelMutation.mutateAsync(channelId);
-      } catch {
-        // Error already handled by mutation onError callback
-      }
+  const [disconnectTarget, setDisconnectTarget] = useState<string | null>(null);
+
+  const handleDisconnectChannel = (channelId: string) => {
+    setDisconnectTarget(channelId);
+  };
+
+  const handleConfirmDisconnect = async () => {
+    if (!disconnectTarget) return;
+    try {
+      await disconnectChannelMutation.mutateAsync(disconnectTarget);
+      toast({ title: "Channel disconnected" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to disconnect channel.";
+      toast({ title: "Disconnect failed", description: message, variant: "destructive" });
+    } finally {
+      setDisconnectTarget(null);
     }
   };
 
@@ -690,6 +700,19 @@ function ChannelsPageContent() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={disconnectTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDisconnectTarget(null);
+        }}
+        title="Disconnect channel?"
+        description="Are you sure you want to disconnect this channel? Future posts will fail until reconnected."
+        confirmLabel="Disconnect"
+        variant="danger"
+        onConfirm={handleConfirmDisconnect}
+        loading={disconnectChannelMutation.isPending}
+      />
     </div>
   );
 }

@@ -223,7 +223,7 @@ export function NotificationBell() {
           {/* Footer */}
           <div className="border-t border-gray-100 px-4 py-2 text-center">
             <Link
-              href="/admin/settings/notifications"
+              href="/dashboard/settings/notifications"
               className="text-xs text-gray-500 hover:text-gray-700"
               onClick={() => setOpen(false)}
             >
