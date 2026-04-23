@@ -5,7 +5,7 @@
  * text overlays, stickers, link stickers, and video split configuration.
  */
 
-import React from "react";
+import React, { useId } from "react";
 import { StoryContent, VideoSplitOptions } from "./types";
 
 interface StoryEditorControlsProps {
@@ -23,13 +23,21 @@ export function StoryEditorControls({
   onUpdateStory,
   onUpdateVideoSplitOptions,
 }: StoryEditorControlsProps) {
+  const storyTextId = useId();
+  const durationId = useId();
+  const segmentLengthId = useId();
+  const qualityId = useId();
+
   return (
     <div className="bg-white border-t p-6">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Text Editor */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Story Text</label>
+          <label htmlFor={storyTextId} className="block text-sm font-medium text-gray-700 mb-2">
+            Story Text
+          </label>
           <textarea
+            id={storyTextId}
             value={story.text || ""}
             onChange={(e) =>
               onUpdateStory(storyIndex, {
@@ -44,10 +52,11 @@ export function StoryEditorControls({
 
         {/* Duration Control */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor={durationId} className="block text-sm font-medium text-gray-700 mb-2">
             Display Duration: {story.duration}s
           </label>
           <input
+            id={durationId}
             type="range"
             min="3"
             max="15"
@@ -64,7 +73,7 @@ export function StoryEditorControls({
         {/* Background Controls (for text stories) */}
         {!story.media.url && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Background</label>
+            <span className="block text-sm font-medium text-gray-700 mb-2">Background</span>
             <div className="grid grid-cols-4 gap-2">
               {[
                 "linear-gradient(45deg, #667eea 0%, #764ba2 100%)",
@@ -90,13 +99,16 @@ export function StoryEditorControls({
         {/* Video Split Options (for videos) */}
         {story.media.type === "video" && story.media.duration && story.media.duration > 15 && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <span className="block text-sm font-medium text-gray-700 mb-2">
               Video Split Options
-            </label>
+            </span>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Segment Length</label>
+                <label htmlFor={segmentLengthId} className="block text-xs text-gray-600 mb-1">
+                  Segment Length
+                </label>
                 <select
+                  id={segmentLengthId}
                   value={videoSplitOptions.segmentLength}
                   onChange={(e) =>
                     onUpdateVideoSplitOptions({
@@ -111,8 +123,11 @@ export function StoryEditorControls({
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Quality</label>
+                <label htmlFor={qualityId} className="block text-xs text-gray-600 mb-1">
+                  Quality
+                </label>
                 <select
+                  id={qualityId}
                   value={videoSplitOptions.quality}
                   onChange={(e) =>
                     onUpdateVideoSplitOptions({

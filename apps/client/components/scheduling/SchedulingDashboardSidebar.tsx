@@ -144,7 +144,7 @@ export function SchedulingDashboardSidebar({
         <div className="space-y-4">
           {/* Platform Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Platforms</label>
+            <span className="block text-sm font-medium text-gray-700 mb-2">Platforms</span>
             <div className="space-y-1">
               {["instagram", "facebook", "x"].map((platform) => (
                 <label key={platform} className="flex items-center">
@@ -169,7 +169,7 @@ export function SchedulingDashboardSidebar({
 
           {/* Content Type Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Content Type</label>
+            <span className="block text-sm font-medium text-gray-700 mb-2">Content Type</span>
             <div className="space-y-1">
               {(["FEED", "STORIES", "REELS", "CAROUSEL"] as const).map((type) => (
                 <label key={type} className="flex items-center">
@@ -196,7 +196,7 @@ export function SchedulingDashboardSidebar({
 
           {/* Status Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <span className="block text-sm font-medium text-gray-700 mb-2">Status</span>
             <div className="space-y-1">
               {["scheduled", "publishing", "published", "failed", "cancelled"].map((status) => (
                 <label key={status} className="flex items-center">

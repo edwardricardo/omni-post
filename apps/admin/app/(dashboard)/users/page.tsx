@@ -531,9 +531,9 @@ function AdminUsersContent() {
             <DialogDescription>{tu("tempPasswordDesc")}</DialogDescription>
           </DialogHeader>
           <div className="mt-2">
-            <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+            <span className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
               {tu("tempPassword")}
-            </label>
+            </span>
             <div className="flex items-center gap-2">
               <code className="flex-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 font-mono text-sm text-[var(--text-primary)] select-all">
                 {tempPassword}

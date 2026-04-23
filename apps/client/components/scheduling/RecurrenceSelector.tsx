@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useId } from "react";
 
 type RecurrenceType = "daily" | "weekly" | "monthly" | "custom";
 
@@ -58,6 +58,8 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
   const [weekDays, setWeekDays] = useState<number[]>([1]); // Monday
   const [monthDay, setMonthDay] = useState(1);
   const [custom, setCustom] = useState(value || "0 9 * * *");
+
+  const monthDayId = useId();
 
   const emit = useCallback(
     (t: RecurrenceType, h: number, m: number, wd: number[], md: number, c: string) => {
@@ -126,8 +128,9 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
       {/* Time picker (shared by daily/weekly/monthly) */}
       {type !== "custom" && (
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Hora:</label>
+          <span className="text-sm text-gray-600">Hora:</span>
           <select
+            aria-label="Hora"
             value={hour}
             onChange={(e) => handleHourChange(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-sm"
@@ -140,6 +143,7 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
           </select>
           <span className="text-gray-500">:</span>
           <select
+            aria-label="Minuto"
             value={minute}
             onChange={(e) => handleMinuteChange(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-sm"
@@ -176,8 +180,11 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
       {/* Monthly: day of month */}
       {type === "monthly" && (
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Día del mes:</label>
+          <label htmlFor={monthDayId} className="text-sm text-gray-600">
+            Día del mes:
+          </label>
           <select
+            id={monthDayId}
             value={monthDay}
             onChange={(e) => handleMonthDayChange(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-sm"

@@ -361,29 +361,29 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                             <div className="space-y-4">
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                  <label className="text-sm font-medium">
+                                  <span className="text-sm font-medium">
                                     {te("details.provider")}
-                                  </label>
+                                  </span>
                                   <p>{getProviderBadge(selectedEvent.provider)}</p>
                                 </div>
                                 <div>
-                                  <label className="text-sm font-medium">
+                                  <span className="text-sm font-medium">
                                     {te("details.status")}
-                                  </label>
+                                  </span>
                                   <p>{getStatusBadge(selectedEvent.status)}</p>
                                 </div>
                                 <div>
-                                  <label className="text-sm font-medium">
+                                  <span className="text-sm font-medium">
                                     {te("details.eventType")}
-                                  </label>
+                                  </span>
                                   <p className="text-sm">
                                     {formatEventType(selectedEvent.eventType)}
                                   </p>
                                 </div>
                                 <div>
-                                  <label className="text-sm font-medium">
+                                  <span className="text-sm font-medium">
                                     {te("details.verified")}
-                                  </label>
+                                  </span>
                                   <p className="text-sm">
                                     {selectedEvent.verified ? (
                                       <Badge variant="success">{te("details.verified")}</Badge>
@@ -396,9 +396,9 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
 
                               {selectedEvent.lastError && (
                                 <div>
-                                  <label className="text-sm font-medium text-[var(--error)]">
+                                  <span className="text-sm font-medium text-[var(--error)]">
                                     {te("details.lastError")}
-                                  </label>
+                                  </span>
                                   <p className="text-sm bg-[var(--error-subtle)] p-2 rounded-sm border">
                                     {selectedEvent.lastError}
                                   </p>
@@ -407,25 +407,23 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
 
                               <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
-                                  <label className="font-medium">{te("details.receivedAt")}</label>
+                                  <span className="font-medium">{te("details.receivedAt")}</span>
                                   <p>{new Date(selectedEvent.receivedAt).toLocaleString()}</p>
                                 </div>
                                 {selectedEvent.processedAt && (
                                   <div>
-                                    <label className="font-medium">
-                                      {te("details.processedAt")}
-                                    </label>
+                                    <span className="font-medium">{te("details.processedAt")}</span>
                                     <p>{new Date(selectedEvent.processedAt).toLocaleString()}</p>
                                   </div>
                                 )}
                                 {selectedEvent.nextRetryAt && (
                                   <div>
-                                    <label className="font-medium">{te("details.nextRetry")}</label>
+                                    <span className="font-medium">{te("details.nextRetry")}</span>
                                     <p>{new Date(selectedEvent.nextRetryAt).toLocaleString()}</p>
                                   </div>
                                 )}
                                 <div>
-                                  <label className="font-medium">{te("details.retryCount")}</label>
+                                  <span className="font-medium">{te("details.retryCount")}</span>
                                   <p>{selectedEvent.retryCount}</p>
                                 </div>
                               </div>
@@ -434,9 +432,9 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                                 selectedEvent.postId ||
                                 selectedEvent.channelId) && (
                                 <div>
-                                  <label className="text-sm font-medium">
+                                  <span className="text-sm font-medium">
                                     {te("details.relatedEntities")}
-                                  </label>
+                                  </span>
                                   <div className="text-sm space-y-1">
                                     {selectedEvent.projectId && (
                                       <p>

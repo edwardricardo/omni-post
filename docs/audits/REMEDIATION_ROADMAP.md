@@ -647,9 +647,16 @@ grep -rn "catch" apps/api/src/ apps/admin/src/ apps/client/src/ --include="*.ts"
 
 ---
 
-#### T2-D — HTML/a11y labels ⚡
+#### T2-D — HTML/a11y labels ⚡ ✅ 2026-04-23
 
-**Scope.** Labels con `htmlFor` missing composite.
+**Scope real.** Labels a11y composite — auditoría reveló ~190 occurrences (vs 6 que mencionaba el roadmap). Descompuesto en 3 categorías con remedios distintos:
+
+- **Categoría A (semantic misuse, ~33 casos):** `<label>` usado como heading visual sobre datos display → convertido a `<span>`.
+- **Categoría B (orphan form labels, ~48 casos):** `<label>` sin `htmlFor` precediendo a `<input>`/`<select>`/`<textarea>` → `useId()` + `htmlFor` + `id` matching.
+- **Casos ambiguous (16 casos):** `<label>` como heading de grupos de checkboxes/radios → convertido a `<span>`. El fix canonical `<fieldset><legend>` queda como follow-up futuro.
+- **Valid implicit association (23 casos):** `<label>` envolviendo `<input>` como hijo directo — patrón HTML válido, NO requiere `htmlFor`. No tocados.
+
+Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (18 archivos incluyendo `packages/ui/src/components/business/VersionFilterBar.tsx`).
 
 **Findings table (1):**
 
@@ -659,9 +666,14 @@ grep -rn "catch" apps/api/src/ apps/admin/src/ apps/client/src/ --include="*.ts"
 
 **Entry criteria.** Ninguno.
 
-**Exit criteria:** manual a11y audit pass.
+**Exit criteria alcanzados:**
 
-**Estimación.** 1 h.
+- 0 labels orphan (verificación: `node` AST audit) ✅
+- Lint 0 errors ✅
+- Turbo test 37/37 ✅
+- Build 9/9 ✅
+
+**Estimación.** 1 h (real: ~3 h por scope real 32× mayor al roadmap).
 
 **Dependencias.** ⚡ PARALELIZABLE.
 

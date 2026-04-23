@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useId } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 import { ActionButton } from "@/components/ui/ActionButton";
@@ -32,6 +32,8 @@ export function GdprSettingsForm() {
 
   const [form, setForm] = useState<Partial<GdprSettings>>({});
   const [dirty, setDirty] = useState(false);
+
+  const jurisdictionId = useId();
 
   useEffect(() => {
     if (data) {
@@ -188,10 +190,14 @@ export function GdprSettingsForm() {
 
       {/* Jurisdiction */}
       <div>
-        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+        <label
+          htmlFor={jurisdictionId}
+          className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+        >
           {t("defaultJurisdiction")}
         </label>
         <select
+          id={jurisdictionId}
           value={form.defaultJurisdiction ?? "GDPR"}
           onChange={(e) => updateField("defaultJurisdiction", e.target.value)}
           className="h-8 w-full max-w-xs rounded border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
@@ -264,10 +270,17 @@ function FieldInput({
   type?: string;
   placeholder?: string;
 }) {
+  const inputId = useId();
   return (
     <div>
-      <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">{label}</label>
+      <label
+        htmlFor={inputId}
+        className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+      >
+        {label}
+      </label>
       <input
+        id={inputId}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}

@@ -9,7 +9,7 @@
  * @layer infrastructure
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useId } from "react";
 import { useBrandVoice, useUpsertBrandVoice, useDeleteBrandVoice } from "@/hooks/api/useBrandVoice";
 
 const TONE_OPTIONS = [
@@ -41,6 +41,10 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
   const [examples, setExamples] = useState<string[]>(["", "", ""]);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  const nameId = useId();
+  const systemPromptId = useId();
+  const examplesIdPrefix = useId();
 
   useEffect(() => {
     if (existing) {
@@ -133,10 +137,11 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
 
       {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={nameId} className="block text-sm font-medium text-gray-700 mb-1">
           Profile Name <span className="text-red-500">*</span>
         </label>
         <input
+          id={nameId}
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -148,7 +153,7 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
 
       {/* System Prompt */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={systemPromptId} className="block text-sm font-medium text-gray-700 mb-1">
           System Prompt <span className="text-red-500">*</span>
         </label>
         <p className="text-xs text-gray-500 mb-2">
@@ -156,6 +161,7 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
           AI generation call.
         </p>
         <textarea
+          id={systemPromptId}
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
           placeholder={`Example: "You are a social media writer for a B2B SaaS company. Write in a professional yet approachable tone. Avoid jargon. Focus on value and outcomes. Use active voice. Keep sentences concise."`}
@@ -174,7 +180,7 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
 
       {/* Tone Chips */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Tone</label>
+        <span className="block text-sm font-medium text-gray-700 mb-2">Tone</span>
         <div className="flex flex-wrap gap-2">
           {TONE_OPTIONS.map((tone) => (
             <button
@@ -195,23 +201,28 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
 
       {/* Example Posts */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <span className="block text-sm font-medium text-gray-700 mb-1">
           Example Posts <span className="text-gray-400 font-normal">(optional, up to 3)</span>
-        </label>
+        </span>
         <p className="text-xs text-gray-500 mb-2">
           Paste examples of posts that represent your ideal brand voice. Used as reference by AI.
         </p>
         <div className="space-y-3">
-          {examples.map((example, index) => (
-            <textarea
-              key={index}
-              value={example}
-              onChange={(e) => handleExampleChange(index, e.target.value)}
-              placeholder={`Example post ${index + 1}...`}
-              rows={3}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            />
-          ))}
+          {examples.map((example, index) => {
+            const exampleId = `${examplesIdPrefix}-${index}`;
+            return (
+              <textarea
+                key={index}
+                id={exampleId}
+                aria-label={`Example post ${index + 1}`}
+                value={example}
+                onChange={(e) => handleExampleChange(index, e.target.value)}
+                placeholder={`Example post ${index + 1}...`}
+                rows={3}
+                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            );
+          })}
         </div>
       </div>
 

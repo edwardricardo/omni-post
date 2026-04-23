@@ -7,7 +7,7 @@
  * configure split options, preview individual segments, and apply the split before upload.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useId } from "react";
 import {
   VideoSegment,
   VideoSplitOptions,
@@ -45,6 +45,11 @@ export function VideoSplitPreview({
   const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  const segmentLengthId = useId();
+  const maxSegmentsId = useId();
+  const qualityId = useId();
+  const aspectRatioId = useId();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -345,10 +350,14 @@ export function VideoSplitPreview({
 
             {/* Segment Length */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor={segmentLengthId}
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Segment Length: {splitOptions.segmentLength}s
               </label>
               <input
+                id={segmentLengthId}
                 type="range"
                 min="5"
                 max="15"
@@ -365,10 +374,14 @@ export function VideoSplitPreview({
 
             {/* Max Segments */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor={maxSegmentsId}
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Max Segments: {splitOptions.maxSegments}
               </label>
               <input
+                id={maxSegmentsId}
                 type="range"
                 min="1"
                 max="50"
@@ -384,8 +397,11 @@ export function VideoSplitPreview({
 
             {/* Quality */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Quality</label>
+              <label htmlFor={qualityId} className="block text-sm font-medium text-gray-700 mb-2">
+                Quality
+              </label>
               <select
+                id={qualityId}
                 value={splitOptions.quality}
                 onChange={(e) => handleQualityChange(e.target.value as "low" | "medium" | "high")}
                 className="w-full px-3 py-2 border rounded-lg"
@@ -398,8 +414,14 @@ export function VideoSplitPreview({
 
             {/* Aspect Ratio */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Aspect Ratio</label>
+              <label
+                htmlFor={aspectRatioId}
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Aspect Ratio
+              </label>
               <select
+                id={aspectRatioId}
                 value={splitOptions.aspectRatio}
                 onChange={(e) =>
                   onOptionsChange({

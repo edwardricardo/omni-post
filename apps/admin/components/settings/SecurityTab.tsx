@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useId } from "react";
 import { useTranslations } from "next-intl";
 import { ShieldAlert } from "lucide-react";
 import { toast } from "@packages/ui";
@@ -26,6 +26,7 @@ export function SecurityTab() {
   const rotateMutation = useRotateEncryption();
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const noteInputId = useId();
 
   const handleRotate = useCallback(async () => {
     try {
@@ -65,10 +66,14 @@ export function SecurityTab() {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+        <label
+          htmlFor={noteInputId}
+          className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+        >
           {t("noteLabel")}
         </label>
         <input
+          id={noteInputId}
           type="text"
           value={note}
           onChange={(e) => setNote(e.target.value)}

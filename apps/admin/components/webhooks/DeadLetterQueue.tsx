@@ -413,31 +413,31 @@ export function DeadLetterQueue() {
                               <div className="space-y-6">
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="text-sm font-medium">
+                                    <span className="text-sm font-medium">
                                       {td("details.provider")}
-                                    </label>
+                                    </span>
                                     <p>{getProviderBadge(selectedEvent.provider)}</p>
                                   </div>
                                   <div>
-                                    <label className="text-sm font-medium">
+                                    <span className="text-sm font-medium">
                                       {td("details.eventType")}
-                                    </label>
+                                    </span>
                                     <p className="text-sm">
                                       {formatEventType(selectedEvent.eventType)}
                                     </p>
                                   </div>
                                   <div>
-                                    <label className="text-sm font-medium">
+                                    <span className="text-sm font-medium">
                                       {td("details.retryCount")}
-                                    </label>
+                                    </span>
                                     <p className="text-sm">
                                       {td("details.attempts", { count: selectedEvent.retryCount })}
                                     </p>
                                   </div>
                                   <div>
-                                    <label className="text-sm font-medium">
+                                    <span className="text-sm font-medium">
                                       {td("details.status")}
-                                    </label>
+                                    </span>
                                     <p className="text-sm">
                                       {selectedEvent.resolvedAt ? (
                                         <Badge variant="success">{td("resolved")}</Badge>
@@ -449,18 +449,18 @@ export function DeadLetterQueue() {
                                 </div>
 
                                 <div>
-                                  <label className="text-sm font-medium text-[var(--error)]">
+                                  <span className="text-sm font-medium text-[var(--error)]">
                                     {td("details.failureReason")}
-                                  </label>
+                                  </span>
                                   <p className="text-sm bg-[var(--error-subtle)] p-3 rounded-sm border text-[var(--error)]">
                                     {selectedEvent.failureReason}
                                   </p>
                                 </div>
 
                                 <div>
-                                  <label className="text-sm font-medium text-[var(--error)]">
+                                  <span className="text-sm font-medium text-[var(--error)]">
                                     {td("details.finalError")}
-                                  </label>
+                                  </span>
                                   <pre className="text-xs bg-[var(--error-subtle)] p-3 rounded-sm border text-[var(--error)] overflow-x-auto">
                                     {selectedEvent.finalError}
                                   </pre>
@@ -468,30 +468,28 @@ export function DeadLetterQueue() {
 
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div>
-                                    <label className="font-medium">
+                                    <span className="font-medium">
                                       {td("details.firstFailedAt")}
-                                    </label>
+                                    </span>
                                     <p>{new Date(selectedEvent.firstFailedAt).toLocaleString()}</p>
                                   </div>
                                   <div>
-                                    <label className="font-medium">
-                                      {td("details.lastRetryAt")}
-                                    </label>
+                                    <span className="font-medium">{td("details.lastRetryAt")}</span>
                                     <p>{new Date(selectedEvent.lastRetryAt).toLocaleString()}</p>
                                   </div>
                                   {selectedEvent.resolvedAt && (
                                     <>
                                       <div>
-                                        <label className="font-medium">
+                                        <span className="font-medium">
                                           {td("details.resolvedAt")}
-                                        </label>
+                                        </span>
                                         <p>{new Date(selectedEvent.resolvedAt).toLocaleString()}</p>
                                       </div>
                                       {selectedEvent.resolvedBy && (
                                         <div>
-                                          <label className="font-medium">
+                                          <span className="font-medium">
                                             {td("details.resolvedBy")}
-                                          </label>
+                                          </span>
                                           <p>{selectedEvent.resolvedBy}</p>
                                         </div>
                                       )}
@@ -500,18 +498,18 @@ export function DeadLetterQueue() {
                                 </div>
 
                                 <div>
-                                  <label className="text-sm font-medium">
+                                  <span className="text-sm font-medium">
                                     {td("details.requestHeaders")}
-                                  </label>
+                                  </span>
                                   <pre className="text-xs bg-[var(--bg-elevated)] p-3 rounded-sm border overflow-x-auto">
                                     {JSON.stringify(selectedEvent.headers, null, 2)}
                                   </pre>
                                 </div>
 
                                 <div>
-                                  <label className="text-sm font-medium">
+                                  <span className="text-sm font-medium">
                                     {td("details.payload")}
-                                  </label>
+                                  </span>
                                   <pre className="text-xs bg-[var(--bg-elevated)] p-3 rounded-sm border overflow-x-auto max-h-64">
                                     {JSON.stringify(selectedEvent.payload, null, 2)}
                                   </pre>

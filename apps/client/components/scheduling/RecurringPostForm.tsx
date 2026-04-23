@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useId } from "react";
 import { useRouter } from "next/navigation";
 import { useProject } from "@/providers/ProjectProvider";
 import { useChannels } from "@/hooks/api/useChannels";
@@ -59,6 +59,11 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
   const [endDate, setEndDate] = useState(existing?.endDate ? existing.endDate.slice(0, 10) : "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const nameId = useId();
+  const timezoneId = useId();
+  const maxOccurrencesId = useId();
+  const endDateId = useId();
 
   const handleCronChange = useCallback((cron: string) => {
     setCronExpression(cron);
@@ -127,10 +132,11 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-gray-700">
+        <label htmlFor={nameId} className="block text-sm font-medium text-gray-700">
           Nombre <span className="text-red-500">*</span>
         </label>
         <input
+          id={nameId}
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -142,17 +148,20 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
 
       {/* Recurrence */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <span className="block text-sm font-medium text-gray-700 mb-2">
           Recurrencia <span className="text-red-500">*</span>
-        </label>
+        </span>
         <RecurrenceSelector value={cronExpression} onChange={handleCronChange} />
         {errors.cron && <p className="mt-1 text-xs text-red-600">{errors.cron}</p>}
       </div>
 
       {/* Timezone */}
       <div>
-        <label className="block text-sm font-medium text-gray-700">Zona horaria</label>
+        <label htmlFor={timezoneId} className="block text-sm font-medium text-gray-700">
+          Zona horaria
+        </label>
         <select
+          id={timezoneId}
           value={timezone}
           onChange={(e) => setTimezone(e.target.value)}
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -167,9 +176,9 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
 
       {/* Channels */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <span className="block text-sm font-medium text-gray-700 mb-2">
           Canales <span className="text-red-500">*</span>
-        </label>
+        </span>
         {channels.length === 0 ? (
           <p className="text-sm text-gray-500">No hay canales conectados.</p>
         ) : (
@@ -201,9 +210,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
 
       {/* Content variation */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Variación de contenido
-        </label>
+        <span className="block text-sm font-medium text-gray-700 mb-2">Variación de contenido</span>
         <div className="space-y-2">
           {CONTENT_VARIATION_OPTIONS.map((opt) => (
             <label key={opt.value} className="flex cursor-pointer items-start gap-3">
@@ -227,8 +234,11 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
       {/* Optional limits */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Máximo de ocurrencias</label>
+          <label htmlFor={maxOccurrencesId} className="block text-sm font-medium text-gray-700">
+            Máximo de ocurrencias
+          </label>
           <input
+            id={maxOccurrencesId}
             type="number"
             min="1"
             value={maxOccurrences}
@@ -238,8 +248,11 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Fecha de fin</label>
+          <label htmlFor={endDateId} className="block text-sm font-medium text-gray-700">
+            Fecha de fin
+          </label>
           <input
+            id={endDateId}
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}

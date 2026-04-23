@@ -5,7 +5,7 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import { useChannels, useProviders, useDisconnectChannel } from "@/hooks/api/useChannels";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -65,6 +65,8 @@ function ChannelsPageContent() {
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [blueskyHandle, setBlueskyHandle] = useState("");
   const [blueskyAppPassword, setBlueskyAppPassword] = useState("");
+  const blueskyHandleId = useId();
+  const blueskyAppPasswordId = useId();
   const [blueskyConnecting, setBlueskyConnecting] = useState(false);
   const [blueskyError, setBlueskyError] = useState<string | null>(null);
 
@@ -596,8 +598,14 @@ function ChannelsPageContent() {
                       </p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Handle</label>
+                      <label
+                        htmlFor={blueskyHandleId}
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Handle
+                      </label>
                       <input
+                        id={blueskyHandleId}
                         type="text"
                         value={blueskyHandle}
                         onChange={(e) => setBlueskyHandle(e.target.value)}
@@ -606,10 +614,14 @@ function ChannelsPageContent() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor={blueskyAppPasswordId}
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         App Password
                       </label>
                       <input
+                        id={blueskyAppPasswordId}
                         type="password"
                         value={blueskyAppPassword}
                         onChange={(e) => setBlueskyAppPassword(e.target.value)}

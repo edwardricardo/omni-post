@@ -224,7 +224,7 @@ function CreateTemplateForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Platforms *</label>
+        <span className="block text-sm font-medium text-gray-700 mb-2">Platforms *</span>
         <div className="flex flex-wrap gap-2">
           {AVAILABLE_PLATFORMS.map((p) => (
             <label key={p} className="flex items-center gap-1.5 cursor-pointer">

@@ -134,7 +134,7 @@ export function BulkScheduleView({ onBulkSchedule, projectId, timezone }: BulkSc
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Platforms</label>
+              <span className="block text-sm font-medium text-gray-700 mb-2">Platforms</span>
               <div className="flex flex-wrap gap-3">
                 {["x", "instagram", "facebook", "linkedin"].map((provider) => (
                   <label key={provider} className="flex items-center cursor-pointer">

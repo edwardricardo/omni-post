@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useId } from "react";
 import { useTranslations } from "next-intl";
 import {
   toast,
@@ -75,6 +75,9 @@ export function DsarTable() {
     id: "",
   });
   const [rejectReason, setRejectReason] = useState("");
+
+  const exportUrlId = useId();
+  const rejectReasonId = useId();
 
   const handleAcknowledge = useCallback(
     async (id: string) => {
@@ -258,10 +261,14 @@ export function DsarTable() {
             <DialogTitle className="text-[var(--text-primary)]">{t("complete")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <label className="block text-xs font-medium text-[var(--text-secondary)]">
+            <label
+              htmlFor={exportUrlId}
+              className="block text-xs font-medium text-[var(--text-secondary)]"
+            >
               {t("exportUrl")}
             </label>
             <input
+              id={exportUrlId}
               type="url"
               value={exportUrl}
               onChange={(e) => setExportUrl(e.target.value)}
@@ -304,10 +311,14 @@ export function DsarTable() {
             <DialogTitle className="text-[var(--text-primary)]">{t("reject")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <label className="block text-xs font-medium text-[var(--text-secondary)]">
+            <label
+              htmlFor={rejectReasonId}
+              className="block text-xs font-medium text-[var(--text-secondary)]"
+            >
               {t("rejectReason")}
             </label>
             <textarea
+              id={rejectReasonId}
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               rows={3}
