@@ -64,7 +64,7 @@ const BASE = "/api/backend/ai-templates";
 
 async function fetchTemplates(accountId?: string): Promise<AIPromptTemplateDto[]> {
   const url = accountId ? `${BASE}?accountId=${accountId}` : BASE;
-  const res = await fetch(url);
+  const res = await fetch(url, { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch templates");
   const json = (await res.json()) as { ok: boolean; data?: AIPromptTemplateDto[] };
   return json.data ?? [];
@@ -73,6 +73,7 @@ async function fetchTemplates(accountId?: string): Promise<AIPromptTemplateDto[]
 async function createTemplate(input: CreateTemplateInput): Promise<{ id: string }> {
   const res = await fetch(BASE, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
@@ -88,6 +89,7 @@ async function updateTemplate(input: UpdateTemplateInput): Promise<AIPromptTempl
   const { templateId, ...body } = input;
   const res = await fetch(`${BASE}/${templateId}`, {
     method: "PATCH",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -103,6 +105,7 @@ async function updateTemplate(input: UpdateTemplateInput): Promise<AIPromptTempl
 async function deleteTemplate(templateId: string, accountId: string): Promise<void> {
   const res = await fetch(`${BASE}/${templateId}?accountId=${accountId}`, {
     method: "DELETE",
+    credentials: "include",
   });
   if (!res.ok) {
     const err = (await res.json()) as { message?: string };

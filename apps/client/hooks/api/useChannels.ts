@@ -53,7 +53,7 @@ export function useChannels() {
   return useQuery({
     queryKey: ["channels", "list"],
     queryFn: async () => {
-      const response = await fetch("/api/channels", {
+      const response = await fetch("/api/backend/channels", {
         credentials: "include",
       });
 
@@ -77,7 +77,7 @@ export function useProviders() {
   return useQuery({
     queryKey: ["providers", "list"],
     queryFn: async () => {
-      const response = await fetch("/api/providers", {
+      const response = await fetch("/api/backend/providers", {
         credentials: "include",
       });
 
@@ -102,7 +102,7 @@ export function useDisconnectChannel() {
 
   return useMutation({
     mutationFn: async (channelId: string) => {
-      const response = await fetch(`/api/channels/${channelId}`, {
+      const response = await fetch(`/api/backend/channels/${channelId}`, {
         method: "DELETE",
         credentials: "include",
       });

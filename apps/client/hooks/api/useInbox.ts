@@ -84,7 +84,10 @@ async function fetchConversations(
   if (cursor) params.set("cursor", cursor);
   params.set("limit", "20");
 
-  const res = await fetch(`/api/backend/inbox?${params.toString()}`, { cache: "no-store" });
+  const res = await fetch(`/api/backend/inbox?${params.toString()}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch inbox");
   const data = (await res.json()) as { ok: boolean; value?: PagedResult<ConversationListItem> };
   return data.ok && data.value ? data.value : { items: [], nextCursor: null };
@@ -99,6 +102,7 @@ async function fetchMentions(
   if (projectId) params.set("projectId", projectId);
 
   const res = await fetch(`/api/backend/inbox/mentions?${params.toString()}`, {
+    credentials: "include",
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch mentions");
@@ -107,7 +111,10 @@ async function fetchMentions(
 }
 
 async function fetchConversation(id: string): Promise<Conversation> {
-  const res = await fetch(`/api/backend/inbox/conversations/${id}`, { cache: "no-store" });
+  const res = await fetch(`/api/backend/inbox/conversations/${id}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch conversation");
   const data = (await res.json()) as { ok: boolean; value?: Conversation };
   if (!data.ok || !data.value) throw new Error("Conversation not found");
@@ -123,7 +130,7 @@ async function fetchMessages(
 
   const res = await fetch(
     `/api/backend/inbox/conversations/${conversationId}/messages?${params.toString()}`,
-    { cache: "no-store" }
+    { credentials: "include", cache: "no-store" }
   );
   if (!res.ok) throw new Error("Failed to fetch messages");
   const data = (await res.json()) as { ok: boolean; value?: PagedResult<Message> };
@@ -133,6 +140,7 @@ async function fetchMessages(
 async function sendReply(messageId: string, body: string): Promise<Message> {
   const res = await fetch(`/api/backend/inbox/messages/${messageId}/reply`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ body }),
   });
@@ -145,6 +153,7 @@ async function sendReply(messageId: string, body: string): Promise<Message> {
 async function resolveConversation(conversationId: string, resolvedById: string): Promise<void> {
   const res = await fetch(`/api/backend/inbox/conversations/${conversationId}/resolve`, {
     method: "PATCH",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ resolvedById }),
   });
@@ -154,6 +163,7 @@ async function resolveConversation(conversationId: string, resolvedById: string)
 async function reopenConversation(conversationId: string): Promise<void> {
   const res = await fetch(`/api/backend/inbox/conversations/${conversationId}/reopen`, {
     method: "PATCH",
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to reopen conversation");
 }
@@ -161,6 +171,7 @@ async function reopenConversation(conversationId: string): Promise<void> {
 async function assignMessage(messageId: string, assigneeId: string): Promise<void> {
   const res = await fetch(`/api/backend/inbox/messages/${messageId}/assign`, {
     method: "PATCH",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ assigneeId }),
   });
@@ -168,7 +179,10 @@ async function assignMessage(messageId: string, assigneeId: string): Promise<voi
 }
 
 async function markMessageRead(messageId: string): Promise<void> {
-  await fetch(`/api/backend/inbox/messages/${messageId}/read`, { method: "PATCH" });
+  await fetch(`/api/backend/inbox/messages/${messageId}/read`, {
+    method: "PATCH",
+    credentials: "include",
+  });
 }
 
 // ---------------------------------------------------------------------------

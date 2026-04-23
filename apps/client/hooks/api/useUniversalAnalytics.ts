@@ -72,7 +72,9 @@ export function useUniversalAnalytics({
       params.set("projectId", projectId);
       params.set("timeRange", timeRange);
 
-      const res = await fetch(`/api/backend/dashboard?${params.toString()}`);
+      const res = await fetch(`/api/backend/dashboard?${params.toString()}`, {
+        credentials: "include",
+      });
 
       if (!res.ok) {
         throw new Error(`Failed to fetch analytics dashboard (HTTP ${res.status})`);

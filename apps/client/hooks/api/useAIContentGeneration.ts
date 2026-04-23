@@ -36,6 +36,7 @@ export function useAIContentGeneration() {
       try {
         const response = await fetch(`${API_URL}/ai/generate`, {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: [

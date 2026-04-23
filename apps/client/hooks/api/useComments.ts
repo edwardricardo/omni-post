@@ -27,7 +27,10 @@ export interface Comment {
 // ---------------------------------------------------------------------------
 
 async function fetchComments(postId: string): Promise<Comment[]> {
-  const res = await fetch(`/api/backend/posts/${postId}/comments`, { cache: "no-store" });
+  const res = await fetch(`/api/backend/posts/${postId}/comments`, {
+    credentials: "include",
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch comments");
   const data = (await res.json()) as { ok: boolean; value?: Comment[] };
   return data.ok && data.value ? data.value : [];
@@ -41,6 +44,7 @@ async function addComment(
 ): Promise<Comment> {
   const res = await fetch(`/api/backend/posts/${postId}/comments`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ authorId, body, ...(parentId ? { parentId } : {}) }),
   });

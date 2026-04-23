@@ -62,7 +62,7 @@ export function useContentLibrary({
       if (sortBy) params.set("sortBy", sortBy);
       if (sortDirection) params.set("sortDirection", sortDirection);
 
-      const res = await fetch(`/api/backend/posts?${params}`);
+      const res = await fetch(`/api/backend/posts?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch content library");
       const data = (await res.json()) as { ok: boolean; value: ListPostsResponse };
       return data.value;

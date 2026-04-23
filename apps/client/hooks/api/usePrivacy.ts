@@ -36,6 +36,7 @@ export function useSubmitDsarRequest() {
     mutationFn: async (data: DsarSubmitParams): Promise<DsarSubmitResult> => {
       const res = await fetch("/api/backend/compliance/dsar", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });

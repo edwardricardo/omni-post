@@ -562,7 +562,7 @@ grep -cE "retention-days" .github/workflows/*.yml   # → ≥1
 
 ---
 
-#### T2-A — Fetch paths inconsistentes (auth injection) 🔒
+#### T2-A — Fetch paths inconsistentes (auth injection) 🔒 ✅ 2026-04-22
 
 **Scope.** Hooks con fetches sin `credentials: 'include'` o con paths inconsistentes (no `/backend/` prefix). Fix mecánico pero precede cualquier refactor downstream.
 

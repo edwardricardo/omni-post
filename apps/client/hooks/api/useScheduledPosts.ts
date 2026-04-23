@@ -36,7 +36,9 @@ export function useScheduledPosts({
         ...(campaignId !== undefined && { campaignId }),
         ...(assigneeId !== undefined && { assigneeId }),
       });
-      const response = await fetch(`/api/backend/admin/posts/scheduled?${params}`);
+      const response = await fetch(`/api/backend/admin/posts/scheduled?${params}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch scheduled posts");
       const data = (await response.json()) as {
         ok: boolean;
@@ -62,6 +64,7 @@ export function useCancelScheduledPost() {
     mutationFn: async (postId: string): Promise<void> => {
       const response = await fetch(`/api/backend/admin/posts/${postId}/cancel`, {
         method: "POST",
+        credentials: "include",
       });
       if (!response.ok) {
         const err = (await response.json().catch(() => ({ error: "Failed to cancel" }))) as {

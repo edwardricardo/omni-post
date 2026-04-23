@@ -31,6 +31,7 @@ export interface ApprovalRequest {
 
 async function fetchPendingApprovals(reviewerId: string): Promise<ApprovalRequest[]> {
   const res = await fetch(`/api/backend/approvals/pending?reviewerId=${reviewerId}`, {
+    credentials: "include",
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch pending approvals");
@@ -45,6 +46,7 @@ async function submitForReview(
 ): Promise<{ approvalId: string }> {
   const res = await fetch(`/api/backend/posts/${postId}/submit-for-review`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ submitterId, ...(comment ? { comment } : {}) }),
   });
@@ -61,6 +63,7 @@ async function approvePost(
 ): Promise<void> {
   const res = await fetch(`/api/backend/approvals/${approvalId}/approve`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ reviewerId, ...(comment ? { comment } : {}) }),
   });
@@ -70,6 +73,7 @@ async function approvePost(
 async function rejectPost(approvalId: string, reviewerId: string, comment: string): Promise<void> {
   const res = await fetch(`/api/backend/approvals/${approvalId}/reject`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ reviewerId, comment }),
   });

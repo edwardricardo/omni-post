@@ -35,6 +35,7 @@ export interface CreateWebhookParams {
 
 async function fetchConfigs(projectId: string): Promise<ExternalNotificationConfig[]> {
   const res = await fetch(`/api/backend/external-notifications?projectId=${projectId}`, {
+    credentials: "include",
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch webhook configs");
@@ -45,6 +46,7 @@ async function fetchConfigs(projectId: string): Promise<ExternalNotificationConf
 async function createConfig(params: CreateWebhookParams): Promise<ExternalNotificationConfig> {
   const res = await fetch("/api/backend/external-notifications", {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
@@ -55,12 +57,18 @@ async function createConfig(params: CreateWebhookParams): Promise<ExternalNotifi
 }
 
 async function deleteConfig(id: string): Promise<void> {
-  const res = await fetch(`/api/backend/external-notifications/${id}`, { method: "DELETE" });
+  const res = await fetch(`/api/backend/external-notifications/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to delete webhook");
 }
 
 async function testConfig(id: string): Promise<{ sent: boolean }> {
-  const res = await fetch(`/api/backend/external-notifications/${id}/test`, { method: "POST" });
+  const res = await fetch(`/api/backend/external-notifications/${id}/test`, {
+    method: "POST",
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Test request failed");
   const data = (await res.json()) as { ok: boolean; value?: { sent: boolean } };
   return data.ok && data.value ? data.value : { sent: false };

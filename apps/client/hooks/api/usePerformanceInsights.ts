@@ -126,7 +126,9 @@ export function usePerformanceInsights(projectId: string) {
       const params = new URLSearchParams();
       if (projectId) params.set("projectId", projectId);
 
-      const res = await fetch(`/api/backend/admin/analytics/overview?${params.toString()}`);
+      const res = await fetch(`/api/backend/admin/analytics/overview?${params.toString()}`, {
+        credentials: "include",
+      });
 
       if (!res.ok) {
         throw new Error(`Failed to fetch performance insights (HTTP ${res.status})`);

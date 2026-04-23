@@ -98,8 +98,8 @@ export function useCompliance() {
     queryKey: ["compliance", "overview"],
     queryFn: async (): Promise<ComplianceData> => {
       const [metricsResponse, auditLogsResponse] = await Promise.all([
-        fetch("/api/backend/admin/compliance/metrics"),
-        fetch("/api/backend/admin/compliance/audit-logs"),
+        fetch("/api/backend/admin/compliance/metrics", { credentials: "include" }),
+        fetch("/api/backend/admin/compliance/audit-logs", { credentials: "include" }),
       ]);
 
       if (!metricsResponse.ok) {

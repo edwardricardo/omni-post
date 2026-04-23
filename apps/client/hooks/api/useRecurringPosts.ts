@@ -37,7 +37,9 @@ export function useRecurringPosts({ projectId }: UseRecurringPostsParams) {
       const params = new URLSearchParams({
         ...(projectId !== undefined && { projectId }),
       });
-      const response = await fetch(`/api/backend/recurring-posts?${params}`);
+      const response = await fetch(`/api/backend/recurring-posts?${params}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch recurring posts");
       const data = (await response.json()) as {
         ok: boolean;
@@ -63,6 +65,7 @@ export function useDeactivateRecurringPost() {
     mutationFn: async (id: string): Promise<void> => {
       const response = await fetch(`/api/backend/recurring-posts/${id}`, {
         method: "DELETE",
+        credentials: "include",
       });
       if (!response.ok) {
         const err = (await response.json().catch(() => ({ error: "Failed to deactivate" }))) as {

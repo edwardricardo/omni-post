@@ -155,6 +155,7 @@ export function useAvailablePlans() {
     queryKey: ["billing", "plans"],
     queryFn: async (): Promise<BillingPlan[]> => {
       const res = await fetch("/api/backend/billing/plans", {
+        credentials: "include",
         cache: "no-store",
       });
       if (!res.ok) throw new Error("Failed to fetch plans");
@@ -257,7 +258,7 @@ export function useMyInvoices(page = 1, limit = 10) {
   return useQuery({
     queryKey: ["billing", "invoices", page, limit],
     queryFn: async () => {
-      const res = await fetch(`/api/billing/invoices?page=${page}&limit=${limit}`, {
+      const res = await fetch(`/api/backend/billing/invoices?page=${page}&limit=${limit}`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch invoices");

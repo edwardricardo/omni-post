@@ -38,6 +38,7 @@ export interface GenerateImageParams {
 async function generateImage(params: GenerateImageParams): Promise<GeneratedImage> {
   const res = await fetch("/api/backend/ai/generate-image", {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
@@ -49,6 +50,7 @@ async function generateImage(params: GenerateImageParams): Promise<GeneratedImag
 
 async function fetchGeneratedImages(projectId: string): Promise<GeneratedImage[]> {
   const res = await fetch(`/api/backend/ai/generated-images?projectId=${projectId}`, {
+    credentials: "include",
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch generated images");
