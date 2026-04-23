@@ -591,7 +591,7 @@ grep -rn "'/api/" apps/admin/ apps/client/ --include="*.ts" --include="*.tsx" | 
 
 ---
 
-#### T2-B — ErrorBoundary + error.tsx leak ⚡
+#### T2-B — ErrorBoundary + error.tsx leak ⚡ ✅ 2026-04-23
 
 **Scope.** `error.tsx` / `global-error.tsx` / `ErrorBoundary` con `console.error` + raw `error.message` leak (security) + ARIA missing. Dos items dependen de T4-M (logger port) — por eso quedan marcados `PARTIAL T2-B, complete en T4-M`.
 

@@ -48,11 +48,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       if (this.props.fallback !== undefined) {
         return this.props.fallback;
       }
-      const message = this.state.error?.message || "Something went wrong";
+      // Never leak raw error.message to end users in production — attackers can
+      // use the shape/stack of internal errors for reconnaissance. In development
+      // show the real message to keep debugging friction low.
+      const isDev = process.env.NODE_ENV === "development";
+      const displayMessage =
+        isDev && this.state.error?.message
+          ? this.state.error.message
+          : "Something went wrong. Please try again or contact support.";
       return (
-        <div role="alert">
+        <div role="alert" aria-live="assertive">
           <h2>Error</h2>
-          <p>{message}</p>
+          <p>{displayMessage}</p>
         </div>
       );
     }

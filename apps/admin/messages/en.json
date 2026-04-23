@@ -105,6 +105,7 @@
   },
   "errorPage": {
     "title": "Something went wrong!",
+    "genericMessage": "An unexpected error occurred. Please try again or contact support.",
     "tryAgain": "Try again"
   },
   "notFound": {

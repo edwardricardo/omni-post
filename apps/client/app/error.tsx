@@ -25,10 +25,25 @@ export default function Error({
     });
   }, [error, logger]);
 
+  // Never leak raw error.message to end users in production — attackers can use
+  // stack trace / internal error shapes for reconnaissance. In development we
+  // show the real message to keep debugging friction low.
+  const isDev = process.env.NODE_ENV === "development";
+  const displayMessage = isDev
+    ? error.message || "An unexpected error occurred"
+    : "Something went wrong. Please try again or contact support.";
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center">
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="flex min-h-screen flex-col items-center justify-center"
+    >
       <h2 className="text-2xl font-bold mb-4">Something went wrong!</h2>
-      <p className="text-gray-600 mb-4">{error.message || "An unexpected error occurred"}</p>
+      <p className="text-gray-600 mb-4">{displayMessage}</p>
+      {!isDev && error.digest && (
+        <p className="text-sm text-gray-500 mb-4">Error ID: {error.digest}</p>
+      )}
       <button
         onClick={() => reset()}
         className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600"

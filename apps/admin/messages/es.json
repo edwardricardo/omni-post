@@ -105,6 +105,7 @@
   },
   "errorPage": {
     "title": "Algo salio mal",
+    "genericMessage": "Ocurrio un error inesperado. Intenta de nuevo o contacta a soporte.",
     "tryAgain": "Intentar de nuevo"
   },
   "notFound": {
