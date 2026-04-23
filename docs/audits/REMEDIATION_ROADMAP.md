@@ -490,7 +490,7 @@ grep -rn "@layer" apps/api/src/ --include="*.ts" | grep -v "@layer application\|
 
 ---
 
-#### T1-I — Config one-liners ⚡
+#### T1-I — Config one-liners ⚡ ✅ 2026-04-22
 
 **Scope.** Configs de una línea: workspaces dead, tsconfig drift, env hardcoded triviales.
 

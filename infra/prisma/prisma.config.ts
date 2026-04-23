@@ -9,11 +9,11 @@ export default defineConfig({
   schema: path.join(__dirname, "schema.prisma"),
   datasource: {
     url: env("DATABASE_URL"),
-    shadowDatabaseUrl:
-      env("SHADOW_DATABASE_URL") ??
-      "postgresql://postgres:password123@localhost:5432/omnipostdb_shadow",
+    // SHADOW_DATABASE_URL must be declared in .env — Prisma CLI requires it
+    // to diff migrations. No fallback: fail fast if the env is missing.
+    shadowDatabaseUrl: env("SHADOW_DATABASE_URL"),
   },
   migrations: {
-    seed: "npx tsx seed.ts",
+    seed: "pnpm exec tsx seed.ts",
   },
 });
