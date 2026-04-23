@@ -1,7 +1,7 @@
 /**
  * @file Pagination.tsx
  * @description Compact pagination bar with page navigation and per-page selector.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

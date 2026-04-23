@@ -1,3 +1,9 @@
+/**
+ * @file resilience.ts
+ * @description Queue resilience primitives — circuit breaker, exponential backoff retry wrapper,
+ *              and metrics collector used by the BullMQ adapter.
+ * @layer infrastructure
+ */
 import CircuitBreaker from "opossum";
 import type { Result as _Result } from "@shared/types";
 import { createLogger } from "@observability/logger";

@@ -3,7 +3,7 @@
  * @description Notification bell icon with unread badge, popover dropdown listing recent
  *              notifications, and "Mark all read" action. Integrates with the Zustand
  *              notification store and TanStack Query for server state.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

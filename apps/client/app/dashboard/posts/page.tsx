@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file page.tsx
+ * @description Posts list page with search, filter, sort, and bulk-action controls for the
+ *              client dashboard.
+ * @component PostsListPage
+ * @layer infrastructure
+ */
 import React, { useState, Suspense, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useDeletePost } from "@/lib/api/hooks";

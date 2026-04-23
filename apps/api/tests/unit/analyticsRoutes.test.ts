@@ -8,7 +8,7 @@
  *   GET /api/admin/compliance/metrics
  *   GET /api/admin/compliance/audit-logs
  *   GET /api/admin/compliance/gdpr
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

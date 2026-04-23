@@ -3,7 +3,7 @@
  * @description Vitest configuration for apps/api unit tests.
  *              Covers tests/unit/** only — integration and flow tests remain
  *              on node:test via scripts/run-tests.sh.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 import { defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";

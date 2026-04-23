@@ -1,7 +1,7 @@
 /**
  * @file CreateCampaignModal.tsx
  * @description Modal for creating new campaigns with UTM parameters.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

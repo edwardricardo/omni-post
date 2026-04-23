@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Analytics dashboard page with high-level business, operational, and growth
  *   metrics. Uses CSS design tokens and reusable UI components.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

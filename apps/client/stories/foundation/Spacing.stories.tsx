@@ -1,3 +1,9 @@
+/**
+ * @file Spacing.stories.tsx
+ * @description Storybook stories documenting the Tailwind-based spacing scale used for consistent
+ *              layout rhythm across the client app.
+ * @layer infrastructure
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs";
 
 /**

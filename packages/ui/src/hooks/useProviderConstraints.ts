@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * @file useProviderConstraints.ts
+ * @description React hook that resolves provider constraints (character/media limits) for admin
+ *              or client contexts by fetching from the API or using locally enabled providers.
+ * @layer infrastructure
+ */
 import { useState, useEffect, useMemo } from "react";
 import { getProviderConfig } from "@shared/types";
 import type { ProviderConstraints } from "../components/business/ContentEditorCore";

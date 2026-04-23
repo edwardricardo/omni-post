@@ -1,11 +1,8 @@
 /**
- * API Client for the OmniPost Client App
- *
- * All requests go through the Next.js proxy at /api/backend/ which
- * handles authentication via httpOnly cookies. No tokens are stored
- * in localStorage or any client-accessible storage.
- *
- * @module lib/api/client
+ * @file client.ts
+ * @description Typed API client for the client app — all requests go through the Next.js proxy
+ *              which handles authentication via httpOnly cookies (no tokens in browser storage).
+ * @layer infrastructure
  */
 
 import {

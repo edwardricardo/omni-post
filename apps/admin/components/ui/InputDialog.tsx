@@ -2,7 +2,7 @@
  * @file InputDialog.tsx
  * @description A dialog with a text input field built on Dialog from @packages/ui.
  * Replaces native browser text input dialogs with an accessible, styled modal.
- * @layer presentation
+ * @layer infrastructure
  */
 
 "use client";

@@ -2,7 +2,7 @@
  * @file notificationRoutes.test.ts
  * @description Unit tests for notification management endpoints.
  *   Uses mocked Prisma stores and a real Fastify instance to test HTTP endpoint behavior.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, expect, vi } from "vitest";

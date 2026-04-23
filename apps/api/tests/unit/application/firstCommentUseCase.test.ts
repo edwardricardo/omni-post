@@ -1,7 +1,7 @@
 /**
  * @file firstCommentUseCase.test.ts
  * @description Tests for SetFirstCommentUseCase — validation, persistence, error paths.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

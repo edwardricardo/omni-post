@@ -1,14 +1,8 @@
 /**
- * usePredictiveData — TanStack Query hook
- *
- * Replaces the previous 100% mock implementation with real API calls to:
- *   POST /api/backend/ai/predict-timing      → PerformancePrediction[]
- *   GET  /api/backend/analytics/roi          → ROIForecast[]
- *   POST /api/backend/ai/predict-audience    → AudienceInsight[]
- *   GET  /api/backend/analytics/cross-platform → CompetitorAnalysis[]
- *
- * Each query is independent and gracefully returns empty arrays / defaults
- * when the backend has no data or the request fails.
+ * @file usePredictiveData.ts
+ * @description TanStack Query hook fetching predictive analytics data (performance predictions,
+ *              ROI forecasts, audience insights, competitor analysis) from AI/analytics endpoints.
+ * @layer infrastructure
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";

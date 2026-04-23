@@ -2,7 +2,7 @@
  * @file PaymentAdapter.ts
  * @description Technology-free payment adapter interface.
  *              Supports Stripe, Paddle, or any future payment provider.
- * @layer ports
+ * @layer domain
  */
 
 export type BillingPlan = "BASIC" | "PRO" | "ENTERPRISE";

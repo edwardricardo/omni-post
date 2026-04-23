@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Admin pricing management page with live provider tiers, account tiers,
  *   bundles (CRUD), and MRR dashboard. Delegates to functional tab components.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

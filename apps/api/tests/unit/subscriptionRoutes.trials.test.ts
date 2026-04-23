@@ -2,7 +2,7 @@
  * @file subscriptionRoutes.trials.test.ts
  * @description Unit tests for subscriptionRoutes — Trials, Reporting, and Auto-Renewals.
  *              Uses in-memory mocked Prisma stores — no real database needed.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

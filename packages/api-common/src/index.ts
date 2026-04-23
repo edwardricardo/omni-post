@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Barrel exports for the api-common package — BaseRouteHandler, shared Zod schemas,
+ *              and the CSV export utility.
+ * @layer infrastructure
+ */
 // Base handler
 export { BaseRouteHandler } from "./BaseRouteHandler";
 export type {

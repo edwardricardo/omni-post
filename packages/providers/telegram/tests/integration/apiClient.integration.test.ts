@@ -7,7 +7,7 @@
  * fetch() + circuit breaker plumbing. These tests verify real API behavior.
  *
  * Run: TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... pnpm exec vitest run tests/integration/
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

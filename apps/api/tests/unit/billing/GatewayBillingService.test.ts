@@ -2,7 +2,7 @@
  * @file GatewayBillingService.test.ts
  * @description Unit tests for gateway billing service — switch lifecycle,
  *   checkout sessions, billing portal, idempotency, and query methods.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

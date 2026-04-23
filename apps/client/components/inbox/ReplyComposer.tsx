@@ -3,7 +3,7 @@
  * @description Inline reply composer anchored below the conversation thread.
  *              Supports optimistic updates, character counter, and provider-level
  *              reply capability check.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

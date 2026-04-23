@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description Barrel exports for the client-app template system components and template engine types.
+ * @layer infrastructure
+ */
 // Enhanced Template System Components
 export { TemplateEditor } from "./TemplateEditor";
 export { TemplateLibrary } from "./TemplateLibrary";

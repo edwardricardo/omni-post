@@ -1,3 +1,9 @@
+/**
+ * @file not-found.tsx
+ * @description Next.js 404 page rendered when the requested route does not exist.
+ * @component NotFound
+ * @layer infrastructure
+ */
 import Link from "next/link";
 
 export default function NotFound() {

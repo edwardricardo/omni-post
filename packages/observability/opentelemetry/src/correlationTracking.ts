@@ -1,4 +1,9 @@
-// Correlation tracking and context propagation for distributed operations
+/**
+ * @file correlationTracking.ts
+ * @description Correlation tracking and context propagation utilities — attaches correlationId,
+ *              traceId, tenantId to spans and propagates across async boundaries.
+ * @layer infrastructure
+ */
 import { trace, context, propagation, ROOT_CONTEXT, type Context } from "@opentelemetry/api";
 import { randomBytes } from "crypto";
 import pino from "pino";

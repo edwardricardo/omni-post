@@ -2,7 +2,8 @@
  * @file SkipLink.tsx
  * @description WCAG 2.1 "Skip to main content" link. Hidden off-screen by
  *   default; becomes visible when focused via keyboard (Tab).
- * @layer presentation
+ * @component SkipLink
+ * @layer infrastructure
  */
 "use client";
 

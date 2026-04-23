@@ -2,7 +2,7 @@
  * @file auditService.log.test.ts
  * @description Unit tests for AuditService.log() — creating audit log entries.
  *              Uses mocked Prisma to avoid database dependency.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

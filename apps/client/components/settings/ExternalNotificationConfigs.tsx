@@ -3,7 +3,7 @@
  * @component ExternalNotificationConfigs
  * @description List and management of Slack/Teams webhook configurations.
  *              Add, test, and delete webhook integrations.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

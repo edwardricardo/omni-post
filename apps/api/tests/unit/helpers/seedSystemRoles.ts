@@ -2,7 +2,7 @@
  * @file seedSystemRoles.ts
  * @description Seeds the in-memory role and rolePermission stores with the
  *              system roles needed for RBAC tests.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import type { MockPrismaStores } from "./mockPrisma.js";

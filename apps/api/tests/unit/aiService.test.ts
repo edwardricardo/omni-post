@@ -3,7 +3,7 @@
  * @description Unit tests for AIService. Mocks AIOrchestrator.createFromEnv() via
  *   vi.mock() so the admin orchestrator path can be stubbed without real AI calls.
  *   Mocks AiRequestService so BYOK/pool routing can be verified independently.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, vi, expect, beforeEach } from "vitest";

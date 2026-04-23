@@ -2,7 +2,7 @@
  * @file RbacManager.tsx
  * @description Admin RBAC management panel for viewing roles, permissions, and users per role.
  *   Supports creating/deleting custom roles, editing descriptions, and managing permissions.
- * @layer presentation
+ * @layer infrastructure
  */
 
 "use client";

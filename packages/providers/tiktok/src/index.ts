@@ -1,7 +1,8 @@
 /**
- * TikTok Provider - Clean Export
- *
- * Exports the class-based TikTokAdapter implementation
+ * @file index.ts
+ * @description Public entry point for the TikTok provider — exports the class-based
+ *              TikTokAdapter and its shared instance.
+ * @layer infrastructure
  */
 
 // Export class and instance

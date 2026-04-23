@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for SlidingWindowRateLimit. Targets all
  *   survived mutants: boundary conditions, exact return values, operator
  *   replacements, conditional negations, and string literal mutations.
- * @layer unit
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

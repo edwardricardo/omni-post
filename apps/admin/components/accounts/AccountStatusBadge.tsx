@@ -1,7 +1,7 @@
 /**
  * @file AccountStatusBadge.tsx
  * @description Status badge for account (Active/Suspended/Trial).
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

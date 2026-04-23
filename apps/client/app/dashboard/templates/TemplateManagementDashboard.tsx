@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file TemplateManagementDashboard.tsx
+ * @description Dashboard for managing content templates — tabs for library, editor, A/B testing,
+ *              and version control, backed by template and A/B test hooks.
+ * @component TemplateManagementDashboard
+ * @layer infrastructure
+ */
 import React, { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@packages/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";

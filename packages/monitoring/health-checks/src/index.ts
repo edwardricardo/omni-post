@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Health-check orchestrator that runs registered checkers (DB, Redis, storage,
+ *              providers, circuit breakers), aggregates status, and emits Prometheus metrics.
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import { ok, err, type Result } from "@shared/types";
 import * as pino from "pino";

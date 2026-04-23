@@ -4,7 +4,7 @@
  *              Covers getProviderInfo, render, publish (text, photo, video,
  *              media group), validateCredentials, and error handling scenarios.
  *              All tests are Tier 0 (no network, no DB, no Redis).
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

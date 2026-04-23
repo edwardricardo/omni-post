@@ -4,7 +4,7 @@
  *   Tests for removed methods (getSubscriptionPlan, getAllPlans, validateUpgrade,
  *   validateDowngrade) and the SUBSCRIPTION_PLANS constant were deleted because
  *   those were removed in the billing modernization sprint.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

@@ -1,7 +1,7 @@
 /**
  * @file useContentCalendar.ts
  * @description TanStack Query hook for AI content calendar generation.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

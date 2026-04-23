@@ -4,7 +4,7 @@
  * @file PromptTemplateManager.tsx
  * @description Manages AI prompt templates. Lists system templates (read-only) and
  *   account templates (editable). Allows creating and deleting account-specific templates.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import React, { useState, useCallback } from "react";

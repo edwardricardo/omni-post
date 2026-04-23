@@ -1,3 +1,9 @@
+/**
+ * @file Typography.stories.tsx
+ * @description Storybook stories documenting the typography hierarchy, font weights, sizes, and
+ *              line-height guidelines for the client app.
+ * @layer infrastructure
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs";
 
 /**

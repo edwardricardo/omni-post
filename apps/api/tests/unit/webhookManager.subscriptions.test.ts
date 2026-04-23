@@ -3,7 +3,7 @@
  * @description Unit tests for WebhookManager subscription CRUD operations.
  *              Uses vi.hoisted() + vi.mock() to intercept @infra/prisma with
  *              in-memory stores. No real database connection is needed.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, beforeEach, afterAll, expect, vi } from "vitest";

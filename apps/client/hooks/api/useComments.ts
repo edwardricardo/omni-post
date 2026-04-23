@@ -1,7 +1,7 @@
 /**
  * @file useComments.ts
  * @description TanStack Query hooks for post comment threads.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

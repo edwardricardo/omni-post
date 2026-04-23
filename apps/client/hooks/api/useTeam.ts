@@ -1,7 +1,7 @@
 /**
  * @file useTeam.ts
  * @description TanStack Query hooks for team management operations.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

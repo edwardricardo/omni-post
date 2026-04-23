@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file page.tsx
+ * @description Main dashboard overview showing key stats, recent posts, connected providers,
+ *              and quick actions.
+ * @component DashboardPage
+ * @layer infrastructure
+ */
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/authContext";
 import { usePosts, useProjects, useApiProviders } from "@/lib/api/hooks";

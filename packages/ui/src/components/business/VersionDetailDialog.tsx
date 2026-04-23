@@ -1,8 +1,9 @@
 /**
- * VersionDetailDialog -- modal that shows full details of a single version.
- *
- * Displays author, creation date, comment, full content text, tags, and
- * provides View / Restore actions.
+ * @file VersionDetailDialog.tsx
+ * @description Modal showing full details of a single content version (author, date, comment,
+ *              body, tags) with View and Restore actions.
+ * @component VersionDetailDialog
+ * @layer infrastructure
  */
 
 "use client";

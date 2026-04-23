@@ -2,7 +2,7 @@
  * @file login-form.tsx
  * @description Admin Login Form using React 19 useActionState with MFA two-step flow.
  *   Uses CSS custom-property design tokens for full theme support.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * @file separator.tsx
+ * @description Horizontal or vertical visual separator div with border-coloured background.
+ * @component Separator
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { cn } from "../lib/utils";
 

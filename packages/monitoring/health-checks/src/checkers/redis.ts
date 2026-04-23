@@ -1,3 +1,9 @@
+/**
+ * @file redis.ts
+ * @description Health checker for Redis connectivity — issues PING and reports latency, plus
+ *              cache manager statistics when available.
+ * @layer infrastructure
+ */
 import type { HealthChecker, HealthCheckResult } from "../types.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import type Redis from "ioredis";

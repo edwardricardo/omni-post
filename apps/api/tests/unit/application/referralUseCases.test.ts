@@ -1,7 +1,7 @@
 /**
  * @file referralUseCases.test.ts
  * @description Unit tests for referral program use cases.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi } from "vitest";

@@ -1,6 +1,8 @@
 /**
- * Redis Cache Manager
- * Main cache manager orchestrating L1/L2 caching, invalidation, and metrics
+ * @file cache-manager.ts
+ * @description Main Redis cache manager orchestrating L1 in-memory cache, L2 Redis cache,
+ *              invalidation strategies, access pattern tracking, and Prometheus metrics.
+ * @layer infrastructure
  */
 
 import { ok, err, type Result } from "@shared/types";

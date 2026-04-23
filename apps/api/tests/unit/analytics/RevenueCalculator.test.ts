@@ -1,7 +1,7 @@
 /**
  * @file RevenueCalculator.test.ts
  * @description Mutation-killing tests for ROI RevenueCalculator.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, vi, beforeEach } from "vitest";

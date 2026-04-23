@@ -1,6 +1,8 @@
 /**
- * Access Pattern Tracker
- * Tracks cache access patterns for intelligent warming and optimization
+ * @file access-patterns.ts
+ * @description Tracks cache access frequency and response times per key for intelligent
+ *              warming and eviction prioritization.
+ * @layer infrastructure
  */
 
 import type { AccessPattern } from "./types.js";

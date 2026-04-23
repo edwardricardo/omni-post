@@ -4,7 +4,7 @@
  *              Verifies that publish() detects document media by URL extension,
  *              uses the document upload path, and falls back to regular media
  *              for non-document files.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

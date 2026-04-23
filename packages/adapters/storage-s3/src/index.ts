@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description S3-compatible storage adapter implementing StoragePort — generates presigned
+ *              upload URLs, validates content types, and retrieves media metadata.
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import { ok, err, type Result } from "@shared/types";
 import type { StoragePort, UploadSignature, MediaMetadata } from "@ports/core";

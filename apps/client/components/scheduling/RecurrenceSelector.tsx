@@ -3,7 +3,7 @@
  * @component RecurrenceSelector
  * @description Human-friendly recurrence picker that generates cron expressions.
  * Supports Daily, Weekly (day picker), Monthly (day-of-month), and Custom (raw cron).
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

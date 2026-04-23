@@ -2,7 +2,7 @@
  * @file useAdminUsers.ts
  * @description TanStack Query hooks for fetching and mutating admin users.
  * Provides listing, creation, activation, and deactivation of admin accounts.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

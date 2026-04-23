@@ -1,3 +1,9 @@
+/**
+ * @file circuitBreaker.ts
+ * @description External API circuit breaker wrapping opossum with fallback strategies, dead
+ *              letter queue integration, and Prometheus metric emission.
+ * @layer infrastructure
+ */
 import CircuitBreaker from "opossum";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";

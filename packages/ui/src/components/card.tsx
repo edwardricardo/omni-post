@@ -1,3 +1,10 @@
+/**
+ * @file card.tsx
+ * @description Card primitives (Card, CardHeader, CardTitle, CardDescription, CardContent,
+ *              CardFooter) for composing content panels with consistent padding and typography.
+ * @component Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter
+ * @layer infrastructure
+ */
 import * as React from "react";
 
 import { cn } from "../lib/utils";

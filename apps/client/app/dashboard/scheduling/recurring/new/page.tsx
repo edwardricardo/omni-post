@@ -2,7 +2,7 @@
  * @file page.tsx
  * @component NewRecurringPostPage
  * @description Create new recurring post page.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

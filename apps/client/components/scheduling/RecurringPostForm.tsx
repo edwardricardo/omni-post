@@ -3,7 +3,7 @@
  * @component RecurringPostForm
  * @description Form to create or edit a recurring post. Uses human-friendly recurrence picker,
  * channel selector, content variation radio, and optional end conditions.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

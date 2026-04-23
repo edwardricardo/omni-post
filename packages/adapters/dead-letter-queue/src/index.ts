@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Dead-letter queue manager — captures failed operations via BullMQ, stores retry
+ *              metadata, supports manual reprocessing, and emits Prometheus metrics.
+ * @layer infrastructure
+ */
 import { ok, err, type Result } from "@shared/types";
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import Redis from "ioredis";

@@ -1,9 +1,9 @@
 /**
- * VersionFilterBar -- advanced filtering controls for ContentVersioning.
- *
- * Renders filter-by-author, filter-by-change-type, filter-by-status, and
- * sort-by selectors.  Also renders the "N versions selected" action bar
- * when versions are checked via the compact view.
+ * @file VersionFilterBar.tsx
+ * @description Advanced filter controls (author, change type, status, sort) and selection action
+ *              bar for ContentVersioning.
+ * @component VersionFilterBar
+ * @layer infrastructure
  */
 
 "use client";

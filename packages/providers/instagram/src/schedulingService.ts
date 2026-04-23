@@ -1,3 +1,9 @@
+/**
+ * @file schedulingService.ts
+ * @description Instagram scheduling service that queues future publish jobs via BullMQ with
+ *              circuit breaker protection and error metric tracking.
+ * @layer infrastructure
+ */
 import { ok, err, AppError, type Result } from "@shared/types";
 import { type InstagramCredentials } from "./apiClient.js";
 import { InstagramMediaProcessor, type VideoSplitOptions } from "./mediaProcessor.js";

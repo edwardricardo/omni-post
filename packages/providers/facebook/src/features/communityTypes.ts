@@ -1,3 +1,9 @@
+/**
+ * @file communityTypes.ts
+ * @description Type definitions for Facebook community features — comments, messages, moderation
+ *              rules, conversations, quick replies, and templates.
+ * @layer infrastructure
+ */
 export interface FacebookComment {
   id: string;
   message: string;

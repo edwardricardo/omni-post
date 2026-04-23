@@ -2,7 +2,7 @@
  * @file CreateTaskModal.tsx
  * @component CreateTaskModal
  * @description Modal for creating new tasks with title, description, priority, and due date.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

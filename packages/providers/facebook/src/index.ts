@@ -1,7 +1,8 @@
 /**
- * Facebook Provider - Clean Export
- *
- * Exports the class-based FacebookAdapter implementation
+ * @file index.ts
+ * @description Public entry point for the Facebook provider — exports the class-based
+ *              FacebookAdapter and its shared instance.
+ * @layer infrastructure
  */
 
 // Export class and instance

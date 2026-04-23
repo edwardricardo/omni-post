@@ -3,7 +3,7 @@
  * @description Threaded comment list for the post review panel.
  *              Supports 1-level nesting (replies). Shows author initials avatar,
  *              name, body, and timestamp.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

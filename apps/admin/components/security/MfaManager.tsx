@@ -4,7 +4,7 @@
  * @file MfaManager.tsx
  * @description Admin MFA management panel for viewing user MFA status and performing
  *   administrative actions. Uses CSS design tokens and reusable UI components.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useState, useEffect, useCallback } from "react";

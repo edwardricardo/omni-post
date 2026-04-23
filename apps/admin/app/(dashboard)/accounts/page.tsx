@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Accounts management page listing all tenant accounts with plan, trial,
  *   and usage information. Uses CSS design tokens and reusable UI components.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

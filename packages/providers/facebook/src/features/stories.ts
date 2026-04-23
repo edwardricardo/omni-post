@@ -1,3 +1,9 @@
+/**
+ * @file stories.ts
+ * @description Facebook Stories service — creates and manages 24-hour photo/video stories with
+ *              links, stickers, and engagement insights via the Graph API.
+ * @layer infrastructure
+ */
 import { FacebookApiClient, FacebookCredentials } from "../apiClient.js";
 import { createLogger } from "@observability/logger";
 

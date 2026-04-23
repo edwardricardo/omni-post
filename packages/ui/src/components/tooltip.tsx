@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file tooltip.tsx
+ * @description Radix-based Tooltip primitives (TooltipProvider, Tooltip, TooltipTrigger,
+ *              TooltipContent) styled with animation classes.
+ * @component TooltipProvider, Tooltip, TooltipTrigger, TooltipContent
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Tooltip as TooltipPrimitive } from "radix-ui";
 

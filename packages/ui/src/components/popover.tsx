@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file popover.tsx
+ * @description Radix-based Popover primitives (Popover, PopoverTrigger, PopoverContent) styled
+ *              with animation and offset presets.
+ * @component Popover, PopoverTrigger, PopoverContent
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Popover as PopoverPrimitive } from "radix-ui";
 

@@ -2,7 +2,7 @@
  * @file useBillingStats.ts
  * @description React Query hook for fetching aggregated billing statistics
  *   including MRR, active subscriptions, and grandfathered revenue.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useQuery } from "@tanstack/react-query";

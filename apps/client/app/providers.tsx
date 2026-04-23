@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file providers.tsx
+ * @description Client-side provider tree wrapping children with TanStack Query, Logger, Auth,
+ *              Toast, and Api contexts for the dashboard app.
+ * @component Providers
+ * @layer infrastructure
+ */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState, ReactNode } from "react";

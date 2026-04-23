@@ -8,7 +8,7 @@
  * that require full React rendering context to test.
  *
  * Run: pnpm exec vitest run tests/integration/
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

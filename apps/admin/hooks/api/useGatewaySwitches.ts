@@ -2,7 +2,7 @@
  * @file useGatewaySwitches.ts
  * @description TanStack Query hooks for gateway switch management: listing events,
  *   fetching detail, and admin actions (extend, force-complete, force-suspend).
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

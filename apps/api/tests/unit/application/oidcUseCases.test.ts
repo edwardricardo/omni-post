@@ -2,7 +2,7 @@
  * @file oidcUseCases.test.ts
  * @description Unit tests for OIDC SSO use cases: ConfigureOidc, EnableOidcSso,
  *              DisableOidcSso, GetOidcConfigurationQuery.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

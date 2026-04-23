@@ -2,7 +2,7 @@
  * @file entities.samlConfiguration.test.ts
  * @description Unit tests for the SamlConfiguration domain entity.
  *              Covers factory validation, reconstitute, and toJSON serialization.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

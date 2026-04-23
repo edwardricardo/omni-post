@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Help & Documentation page with accordion-style expandable sections
  *   explaining every feature of the admin portal.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

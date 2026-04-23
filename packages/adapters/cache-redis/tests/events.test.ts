@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for CacheEventManager, CacheInvalidationPatterns,
  * and createCacheEventManager factory. Covers handler registration, event dispatch,
  * entity CRUD handlers, predefined patterns, and error handling.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

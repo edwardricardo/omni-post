@@ -2,7 +2,7 @@
  * @file auditLogger.test.ts
  * @description Unit tests for AuditLogger. Uses in-memory mocked Prisma stores
  *              with real Redis for testing caching and alerting features.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

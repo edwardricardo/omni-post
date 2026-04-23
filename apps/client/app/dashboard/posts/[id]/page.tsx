@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file page.tsx
+ * @description Post editor page for editing content, scheduling, and publishing an existing post
+ *              with locale and tag support.
+ * @component EditPostPage
+ * @layer infrastructure
+ */
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePost, useProjects, useProviders } from "@/lib/api/hooks";

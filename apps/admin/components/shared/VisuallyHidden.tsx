@@ -3,7 +3,8 @@
  * @description Screen-reader-only content. Renders children in the DOM but
  *   hides them visually via the standard "sr-only" pattern. The `as` prop
  *   allows the consumer to render a semantic element (e.g. heading).
- * @layer presentation
+ * @component VisuallyHidden
+ * @layer infrastructure
  */
 import type { ElementType, ReactNode } from "react";
 

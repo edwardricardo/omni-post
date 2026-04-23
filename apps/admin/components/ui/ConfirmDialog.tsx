@@ -2,7 +2,7 @@
  * @file ConfirmDialog.tsx
  * @description Reusable confirm/cancel dialog built on AlertDialog from @packages/ui.
  * Replaces native browser confirmation dialogs with an accessible, styled modal.
- * @layer presentation
+ * @layer infrastructure
  */
 
 "use client";

@@ -2,7 +2,7 @@
  * @file aggregates.social-message.test.ts
  * @description Mutation-killing tests for SocialMessageAggregate.
  * Covers creation, status transitions, assignment, archival, events.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, vi, beforeEach } from "vitest";

@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file layout.tsx
+ * @description Dashboard layout wrapping authenticated pages with navigation, announcement banner,
+ *              user menu, and project context provider.
+ * @component DashboardLayout
+ * @layer infrastructure
+ */
 import { useAuth } from "@/lib/auth/authContext";
 import { ProjectProvider } from "@/providers/ProjectProvider";
 import { AnnouncementBanner } from "@/components/announcements/AnnouncementBanner";

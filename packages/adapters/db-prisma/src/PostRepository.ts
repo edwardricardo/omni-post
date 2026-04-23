@@ -1,3 +1,9 @@
+/**
+ * @file PostRepository.ts
+ * @description Prisma-backed repository for Post entities — create, list, get-by-id, and
+ *              update operations with circuit-breaker protection for transactional writes.
+ * @layer infrastructure
+ */
 import { ok, err, type Result, type CanonicalPost, type Media } from "@shared/types";
 import type { CreatePostInput, ListPostsQuery, PostsPage } from "@ports/core";
 import { prisma, type MediaKind } from "@infra/prisma";

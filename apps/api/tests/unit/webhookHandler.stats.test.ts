@@ -2,7 +2,7 @@
  * @file webhookHandler.stats.test.ts
  * @description Tests for WebhookHandler processing statistics, retry logic,
  *              and edge cases with mocked prisma.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

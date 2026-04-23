@@ -1,18 +1,8 @@
 /**
- * Redis Cache Adapter — Public API
- *
- * Thin barrel re-exporting from focused modules.
- * Implementation lives in:
- *   types.ts          — interfaces and type aliases
- *   constants.ts      — CacheKeys and CacheTTL
- *   metrics.ts        — Prometheus counters / histograms
- *   l1-cache.ts       — in-memory L1 cache with LRU eviction
- *   access-patterns.ts — access frequency tracking
- *   invalidation.ts   — invalidation strategies (immediate / lazy / scheduled / smart)
- *   cache-manager.ts  — RedisCacheManager (L1 + L2 orchestrator)
- *   factory.ts        — createCacheManager / getCacheManager / resetCacheManager
- *   middleware.ts     — Fastify cachePlugin + CacheInvalidator
- *   events.ts         — domain-event-driven invalidation
+ * @file index.ts
+ * @description Barrel re-exports for the Redis cache adapter — types, constants, metrics,
+ *              L1 cache, access patterns, invalidation, cache manager, factory, and middleware.
+ * @layer infrastructure
  */
 
 // Types

@@ -1,7 +1,7 @@
 /**
  * @file page.tsx
  * @description Integration marketplace page.
- * @layer client-pages
+ * @layer infrastructure
  */
 
 "use client";

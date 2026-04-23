@@ -2,7 +2,7 @@
  * @file ReviewPanel.tsx
  * @description Slide-in sheet panel for reviewing a pending approval.
  *              Shows full post content, approve/reject actions, and an embedded comment thread.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

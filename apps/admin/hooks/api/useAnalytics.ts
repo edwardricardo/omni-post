@@ -2,7 +2,7 @@
  * @file useAnalytics.ts
  * @description TanStack Query hook for fetching analytics summary data by combining
  * three API sources: analytics metrics, dashboard stats, and billing stats.
- * @layer presentation
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 

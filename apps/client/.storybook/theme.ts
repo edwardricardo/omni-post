@@ -1,3 +1,9 @@
+/**
+ * @file theme.ts
+ * @description Storybook theme configuration for the client app design system, defining brand,
+ *              typography, colors, and social platform brand color palette.
+ * @layer infrastructure
+ */
 import { create } from "storybook/theming/create";
 
 export default create({

@@ -2,7 +2,7 @@
  * @file auditService.retention.test.ts
  * @description Unit tests for AuditService.getUserLogs(), getResourceLogs(), cleanup().
  *              Uses mocked Prisma to avoid database dependency.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

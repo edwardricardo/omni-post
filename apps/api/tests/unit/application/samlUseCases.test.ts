@@ -2,7 +2,7 @@
  * @file samlUseCases.test.ts
  * @description Unit tests for SAML SSO use cases: ConfigureSaml, EnableSso, DisableSso,
  *              GetSamlConfigurationQuery.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

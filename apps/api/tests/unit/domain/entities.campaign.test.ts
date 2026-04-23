@@ -1,7 +1,7 @@
 /**
  * @file entities.campaign.test.ts
  * @description Mutation-killing tests for Campaign entity factory and lifecycle.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

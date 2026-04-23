@@ -1,3 +1,10 @@
+/**
+ * @file layout.tsx
+ * @description Root layout for the client app — sets HTML shell, loads Inter font, globals.css,
+ *              and wraps children in the Providers tree.
+ * @component RootLayout
+ * @layer infrastructure
+ */
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";

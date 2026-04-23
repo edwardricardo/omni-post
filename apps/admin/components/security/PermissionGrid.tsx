@@ -2,7 +2,7 @@
  * @file PermissionGrid.tsx
  * @description Checkbox grid for managing role permissions organized by category.
  *   Displays all available permissions and allows toggling them on/off per role.
- * @layer presentation
+ * @layer infrastructure
  */
 
 "use client";

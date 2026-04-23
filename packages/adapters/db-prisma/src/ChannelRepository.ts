@@ -1,3 +1,9 @@
+/**
+ * @file ChannelRepository.ts
+ * @description Prisma-backed repository for Channel entities — retrieves channels by ids and
+ *              maps Prisma rows to the domain Channel shape.
+ * @layer infrastructure
+ */
 import { ok, err, type Result } from "@shared/types";
 import type { Channel } from "@ports/core";
 import { prisma } from "@infra/prisma";

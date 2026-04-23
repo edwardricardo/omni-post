@@ -1,7 +1,7 @@
 /**
  * @file useAutoSave.integration.test.ts
  * @description Integration tests for useAutoSave hook — debounce, localStorage, save lifecycle.
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";

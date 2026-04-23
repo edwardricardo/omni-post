@@ -1,7 +1,7 @@
 /**
  * @file usePlatformVariants.ts
  * @description TanStack Query hook for generating platform-native content variants.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

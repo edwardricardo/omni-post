@@ -1,3 +1,9 @@
+/**
+ * @file database.ts
+ * @description Health checker for database connectivity that exercises the RepoPort with a
+ *              simple list operation to verify Postgres availability.
+ * @layer infrastructure
+ */
 import type { HealthChecker, HealthCheckResult } from "../types.js";
 import type { RepoPort } from "@ports/core";
 

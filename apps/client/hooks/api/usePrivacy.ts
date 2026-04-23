@@ -3,7 +3,7 @@
  * @description Hook for submitting Data Subject Access Requests (DSAR) to the
  *              public compliance endpoint. Wraps the POST /api/compliance/dsar
  *              call via the Next.js backend proxy.
- * @layer hooks
+ * @layer infrastructure
  */
 
 "use client";

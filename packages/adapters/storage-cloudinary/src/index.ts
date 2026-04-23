@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Cloudinary storage adapter implementing StoragePort — generates signed upload
+ *              parameters and retrieves media metadata via the Cloudinary SDK.
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import { ok, err, type Result } from "@shared/types";
 import type { StoragePort, UploadSignature, MediaMetadata } from "@ports/core";

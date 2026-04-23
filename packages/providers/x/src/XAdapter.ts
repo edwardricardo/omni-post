@@ -1,8 +1,8 @@
 /**
- * X/Twitter Provider Adapter (Class-based)
- *
- * Extends AbstractProviderAdapter with X/Twitter-specific implementation.
- * This replaces the object literal pattern with a cleaner class-based approach.
+ * @file XAdapter.ts
+ * @description X/Twitter provider adapter extending AbstractProviderAdapter with tweet publishing,
+ *              threading, media upload, and public-metrics analytics via twitter-api-v2.
+ * @layer infrastructure
  */
 
 import {

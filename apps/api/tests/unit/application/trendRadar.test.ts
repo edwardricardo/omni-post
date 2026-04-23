@@ -1,7 +1,7 @@
 /**
  * @file trendRadar.test.ts
  * @description Unit tests for FetchTrendingTopicsUseCase and ScoreTrendRelevanceUseCase.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

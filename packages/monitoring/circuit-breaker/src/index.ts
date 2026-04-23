@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Circuit breaker implementation with CLOSED/OPEN/HALF_OPEN state machine,
+ *              Prometheus metrics, and rolling failure-rate tracking for external service calls.
+ * @layer infrastructure
+ */
 import { ok, err, type Result } from "@shared/types";
 import * as client from "prom-client";
 import * as pino from "pino";

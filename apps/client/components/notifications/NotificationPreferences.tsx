@@ -2,7 +2,7 @@
  * @file NotificationPreferences.tsx
  * @description Notification preferences form. Renders toggles for each notification type
  *              and persists via PUT /notifications/preferences.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

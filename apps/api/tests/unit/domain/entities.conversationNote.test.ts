@@ -1,7 +1,7 @@
 /**
  * @file entities.conversationNote.test.ts
  * @description Unit tests for the ConversationNote domain entity.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Gateway switch management page. Lists switch events with stats,
  *   filtering, detail dialog, and admin actions (extend, force-complete, suspend).
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

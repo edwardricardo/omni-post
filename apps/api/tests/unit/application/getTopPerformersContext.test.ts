@@ -1,7 +1,7 @@
 /**
  * @file getTopPerformersContext.test.ts
  * @description Unit tests for GetTopPerformersContextUseCase.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

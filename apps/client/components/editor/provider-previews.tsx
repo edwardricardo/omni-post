@@ -4,7 +4,7 @@
  * @file provider-previews.tsx
  * @description Provider-specific preview render functions for LinkedIn, Snapchat,
  * Telegram, Pinterest, and Bluesky platforms used by ContentPreviewSystem.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import React from "react";

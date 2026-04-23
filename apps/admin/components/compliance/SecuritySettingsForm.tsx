@@ -2,7 +2,7 @@
  * @file SecuritySettingsForm.tsx
  * @description Form for managing security compliance settings including 2FA requirements,
  *   session timeouts, password policies, and IP allowlisting.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

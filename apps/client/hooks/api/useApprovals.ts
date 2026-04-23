@@ -2,7 +2,7 @@
  * @file useApprovals.ts
  * @description TanStack Query hooks for the approval workflow.
  *              Covers: submit for review, pending approvals list, approve, reject.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

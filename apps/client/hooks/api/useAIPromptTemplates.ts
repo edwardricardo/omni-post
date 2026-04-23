@@ -4,7 +4,7 @@
  * @file useAIPromptTemplates.ts
  * @description TanStack Query hooks for AI prompt template management.
  *   Provides read (list) and write (create, update, delete) hooks.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

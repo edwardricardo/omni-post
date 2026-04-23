@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file ContentEditorCore.tsx
+ * @description Core content editor component accepting toolbar, media, provider, and character
+ *              count render-prop slots; shared base for TipTap and validation variants.
+ * @component ContentEditorCore
+ * @layer infrastructure
+ */
 import React from "react";
 import { cn } from "../../lib/utils";
 import type {

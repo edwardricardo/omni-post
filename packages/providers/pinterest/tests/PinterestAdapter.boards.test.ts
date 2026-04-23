@@ -3,7 +3,7 @@
  * @description Unit tests for Pinterest board creation, board sections,
  *              and enhanced pin-level analytics via getPinAnalytics().
  *              All tests are Tier 0 (no network, no DB, no Redis).
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

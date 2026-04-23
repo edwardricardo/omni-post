@@ -2,7 +2,7 @@
  * @file billingService.test.ts
  * @description Mutation-killing tests for BillingService pure business logic.
  * Covers getChangeType, calculateNextBillingDate, calculateBillingAmount.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

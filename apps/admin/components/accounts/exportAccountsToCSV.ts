@@ -1,7 +1,7 @@
 /**
  * @file exportAccountsToCSV.ts
  * @description Exports selected accounts to a CSV file download.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import type { AccountSummary } from "@/lib/apiClient";

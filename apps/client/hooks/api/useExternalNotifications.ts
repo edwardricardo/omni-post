@@ -1,7 +1,7 @@
 /**
  * @file useExternalNotifications.ts
  * @description TanStack Query hooks for Slack/Teams external notification webhook config.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

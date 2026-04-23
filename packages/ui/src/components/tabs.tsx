@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file tabs.tsx
+ * @description Lightweight Tabs primitives (Tabs, TabsList, TabsTrigger, TabsContent) built
+ *              on a React context for controlled/uncontrolled value selection.
+ * @component Tabs, TabsList, TabsTrigger, TabsContent
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { cn } from "../lib/utils";
 

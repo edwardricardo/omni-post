@@ -2,7 +2,7 @@
  * @file DsarTable.tsx
  * @description Table for managing Data Subject Access Requests (DSAR) with status badges,
  *   deadline indicators, and action dialogs for acknowledge, complete, and reject operations.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

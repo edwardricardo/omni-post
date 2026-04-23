@@ -2,7 +2,7 @@
  * @file StatCard.tsx
  * @description Compact statistic card with label, value, optional trend indicator,
  *              and optional icon. Uses CSS custom-property tokens for theming.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import React from "react";

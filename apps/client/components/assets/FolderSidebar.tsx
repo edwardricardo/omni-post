@@ -1,7 +1,7 @@
 /**
  * @file FolderSidebar.tsx
  * @description Folder navigation sidebar for asset library.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

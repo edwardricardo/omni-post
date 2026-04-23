@@ -3,7 +3,7 @@
  * @description Mutation-killing boundary tests for SecurityManager.
  *              Targets: handleCorsOrigin, buildCSPHeader, buildPermissionsPolicyHeader,
  *              validateRequest edge cases, createSecurityMiddleware paths.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

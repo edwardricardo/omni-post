@@ -1,3 +1,9 @@
+/**
+ * @file contentAnalyticsClient.ts
+ * @description TikTok Content Analytics API client fetching video-level metrics (views, likes,
+ *              comments, shares, watch time) with circuit breaker protection.
+ * @layer infrastructure
+ */
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import { ProviderError } from "@providers/shared";

@@ -1,10 +1,8 @@
 /**
- * ContentEditorCore Types and Utilities
- *
- * Shared interfaces, types, and pure utility functions for the ContentEditorCore component.
- * Extracted to keep ContentEditorCore.tsx under 800 lines.
- *
- * @module ui/components/business/contentEditorTypes
+ * @file contentEditorTypes.ts
+ * @description Shared interfaces, types, and pure utility functions for the ContentEditorCore
+ *              component. Extracted to keep ContentEditorCore.tsx under 800 lines.
+ * @layer infrastructure
  */
 import type React from "react";
 

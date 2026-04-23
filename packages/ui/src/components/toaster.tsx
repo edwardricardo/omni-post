@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file toaster.tsx
+ * @description Toaster container component that renders active toasts from the useToast hook
+ *              into a viewport-anchored provider.
+ * @component Toaster
+ * @layer infrastructure
+ */
 import {
   Toast,
   ToastClose,

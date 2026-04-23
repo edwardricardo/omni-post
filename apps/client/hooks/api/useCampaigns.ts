@@ -1,7 +1,7 @@
 /**
  * @file useCampaigns.ts
  * @description TanStack Query hooks for campaign management.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

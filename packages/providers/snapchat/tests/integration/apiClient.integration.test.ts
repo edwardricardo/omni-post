@@ -7,7 +7,7 @@
  * fetch() + circuit breaker plumbing. These tests verify real API behavior.
  *
  * Run: SNAPCHAT_CLIENT_ID=... SNAPCHAT_ACCESS_TOKEN=... pnpm exec vitest run tests/integration/
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

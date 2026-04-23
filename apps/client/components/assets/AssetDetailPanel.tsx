@@ -1,7 +1,7 @@
 /**
  * @file AssetDetailPanel.tsx
  * @description Slide-over panel showing full asset details.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

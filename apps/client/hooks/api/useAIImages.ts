@@ -1,7 +1,7 @@
 /**
  * @file useAIImages.ts
  * @description TanStack Query hooks for AI image generation.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

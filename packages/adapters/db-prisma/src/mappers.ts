@@ -1,3 +1,9 @@
+/**
+ * @file mappers.ts
+ * @description Bidirectional enum mappers between Prisma DB representations and domain types
+ *              for Provider, ThreadStrategy, TweetStatus, MediaKind, and SubscriptionTier.
+ * @layer infrastructure
+ */
 import type { SubscriptionTier } from "@shared/types";
 
 // Database type definitions

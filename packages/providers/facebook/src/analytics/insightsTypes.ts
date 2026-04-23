@@ -1,8 +1,8 @@
 /**
- * Facebook Insights Type Definitions
- *
- * Shared interfaces and option types for Facebook Insights API responses.
- * Consumed by FacebookInsightsApi (insights.ts) and any analytics consumers.
+ * @file insightsTypes.ts
+ * @description Shared interfaces and option types for Facebook Insights API responses,
+ *              consumed by FacebookInsightsApi and analytics consumers.
+ * @layer infrastructure
  */
 
 export interface FacebookInsightsOptions {

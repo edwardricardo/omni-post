@@ -2,7 +2,7 @@
  * @file FailedJobsTable.tsx
  * @description Table displaying failed BullMQ jobs with retry capability.
  *   Each row shows queue, job ID, error reason, timestamp, attempts, and a retry action.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

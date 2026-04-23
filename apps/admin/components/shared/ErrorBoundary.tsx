@@ -4,6 +4,7 @@
  *   subtree and shows a fallback UI. Routes caught errors through the
  *   BrowserLoggerPort for structured reporting. Accepts an optional logger
  *   prop; defaults to a ConsoleLoggerAdapter when omitted.
+ * @component ErrorBoundary
  * @layer infrastructure
  */
 "use client";

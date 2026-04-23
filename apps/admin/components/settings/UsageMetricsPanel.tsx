@@ -4,7 +4,7 @@
  * @file UsageMetricsPanel.tsx
  * @description Displays account usage metrics for the current billing period as
  *   progress bars with counts. Uses CSS design tokens for theming.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import React from "react";

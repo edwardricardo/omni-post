@@ -1,7 +1,7 @@
 /**
  * @file useCrm.ts
  * @description TanStack Query hooks for CRM integration management.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

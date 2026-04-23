@@ -1,3 +1,9 @@
+/**
+ * @file cached.ts
+ * @description RepoPort wrapper that transparently caches list/query results via the Redis cache
+ *              manager, invalidating by key prefix on mutations.
+ * @layer infrastructure
+ */
 import type {
   RepoPort,
   PublishLog,

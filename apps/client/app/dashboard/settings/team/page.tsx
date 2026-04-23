@@ -2,7 +2,7 @@
  * @file page.tsx
  * @component TeamSettingsPage
  * @description Team management settings page.
- * @layer client-pages
+ * @layer infrastructure
  */
 
 "use client";

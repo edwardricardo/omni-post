@@ -1,3 +1,9 @@
+/**
+ * @file setup.ts
+ * @description Vitest test setup — configures jsdom, mocks localStorage/File/FormData globals,
+ *              exposes React globally, and resets mocks before each test.
+ * @layer infrastructure
+ */
 import { beforeEach, vi } from "vitest";
 import "@testing-library/jest-dom";
 import React from "react";

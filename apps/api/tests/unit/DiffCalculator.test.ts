@@ -2,7 +2,7 @@
  * @file DiffCalculator.test.ts
  * @description Mutation-killing tests for DiffCalculator — covers diff generation,
  * similarity scoring, field counting, and change summary.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

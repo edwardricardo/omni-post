@@ -326,6 +326,64 @@ Cuando se ejecute el batch que entrega browser-logger port. Hasta entonces, los 
 
 ---
 
+### PR-7 — `@typescript-eslint@8.57.2` + `tsconfck@3.1.6` + `madge@8.0.0` peer range declara `typescript@^5` pero repo usa `typescript@6.0.2`
+
+**Fecha de aplicación:** 2026-04-22
+**Batch de origen:** T1-F (JSDoc normalization + Storybook consolidation)
+**Severidad del bug pre-existente:** bajo — warnings ruidosos durante `pnpm install`, sin impacto funcional en lint / build / tests
+**Tipo:** deps
+
+**Fix paliativo aplicado.**
+
+**Ninguno.** Los warnings de peer deps son aceptados como deuda conocida y visible. Se consideró añadir `pnpm.peerDependencyRules.allowedVersions` en el root `package.json` para silenciarlos, pero Edward rechazó explícitamente el approach por considerarlo un ocultamiento ("cero parches, cero overrides, cero ocultamientos").
+
+Warnings actuales al correr `pnpm install`:
+
+```text
+.
+└─┬ @typescript-eslint/parser 8.57.2
+  └─┬ @typescript-eslint/typescript-estree 8.57.2
+    ├── ✕ unmet peer typescript@">=4.8.4 <6.0.0": found 6.0.2
+    └─┬ @typescript-eslint/tsconfig-utils 8.57.2
+      └── ✕ unmet peer typescript@">=4.8.4 <6.0.0": found 6.0.2
+
+apps/admin
+└─┬ vite-tsconfig-paths 6.1.1
+  └─┬ tsconfck 3.1.6
+    └── ✕ unmet peer typescript@^5.0.0: found 6.0.2
+
+(similar para @typescript-eslint/eslint-plugin, type-utils, utils, project-service, y madge)
+```
+
+**Root cause real.**
+
+El proyecto usa `typescript@6.0.2` (el major más reciente). Tres familias de paquetes declaran peer range `typescript@^5`:
+
+1. **`@typescript-eslint@8.x`** — la versión que acepta oficialmente TS 6 es `@typescript-eslint@9.x` (2025). Saltar de v8 a v9 introduce breaking changes en reglas (varias renombradas o movidas) y config (`FlatConfig` estricto).
+2. **`tsconfck`** (vía `vite-tsconfig-paths@6.1.1`) — upstream no ha actualizado peer range para aceptar TS 6. Funcionalmente parsea `tsconfig.json` igual en TS 5 y TS 6, pero la declaración está desfasada.
+3. **`madge@8.0.0`** — idem; el analizador estático de imports circulares funciona con TS 6 pero el peer range dice 5.
+
+Los warnings son de **declaración**, no de runtime. `pnpm lint`, `pnpm build`, `pnpm test`, `pnpm typecheck` pasan en verde.
+
+**Fix definitivo recomendado.**
+
+Batch dedicado `T3-X — Upgrade typescript-eslint to v9 + audit peer ranges`:
+
+1. Upgrade `@typescript-eslint/parser`, `@typescript-eslint/eslint-plugin`, `@typescript-eslint/type-utils`, `@typescript-eslint/utils` de `8.57.2` → `9.x` (última estable).
+2. Migrar `eslint.config.cjs` según changelog v9: rules renombrados (ej. `ban-types` → `no-restricted-types`, cambios en `no-unused-vars`), ajustes en `FlatConfig`.
+3. Validar que todos los warnings ESLint pre-existentes siguen siendo 0.
+4. Verificar que `vite-tsconfig-paths` / `tsconfck` / `madge` han actualizado su peer range a aceptar TS 6; si no, abrir issues upstream o considerar alternativas (`@vercel/tsconfig-paths-plugin`, `dpdm`).
+
+Estimación: 4-6 horas (risk: medio — breaking changes en ~20 reglas ESLint).
+
+**Cuándo revisar.**
+
+Post-roadmap (fuera del alcance de los Tiers T0-T6). Cuando se ejecute el batch T3-X dedicado. Los warnings permanecen visibles en cada `pnpm install` hasta entonces — intencional.
+
+**Estado:** APLICADO (aceptado como deuda conocida — warnings visibles, NO ocultos).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

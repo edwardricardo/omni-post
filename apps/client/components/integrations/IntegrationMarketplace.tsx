@@ -2,7 +2,7 @@
  * @file IntegrationMarketplace.tsx
  * @component IntegrationMarketplace
  * @description Integration marketplace with category filters and status display.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

@@ -3,7 +3,7 @@
  * @description Shared helpers for webhookHandler unit tests.
  *              Provides signature creation and mock data factories
  *              that work with the in-memory mock prisma stores.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import { createHmac, randomUUID } from "crypto";

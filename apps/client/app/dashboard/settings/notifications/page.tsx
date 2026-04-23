@@ -3,7 +3,7 @@
  * @component NotificationPreferencesPage
  * @description Notification preferences settings page at /dashboard/settings/notifications.
  *              Allows users to enable/disable each notification type.
- * @layer ui
+ * @layer infrastructure
  */
 
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";

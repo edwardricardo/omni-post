@@ -1,7 +1,7 @@
 /**
  * @file useProviders.integration.test.ts
  * @description Integration tests for useProviders hook — provider fetching, config access.
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

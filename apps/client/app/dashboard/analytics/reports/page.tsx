@@ -3,7 +3,7 @@
  * @description Scheduled Reports management page — list, create, delete, and manually
  *              trigger scheduled analytics reports.
  *              Requires ?projectId=<uuid> query param to scope reports to a project.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

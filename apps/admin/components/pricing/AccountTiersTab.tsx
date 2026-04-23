@@ -1,7 +1,7 @@
 /**
  * @file AccountTiersTab.tsx
  * @description Account tiers table with inline editing, status toggle, and create dialog.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

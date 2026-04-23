@@ -2,7 +2,7 @@
  * @file TikTokAdapter.photos.test.ts
  * @description Unit tests for TikTok photo post (carousel) rendering and publishing.
  *              All tests are Tier 0 (no network, no DB, no Redis).
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

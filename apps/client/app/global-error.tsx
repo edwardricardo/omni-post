@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file global-error.tsx
+ * @description Next.js global error boundary rendering a fallback UI with a reset action
+ *              when the root layout crashes.
+ * @component GlobalError
+ * @layer infrastructure
+ */
 export default function GlobalError({
   error,
   reset,

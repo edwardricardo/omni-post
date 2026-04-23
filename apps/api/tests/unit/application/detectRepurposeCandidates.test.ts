@@ -1,7 +1,7 @@
 /**
  * @file detectRepurposeCandidates.test.ts
  * @description Unit tests for DetectRepurposeCandidatesUseCase and related use cases.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

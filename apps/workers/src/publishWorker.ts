@@ -1,3 +1,9 @@
+/**
+ * @file publishWorker.ts
+ * @description BullMQ worker entry point that consumes publish jobs, dispatches to provider
+ *              adapters, records metrics, and exposes a Prometheus HTTP endpoint.
+ * @layer infrastructure
+ */
 import dotenv from "dotenv";
 dotenv.config({ path: "../../.env" });
 

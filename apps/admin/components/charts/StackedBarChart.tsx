@@ -2,7 +2,7 @@
  * @file StackedBarChart.tsx
  * @description Stacked vertical bar chart for multi-series timeline data.
  *   Each series is rendered as a stacked Bar with its own color.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

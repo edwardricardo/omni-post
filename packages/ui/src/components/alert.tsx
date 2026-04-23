@@ -1,3 +1,10 @@
+/**
+ * @file alert.tsx
+ * @description Alert components (Alert, AlertTitle, AlertDescription) with default and
+ *              destructive variants for inline notifications.
+ * @component Alert, AlertTitle, AlertDescription
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 

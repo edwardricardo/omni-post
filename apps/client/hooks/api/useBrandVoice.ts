@@ -3,7 +3,7 @@
 /**
  * @file useBrandVoice.ts
  * @description TanStack Query hooks for Brand Voice Profiles.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

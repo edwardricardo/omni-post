@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for EnhancedValidator input validation.
  *              Targets boundary conditions, disabled flags, pattern detection,
  *              and sanitization branches not covered by the existing test file.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

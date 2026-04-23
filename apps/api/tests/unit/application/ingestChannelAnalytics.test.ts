@@ -1,7 +1,7 @@
 /**
  * @file ingestChannelAnalytics.test.ts
  * @description Unit tests for IngestChannelAnalyticsUseCase
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

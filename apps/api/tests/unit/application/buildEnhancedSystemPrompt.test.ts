@@ -1,7 +1,7 @@
 /**
  * @file buildEnhancedSystemPrompt.test.ts
  * @description Unit tests for buildEnhancedSystemPrompt.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

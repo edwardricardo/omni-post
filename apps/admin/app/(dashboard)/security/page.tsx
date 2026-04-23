@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Security overview page displaying security stats, MFA adoption rate, and RBAC
  *   hierarchy summary. Uses CSS design tokens and reusable UI components.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

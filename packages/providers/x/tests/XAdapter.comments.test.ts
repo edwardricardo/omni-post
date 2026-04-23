@@ -2,7 +2,7 @@
  * @file XAdapter.comments.test.ts
  * @description Unit tests for X/Twitter getComments and postReply methods.
  *              All tests are Tier 0 (no network, no DB, no Redis).
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

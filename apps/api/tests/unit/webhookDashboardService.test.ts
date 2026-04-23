@@ -6,7 +6,7 @@
  *              Uses vi.hoisted() + vi.mock() to intercept @infra/prisma so the
  *              module-level singleton receives a fully mocked PrismaClient backed
  *              by in-memory stores. No real database connection is needed.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

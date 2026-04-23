@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Fallback strategy manager providing CACHED_RESPONSE, STATIC_RESPONSE,
+ *              DEGRADED_SERVICE, FAIL_GRACEFULLY, and RETRY_ALTERNATIVE strategies with Redis backing.
+ * @layer infrastructure
+ */
 import { ok, err, type Result } from "@shared/types";
 import pino from "pino";
 import Redis from "ioredis";

@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file dropdown-menu.tsx
+ * @description Radix-based DropdownMenu primitives (Root, Trigger, Content, Item, Checkbox,
+ *              Radio, Label, Separator, Sub, Group, Shortcut) with themed styling.
+ * @component DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuGroup, DropdownMenuPortal, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuRadioGroup
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import { Check, ChevronRight, Circle } from "lucide-react";

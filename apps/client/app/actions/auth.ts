@@ -1,5 +1,11 @@
 "use server";
 
+/**
+ * @file auth.ts
+ * @description Next.js server actions for client authentication (login, logout, register)
+ *              using React 19 Server Actions and httpOnly cookie-based session management.
+ * @layer infrastructure
+ */
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";

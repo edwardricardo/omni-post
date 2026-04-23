@@ -1,7 +1,7 @@
 /**
  * @file CampaignList.tsx
  * @description Filterable campaign list with status tabs.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

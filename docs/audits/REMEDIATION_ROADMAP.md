@@ -411,7 +411,7 @@ pnpm lint --max-warnings 0 2>&1 | grep -c "unused\|no-unused"   # → 0
 
 ---
 
-#### T1-F — @layer y @file JSDoc normalization 🔗
+#### T1-F — @layer y @file JSDoc normalization 🔗 ✅ 2026-04-22
 
 **Scope.** Composite L-298/L-388/L-527 resolved @layer en D0v4-8; quedan ~130 files missing @file headers + 4 @component/@layer misnamed. Este batch cierra el composite definitivamente.
 

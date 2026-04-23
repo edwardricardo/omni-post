@@ -2,7 +2,7 @@
  * @file parseApiError.ts
  * @description Structured API error class and parsing utilities.
  *   Extracts human-readable messages from API responses — never exposes raw JSON to users.
- * @layer presentation (utility)
+ * @layer infrastructure
  */
 
 // ---------------------------------------------------------------------------

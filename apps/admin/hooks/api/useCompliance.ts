@@ -2,7 +2,7 @@
  * @file useCompliance.ts
  * @description TanStack Query hooks for compliance metrics, GDPR/security settings,
  *   DSAR requests, and breach reports. All mutations invalidate the ["compliance"] query family.
- * @layer hooks
+ * @layer infrastructure
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/parseApiError";

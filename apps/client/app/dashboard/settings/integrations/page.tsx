@@ -6,7 +6,7 @@
  * @description Settings - Integrations page at /dashboard/settings/integrations.
  *              Manages external notification webhooks (Slack, Teams). Auth is
  *              enforced by the dashboard layout — no server-side check needed.
- * @layer ui
+ * @layer infrastructure
  */
 
 import { ExternalNotificationConfigs } from "@/components/settings/ExternalNotificationConfigs";

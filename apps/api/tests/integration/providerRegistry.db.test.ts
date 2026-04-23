@@ -2,7 +2,7 @@
  * @file providerRegistry.db.test.ts
  * @description Integration tests for Provider Registry — Database operations.
  *   Requires real PostgreSQL with Prisma schema applied.
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it, before, after } from "node:test";

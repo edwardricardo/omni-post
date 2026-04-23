@@ -1,7 +1,8 @@
 /**
- * YouTube Provider - Clean Export
- *
- * Exports the class-based YouTubeAdapter implementation
+ * @file index.ts
+ * @description Public entry point for the YouTube provider — exports the class-based
+ *              YouTubeAdapter and its shared instance.
+ * @layer infrastructure
  */
 
 // Export class and instance

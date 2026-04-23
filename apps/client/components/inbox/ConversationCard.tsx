@@ -3,7 +3,7 @@
  * @description Single conversation row in the inbox conversation list.
  *              Shows: platform badge, sender name, message preview, relative time,
  *              and unread dot.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

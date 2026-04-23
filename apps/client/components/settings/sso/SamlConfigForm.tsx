@@ -2,7 +2,7 @@
  * @file SamlConfigForm.tsx
  * @component SamlConfigForm
  * @description SAML 2.0 configuration form with SP metadata display.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

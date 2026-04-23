@@ -2,7 +2,7 @@
  * @file useAccountSessions.ts
  * @description TanStack Query hooks for fetching and revoking admin sessions
  *   tied to a specific account.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

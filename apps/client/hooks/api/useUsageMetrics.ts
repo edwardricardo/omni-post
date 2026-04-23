@@ -3,7 +3,7 @@
 /**
  * @file useUsageMetrics.ts
  * @description TanStack Query hook for fetching account usage metrics.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useQuery } from "@tanstack/react-query";

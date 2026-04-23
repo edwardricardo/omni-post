@@ -14,7 +14,7 @@
  *   GET  /api/scheduling/rules
  *   POST /api/scheduling/slots
  *   POST /api/scheduling/slots/bulk
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

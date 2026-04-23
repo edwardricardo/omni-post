@@ -1,8 +1,8 @@
 /**
- * Facebook Provider Adapter - Class-based implementation
- *
- * Extends AbstractProviderAdapter to provide Facebook-specific functionality
- * for publishing posts, uploading media, and fetching page analytics.
+ * @file FacebookAdapter.ts
+ * @description Facebook provider adapter extending AbstractProviderAdapter with page post
+ *              publishing, media upload, and analytics retrieval via the Graph API.
+ * @layer infrastructure
  */
 
 import {

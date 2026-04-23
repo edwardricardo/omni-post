@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Template provider adapter skeleton — a scaffolding reference for implementing new
+ *              provider adapters with render, publish, thread, and analytics stubs.
+ * @layer infrastructure
+ */
 import {
   ok,
   err,

@@ -3,7 +3,7 @@
  * @component BillingSettingsPage
  * @description Billing settings page with gateway switching, plan configurator,
  * and subscription management.
- * @layer client-pages
+ * @layer infrastructure
  */
 
 "use client";

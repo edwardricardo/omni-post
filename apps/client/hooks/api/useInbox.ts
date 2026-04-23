@@ -3,7 +3,7 @@
  * @description TanStack Query hooks for Social Inbox data.
  *              Covers conversation list (infinite), unread count, conversation detail,
  *              messages, and mutations (reply, resolve, reopen, assign, mark read).
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Prisma repo adapter factory composing Account, Project, Post, Channel,
+ *              PublishLog, Analytics, and Thread sub-repositories into a single RepoPort.
+ * @layer infrastructure
+ */
 import {
   createDatabaseCircuitBreaker,
   withDatabaseRetry,

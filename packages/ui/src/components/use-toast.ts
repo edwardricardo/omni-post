@@ -1,3 +1,9 @@
+/**
+ * @file use-toast.ts
+ * @description Toast state management hook based on a reducer pattern, providing add/update/
+ *              dismiss/remove actions and a subscription model for toast consumers.
+ * @layer infrastructure
+ */
 import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "./toast";

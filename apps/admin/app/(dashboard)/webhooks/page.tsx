@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Webhook dashboard page with tabbed views for metrics, events, subscriptions,
  *   timeline, and dead-letter queue. Uses CSS design tokens and reusable UI components.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

@@ -2,7 +2,7 @@
  * @file usePricingTiers.ts
  * @description TanStack Query hooks for fetching and mutating pricing tiers,
  * account tiers, and bundle configurations in the admin dashboard.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

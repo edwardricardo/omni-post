@@ -2,7 +2,7 @@
  * @file auditService.query.test.ts
  * @description Unit tests for AuditService.getLogs() — query and filtering.
  *              Uses mocked Prisma to avoid database dependency.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

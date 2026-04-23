@@ -3,7 +3,7 @@
  * @description Unit tests for RbacService — DB-backed role-based access control,
  *              permissions, and role management. Uses in-memory mocks for
  *              both the AdminUserRepositoryPort and the Prisma client.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

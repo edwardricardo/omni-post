@@ -1,6 +1,8 @@
 /**
- * Standardized Error Codes
- * Used to return consistent, safe error codes to clients without leaking internal details
+ * @file errors.ts
+ * @description Standardized error code enum covering auth, validation, business, infrastructure,
+ *              and provider failure categories for consistent, safe client-facing responses.
+ * @layer domain
  */
 export enum ErrorCode {
   // Authentication & Authorization

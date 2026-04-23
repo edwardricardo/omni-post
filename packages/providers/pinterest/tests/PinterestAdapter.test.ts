@@ -3,7 +3,7 @@
  * @description Unit tests for PinterestAdapter covering metadata, render,
  *              publish, validateCredentials, fetchAnalytics, and error handling.
  *              All tests are Tier 0 (no network, no DB, no Redis).
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

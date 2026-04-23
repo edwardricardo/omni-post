@@ -2,7 +2,7 @@
  * @file TrendAreaChart.tsx
  * @description Time-series area chart with a gradient fill. Uses a unique
  *   linearGradient ID per instance so multiple charts render independently.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

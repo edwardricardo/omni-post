@@ -2,7 +2,7 @@
  * @file factories.ts
  * @description Test data factories for unit tests. Creates typed domain DTOs
  *              with sensible defaults that can be overridden per-test.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import type { AdminUserDto } from "../../../src/domain/repositories/ReadModelDtos.js";

@@ -1,7 +1,7 @@
 /**
  * @file useSso.ts
  * @description TanStack Query hooks for SAML and OIDC SSO configuration.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

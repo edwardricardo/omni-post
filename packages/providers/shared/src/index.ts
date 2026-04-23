@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Barrel exports for the shared provider helpers — AbstractProviderAdapter,
+ *              ProviderError, credential types, and validation helpers.
+ * @layer infrastructure
+ */
 // Abstract Provider Adapter (class-based architecture)
 export { AbstractProviderAdapter } from "./AbstractProviderAdapter.js";
 

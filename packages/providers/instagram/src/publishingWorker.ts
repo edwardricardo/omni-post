@@ -1,3 +1,9 @@
+/**
+ * @file publishingWorker.ts
+ * @description Instagram publishing worker consuming scheduled jobs from BullMQ and invoking the
+ *              Instagram API client and media processor to execute media uploads and post creation.
+ * @layer infrastructure
+ */
 import { InstagramApiClient, type InstagramCredentials } from "./apiClient.js";
 import { InstagramMediaProcessor } from "./mediaProcessor.js";
 import { createBullMQConsumerAdapter, createBullMQQueueAdapter } from "@adapters/queue-bullmq";

@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description RBAC management page that renders the RbacManager component.
  *   Uses CSS design tokens and PageHeader.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

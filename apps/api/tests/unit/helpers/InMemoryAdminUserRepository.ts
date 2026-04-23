@@ -3,7 +3,7 @@
  * @description In-memory implementation of AdminUserRepositoryPort for unit tests.
  *              Eliminates the need for a real database in tests that depend on
  *              admin user lookups (MfaService, RbacService, AuthService, etc.).
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import { ok, err, type Result } from "@shared/types";

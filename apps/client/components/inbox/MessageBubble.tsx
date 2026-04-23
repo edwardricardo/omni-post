@@ -2,7 +2,7 @@
  * @file MessageBubble.tsx
  * @description Single message row in the conversation thread.
  *              INBOUND: left-aligned gray bubble. OUTBOUND: right-aligned blue bubble.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

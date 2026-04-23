@@ -1,7 +1,7 @@
 /**
  * @file ApprovalQueue.tsx
  * @description Grid of pending approval cards with ReviewPanel sheet integration.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

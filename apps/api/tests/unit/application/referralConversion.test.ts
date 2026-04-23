@@ -1,7 +1,7 @@
 /**
  * @file referralConversion.test.ts
  * @description Unit tests for ConvertReferralUseCase and GrantReferralRewardUseCase.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

@@ -1,8 +1,8 @@
 /**
- * Client-Safe Exports
- *
- * This file exports only the modules that are safe to use in browser/client environments.
- * It excludes server-only dependencies like handlebars (used in BaseTemplateEngine).
+ * @file client.ts
+ * @description Browser-safe barrel re-exports — types, events, saga, and CQRS only, excluding
+ *              server-only modules like BaseTemplateEngine (Handlebars).
+ * @layer domain
  */
 
 // Core types (safe for client)

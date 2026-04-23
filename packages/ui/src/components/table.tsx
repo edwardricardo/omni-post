@@ -1,3 +1,10 @@
+/**
+ * @file table.tsx
+ * @description Styled table primitives (Table, TableHeader, TableBody, TableFooter, TableRow,
+ *              TableHead, TableCell, TableCaption) with scroll-aware wrapper.
+ * @component Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell, TableCaption
+ * @layer infrastructure
+ */
 import * as React from "react";
 
 import { cn } from "../lib/utils";

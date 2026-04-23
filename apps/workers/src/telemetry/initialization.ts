@@ -1,3 +1,9 @@
+/**
+ * @file initialization.ts
+ * @description OpenTelemetry instrumentation initialization for publish workers. Must be imported
+ *              before other modules. Provides publishing, database, and business KPI instrumentation.
+ * @layer infrastructure
+ */
 // OpenTelemetry initialization for Social Media CMS Workers
 // This MUST be imported before any other modules to ensure proper instrumentation
 

@@ -1,7 +1,7 @@
 /**
  * @file sendEmailNotification.test.ts
  * @description Unit tests for SendEmailNotificationService.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

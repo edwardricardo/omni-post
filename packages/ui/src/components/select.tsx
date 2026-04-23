@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file select.tsx
+ * @description Radix-based Select primitives (Root, Group, Value, Trigger, Content, Label, Item,
+ *              Separator, Scroll buttons) with themed styling.
+ * @component Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectLabel, SelectItem, SelectSeparator, SelectScrollUpButton, SelectScrollDownButton
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Select as SelectPrimitive } from "radix-ui";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";

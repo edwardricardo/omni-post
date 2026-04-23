@@ -3,7 +3,7 @@
  * @description Unit tests for the integration marketplace registry.
  *              Note: This tests client-side code from apps/api test runner
  *              because the registry is pure TypeScript with no React deps.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

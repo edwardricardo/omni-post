@@ -2,7 +2,7 @@
  * @file ChartEmptyState.tsx
  * @description Placeholder shown inside chart containers when there is no data
  *   to render. Displays an icon and a configurable message.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

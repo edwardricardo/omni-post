@@ -2,7 +2,7 @@
  * @file TabNav.tsx
  * @description Horizontal tab navigation bar with active indicator.
  *              Uses CSS custom-property tokens for theme support.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

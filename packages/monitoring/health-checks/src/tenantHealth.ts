@@ -1,3 +1,9 @@
+/**
+ * @file tenantHealth.ts
+ * @description Per-tenant health scoring and alerting — computes tenant-level health metrics
+ *              (queue depth, error rate) and emits Prometheus gauges for observability.
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import { ok, err, type Result } from "@shared/types";
 import * as pino from "pino";

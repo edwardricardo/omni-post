@@ -1,4 +1,9 @@
-// Custom instrumentation for social media CMS business logic
+/**
+ * @file customInstrumentation.ts
+ * @description Custom OpenTelemetry instrumentation for business logic — wraps publishing,
+ *              provider API, and database spans with semantic attributes and counters.
+ * @layer infrastructure
+ */
 import { trace, SpanKind, SpanStatusCode, Span, Tracer, metrics } from "@opentelemetry/api";
 import pino from "pino";
 

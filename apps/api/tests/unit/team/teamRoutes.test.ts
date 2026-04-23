@@ -2,7 +2,7 @@
  * @file teamRoutes.test.ts
  * @description Unit tests for team management HTTP endpoints.
  *   Uses mocked Prisma stores and a real Fastify instance to test HTTP endpoint behavior.
- * @layer test
+ * @layer infrastructure
  */
 
 import { randomBytes } from "node:crypto";

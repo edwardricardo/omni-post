@@ -1,3 +1,9 @@
+/**
+ * @file apiClient.ts
+ * @description TikTok main API client orchestrating marketing, research, content analytics,
+ *              auth, video processing, and hashtag helpers with circuit breaker protection.
+ * @layer infrastructure
+ */
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import { ProviderError } from "@providers/shared";

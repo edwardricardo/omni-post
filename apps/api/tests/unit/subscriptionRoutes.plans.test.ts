@@ -2,7 +2,7 @@
  * @file subscriptionRoutes.plans.test.ts
  * @description Unit tests for subscriptionRoutes — Plans and Subscription Management.
  *              Uses in-memory mocked Prisma stores — no real database needed.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

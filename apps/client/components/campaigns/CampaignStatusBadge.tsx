@@ -1,7 +1,7 @@
 /**
  * @file CampaignStatusBadge.tsx
  * @description Status badge for campaign display.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

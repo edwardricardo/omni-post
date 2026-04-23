@@ -2,7 +2,7 @@
  * @file CrmAdapter.ts
  * @description Port interface for CRM platform adapters (HubSpot, Salesforce).
  *              Technology-free contract for OAuth, contact sync, and activity logging.
- * @layer ports
+ * @layer domain
  */
 
 /**

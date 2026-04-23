@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file page.tsx
+ * @description Post preview page displaying a platform-specific preview with publish, schedule,
+ *              and share actions.
+ * @component PreviewPostPage
+ * @layer infrastructure
+ */
 import { useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePost } from "@/lib/api/hooks";

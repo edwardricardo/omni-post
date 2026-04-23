@@ -2,7 +2,7 @@
  * @file CreateRoleDialog.tsx
  * @description Dialog for creating a new custom RBAC role with name, description,
  *   level, and initial permissions.
- * @layer presentation
+ * @layer infrastructure
  */
 
 "use client";

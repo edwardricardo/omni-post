@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for storage-s3 adapter using aws-sdk-client-mock.
  * Mocks S3Client at the prototype level so even calls through circuit breaker
  * are intercepted. Also mocks createPresignedPost from @aws-sdk/s3-presigned-post.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

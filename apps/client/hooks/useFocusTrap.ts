@@ -1,3 +1,9 @@
+/**
+ * @file useFocusTrap.ts
+ * @description React hook that traps keyboard focus within a container element (modals, dialogs)
+ *              per WCAG 2.1 Success Criterion 2.4.3 (Level A).
+ * @layer infrastructure
+ */
 import { useEffect, useRef } from "react";
 
 /**

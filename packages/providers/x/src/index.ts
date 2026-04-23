@@ -1,7 +1,8 @@
 /**
- * X/Twitter Provider - Clean Export
- *
- * Exports the class-based XAdapter implementation
+ * @file index.ts
+ * @description Public entry point for the X/Twitter provider — exports XAdapter and helper
+ *              fetchXAnalytics for metrics retrieval.
+ * @layer infrastructure
  */
 
 import { xAdapter as xAdapterInstance } from "./XAdapter.js";

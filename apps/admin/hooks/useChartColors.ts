@@ -2,7 +2,7 @@
  * @file useChartColors.ts
  * @description Resolves CSS custom-property color tokens into concrete values
  *   for Recharts SVG attributes. Re-computes when the theme toggles.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

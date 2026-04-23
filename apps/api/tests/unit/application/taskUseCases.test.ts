@@ -1,7 +1,7 @@
 /**
  * @file taskUseCases.test.ts
  * @description Unit tests for Task use cases: create, complete, cancel, list.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

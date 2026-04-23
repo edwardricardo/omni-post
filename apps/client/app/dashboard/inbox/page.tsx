@@ -5,7 +5,7 @@
  * @description Social Inbox page at /dashboard/inbox. Client Component that
  *              renders the InboxLayout with the current user's ID from auth context.
  *              Auth is enforced by the dashboard layout — no server-side check needed.
- * @layer ui
+ * @layer infrastructure
  */
 
 import { useAuth } from "@/lib/auth/authContext";

@@ -1,3 +1,9 @@
+/**
+ * @file AccountRepository.ts
+ * @description Prisma-backed repository for Account entities — create, update, list, and get
+ *              operations with subscription-tier and status handling.
+ * @layer infrastructure
+ */
 import {
   ok,
   err,

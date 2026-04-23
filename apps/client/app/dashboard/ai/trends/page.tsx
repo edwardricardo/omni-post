@@ -1,7 +1,7 @@
 /**
  * @file page.tsx
  * @description Trend Radar page showing relevant trending topics with post ideas.
- * @layer client-pages
+ * @layer infrastructure
  */
 
 "use client";

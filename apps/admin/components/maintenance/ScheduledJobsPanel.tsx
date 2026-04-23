@@ -2,7 +2,7 @@
  * @file ScheduledJobsPanel.tsx
  * @description Displays scheduled background jobs with last run info, manual trigger,
  *   and cron schedule editing. Fetches last execution from audit logs.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

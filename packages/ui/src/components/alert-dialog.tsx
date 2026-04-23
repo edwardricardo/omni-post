@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file alert-dialog.tsx
+ * @description Radix-based AlertDialog primitives for confirmation prompts — composed from
+ *              Root, Trigger, Overlay, Content, Header, Footer, Title, Description, Action, Cancel.
+ * @component AlertDialog, AlertDialogTrigger, AlertDialogPortal, AlertDialogOverlay, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui";
 

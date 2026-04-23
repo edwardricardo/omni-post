@@ -644,13 +644,30 @@ Every public class method gets:
 
 ### @layer Standard Values
 
-**Use exactly these three values — no variations, no new values:**
+**Use exactly these three values — no variations, no new values. The rule applies to every `.ts` and `.tsx` file in `apps/` and `packages/`, including tests, frontend components, hooks, pages, UI primitives, config files, and barrel exports. No exceptions.**
 
-| Value            | Use for                                                                                   |
-| ---------------- | ----------------------------------------------------------------------------------------- |
-| `domain`         | Entities, value objects, aggregates, domain events, repository interfaces, domain errors  |
-| `application`    | Use cases, application services, handlers, command/query objects, DTOs                    |
-| `infrastructure` | Adapters, repository implementations, routes, processors, BullMQ jobs, config, middleware |
+| Value            | Use for                                                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `domain`         | Entities, value objects, aggregates, domain events, repository interfaces, domain errors                                                        |
+| `application`    | Use cases, application services, handlers, command/query objects, DTOs                                                                          |
+| `infrastructure` | Adapters, repository implementations, routes, processors, BullMQ jobs, config, middleware, React components, hooks, pages, UI primitives, tests |
+
+### Mapping by context
+
+Resolve ambiguity by path. When a file could fit two layers, pick by this table:
+
+| Path                                                                                              | @layer           |
+| ------------------------------------------------------------------------------------------------- | ---------------- |
+| `apps/api/src/domain/`, `packages/shared/`, `packages/ports/` (pure contracts, no framework deps) | `domain`         |
+| `apps/api/src/application/`                                                                       | `application`    |
+| `apps/api/src/infrastructure/`, `apps/api/src/**/*Routes.ts`, `apps/api/src/**/*Processor.ts`     | `infrastructure` |
+| `apps/workers/src/`                                                                               | `infrastructure` |
+| `apps/admin/`, `apps/client/` (pages, components, hooks, stores, lib)                             | `infrastructure` |
+| `packages/ui/` (UI primitives)                                                                    | `infrastructure` |
+| `packages/adapters/`, `packages/providers/` (hexagonal adapters)                                  | `infrastructure` |
+| `packages/monitoring/`, `packages/observability/` (cross-cutting)                                 | `infrastructure` |
+| `packages/api-common/` (shared HTTP helpers)                                                      | `infrastructure` |
+| Tests (`**/tests/**`, `**/*.test.ts`, `**/*.test.tsx`)                                            | `infrastructure` |
 
 **Examples:**
 
@@ -660,8 +677,67 @@ Every public class method gets:
 - `GatewaySwitchProcessor.ts` → `@layer infrastructure`
 - `Post.ts` (entity) → `@layer domain`
 - `PostRepository.ts` (interface) → `@layer domain`
+- `PaymentAdapter.ts` (port contract in `packages/ports/`) → `@layer domain`
+- `CampaignList.tsx` (React component) → `@layer infrastructure`
+- `useCampaigns.ts` (React hook) → `@layer infrastructure`
+- `dashboard/page.tsx` (Next.js page) → `@layer infrastructure`
+- `postRoutes.test.ts` (unit test) → `@layer infrastructure`
 
-**Forbidden variations:** `infrastructure (routes)`, `routes`, `presentation`, `service`, `handler` — always normalize to one of the three values above.
+**Forbidden variations:** `test`, `integration`, `unit`, `testing`, `presentation`, `page`, `hooks`, `ui`, `client-components`, `client-hooks`, `client-pages`, `client-state`, `client-lib`, `client-tests`, `ports`, `provider`, `test-infrastructure`, `infrastructure (routes)`, `routes`, `service`, `handler` — always normalize to one of `domain` / `application` / `infrastructure`.
+
+### React component JSDoc — Storybook autodocs integration
+
+React components get `@component` **in addition to** `@layer infrastructure`. The two tags answer different questions: `@layer` locates the file in the hexagonal architecture (always `infrastructure` for UI); `@component` marks the file as a React component for readers and grep-based tooling.
+
+Storybook `addon-docs` reads **two places** to populate the autodocs page:
+
+1. The **component function's preceding JSDoc block** → used as the long-form component description.
+2. **JSDoc comments above each prop in the props `interface`** → used as the per-prop description in the Controls panel.
+
+`@param` tags on the component function are **redundant and ignored** by `react-docgen-typescript`. Put prop descriptions on the interface, not the function.
+
+**Canonical template:**
+
+```tsx
+/**
+ * @file CampaignList.tsx
+ * @description List view of campaigns with filter/sort controls and inline actions.
+ * @component CampaignList
+ * @layer infrastructure
+ */
+
+interface CampaignListProps {
+  /** Account whose campaigns will be listed. Required. */
+  accountId: string;
+  /** When true, shows archived campaigns mixed with active ones. Default: false. */
+  includeArchived?: boolean;
+  /** Fired after the user triggers archive/unarchive on any row. */
+  onChange?: (campaignId: string) => void;
+}
+
+/**
+ * Renders a paginated list of campaigns for an account, with inline archive,
+ * duplicate, and analytics actions. Filters persist in the URL query string.
+ */
+export function CampaignList({ accountId, includeArchived = false, onChange }: CampaignListProps) {
+  // ...
+}
+```
+
+Gotchas documented during T1-F research:
+
+- Storybook `react-docgen-typescript` has a known limitation (issues [#21007](https://github.com/storybookjs/storybook/issues/21007), [#30767](https://github.com/storybookjs/storybook/issues/30767)): when a component is imported from a pnpm workspace package via the package root, autodocs may miss prop descriptions. If this happens, import from the source path (`@packages/ui/src/ComponentName`) instead of the package root (`@packages/ui`).
+- Next.js 15 App Router components that use `useRouter` from `next/navigation` require `parameters.nextjs.appDirectory: true` in the Storybook `preview.tsx`.
+- Storybook ignores `@defaultValue` ([issue #21192](https://github.com/storybookjs/storybook/issues/21192)). Express defaults via TypeScript parameter defaults instead (`prop = false`).
+
+### Storybook port convention
+
+Each app runs its own Storybook on a dedicated port to avoid collisions during parallel development:
+
+- `apps/client`: `6006`
+- `apps/admin`: `6007`
+
+`packages/ui` does **not** run its own Storybook; its stories are picked up by the client Storybook via a cross-package glob in `apps/client/.storybook/main.ts`. This avoids dual-maintenance of addons/preview configuration.
 
 ### Comment Quality Rules
 
@@ -711,16 +787,31 @@ grep -rn "Part of Sprint\|Phase.*Sprint\|Sprint [0-9]" \
   apps/api/src/ apps/admin/src/ apps/client/src/ \
   --include="*.ts" --include="*.tsx" | wc -l
 
-# 9. No files missing @file header (target: 0)
-grep -rL "@file" apps/api/src/ --include="*.ts" | grep -v node_modules | wc -l
+# 9. No files missing @file header (all repo, target: 0)
+grep -rL "@file" apps/ packages/ --include="*.ts" --include="*.tsx" | \
+  grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation" | wc -l
 
-# 10. No invalid @layer values
-grep -rn "@layer" apps/api/src/ --include="*.ts" | \
+# 10. No invalid @layer values (all repo, only domain/application/infrastructure)
+grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" | \
+  grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation" | \
   grep -v "@layer application\|@layer domain\|@layer infrastructure" | wc -l
 
 # 11. No raw setInterval in backend (scheduler-adapter excepted)
 grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" | \
   grep -v "default-scheduler\|node_modules\|dist\|\.test\.\|/tests/\|/\.stryker-tmp/\|eslint\.config\|DANGEROUS_STRINGS" | wc -l
+
+# 12. Every React component file carries an @component tag.
+# Scan component directories and fail if any canonical component .tsx lacks @component.
+# Excludes hooks (use*.tsx) and helper modules (camelCase exports, not PascalCase components).
+for f in $(find apps/admin/components apps/client/components packages/ui/src/components \
+  -type f -name "*.tsx" 2>/dev/null | grep -v "\.stories\.\|\.test\.\|\.next"); do
+  basename=$(basename "$f")
+  # Skip hooks — use*.tsx follow the hook convention, document them with @hook, not @component.
+  case "$basename" in use*) continue;; esac
+  # Skip helper modules that don't export any PascalCase component.
+  if ! grep -qE "^export (default )?(function|const) [A-Z]" "$f"; then continue; fi
+  grep -q "@component" "$f" || echo "MISSING @component: $f"
+done | wc -l
 ```
 
 ---

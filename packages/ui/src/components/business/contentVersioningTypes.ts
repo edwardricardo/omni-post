@@ -1,12 +1,8 @@
 /**
- * Content Versioning — shared types and pure utility functions.
- *
- * Exports `ContentVersion` and `ContentVersioningProps` interfaces used by the
- * ContentVersioning orchestrator and its two sub-view components
- * (VersionTimelineView, VersionCompactView).
- *
- * Pure helpers that require no React are kept here so they can be imported by
- * all four files without creating circular dependencies.
+ * @file contentVersioningTypes.ts
+ * @description Shared types (ContentVersion, ContentVersioningProps) and pure utility helpers
+ *              consumed by ContentVersioning and its sub-views without circular dependencies.
+ * @layer infrastructure
  */
 
 import { format, formatDistanceToNow } from "date-fns";

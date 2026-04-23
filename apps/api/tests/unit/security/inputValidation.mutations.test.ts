@@ -2,7 +2,7 @@
  * @file inputValidation.mutations.test.ts
  * @description Mutation-killing tests for SecurityValidator, createSecureSchema, and SecureSchemas.
  *              Each test targets a specific mutant survivor from Stryker analysis.
- * @layer testing
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

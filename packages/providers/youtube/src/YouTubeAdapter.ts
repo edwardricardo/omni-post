@@ -1,8 +1,8 @@
 /**
- * YouTube Provider Adapter - Class-based implementation
- *
- * Extends AbstractProviderAdapter to provide YouTube-specific functionality
- * for publishing videos and fetching analytics.
+ * @file YouTubeAdapter.ts
+ * @description YouTube provider adapter extending AbstractProviderAdapter with video publishing,
+ *              media upload, and analytics retrieval for the YouTube Data API.
+ * @layer infrastructure
  */
 
 import {

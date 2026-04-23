@@ -2,7 +2,7 @@
  * @file subscriptionSchemas.test.ts
  * @description Mutation-killing tests for Zod subscription schemas.
  * Tests validation logic: required fields, enum values, coercion, min/max bounds.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

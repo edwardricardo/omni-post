@@ -2,7 +2,7 @@
  * @file HorizontalBarChart.tsx
  * @description Horizontal bar chart using Recharts vertical layout. Supports
  *   per-bar colors via data or falls back to the theme accent color.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

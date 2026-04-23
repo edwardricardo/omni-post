@@ -10,7 +10,7 @@
  *   PUT    /channels/:channelId         - update channel
  *   DELETE /channels/:channelId         - soft-delete channel
  *   DELETE /channels/:channelId/hard    - hard-delete (SUPER_ADMIN only)
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

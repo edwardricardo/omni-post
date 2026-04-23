@@ -1,3 +1,9 @@
+/**
+ * @file ProviderAdapter.ts
+ * @description Provider adapter port (interface) defining ProviderId, render, publish, threaded
+ *              publish, and analytics contracts used by all social-platform adapters.
+ * @layer domain
+ */
 import type {
   CanonicalPost,
   Media,

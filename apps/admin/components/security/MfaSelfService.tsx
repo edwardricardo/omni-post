@@ -2,7 +2,7 @@
  * @file MfaSelfService.tsx
  * @description Self-service MFA setup panel for the current admin user.
  * Allows setting up MFA via TOTP, verifying with a code, and disabling MFA.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

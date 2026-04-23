@@ -1,9 +1,8 @@
 /**
- * useContentVersioning -- custom hook encapsulating all state management and
- * business logic for the ContentVersioning orchestrator component.
- *
- * Extracts state declarations, filtering/sorting logic, and all event handlers
- * so that the main component file stays lean and focused on layout/rendering.
+ * @file useContentVersioning.ts
+ * @description Custom hook encapsulating state management, filtering/sorting, and handlers for
+ *              the ContentVersioning orchestrator, keeping the component file lean.
+ * @layer infrastructure
  */
 
 "use client";

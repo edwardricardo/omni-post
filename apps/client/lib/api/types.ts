@@ -1,3 +1,9 @@
+/**
+ * @file types.ts
+ * @description API types for the client app — domain DTOs for Project, Post, Provider, Channel,
+ *              Analytics, and paginated responses consumed by the API client.
+ * @layer infrastructure
+ */
 // API Types for OmniPost Client
 
 export interface Project {

@@ -3,7 +3,7 @@
  * @description Single notification row rendered inside the notification bell dropdown.
  *              Shows: colored type dot, title, truncated body, time-ago, and navigates
  *              to the relevant resource on click.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

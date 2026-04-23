@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Barrel exports for the shared UI package — components, business components,
+ *              hooks, and utility functions.
+ * @layer infrastructure
+ */
 // UI Components
 export * from "./components/alert";
 export * from "./components/alert-dialog";

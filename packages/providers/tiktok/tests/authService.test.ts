@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for TikTokAuthService covering OAuth URL
  *              generation, token exchange, refresh, profile retrieval, revocation,
  *              validation, and Login Kit configuration.
- * @layer provider
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

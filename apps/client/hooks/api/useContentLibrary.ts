@@ -1,11 +1,8 @@
 /**
- * useContentLibrary Hook
- *
- * Fetches paginated post data from GET /posts via the admin backend proxy.
- * Used by the ContentLibrary component to display a filterable, sortable list
- * of posts across all projects.
- *
- * @module hooks/api/useContentLibrary
+ * @file useContentLibrary.ts
+ * @description TanStack Query hook fetching paginated post data from GET /posts via the admin
+ *              backend proxy. Used by ContentLibrary to display a filterable, sortable list.
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 

@@ -7,7 +7,7 @@
  *              NOTE: SSE cannot go through the Next.js proxy (it buffers the response).
  *              This hook connects directly to NEXT_PUBLIC_API_URL with withCredentials:true
  *              so the browser sends the customer-session cookie automatically.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

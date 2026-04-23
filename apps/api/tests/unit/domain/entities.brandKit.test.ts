@@ -1,7 +1,7 @@
 /**
  * @file entities.brandKit.test.ts
  * @description Tests for BrandKit domain entity — creation, validation, update, serialization.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

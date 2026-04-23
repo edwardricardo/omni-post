@@ -3,6 +3,7 @@
  * @description High-performance virtual scrolling component rendering only visible
  *              items. Supports dynamic item heights with accurate scroll positioning,
  *              infinite scroll capabilities, and React 19 concurrent features.
+ * @component VirtualScrollList
  * @layer infrastructure
  */
 

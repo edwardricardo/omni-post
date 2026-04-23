@@ -1,8 +1,8 @@
 /**
- * Base Template Engine
- *
- * Shared template compilation logic for both server and client.
- * Consolidates Handlebars helpers, validation, and common utilities.
+ * @file BaseTemplateEngine.ts
+ * @description Shared Handlebars-based template compilation engine with date-fns formatters,
+ *              variable validation, and common helpers used by client and admin apps.
+ * @layer domain
  */
 
 import Handlebars from "handlebars";

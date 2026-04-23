@@ -1,8 +1,8 @@
 /**
- * Type definitions for the PublishHandler.
- *
- * Extracted into a separate file to keep publishHandler.ts under the 800-line limit.
- * All interfaces are re-exported from publishHandler.ts for backwards compatibility.
+ * @file publishHandlerTypes.ts
+ * @description Type definitions for the PublishHandler, extracted into a separate file to keep
+ *              publishHandler.ts under the 800-line limit. Re-exported for backwards compatibility.
+ * @layer infrastructure
  */
 
 import type pino from "pino";

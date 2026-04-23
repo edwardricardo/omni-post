@@ -2,7 +2,7 @@
  * @file DonutChart.tsx
  * @description Reusable donut/pie chart with a custom vertical legend showing
  *   name, count, and percentage for each slice. Uses Recharts PieChart.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

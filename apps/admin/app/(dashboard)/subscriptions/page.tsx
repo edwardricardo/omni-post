@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Subscription management page listing subscribers, trials, and revenue.
  *   Uses CSS design tokens and reusable UI components.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

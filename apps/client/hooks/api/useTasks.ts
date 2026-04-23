@@ -1,7 +1,7 @@
 /**
  * @file useTasks.ts
  * @description TanStack Query hooks for task management CRUD operations.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

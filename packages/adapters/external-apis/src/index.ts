@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Barrel exports for the external-apis adapter — exposes ExternalApiCircuitBreaker
+ *              and shared factory/accessor functions.
+ * @layer infrastructure
+ */
 export {
   ExternalApiCircuitBreaker,
   type ExternalApiOptions,

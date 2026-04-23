@@ -1,7 +1,7 @@
 /**
  * @file page.tsx
  * @description Campaign detail page with analytics and post list.
- * @layer client-pages
+ * @layer infrastructure
  */
 
 "use client";

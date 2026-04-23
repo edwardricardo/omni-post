@@ -2,7 +2,7 @@
  * @file DayCalendar.tsx
  * @component DayCalendar
  * @description Day view calendar showing a single day with detailed time slots.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

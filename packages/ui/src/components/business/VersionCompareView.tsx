@@ -1,8 +1,9 @@
 /**
- * VersionCompareView -- side-by-side comparison tab for ContentVersioning.
- *
- * Shows two selected versions next to each other with a word-level diff below.
- * All data is passed in via props from the parent orchestrator.
+ * @file VersionCompareView.tsx
+ * @description Side-by-side comparison tab for ContentVersioning showing two selected versions
+ *              and a word-level diff below. All state comes from the parent orchestrator.
+ * @component VersionCompareView
+ * @layer infrastructure
  */
 
 "use client";

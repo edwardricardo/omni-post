@@ -3,7 +3,7 @@
  * @description Unit tests for LinkedIn poll support in render() and publish().
  *              Verifies poll tag parsing, validation rules, and publish payload
  *              construction for poll content.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

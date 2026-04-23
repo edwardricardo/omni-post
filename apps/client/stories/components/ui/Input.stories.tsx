@@ -1,3 +1,9 @@
+/**
+ * @file Input.stories.tsx
+ * @description Storybook stories for the Input component covering default, password, search,
+ *              and icon-prefixed variants.
+ * @layer infrastructure
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { action } from "storybook/actions";
 import { Input } from "@packages/ui";

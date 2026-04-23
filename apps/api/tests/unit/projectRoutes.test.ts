@@ -2,7 +2,7 @@
  * @file projectRoutes.test.ts
  * @description Unit tests for projectRoutes — project CRUD operations.
  *              Uses in-memory mocked Prisma stores — no real database needed.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

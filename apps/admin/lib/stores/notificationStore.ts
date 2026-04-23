@@ -3,7 +3,7 @@
  * @description Zustand store for notification state. Holds unread count, notification list,
  *              SSE connection status, and actions for marking read. Shared by the notification
  *              bell, inbox unread badge, and any real-time feature.
- * @layer client-state
+ * @layer infrastructure
  */
 
 import { create } from "zustand";

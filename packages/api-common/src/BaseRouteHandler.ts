@@ -1,14 +1,8 @@
 /**
- * BaseRouteHandler - Abstract base class for Fastify route handlers
- *
- * Eliminates duplication across API routes by providing:
- * - Standardized error handling
- * - Request validation with Zod
- * - Logging with context
- * - Response formatting
- * - Result type handling
- * - OAuth error handling
- * - Webhook signature verification
+ * @file BaseRouteHandler.ts
+ * @description Abstract base class for Fastify route handlers providing standardized error
+ *              handling, Zod validation, contextual logging, response shaping, and Result handling.
+ * @layer infrastructure
  */
 
 import { FastifyRequest, FastifyReply } from "fastify";

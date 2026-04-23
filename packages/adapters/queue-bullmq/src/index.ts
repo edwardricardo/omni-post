@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description BullMQ adapter implementing the QueuePort — enqueue, consumer worker creation,
+ *              health checks, and resilience wrappers (circuit breaker + retry).
+ * @layer infrastructure
+ */
 import { ok, err, type Result } from "@shared/types";
 import type { QueuePort, QueueJob, QueueHealth } from "@ports/core";
 import { Queue, Worker } from "bullmq";

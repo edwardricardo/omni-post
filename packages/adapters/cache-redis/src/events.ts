@@ -1,8 +1,8 @@
 /**
- * Event-driven cache invalidation system
- *
- * Integrates with domain events to automatically invalidate cache entries
- * when domain entities are created, updated, or deleted.
+ * @file events.ts
+ * @description Event-driven cache invalidation integrating with domain events to automatically
+ *              drop cache entries when entities are created, updated, or deleted.
+ * @layer infrastructure
  */
 
 import { RedisCacheManager } from "./cache-manager.js";

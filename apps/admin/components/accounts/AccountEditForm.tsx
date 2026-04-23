@@ -1,7 +1,7 @@
 /**
  * @file AccountEditForm.tsx
  * @description Inline edit form for account properties (name, active, trial, auto-renewal).
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

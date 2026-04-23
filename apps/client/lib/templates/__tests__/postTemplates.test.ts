@@ -2,7 +2,7 @@
  * @file postTemplates.test.ts
  * @description Mutation-killing tests for postTemplates — covers template data,
  * getTemplatesByCategory, fillTemplateVariables, and templateCategories.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

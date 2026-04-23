@@ -1,10 +1,8 @@
 /**
- * Client Template Engine
- *
- * Extends BaseTemplateEngine with client-specific functionality:
- * - API-based template loading
- * - Browser-only features (preview, documentation generation)
- * - Enhanced context enrichment with default values
+ * @file ClientTemplateEngine.ts
+ * @description Client-side template engine extending BaseTemplateEngine with API-based template
+ *              loading, browser-only preview, documentation generation, and context enrichment.
+ * @layer infrastructure
  */
 
 import { format } from "date-fns";

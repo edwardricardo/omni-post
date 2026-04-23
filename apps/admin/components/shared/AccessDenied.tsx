@@ -2,7 +2,7 @@
  * @file AccessDenied.tsx
  * @description Full-block component for 403 permission denied errors.
  *   Shown in place of page content when a query returns 403.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

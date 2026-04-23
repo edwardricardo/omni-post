@@ -1,4 +1,10 @@
 /**
+ * @file route.ts
+ * @description Universal Next.js backend proxy route handler — injects Bearer tokens from the
+ *              httpOnly session cookie, manages cookie lifecycle on login/refresh/logout.
+ * @layer infrastructure
+ */
+/**
  * Universal Backend Proxy -- Route Handler
  *
  * All client-side API calls go through this proxy instead of hitting the

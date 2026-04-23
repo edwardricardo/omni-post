@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file page.tsx
+ * @description Post creation page with content editor, project selection, provider targeting,
+ *              and publish dialog.
+ * @component NewPostPage
+ * @layer infrastructure
+ */
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useProjects } from "@/lib/api/hooks";

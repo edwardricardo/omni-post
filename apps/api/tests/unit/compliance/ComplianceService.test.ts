@@ -2,7 +2,7 @@
  * @file ComplianceService.test.ts
  * @description Unit tests for compliance service — GDPR/security settings,
  *   compliance scoring (11 checks), DSAR lifecycle, breach reports.
- * @layer test
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";

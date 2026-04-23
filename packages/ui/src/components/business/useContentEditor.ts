@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * @file useContentEditor.ts
+ * @description Hook that owns editor state (content, media, validation, debounced change) for the
+ *              ContentEditorCore component, applying provider-constraint-aware validation.
+ * @layer infrastructure
+ */
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import type {
   MediaFile,

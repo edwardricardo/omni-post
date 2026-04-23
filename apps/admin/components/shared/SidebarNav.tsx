@@ -3,7 +3,7 @@
  * @description Collapsible sidebar navigation for the admin dashboard with i18n labels,
  *   theme toggle, language switcher, and help/admin-users links.
  *   Uses CSS custom-property design tokens for full theme support.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

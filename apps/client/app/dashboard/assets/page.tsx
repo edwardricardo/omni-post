@@ -1,7 +1,7 @@
 /**
  * @file page.tsx
  * @description Standalone asset library page with folders, grid, and detail panel.
- * @layer client-pages
+ * @layer infrastructure
  */
 
 "use client";

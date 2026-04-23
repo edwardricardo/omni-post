@@ -2,7 +2,7 @@
  * @file GdprSettingsForm.tsx
  * @description Form for managing GDPR/privacy settings including DPO configuration,
  *   data retention, DSAR response deadlines, and privacy feature toggles.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

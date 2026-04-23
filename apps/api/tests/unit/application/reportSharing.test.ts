@@ -1,7 +1,7 @@
 /**
  * @file reportSharing.test.ts
  * @description Unit tests for EnableReportSharingUseCase and DisableReportSharingUseCase.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

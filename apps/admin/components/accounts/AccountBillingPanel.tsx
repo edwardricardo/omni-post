@@ -3,7 +3,7 @@
  * @description Displays billing breakdown for an account including plan type badge,
  *              grandfathering status with adjust controls, trial info, provider pricing,
  *              bundle suggestions, and an Edit Plan button.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

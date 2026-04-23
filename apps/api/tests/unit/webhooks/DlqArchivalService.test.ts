@@ -2,7 +2,7 @@
  * @file DlqArchivalService.test.ts
  * @description Unit tests for DlqArchivalService — soft-archival of resolved DLQ events
  *              and flagging of stale unresolved events.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

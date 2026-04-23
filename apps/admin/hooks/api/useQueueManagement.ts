@@ -2,7 +2,7 @@
  * @file useQueueManagement.ts
  * @description TanStack Query hooks for queue monitoring: stats, failed jobs, and retry.
  *   Used by the /maintenance page for operational queue management.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

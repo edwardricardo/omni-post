@@ -1,3 +1,9 @@
+/**
+ * @file resilience.ts
+ * @description Database resilience primitives for the Prisma adapter — circuit breaker,
+ *              retry-with-backoff wrapper, metrics collector, and health checks.
+ * @layer infrastructure
+ */
 import CircuitBreaker from "opossum";
 import type { Result as _Result } from "@shared/types";
 import { createLogger } from "@observability/logger";

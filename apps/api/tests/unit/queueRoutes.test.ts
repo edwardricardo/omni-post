@@ -11,7 +11,7 @@
  *   POST /admin/queue/jobs/:id/remove
  *
  * Routes are protected with requireAdminAuth + requireAdmin middleware.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

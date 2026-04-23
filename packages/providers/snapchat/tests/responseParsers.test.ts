@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for Snapchat response parsing functions.
  * Covers extractMediaId, parseOrganizationsResponse, parseStoryResponse,
  * parseAnalyticsResponse, parseTokenResponse, and EMPTY_ANALYTICS constant.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

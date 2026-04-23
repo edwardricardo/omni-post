@@ -1,3 +1,9 @@
+/**
+ * @file middleware.ts
+ * @description Fastify cache plugin exposing cachePlugin and a CacheInvalidator — wires the
+ *              RedisCacheManager into request/response hooks for GET-path caching.
+ * @layer infrastructure
+ */
 import type { FastifyRequest, FastifyReply, FastifyPluginAsync } from "fastify";
 import fp from "fastify-plugin";
 import { RedisCacheManager } from "./cache-manager.js";

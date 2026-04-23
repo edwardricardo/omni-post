@@ -2,7 +2,7 @@
  * @file DataTable.tsx
  * @description Generic data table with sticky header, loading skeleton, empty state,
  *              and optional row click handler. Uses CSS custom-property tokens.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

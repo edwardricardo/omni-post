@@ -1,6 +1,8 @@
 /**
- * Cache Invalidation Manager
- * Handles different cache invalidation strategies and dependency management
+ * @file invalidation.ts
+ * @description Cache invalidation manager supporting immediate, lazy, scheduled, and smart
+ *              invalidation strategies with dependency graph tracking.
+ * @layer infrastructure
  */
 
 import pino from "pino";

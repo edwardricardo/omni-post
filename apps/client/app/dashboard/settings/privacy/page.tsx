@@ -5,7 +5,7 @@
  *              Allows users to submit Data Subject Access Requests (DSAR)
  *              for data export, access, or deletion under GDPR, LGPD, CCPA,
  *              and PIPEDA regulations.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

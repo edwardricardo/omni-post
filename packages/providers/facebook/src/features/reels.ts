@@ -1,3 +1,9 @@
+/**
+ * @file reels.ts
+ * @description Facebook Reels service — uploads and manages short-form video posts with cover
+ *              image, audience restriction, and interaction settings via the Graph API.
+ * @layer infrastructure
+ */
 import { FacebookApiClient, FacebookCredentials } from "../apiClient.js";
 import { createLogger } from "@observability/logger";
 

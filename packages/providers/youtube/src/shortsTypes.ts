@@ -1,8 +1,8 @@
 /**
- * YouTube Shorts - Type Definitions and Module-Level Resources
- *
- * Exports interfaces, type aliases, constants, and the shared circuit breaker
- * instance used by YouTubeShortsService.
+ * @file shortsTypes.ts
+ * @description Type definitions, constants, and the shared circuit breaker instance used by
+ *              YouTubeShortsService for uploads, optimization, trends, and channel listing.
+ * @layer infrastructure
  */
 
 import client from "prom-client";

@@ -1,3 +1,9 @@
+/**
+ * @file manager.ts
+ * @description Storybook manager UI configuration for the client app — applies custom theme,
+ *              panel, sidebar, and toolbar settings.
+ * @layer infrastructure
+ */
 import { addons } from "storybook/manager-api";
 import storybookTheme from "./theme";
 

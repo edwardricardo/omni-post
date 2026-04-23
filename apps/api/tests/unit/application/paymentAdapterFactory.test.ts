@@ -1,7 +1,7 @@
 /**
  * @file paymentAdapterFactory.test.ts
  * @description Unit tests for payment adapter factory and event mapping.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

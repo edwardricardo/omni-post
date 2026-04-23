@@ -1,3 +1,10 @@
+/**
+ * @file textarea.tsx
+ * @description Styled textarea component with forwarded ref, ring-focus styling, and disabled-state
+ *              adjustments matching the design system.
+ * @component Textarea
+ * @layer infrastructure
+ */
 import * as React from "react";
 
 import { cn } from "../lib/utils";

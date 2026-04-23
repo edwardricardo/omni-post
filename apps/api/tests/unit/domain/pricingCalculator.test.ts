@@ -2,7 +2,7 @@
  * @file pricingCalculator.test.ts
  * @description Unit tests for PricingCalculator domain service.
  *              Tests the complete provider-based pricing model.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

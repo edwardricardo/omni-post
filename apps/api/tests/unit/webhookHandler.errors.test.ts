@@ -1,7 +1,7 @@
 /**
  * @file webhookHandler.errors.test.ts
  * @description Tests for WebhookHandler error handling, retry logic, and dead letter queue.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

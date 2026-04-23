@@ -1,6 +1,8 @@
 /**
- * Cache Factory
- * Factory functions for creating and managing global cache instances
+ * @file factory.ts
+ * @description Factory functions (createCacheManager, getCacheManager, resetCacheManager) for
+ *              creating and managing the global RedisCacheManager instance.
+ * @layer infrastructure
  */
 
 import type { CacheConfig } from "./types.js";

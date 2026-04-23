@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description MFA settings page that renders the MfaManager component.
  *   Uses CSS design tokens and PageHeader.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

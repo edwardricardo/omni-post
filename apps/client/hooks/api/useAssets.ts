@@ -1,7 +1,7 @@
 /**
  * @file useAssets.ts
  * @description TanStack Query hooks for asset library operations.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

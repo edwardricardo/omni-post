@@ -3,7 +3,7 @@
  * @description Shared constants for audit service unit tests.
  *              Provides test user IDs and data used across all audit test files.
  *              No database dependency — all data is in-memory.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 /** Test user 1 — ADMIN role */

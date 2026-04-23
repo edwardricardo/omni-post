@@ -1,4 +1,10 @@
 /**
+ * @file types.ts
+ * @description Core domain types for the platform — canonical posts, rendered content, media,
+ *              results, threads, tweets, accounts, subscriptions, and shared value objects.
+ * @layer domain
+ */
+/**
  * Unified RenderedPost type - Single source of truth
  * Used by ProviderAdapter.render() and RenderedContent
  */

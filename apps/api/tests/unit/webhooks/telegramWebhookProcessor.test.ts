@@ -3,7 +3,7 @@
  * @description Unit tests for TelegramWebhookProcessor — Telegram Bot API Update
  *              handling with secret token verification (no HMAC) and event parsing
  *              for messages, channel posts, edited messages, and callback queries.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, expect } from "vitest";

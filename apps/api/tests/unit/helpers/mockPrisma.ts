@@ -13,7 +13,7 @@
  *                return { ...orig, prisma: mockPrisma.prisma };
  *              });
  *              ```
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import { vi } from "vitest";

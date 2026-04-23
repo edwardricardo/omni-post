@@ -1,7 +1,7 @@
 /**
  * @file recurringPostUseCases.test.ts
  * @description Tests for CreateRecurringPostUseCase — cron validation, ID validation, persistence.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

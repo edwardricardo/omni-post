@@ -2,7 +2,7 @@
  * @file enhancedValidator.mutations-request.test.ts
  * @description Mutation-killing tests for EnhancedValidator request validation,
  *              file upload, plugin hook, tracking, and cleanup methods.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

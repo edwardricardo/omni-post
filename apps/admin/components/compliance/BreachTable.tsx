@@ -2,7 +2,7 @@
  * @file BreachTable.tsx
  * @description Table for managing data breach reports with severity badges,
  *   notification actions, and a dialog for reporting new breaches.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

@@ -2,7 +2,7 @@
  * @file ConflictDetector.test.ts
  * @description Mutation-killing tests for ConflictDetector — covers change detection,
  * conflict detection, resolution application, history management.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

@@ -10,7 +10,7 @@
  * - Rejecting sync with invalid/disabled channels
  * - Bidirectional sync direction
  * - Transaction status tracking
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";

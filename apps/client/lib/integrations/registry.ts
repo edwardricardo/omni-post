@@ -1,7 +1,7 @@
 /**
  * @file registry.ts
  * @description Static registry of all OmniPost integrations.
- * @layer client-lib
+ * @layer infrastructure
  */
 
 export type IntegrationCategory = "automation" | "crm" | "storage" | "security" | "coming_soon";

@@ -1,7 +1,7 @@
 /**
  * @file ScheduledReportsList.tsx
  * @description Table of scheduled reports with generate and delete actions.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for TikTokHashtagManager covering strategy
  *              generation, hashtag performance analysis, challenge discovery/creation,
  *              and recommendation pipelines.
- * @layer provider
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

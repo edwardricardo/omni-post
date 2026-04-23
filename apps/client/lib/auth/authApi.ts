@@ -1,15 +1,8 @@
 /**
- * Client Authentication API
- *
- * All auth calls go through the Next.js backend proxy at /api/backend/
- * which handles httpOnly cookie management. The browser NEVER sees JWTs.
- *
- * - Login:    POST /api/backend/auth/customer/login   -> sets session cookie server-side
- * - Logout:   POST /api/backend/auth/customer/logout  -> clears session cookie server-side
- * - Refresh:  POST /api/backend/auth/customer/refresh -> rotates session cookie server-side
- * - Me:       GET  /api/backend/auth/customer/me      -> proxy injects Bearer from cookie
- *
- * @module lib/auth/authApi
+ * @file authApi.ts
+ * @description Client-side authentication API wrapper — login, logout, refresh, and me operations
+ *              routed through the Next.js proxy with httpOnly cookie-based session management.
+ * @layer infrastructure
  */
 
 // All requests go through the Next.js proxy -- no direct backend access

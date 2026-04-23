@@ -1,7 +1,7 @@
 /**
  * @file CampaignCard.tsx
  * @description Campaign card with analytics summary and actions.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

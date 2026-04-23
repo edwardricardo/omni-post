@@ -7,7 +7,7 @@
  *              Allows configuring a custom AI system prompt for a specific account.
  *              The accountId is read from the URL search params. Auth is enforced
  *              by the dashboard layout — no server-side check needed.
- * @layer ui
+ * @layer infrastructure
  */
 
 import { Suspense } from "react";

@@ -1,7 +1,7 @@
 /**
  * @file vitest.config.ts
  * @description Vitest configuration for apps/workers unit tests.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 import { defineConfig } from "vitest/config";
 import path from "node:path";

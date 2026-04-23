@@ -2,7 +2,7 @@
  * @file SsoSettings.tsx
  * @component SsoSettings
  * @description Main SSO settings component with SAML/OIDC tabs.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

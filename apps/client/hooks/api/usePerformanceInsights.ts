@@ -1,11 +1,8 @@
 /**
- * usePerformanceInsights hook
- *
- * Fetches performance analytics data for a given project from the admin
- * dashboard endpoint. Returns TanStack Query state including the raw API
- * value, loading, and error state.
- *
- * @module hooks/api/usePerformanceInsights
+ * @file usePerformanceInsights.ts
+ * @description TanStack Query hook fetching performance analytics data for a project from the
+ *              admin dashboard endpoint. Returns raw API value, loading, and error state.
+ * @layer infrastructure
  */
 
 import { useQuery } from "@tanstack/react-query";

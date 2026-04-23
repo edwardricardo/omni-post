@@ -8,7 +8,7 @@
  * - source_wins and merge conflict resolution strategies
  * - Rollback of non-existent transactions
  * - Rollback without a rollback plan
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";

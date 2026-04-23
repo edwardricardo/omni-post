@@ -3,7 +3,7 @@
  * @description Tests for ImportFromGoogleDriveUseCase: validates MIME type filtering,
  *   correct MediaAsset creation with Google Drive metadata, folder assignment, and
  *   graceful handling of missing fields and repository failures.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

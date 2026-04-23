@@ -1,7 +1,7 @@
 /**
  * @file conversationNoteUseCases.test.ts
  * @description Unit tests for ConversationNote use cases: Add, Delete, List.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

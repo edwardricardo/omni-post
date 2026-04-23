@@ -3,7 +3,7 @@
  * @description Virtualized conversation list with infinite scroll.
  *              Uses TanStack Query infinite query + IntersectionObserver for
  *              automatic next-page loading.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

@@ -1,10 +1,10 @@
-// playwright.config.ts
-import { defineConfig, devices } from "@playwright/test";
-
 /**
- * Playwright configuration for E2E testing of the admin authentication system
- * @see https://playwright.dev/docs/test-configuration
+ * @file playwright.config.ts
+ * @description Playwright configuration for E2E testing of the admin authentication system —
+ *              sets test directory, timeouts, parallelism, reporters, and browser projects.
+ * @layer infrastructure
  */
+import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   // Look for test files in the tests/e2e directory
   testDir: "./tests/e2e",

@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * @file checkbox.tsx
+ * @description Radix-based Checkbox with check-indicator icon and focus-ring styling.
+ * @component Checkbox
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Checkbox as CheckboxPrimitive } from "radix-ui";
 import { Check } from "lucide-react";

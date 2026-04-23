@@ -1,9 +1,8 @@
 /**
- * Vitest Configuration — Admin App
- *
- * Unit tests for shared UI components.
- * Uses jsdom environment + @vitejs/plugin-react for React rendering.
- * vite-tsconfig-paths resolves @/* aliases from tsconfig.json.
+ * @file vitest.config.ts
+ * @description Vitest configuration for the admin app — jsdom environment, @vitejs/plugin-react,
+ *              vite-tsconfig-paths for alias resolution, and unit-test setup file.
+ * @layer infrastructure
  */
 import path from "node:path";
 import { defineConfig } from "vitest/config";

@@ -3,7 +3,7 @@
  * @component AddWebhookForm
  * @description Dialog form for adding a new Slack or Teams webhook configuration.
  *              Validates HTTPS URL and requires at least 1 event selected.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

@@ -2,7 +2,7 @@
  * @file FacebookAdapter.comments.test.ts
  * @description Unit tests for Facebook getComments, postReply, and scheduling.
  *              All tests are Tier 0 (no network, no DB, no Redis).
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

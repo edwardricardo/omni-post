@@ -2,7 +2,7 @@
  * @file ClientTemplateEngine.test.ts
  * @description Mutation-killing tests for ClientTemplateEngine — covers enrichContext,
  * preview, extractVariables, generateDocumentation, validateTemplate, and API methods.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

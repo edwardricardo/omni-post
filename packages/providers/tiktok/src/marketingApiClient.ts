@@ -1,3 +1,9 @@
+/**
+ * @file marketingApiClient.ts
+ * @description TikTok Marketing API client for ad account management, campaign reporting,
+ *              and promoted content analytics with circuit breaker protection.
+ * @layer infrastructure
+ */
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import { ProviderError } from "@providers/shared";

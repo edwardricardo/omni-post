@@ -15,7 +15,7 @@
  * - Max active keys enforcement
  * - Audit log creation for key operations
  *
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, beforeEach, expect, vi } from "vitest";

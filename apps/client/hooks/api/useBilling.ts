@@ -2,7 +2,7 @@
  * @file useBilling.ts
  * @description TanStack Query hooks for billing gateway operations: fetching gateway status,
  * initiating a gateway switch (Stripe <-> Paddle), and cancelling a pending switch.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

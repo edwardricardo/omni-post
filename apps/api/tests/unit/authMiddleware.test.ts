@@ -3,7 +3,7 @@
  * @description Unit tests for adminAuthMiddleware — authentication and authorization
  *              middleware for admin routes. Mocks adminAuthService to test token
  *              validation, role-based access control, and rate limiting.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

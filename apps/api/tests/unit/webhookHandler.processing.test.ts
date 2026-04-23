@@ -2,7 +2,7 @@
  * @file webhookHandler.processing.test.ts
  * @description Tests for WebhookHandler duplicate detection, signature verification,
  *              provider routing, and edge cases.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

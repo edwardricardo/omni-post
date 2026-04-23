@@ -2,7 +2,7 @@
  * @file useResetAccountPassword.ts
  * @description TanStack Query mutation hook for resetting a customer account's password.
  *   Used by the /accounts page's Reset Password action button.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";

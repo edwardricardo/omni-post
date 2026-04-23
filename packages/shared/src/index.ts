@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Barrel exports for the shared domain package — types, errors, events, saga, CQRS,
+ *              provider configuration, and template engine.
+ * @layer domain
+ */
 // Core type definitions
 export * from "./types";
 

@@ -3,7 +3,7 @@
  * @description Vitest configuration for @adapters/db-prisma unit tests.
  *              Tier 0: no DB, no Redis — pure logic tests for circuit breaker,
  *              retry logic, and metrics collector.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 import { defineConfig } from "vitest/config";
 import path from "node:path";

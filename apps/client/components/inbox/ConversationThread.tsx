@@ -3,7 +3,7 @@
  * @description Conversation thread panel. Shows message list (with infinite scroll
  *              upwards for older messages), marks messages read on open, and mounts
  *              the ReplyComposer at the bottom.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

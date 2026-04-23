@@ -1,8 +1,8 @@
 /**
- * TikTok Provider Adapter - Class-based implementation
- *
- * Extends AbstractProviderAdapter to provide TikTok-specific functionality
- * for publishing video content and fetching basic analytics.
+ * @file TikTokAdapter.ts
+ * @description TikTok provider adapter extending AbstractProviderAdapter with video publishing
+ *              and analytics retrieval via the TikTok Open Platform API.
+ * @layer infrastructure
  */
 
 import {

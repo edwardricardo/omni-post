@@ -1,7 +1,7 @@
 /**
  * @file page.tsx
  * @description Repurpose opportunities page showing AI-detected high-performing posts.
- * @layer client-pages
+ * @layer infrastructure
  */
 
 "use client";

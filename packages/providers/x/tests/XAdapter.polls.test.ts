@@ -3,7 +3,7 @@
  * @description Unit tests for X/Twitter poll and quote tweet features.
  *              Tests render() poll tag detection and publish() poll/quote passing.
  *              All tests are Tier 0 (no network, no DB, no Redis).
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

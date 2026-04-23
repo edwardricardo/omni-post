@@ -2,7 +2,7 @@
  * @file RecurringPostsList.tsx
  * @component RecurringPostsList
  * @description List of recurring posts with empty/loading/error states and deactivate action.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

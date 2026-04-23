@@ -1,7 +1,7 @@
 /**
  * @file useUsage.ts
  * @description TanStack Query hook for account usage metrics.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";

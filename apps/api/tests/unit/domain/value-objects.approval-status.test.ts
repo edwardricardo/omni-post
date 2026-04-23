@@ -1,7 +1,7 @@
 /**
  * @file value-objects.approval-status.test.ts
  * @description Mutation-killing tests for ApprovalStatus value object.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, vi, beforeEach } from "vitest";

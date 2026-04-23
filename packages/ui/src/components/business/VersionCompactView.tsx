@@ -1,10 +1,9 @@
 /**
- * VersionCompactView — "All Versions" compact list tab for ContentVersioning.
- *
- * Renders each version as a dense row card with optional inline diff expansion,
- * checkbox selection (for bulk compare), and per-row action buttons.
- * All state lives in the parent `ContentVersioning` orchestrator; this
- * component receives everything it needs via props.
+ * @file VersionCompactView.tsx
+ * @description Compact "All Versions" list tab for ContentVersioning — dense row cards with
+ *              inline diff expansion, checkbox bulk-select, and per-row actions.
+ * @component VersionCompactView
+ * @layer infrastructure
  */
 
 "use client";

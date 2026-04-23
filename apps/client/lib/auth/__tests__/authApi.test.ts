@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for the AuthAPI class.
  * Covers login, register, logout, refreshToken, getCurrentUser,
  * updateProfile, changePassword, and error handling.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

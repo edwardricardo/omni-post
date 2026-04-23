@@ -1,3 +1,9 @@
+/**
+ * @file PublishingInterface.stories.tsx
+ * @description Storybook stories for the PublishingInterface component with sample content of
+ *              varying lengths and multiple provider targets.
+ * @layer infrastructure
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { action } from "storybook/actions";
 import { PublishingInterface } from "@/components/publishing/PublishingInterface";

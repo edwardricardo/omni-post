@@ -3,7 +3,7 @@
  * @description AI image generation form and gallery. Uses DALL-E 3 via the backend
  *              API. Shows a prompt form, generated image preview, and a gallery of
  *              previously generated images.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

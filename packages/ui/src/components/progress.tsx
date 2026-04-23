@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * @file progress.tsx
+ * @description Progress bar component with a filled indicator driven by a numeric value prop.
+ * @component Progress
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { cn } from "../lib/utils";
 

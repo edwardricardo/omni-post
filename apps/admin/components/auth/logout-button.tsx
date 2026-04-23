@@ -1,7 +1,7 @@
 /**
  * @file logout-button.tsx
  * @description Admin Logout Button using next-intl for localized label.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

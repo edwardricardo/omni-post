@@ -3,7 +3,7 @@
  * @description Security-focused tests for TeamMemberRow role-based access control.
  *              Verifies that only OWNER can manage roles and remove members,
  *              and that self-management is correctly prevented.
- * @layer client-tests
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

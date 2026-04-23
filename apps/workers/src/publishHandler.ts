@@ -1,3 +1,9 @@
+/**
+ * @file publishHandler.ts
+ * @description Core publish orchestrator that renders posts, executes provider publishing (single
+ *              and threaded), records receipts, and coordinates with saga notifiers.
+ * @layer infrastructure
+ */
 import type {
   RenderedPost,
   Result,
