@@ -73,10 +73,14 @@ jobs:
 
       - name: Run PostgreSQL stress test
         run: pnpm perf:db
+        # Performance benchmarks are reporting-only: threshold regressions are
+        # surfaced in the report (see "Generate performance report"), but a
+        # single run should not block merges due to CI runner variance.
         continue-on-error: true
 
       - name: Run memory leak detection
         run: pnpm perf:memory
+        # See rationale above — memory leak heuristics are informational.
         continue-on-error: true
 
   k6-load:
@@ -155,11 +159,16 @@ jobs:
             grafana/k6 run \
               --out json=/scripts/results/results.json \
               /scripts/scenarios/${SCENARIO}.js
+        # k6 load test may flag threshold breaches in its exit code; we capture
+        # the JSON results and generate a report regardless so the run is always
+        # informational (not a merge-blocking check).
         continue-on-error: true
 
       - name: Generate performance report
         if: always()
         run: pnpm perf:report
+        # Report generation should never fail the workflow even if the underlying
+        # results are incomplete — the uploaded artifact is the observable signal.
         continue-on-error: true
 
       - name: Upload k6 results

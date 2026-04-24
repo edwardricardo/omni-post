@@ -176,7 +176,18 @@ jobs:
       - name: NPM Audit
         run: |
           echo "🔍 Running NPM audit..."
-          pnpm audit --audit-level moderate --json > npm-audit.json || true
+          # pnpm audit exits 1 when vulnerabilities are found at or above the
+          # audit-level threshold. We need the JSON report regardless to parse
+          # severity buckets and make the fail/pass decision below. Only swallow
+          # exit code 1; any other failure should bubble up as a real error.
+          set +e
+          pnpm audit --audit-level moderate --json > npm-audit.json
+          AUDIT_EXIT=$?
+          set -e
+          if [ "$AUDIT_EXIT" -ne 0 ] && [ "$AUDIT_EXIT" -ne 1 ]; then
+            echo "::error::pnpm audit failed with exit code $AUDIT_EXIT"
+            exit "$AUDIT_EXIT"
+          fi
 
           # Parse audit results
           CRITICAL=$(cat npm-audit.json | jq '.vulnerabilities | map(select(.severity == "critical")) | length')
@@ -212,7 +223,17 @@ jobs:
       - name: License compliance check
         run: |
           echo "📝 Checking license compliance..."
-          npx license-checker --json --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD' > license-report.json || true
+          # license-checker exits 1 when packages with disallowed licenses are
+          # found. We want the JSON report written either way so we can parse
+          # and report below. Only swallow exit code 1; other failures fail fast.
+          set +e
+          npx license-checker --json --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD' > license-report.json
+          LICENSE_EXIT=$?
+          set -e
+          if [ "$LICENSE_EXIT" -ne 0 ] && [ "$LICENSE_EXIT" -ne 1 ]; then
+            echo "::error::license-checker failed with exit code $LICENSE_EXIT"
+            exit "$LICENSE_EXIT"
+          fi
 
           # Count non-compliant licenses
           NON_COMPLIANT=$(cat license-report.json | jq 'to_entries | map(select(.value.licenses | test("GPL|AGPL|LGPL|SSPL|Commons Clause"; "i"))) | length')
@@ -281,8 +302,19 @@ jobs:
         run: |
           echo "🐳 Checking container best practices..."
 
-          # Check Dockerfile best practices
-          docker run --rm -i hadolint/hadolint < apps/${{ matrix.service }}/Dockerfile || true
+          # hadolint exits with a non-zero status when it finds lint issues in
+          # the Dockerfile. We surface the findings in the job log but do not
+          # block the pipeline on style-level findings; infra/security failures
+          # (image pull errors, etc.) are distinguished from lint failures by
+          # exit code: hadolint uses exit 1 for lint warnings only.
+          set +e
+          docker run --rm -i hadolint/hadolint < apps/${{ matrix.service }}/Dockerfile
+          HADOLINT_EXIT=$?
+          set -e
+          if [ "$HADOLINT_EXIT" -gt 1 ]; then
+            echo "::error::hadolint failed to run (exit $HADOLINT_EXIT)"
+            exit "$HADOLINT_EXIT"
+          fi
 
           # Check for common security misconfigurations
           docker run --rm -v "$(pwd):/app" -w /app conftest verify --policy security/policies/docker/ apps/${{ matrix.service }}/Dockerfile || echo "No policy violations found"

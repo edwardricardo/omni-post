@@ -52,8 +52,17 @@ jobs:
         run: |
           echo "🔍 Checking for security vulnerabilities..."
 
-          # Run audit and capture output
-          pnpm audit --json > audit-results.json || true
+          # pnpm audit exits 1 when vulnerabilities are found — we want the report
+          # to be generated either way, but only swallow that specific exit code.
+          # Any other failure (network, malformed output) should still fail the job.
+          set +e
+          pnpm audit --json > audit-results.json
+          AUDIT_EXIT=$?
+          set -e
+          if [ "$AUDIT_EXIT" -ne 0 ] && [ "$AUDIT_EXIT" -ne 1 ]; then
+            echo "::error::pnpm audit failed with exit code $AUDIT_EXIT"
+            exit "$AUDIT_EXIT"
+          fi
 
           # Check if there are vulnerabilities
           VULN_COUNT=$(cat audit-results.json | jq '.metadata.vulnerabilities.total // 0')
@@ -72,8 +81,16 @@ jobs:
         run: |
           echo "📦 Checking for outdated packages..."
 
-          # Get outdated packages
-          pnpm outdated --json > outdated.json || true
+          # pnpm outdated exits 1 when outdated deps exist — we want the report
+          # regardless. Only swallow exit code 1; other failures bubble up.
+          set +e
+          pnpm outdated --json > outdated.json
+          OUTDATED_EXIT=$?
+          set -e
+          if [ "$OUTDATED_EXIT" -ne 0 ] && [ "$OUTDATED_EXIT" -ne 1 ]; then
+            echo "::error::pnpm outdated failed with exit code $OUTDATED_EXIT"
+            exit "$OUTDATED_EXIT"
+          fi
 
           # Count updates by type
           SECURITY_COUNT=$(cat outdated.json | jq '[.[] | select(.severity == "high" or .severity == "critical")] | length')

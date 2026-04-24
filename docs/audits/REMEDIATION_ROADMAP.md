@@ -757,29 +757,34 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 ---
 
-#### T2-F — ci.yml / workflows urgentes 🔒 🔗
+#### T2-F — ci.yml / workflows urgentes 🔒 🔗 ✅ 2026-04-23
 
-**Scope.** CI silent test skip + turbo env + workflow improvements urgentes. **Precondición a todo trabajo serio** — sin CI que falle cuando corresponde, regresiones pasan silenciosas.
+**Scope real (extendido).** CI silent test skip + turbo env + turbo outputs + cache keys. Scope roadmap literal: 4 findings. Real: 12 silent skips en 5 workflow files, 0 env declarations en turbo.json (cache poisoning risk), 2 cache blocks brittle en ci.yml + 1 job sin turbo cache. **Precondición a todo trabajo serio** — sin CI que falle cuando corresponde, regresiones pasan silenciosas.
 
-**Findings table (4):**
+**Investigación previa (fuentes citadas):**
 
-| L-#   | Título corto                              | Esfuerzo | Acción | §5.9 | Notas                      |
-| ----- | ----------------------------------------- | -------- | ------ | ---- | -------------------------- |
-| L-622 | `ci.yml` silent test skip con `\|\| true` | TRIVIAL  | FIX    | AUTO | Remover `\|\| true`        |
-| L-581 | turbo `env` section no declarada          | QUICK    | CONFIG | AUTO | Declarar env por task      |
-| L-582 | turbo test outputs gap                    | TRIVIAL  | CONFIG | AUTO | `outputs: ["coverage/**"]` |
-| L-635 | cache keys brittle (no lockfile hash)     | QUICK    | CONFIG | AUTO |                            |
+- **Turborepo config** https://turborepo.dev/docs/reference/configuration: task `env` declara vars que impactan cache hash. NO declarar → cache poisoning (turbo retorna cached aunque env haya cambiado). `globalEnv` todas las tareas. `outputs` vacío → sólo logs cacheados.
+- **GitHub Actions caching** docs.github.com: patrón canon `hashFiles('pnpm-lock.yaml')` para key de invalidación automática; `restore-keys` escalonado de específico a general. Keys sin lockfile hash → false cache hits (o, como nuestro caso, cache único por SHA = never hits).
+
+**Findings originales (4) + scope extendido:**
+
+| L-#   | Scope original                 | Scope real aplicado                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ----- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| L-622 | "1 silent test skip en ci.yml" | 12 silent skips clasificados: **1 real bug** (ci.yml:154 madge circular-dep `continue-on-error: true` — removido estricto), **5 report generators** refactorizados a captura explícita de exit code (dependency-updates audit/outdated, security-testing audit/license-checker/hadolint — swallow exit 1 pero fail en cualquier otro exit), **6 legit** (performance.yml perf:db/perf:memory/k6/perf:report + nightly mutation + shell kill cleanup) documentados con comment explicativo. |
+| L-581 | "declarar env por task"        | `globalEnv: ["NODE_ENV", "CI"]`, `globalDependencies: ["tsconfig.base.json", ".env.example"]`, `build.env: ["DATABASE_URL", "NEXT_PUBLIC_*", "API_URL", "NEXT_TELEMETRY_DISABLED"]`, `test.env: ["DATABASE_URL", "REDIS_URL", "TEST_DATABASE_URL", "SHADOW_DATABASE_URL"]`, `test:e2e.env`, `mutation.env`. Previene cache poisoning real.                                                                                                                                                 |
+| L-582 | "test outputs `coverage/**`"   | Revelado durante ejecución que `pnpm test` default NO produce coverage; declarar `coverage/**` en `test` causaba warnings en todas las 37 tasks. Fix correcto: mantener `test.outputs: []` + NUEVA task `test:coverage` con `outputs: ["coverage/**"]` para cuando se corra con coverage flag.                                                                                                                                                                                             |
+| L-635 | "cache keys con lockfile hash" | 2 bloques turbo cache en ci.yml + 1 job (test) sin cache alguna. Key pasó de `${{ runner.os }}-turbo-${{ github.sha }}` (nunca hittea cross-commit) a `${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}` con restore-keys escalonados. Añadido bloque nuevo al job `test`.                                                                                                                                                                        |
 
 **Entry criteria.** Ninguno.
 
-**Exit criteria:**
+**Exit criteria alcanzados:**
 
-```bash
-grep -E "\|\| true" .github/workflows/ci.yml | wc -l   # → 0
-grep -c '"env":' turbo.json   # → ≥5
-```
+- `grep -E "\|\| true" .github/workflows/ci.yml | wc -l` → 0 ✅
+- `grep -c '"env":' turbo.json` → 5 (build, test, test:coverage, test:e2e, mutation) ✅ cumple ≥5
+- `pnpm check:circular` → passes sin `continue-on-error` ✅
+- Lint 0 / Turbo test 37/37 / Build 9/9 ✅
 
-**Estimación.** 1 h.
+**Estimación.** 1 h (real: ~1.5 h por scope extendido 3× mayor).
 
 **Dependencias.** 🔒 BLOCKS_TIER (downstream batches confían en CI para detectar regresiones); 🔗 CROSS_TIER con T4-P (fitness functions wire) y T4-Q (CI pipeline repair completo).
 
