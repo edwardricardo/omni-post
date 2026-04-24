@@ -722,14 +722,23 @@ class AccountLifecycleHandler extends BaseRouteHandler {
       } | null = null;
 
       if (hasTiers && providerCount > 0) {
-        const result = PricingCalculator.calculateCustomPrice(
+        const priceResult = PricingCalculator.calculateCustomPrice(
           providerCount,
           1,
           providerTiers,
           accountTiers
         );
-        total = result.total;
-        breakdown = result.breakdown;
+        if (!priceResult.ok) {
+          return reply.code(500).send({
+            ok: false,
+            error: {
+              code: priceResult.error.code,
+              message: priceResult.error.message,
+            },
+          });
+        }
+        total = priceResult.value.total;
+        breakdown = priceResult.value.breakdown;
 
         const selectedProviders = Array.from(providerCounts.keys());
         const cheaperBundleResult = PricingCalculator.findCheaperBundle(
@@ -739,15 +748,25 @@ class AccountLifecycleHandler extends BaseRouteHandler {
           1,
           accountTiers
         );
-        if (cheaperBundleResult) {
+        if (!cheaperBundleResult.ok) {
+          return reply.code(500).send({
+            ok: false,
+            error: {
+              code: cheaperBundleResult.error.code,
+              message: cheaperBundleResult.error.message,
+            },
+          });
+        }
+        const cheaperBundleMatch = cheaperBundleResult.value;
+        if (cheaperBundleMatch) {
           cheaperBundle = {
             bundle: {
-              name: cheaperBundleResult.bundle.name,
-              slug: cheaperBundleResult.bundle.slug,
+              name: cheaperBundleMatch.bundle.name,
+              slug: cheaperBundleMatch.bundle.slug,
             },
-            bundleTotal: cheaperBundleResult.total,
+            bundleTotal: cheaperBundleMatch.total,
             customTotal: total,
-            savings: cheaperBundleResult.savings,
+            savings: cheaperBundleMatch.savings,
           };
         }
       }

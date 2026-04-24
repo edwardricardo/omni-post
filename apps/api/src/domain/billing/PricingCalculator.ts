@@ -5,6 +5,9 @@
  * @layer domain
  */
 
+import { type Result, ok, err } from "@shared/types";
+import { InvariantViolationError } from "../errors/DomainError.js";
+
 export interface ProviderTier {
   minProviders: number;
   maxProviders: number | null;
@@ -42,21 +45,36 @@ export interface PriceBreakdown {
   savings: number;
 }
 
+export interface PriceQuote {
+  total: number;
+  breakdown: PriceBreakdown;
+}
+
+export interface BundleMatch {
+  bundle: BundleDef;
+  total: number;
+  savings: number;
+}
+
 export class PricingCalculator {
   static calculateCustomPrice(
     providerCount: number,
     accountCount: number,
     providerTiers: ProviderTier[],
     accountTiers: AccountTier[]
-  ): { total: number; breakdown: PriceBreakdown } {
-    const pricePerProvider = this.getProviderTierPrice(providerCount, providerTiers);
+  ): Result<PriceQuote, InvariantViolationError> {
+    const pricePerProviderResult = this.getProviderTierPrice(providerCount, providerTiers);
+    if (!pricePerProviderResult.ok) return pricePerProviderResult;
+    const pricePerProvider = pricePerProviderResult.value;
     const basePricePerAccount = pricePerProvider * providerCount;
 
     let total = 0;
     const accountLines: AccountLine[] = [];
 
     for (let i = 1; i <= accountCount; i++) {
-      const multiplier = this.getAccountMultiplier(i, accountTiers);
+      const multiplierResult = this.getAccountMultiplier(i, accountTiers);
+      if (!multiplierResult.ok) return multiplierResult;
+      const multiplier = multiplierResult.value;
       const price = Math.round(basePricePerAccount * multiplier * 100) / 100;
       total += price;
       accountLines.push({ accountNumber: i, multiplier, price });
@@ -65,7 +83,7 @@ export class PricingCalculator {
     total = Math.round(total * 100) / 100;
     const noDiscountTotal = basePricePerAccount * accountCount;
 
-    return {
+    return ok({
       total,
       breakdown: {
         pricePerProvider,
@@ -74,19 +92,21 @@ export class PricingCalculator {
         subtotal: total,
         savings: Math.round((noDiscountTotal - total) * 100) / 100,
       },
-    };
+    });
   }
 
   static calculateBundlePrice(
     bundlePricePerAccount: number,
     accountCount: number,
     accountTiers: AccountTier[]
-  ): { total: number; breakdown: PriceBreakdown } {
+  ): Result<PriceQuote, InvariantViolationError> {
     let total = 0;
     const accountLines: AccountLine[] = [];
 
     for (let i = 1; i <= accountCount; i++) {
-      const multiplier = this.getAccountMultiplier(i, accountTiers);
+      const multiplierResult = this.getAccountMultiplier(i, accountTiers);
+      if (!multiplierResult.ok) return multiplierResult;
+      const multiplier = multiplierResult.value;
       const price = Math.round(bundlePricePerAccount * multiplier * 100) / 100;
       total += price;
       accountLines.push({ accountNumber: i, multiplier, price });
@@ -94,7 +114,7 @@ export class PricingCalculator {
 
     total = Math.round(total * 100) / 100;
 
-    return {
+    return ok({
       total,
       breakdown: {
         pricePerProvider: 0,
@@ -103,7 +123,7 @@ export class PricingCalculator {
         subtotal: total,
         savings: Math.round((bundlePricePerAccount * accountCount - total) * 100) / 100,
       },
-    };
+    });
   }
 
   static findCheaperBundle(
@@ -112,18 +132,20 @@ export class PricingCalculator {
     bundles: BundleDef[],
     accountCount: number,
     accountTiers: AccountTier[]
-  ): { bundle: BundleDef; total: number; savings: number } | null {
+  ): Result<BundleMatch | null, InvariantViolationError> {
     let best: { bundle: BundleDef; total: number } | null = null;
 
     for (const bundle of bundles.filter((b) => b.isActive)) {
       const coversAll = selectedProviders.every((p) => bundle.providers.includes(p));
       if (!coversAll) continue;
 
-      const { total } = this.calculateBundlePrice(
+      const bundleQuoteResult = this.calculateBundlePrice(
         bundle.pricePerAccountMonth,
         accountCount,
         accountTiers
       );
+      if (!bundleQuoteResult.ok) return bundleQuoteResult;
+      const { total } = bundleQuoteResult.value;
 
       if (total < customTotal) {
         if (!best || total < best.total) {
@@ -132,26 +154,38 @@ export class PricingCalculator {
       }
     }
 
-    if (!best) return null;
-    return {
+    if (!best) return ok(null);
+    return ok({
       bundle: best.bundle,
       total: best.total,
       savings: Math.round((customTotal - best.total) * 100) / 100,
-    };
+    });
   }
 
-  private static getProviderTierPrice(count: number, tiers: ProviderTier[]): number {
+  private static getProviderTierPrice(
+    count: number,
+    tiers: ProviderTier[]
+  ): Result<number, InvariantViolationError> {
     const active = tiers.filter((t) => t.isActive).sort((a, b) => b.minProviders - a.minProviders);
 
     const tier = active.find(
       (t) => count >= t.minProviders && (t.maxProviders === null || count <= t.maxProviders)
     );
 
-    if (!tier) throw new Error(`No pricing tier found for ${count} providers`);
-    return tier.pricePerProviderMonth;
+    if (!tier) {
+      return err(
+        new InvariantViolationError(
+          `No active pricing tier covers provider count ${count} (tier configuration gap)`
+        )
+      );
+    }
+    return ok(tier.pricePerProviderMonth);
   }
 
-  private static getAccountMultiplier(accountNumber: number, tiers: AccountTier[]): number {
+  private static getAccountMultiplier(
+    accountNumber: number,
+    tiers: AccountTier[]
+  ): Result<number, InvariantViolationError> {
     const active = tiers.filter((t) => t.isActive).sort((a, b) => b.minAccounts - a.minAccounts);
 
     const tier = active.find(
@@ -159,7 +193,13 @@ export class PricingCalculator {
         accountNumber >= t.minAccounts && (t.maxAccounts === null || accountNumber <= t.maxAccounts)
     );
 
-    if (!tier) throw new Error(`No account tier for account #${accountNumber}`);
-    return tier.multiplier;
+    if (!tier) {
+      return err(
+        new InvariantViolationError(
+          `No active account tier covers account number ${accountNumber} (tier configuration gap)`
+        )
+      );
+    }
+    return ok(tier.multiplier);
   }
 }

@@ -136,15 +136,24 @@ export class CreateAccountSubscriptionUseCase implements UseCase<
         const providerTiers = await this.repo.findProviderPricingTiers();
         const accountTiers = await this.repo.findAccountPricingTiers();
 
-        const { total } = PricingCalculator.calculateCustomPrice(
+        const customResult = PricingCalculator.calculateCustomPrice(
           input.providers.length,
           1,
           providerTiers,
           accountTiers
         );
+        if (!customResult.ok) {
+          return err(
+            new UseCaseError(
+              customResult.error.message,
+              USE_CASE_ERRORS.INTERNAL_ERROR,
+              customResult.error
+            )
+          );
+        }
 
         providers = input.providers;
-        pricePerMonth = total;
+        pricePerMonth = customResult.value.total;
         maxProjects = input.providers.length * 3;
         status = input.startTrial === false ? "ACTIVE" : "TRIALING";
       }

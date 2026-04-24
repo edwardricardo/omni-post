@@ -790,28 +790,41 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 ---
 
-#### T2-G — Raw throws en application layer 🔗
+#### T2-G — Raw throws en domain + application ⚡ ✅ 2026-04-23
 
-**Scope.** Raw `throw` en capa application (viola §Result Type).
+**Scope real.** Ambos findings reviewed with research externo + interno. L-643 era dominio (no application como título sugería). L-496 es infrastructure (hook React) — NO viola fitness #4 pero sí se limpia el pattern awkward.
 
-**Findings table (2):**
+**Investigación previa (fuentes citadas):**
 
-| L-#   | Título corto                                | Esfuerzo | Acción   | §5.9 | Notas                          |
-| ----- | ------------------------------------------- | -------- | -------- | ---- | ------------------------------ |
-| L-643 | `PricingCalculator` raw throws (fitness #4) | QUICK    | REFACTOR | AUTO | `Result<Output, PricingError>` |
-| L-496 | `throw new Error` useProviderConstraints    | TRIVIAL  | FIX      | AUTO | Result type                    |
+- **neverthrow** (github.com/supermacro/neverthrow): `Result<T, E>` canon pattern. Throws OK en boundaries con libs y condiciones excepcionales.
+- **Repo internal:** `Result<T,E>` implementado custom en `packages/shared/src/types.ts:71-76` (shape `{ ok: true, value }` / `{ ok: false, error }`, helpers `ok()`, `err()`, `isOk`, `isErr`, `mapResult`). Pattern de consumo dominante: `if (!result.ok) return result;` (early-return propagation, 40+ usos en apps/api).
+- **Repo DomainError hierarchy** (`apps/api/src/domain/errors/DomainError.ts`): `abstract DomainError` con subclasses typed `InvalidValueError`, `EntityNotFoundError`, `InvariantViolationError`, etc. **`InvariantViolationError` matchea el caso PricingCalculator** ("config de tiers tiene hueco") — no crear `PricingError` redundante.
+
+**Findings resueltos:**
+
+| L-#   | Finding                                            | Resolución                                                                                                                                                                                                                                 |
+| ----- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| L-643 | `PricingCalculator` 2 raw throws en domain         | 5 métodos migrados a `Result<T, InvariantViolationError>`: 2 privados (`getProviderTierPrice`, `getAccountMultiplier`) + 3 públicos (`calculateCustomPrice`, `calculateBundlePrice`, `findCheaperBundle`). Early-return propagation.       |
+| L-496 | `throw new Error` en `useProviderConstraints` hook | No era fitness #4 violation (layer infrastructure) pero pattern `throw-inside-own-try-catch` era awkward. Reemplazado por `setError(new Error(...)); return;`. Drive-by: añadido `credentials: "include"` al fetch (consistency con T2-A). |
+
+**Callers actualizados (3 archivos + tests):**
+
+- `apps/api/src/application/billing/ChangeAccountSubscriptionUseCase.ts` — 3 llamadas a PricingCalculator, Result mapeado a `UseCaseError` con `code` + `cause`.
+- `apps/api/src/application/billing/CreateAccountSubscriptionUseCase.ts` — 1 llamada, mismo patrón.
+- `apps/api/src/admin/accountLifecycleRoutes.ts` — 2 llamadas, Result mapeado a 500 HTTP con `{code, message}`.
+- `apps/api/tests/unit/domain/pricingCalculator.test.ts` — 18 tests refactorizados con helpers `unwrapQuote()` / `unwrapBundleMatch()` + nuevo test específico de `InvariantViolationError` para count=0.
 
 **Entry criteria.** Ninguno.
 
-**Exit criteria:**
+**Exit criteria alcanzados:**
 
-```bash
-grep -rn "throw " apps/api/src/domain/ apps/api/src/application/ --include="*.ts" | wc -l   # → 0
-```
+- `grep -rn "throw " apps/api/src/domain/ apps/api/src/application/ --include="*.ts"` → 0 ✅
+- Fitness #4 clean ✅
+- Lint 0 / Test 37/37 / Build 9/9 ✅
 
-**Estimación.** 1 h.
+**Estimación.** 1 h (real: ~1 h).
 
-**Dependencias.** ⚡ PARALELIZABLE; 🔗 CROSS_TIER con T4-P (fitness function #4).
+**Dependencias.** ⚡ PARALELIZABLE; 🔗 CROSS_TIER con T4-P (fitness function #4 ya cumplida).
 
 ---
 

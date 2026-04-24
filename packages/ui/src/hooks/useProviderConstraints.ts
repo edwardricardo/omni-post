@@ -133,8 +133,13 @@ export function useProviderConstraints(
         setError(null);
 
         try {
-          const response = await fetch(`/api/backend/auth/connections/${projectId}`);
-          if (!response.ok) throw new Error("Failed to fetch providers");
+          const response = await fetch(`/api/backend/auth/connections/${projectId}`, {
+            credentials: "include",
+          });
+          if (!response.ok) {
+            setError(new Error(`Failed to fetch providers: ${response.status}`));
+            return;
+          }
 
           const data = await response.json();
           const providerConstraints: ProviderConstraints[] = data.connections.map(
@@ -154,6 +159,7 @@ export function useProviderConstraints(
 
           setProviders(providerConstraints);
         } catch (err) {
+          // Network/JSON errors — runtime exceptions from fetch or response.json.
           const error = err instanceof Error ? err : new Error("Unknown error");
           setError(error);
         } finally {
