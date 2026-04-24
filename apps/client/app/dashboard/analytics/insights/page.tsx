@@ -1,9 +1,10 @@
 /**
  * @file page.tsx
  * @description Performance insights page rendering the PerformanceInsights component
- * with project-level defaults for cross-platform content analysis.
+ * with project-level defaults for cross-platform content analysis. Server Component —
+ * only the interactive analytics child needs the client boundary.
+ * @layer infrastructure
  */
-"use client";
 
 import { PerformanceInsights } from "@/components/analytics/PerformanceInsights";
 /**

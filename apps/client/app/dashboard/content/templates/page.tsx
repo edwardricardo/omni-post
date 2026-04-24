@@ -1,9 +1,10 @@
 /**
  * @file page.tsx
  * @description Content templates management page rendering the ContentTemplates component
- * with automation features enabled for the active project.
+ * with automation features enabled for the active project. Server Component —
+ * ContentTemplates child is the Client Component boundary.
+ * @layer infrastructure
  */
-"use client";
 
 import ContentTemplates from "@/components/content/ContentTemplates";
 

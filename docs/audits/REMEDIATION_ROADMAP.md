@@ -869,38 +869,83 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 ---
 
-#### T2-I — Over-clientization (remove "use client") ⚡
+#### T2-I — Over-clientization (remove "use client") ⚡ ✅ 2026-04-23
 
-**Scope.** Pages con `"use client"` innecesario — convertir a Server Component.
+**Scope real.** Roadmap listaba 12, audit extendido (68 pages totales con `"use client"`) confirmó **7 convertibles** (6 de los 12 + 1 extensión `scheduling/recurring/new`). Los otros 6 del roadmap son **falsos positivos** — usan context hooks (`useAuth`, `useProject`), `useState`/`useEffect`, event handlers, o fetch client-side, todos client-only per Next.js App Router spec (_"React Context is not supported in Server Components"_). Documentados en `POST_REMEDIATION_BACKLOG.md` (PR-10).
+
+**Investigación previa (fuentes citadas):**
+
+- Next.js App Router (https://nextjs.org/docs/app/getting-started/server-and-client-components): default Server Components. `"use client"` es boundary — todo downstream queda en client bundle. Context no soportado en Server Components. Patrón canon: _"Add `'use client'` to specific interactive components instead of marking large parts of your UI as Client Components"_.
+- Audit extendido vía Node AST-ish heuristic (`/tmp/use_client_audit.mjs`): detecta triggers legítimos (hooks + event handlers + browser APIs + Next.js navigation hooks + i18n + custom hooks).
+
+**Findings table (12 roadmap → 7 aplicables + 1 extensión + 5 falsos positivos + 1 deferred T3-R):**
 
 **Findings table (12):**
 
-| L-#   | Título corto                                           | Esfuerzo | Acción   | §5.9 | Notas               |
-| ----- | ------------------------------------------------------ | -------- | -------- | ---- | ------------------- |
-| L-123 | integrations/page.tsx over-clientized                  | TRIVIAL  | REFACTOR | AUTO |                     |
-| L-124 | settings/integrations/page.tsx over-clientized + TODO  | TRIVIAL  | REFACTOR | AUTO |                     |
-| L-125 | settings/crm/page.tsx over-clientized                  | TRIVIAL  | REFACTOR | AUTO |                     |
-| L-126 | settings/sso/page.tsx over-clientized                  | TRIVIAL  | REFACTOR | AUTO |                     |
-| L-127 | content/library/page.tsx over-clientized               | TRIVIAL  | REFACTOR | AUTO |                     |
-| L-128 | content/templates/page.tsx over-clientized             | TRIVIAL  | REFACTOR | AUTO |                     |
-| L-129 | instagram/stories/page.tsx over-clientized             | TRIVIAL  | REFACTOR | AUTO | Depends L-87 (T3-P) |
-| L-130 | analytics/insights/page.tsx over-clientized            | TRIVIAL  | REFACTOR | AUTO | Depends L-73 (T6-H) |
-| L-131 | ai/analytics/page.tsx over-clientized                  | TRIVIAL  | REFACTOR | AUTO |                     |
-| L-132 | ai/generate/page.tsx over-clientized                   | TRIVIAL  | REFACTOR | AUTO |                     |
-| L-133 | ai/optimizer/page.tsx over-clientized                  | TRIVIAL  | REFACTOR | AUTO |                     |
-| L-134 | reports/shared/[token]/page.tsx public over-clientized | QUICK    | REFACTOR | AUTO | Biggest SEO impact  |
+| L-#   | Archivo                             | Audit real                          | Resolución                                                           |
+| ----- | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------- |
+| L-123 | `integrations/page.tsx`             | Sólo renderiza Client child         | **CONVERTIDO**                                                       |
+| L-124 | `settings/integrations/page.tsx`    | Sólo renderiza Client child         | **CONVERTIDO**                                                       |
+| L-125 | `settings/crm/page.tsx`             | Sólo renderiza Client child         | **CONVERTIDO**                                                       |
+| L-126 | `settings/sso/page.tsx`             | Usa `useAuth` (context)             | **FALSE POSITIVE** — context no soportado en Server                  |
+| L-127 | `content/library/page.tsx`          | Usa `useProject` (context)          | **FALSE POSITIVE**                                                   |
+| L-128 | `content/templates/page.tsx`        | Sólo renderiza Client child         | **CONVERTIDO**                                                       |
+| L-129 | `instagram/stories/page.tsx`        | Usa `useProject` + `toast()`        | **FALSE POSITIVE**                                                   |
+| L-130 | `analytics/insights/page.tsx`       | Sólo renderiza Client child         | **CONVERTIDO**                                                       |
+| L-131 | `ai/analytics/page.tsx`             | Sólo renderiza Client child         | **CONVERTIDO**                                                       |
+| L-132 | `ai/generate/page.tsx`              | Usa `useState` + `onClick`          | **FALSE POSITIVE**                                                   |
+| L-133 | `ai/optimizer/page.tsx`             | Usa `useState` + `onChange`         | **FALSE POSITIVE**                                                   |
+| L-134 | `reports/shared/[token]/page.tsx`   | Usa `useEffect` fetch + `useParams` | **DEFERRED T3-R** (refactor Server Component + Suspense; public SEO) |
+| +ext  | `scheduling/recurring/new/page.tsx` | Sólo renderiza Client child         | **CONVERTIDO** (extensión no listada en roadmap)                     |
 
-**Entry criteria.** Ninguno (L-129/L-130 parciales hasta T3-P / T6-H).
+**Entry criteria.** Ninguno.
 
-**Exit criteria:**
+**Exit criteria alcanzados:**
 
-```bash
-grep -l '"use client"' apps/client/src/app/**/page.tsx | wc -l   # → reduced significantly (track baseline)
+- 7 pages convertidas a Server Component (6 del roadmap + 1 extensión).
+- 5 falsos positivos documentados en POST_REMEDIATION_BACKLOG.md PR-10.
+- L-134 transferido a T3-R (public SEO Server refactor).
+- Lint 0 / Test 37/37 / Build 9/9 ✅
+
+**Estimación.** 1.5 h (real: ~30 min por scope honesto).
+
+**Dependencias.** ⚡ PARALELIZABLE. 🔗 Spinoff T3-R para L-134.
+
+---
+
+#### T3-R — Public page Server Component SEO refactor 🔗
+
+**Scope.** `apps/client/app/reports/shared/[token]/page.tsx` — única página pública client-rendered con impacto SEO real. Spinoff de T2-I.
+
+**Investigación previa:** Next.js App Router (mismo source T2-I) — Server Components habilitan prerender + streaming + RSC payload cache; páginas públicas obtienen full SEO sólo en Server Components.
+
+**Refactor canon:**
+
+```tsx
+// Server Component
+export default async function Page({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const report = await fetchPublicReport(token); // server-side fetch
+  if (!report) notFound();
+  return <SharedReportView report={report} />;
+}
 ```
 
-**Estimación.** 1.5 h.
+Partes interactivas (si las hay) en Client child separado.
 
-**Dependencias.** ⚡ PARALELIZABLE.
+**Findings table (1):**
+
+| L-#   | Título corto                                               | Esfuerzo | Acción   | §5.9         | Notas           |
+| ----- | ---------------------------------------------------------- | -------- | -------- | ------------ | --------------- |
+| L-134 | `reports/shared/[token]/page.tsx` Server+Suspense refactor | QUICK    | REFACTOR | NEEDS_EDWARD | Public SEO page |
+
+**Entry criteria.** Verificar que `/api/backend/reports/public/:token` soporta fetch server-side (debería — es público).
+
+**Exit criteria.** Page sin `"use client"`, data fetch server-side, loading/error vía Suspense boundary, lint/test/build verde.
+
+**Estimación.** 30-45 min.
+
+**Dependencias.** 🔗 Spinoff T2-I. ⚡ PARALELIZABLE.
 
 ---
 

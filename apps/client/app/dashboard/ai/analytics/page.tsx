@@ -1,10 +1,11 @@
 /**
  * @file page.tsx
  * @description Content intelligence analytics page rendering the PredictiveAnalytics component
- * with data fetched via TanStack Query hooks in usePredictiveData.
+ * with data fetched via TanStack Query hooks in usePredictiveData. Server Component —
+ * interactive PredictiveAnalytics child owns the client boundary.
  * NOTE: Despite the component name, analytics are rule-based / LLM-assisted, not ML-trained.
+ * @layer infrastructure
  */
-"use client";
 
 import PredictiveAnalytics from "@/components/ai/PredictiveAnalytics";
 /**

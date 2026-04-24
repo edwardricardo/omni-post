@@ -459,6 +459,46 @@ N/A — cerrado como WONT_FIX documentado. Si un lector futuro del roadmap cuest
 
 ---
 
+### PR-10 — T2-I roadmap misidentified 5 pages as over-clientized (false positives)
+
+**Fecha de aplicación:** 2026-04-23 (documentación)
+**Batch de origen:** T2-I — durante audit extendido pre-ejecución
+**Severidad del bug pre-existente:** N/A — roadmap tenía entries falsos positivos
+**Tipo:** docs (clarificación)
+
+**Descubrimiento.**
+
+El roadmap T2-I listaba 12 pages como "over-clientized" candidatas a remover `"use client"`. Audit extendido (heurístico Node AST-ish buscando hooks React + event handlers + browser APIs + Next.js navigation + i18n + custom hooks) identificó **5 falsos positivos** que efectivamente REQUIEREN ser Client Components per Next.js App Router spec:
+
+| L-#   | Archivo                      | Trigger que fuerza client                                      |
+| ----- | ---------------------------- | -------------------------------------------------------------- |
+| L-126 | `settings/sso/page.tsx`      | `useAuth()` — React Context, no soportado en Server Components |
+| L-127 | `content/library/page.tsx`   | `useProject()` — React Context                                 |
+| L-129 | `instagram/stories/page.tsx` | `useProject()` + `toast()` call (client-side side effect)      |
+| L-132 | `ai/generate/page.tsx`       | `useState` + `onClick`                                         |
+| L-133 | `ai/optimizer/page.tsx`      | `useState` + `onChange`                                        |
+
+Fuente canon consultada: https://nextjs.org/docs/app/getting-started/server-and-client-components — _"React context is not supported in Server Components"_; Client Components son necesarios para `useState`, event handlers, browser APIs.
+
+**Conclusión.**
+
+Los 5 son **correctamente** Client Components. El roadmap audit original detectó `"use client"` directive pero no verificó si había triggers reales que lo requirieran. No se toca nada en código.
+
+**Si en futuro se quiere reducir el bundle client:** las alternativas son:
+
+- Mover el context provider más adentro del árbol (Next.js docs recomienda "render providers as deep as possible").
+- Extraer la parte interactiva a un Client child más pequeño, dejando el page como Server que lo envuelve.
+
+Ninguna de las dos aplica ya a estos 5 archivos — son páginas que conceptualmente son interactivas completas, no wrappers. El patrón actual está alineado con el canon.
+
+**Cuándo revisar.**
+
+N/A — cerrado como WONT_FIX documentado. Si el audit original se re-ejecuta, la nueva heurística debe filtrar por triggers reales antes de marcar como over-clientized.
+
+**Estado:** WONT_FIX (falso positivo documentado — roadmap audit fue superficial).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

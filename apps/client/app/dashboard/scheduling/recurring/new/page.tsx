@@ -1,10 +1,10 @@
 /**
  * @file page.tsx
  * @component NewRecurringPostPage
- * @description Create new recurring post page.
+ * @description Create new recurring post page. Server Component — RecurringPostForm
+ * child is the Client Component boundary.
  * @layer infrastructure
  */
-"use client";
 
 import Link from "next/link";
 import { RecurringPostForm } from "@/components/scheduling/RecurringPostForm";
