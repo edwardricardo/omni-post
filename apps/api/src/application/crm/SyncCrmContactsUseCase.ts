@@ -13,13 +13,13 @@ import type {
   CrmSyncLogRepository,
   CrmSyncLogData,
 } from "../../domain/repositories/CrmSyncLogRepository.js";
-import type { ICrmAdapter } from "@ports/core";
+import type { CrmAdapter } from "@ports/core";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 export interface SyncCrmContactsInput {
   accountId: string;
   platform: string;
-  adapter: ICrmAdapter;
+  adapter: CrmAdapter;
 }
 
 export class SyncCrmContactsUseCase implements UseCase<

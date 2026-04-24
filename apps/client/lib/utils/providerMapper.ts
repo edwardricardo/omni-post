@@ -4,7 +4,11 @@
  */
 
 import type { Provider } from "@/lib/api/types";
-import type { ProviderMetadata, ProviderCapabilities, ProviderLimits } from "@/lib/api/providers";
+import type {
+  ProviderMetadata,
+  ProviderCapabilities,
+  ProviderLimits,
+} from "@/lib/api/providerApiClient";
 
 // Default platform limits - these would normally come from the backend
 const DEFAULT_LIMITS: Record<string, ProviderLimits> = {

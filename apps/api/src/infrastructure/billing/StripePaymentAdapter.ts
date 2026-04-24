@@ -1,12 +1,12 @@
 /**
  * @file StripePaymentAdapter.ts
- * @description Stripe implementation of IPaymentAdapter.
+ * @description Stripe implementation of PaymentAdapter.
  * @layer infrastructure
  */
 
 import Stripe from "stripe";
 import type {
-  IPaymentAdapter,
+  PaymentAdapter,
   BillingPlan,
   BillingCycle,
   CreateCustomerResult,
@@ -23,7 +23,7 @@ export interface StripeConfig {
   prices: Record<BillingPlan, Record<BillingCycle, string>>;
 }
 
-export class StripePaymentAdapter implements IPaymentAdapter {
+export class StripePaymentAdapter implements PaymentAdapter {
   readonly provider = "stripe" as const;
   private readonly stripe: Stripe;
   private readonly priceMap: Record<BillingPlan, Record<BillingCycle, string>>;

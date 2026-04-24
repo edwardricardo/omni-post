@@ -54,7 +54,7 @@ export interface CrmContactPage {
 /**
  * Technology-free interface for CRM platform adapters.
  */
-export interface ICrmAdapter {
+export interface CrmAdapter {
   /**
    * Returns the OAuth authorization URL for the CRM platform.
    */

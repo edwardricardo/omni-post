@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { IPaymentAdapter, BillingPlan, BillingCycle } from "@ports/core";
+import type { PaymentAdapter, BillingPlan, BillingCycle } from "@ports/core";
 import { StripePaymentAdapter } from "./StripePaymentAdapter.js";
 import { PaddlePaymentAdapter } from "./PaddlePaymentAdapter.js";
 
@@ -26,7 +26,7 @@ function buildPriceMap(prefix: string): Record<BillingPlan, Record<BillingCycle,
   };
 }
 
-export function createPaymentAdapter(): IPaymentAdapter {
+export function createPaymentAdapter(): PaymentAdapter {
   const provider = process.env.PAYMENT_PROVIDER ?? "stripe";
 
   if (provider === "paddle") {

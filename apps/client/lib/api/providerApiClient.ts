@@ -1,6 +1,8 @@
 /**
- * @file providers.ts
- * @description Standalone provider API client with typed interfaces for fetching provider metadata, capabilities, health status, and project connections.
+ * @file providerApiClient.ts
+ * @description Standalone provider API client with typed interfaces for fetching provider metadata,
+ *              capabilities, health status, and project connections.
+ * @layer infrastructure
  */
 
 export interface ProviderCapabilities {

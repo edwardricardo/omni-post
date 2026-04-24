@@ -11,7 +11,11 @@ import type { DomainEvent } from "@shared/events";
 import { createDomainEvent } from "@shared/events";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
-import type { SagaManagerConfig, SagaMetrics, ISagaExecutionEngine } from "./sagaManagerTypes.js";
+import type {
+  SagaManagerConfig,
+  SagaMetrics,
+  SagaExecutionEnginePort,
+} from "./sagaManagerTypes.js";
 
 // Re-export for consumers that previously imported from this file
 export type { SagaManagerConfig, SagaMetrics } from "./sagaManagerTypes.js";
@@ -33,7 +37,7 @@ export class SagaManagerLifecycle implements SagaManager {
   readonly executionTimes: number[] = [];
 
   /** Set by SagaManagerImpl facade after construction */
-  executionEngine!: ISagaExecutionEngine;
+  executionEngine!: SagaExecutionEnginePort;
 
   constructor(readonly config: SagaManagerConfig) {}
 

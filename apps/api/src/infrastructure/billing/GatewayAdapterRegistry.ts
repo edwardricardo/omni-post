@@ -6,12 +6,12 @@
  * @layer infrastructure
  */
 
-import type { IPaymentAdapter, GatewayProviderType } from "@ports/core";
+import type { PaymentAdapter, GatewayProviderType } from "@ports/core";
 import { StripePaymentAdapter, type StripeConfig } from "./StripePaymentAdapter.js";
 import { PaddlePaymentAdapter, type PaddleConfig } from "./PaddlePaymentAdapter.js";
 
-export interface IGatewayAdapterRegistry {
-  getAdapter(provider: GatewayProviderType): IPaymentAdapter;
+export interface GatewayAdapterRegistryPort {
+  getAdapter(provider: GatewayProviderType): PaymentAdapter;
 }
 
 interface GatewayRegistryConfig {
@@ -19,7 +19,7 @@ interface GatewayRegistryConfig {
   paddle: PaddleConfig;
 }
 
-export class GatewayAdapterRegistry implements IGatewayAdapterRegistry {
+export class GatewayAdapterRegistry implements GatewayAdapterRegistryPort {
   private stripeAdapter: StripePaymentAdapter | null = null;
   private paddleAdapter: PaddlePaymentAdapter | null = null;
   private readonly config: GatewayRegistryConfig;
@@ -28,7 +28,7 @@ export class GatewayAdapterRegistry implements IGatewayAdapterRegistry {
     this.config = config;
   }
 
-  getAdapter(provider: GatewayProviderType): IPaymentAdapter {
+  getAdapter(provider: GatewayProviderType): PaymentAdapter {
     if (provider === "stripe") {
       if (!this.stripeAdapter) {
         if (!this.config.stripe.secretKey) {

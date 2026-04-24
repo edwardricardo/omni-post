@@ -526,7 +526,8 @@ export function getHealthCheckManager(): HealthCheckManager | null {
 
 // Export all health checkers
 export { DatabaseHealthChecker, DatabaseConnectionPoolHealthChecker } from "./checkers/database.js";
-export { RedisHealthChecker, CacheHealthChecker, QueueHealthChecker } from "./checkers/redis.js";
+export { RedisHealthChecker, CacheHealthChecker } from "./checkers/redis.js";
+export { QueueHealthChecker } from "./checkers/queue.js";
 export { CircuitBreakerHealthChecker } from "./checkers/circuitBreaker.js";
 export { StorageHealthChecker } from "./checkers/storage.js";
 export { ProviderHealthChecker } from "./checkers/provider.js";

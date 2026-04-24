@@ -21,12 +21,12 @@ const aiLogger = logger.child({ module: "ai-request" });
 // Types
 // ---------------------------------------------------------------------------
 
-type ProviderName = "openai" | "anthropic" | "gemini" | "perplexity";
+type AiProviderName = "openai" | "anthropic" | "gemini" | "perplexity";
 
 interface AiRequestParams {
   accountId: string;
   task: AITask;
-  preferredProvider?: ProviderName;
+  preferredProvider?: AiProviderName;
 }
 
 interface AiRequestResult {
@@ -43,14 +43,14 @@ type AiError =
   | "PROVIDER_ERROR"
   | "DATABASE_ERROR";
 
-const PROVIDER_KEY_MAP: Record<ProviderName, string> = {
+const PROVIDER_KEY_MAP: Record<AiProviderName, string> = {
   openai: "openaiApiKey",
   anthropic: "anthropicApiKey",
   gemini: "geminiApiKey",
   perplexity: "perplexityApiKey",
 };
 
-const PROVIDER_MODEL_MAP: Record<ProviderName, string> = {
+const PROVIDER_MODEL_MAP: Record<AiProviderName, string> = {
   openai: "openaiModel",
   anthropic: "anthropicModel",
   gemini: "geminiModel",
@@ -108,7 +108,7 @@ export class AiRequestService {
    */
   private async executeWithByok(
     accountId: string,
-    providerName: ProviderName,
+    providerName: AiProviderName,
     apiKey: string,
     task: AITask
   ): Promise<Result<AiRequestResult, AiError>> {
@@ -129,7 +129,7 @@ export class AiRequestService {
   private async executeWithPool(
     accountId: string,
     task: AITask,
-    preferredProvider?: ProviderName
+    preferredProvider?: AiProviderName
   ): Promise<Result<AiRequestResult, AiError>> {
     const poolResult = await this.credentialService.getGroup("AI_POOL");
     if (!poolResult.ok) {
@@ -138,7 +138,7 @@ export class AiRequestService {
 
     const poolCreds = poolResult.value;
     const providers = new Map<string, AIProvider>();
-    const providerNames: ProviderName[] = ["openai", "anthropic", "gemini", "perplexity"];
+    const providerNames: AiProviderName[] = ["openai", "anthropic", "gemini", "perplexity"];
 
     // Build providers, putting preferred first
     const ordered = preferredProvider

@@ -949,31 +949,36 @@ Partes interactivas (si las hay) en Client child separado.
 
 ---
 
-#### T2-J — Filename/naming renames ⚡
+#### T2-J — Filename/naming renames ⚡ ✅ 2026-04-24
 
 **Scope.** Renames + naming collisions + I-prefix interfaces.
 
-**Findings table (6):**
+**Investigación previa:**
 
-| L-#   | Título corto                                  | Esfuerzo | Acción   | §5.9 | Notas                                |
-| ----- | --------------------------------------------- | -------- | -------- | ---- | ------------------------------------ |
-| L-211 | `lib/api/providers.ts` misleading filename    | TRIVIAL  | FIX      | AUTO | Rename                               |
-| L-354 | `ProviderName` NAMING_COLLISION type vs value | QUICK    | REFACTOR | AUTO | Rename const                         |
-| L-355 | I-prefix Crm/Payment interfaces               | TRIVIAL  | REFACTOR | AUTO |                                      |
-| L-389 | `_template` provider deprecated pattern       | TRIVIAL  | REFACTOR | AUTO | Update template                      |
-| L-523 | `QueueHealthChecker` misfiled `redis.ts`      | TRIVIAL  | FIX      | AUTO | Move a queue.ts                      |
-| L-646 | docs/standards filenames con espacios         | TRIVIAL  | FIX      | AUTO | Rename a kebab-case + update imports |
+- CLAUDE.md §Naming: _"Interfaces PascalCase (no `I` prefix)"_; Port interfaces usan suffix `Port` / `Repository`.
+- typescript-eslint `naming-convention` rule: `I` prefix es Hungarian legacy.
+- Audit interno: 4 I-prefix interfaces totales. 2 tienen class homónima y necesitan suffix `Port`.
+
+**Findings resueltos (6 + extensión):**
+
+| L-#   | Resolución                                                                                                                                                                                                                                          |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-211 | `apps/client/lib/api/providers.ts` → `providerApiClient.ts`. 1 consumer (`providerMapper.ts`) actualizado.                                                                                                                                          |
+| L-354 | Collision real: `type ProviderName` local en `ai/AiRequestService.ts` + `ai/AIProviderFactory.ts` (scope 2 archivos vs 1 listado en roadmap) shadowing shared `ProviderName`. Renombrados a `AiProviderName`.                                       |
+| L-355 | 4 renames: `ISagaExecutionEngine` → `SagaExecutionEnginePort` (class homónima), `IGatewayAdapterRegistry` → `GatewayAdapterRegistryPort` (class homónima), `IPaymentAdapter` → `PaymentAdapter`, `ICrmAdapter` → `CrmAdapter`. 15 archivos via sed. |
+| L-389 | `_template` provider: @file header expandido con instrucciones explícitas de uso + warning prominente sobre `process.env` credentials siendo scaffold-only. Resto ya alineado con canon (Result, @layer, ProviderAdapter port).                     |
+| L-523 | `QueueHealthChecker` movido de `redis.ts` → nuevo `queue.ts`. Barrel `index.ts:529` split en 2 exports.                                                                                                                                             |
+| L-646 | 3 docs renames kebab-case: `backend-standards.md`, `code-standards.md`, `frontend-standards.md`. 0 referrers en repo.                                                                                                                               |
 
 **Entry criteria.** Ninguno.
 
-**Exit criteria:**
+**Exit criteria alcanzados:**
 
-```bash
-ls docs/standards/ | grep " " | wc -l   # → 0
-grep -rn "^import.*I[A-Z][a-z].*from.*interface" packages/ | wc -l   # → 0
-```
+- 0 docs con espacios en nombre ✅
+- 0 I-prefix interfaces residuales en las 4 identificadas (otras `I*` patterns son valid like `ReactElement` — no se tocan) ✅
+- Lint 0 / Test 37/37 / Build 9/9 ✅
 
-**Estimación.** 2 h.
+**Estimación.** 2 h (real: ~45 min).
 
 **Dependencias.** ⚡ PARALELIZABLE.
 

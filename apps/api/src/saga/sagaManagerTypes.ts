@@ -38,7 +38,7 @@ export interface SagaMetrics {
  * does NOT need to import SagaManagerExecution.ts directly, breaking the
  * mutual import cycle between those two files.
  */
-export interface ISagaExecutionEngine {
+export interface SagaExecutionEnginePort {
   executeSagaAsync(sagaId: string): void;
   compensateSagaAsync(sagaId: string): void;
   persistSagaInstance(instance: SagaInstance): Promise<void>;

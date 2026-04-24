@@ -44,7 +44,7 @@ export interface SubscriptionDetails {
   cancelAtPeriodEnd: boolean;
 }
 
-export interface IPaymentAdapter {
+export interface PaymentAdapter {
   readonly provider: GatewayProviderType;
 
   createCustomer(params: {

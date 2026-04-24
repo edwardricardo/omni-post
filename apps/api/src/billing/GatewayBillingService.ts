@@ -8,7 +8,7 @@
 
 import { ok, err, type Result } from "@shared/types";
 import type { PrismaClient } from "@infra/prisma";
-import type { IGatewayAdapterRegistry } from "../infrastructure/billing/GatewayAdapterRegistry.js";
+import type { GatewayAdapterRegistryPort } from "../infrastructure/billing/GatewayAdapterRegistry.js";
 import type { GatewaySwitchJobService } from "./GatewaySwitchJobService.js";
 import type { EmailPort } from "../domain/repositories/EmailPort.js";
 import type { GatewayProviderType } from "@ports/core";
@@ -53,7 +53,7 @@ function mapGatewayToAdapterProvider(gateway: "STRIPE" | "PADDLE"): GatewayProvi
 export class GatewayBillingService {
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly registry: IGatewayAdapterRegistry,
+    private readonly registry: GatewayAdapterRegistryPort,
     private readonly switchJobService: GatewaySwitchJobService,
     private readonly emailPort: EmailPort
   ) {}
