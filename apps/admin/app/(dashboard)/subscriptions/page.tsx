@@ -374,17 +374,13 @@ function SubscriptionsPageContent() {
       {/* Billing MRR */}
       {billingStats && (
         <div
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3"
+          className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3"
           role="region"
           aria-label="Billing statistics"
         >
           <StatCard
             label={ts("mrrStat")}
             value={`$${(billingStats.monthlyRecurringRevenue ?? 0).toLocaleString()}`}
-          />
-          <StatCard
-            label={ts("grandfatheredRevenue")}
-            value={`$${(billingStats.grandfatheredRevenue ?? 0).toLocaleString()}`}
           />
         </div>
       )}

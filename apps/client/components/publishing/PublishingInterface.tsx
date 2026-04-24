@@ -13,14 +13,12 @@ import { Button } from "@packages/ui";
 import { Badge } from "@packages/ui";
 import { Separator } from "@packages/ui";
 import { Progress } from "@packages/ui";
-import { Alert, AlertDescription } from "@packages/ui";
 import {
   Clock,
   Send,
   Calendar,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
   Info,
   Eye,
   BarChart3,
@@ -102,8 +100,6 @@ export function PublishingInterface({
       totalProviders: selectedProviders.length,
       threadsNeeded: 0,
       totalPosts: 0,
-      estimatedTime: 0,
-      rateLimit: false,
     };
 
     selectedProviders.forEach((providerId) => {
@@ -117,20 +113,7 @@ export function PublishingInterface({
       } else {
         stats.totalPosts++;
       }
-
-      // Check rate limits
-      const rateLimit = providerRegistry.getRateLimit(providerId);
-      const now = new Date();
-      const _hour = now.getHours();
-
-      // Simple rate limit check (in real app, this would check actual usage)
-      if (rateLimit.postsPerHour < 10) {
-        stats.rateLimit = true;
-      }
     });
-
-    // Estimate time based on provider count and rate limits
-    stats.estimatedTime = Math.ceil(stats.totalProviders * 2 + (stats.rateLimit ? 30 : 0));
 
     return stats;
   }, [selectedProviders, content, getProviderConfig]);
@@ -249,7 +232,7 @@ export function PublishingInterface({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
                 {publishingStats.totalProviders}
@@ -266,22 +249,7 @@ export function PublishingInterface({
               </div>
               <div className="text-sm text-muted-foreground">Threads</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                ~{publishingStats.estimatedTime}s
-              </div>
-              <div className="text-sm text-muted-foreground">Est. Time</div>
-            </div>
           </div>
-
-          {publishingStats.rateLimit && (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Some platforms have strict rate limits. Publishing may take longer than usual.
-              </AlertDescription>
-            </Alert>
-          )}
         </CardContent>
       </Card>
 

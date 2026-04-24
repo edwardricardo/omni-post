@@ -127,17 +127,9 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
             : [];
           if (hashtags.length > 0) {
             setHashtagAnalysis(
-              hashtags.map((tag, i) => ({
+              hashtags.map((tag) => ({
                 hashtag: tag.startsWith("#") ? tag : `#${tag}`,
-                relevanceScore: Math.max(10, 90 - i * 10),
-                popularityIndex: Math.max(10, 80 - i * 8),
-                competitionLevel: (i < 2 ? "low" : i < 4 ? "medium" : "high") as
-                  | "low"
-                  | "medium"
-                  | "high",
-                expectedReach: Math.max(1000, 50000 - i * 8000),
-                trendingStatus: (i < 2 ? "rising" : "stable") as "rising" | "stable" | "declining",
-                platforms: platforms,
+                platforms,
               }))
             );
           } else {

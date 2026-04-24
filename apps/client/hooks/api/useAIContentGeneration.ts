@@ -84,9 +84,6 @@ export function useAIContentGeneration() {
             characterCount: platformOptimized.text.length,
             wordCount: platformOptimized.text.split(" ").length,
             hashtagCount: platformOptimized.hashtags.length,
-            readabilityScore: 80,
-            engagementScore: template.estimatedEngagement,
-            viralPotential: 50,
           },
           variations: settings.generateVariations
             ? generateVariations(platformOptimized.text, platform)

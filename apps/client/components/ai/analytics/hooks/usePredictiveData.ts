@@ -229,38 +229,18 @@ function buildFallbackPrediction(platform: string): PerformancePrediction {
 function mapToROIForecasts(roiData: ROIApiValue | undefined, timeframe: Timeframe): ROIForecast[] {
   if (!roiData) return [];
 
-  const { totalInvestment, totalRevenue, roi, roiPercentage, recommendations } = roiData;
+  const { totalInvestment, totalRevenue, roi, roiPercentage } = roiData;
 
-  // Build factor list from channelBreakdown or fallback to generic factors
-  const factors: ROIForecast["factors"] =
-    roiData.channelBreakdown && roiData.channelBreakdown.length > 0
-      ? roiData.channelBreakdown.slice(0, 4).map((ch) => ({
-          name: ch.channel,
-          impact: Math.abs(ch.roi),
-          description: `Channel performance: ${ch.performance}`,
-        }))
-      : [
-          {
-            name: "Content Reach",
-            impact: 35,
-            description: recommendations?.[0] ?? "Organic reach drives engagement",
-          },
-          {
-            name: "Platform Activity",
-            impact: 25,
-            description: recommendations?.[1] ?? "Platform algorithms affect visibility",
-          },
-          {
-            name: "Audience Targeting",
-            impact: 25,
-            description: recommendations?.[2] ?? "Targeted content improves conversion",
-          },
-          {
-            name: "Timing",
-            impact: 15,
-            description: "Optimal posting times improve reach",
-          },
-        ];
+  // Only derive a factor breakdown when the backend actually returned channel
+  // data. If the breakdown is empty we show no factors rather than fabricate
+  // generic ones with invented impact percentages — see T2-H L-82.
+  const factors: ROIForecast["factors"] = roiData.channelBreakdown?.length
+    ? roiData.channelBreakdown.slice(0, 4).map((ch) => ({
+        name: ch.channel,
+        impact: Math.abs(ch.roi),
+        description: `Channel performance: ${ch.performance}`,
+      }))
+    : [];
 
   return [
     {

@@ -96,7 +96,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
           </div>
           <div className="flex items-center space-x-2">
             <Sparkles className="w-4 h-4 text-purple-600" aria-hidden="true" />
-            <span className="text-sm text-gray-600">Powered by GPT-4</span>
+            <span className="text-sm text-gray-600">AI-powered</span>
           </div>
         </div>
       </div>

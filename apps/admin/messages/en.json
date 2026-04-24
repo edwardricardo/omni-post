@@ -341,7 +341,6 @@
     "lastBill": "Last Bill",
     "noPlan": "No Plan",
     "mrrStat": "MRR",
-    "grandfatheredRevenue": "Grandfathered Revenue",
     "expiringWarning": "{count} trial{count, plural, one {} other {s}} expiring in the next 7 days",
     "viewTrials": "View trials",
     "startDate": "Start Date",
@@ -431,9 +430,7 @@
     "mrr": {
       "monthlyRecurringRevenue": "Monthly Recurring Revenue",
       "activeSubscriptions": "Active Subscriptions",
-      "grandfatheredRevenue": "Grandfathered Revenue",
       "noActiveSubscriptions": "No active subscriptions yet",
-      "grandfatheredDesc": "Revenue at old prices during notification window",
       "activeBundles": "Active Bundles",
       "bundleBaseMrr": "Bundle Base MRR",
       "totalProviderTiers": "Total Provider Tiers"

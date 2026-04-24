@@ -57,7 +57,6 @@ export const DEFAULT_CONTENT_TEMPLATES: ContentTemplate[] = [
     template:
       "🚀 Excited to announce {{productName}}! {{keyFeature}} designed specifically for {{targetMarket}}. {{launchDate ? `Available ${launchDate}` : `Coming soon`}} {{websiteUrl ? `Learn more: ${websiteUrl}` : ``}}",
     tone: ["exciting", "professional", "innovative"],
-    estimatedEngagement: 85,
   },
   {
     id: "how-to-guide",
@@ -99,7 +98,6 @@ export const DEFAULT_CONTENT_TEMPLATES: ContentTemplate[] = [
     template:
       "📚 How to {{topic}} ({{difficulty}} Guide)\n\n{{timeRequired ? `⏱️ Time needed: ${timeRequired}\n` : ``}}{{tools ? `🛠️ You'll need: ${tools}\n` : ``}}\nThread below 👇",
     tone: ["helpful", "educational", "clear"],
-    estimatedEngagement: 78,
   },
   {
     id: "industry-insight",
@@ -140,7 +138,6 @@ export const DEFAULT_CONTENT_TEMPLATES: ContentTemplate[] = [
     template:
       "🔍 {{industry}} Insight: {{trend}}\n\n💡 What this means: {{impact}}\n\n{{prediction ? `🔮 My prediction: ${prediction}\n\n` : ``}}What are your thoughts? 💬",
     tone: ["authoritative", "insightful", "engaging"],
-    estimatedEngagement: 82,
   },
   {
     id: "behind-scenes",
@@ -181,7 +178,6 @@ export const DEFAULT_CONTENT_TEMPLATES: ContentTemplate[] = [
     template:
       "👀 Behind the scenes: {{activity}}\n\n{{teamMember ? `Featuring our amazing ${teamMember}` : ``}}{{location ? ` at ${location}` : ``}}!\n\n{{lesson ? `💡 Key insight: ${lesson}\n\n` : ``}}Love sharing the real work that goes into what we do ✨",
     tone: ["authentic", "personal", "warm"],
-    estimatedEngagement: 76,
   },
   {
     id: "question-engagement",
@@ -216,7 +212,6 @@ export const DEFAULT_CONTENT_TEMPLATES: ContentTemplate[] = [
     template:
       "{{context ? `${context}\n\n` : ``}}🤔 {{questionType}} question about {{topic}}:\n\n[AI will generate specific question based on type]\n\nDrop your thoughts below! 👇",
     tone: ["curious", "engaging", "inclusive"],
-    estimatedEngagement: 88,
   },
   {
     id: "milestone-celebration",
@@ -257,6 +252,5 @@ export const DEFAULT_CONTENT_TEMPLATES: ContentTemplate[] = [
     template:
       "🎉 We just hit {{metric}} {{milestone}}!\n\n{{gratitude ? `Huge thanks to ${gratitude} - this wouldn't be possible without you! ` : ``}}🙏\n\n{{nextGoal ? `Next up: ${nextGoal}. Let's keep this momentum going! ` : ``}}💪",
     tone: ["celebratory", "grateful", "inspiring"],
-    estimatedEngagement: 91,
   },
 ];

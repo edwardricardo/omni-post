@@ -828,31 +828,42 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 ---
 
-#### T2-H — Fake/hardcoded data UI-only ⚡
+#### T2-H — Fake/hardcoded data UI-only ⚡ ✅ 2026-04-23
 
-**Scope.** UI labels sugieren ML/datos reales cuando backend es hardcoded. Fix de honestidad visual, sin tocar backend.
+**Scope real.** Los 11 findings + extensión de `ContentMetrics` (3 campos fabricados adicionales en `useAIContentGeneration.ts` / `AIContentResults.tsx` no listados en roadmap pero mismo anti-pattern).
 
-**Findings table (11):**
+**Investigación (fuentes):**
 
-| L-#   | Título corto                                                | Esfuerzo | Acción | §5.9 | Notas                     |
-| ----- | ----------------------------------------------------------- | -------- | ------ | ---- | ------------------------- |
-| L-78  | SchedulePicker "optimal times" hardcoded                    | QUICK    | FIX    | AUTO | Remove label o wire real  |
-| L-79  | `generateRecommendations` "AI" label hardcoded              | QUICK    | FIX    | AUTO | Rename "Smart" or wire ML |
-| L-80  | SmartContentOptimizer hashtag scoring por index             | QUICK    | FIX    | AUTO | Remove fabricated         |
-| L-81  | ai-content-templates estimatedEngagement hardcoded          | QUICK    | FIX    | AUTO | Remove field              |
-| L-82  | usePredictiveData hardcoded fallbacks                       | MEDIUM   | FIX    | AUTO | Empty states              |
-| L-83  | AIContentGenerator "Powered by GPT-4" hardcoded             | TRIVIAL  | FIX    | AUTO | Fetch current provider    |
-| L-106 | AIGenerationPreview fake progress steps                     | TRIVIAL  | FIX    | AUTO | Simplify                  |
-| L-111 | PublishingInterface estimatedTime hardcoded                 | TRIVIAL  | FIX    | AUTO | Remove                    |
-| L-112 | PublishingInterface rateLimit threshold hardcoded           | TRIVIAL  | FIX    | AUTO | Config                    |
-| L-213 | `mapApiTemplate` estimatedEngagement 75 hardcoded (fake-AI) | TRIVIAL  | FIX    | AUTO | Remove                    |
-| L-326 | `useBillingStats` grandfatheredRevenue:0 hardcoded          | TRIVIAL  | FIX    | AUTO | Real aggregation          |
+- Nielsen Norman empty-state guidance: mostrar status honesto, nunca placeholder engañoso; cuando no hay datos, mensaje contextual + CTA.
+- Repo canon: `useOptimalTimes` hook backend-wired ya existe pero SchedulePicker opera en contextos sin projectId → se mantiene heurística local con label honesto ("Suggested Times", sin score numérico).
+
+**Findings resueltos:**
+
+| L-#          | Resolución                                                                                                                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-78         | SchedulePicker: relabel "Recommended" → "Suggested Times", removido `{score}% optimal` display, descripción explica heurística.                                                                                           |
+| L-79         | `insights/utils.ts` + `RecommendationsList` + `PerformanceInsightsHeader`: "AI" → "Smart" / "Recommendations" (drop "AI-driven" copy).                                                                                    |
+| L-80         | `HashtagAnalysis` type: removidos `relevanceScore/popularityIndex/competitionLevel/expectedReach/trendingStatus` fabricados por índice. `SmartContentOptimizerHashtags` reescrito a display simple (hashtag + platforms). |
+| L-81 + L-213 | `estimatedEngagement` removido de: `ContentTemplate` type, `ai-content-templates.ts` (6 static templates), `mapApiTemplate`, `AITemplateSelector` display.                                                                |
+| L-82         | `usePredictiveData.mapToROIForecasts` fallback genérico (4 factores con impact 35/25/25/15 fabricados) → `factors: []` cuando backend no tiene breakdown.                                                                 |
+| L-83         | `AIContentGenerator`: "Powered by GPT-4" → "AI-powered" (backend puede cambiar modelo).                                                                                                                                   |
+| L-106        | `AIGenerationPreview`: removidos 4 fake progress steps → single spinner + "Generating your content…".                                                                                                                     |
+| L-111        | `PublishingInterface.publishingStats.estimatedTime` y display `~Ns` removidos.                                                                                                                                            |
+| L-112        | `PublishingInterface.publishingStats.rateLimit` y Alert condicional removidos.                                                                                                                                            |
+| L-326        | `useBillingStats.grandfatheredRevenue: 0` removido del type + display + locales (`grandfatheredRevenue` + `grandfatheredDesc` en en.json/es.json). Grid `subscriptions/page` colapsó a 1 tarjeta (MRR).                   |
+
+**Extensión** (mismo anti-pattern detectado durante ejecución, incluido per "extender búsqueda"):
+
+- `ContentMetrics` type: `readabilityScore/engagementScore/viralPotential` eran hardcoded `80/template.estimatedEngagement/50` y mostrados en `AIContentResults.tsx`. Removidos del type + data + display; quedan solo `characterCount/wordCount/hashtagCount`. `brandConsistency.score` (hardcoded 85) también removido del display.
 
 **Entry criteria.** Ninguno.
 
-**Exit criteria:** grep manual + visual review. No hay grep único.
+**Exit criteria alcanzados:**
 
-**Estimación.** 2-3 h.
+- 0 grep hits de `estimatedEngagement`, `grandfatheredRevenue`, `Powered by GPT-4`, `estimatedTime.*Math.ceil` patterns residuales ✅
+- Lint 0 / Test 37/37 / Build 9/9 ✅
+
+**Estimación.** 2-3 h (real: ~1.5 h).
 
 **Dependencias.** ⚡ PARALELIZABLE.
 

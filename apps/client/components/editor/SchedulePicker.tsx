@@ -276,10 +276,11 @@ export function SchedulePicker({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <TrendingUp className="h-4 w-4" />
-              Recommended Times
+              Suggested Times
             </CardTitle>
             <CardDescription>
-              Based on historical engagement data for your selected platforms
+              Typical high-engagement windows for your selected platforms (general heuristic — tune
+              via analytics once enough post history is collected).
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -298,12 +299,6 @@ export function SchedulePicker({
                       </span>
                     </div>
                     <span className="text-sm text-muted-foreground">{time.reason}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                      <span className="text-sm font-medium">{time.score}% optimal</span>
-                    </div>
                   </div>
                 </div>
               ))}
