@@ -1085,28 +1085,36 @@ grep -rn ": any\b\|as any\b\|<any>" apps/client/src/ apps/admin/src/ --include="
 
 **Scope.** 3 paths paralelos de auth (Server Action vs authApi vs raw fetch) con TTLs cookie inconsistentes.
 
-**Findings table (4):**
+**Investigación previa:**
 
-| L-#   | Título corto                                                           | Esfuerzo | Acción   | §5.9         | Notas                   |
-| ----- | ---------------------------------------------------------------------- | -------- | -------- | ------------ | ----------------------- |
-| L-69  | Dual auth path con TTLs cookie inconsistentes                          | MEDIUM   | FIX      | AUTO         | Absorbed en L-208       |
-| L-208 | Auth 3 paths paralelos (upgrade L-69)                                  | MEDIUM   | REFACTOR | AUTO         | Server Action → authApi |
-| L-209 | Error handling `ApiError` vs plain Error                               | QUICK    | REFACTOR | AUTO         | authApi usa ApiError    |
-| L-345 | `AuthProvider` raw fetch + dual envelope + silent SUPER_ADMIN fallback | QUICK    | FIX      | NEEDS_EDWARD | security + raw fetch    |
+- Externo: cookie session TTL debe igualar JWT access TTL (~15min); `rememberMe` modela en refresh cookie (no en session). Failure-closed > failure-open en permission grants.
+- Interno: 3 paths reales en client (proxy `route.ts` + `authApi.ts` + Server Action `actions/auth.ts`); admin con `actions/auth.ts` + `refresh/route.ts` paralelo. Silent SUPER_ADMIN fallback en admin AuthProvider.
 
-**Entry criteria.** T3-A cerrado (QueryClient tiene error handling global).
+**Findings resueltos:**
 
-**Exit criteria:**
+| L-#   | Resolución                                                                                                                                                                                                                                                                                                                                                                        |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-69  | Server Action TTLs unificados con proxy: session 15min, refresh 7d (default), refresh 30d con `rememberMe`. Drop pattern `1d session / 30d session`.                                                                                                                                                                                                                              |
+| L-208 | Nuevo módulo `apps/client/lib/auth/sessionCookie.ts` (single source of truth: cookie names, TTLs, helpers). Proxy `[...path]/route.ts` + Server Action `actions/auth.ts` ambos lo importan. Análogo en admin: `apps/admin/lib/auth/sessionCookie.ts` + helper `setAuthTokens` (session+refresh+csrf). Admin Server Action + refresh route migrados. Admin session TTL 1d → 15min. |
+| L-209 | `authApi.ts` migrado a `ApiError` (de `lib/api/types`) con helpers privados `readErrorBody` + `buildApiError`. `request()`, `login()`, `refreshToken()` ahora throw typed con `status` + `code`. 4 tests actualizados al nuevo fallback message scheme.                                                                                                                           |
+| L-345 | Failure-closed: catch en admin `AuthProvider.tsx` ya no setea `["*"]` para SUPER_ADMIN — log error + `setPermissions([])`. Drive-by: valida `res.ok` antes de parse.                                                                                                                                                                                                              |
 
-```bash
-grep -rn "fetch.*\/auth\/" apps/client/src/ --include="*.ts" --include="*.tsx" | grep -v "authApi" | wc -l   # → 0
-```
+**Decisión documentada (PR-11):** divergencia ApiError entre client `lib/api/types.ts` y admin `lib/parseApiError.ts` queda como deuda en `POST_REMEDIATION_BACKLOG.md` PR-11 (batch dedicado futuro `T3-S — ApiError unification`).
 
-**Estimación.** 4-6 h.
+**Entry criteria.** T3-A cerrado ✅.
 
-**Dependencias.** 🔒 BLOCKS_TIER.
+**Exit criteria alcanzados:**
 
-**Notas.** Decisión arquitectónica: Server Action delega a AuthAPI class canónica.
+- 0 `cookies().set(SESSION_COOKIE...)` directos en Server Action / refresh route (todos vía sessionCookie helpers).
+- Admin AuthProvider catch block fail-closed (sin `["*"]`).
+- `authApi.ts` 0 `throw new Error(`.
+- Lint 0 / Test 38/38 / Build 9/9 ✅
+
+**Estimación.** 4-6 h (real: ~2.5 h).
+
+**Dependencias.** 🔒 BLOCKS_TIER cerrado — habilita T3-C, T3-D.
+
+**Notas.** Cookie helpers compartidos por app (client + admin) con módulos paralelos (cookie names difieren: `customer-session` vs `admin-session`). Posible unificación cross-app vía `@packages/auth-cookies` queda fuera de scope T3-B.
 
 ---
 

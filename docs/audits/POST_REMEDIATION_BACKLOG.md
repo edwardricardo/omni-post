@@ -499,6 +499,54 @@ N/A — cerrado como WONT_FIX documentado. Si el audit original se re-ejecuta, l
 
 ---
 
+### PR-11 — `ApiError` class divergence between admin and client apps
+
+**Fecha de aplicación:** 2026-04-28 (documentación)
+**Batch de origen:** T3-B (Auth flow unification) — durante audit pre-ejecución
+**Severidad del bug pre-existente:** bajo — cada app es internamente consistente; las firmas distintas no causan bugs de runtime
+**Tipo:** code (DRY / consistency)
+
+**Descubrimiento.**
+
+Audit del scope T3-B reveló que existen DOS clases `ApiError` con shape distinto, una por app:
+
+| Ubicación                          | Constructor                        | Helpers                                                                                                                              |
+| ---------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/admin/lib/parseApiError.ts`  | `(status, code, message)`          | `fromResponse`, `parseApiError`, `getErrorMessage`, `isPermissionDenied`, `isNotFoundError`, `STATUS_MESSAGES`/`ERROR_MESSAGES` maps |
+| `apps/client/lib/api/types.ts:193` | `(message, status, code, details)` | (sólo class, sin helpers)                                                                                                            |
+
+Cada app importa la suya local; no hay colisión runtime. La admin es notablemente más rica (mensajes user-facing curated, `fromResponse` parsing seguro).
+
+**Por qué NO se incluyó en T3-B.**
+
+T3-B se enfocó en el flujo de autenticación (Server Action + AuthProvider + sessionCookie helpers). Migrar `authApi.ts` a usar la `ApiError` de `lib/api/types.ts` (la que ya existe en client) cumplió L-209 sin añadir scope. Unificar las dos `ApiError` cross-app implica:
+
+1. Decidir cuál es la canónica (probablemente admin's, que es más rica).
+2. Crear nuevo package `@packages/api-errors` (o reutilizar `@packages/query-client` u otro shared-frontend).
+3. Migrar imports en client (~10+ sites) y admin (~20+ sites).
+4. Reconciliar las firmas (orden de args es distinto).
+5. Tests del package compartido + smoke en cada app.
+
+Es un batch dedicado (~2-3h), no un drive-by.
+
+**Fix definitivo recomendado.**
+
+Batch dedicado posterior (sugerido nombre: `T3-S — ApiError unification`):
+
+1. Adoptar admin's shape como canon (constructor `(status, code, message)`, `fromResponse` static, helpers de mensaje).
+2. Crear `@packages/api-errors/` con la clase + helpers + tests.
+3. Migrar admin: `lib/parseApiError.ts` → re-export del package; importers no cambian (transparent migration).
+4. Migrar client: `lib/api/types.ts` ApiError → re-export del package; `authApi.ts` ya usa la mejor; otros sites adaptan al constructor `(status, code, message)` (no `(message, status, code, details)`).
+5. Verificar cero regressions con tests existentes.
+
+**Cuándo revisar.**
+
+Post T3-B. Sugerido: ejecutar entre T3-B y T3-C (mientras T3-D depende de mismo refactor pattern). O después del tier T3 completo cuando todos los `any` returns estén tipados (T2-K) y la unificación tenga payback inmediato.
+
+**Estado:** APLICADO (deuda documentada — cada app sigue funcionando con su ApiError local; no hay riesgo runtime).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

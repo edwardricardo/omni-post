@@ -1,7 +1,8 @@
 /**
  * @file route.ts
  * @description Universal Next.js backend proxy route handler — injects Bearer tokens from the
- *              httpOnly session cookie, manages cookie lifecycle on login/refresh/logout.
+ *              httpOnly session cookie, manages cookie lifecycle on login/refresh/logout via the
+ *              shared `lib/auth/sessionCookie` helpers (single source of truth for TTLs).
  * @layer infrastructure
  */
 /**
@@ -13,17 +14,17 @@
  * the request to the real API.
  *
  * For auth endpoints (login, refresh), the proxy intercepts the response
- * body, extracts the accessToken, and sets it as an httpOnly cookie so
- * the browser NEVER sees the JWT.
+ * body, extracts the accessToken, and persists it as an httpOnly cookie via
+ * the shared `sessionCookie` module so the browser NEVER sees the JWT.
  *
- * For logout, the proxy clears the session cookie.
+ * For logout, the proxy clears the session cookie via the shared helper.
  *
  * Usage:
  *   fetch("/api/backend/posts")        -> GET  http://localhost:3000/posts
  *   fetch("/api/backend/auth/customer/me")      -> GET  http://localhost:3000/auth/customer/me
  *   fetch("/api/backend/auth/customer/login")   -> POST http://localhost:3000/auth/customer/login
  *
- * Cookie: "customer-session" (httpOnly, secure in production, sameSite=lax)
+ * Cookie names + TTLs live in `apps/client/lib/auth/sessionCookie.ts`.
  *
  * @module app/api/backend/[...path]/route
  */
@@ -31,135 +32,20 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-const API_URL = process.env.API_URL ?? "http://localhost:3000";
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
+import {
+  SESSION_COOKIE_NAME,
+  REFRESH_COOKIE_NAME,
+  clearAuthCookies,
+  persistTokensFromAuthResponse,
+} from "@/lib/auth/sessionCookie";
 
-// Session cookie configuration
-const SESSION_COOKIE_NAME = "customer-session";
-const SESSION_MAX_AGE = 15 * 60; // 15 minutes (matches typical JWT access token TTL)
-const REFRESH_COOKIE_NAME = "customer-refresh";
-const REFRESH_MAX_AGE = 7 * 24 * 60 * 60; // 7 days
+const API_URL = process.env.API_URL ?? "http://localhost:3000";
 
 // Auth paths that require special cookie handling (CustomerUser endpoints)
 const AUTH_LOGIN_PATH = "auth/customer/login";
 const AUTH_REFRESH_PATH = "auth/customer/refresh";
 const AUTH_LOGOUT_PATH = "auth/customer/logout";
 const AUTH_REGISTER_PATH = "auth/customer/register";
-
-/**
- * Set an httpOnly session cookie with the access token
- */
-async function setSessionCookie(token: string): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: IS_PRODUCTION,
-    sameSite: "lax",
-    maxAge: SESSION_MAX_AGE,
-    path: "/",
-  });
-}
-
-/**
- * Set an httpOnly refresh token cookie
- */
-async function setRefreshCookie(token: string): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(REFRESH_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: IS_PRODUCTION,
-    sameSite: "lax",
-    maxAge: REFRESH_MAX_AGE,
-    path: "/",
-  });
-}
-
-/**
- * Clear all auth-related cookies
- */
-async function clearAuthCookies(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE_NAME);
-  cookieStore.delete(REFRESH_COOKIE_NAME);
-}
-
-/**
- * Build a sanitized response body for auth endpoints.
- * Strips the accessToken from the response so it never reaches the browser.
- */
-function stripTokenFromResponse(parsed: Record<string, unknown>): Record<string, unknown> {
-  const data = parsed.data as Record<string, unknown> | undefined;
-  if (!data) return parsed;
-
-  // Remove accessToken from the response body -- the cookie holds it now
-  const { accessToken: _accessToken, ...safeData } = data;
-  return { ...parsed, data: safeData };
-}
-
-/**
- * Handle login/register response: extract accessToken, set cookies, strip token from body
- */
-async function handleAuthTokenResponse(
-  text: string,
-  upstream: Response
-): Promise<{ body: string; cookiesSet: boolean }> {
-  try {
-    const parsed = JSON.parse(text) as Record<string, unknown>;
-    const data = parsed.data as Record<string, unknown> | undefined;
-
-    // Only process successful responses with an accessToken
-    if (upstream.ok && data && typeof data.accessToken === "string") {
-      await setSessionCookie(data.accessToken);
-
-      // If the backend also returned a refreshToken in the body, store it
-      if (typeof data.refreshToken === "string") {
-        await setRefreshCookie(data.refreshToken);
-      }
-
-      const safeBody = stripTokenFromResponse(parsed);
-      return { body: JSON.stringify(safeBody), cookiesSet: true };
-    }
-
-    return { body: text, cookiesSet: false };
-  } catch {
-    // If parsing fails, pass through unchanged
-    return { body: text, cookiesSet: false };
-  }
-}
-
-/**
- * Handle refresh response: update session cookie with new accessToken
- */
-async function handleRefreshResponse(
-  text: string,
-  upstream: Response
-): Promise<{ body: string; cookiesSet: boolean }> {
-  try {
-    const parsed = JSON.parse(text) as Record<string, unknown>;
-    const data = parsed.data as Record<string, unknown> | undefined;
-
-    if (upstream.ok && data && typeof data.accessToken === "string") {
-      await setSessionCookie(data.accessToken);
-
-      // If a new refresh token was issued, update that cookie too
-      if (typeof data.refreshToken === "string") {
-        await setRefreshCookie(data.refreshToken);
-      }
-
-      const safeBody = stripTokenFromResponse(parsed);
-      return { body: JSON.stringify(safeBody), cookiesSet: true };
-    }
-
-    // If refresh failed (401), clear session cookies
-    if (!upstream.ok && upstream.status === 401) {
-      await clearAuthCookies();
-    }
-
-    return { body: text, cookiesSet: false };
-  } catch {
-    return { body: text, cookiesSet: false };
-  }
-}
 
 async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse> {
   const cookieStore = await cookies();
@@ -184,6 +70,7 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
   // exactOptionalPropertyTypes (body must not be explicitly undefined)
   const hasBody = !["GET", "HEAD"].includes(req.method);
   let bodyText: string | null = null;
+  let rememberMe = false;
 
   if (hasBody) {
     bodyText = await req.text();
@@ -192,6 +79,11 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
     // if the client did not provide one (the client no longer has access to it)
     if (path === AUTH_REFRESH_PATH || path === AUTH_LOGOUT_PATH) {
       bodyText = injectRefreshToken(bodyText, refreshCookie?.value);
+    }
+
+    // Detect rememberMe on login so the refresh cookie is extended
+    if (path === AUTH_LOGIN_PATH) {
+      rememberMe = parseRememberMe(bodyText);
     }
   }
 
@@ -211,7 +103,9 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
 
   // Route-specific cookie handling
   if (path === AUTH_LOGIN_PATH || path === AUTH_REGISTER_PATH) {
-    const { body } = await handleAuthTokenResponse(responseText, upstream);
+    const { body } = await persistTokensFromAuthResponse(responseText, upstream.ok, {
+      rememberMe,
+    });
     return new NextResponse(body, {
       status: upstream.status,
       headers: {
@@ -221,7 +115,10 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
   }
 
   if (path === AUTH_REFRESH_PATH) {
-    const { body } = await handleRefreshResponse(responseText, upstream);
+    const { body } = await persistTokensFromAuthResponse(responseText, upstream.ok);
+    if (!upstream.ok && upstream.status === 401) {
+      await clearAuthCookies();
+    }
     return new NextResponse(body, {
       status: upstream.status,
       headers: {
@@ -269,6 +166,16 @@ function injectRefreshToken(bodyText: string, refreshToken: string | undefined):
   } catch {
     // If body is not valid JSON, create a new body with just the refresh token
     return JSON.stringify({ refreshToken });
+  }
+}
+
+/** Read the `rememberMe` flag from a login request body. Defaults to `false`. */
+function parseRememberMe(bodyText: string): boolean {
+  try {
+    const parsed = JSON.parse(bodyText || "{}") as Record<string, unknown>;
+    return parsed.rememberMe === true;
+  } catch {
+    return false;
   }
 }
 

@@ -1,8 +1,10 @@
 /**
  * @file auth.ts
  * @description Server Actions for admin authentication using the httpOnly cookie pattern.
- * Handles login (with optional MFA) and logout by proxying credentials to the Fastify backend
- * and managing the "admin-session" cookie lifecycle.
+ *              Handles login (with optional MFA) and logout. Cookie names + TTLs come from
+ *              the shared `lib/auth/sessionCookie` module — single source of truth shared
+ *              with the refresh route handler. Session TTL = 15min (matches access token).
+ * @layer infrastructure
  */
 "use server";
 
@@ -13,40 +15,9 @@ import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
 import type { AdminAuthState } from "@/lib/auth/types";
 import { authenticateAdmin, logoutFromBackend } from "@/lib/auth/backend-client";
+import { SESSION_COOKIE_NAME, setAuthTokens, clearAuthCookies } from "@/lib/auth/sessionCookie";
 
 const log = new ConsoleLoggerAdapter("admin.auth-actions", { alwaysEmit: true });
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const COOKIE_NAME = "admin-session";
-const REFRESH_COOKIE_NAME = "admin-refresh";
-const CSRF_COOKIE_NAME = "admin-csrf";
-
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: 24 * 60 * 60, // 1 day
-};
-
-const REFRESH_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: 7 * 24 * 60 * 60, // 7 days — matches refresh token TTL
-};
-
-const CSRF_COOKIE_OPTIONS = {
-  httpOnly: true, // only needed server-side in proxy
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: 7 * 24 * 60 * 60, // 7 days
-};
 
 // ---------------------------------------------------------------------------
 // Login Action
@@ -80,8 +51,6 @@ export async function loginAction(
     return { error: "Email and password are required" };
   }
 
-  let accessToken: string | null = null;
-
   try {
     const result = await authenticateAdmin({
       email,
@@ -102,12 +71,11 @@ export async function loginAction(
     }
 
     // result.status === "success"
-    accessToken = result.tokens.accessToken;
-
-    const cookieStore = await cookies();
-    cookieStore.set(COOKIE_NAME, accessToken, COOKIE_OPTIONS);
-    cookieStore.set(REFRESH_COOKIE_NAME, result.tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
-    cookieStore.set(CSRF_COOKIE_NAME, result.tokens.csrfToken, CSRF_COOKIE_OPTIONS);
+    await setAuthTokens({
+      accessToken: result.tokens.accessToken,
+      refreshToken: result.tokens.refreshToken,
+      csrfToken: result.tokens.csrfToken,
+    });
   } catch (error) {
     log.error("Unexpected login error", error);
     return {
@@ -127,7 +95,7 @@ export async function loginAction(
  * Server Action for admin logout.
  *
  * Reads the admin-session cookie, calls the backend logout endpoint to
- * invalidate the token, deletes the cookie, and redirects to the login page.
+ * invalidate the token, deletes all auth cookies, and redirects to the login page.
  *
  * Backend errors are intentionally swallowed — the cookie is always deleted
  * so the user is always logged out on the frontend regardless.
@@ -135,17 +103,15 @@ export async function loginAction(
 export async function logoutAction(): Promise<void> {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get(COOKIE_NAME);
+    const session = cookieStore.get(SESSION_COOKIE_NAME);
 
     if (session) {
       await logoutFromBackend(session.value, false).catch(() => {
-        // Intentionally ignored — cookie will still be cleared below
+        // Intentionally ignored — cookies will still be cleared below
       });
     }
 
-    cookieStore.delete(COOKIE_NAME);
-    cookieStore.delete(REFRESH_COOKIE_NAME);
-    cookieStore.delete(CSRF_COOKIE_NAME);
+    await clearAuthCookies();
   } catch (error) {
     log.error("Logout error", error);
     // Still redirect even if there's an unexpected error
