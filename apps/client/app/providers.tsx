@@ -3,15 +3,19 @@
 /**
  * @file providers.tsx
  * @description Client-side provider tree wrapping children with TanStack Query, Logger, Auth,
- *              Toast, and Api contexts for the dashboard app.
+ *              Toast, and Api contexts for the dashboard app. The QueryClient is built via the
+ *              shared `@packages/query-client` factory so admin + client share defaults and
+ *              global error handling (toast + logger) consistently.
  * @component Providers
  * @layer infrastructure
  */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState, ReactNode } from "react";
-import { Toaster } from "@packages/ui";
+import { Toaster, toast } from "@packages/ui";
+import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 import { LoggerProvider } from "@observability/browser-logger";
+import { createAppQueryClient } from "@packages/query-client";
 import { AuthProvider } from "@/lib/auth/authContext";
 import { ApiProvider } from "@/lib/api";
 
@@ -19,18 +23,33 @@ interface ProvidersProps {
   children: ReactNode;
 }
 
+/**
+ * @component Providers
+ * @description Top-level client provider tree. Builds a single QueryClient instance per
+ * mount (via `useState` lazy init) so route navigations don't reset the cache.
+ */
 export function Providers({ children }: ProvidersProps) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 60 * 1000,
-            gcTime: 5 * 60 * 1000,
-            retry: 1,
-          },
-        },
-      })
+  const [queryClient] = useState(() =>
+    createAppQueryClient({
+      // ConsoleLoggerAdapter is used here because the QueryClient lives ABOVE the
+      // LoggerProvider and cannot consume `useLogger()`. It still routes errors to
+      // the same browser console / sink the rest of the app uses.
+      logger: new ConsoleLoggerAdapter("client.query-client"),
+      onQueryError: (error) => {
+        toast({
+          title: "Request failed",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
+      },
+      onMutationError: (error) => {
+        toast({
+          title: "Action failed",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
+      },
+    })
   );
 
   return (

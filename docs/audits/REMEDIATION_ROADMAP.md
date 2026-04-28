@@ -1043,29 +1043,41 @@ grep -rn ": any\b\|as any\b\|<any>" apps/client/src/ apps/admin/src/ --include="
 
 ---
 
-#### T3-A — QueryClient global config 🔒
+#### T3-A — QueryClient global config 🔒 ✅ 2026-04-28
 
-**Scope.** QueryClient config inconsistente + missing QueryCache/MutationCache global handlers.
+**Scope.** Unificar config QueryClient cross-app (client + admin) y añadir global error handlers (QueryCache + MutationCache) — un toque, dos consumidores.
 
-**Findings table (3):**
+**Investigación previa:**
 
-| L-#   | Título corto                                                  | Esfuerzo | Acción | §5.9 | Notas                                             |
-| ----- | ------------------------------------------------------------- | -------- | ------ | ---- | ------------------------------------------------- |
-| L-70  | `app/providers.tsx` missing QueryCache/MutationCache (client) | QUICK    | FIX    | AUTO | Global error handlers                             |
-| L-101 | QueryClient config staleTime 60s + retry:1 inconsistente      | QUICK    | CONFIG | AUTO | FRONTEND_STANDARDS §2.3                           |
-| L-336 | `QueryProvider` replica L-70/L-101 (admin cross-app)          | QUICK    | FIX    | AUTO | Candidate `@packages/shared-frontend/queryClient` |
+- TkDodo (TanStack Query maintainer): _"the global cache-level callbacks when setting up your QueryClient"_ es el patrón canon v5 — fire-once-per-query event evita duplicados cuando varios componentes consumen la misma query.
+- Audit interno: 2 producción QueryClient con config 100% duplicada, 0 global error handlers.
+
+**Findings resueltos:**
+
+| L-#   | Resolución                                                                                                                                                                                                                                |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-70  | `apps/client/app/providers.tsx`: `QueryCache.onError` + `MutationCache.onError` con toast destructive + logger. Vía nuevo factory compartido.                                                                                             |
+| L-101 | Defaults extraídos a constantes en `@packages/query-client` (staleTime 60s, gcTime 5min, retry 1, mutations retry 0). Cambios futuros DRY.                                                                                                |
+| L-336 | Nuevo paquete `@packages/query-client` (factory `createAppQueryClient`). Admin `QueryProvider.tsx` y client `providers.tsx` lo consumen ambos con DI: `logger` (BrowserLoggerPort-compatible) + `onQueryError`/`onMutationError` (toast). |
+
+**Decisión arquitectónica documentada:**
+
+- Factory recibe logger + handlers como DI (no hard import de `@packages/ui` ni `@observability/browser-logger`).
+- Apps usan `ConsoleLoggerAdapter` porque el QueryClient se construye SOBRE el `LoggerProvider` y no puede consumir `useLogger()` (lazy init en `useState`).
+
+**Drive-by:** bump `@tanstack/react-query` y `-devtools` de `5.90.2` → `5.95.0` en client + admin (preferido por Edward — versión estable más reciente, no downgrade en query-client).
 
 **Entry criteria.** Ninguno.
 
-**Exit criteria:**
+**Exit criteria alcanzados:**
 
-```bash
-grep -n "QueryCache\|MutationCache" apps/client/src/app/providers.tsx apps/admin/src/app/providers.tsx | wc -l   # → ≥2
-```
+- `grep -n "QueryCache\|MutationCache" apps/client/app/providers.tsx apps/admin/providers/QueryProvider.tsx` → ambos via factory ✅ (uso transitivo, no inline)
+- `@packages/query-client/tests` 6/6 ✅ (defaults, overrides, query error routing, mutation error routing)
+- Lint 0 / Test 38/38 (37 + nuevo package) / Build 9/9 ✅
 
-**Estimación.** 2-3 h.
+**Estimación.** 2-3 h (real: ~1.5 h).
 
-**Dependencias.** 🔒 BLOCKS_TIER (resuelve parcialmente L-260 — 87 mutations sin onError).
+**Dependencias.** 🔒 BLOCKS_TIER cerrado — habilita T3-B, T3-C, T3-D. Resuelve parcialmente L-260 (87 mutations sin onError; ahora todas heredan handler global).
 
 ---
 

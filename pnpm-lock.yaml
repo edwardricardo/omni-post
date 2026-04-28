@@ -121,6 +121,9 @@ importers:
       '@observability/browser-logger':
         specifier: workspace:*
         version: link:../../packages/observability/browser-logger
+      '@packages/query-client':
+        specifier: workspace:*
+        version: link:../../packages/query-client
       '@packages/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -140,8 +143,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       '@tanstack/react-query':
-        specifier: 5.90.2
-        version: 5.90.2(react@19.2.4)
+        specifier: 5.95.0
+        version: 5.95.0(react@19.2.4)
       '@types/papaparse':
         specifier: 5.5.2
         version: 5.5.2
@@ -486,6 +489,9 @@ importers:
       '@observability/browser-logger':
         specifier: workspace:*
         version: link:../../packages/observability/browser-logger
+      '@packages/query-client':
+        specifier: workspace:*
+        version: link:../../packages/query-client
       '@packages/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -505,11 +511,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       '@tanstack/react-query':
-        specifier: 5.90.2
-        version: 5.90.2(react@19.2.4)
+        specifier: 5.95.0
+        version: 5.95.0(react@19.2.4)
       '@tanstack/react-query-devtools':
-        specifier: 5.90.2
-        version: 5.90.2(@tanstack/react-query@5.90.2(react@19.2.4))(react@19.2.4)
+        specifier: 5.95.0
+        version: 5.95.0(@tanstack/react-query@5.95.0(react@19.2.4))(react@19.2.4)
       '@tiptap/core':
         specifier: 3.6.1
         version: 3.6.1(@tiptap/pm@3.6.1)
@@ -1786,6 +1792,39 @@ importers:
       vitest:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.6)(utf-8-validate@5.0.10))(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/query-client:
+    devDependencies:
+      '@tanstack/react-query':
+        specifier: 5.95.0
+        version: 5.95.0(react@19.2.4)
+      '@testing-library/react':
+        specifier: 16.1.0
+        version: 16.1.0(@testing-library/dom@10.4.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      '@vitejs/plugin-react':
+        specifier: 5.1.4
+        version: 5.1.4(vite@7.1.7(@types/node@24.5.2)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3))
+      jsdom:
+        specifier: 26.0.0
+        version: 26.0.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@26.0.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/shared:
     dependencies:
@@ -6919,20 +6958,20 @@ packages:
   '@tailwindcss/postcss@4.2.1':
     resolution: {integrity: sha512-OEwGIBnXnj7zJeonOh6ZG9woofIjGrd2BORfvE5p9USYKDCZoQmfqLcfNiRWoJlRWLdNPn2IgVZuWAOM4iTYMw==}
 
-  '@tanstack/query-core@5.90.2':
-    resolution: {integrity: sha512-k/TcR3YalnzibscALLwxeiLUub6jN5EDLwKDiO7q5f4ICEoptJ+n9+7vcEFy5/x/i6Q+Lb/tXrsKCggf5uQJXQ==}
+  '@tanstack/query-core@5.95.0':
+    resolution: {integrity: sha512-H1/CWCe8tGL3YIVeo770Z6kPbt0B3M1d/iQXIIK1qlFiFt6G2neYdkHgLapOC8uMYNt9DmHjmGukEKgdMk1P+A==}
 
-  '@tanstack/query-devtools@5.90.1':
-    resolution: {integrity: sha512-GtINOPjPUH0OegJExZ70UahT9ykmAhmtNVcmtdnOZbxLwT7R5OmRztR5Ahe3/Cu7LArEmR6/588tAycuaWb1xQ==}
+  '@tanstack/query-devtools@5.95.0':
+    resolution: {integrity: sha512-i8IzjIsZSE9y9XGndeVYeUusrZpKyhOnOPIzWKao8iAVzmk8ZesPe5URt02aLwC5A0Rg72N+vgqolXXCXm4fFg==}
 
-  '@tanstack/react-query-devtools@5.90.2':
-    resolution: {integrity: sha512-vAXJzZuBXtCQtrY3F/yUNJCV4obT/A/n81kb3+YqLbro5Z2+phdAbceO+deU3ywPw8B42oyJlp4FhO0SoivDFQ==}
+  '@tanstack/react-query-devtools@5.95.0':
+    resolution: {integrity: sha512-w4lYQTuyGM6l8C32UDIvxeodCrOwbw0JGSK6sQXYlF24CJnTcNmCxvfvrW2L3f3NObyvEQYcGTfjOr0Vw8jaWA==}
     peerDependencies:
-      '@tanstack/react-query': ^5.90.2
+      '@tanstack/react-query': ^5.95.0
       react: 19.2.4
 
-  '@tanstack/react-query@5.90.2':
-    resolution: {integrity: sha512-CLABiR+h5PYfOWr/z+vWFt5VsOA2ekQeRQBFSKlcoW6Ndx/f8rfyVmq4LbgOM4GG2qtxAxjLYLOpCNTYm4uKzw==}
+  '@tanstack/react-query@5.95.0':
+    resolution: {integrity: sha512-EMP8B+BK9zvnAemT8M/y3z/WO0NjZ7fIUY3T3wnHYK6AA3qK/k33i7tPgCXCejhX0cd4I6bJIXN2GmjrHjDBzg==}
     peerDependencies:
       react: 19.2.4
 
@@ -20150,19 +20189,19 @@ snapshots:
       postcss: 8.5.6
       tailwindcss: 4.2.1
 
-  '@tanstack/query-core@5.90.2': {}
+  '@tanstack/query-core@5.95.0': {}
 
-  '@tanstack/query-devtools@5.90.1': {}
+  '@tanstack/query-devtools@5.95.0': {}
 
-  '@tanstack/react-query-devtools@5.90.2(@tanstack/react-query@5.90.2(react@19.2.4))(react@19.2.4)':
+  '@tanstack/react-query-devtools@5.95.0(@tanstack/react-query@5.95.0(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@tanstack/query-devtools': 5.90.1
-      '@tanstack/react-query': 5.90.2(react@19.2.4)
+      '@tanstack/query-devtools': 5.95.0
+      '@tanstack/react-query': 5.95.0(react@19.2.4)
       react: 19.2.4
 
-  '@tanstack/react-query@5.90.2(react@19.2.4)':
+  '@tanstack/react-query@5.95.0(react@19.2.4)':
     dependencies:
-      '@tanstack/query-core': 5.90.2
+      '@tanstack/query-core': 5.95.0
       react: 19.2.4
 
   '@testing-library/dom@10.4.0':
@@ -20895,7 +20934,7 @@ snapshots:
       obug: 2.1.1
       std-env: 3.10.0
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+      vitest: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.6)(utf-8-validate@5.0.10))(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.20.5)(yaml@2.8.3)
 
   '@vitest/expect@3.2.4':
     dependencies:
@@ -20999,7 +21038,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+      vitest: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.6)(utf-8-validate@5.0.10))(lightningcss@1.31.1)(terser@5.44.0)(tsx@4.20.5)(yaml@2.8.3)
 
   '@vitest/utils@3.2.4':
     dependencies:
