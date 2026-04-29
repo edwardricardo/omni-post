@@ -787,9 +787,11 @@ grep -rn "Part of Sprint\|Phase.*Sprint\|Sprint [0-9]" apps/ packages/ \
   --include="*.ts" --include="*.tsx" | \
   grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation" | wc -l
 
-# 9. No files missing @file header (all repo, target: 0)
+# 9. No files missing @file header (all repo, target: 0).
+# Excludes Next.js auto-generated `next-env.d.ts` (regenerated on every build,
+# see https://nextjs.org/docs/app/api-reference/config/typescript — "should not be edited").
 grep -rL "@file" apps/ packages/ --include="*.ts" --include="*.tsx" | \
-  grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation" | wc -l
+  grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation\|next-env\.d\.ts" | wc -l
 
 # 10. No invalid @layer values (all repo, only domain/application/infrastructure)
 grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" | \

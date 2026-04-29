@@ -1,436 +1,260 @@
 /**
  * @file client.ts
- * @description Typed API client for the client app — all requests go through the Next.js proxy
- *              which handles authentication via httpOnly cookies (no tokens in browser storage).
+ * @description Facade for the client app's API surface. Composes 9 per-domain
+ *              clients (Health, Projects, Posts, Providers, Channels,
+ *              Analytics, Publishing, Uploads, AI) and exposes a single
+ *              `apiClient` instance that preserves the legacy flat method
+ *              shape — callers continue to call `apiClient.getPosts()`
+ *              without knowing the underlying split. All requests route
+ *              through the Next.js proxy (`/api/backend`) so authentication
+ *              is handled via httpOnly cookies — no tokens in browser storage.
  * @layer infrastructure
  */
 
-import {
+import type {
+  Analytics,
+  ApiResponse,
+  Channel,
+  CreatePostRequest,
+  CrossPlatformAnalyticsData,
+  HealthResponse,
+  PaginatedResponse,
   Post,
   Project,
-  Provider,
-  ProviderHealth,
-  Channel,
-  Analytics,
-  CreatePostRequest,
   UpdatePostRequest,
-  PaginatedResponse,
-  ApiResponse,
-  HealthResponse,
-  ApiError,
-  ErrorResponse,
-  CrossPlatformAnalyticsData,
 } from "./types";
 
-// All requests go through the Next.js proxy -- never hit the backend directly
-const PROXY_BASE = "/api/backend";
+import { AiClient } from "./clients/aiClient";
+import {
+  type ContentAnalysis,
+  type GenerateContentOptions,
+  type GeneratedContent,
+  type OptimizedContent,
+} from "./clients/aiClient";
+import {
+  AnalyticsClient,
+  type BestPostingTimesParams,
+  type ChannelAnalyticsParams,
+  type ContentPerformanceParams,
+  type CrossPlatformAnalyticsParams,
+  type PostAnalyticsParams,
+} from "./clients/analyticsClient";
+import {
+  ChannelsClient,
+  type CreateChannelInput,
+  type UpdateChannelInput,
+} from "./clients/channelsClient";
+import { HealthClient } from "./clients/healthClient";
+import {
+  type AddPostMediaInput,
+  PostsClient,
+  type ListPostsParams,
+  type ThreadingStrategy,
+} from "./clients/postsClient";
+import { ProjectsClient } from "./clients/projectsClient";
+import {
+  ProvidersClient,
+  type ProviderEnvelope,
+  type ProviderHealthEnvelope,
+  type ProvidersHealthResponse,
+  type ProvidersListResponse,
+} from "./clients/providersClient";
+import { PublishingClient, type PublishOptions } from "./clients/publishingClient";
+import { PROXY_BASE } from "./clients/request";
+import { UploadsClient, type UploadResult, type UploadType } from "./clients/uploadsClient";
 
+/**
+ * @class ApiClient
+ * @description Facade that composes per-domain HTTP clients and re-exposes
+ *              their methods as a flat surface. Stateless — each method
+ *              builds a fresh `fetch` request through the proxy. Constructed
+ *              once and exported as the `apiClient` singleton.
+ */
 class ApiClient {
-  private baseUrl: string;
+  private readonly health: HealthClient;
+  private readonly projects: ProjectsClient;
+  private readonly posts: PostsClient;
+  private readonly providers: ProvidersClient;
+  private readonly channels: ChannelsClient;
+  private readonly analytics: AnalyticsClient;
+  private readonly publishing: PublishingClient;
+  private readonly uploads: UploadsClient;
+  private readonly ai: AiClient;
 
   constructor(baseUrl: string = PROXY_BASE) {
-    this.baseUrl = baseUrl;
+    this.health = new HealthClient(baseUrl);
+    this.projects = new ProjectsClient(baseUrl);
+    this.posts = new PostsClient(baseUrl);
+    this.providers = new ProvidersClient(baseUrl);
+    this.channels = new ChannelsClient(baseUrl);
+    this.analytics = new AnalyticsClient(baseUrl);
+    this.publishing = new PublishingClient(baseUrl);
+    this.uploads = new UploadsClient(baseUrl);
+    this.ai = new AiClient(baseUrl);
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-      // Include cookies so the proxy can read the session cookie
-      credentials: "include",
-    });
-
-    if (!response.ok) {
-      const errorData: ErrorResponse = await response.json().catch(() => ({
-        ok: false as const,
-        error: "Unknown error occurred",
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }));
-
-      throw new ApiError(
-        errorData.message || errorData.error,
-        response.status,
-        errorData.code,
-        errorData.details
-      );
-    }
-
-    return response.json();
-  }
-
-  // Health and System
-  async getHealth(): Promise<HealthResponse> {
-    return this.request<HealthResponse>("/health");
+  // Health
+  getHealth(): Promise<HealthResponse> {
+    return this.health.getHealth();
   }
 
   // Projects
-  async getProjects(): Promise<PaginatedResponse<Project>> {
-    return this.request<PaginatedResponse<Project>>("/projects");
+  getProjects(): Promise<PaginatedResponse<Project>> {
+    return this.projects.getProjects();
   }
 
-  async getProject(id: string): Promise<ApiResponse<Project>> {
-    return this.request<ApiResponse<Project>>(`/projects/${id}`);
+  getProject(id: string): Promise<ApiResponse<Project>> {
+    return this.projects.getProject(id);
   }
 
-  async createProject(data: { name: string; description?: string }): Promise<ApiResponse<Project>> {
-    return this.request<ApiResponse<Project>>("/projects", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+  createProject(data: { name: string; description?: string }): Promise<ApiResponse<Project>> {
+    return this.projects.createProject(data);
   }
 
   // Posts
-  async getPosts(params?: {
-    projectId?: string;
-    page?: number;
-    limit?: number;
-    status?: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED";
-  }): Promise<PaginatedResponse<Post>> {
-    const searchParams = new URLSearchParams();
-    if (params?.projectId) searchParams.set("projectId", params.projectId);
-    if (params?.page) searchParams.set("page", params.page.toString());
-    if (params?.limit) searchParams.set("limit", params.limit.toString());
-    if (params?.status) searchParams.set("status", params.status);
-
-    const query = searchParams.toString();
-    return this.request<PaginatedResponse<Post>>(`/posts${query ? `?${query}` : ""}`);
+  getPosts(params?: ListPostsParams): Promise<PaginatedResponse<Post>> {
+    return this.posts.getPosts(params);
   }
 
-  async getPost(id: string): Promise<ApiResponse<Post>> {
-    return this.request<ApiResponse<Post>>(`/posts/${id}`);
+  getPost(id: string): Promise<ApiResponse<Post>> {
+    return this.posts.getPost(id);
   }
 
-  async createPost(data: CreatePostRequest): Promise<ApiResponse<Post>> {
-    return this.request<ApiResponse<Post>>("/posts", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+  createPost(data: CreatePostRequest): Promise<ApiResponse<Post>> {
+    return this.posts.createPost(data);
   }
 
-  async updatePost(id: string, data: UpdatePostRequest): Promise<ApiResponse<Post>> {
-    return this.request<ApiResponse<Post>>(`/posts/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+  updatePost(id: string, data: UpdatePostRequest): Promise<ApiResponse<Post>> {
+    return this.posts.updatePost(id, data);
   }
 
-  async deletePost(id: string): Promise<ApiResponse<void>> {
-    return this.request<ApiResponse<void>>(`/posts/${id}`, {
-      method: "DELETE",
-    });
+  deletePost(id: string): Promise<ApiResponse<void>> {
+    return this.posts.deletePost(id);
   }
 
-  // Post Media
-  async addPostMedia(
+  addPostMedia(postId: string, media: AddPostMediaInput): Promise<ApiResponse<unknown>> {
+    return this.posts.addPostMedia(postId, media);
+  }
+
+  createPostThread(
     postId: string,
-    media: {
-      type: "image" | "video" | "gif";
-      url: string;
-      w?: number;
-      h?: number;
-      durationMs?: number;
-      alt?: string;
-    }
-  ): Promise<ApiResponse<any>> {
-    return this.request<ApiResponse<any>>(`/posts/${postId}/media`, {
-      method: "POST",
-      body: JSON.stringify(media),
-    });
+    strategy: ThreadingStrategy = "AUTO"
+  ): Promise<ApiResponse<unknown>> {
+    return this.posts.createPostThread(postId, strategy);
   }
 
-  // Post Threading
-  async createPostThread(
-    postId: string,
-    strategy: "AUTO" | "MANUAL" | "SINGLE" = "AUTO"
-  ): Promise<ApiResponse<any>> {
-    return this.request<ApiResponse<any>>(`/posts/${postId}/thread`, {
-      method: "POST",
-      body: JSON.stringify({ strategy }),
-    });
-  }
-
-  async getPostThread(postId: string): Promise<ApiResponse<any>> {
-    return this.request<ApiResponse<any>>(`/posts/${postId}/thread`);
+  getPostThread(postId: string): Promise<ApiResponse<unknown>> {
+    return this.posts.getPostThread(postId);
   }
 
   // Providers
-  async getProviders(): Promise<{ ok: boolean; providers: Provider[]; total: number }> {
-    return this.request<{ ok: boolean; providers: Provider[]; total: number }>("/providers");
+  getProviders(): Promise<ProvidersListResponse> {
+    return this.providers.getProviders();
   }
 
-  async getActiveProviders(): Promise<{ ok: boolean; providers: Provider[]; total: number }> {
-    return this.request<{ ok: boolean; providers: Provider[]; total: number }>("/providers/active");
+  getActiveProviders(): Promise<ProvidersListResponse> {
+    return this.providers.getActiveProviders();
   }
 
-  async getProviderById(id: string): Promise<{ ok: boolean; provider: Provider }> {
-    return this.request<{ ok: boolean; provider: Provider }>(`/providers/${id}`);
+  getProviderById(id: string): Promise<ProviderEnvelope> {
+    return this.providers.getProviderById(id);
   }
 
-  async getProviderHealth(id: string): Promise<{ ok: boolean; health: ProviderHealth }> {
-    return this.request<{ ok: boolean; health: ProviderHealth }>(`/providers/${id}/health`);
+  getProviderHealth(id: string): Promise<ProviderHealthEnvelope> {
+    return this.providers.getProviderHealth(id);
   }
 
-  async getAllProvidersHealth(): Promise<{
-    ok: boolean;
-    providers: ProviderHealth[];
-    summary: {
-      total: number;
-      healthy: number;
-      degraded: number;
-      unhealthy: number;
-      avgLatency: number;
-    };
-  }> {
-    return this.request<{
-      ok: boolean;
-      providers: ProviderHealth[];
-      summary: {
-        total: number;
-        healthy: number;
-        degraded: number;
-        unhealthy: number;
-        avgLatency: number;
-      };
-    }>("/providers/health");
+  getAllProvidersHealth(): Promise<ProvidersHealthResponse> {
+    return this.providers.getAllProvidersHealth();
   }
 
   // Channels
-  async getChannels(providerId?: string): Promise<PaginatedResponse<Channel>> {
-    const query = providerId ? `?providerId=${providerId}` : "";
-    return this.request<PaginatedResponse<Channel>>(`/channels${query}`);
+  getChannels(providerId?: string): Promise<PaginatedResponse<Channel>> {
+    return this.channels.getChannels(providerId);
   }
 
-  async getChannel(id: string): Promise<ApiResponse<Channel>> {
-    return this.request<ApiResponse<Channel>>(`/channels/${id}`);
+  getChannel(id: string): Promise<ApiResponse<Channel>> {
+    return this.channels.getChannel(id);
   }
 
-  async createChannel(data: {
-    providerId: string;
-    accountId: string;
-    accountName: string;
-    displayName?: string;
-    avatarUrl?: string;
-  }): Promise<ApiResponse<Channel>> {
-    return this.request<ApiResponse<Channel>>("/channels", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+  createChannel(data: CreateChannelInput): Promise<ApiResponse<Channel>> {
+    return this.channels.createChannel(data);
   }
 
-  async updateChannel(
-    id: string,
-    data: {
-      displayName?: string;
-      avatarUrl?: string;
-      isActive?: boolean;
-    }
-  ): Promise<ApiResponse<Channel>> {
-    return this.request<ApiResponse<Channel>>(`/channels/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+  updateChannel(id: string, data: UpdateChannelInput): Promise<ApiResponse<Channel>> {
+    return this.channels.updateChannel(id, data);
   }
 
-  async deleteChannel(id: string): Promise<ApiResponse<void>> {
-    return this.request<ApiResponse<void>>(`/channels/${id}`, {
-      method: "DELETE",
-    });
+  deleteChannel(id: string): Promise<ApiResponse<void>> {
+    return this.channels.deleteChannel(id);
   }
 
   // Analytics
-  async getPostAnalytics(
+  getPostAnalytics(
     postId: string,
-    params?: {
-      start?: string;
-      end?: string;
-      providerId?: string;
-    }
+    params?: PostAnalyticsParams
   ): Promise<ApiResponse<Analytics[]>> {
-    const searchParams = new URLSearchParams();
-    if (params?.start) searchParams.set("start", params.start);
-    if (params?.end) searchParams.set("end", params.end);
-    if (params?.providerId) searchParams.set("providerId", params.providerId);
-
-    const query = searchParams.toString();
-    return this.request<ApiResponse<Analytics[]>>(
-      `/analytics/posts/${postId}${query ? `?${query}` : ""}`
-    );
+    return this.analytics.getPostAnalytics(postId, params);
   }
 
-  async getChannelAnalytics(
+  getChannelAnalytics(
     channelId: string,
-    params?: {
-      start?: string;
-      end?: string;
-      metrics?: string[];
-    }
+    params?: ChannelAnalyticsParams
   ): Promise<ApiResponse<Analytics[]>> {
-    const searchParams = new URLSearchParams();
-    if (params?.start) searchParams.set("start", params.start);
-    if (params?.end) searchParams.set("end", params.end);
-    if (params?.metrics) searchParams.set("metrics", params.metrics.join(","));
-
-    const query = searchParams.toString();
-    return this.request<ApiResponse<Analytics[]>>(
-      `/analytics/channels/${channelId}${query ? `?${query}` : ""}`
-    );
+    return this.analytics.getChannelAnalytics(channelId, params);
   }
 
-  async getBestPostingTimes(params?: {
-    providerId?: string;
-    timezone?: string;
-  }): Promise<ApiResponse<any>> {
-    const searchParams = new URLSearchParams();
-    if (params?.providerId) searchParams.set("providerId", params.providerId);
-    if (params?.timezone) searchParams.set("timezone", params.timezone);
-
-    const query = searchParams.toString();
-    return this.request<ApiResponse<any>>(`/analytics/posts/best-times${query ? `?${query}` : ""}`);
+  getBestPostingTimes(params?: BestPostingTimesParams): Promise<ApiResponse<unknown>> {
+    return this.analytics.getBestPostingTimes(params);
   }
 
-  async getContentPerformance(params?: {
-    contentType?: string;
-    start?: string;
-    end?: string;
-  }): Promise<ApiResponse<any>> {
-    const searchParams = new URLSearchParams();
-    if (params?.contentType) searchParams.set("contentType", params.contentType);
-    if (params?.start) searchParams.set("start", params.start);
-    if (params?.end) searchParams.set("end", params.end);
-
-    const query = searchParams.toString();
-    return this.request<ApiResponse<any>>(
-      `/analytics/content/media-performance${query ? `?${query}` : ""}`
-    );
+  getContentPerformance(params?: ContentPerformanceParams): Promise<ApiResponse<unknown>> {
+    return this.analytics.getContentPerformance(params);
   }
 
-  // Cross-Platform Analytics
-  async getCrossPlatformAnalytics(params: {
-    accountId: string;
-    projectId?: string;
-    timeRange?: string;
-    providers?: string[];
-  }): Promise<ApiResponse<CrossPlatformAnalyticsData>> {
-    const searchParams = new URLSearchParams();
-    searchParams.set("accountId", params.accountId);
-    if (params.projectId) searchParams.set("projectId", params.projectId);
-    if (params.timeRange) searchParams.set("timeRange", params.timeRange);
-    if (params.providers) searchParams.set("providers", params.providers.join(","));
-
-    const query = searchParams.toString();
-    return this.request<ApiResponse<CrossPlatformAnalyticsData>>(
-      `/analytics/cross-platform${query ? `?${query}` : ""}`
-    );
+  getCrossPlatformAnalytics(
+    params: CrossPlatformAnalyticsParams
+  ): Promise<ApiResponse<CrossPlatformAnalyticsData>> {
+    return this.analytics.getCrossPlatformAnalytics(params);
   }
 
   // Publishing
-  async publishPost(
-    postId: string,
-    options?: {
-      channelIds?: string[];
-      scheduledAt?: string;
-      priority?: "HIGH" | "NORMAL" | "LOW";
-    }
-  ): Promise<ApiResponse<any>> {
-    return this.request<ApiResponse<any>>(`/posts/${postId}/publish`, {
-      method: "POST",
-      body: JSON.stringify(options || {}),
-    });
+  publishPost(postId: string, options?: PublishOptions): Promise<ApiResponse<unknown>> {
+    return this.publishing.publishPost(postId, options);
   }
 
-  async schedulePost(
+  schedulePost(
     postId: string,
     scheduledAt: string,
     channelIds?: string[]
-  ): Promise<ApiResponse<any>> {
-    return this.request<ApiResponse<any>>(`/posts/${postId}/schedule`, {
-      method: "POST",
-      body: JSON.stringify({ scheduledAt, channelIds }),
-    });
+  ): Promise<ApiResponse<unknown>> {
+    return this.publishing.schedulePost(postId, scheduledAt, channelIds);
   }
 
-  async cancelScheduledPost(postId: string): Promise<ApiResponse<any>> {
-    return this.request<ApiResponse<any>>(`/posts/${postId}/schedule`, {
-      method: "DELETE",
-    });
+  cancelScheduledPost(postId: string): Promise<ApiResponse<unknown>> {
+    return this.publishing.cancelScheduledPost(postId);
   }
 
-  // File Upload (for media)
-  async uploadFile(
-    file: File,
-    type: "image" | "video" | "document" = "image"
-  ): Promise<ApiResponse<{ url: string; metadata?: any }>> {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("type", type);
-
-    // Upload also goes through the proxy -- no Authorization header needed,
-    // the proxy injects it from the session cookie.
-    // Do NOT set Content-Type here -- the browser will set it with the boundary.
-    const response = await fetch(`${this.baseUrl}/upload`, {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    });
-
-    if (!response.ok) {
-      const errorData: ErrorResponse = await response.json().catch(() => ({
-        ok: false as const,
-        error: "Upload failed",
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }));
-
-      throw new ApiError(
-        errorData.message || errorData.error,
-        response.status,
-        errorData.code,
-        errorData.details
-      );
-    }
-
-    return response.json();
+  // Uploads
+  uploadFile(file: File, type: UploadType = "image"): Promise<ApiResponse<UploadResult>> {
+    return this.uploads.uploadFile(file, type);
   }
 
-  // AI Features
-  async generateContent(
+  // AI
+  generateContent(
     prompt: string,
-    options?: {
-      type?: "post" | "caption" | "hashtags";
-      tone?: "professional" | "casual" | "friendly" | "formal";
-      length?: "short" | "medium" | "long";
-      language?: "en" | "es";
-    }
-  ): Promise<ApiResponse<{ content: string; metadata?: any }>> {
-    return this.request<ApiResponse<{ content: string; metadata?: any }>>("/ai/generate", {
-      method: "POST",
-      body: JSON.stringify({ prompt, ...options }),
-    });
+    options?: GenerateContentOptions
+  ): Promise<ApiResponse<GeneratedContent>> {
+    return this.ai.generateContent(prompt, options);
   }
 
-  async optimizeContent(
-    content: string,
-    platform?: string
-  ): Promise<ApiResponse<{ optimized: string; suggestions?: string[] }>> {
-    return this.request<ApiResponse<{ optimized: string; suggestions?: string[] }>>(
-      "/ai/optimize",
-      {
-        method: "POST",
-        body: JSON.stringify({ content, platform }),
-      }
-    );
+  optimizeContent(content: string, platform?: string): Promise<ApiResponse<OptimizedContent>> {
+    return this.ai.optimizeContent(content, platform);
   }
 
-  async analyzeContent(content: string): Promise<ApiResponse<{ analysis: any; score?: number }>> {
-    return this.request<ApiResponse<{ analysis: any; score?: number }>>("/ai/analyze", {
-      method: "POST",
-      body: JSON.stringify({ content }),
-    });
+  analyzeContent(content: string): Promise<ApiResponse<ContentAnalysis>> {
+    return this.ai.analyzeContent(content);
   }
 }
 
-// Export singleton instance
 export const apiClient = new ApiClient();
