@@ -1194,7 +1194,7 @@ grep -rn "useProviders" apps/client/src/ apps/admin/src/ --include="*.ts" --incl
 
 ---
 
-#### T3-F — Small god files (apps/client) ⚡
+#### T3-F — Small god files (apps/client) ⚡ ✅ 2026-04-28 (parcial — Grupo A; Grupo B + bloqueado documentados en PR-12)
 
 **Scope.** Hooks + files client >150 LOC pero <400 LOC. No incluye los DEAD (que se resuelven en T6-D).
 
@@ -1230,6 +1230,15 @@ find apps/client/src/ -name "*.ts" -not -path "*/node_modules/*" -exec wc -l {} 
 **Estimación.** 4-6 h.
 
 **Dependencias.** ⚡ PARALELIZABLE.
+
+**Resultado real.**
+
+- **Grupo A ejecutado (7 archivos):** `useInbox.ts` (335→4 archivos), `useBilling.ts` (275→4), `useSso.ts` (249→4), `useTasks.ts` (254→4), `useAssets.ts` (224→4), `useCampaigns.ts` (201→4), `useAIPromptTemplates.ts` (180→4). Cada uno split en `types.ts` / `api.ts` / `queries.ts` / `mutations.ts` + `index.ts` barrel preservando el import path original (`@/hooks/api/<name>`).
+- **Grupo B diferido (6 archivos):** `useSchedulingDashboard`, `useTemplateVersionControl`, `useABTestManager`, `useABTests`, `useAutoSave`, `useTemplates`. Single-hook coherentes donde el split no añade valor (cohesión > LOC). Documentado en PR-12 con análisis caso-por-caso.
+- **Bloqueado (1 archivo):** `useContentLibraryState` (290 LOC, L-240) depende de L-77/T3-P. Se ejecutará junto a T3-P.
+- **Excluido:** `lib/auth/authApi.ts` (266 LOC, L-244) — no es hook (0 hooks, 1 función, 7 types). Ya tocado en T3-B.
+
+Lint 0 / Typecheck 0 / Test 366/366 / Build 9/9 ✅
 
 ---
 

@@ -547,6 +547,60 @@ Post T3-B. Sugerido: ejecutar entre T3-B y T3-C (mientras T3-D depende de mismo 
 
 ---
 
+### PR-12 — T3-F deferrals: single-hook complex state files + T3-P-blocked + authApi.ts
+
+**Fecha de aplicación:** 2026-04-28 (documentación)
+**Batch de origen:** T3-F (Small god files apps/client) — durante audit pre-ejecución
+**Severidad del bug pre-existente:** N/A — no hay bug, son decisiones de scope
+**Tipo:** docs (clarificación de scope — postergaciones documentadas)
+
+**Descubrimiento.**
+
+Audit estructural de los 15 archivos del T3-F roadmap (medición LOC + count de hooks/funciones/types) reveló tres grupos con valor de split distinto:
+
+| Grupo | Patrón                                          | Valor del split                                          | Acción T3-F |
+| ----- | ----------------------------------------------- | -------------------------------------------------------- | ----------- |
+| A     | Multi-hook bundle (4-9 TanStack hooks por file) | Alta — separar types / queries / mutations es claro      | EJECUTAR    |
+| B     | Single hook complex state machine               | Dudosa — extraer helpers dispersa, no reduce mental load | DIFERIR     |
+| C     | No es hook (auth API client funcs)              | N/A — ya tocado en T3-B                                  | EXCLUIR     |
+
+**Grupo A — Ejecutado en T3-F (7 archivos):**
+
+`useInbox.ts` (335/9), `useBilling.ts` (275/7), `useSso.ts` (249/7), `useTasks.ts` (254/6), `useAssets.ts` (224/6), `useCampaigns.ts` (201/5), `useAIPromptTemplates.ts` (180/4).
+
+**Grupo B — Diferido (6 archivos, single-hook o sequencial):**
+
+| Archivo                        | LOC | Razón de diferimiento                                                                                                                                         |
+| ------------------------------ | --: | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useSchedulingDashboard.ts`    | 318 | 1 hook con state machine grande; partir = extraer helpers dispersos sin reducir complejidad mental                                                            |
+| `useTemplateVersionControl.ts` | 280 | 1 hook con history/diff/revert state; refactor agresivo arriesga regresiones en feature poco testeada                                                         |
+| `useABTestManager.ts`          | 273 | 1 hook con CRUD + sample metrics; mismo patrón                                                                                                                |
+| `useABTests.ts`                | 230 | 1 hook; bajo el umbral práctico de "god" para hooks de feature compleja                                                                                       |
+| `useAutoSave.ts`               | 206 | 2 hooks pero `usePostDraft` es wrapper thin de `useAutoSave`; secuencia lineal, no hay separación natural en queries/mutations (no usa TanStack internamente) |
+| `useTemplates.ts`              | 172 | 1 hook chiquito; el roadmap lo listaba por estar >150 LOC pero no necesita split                                                                              |
+
+**Bloqueado:**
+
+- `useContentLibraryState.ts` (290 LOC, L-240) — depende de **L-77 (T3-P)** que va a reescribir el wire a la API real. Cualquier split previo se va a invalidar cuando T3-P se ejecute. Postergado hasta que T3-P decida el shape final del hook.
+
+**Excluido:**
+
+- `lib/auth/authApi.ts` (266 LOC, L-244) — listado en roadmap pero **no es un hook** (0 hooks, 1 función `parseApiError`-like, 7 types). Ya fue tocado en T3-B (migración a `ApiError` typed). El LOC es justificado por los 7 types públicos. No requiere split.
+
+**Por qué la regla "150-400 LOC = split" no se aplicó al pie de la letra.**
+
+El roadmap fija 150 LOC como umbral, pero un hook con state complejo legítimamente puede llegar a 300 LOC sin ser un "god file". La regla práctica útil es: split cuando hay **separación de responsabilidades** clara dentro del archivo (Grupo A), no cuando el LOC es alto pero la responsabilidad es única (Grupo B). Forzar splits en Grupo B aumenta el costo de lectura (saltar entre archivos para entender un flujo lineal) sin reducir complejidad real.
+
+**Cuándo revisar.**
+
+- **Grupo B**: re-evaluar después de T4 cuando el resto de la deuda de hooks esté limpia. Si en ese punto los 5 hooks siguen siendo dolor real, hacer T3-F.2 con análisis caso-por-caso. Si nadie reportó dolor, marcar como WONT_FIX.
+- **`useContentLibraryState`**: ejecutar AS PART OF T3-P, en el mismo commit que el wire al API real (evita refactor doble).
+- **`authApi.ts`**: ya cerrado en T3-B; no requiere acción.
+
+**Estado:** DIFERIDO con justificación. T3-F del roadmap se cierra como **completado parcial** (8 de 15 archivos ejecutados). Los 7 restantes están documentados arriba con razón explícita; no se pierden.
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
