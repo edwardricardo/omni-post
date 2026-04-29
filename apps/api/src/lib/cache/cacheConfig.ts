@@ -252,8 +252,8 @@ export function shouldCacheRoute(method: string, route: string): boolean {
 export function generateApiCacheKey(
   method: string,
   route: string,
-  params: Record<string, any> = {},
-  query: Record<string, any> = {},
+  params: Record<string, unknown> = {},
+  query: Record<string, unknown> = {},
   headers: Record<string, string> = {},
   userId?: string
 ): string {

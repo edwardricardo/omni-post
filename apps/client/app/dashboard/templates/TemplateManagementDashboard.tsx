@@ -254,7 +254,12 @@ export function TemplateManagementDashboard({
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) =>
+          setActiveTab(value as "library" | "editor" | "ab-testing" | "versions" | "analytics")
+        }
+      >
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="library" className="flex items-center space-x-2">
             <FileText className="h-4 w-4" />

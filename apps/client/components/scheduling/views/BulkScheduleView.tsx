@@ -104,7 +104,7 @@ export function BulkScheduleView({ onBulkSchedule, projectId, timezone }: BulkSc
                 <select
                   id="frequency"
                   value={frequency}
-                  onChange={(e) => setFrequency(e.target.value as any)}
+                  onChange={(e) => setFrequency(e.target.value as "daily" | "weekly" | "monthly")}
                   className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="daily">Daily</option>

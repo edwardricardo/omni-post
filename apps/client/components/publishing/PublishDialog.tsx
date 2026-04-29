@@ -25,7 +25,7 @@ interface PublishDialogProps {
   onProvidersChange?: (providers: string[]) => void;
   postId?: string;
   trigger?: React.ReactNode;
-  onPublishSuccess?: (results: any[]) => void;
+  onPublishSuccess?: (results: unknown[]) => void;
   onPublishError?: (error: Error) => void;
 }
 
@@ -64,7 +64,7 @@ export function PublishDialog({
     setActiveTab("publish");
   };
 
-  const handlePublishSuccess = (results: any[]) => {
+  const handlePublishSuccess = (results: unknown[]) => {
     setIsOpen(false);
     onPublishSuccess?.(results);
   };

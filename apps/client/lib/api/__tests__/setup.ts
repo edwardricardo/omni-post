@@ -44,7 +44,9 @@ Object.defineProperty(window, "localStorage", {
   value: localStorageMock,
 });
 
-// Mock File constructor for upload tests
+// Mock File constructor for upload tests.
+// `any` casts here are intentional: re-implementing the full DOM File / FormData lib types
+// would balloon the mock surface for zero test value. Limited to this test-only setup file.
 global.File = class File {
   name: string;
   type: string;

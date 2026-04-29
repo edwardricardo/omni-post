@@ -52,7 +52,7 @@ export default function NewPostPage() {
       .filter((tag) => tag.length > 0);
   };
 
-  const handlePublishSuccess = (_results: any[]) => {
+  const handlePublishSuccess = (_results: unknown[]) => {
     router.push("/dashboard/posts");
   };
 

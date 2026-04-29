@@ -111,8 +111,8 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
 
       try {
         // Generate cache key
-        const params = request.params as Record<string, any>;
-        const query = request.query as Record<string, any>;
+        const params = request.params as Record<string, unknown>;
+        const query = request.query as Record<string, unknown>;
         const headers = request.headers as Record<string, string>;
         const userId = request.user?.id;
 

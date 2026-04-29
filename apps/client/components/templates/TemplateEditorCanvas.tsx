@@ -33,7 +33,7 @@ import {
 import Editor from "@monaco-editor/react";
 import { VariableInserter } from "./VariableInserter";
 import TipTapEditor from "./TipTapEditor";
-import type { TemplateEditorCanvasProps } from "./templateEditorTypes";
+import type { EditorTab, TemplateEditorCanvasProps } from "./templateEditorTypes";
 
 export function TemplateEditorCanvas({
   formData,
@@ -166,7 +166,7 @@ export function TemplateEditorCanvas({
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as any)}>
+        <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as EditorTab)}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="editor" className="flex items-center space-x-1">
               <Code className="h-4 w-4" />

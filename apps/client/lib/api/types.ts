@@ -79,7 +79,7 @@ export interface ProviderHealth {
   latency: number;
   lastCheck: string;
   errorRate: number;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 export interface Channel {
@@ -195,7 +195,7 @@ export class ApiError extends Error {
     message: string,
     public status: number,
     public code?: string,
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = "ApiError";

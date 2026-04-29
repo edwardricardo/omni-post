@@ -111,8 +111,10 @@ export function AdminContentEditor({
         });
         if (!response.ok) throw new Error("Failed to fetch providers");
 
-        const data = await response.json();
-        const providerConstraints: ProviderConstraints[] = data.connections.map((conn: any) => ({
+        const data = (await response.json()) as {
+          connections: Array<{ providerId: string; providerName: string; status: string }>;
+        };
+        const providerConstraints: ProviderConstraints[] = data.connections.map((conn) => ({
           id: conn.providerId.toLowerCase(),
           name: conn.providerId.toLowerCase(),
           displayName: conn.providerName,

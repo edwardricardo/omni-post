@@ -22,8 +22,8 @@ export interface WebhookEventBroadcast {
   channelId?: string;
   data: {
     type: "engagement_update" | "post_status" | "account_update" | "system_alert";
-    payload: Record<string, any>;
-    metadata?: Record<string, any>;
+    payload: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
   };
 }
 
@@ -268,7 +268,7 @@ export class RealtimeWebhookBroadcaster {
     postId: string,
     newStatus: string,
     provider: Provider,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<void> {
     const post = await prisma.post.findUnique({
       where: { id: postId },
@@ -312,12 +312,12 @@ export class RealtimeWebhookBroadcaster {
     accountId: string,
     alertType: "rate_limit" | "quota_exceeded" | "api_error" | "webhook_error",
     message: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): Promise<void> {
     const event: WebhookEventBroadcast = {
       eventId: `alert_${accountId}_${Date.now()}`,
       eventType: alertType === "rate_limit" ? "RATE_LIMIT_REACHED" : "API_ERROR",
-      provider: details?.provider || "X", // Default provider
+      provider: (details?.provider as Provider | undefined) || "X", // Default provider
       timestamp: new Date(),
       accountId,
       data: {

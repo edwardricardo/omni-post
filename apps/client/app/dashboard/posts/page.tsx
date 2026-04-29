@@ -9,7 +9,11 @@
  */
 import React, { useState, Suspense, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import type { Post } from "@/lib/api";
 import { useDeletePost } from "@/lib/api/hooks";
+
+type AppRouter = ReturnType<typeof useRouter>;
 import { Button, ConfirmDialog, toast } from "@packages/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Badge } from "@packages/ui";
@@ -106,7 +110,7 @@ export default function PostsPage() {
     if (!searchTerm) return posts;
     const searchLower = searchTerm.toLowerCase();
     return posts.filter(
-      (post: any) =>
+      (post: Post) =>
         post.title?.toLowerCase().includes(searchLower) ||
         post.body?.toLowerCase().includes(searchLower)
     );
@@ -415,7 +419,7 @@ export default function PostsPage() {
                   items={filteredPosts}
                   itemHeight={120}
                   height={600}
-                  renderItem={(post: any, _index, style) => {
+                  renderItem={(post: Post, _index, style) => {
                     const StatusIcon = statusIcons[post.status as keyof typeof statusIcons];
                     return (
                       <div style={style}>
@@ -438,7 +442,7 @@ export default function PostsPage() {
                   items={filteredPosts}
                   priority={priority}
                   batchSize={20}
-                  renderItem={(post: any, _index) => {
+                  renderItem={(post: Post, _index) => {
                     const StatusIcon = statusIcons[post.status as keyof typeof statusIcons];
                     return (
                       <PostCard
@@ -457,7 +461,7 @@ export default function PostsPage() {
                 />
               ) : (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredPosts.map((post: any, _index: number) => {
+                  {filteredPosts.map((post: Post, _index: number) => {
                     const StatusIcon = statusIcons[post.status as keyof typeof statusIcons];
                     return (
                       <PostCard
@@ -557,11 +561,11 @@ function PostCard({
   isCompact = false,
   className = "",
 }: {
-  post: any;
-  StatusIcon: any;
+  post: Post;
+  StatusIcon: LucideIcon;
   onDelete: (id: string) => void;
   onRender: () => void;
-  router: any;
+  router: AppRouter;
   isCompact?: boolean;
   className?: string;
 }) {

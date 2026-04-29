@@ -269,7 +269,7 @@ export function PriorityList<T>({
  * Concurrent Form Handler with optimistic updates
  */
 interface ConcurrentFormProps {
-  onSubmit: (data: FormData) => Promise<any>;
+  onSubmit: (data: FormData) => Promise<unknown>;
   children: React.ReactNode;
   optimisticUpdate?: (data: FormData) => void;
   className?: string;
@@ -359,7 +359,7 @@ export function SelectiveHydration({
         break;
       case "idle":
         if ("requestIdleCallback" in window) {
-          (window as any).requestIdleCallback(hydrate);
+          window.requestIdleCallback(hydrate);
         } else {
           setTimeout(hydrate, 1000);
         }
@@ -378,8 +378,8 @@ export function SelectiveHydration({
  * Background Task Manager for concurrent operations
  */
 export function useBackgroundTasks() {
-  const [tasks, setTasks] = useState<Map<string, Promise<any>>>(new Map());
-  const [results, setResults] = useState<Map<string, any>>(new Map());
+  const [tasks, setTasks] = useState<Map<string, Promise<unknown>>>(new Map());
+  const [results, setResults] = useState<Map<string, unknown>>(new Map());
   const [errors, setErrors] = useState<Map<string, Error>>(new Map());
 
   const runBackgroundTask = useCallback(

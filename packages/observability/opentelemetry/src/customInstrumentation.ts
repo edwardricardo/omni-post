@@ -4,7 +4,15 @@
  *              provider API, and database spans with semantic attributes and counters.
  * @layer infrastructure
  */
-import { trace, SpanKind, SpanStatusCode, Span, Tracer, metrics } from "@opentelemetry/api";
+import {
+  trace,
+  SpanKind,
+  SpanStatusCode,
+  Span,
+  Tracer,
+  metrics,
+  type Attributes,
+} from "@opentelemetry/api";
 import pino from "pino";
 
 const logger = pino({ name: "custom-instrumentation" });
@@ -70,7 +78,7 @@ export class PublishingInstrumentation {
     channelId: string,
     contentType: "single" | "thread" | "story",
     fn: (span: Span) => Promise<T>,
-    metadata?: Record<string, any>
+    metadata?: Attributes
   ): Promise<T> {
     const startTime = Date.now();
 
@@ -183,7 +191,7 @@ export class PublishingInstrumentation {
     endpoint: string,
     method: string,
     fn: (span: Span) => Promise<T>,
-    requestMetadata?: Record<string, any>
+    requestMetadata?: Attributes
   ): Promise<T> {
     const startTime = Date.now();
 
@@ -268,7 +276,7 @@ export class PublishingInstrumentation {
     jobType: string,
     jobId: string,
     fn: (span: Span) => Promise<T>,
-    jobData?: Record<string, any>
+    jobData?: Attributes
   ): Promise<T> {
     const startTime = Date.now();
 
@@ -341,7 +349,7 @@ export class AnalyticsInstrumentation {
     provider: string,
     engagementType: string,
     postId: string,
-    metadata: Record<string, any> = {}
+    metadata: Attributes = {}
   ): void {
     const span = this.tracer.startSpan(`analytics.engagement.${engagementType}`, {
       kind: SpanKind.INTERNAL,
@@ -384,7 +392,7 @@ export class AnalyticsInstrumentation {
     userId: string,
     action: string,
     context: string,
-    metadata: Record<string, any> = {}
+    metadata: Attributes = {}
   ): void {
     const span = this.tracer.startSpan(`user_journey.${action}`, {
       kind: SpanKind.INTERNAL,
@@ -438,7 +446,7 @@ export class DatabaseInstrumentation {
     operation: string,
     table: string,
     fn: (span: Span) => Promise<T>,
-    queryMetadata?: Record<string, any>
+    queryMetadata?: Attributes
   ): Promise<T> {
     return await this.tracer.startActiveSpan(
       `db.${operation}.${table}`,
@@ -497,7 +505,7 @@ export const databaseInstrumentation = new DatabaseInstrumentation();
 /**
  * Utility function to add business context to current span
  */
-export function addBusinessContext(attributes: Record<string, any>): void {
+export function addBusinessContext(attributes: Attributes): void {
   const currentSpan = trace.getActiveSpan();
   if (currentSpan) {
     currentSpan.setAttributes(attributes);
@@ -509,7 +517,7 @@ export function addBusinessContext(attributes: Record<string, any>): void {
  */
 export async function createChildSpan<T>(
   name: string,
-  attributes: Record<string, any>,
+  attributes: Attributes,
   fn: (span: Span) => Promise<T>
 ): Promise<T> {
   const tracer = getTracer();

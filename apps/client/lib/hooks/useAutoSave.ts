@@ -13,7 +13,7 @@ interface AutoSaveConfig {
   key: string;
   interval?: number; // ms
   enabled?: boolean;
-  onSave?: (success: boolean, error?: any) => void;
+  onSave?: (success: boolean, error?: unknown) => void;
 }
 
 interface AutoSaveData {

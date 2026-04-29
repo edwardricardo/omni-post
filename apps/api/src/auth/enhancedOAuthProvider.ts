@@ -90,7 +90,7 @@ interface OAuthUserInfo {
   username?: string;
   profileImage?: string;
   verified?: boolean;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface EnhancedOAuthProvider {

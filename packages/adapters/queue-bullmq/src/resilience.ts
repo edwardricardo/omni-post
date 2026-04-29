@@ -40,7 +40,7 @@ export const DEFAULT_RETRY_OPTIONS: RetryOptions = {
   backoffMultiplier: 2,
 };
 
-export function createCircuitBreaker<T extends any[], R>(
+export function createCircuitBreaker<T extends unknown[], R>(
   fn: (...args: T) => Promise<R>,
   options: Partial<CircuitBreakerOptions> = {}
 ): CircuitBreaker<T, R> {
@@ -135,7 +135,7 @@ export class MetricsCollector {
 
   private responseTimes: number[] = [];
 
-  setupCircuitBreakerMetrics(breaker: CircuitBreaker<any, any>): void {
+  setupCircuitBreakerMetrics(breaker: CircuitBreaker<unknown[], unknown>): void {
     breaker.on("success", (result, latencyTime) => {
       this.metrics.totalRequests++;
       this.metrics.successfulRequests++;

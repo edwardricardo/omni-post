@@ -140,14 +140,14 @@ function optimizeMediaSize(url: string, maxSize: number): string {
 // Content Enhancement
 // ---------------------------------------------------------------------------
 
-function addEngagementElements(content: string, params: Record<string, any>): string {
+function addEngagementElements(content: string, params: Record<string, unknown>): string {
   if (params.addEmojis && !content.match(/[\u{1F600}-\u{1F64F}]/u)) {
     content = `✨ ${content}`;
   }
   return content;
 }
 
-function addAccessibilityFeatures(content: string, _params: Record<string, any>): string {
+function addAccessibilityFeatures(content: string, _params: Record<string, unknown>): string {
   // Placeholder — production implementation adds alt-text descriptions
   return content;
 }

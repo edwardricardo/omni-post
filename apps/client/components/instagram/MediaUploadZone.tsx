@@ -234,7 +234,10 @@ export function MediaUploadZone({
     );
   };
 
-  const updateFileMetadata = (fileId: string, metadata: any) => {
+  const updateFileMetadata = (
+    fileId: string,
+    metadata: { width?: number; height?: number; aspectRatio?: number; duration?: number }
+  ) => {
     setUploadedFiles((prev) =>
       prev.map((file) =>
         file.id === fileId

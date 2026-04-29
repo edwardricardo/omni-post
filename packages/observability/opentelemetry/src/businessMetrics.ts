@@ -113,7 +113,7 @@ export interface UserMetrics {
   action: string;
   feature: string;
   timestamp: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ProviderMetrics {

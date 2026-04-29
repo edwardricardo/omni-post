@@ -13,7 +13,7 @@ interface TemplateVariableModalProps {
   template: ContentTemplate | null;
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (templateId: string, variables: Record<string, any>) => void;
+  onSubmit: (templateId: string, variables: Record<string, string>) => void;
 }
 
 /**
@@ -27,12 +27,12 @@ export const TemplateVariableModal: React.FC<TemplateVariableModalProps> = ({
   onClose,
   onSubmit,
 }) => {
-  const [variables, setVariables] = useState<Record<string, any>>({});
+  const [variables, setVariables] = useState<Record<string, string>>({});
   const variableIdPrefix = useId();
 
   useEffect(() => {
     if (template) {
-      const initialVariables: Record<string, any> = {};
+      const initialVariables: Record<string, string> = {};
       template.content.variables.forEach((variable) => {
         initialVariables[variable.name] = variable.defaultValue ?? "";
       });

@@ -5,7 +5,10 @@
  * Types live in videoProcessorTypes.ts; helpers in videoProcessorHelpers.ts.
  */
 
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  type CircuitBreakerStatus,
+} from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import { ProviderError } from "@providers/shared";
 import * as client from "prom-client";
@@ -344,7 +347,7 @@ export class TikTokVideoProcessor {
     }
   }
 
-  getCircuitBreakerStatus(): Record<string, any> {
+  getCircuitBreakerStatus(): Record<string, CircuitBreakerStatus | null> {
     return circuitBreaker.getAllStatuses();
   }
 

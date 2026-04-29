@@ -7,6 +7,7 @@
 export {
   ExternalApiCircuitBreaker,
   type ExternalApiOptions,
+  type CircuitBreakerStatus,
   DEFAULT_EXTERNAL_API_OPTIONS,
 } from "./circuitBreaker.js";
 

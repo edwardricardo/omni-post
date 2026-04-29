@@ -13,7 +13,7 @@ interface Provider {
   name: string;
   type: string;
   enabled: boolean;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }

@@ -69,6 +69,8 @@ const config: StorybookConfig = {
 
 export default config;
 
+// Storybook documents this exact `any` return as the official workaround for resolving
+// addon paths in monorepos (see https://storybook.js.org/docs/faq#how-do-i-fix-module-resolution-in-special-environments).
 function getAbsolutePath(value: string): any {
   return dirname(require.resolve(join(value, "package.json")));
 }

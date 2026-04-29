@@ -481,10 +481,10 @@ export class PerformanceMonitor {
   /**
    * Get recent alerts
    */
-  async getRecentAlerts(count: number = 10): Promise<any[]> {
+  async getRecentAlerts(count: number = 10): Promise<unknown[]> {
     try {
       const alerts = await this.redis.lrange("performance:alerts", 0, count - 1);
-      return alerts.map((alert) => JSON.parse(alert));
+      return alerts.map((alert) => JSON.parse(alert) as unknown);
     } catch (_error: unknown) {
       monitoringLogger.warn({ err: _error }, "Failed to get recent alerts");
       return [];
@@ -508,7 +508,7 @@ export class PerformanceMonitor {
   async getDashboardData(timeRangeMinutes: number = 60): Promise<{
     systemHealth: SystemHealth;
     endpointStats: EndpointStats[];
-    recentAlerts: Record<string, unknown>[];
+    recentAlerts: unknown[];
     slowRequests: PerformanceMetrics[];
   }> {
     const [systemHealth, endpointStats, recentAlerts] = await Promise.all([

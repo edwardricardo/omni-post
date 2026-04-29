@@ -327,12 +327,12 @@ export function VariableInserter({
 
           {/* Tabs */}
           <div className="flex space-x-1">
-            {["variables", "helpers", "context"].map((tab) => (
+            {(["variables", "helpers", "context"] as const).map((tab) => (
               <Button
                 key={tab}
                 variant={activeTab === tab ? "default" : "ghost"}
                 size="sm"
-                onClick={() => setActiveTab(tab as any)}
+                onClick={() => setActiveTab(tab)}
                 className="flex-1 text-xs"
               >
                 {tab === "variables" && <Zap className="h-3 w-3 mr-1" />}

@@ -30,8 +30,8 @@ export interface DomainEvent {
   eventType: string;
   aggregateId: string;
   aggregateType: string;
-  data: Record<string, any>;
-  metadata?: Record<string, any>;
+  data: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   timestamp: number;
 }
 
