@@ -9,6 +9,14 @@
 export interface Project {
   id: string;
   name: string;
+  /**
+   * The Account this project belongs to. Required for multi-tenant
+   * partitioning — backend `GET /accounts/:accountId/projects` returns
+   * projects scoped to a specific account.
+   */
+  accountId: string;
+  /** Default content locale (`es`, `en`, etc.) for posts in this project. */
+  locale: string;
   description?: string;
   createdAt: string;
   updatedAt: string;

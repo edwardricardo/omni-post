@@ -2,18 +2,35 @@
 
 /**
  * @file ProjectProvider.tsx
- * @description React context provider that resolves the active project and account from the API.
+ * @description React context provider that resolves the active project and
+ *              account for the multi-tenant client app. Each Account owns N
+ *              Projects (in Edward's mental model: "subcuentas"); each Project
+ *              partitions channels, posts, and provider connections.
  *
- * On mount it fetches the authenticated customer's account via GET /auth/customer/me,
- * then fetches projects for that account via GET /accounts/:accountId/projects.
- * The selection is persisted to localStorage so it survives page reloads.
+ *              Data fetching is delegated to TanStack Query (`useQuery`):
+ *              - the customer query resolves the authenticated user + accountId
+ *                via `authApi.getCurrentUser()`
+ *              - the projects query lists projects for that account via
+ *                `apiClient.getAccountProjects(accountId)`, gated with
+ *                `enabled: !!accountId`
  *
- * Downstream consumers call useProject() to get { projectId, accountId, setProjectId, setAccountId }.
- * While loading, children are replaced with a spinner. When no projects exist, an informative
- * empty state is shown instead.
+ *              Selection is persisted to localStorage so it survives reloads.
+ *              Loading/error/empty states are driven by the query state — the
+ *              retry button calls `refetch()` instead of reloading the page.
+ *
+ *              Downstream consumers call `useProject()` to get
+ *              `{ projectId, accountId, setProjectId, setAccountId }`.
+ *
+ *              Pattern reference: TkDodo (TanStack Query maintainer) on
+ *              combining server state queries with React Context. TanStack
+ *              docs on `refetch()` for explicit re-fetching after errors.
+ * @layer infrastructure
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api/client";
+import { authApi } from "@/lib/auth/authApi";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,21 +41,6 @@ interface ProjectContextValue {
   accountId: string;
   setProjectId: (id: string) => void;
   setAccountId: (id: string) => void;
-}
-
-interface AccountEntry {
-  id: string;
-  email: string;
-  name: string;
-  isActive: boolean;
-}
-
-interface ProjectEntry {
-  id: string;
-  accountId: string;
-  name: string;
-  locale: string;
-  createdAt: string;
 }
 
 interface ProjectProviderProps {
@@ -80,7 +82,7 @@ function readStoredSelection(): StoredSelection | null {
       return parsed as StoredSelection;
     }
   } catch {
-    // Corrupt data -- ignore
+    // Corrupt data — ignore
   }
   return null;
 }
@@ -90,40 +92,8 @@ function writeStoredSelection(accountId: string, projectId: string): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ accountId, projectId }));
   } catch {
-    // Storage full or blocked -- ignore
+    // Storage full or blocked — ignore
   }
-}
-
-// ---------------------------------------------------------------------------
-// API fetch helpers (via Next.js proxy to inject Bearer token)
-// ---------------------------------------------------------------------------
-
-async function fetchAccounts(): Promise<AccountEntry[]> {
-  const res = await fetch("/api/backend/auth/customer/me", { credentials: "include" });
-  if (!res.ok) return [];
-  const data: {
-    ok: boolean;
-    user?: { id: string; accountId: string; role: string };
-  } = await res.json();
-  if (!data.ok || !data.user?.accountId) return [];
-  // Return a single-entry array so the downstream account-selection logic still works
-  return [
-    {
-      id: data.user.accountId,
-      email: "",
-      name: "",
-      isActive: true,
-    },
-  ];
-}
-
-async function fetchProjects(accountId: string): Promise<ProjectEntry[]> {
-  const res = await fetch(`/api/backend/accounts/${accountId}/projects`, {
-    credentials: "include",
-  });
-  if (!res.ok) return [];
-  const data: { ok: boolean; value?: ProjectEntry[] } = await res.json();
-  return data.ok && Array.isArray(data.value) ? data.value : [];
 }
 
 // ---------------------------------------------------------------------------
@@ -135,20 +105,76 @@ export function ProjectProvider({
   initialProjectId,
   initialAccountId,
 }: ProjectProviderProps) {
+  // When explicit initial values are provided (e.g. by a future Server
+  // Component or test wrapper), skip the queries entirely and treat them
+  // as already-resolved.
+  const hasInitialValues = !!initialProjectId && !!initialAccountId;
+
   const [accountId, setAccountIdRaw] = useState(initialAccountId ?? "");
   const [projectId, setProjectIdRaw] = useState(initialProjectId ?? "");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isEmpty, setIsEmpty] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // --- Stable setters that also persist to localStorage ---
+  // --- 1) Resolve the authenticated customer (provides accountId) ---
+
+  const customerQuery = useQuery({
+    queryKey: ["project-context", "customer"],
+    queryFn: () => authApi.getCurrentUser(),
+    enabled: !hasInitialValues,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  // --- 2) Resolve the active accountId (stored or first) ---
+
+  const resolvedAccountId = useMemo<string | null>(() => {
+    if (hasInitialValues) return null;
+    const stored = readStoredSelection();
+    const customerAccountId = customerQuery.data?.accountId ?? "";
+    if (!customerAccountId) return null;
+    return stored?.accountId === customerAccountId ? stored.accountId : customerAccountId;
+  }, [hasInitialValues, customerQuery.data?.accountId]);
+
+  // --- 3) Fetch projects for that account ---
+
+  const projectsQuery = useQuery({
+    queryKey: ["project-context", "projects", resolvedAccountId ?? ""],
+    queryFn: () => apiClient.getAccountProjects(resolvedAccountId!),
+    enabled: !!resolvedAccountId && !hasInitialValues,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  // --- 4) Reconcile fetched data with selected ids ---
+
+  useEffect(() => {
+    if (hasInitialValues) return;
+    if (!resolvedAccountId) return;
+
+    setAccountIdRaw(resolvedAccountId);
+
+    if (projectsQuery.data === undefined) return;
+    const projects = projectsQuery.data;
+
+    if (projects.length === 0) {
+      writeStoredSelection(resolvedAccountId, "");
+      setProjectIdRaw("");
+      return;
+    }
+
+    const stored = readStoredSelection();
+    const storedProjectExists =
+      stored?.accountId === resolvedAccountId && projects.some((p) => p.id === stored.projectId);
+    const selectedProjectId = storedProjectExists ? stored.projectId : projects[0]!.id;
+
+    setProjectIdRaw(selectedProjectId);
+    writeStoredSelection(resolvedAccountId, selectedProjectId);
+  }, [hasInitialValues, resolvedAccountId, projectsQuery.data]);
+
+  // --- 5) Stable setters that also persist to localStorage ---
 
   const setProjectId = useCallback(
     (id: string) => {
       setProjectIdRaw(id);
-      if (accountId) {
-        writeStoredSelection(accountId, id);
-      }
+      if (accountId) writeStoredSelection(accountId, id);
     },
     [accountId]
   );
@@ -156,85 +182,37 @@ export function ProjectProvider({
   const setAccountId = useCallback(
     (id: string) => {
       setAccountIdRaw(id);
-      // When account changes we cannot keep the old project -- caller should also
-      // call setProjectId after resolving new projects. We persist immediately so
-      // the account sticks even if the page is closed before projects load.
-      if (projectId) {
-        writeStoredSelection(id, projectId);
-      }
+      if (projectId) writeStoredSelection(id, projectId);
     },
     [projectId]
   );
 
-  // --- Initial data resolution ---
+  // --- Derived UI state ---
+  // NOTE: when a query has `enabled: false` (e.g. projectsQuery while
+  // customer hasn't resolved yet, or after customer errors), TanStack v5
+  // keeps `isPending: true` indefinitely. We must check `isError` first
+  // to short-circuit the loading state, then derive loading from
+  // `isFetching` so disabled queries don't keep the spinner up forever.
 
-  useEffect(() => {
-    // If explicit initial values were passed in (e.g. from a future Server Component),
-    // skip the API fetch entirely.
-    if (initialProjectId && initialAccountId) {
-      setIsLoading(false);
-      return;
-    }
+  const isError = !hasInitialValues && (customerQuery.isError || projectsQuery.isError);
+  const error = customerQuery.error ?? projectsQuery.error;
+  const isLoading =
+    !hasInitialValues &&
+    !isError &&
+    (customerQuery.isFetching ||
+      (customerQuery.isSuccess && !!resolvedAccountId && projectsQuery.isFetching) ||
+      (customerQuery.isPending && !customerQuery.isError));
+  const isEmpty =
+    !hasInitialValues &&
+    !isLoading &&
+    !isError &&
+    (!customerQuery.data?.accountId ||
+      (projectsQuery.data !== undefined && projectsQuery.data.length === 0));
 
-    let cancelled = false;
-
-    async function resolve() {
-      try {
-        const stored = readStoredSelection();
-
-        // 1) Fetch all active accounts
-        const accounts = await fetchAccounts();
-        if (cancelled) return;
-
-        if (accounts.length === 0) {
-          setIsEmpty(true);
-          setIsLoading(false);
-          return;
-        }
-
-        // 2) Pick account -- prefer stored, otherwise first active
-        const storedAccountExists = stored
-          ? accounts.some((a) => a.id === stored.accountId)
-          : false;
-        const selectedAccountId = storedAccountExists ? stored!.accountId : accounts[0]!.id;
-
-        setAccountIdRaw(selectedAccountId);
-
-        // 3) Fetch projects for that account
-        const projects = await fetchProjects(selectedAccountId);
-        if (cancelled) return;
-
-        if (projects.length === 0) {
-          setIsEmpty(true);
-          setIsLoading(false);
-          // Still set accountId so downstream at least has a valid account
-          writeStoredSelection(selectedAccountId, "");
-          return;
-        }
-
-        // 4) Pick project -- prefer stored, otherwise first
-        const storedProjectExists =
-          storedAccountExists && stored ? projects.some((p) => p.id === stored.projectId) : false;
-        const selectedProjectId = storedProjectExists ? stored!.projectId : projects[0]!.id;
-
-        setProjectIdRaw(selectedProjectId);
-        writeStoredSelection(selectedAccountId, selectedProjectId);
-        setIsLoading(false);
-      } catch (err) {
-        if (cancelled) return;
-        setErrorMsg(err instanceof Error ? err.message : "Failed to load project context");
-        setIsLoading(false);
-      }
-    }
-
-    resolve();
-
-    return () => {
-      cancelled = true;
-    };
-    // Only run once on mount -- initialProjectId / initialAccountId are static props
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const handleRetry = useCallback(() => {
+    if (customerQuery.isError) void customerQuery.refetch();
+    if (projectsQuery.isError) void projectsQuery.refetch();
+  }, [customerQuery, projectsQuery]);
 
   // --- Context value (stable reference via useMemo) ---
 
@@ -262,17 +240,18 @@ export function ProjectProvider({
 
   // --- Error state ---
 
-  if (errorMsg) {
+  if (isError) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to load project context";
     return (
       <div
         className="mx-auto max-w-lg rounded-lg border border-red-200 bg-red-50 p-6 text-center"
         role="alert"
       >
         <h2 className="text-lg font-semibold text-red-800">Failed to load project context</h2>
-        <p className="mt-2 text-sm text-red-600">{errorMsg}</p>
+        <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
         <button
           type="button"
-          onClick={() => window.location.reload()}
+          onClick={handleRetry}
           className="mt-4 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
         >
           Retry

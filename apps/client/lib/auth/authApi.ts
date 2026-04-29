@@ -31,6 +31,12 @@ export interface User {
   email: string;
   name: string;
   role?: string;
+  /**
+   * The customer account this user belongs to. Returned by
+   * `GET /auth/customer/me` and required for partitioning queries
+   * (projects, channels, posts) per Account in the multi-tenant model.
+   */
+  accountId?: string;
   createdAt: string;
   updatedAt: string;
 }

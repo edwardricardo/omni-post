@@ -24,6 +24,7 @@ import type {
   UpdatePostRequest,
 } from "./types";
 
+import { AccountsClient } from "./clients/accountsClient";
 import { AiClient } from "./clients/aiClient";
 import {
   type ContentAnalysis,
@@ -72,6 +73,7 @@ import { UploadsClient, type UploadResult, type UploadType } from "./clients/upl
  */
 class ApiClient {
   private readonly health: HealthClient;
+  private readonly accounts: AccountsClient;
   private readonly projects: ProjectsClient;
   private readonly posts: PostsClient;
   private readonly providers: ProvidersClient;
@@ -83,6 +85,7 @@ class ApiClient {
 
   constructor(baseUrl: string = PROXY_BASE) {
     this.health = new HealthClient(baseUrl);
+    this.accounts = new AccountsClient(baseUrl);
     this.projects = new ProjectsClient(baseUrl);
     this.posts = new PostsClient(baseUrl);
     this.providers = new ProvidersClient(baseUrl);
@@ -96,6 +99,11 @@ class ApiClient {
   // Health
   getHealth(): Promise<HealthResponse> {
     return this.health.getHealth();
+  }
+
+  // Accounts
+  getAccountProjects(accountId: string): Promise<Project[]> {
+    return this.accounts.getAccountProjects(accountId);
   }
 
   // Projects

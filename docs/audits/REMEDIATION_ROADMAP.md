@@ -1468,7 +1468,7 @@ Lint 0 / Typecheck 0 / Test 128/128 (+5) / Build 9/9 ✅
 
 ---
 
-#### T3-M — ProjectProvider raw fetches (apps/client) 🔗
+#### T3-M — ProjectProvider raw fetches (apps/client) 🔗 ✅ 2026-04-29 (refactor cliente + DELETE admin orphan = ejecuta T6-A L-335)
 
 **Scope.** `ProjectProvider` client con raw fetches + window.reload. Depende de decisión T6-A sobre L-335 (admin ProjectProvider ORPHAN).
 
@@ -1490,6 +1490,32 @@ grep -rn "fetch(" apps/client/src/providers/ProjectProvider.tsx | wc -l   # → 
 **Estimación.** 3-4 h.
 
 **Dependencias.** 🔗 CROSS_TIER_COMPOSITE con T6-A.
+
+**Resultado real.** Refactor completo del client + ejecución del DELETE admin (T6-A L-335) en mismo batch.
+
+**Dominio aclarado.** Project entity = lo que Edward llama "subcuenta/cuenta secundaria" en su modelo mental — unidad de aislamiento multi-tenant: cada Account tiene N Projects, cada Project con sus channels/posts/connections propios. Feature activa con 7 consumers en `apps/client` (no dead code). El renaming `Project` → `Subaccount/Subcuenta` en código sería deuda legítima pero scope grande (Prisma migration + 50+ archivos) — fuera de T3-M, candidato a batch dedicado futuro.
+
+**Bugs L-100 fixeados (4 distintos):**
+
+- **B1+B2 — Silent fetch failures**: 2 raw `fetch()` que retornaban `[]` en error (`fetchAccounts`, `fetchProjects`). Reemplazados por `useQuery` que delega a `authApi.getCurrentUser()` y `apiClient.getAccountProjects(accountId)`.
+- **B3 — `window.location.reload()`**: botón Retry hacía full page reload (anti-pattern WCAG, pierde state). Ahora llama `customerQuery.refetch()` / `projectsQuery.refetch()` per TanStack v5 docs.
+- **B4 — useEffect manual con cancellation flag**: 67 LOC de imperative data fetching reemplazado por TanStack `useQuery` declarative.
+
+**Nuevo bug descubierto via TDD-first**: en mi primera implementación, `isLoading` quedaba `true` indefinidamente cuando `customerQuery` fallaba — porque `projectsQuery.enabled: false` mantenía `isPending: true` per TanStack v5 semantics. Tests fallaron, fix aplicado: reordenar para que `isError` cortocircuite, derivar loading de `isFetching` no `isPending`. Sin TDD-first no se hubiera detectado (la review por inspección no lo capturó).
+
+**Cambios estructurales:**
+
+1. `apps/client/lib/auth/authApi.ts` User type → añadido `accountId?: string` (refleja shape real del backend `/auth/customer/me`)
+2. `apps/client/lib/api/types.ts` Project type → añadido `accountId: string` + `locale: string`
+3. `apps/client/lib/api/clients/accountsClient.ts` (new) → `AccountsClient.getAccountProjects(accountId): Promise<Project[]>` siguiendo convención T3-C
+4. `apps/client/lib/api/client.ts` facade → expone `apiClient.getAccountProjects(accountId)`
+5. `apps/client/providers/ProjectProvider.tsx` → reescrito con `useQuery` (customer + projects, gated con `enabled`) + `refetch()` retry + canon ARIA mantenido
+6. `apps/admin/providers/ProjectProvider.tsx` → **DELETE** (T6-A L-335 ORPHAN). Verificado cero consumers.
+7. `apps/client/tests/integration/ProjectProvider.integration.test.tsx` (new) → 8 casos: loading, first project resolved, localStorage restoration, error+Retry button, refetch (NOT reload), empty state, initialValues bypass, localStorage persistence. **8/8 passed** post-fix.
+
+**Nota sobre admin re-implementación futura.** El DELETE actual de `apps/admin/providers/ProjectProvider.tsx` no precluye re-implementación futura de una feature admin de visibility per-customer (ej: `apps/admin/components/customers/ClientProjectsView.tsx` con SUPER_ADMIN gate + audit logging) — sería entidad conceptualmente distinta bajo otro path/nombre, no un revival de la ORPHAN actual.
+
+Lint 0 / Typecheck 0 (client + admin) / Tests 378+128 / Build 9/9 ✅
 
 ---
 
@@ -2589,7 +2615,7 @@ grep -rn "UnifiedPublishingDashboard\|ContentPreviewSystem\|ProviderAdaptationEn
 | L-322 | `usePosts` ORPHAN (admin)                          | QUICK    | DELETE         | AUTO         | Admin no gestiona posts                                                                                          |
 | L-323 | `usePublicSettings` ORPHAN TOTAL                   | QUICK    | DELETE         | AUTO         |                                                                                                                  |
 | L-324 | `useUniversalAnalytics` ORPHAN                     | QUICK    | DELETE         | AUTO         |                                                                                                                  |
-| L-335 | `ProjectProvider` 322 LOC ORPHAN (admin)           | MEDIUM   | DELETE         | AUTO         | Admin no tiene concept de proyecto                                                                               |
+| L-335 | `ProjectProvider` 322 LOC ORPHAN (admin)           | MEDIUM   | DELETE         | AUTO         | ✅ ejecutado 2026-04-29 dentro de T3-M (cero consumers verificados)                                              |
 | L-338 | `useQueueManager` 213 LOC ORPHAN colocated         | MEDIUM   | WIRE           | NEEDS_EDWARD | SUPER_ADMIN gate. Integrar en dashboard `/maintenance` existente                                                 |
 | L-339 | `ai-content-utils.ts` 178 LOC ORPHAN + 4 fake-AI   | MEDIUM   | RESCATE (stub) | NEEDS_EDWARD | Reemplazar código con stub placeholder para implementación futura. Idea válida                                   |
 | L-340 | `notificationStore` 80 LOC ORPHAN + broken promise | QUICK    | DELETE         | AUTO         | Phase 2/3 jamás cumplida                                                                                         |
