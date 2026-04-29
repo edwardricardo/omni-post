@@ -1429,7 +1429,7 @@ Lint 0 / Typecheck 0 / Test 370/370 passed (+4) / Build 9/9 ✅
 
 ---
 
-#### T3-L — useAdminPasswordReset silent ⚡
+#### T3-L — useAdminPasswordReset silent ⚡ ✅ 2026-04-29 (heredado de T2-E + test de verificación añadido)
 
 **Scope.** `useAdminPasswordReset` totalmente silencioso sin error handling.
 
@@ -1446,6 +1446,25 @@ Lint 0 / Typecheck 0 / Test 370/370 passed (+4) / Build 9/9 ✅
 **Estimación.** 30 min.
 
 **Dependencias.** ⚡ PARALELIZABLE.
+
+**Resultado real.** Verificación TDD-style reveló que el hook **ya estaba arreglado** por trabajo previo:
+
+- `useAdminPasswordReset.ts:23-26` (commit `915f4a9` T2-E "Dialog/toast migration") tiene `if (!res.ok) throw ApiError.fromResponse(...)` — error path correcto.
+- `users/page.tsx:254-265` consumer tiene `mutate(id, { onSuccess: toast(success), onError: toast(error) })` — UI feedback wired.
+
+Edward pidió **verificar** antes de cerrar. Approach: TDD inverso — escribir el test que captura el comportamiento esperado, correrlo contra el código actual, y si pasa confirma que el fix es real.
+
+Test añadido (`tests/unit/hooks/useAdminPasswordReset.test.tsx`, 5 casos):
+
+- Endpoint correcto (`/api/backend/admin/users/:id/password-reset` POST)
+- Propaga `ApiError` con status 403 + code `PERMISSION_DENIED`
+- Propaga `ApiError` con status 500 + `isServerError === true`
+- Retorna parsed JSON en success
+- Invoca consumer-supplied `onError` callback en failure (no se invoca `onSuccess`)
+
+**Resultado verificación: 5/5 pasaron contra código actual** — confirma que T2-E resolvió L-330. Test se queda como protección anti-regresión.
+
+Lint 0 / Typecheck 0 / Test 128/128 (+5) / Build 9/9 ✅
 
 ---
 
