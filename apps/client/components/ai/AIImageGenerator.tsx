@@ -171,7 +171,9 @@ export function AIImageGenerator() {
           </button>
 
           {generateMutation.isError && (
-            <p className="text-sm text-red-600">{generateMutation.error?.message}</p>
+            <p role="alert" className="text-sm text-red-600">
+              {generateMutation.error?.message}
+            </p>
           )}
         </div>
 

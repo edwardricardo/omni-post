@@ -52,7 +52,7 @@ export function OnboardingChecklist() {
           className="text-zinc-500 hover:text-zinc-300 p-1"
           aria-label="Dismiss onboarding"
         >
-          <X className="h-4 w-4" />
+          <X aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>
 
@@ -72,7 +72,7 @@ export function OnboardingChecklist() {
             <li key={step.key} className="flex items-center gap-3">
               {step.completed ? (
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20">
-                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  <Check aria-hidden="true" className="h-3.5 w-3.5 text-emerald-400" />
                 </div>
               ) : (
                 <div className="flex h-6 w-6 items-center justify-center rounded-full border border-zinc-600">

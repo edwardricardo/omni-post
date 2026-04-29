@@ -39,8 +39,8 @@ export function TaskDetailPanel({ task, onClose, onComplete, onCancel }: TaskDet
       <div className="relative z-50 w-full max-w-md bg-card border-l shadow-lg overflow-y-auto">
         <div className="sticky top-0 bg-card border-b px-6 py-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Task Details</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close task details">
+            <X aria-hidden="true" className="h-4 w-4" />
           </Button>
         </div>
 

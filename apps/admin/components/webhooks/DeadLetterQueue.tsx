@@ -211,7 +211,7 @@ export function DeadLetterQueue() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="flex items-center space-x-2 text-base font-semibold text-[var(--text-primary)]">
-              <AlertTriangle className="h-5 w-5 text-[var(--error)]" />
+              <AlertTriangle aria-hidden="true" className="h-5 w-5 text-[var(--error)]" />
               <span>{td("title")}</span>
             </h3>
             <p className="text-sm text-[var(--text-secondary)]">{td("description")}</p>
@@ -316,7 +316,10 @@ export function DeadLetterQueue() {
           </div>
         ) : events.length === 0 ? (
           <div className="text-center py-8 text-[var(--text-secondary)]">
-            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-[var(--text-tertiary)]" />
+            <AlertTriangle
+              aria-hidden="true"
+              className="h-12 w-12 mx-auto mb-4 text-[var(--text-tertiary)]"
+            />
             <p className="text-lg font-medium mb-2">{td("noFailed")}</p>
             <p>{td("allProcessing")}</p>
           </div>

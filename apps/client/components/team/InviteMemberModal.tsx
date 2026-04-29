@@ -103,7 +103,9 @@ export function InviteMemberModal({ accountId, invitedBy, open, onClose }: Invit
           </div>
 
           {inviteMutation.isError && (
-            <p className="text-sm text-red-600">{inviteMutation.error.message}</p>
+            <p role="alert" className="text-sm text-red-600">
+              {inviteMutation.error.message}
+            </p>
           )}
 
           <div className="flex justify-end gap-2 pt-2">

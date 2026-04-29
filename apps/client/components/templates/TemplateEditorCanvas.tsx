@@ -91,7 +91,7 @@ export function TemplateEditorCanvas({
 
             {compilationResult.warnings && compilationResult.warnings.length > 0 && (
               <Alert>
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle aria-hidden="true" className="h-4 w-4" />
                 <AlertDescription>
                   <strong>Warnings:</strong>
                   <ul className="mt-1 list-disc list-inside">
@@ -107,7 +107,7 @@ export function TemplateEditorCanvas({
           </div>
         ) : (
           <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle aria-hidden="true" className="h-4 w-4" />
             <AlertDescription>
               <strong>Compilation failed:</strong>
               <ul className="mt-1 list-disc list-inside">
@@ -324,7 +324,7 @@ export function TemplateEditorCanvas({
                 </div>
               ) : (
                 <Alert>
-                  <Info className="h-4 w-4" />
+                  <Info aria-hidden="true" className="h-4 w-4" />
                   <AlertDescription>
                     No variables detected in the template. Add variables using double curly braces:{" "}
                     <code>{`{{variableName}}`}</code>

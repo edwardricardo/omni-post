@@ -139,7 +139,10 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
       {/* Name */}
       <div>
         <label htmlFor={nameId} className="block text-sm font-medium text-gray-700 mb-1">
-          Profile Name <span className="text-red-500">*</span>
+          Profile Name{" "}
+          <span aria-hidden="true" className="text-red-500">
+            *
+          </span>
         </label>
         <input
           id={nameId}
@@ -148,6 +151,8 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Main Brand Voice"
           maxLength={100}
+          required
+          aria-required="true"
           className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
@@ -155,7 +160,10 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
       {/* System Prompt */}
       <div>
         <label htmlFor={systemPromptId} className="block text-sm font-medium text-gray-700 mb-1">
-          System Prompt <span className="text-red-500">*</span>
+          System Prompt{" "}
+          <span aria-hidden="true" className="text-red-500">
+            *
+          </span>
         </label>
         <p className="text-xs text-gray-500 mb-2">
           Describe your brand tone, style, and key messaging guidelines. This is injected into every
@@ -168,6 +176,8 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
           placeholder={`Example: "You are a social media writer for a B2B SaaS company. Write in a professional yet approachable tone. Avoid jargon. Focus on value and outcomes. Use active voice. Keep sentences concise."`}
           rows={6}
           maxLength={MAX_SYSTEM_PROMPT}
+          required
+          aria-required="true"
           className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
         />
         <p

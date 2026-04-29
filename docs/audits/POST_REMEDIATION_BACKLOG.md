@@ -617,6 +617,144 @@ El roadmap fija 150 LOC como umbral, pero un hook con state complejo legítimame
 
 ---
 
+### PR-13 — T3-H closure: 1 inherited from prior work + 2 deferred (high risk / cross-batch)
+
+**Fecha de aplicación:** 2026-04-28 (documentación)
+**Batch de origen:** T3-H (Small god files apps/api + packages) — durante audit pre-ejecución
+**Severidad del bug pre-existente:** N/A — análisis de scope
+**Tipo:** docs (clarificación de scope — postergaciones documentadas)
+
+**Descubrimiento.**
+
+Audit de los 3 findings del T3-H roadmap reveló que cada uno tiene historia distinta:
+
+- **L-57 `publishHandler.ts` (629 LOC original) — YA RESUELTO en trabajo previo.** Splitado en `PublishingOrchestrator.ts` (444 LOC) + `PublishingOrchestratorExecution.ts` (426 LOC) + `PublishingOrchestratorHelpers.ts` (267 LOC) vía herencia (PublishingOrchestrator extends PublishingOrchestratorExecution). Sub-dominios: orchestration plan management, execution flow, helper utilities.
+- **L-34 `index.ts` (725 LOC) — DIFERIDO.** Ver razón abajo.
+- **L-7 `webhookDashboardService.ts` (854 LOC) — DIFERIDO a T4-X.** Ver razón abajo.
+
+**L-34 `index.ts` — Razón de diferimiento.**
+
+API entry point con ordering constraints estrictas en ESM:
+
+1. `dotenv.config()` debe ejecutarse **antes** que cualquier import que lea `process.env`.
+2. OpenTelemetry SDK debe inicializarse **antes** del primer Fastify import (instrumentación a nivel de require/import hook).
+3. Process signal handlers deben registrarse **después** de `app.listen()` (sin server activo no hay shutdown lógica).
+4. El top-level `await import("@observability/opentelemetry")` está condicionado a `TRACING_ENABLED=true` y **debe ser top-level** (no dentro de función).
+
+Estructura interna actual:
+
+- Lines 1-39: env + OTel init (top-level, ordering crítico)
+- Lines 41-128: imports (88 líneas, todos)
+- Lines 132-617: `createApp()` (485 LOC, bien organizado en secciones con comments)
+- Lines 620-718: `start()` + signal handlers (98 LOC)
+- Lines 720-725: invocation
+
+El archivo crece **linealmente con cada nueva route** (additive). Splitearlo (extraer createApp a `app.ts`, start a `start.ts`) reduce el LOC del entry point pero **dispersa** lógica que actualmente está coherente en un solo lugar. El bottleneck de complejidad cognitiva de `index.ts` no es el LOC — es el ordering constraints, que se mantienen iguales o se vuelven más sutiles tras un split.
+
+Adicional: T1-B (BackgroundTaskScheduler integration) ya tocó este archivo cuidadosamente para integrar `scheduler.shutdownAll()` en SIGINT/SIGTERM handlers. Splitear ahora dispersa ese trabajo coordinado.
+
+**Cuándo re-evaluar:** si el archivo crece más allá de 1000 LOC, o si añadir nuevas routes empieza a producir merge conflicts frecuentes en el bloque de imports/registro. Hasta entonces: WONT_FIX-pendiente.
+
+**L-7 `webhookDashboardService.ts` — Razón de diferimiento a T4-X.**
+
+Service class con 854 LOC, 10 métodos en 4 sub-dominios:
+
+- **Dashboard metrics** (2 métodos): `getDashboardMetrics`, `getDlqMetrics`
+- **Event listings** (3 métodos): `getRecentEvents`, `getEventDetails`, `exportWebhookEvents`
+- **Subscriptions** (1 método): `getSubscriptions`
+- **DLQ retry** (3 métodos): `getDeadLetterQueue`, `retryDeadLetterEvent`, `retryAllDeadLetterEvents`
+
+T4-X (Webhook dashboard N+1 + retry queue) está en backlog y va a **reescribir profundamente**:
+
+- `getDashboardMetrics` y `getDlqMetrics` — fix N+1 (probablemente requiere agregar índices o consolidar queries)
+- `retryAllDeadLetterEvents` — wirear retry queue real (actualmente stub)
+- `getRecentEvents` — posible fix N+1 en eventos por suscripción
+
+Splitear en T3-H **antes** que T4-X reescriba esos métodos crea problemas de coordinación:
+
+- T4-X tiene que navegar split files mientras reescribe lógica
+- Si el N+1 fix introduce un servicio compartido o cambio estructural (e.g., DataLoader pattern, Repository facade), el split de T3-H queda en deuda
+- Doble refactor en feature poco testeada incrementa riesgo de regresiones
+
+**Mejor:** T4-X ejecuta split + N+1 fix + retry queue wire en un único batch coordinado, manteniendo la coherencia del trabajo.
+
+**Cuándo re-evaluar:** ejecutar AS PART OF T4-X. T4-X debe abrir con un mini-PR estructural (split a `webhookDashboard/{metrics,events,subscriptions,dlq}.ts` + facade), después aplicar el N+1 + retry queue fix por sub-módulo. Estimación combinada: ~6-8h vs T3-H solo split (~2h) + T4-X aparte (~6h).
+
+**Estado:** APLICADO (cierre documentado). T3-H del roadmap se cierra como **completado** porque:
+
+1. L-57 ya está resuelto (heredado de trabajo previo).
+2. L-34 y L-7 tienen plan de re-ejecución claro: L-34 cuando crezca >1000 LOC o produzca conflicts; L-7 dentro de T4-X.
+
+Sin código nuevo en este batch — sólo verificación de scope + documentación.
+
+---
+
+### PR-14 — T3-I deferral: 20-component refactor split into scheduled sub-batches
+
+**Fecha de aplicación:** 2026-04-28 (documentación)
+**Batch de origen:** T3-I (Component size violations UI top 20) — durante audit pre-ejecución
+**Severidad del bug pre-existente:** N/A — análisis de scope
+**Tipo:** docs (clarificación de scope — postergación con schedule)
+
+**Descubrimiento.**
+
+T3-I es **estructuralmente diferente** al resto del tier T3:
+
+| Aspecto             | T3-F/G (hooks)                         | T3-I (componentes UI)                                |
+| ------------------- | -------------------------------------- | ---------------------------------------------------- |
+| Patrón de split     | Mecánico (types/api/queries/mutations) | Caso-por-caso (sub-components, hooks, helpers)       |
+| Riesgo por archivo  | Bajo (hooks TanStack aislados)         | Medio-alto (state machines, side effects, render)    |
+| Diseño requerido    | Mínimo (template)                      | Significativo (cada split = decisión arquitectónica) |
+| Tests existentes    | Cubren el comportamiento               | A menudo escasos para componentes UI grandes         |
+| Estimación roadmap  | 4-6h (T3-F) / 3-5h (T3-G)              | **20-30h** (T3-I)                                    |
+| Flag `NEEDS_EDWARD` | No (auto-decidible)                    | **Sí en 19 de 20** (decisiones por archivo)          |
+
+Forzar los 20 splits en una sola sesión produce trabajo superficial que no aporta valor real (5 mini-refactors mezclados, difíciles de revisar, sin patrón unificado). La regla práctica más honesta: **un componente por sub-batch enfocado**, con análisis individual y aprobación de Edward por archivo.
+
+**Sub-batches propuestos (T3-I.1..T3-I.7):**
+
+11 archivos independientes (sin cross-batch deps), agrupados por familia conceptual:
+
+- **T3-I.1 — `editor/PlatformPreview.tsx` (664 LOC)** — preview multi-platform aislado. Sub-componentes esperados: PlatformBadge, MediaThumb, ContentBlock por proveedor.
+- **T3-I.2 — Instagram media family (1310 LOC, 2 files):** `instagram/MediaUploadZone.tsx` (675) + `instagram/VideoSplitPreview.tsx` (635). Comparten dominio (subida + procesamiento de video). Split coordinado.
+- **T3-I.3 — Dashboard pages family (~2107 LOC, 3 files):** `dashboard/channels/page.tsx` (726), `dashboard/posts/page.tsx` (695), `dashboard/settings/billing/page.tsx` (686). Probable patrón compartido (page → cards/list/dialogs).
+- **T3-I.4 — Templates family (546 LOC, 1 file):** `templates/VariableInserter.tsx` (546). `TemplateManagementDashboard.tsx` excluido (cross L-99).
+- **T3-I.5 — `publishing/PublishingInterface.tsx` (463 LOC)** — flujo de publicación multi-step.
+- **T3-I.6 — `ai/PromptTemplateManager.tsx` (458 LOC)** — admin de prompt templates.
+- **T3-I.7 — `usePredictiveData.ts` (604 LOC, hook)** — analytics predictivos. Hook de cálculo, no componente; podría caber bajo T3-F.2 retrospectivo.
+
+**Cross-batch (8 archivos): NO ejecutar en T3-I, esperar batch coordinado.**
+
+- `webhooks/DeadLetterQueue.tsx` (729), `webhooks/WebhookSubscriptions.tsx` (688), `webhooks/WebhookEventsList.tsx` (503) — todos cross T3-N (TanStack migration). T3-N reescribirá su data layer.
+- `editor/SchedulePicker.tsx` (447) — cross L-78/L-120.
+- `shared/SidebarNav.tsx` (446 admin) — cross T3-R (logout + OAuth admin UI).
+- `posts/[id]/page.tsx` (511) — cross L-98.
+- `subscriptions/ChangePlanDialog.tsx` (487) — recomendable esperar settlement de billing/checkout flows.
+- `security/RbacManager.tsx` (480) — cross L-297.
+- `packages/ui/business/useContentEditor.ts` (506) — cross L-503.
+
+**Por qué scheduling vs ejecutar todo ahora.**
+
+Edward chose D explicitly because:
+
+1. T3-I no tiene cadencia mecánica como T3-F/G. Cada componente es una decisión.
+2. NEEDS_EDWARD en 19 de 20 — el 95% requiere alineación producto que sólo Edward puede dar.
+3. Tests UI insuficientes — riesgo de regresiones invisibles si se mezclan 5+ refactors.
+4. Calidad > velocidad: un split bien hecho de PlatformPreview vale más que 5 splits superficiales.
+
+**Cuándo ejecutar.**
+
+Sub-batches T3-I.1..T3-I.7 se ejecutan **bajo demanda** según prioridad de Edward, **uno por sesión enfocada**. El cross-batch (8 archivos) se ejecuta dentro de los batches cross-ref que ya están en backlog (T3-N para webhooks, T3-R para SidebarNav, etc.) — no requiere acción separada.
+
+**Cuándo revisar.**
+
+- Después de cerrar el resto del tier T3 (T3-J, T3-K..T3-R), Edward decide qué sub-batches T3-I priorizar primero.
+- Si en algún momento un componente alcanza 1000+ LOC o produce conflicts frecuentes, salta de cola al primer T3-I.X disponible.
+
+**Estado:** DIFERIDO con schedule. T3-I del roadmap se cierra como **deferred-with-plan** (no completado, no abandonado — agendado para sub-batches enfocados). El schedule reemplaza el batch monolítico de 20-30h por 7 sub-batches de 1-3h cada uno con calidad sostenible.
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

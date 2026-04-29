@@ -104,11 +104,23 @@ export function TaskCard({ task, onComplete, onCancel, onClick }: TaskCardProps)
 
         {!isFinal && (
           <div className="flex gap-1.5">
-            <Button variant="ghost" size="sm" onClick={handleComplete} title="Complete">
-              <Check className="h-4 w-4 text-green-600" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleComplete}
+              title="Complete"
+              aria-label="Complete task"
+            >
+              <Check aria-hidden="true" className="h-4 w-4 text-green-600" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleCancel} title="Cancel">
-              <X className="h-4 w-4 text-red-500" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCancel}
+              title="Cancel"
+              aria-label="Cancel task"
+            >
+              <X aria-hidden="true" className="h-4 w-4 text-red-500" />
             </Button>
           </div>
         )}

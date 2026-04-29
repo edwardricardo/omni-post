@@ -44,7 +44,7 @@ export function FailedJobsTable({ jobs, onRetry, isRetrying }: FailedJobsTablePr
   if (jobs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-12">
-        <AlertTriangle className="h-8 w-8 text-[var(--text-tertiary)] mb-2" />
+        <AlertTriangle aria-hidden="true" className="h-8 w-8 text-[var(--text-tertiary)] mb-2" />
         <p className="text-sm text-[var(--text-secondary)]">{tf("noFailed")}</p>
       </div>
     );

@@ -523,8 +523,9 @@ export function VariableInserter({
                               size="sm"
                               onClick={() => handleRemoveContextVariable(key)}
                               className="h-6 w-6 p-0 shrink-0"
+                              aria-label={`Remove context variable ${key}`}
                             >
-                              <X className="h-3 w-3" />
+                              <X aria-hidden="true" className="h-3 w-3" />
                             </Button>
                           </div>
                         </Card>

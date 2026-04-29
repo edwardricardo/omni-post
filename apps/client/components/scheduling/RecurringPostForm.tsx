@@ -134,7 +134,10 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
       {/* Name */}
       <div>
         <label htmlFor={nameId} className="block text-sm font-medium text-gray-700">
-          Nombre <span className="text-red-500">*</span>
+          Nombre{" "}
+          <span aria-hidden="true" className="text-red-500">
+            *
+          </span>
         </label>
         <input
           id={nameId}
@@ -142,20 +145,39 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Ej: Post semanal de LinkedIn"
+          required
+          aria-required="true"
+          aria-invalid={errors.name ? "true" : undefined}
+          aria-describedby={errors.name ? `${nameId}-error` : undefined}
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
-        {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
+        {errors.name && (
+          <p id={`${nameId}-error`} role="alert" className="mt-1 text-xs text-red-600">
+            {errors.name}
+          </p>
+        )}
       </div>
 
       {/* Recurrence */}
       <div>
         <span id={recurrenceHeadingId} className="block text-sm font-medium text-gray-700 mb-2">
-          Recurrencia <span className="text-red-500">*</span>
+          Recurrencia{" "}
+          <span aria-hidden="true" className="text-red-500">
+            *
+          </span>
         </span>
-        <div role="group" aria-labelledby={recurrenceHeadingId}>
+        <div
+          role="group"
+          aria-labelledby={recurrenceHeadingId}
+          aria-describedby={errors.cron ? `${recurrenceHeadingId}-error` : undefined}
+        >
           <RecurrenceSelector value={cronExpression} onChange={handleCronChange} />
         </div>
-        {errors.cron && <p className="mt-1 text-xs text-red-600">{errors.cron}</p>}
+        {errors.cron && (
+          <p id={`${recurrenceHeadingId}-error`} role="alert" className="mt-1 text-xs text-red-600">
+            {errors.cron}
+          </p>
+        )}
       </div>
 
       {/* Timezone */}
@@ -178,9 +200,15 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
       </div>
 
       {/* Channels */}
-      <fieldset className="border-0 p-0 m-0 min-w-0">
+      <fieldset
+        className="border-0 p-0 m-0 min-w-0"
+        aria-describedby={errors.channels ? "channels-error" : undefined}
+      >
         <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
-          Canales <span className="text-red-500">*</span>
+          Canales{" "}
+          <span aria-hidden="true" className="text-red-500">
+            *
+          </span>
         </legend>
         {channels.length === 0 ? (
           <p className="text-sm text-gray-500">No hay canales conectados.</p>
@@ -208,7 +236,11 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
             ))}
           </div>
         )}
-        {errors.channels && <p className="mt-1 text-xs text-red-600">{errors.channels}</p>}
+        {errors.channels && (
+          <p id="channels-error" role="alert" className="mt-1 text-xs text-red-600">
+            {errors.channels}
+          </p>
+        )}
       </fieldset>
 
       {/* Content variation */}
@@ -268,7 +300,9 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
 
       {/* Submit error */}
       {errors.submit && (
-        <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{errors.submit}</p>
+        <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+          {errors.submit}
+        </p>
       )}
 
       {/* Actions */}

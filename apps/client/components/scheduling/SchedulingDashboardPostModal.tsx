@@ -120,7 +120,7 @@ export function SchedulingDashboardPostModal({
 
             {/* Error Message */}
             {post.error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <div className="text-sm font-medium text-red-800 mb-1">Error:</div>
                 <div className="text-sm text-red-700">{post.error}</div>
               </div>

@@ -47,7 +47,7 @@ export function SecurityTab() {
       </div>
 
       <div className="flex items-start gap-3 rounded-md bg-[var(--warning-subtle)] p-3">
-        <ShieldAlert className="h-5 w-5 text-[var(--warning)] shrink-0 mt-0.5" />
+        <ShieldAlert aria-hidden="true" className="h-5 w-5 text-[var(--warning)] shrink-0 mt-0.5" />
         <div className="text-sm text-[var(--text-primary)]">
           <p className="font-medium">{t("warning")}</p>
           <ol className="mt-2 list-decimal list-inside space-y-1 text-[var(--text-secondary)]">

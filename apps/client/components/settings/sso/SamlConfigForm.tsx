@@ -95,9 +95,9 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
                 onClick={() => copyToClipboard(spEntityId, "entityId")}
               >
                 {copiedField === "entityId" ? (
-                  <Check className="h-4 w-4 text-green-600" />
+                  <Check aria-hidden="true" className="h-4 w-4 text-green-600" />
                 ) : (
-                  <Copy className="h-4 w-4" />
+                  <Copy aria-hidden="true" className="h-4 w-4" />
                 )}
               </Button>
             </div>
@@ -110,9 +110,9 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
               </code>
               <Button variant="ghost" size="sm" onClick={() => copyToClipboard(acsUrl, "acsUrl")}>
                 {copiedField === "acsUrl" ? (
-                  <Check className="h-4 w-4 text-green-600" />
+                  <Check aria-hidden="true" className="h-4 w-4 text-green-600" />
                 ) : (
-                  <Copy className="h-4 w-4" />
+                  <Copy aria-hidden="true" className="h-4 w-4" />
                 )}
               </Button>
             </div>
@@ -136,16 +136,27 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
 
         <div>
           <Label htmlFor="saml-sso-url">IdP SSO URL *</Label>
-          <Input
-            id="saml-sso-url"
-            type="url"
-            value={idpSsoUrl}
-            onChange={(e) => setIdpSsoUrl(e.target.value)}
-            placeholder="https://idp.example.com/saml2/sso"
-          />
-          {idpSsoUrl && !idpSsoUrl.startsWith("https://") && (
-            <p className="text-xs text-red-600 mt-1">Must use HTTPS</p>
-          )}
+          {(() => {
+            const ssoUrlInvalid = !!idpSsoUrl && !idpSsoUrl.startsWith("https://");
+            return (
+              <>
+                <Input
+                  id="saml-sso-url"
+                  type="url"
+                  value={idpSsoUrl}
+                  onChange={(e) => setIdpSsoUrl(e.target.value)}
+                  placeholder="https://idp.example.com/saml2/sso"
+                  aria-invalid={ssoUrlInvalid ? "true" : undefined}
+                  aria-describedby={ssoUrlInvalid ? "saml-sso-url-error" : undefined}
+                />
+                {ssoUrlInvalid && (
+                  <p id="saml-sso-url-error" role="alert" className="text-xs text-red-600 mt-1">
+                    Must use HTTPS
+                  </p>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         <div>

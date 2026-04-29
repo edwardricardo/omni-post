@@ -101,7 +101,7 @@ export function ABTestResultsTab({ completedTests }: ABTestResultsTabProps) {
                 {/* Recommendation */}
                 {test.results.recommendedAction && (
                   <Alert>
-                    <Info className="h-4 w-4" />
+                    <Info aria-hidden="true" className="h-4 w-4" />
                     <AlertDescription>
                       <strong>Recommendation:</strong>{" "}
                       {test.results.recommendedAction.replace(/_/g, " ")}

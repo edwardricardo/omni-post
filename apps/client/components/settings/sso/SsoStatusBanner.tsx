@@ -65,9 +65,9 @@ export function SsoStatusBanner({ provider, isActive }: SsoStatusBannerProps) {
       </div>
 
       {showConfirm && (
-        <div className="mt-4 p-3 rounded-md bg-red-50 border border-red-200">
+        <div role="alert" className="mt-4 p-3 rounded-md bg-red-50 border border-red-200">
           <div className="flex items-start gap-2">
-            <ShieldAlert className="h-5 w-5 text-red-600 mt-0.5" />
+            <ShieldAlert aria-hidden="true" className="h-5 w-5 text-red-600 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-medium text-red-800">
                 Are you sure you want to disable SSO?

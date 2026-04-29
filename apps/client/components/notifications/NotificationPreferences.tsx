@@ -180,7 +180,7 @@ export function NotificationPreferences() {
 
   if (isError) {
     return (
-      <p className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-red-600">
         Failed to load notification preferences. Please refresh.
       </p>
     );

@@ -140,7 +140,10 @@ export function ExternalNotificationConfigs({ projectId }: ExternalNotificationC
         )}
 
         {isError && (
-          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <div
+            role="alert"
+            className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3"
+          >
             <p className="text-sm text-red-700">Failed to load webhook configs</p>
             <button
               onClick={() => void refetch()}
@@ -212,13 +215,16 @@ export function ExternalNotificationConfigs({ projectId }: ExternalNotificationC
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="delete-webhook-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={(e) => {
             if (e.target === e.currentTarget) setDeleteId(null);
           }}
         >
           <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-gray-900">Delete Webhook</h3>
+            <h3 id="delete-webhook-title" className="text-base font-semibold text-gray-900">
+              Delete Webhook
+            </h3>
             <p className="mt-2 text-sm text-gray-500">
               Are you sure you want to delete this webhook? This action cannot be undone.
             </p>

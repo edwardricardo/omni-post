@@ -255,10 +255,10 @@ export function PublishingInterface({
 
       {/* Validation Errors */}
       {validationResults.length > 0 && (
-        <Card className="border-destructive">
+        <Card role="alert" className="border-destructive">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-destructive">
-              <XCircle className="h-5 w-5" />
+              <XCircle aria-hidden="true" className="h-5 w-5" />
               Validation Errors
             </CardTitle>
           </CardHeader>
@@ -389,10 +389,10 @@ export function PublishingInterface({
 
       {/* Publishing Results */}
       {showResults && publishResults.length > 0 && (
-        <Card>
+        <Card role="region" aria-label="Publishing results">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5" />
+              <CheckCircle2 aria-hidden="true" className="h-5 w-5" />
               Publishing Results
             </CardTitle>
           </CardHeader>
@@ -406,9 +406,9 @@ export function PublishingInterface({
               >
                 <div className="flex items-center gap-3">
                   {result.success ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <CheckCircle2 aria-hidden="true" className="h-5 w-5 text-green-600" />
                   ) : (
-                    <XCircle className="h-5 w-5 text-red-600" />
+                    <XCircle aria-hidden="true" className="h-5 w-5 text-red-600" />
                   )}
                   <div>
                     <div className="font-medium">{result.providerName}</div>
@@ -442,14 +442,14 @@ export function PublishingInterface({
         <CardContent className="pt-6">
           <div className="space-y-2">
             <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 mt-0.5 text-blue-500" />
+              <Info aria-hidden="true" className="h-4 w-4 mt-0.5 text-blue-500" />
               <div className="text-sm text-muted-foreground">
                 <strong>Pro tip:</strong> Content that exceeds character limits will automatically
                 be split into threads for supported platforms.
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 mt-0.5 text-blue-500" />
+              <Info aria-hidden="true" className="h-4 w-4 mt-0.5 text-blue-500" />
               <div className="text-sm text-muted-foreground">
                 Publishing may take a few seconds per platform due to API rate limits and processing
                 time.

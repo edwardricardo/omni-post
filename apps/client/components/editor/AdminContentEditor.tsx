@@ -208,9 +208,11 @@ export function AdminContentEditor({
       const overallValid = Object.values(validationResults).every((result) => result.valid);
 
       return (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-3">Platform Compatibility</h3>
-          <div className="space-y-3">
+        <div className="mt-6" role="region" aria-labelledby="platform-compat-heading">
+          <h3 id="platform-compat-heading" className="text-lg font-semibold mb-3">
+            Platform Compatibility
+          </h3>
+          <div className="space-y-3" aria-live="polite" aria-atomic="false">
             {Object.entries(validationResults).map(([providerId, result]) => {
               const provider = validationProviders.find((p) => p.id === providerId);
               if (!provider) return null;

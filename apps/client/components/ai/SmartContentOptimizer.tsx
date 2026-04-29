@@ -225,8 +225,8 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
   if (analysisError) {
     return (
       <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="text-center py-8">
-          <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+        <div role="alert" className="text-center py-8">
+          <AlertTriangle aria-hidden="true" className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Analysis Failed</h3>
           <p className="text-gray-600 mb-4 max-w-md mx-auto">{analysisError}</p>
           <button

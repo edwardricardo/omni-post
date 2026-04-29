@@ -30,7 +30,7 @@ export function RecurringPostsList({ projectId }: RecurringPostsListProps) {
 
   if (isError) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+      <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
         <p className="text-sm text-red-700">Error al cargar las publicaciones recurrentes.</p>
         <button
           onClick={() => refetch()}

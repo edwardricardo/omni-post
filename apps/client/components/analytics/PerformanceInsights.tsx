@@ -214,7 +214,7 @@ export function PerformanceInsights({
   if (error) {
     return (
       <div className="performance-insights p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div role="alert" className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h3 className="text-red-800 font-medium mb-2">Failed to load performance insights</h3>
           <p className="text-red-700 text-sm mb-3">
             {error instanceof Error ? error.message : "An unexpected error occurred"}

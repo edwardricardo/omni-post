@@ -369,8 +369,11 @@ export function SchedulePicker({
           const scheduledDateTime = setMinutes(setHours(date, hours), minutes);
           return !isAfter(scheduledDateTime, new Date());
         })() && (
-          <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800">
-            <AlertCircle className="h-4 w-4" />
+          <div
+            role="alert"
+            className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800"
+          >
+            <AlertCircle aria-hidden="true" className="h-4 w-4" />
             <span className="text-sm">
               Selected time is in the past. Please choose a future date and time.
             </span>

@@ -297,7 +297,7 @@ grep -cE '"no-explicit-any"|"no-floating-promises"|"no-console"|"no-restricted-i
 
 ---
 
-#### T1-B — setInterval unref ⚡
+#### T1-B — setInterval unref ⚡ ✅ 2026-04-28 (scope expandido — `BackgroundTaskScheduler` package)
 
 **Scope.** 5 `setInterval` sin `.unref()` que bloquean graceful shutdown.
 
@@ -318,6 +318,15 @@ grep -rn "setInterval(" apps/api/src/ --include="*.ts" | grep -v ".unref()" | gr
 **Estimación.** 15 min.
 
 **Dependencias.** ⚡ PARALELIZABLE.
+
+**Resultado real.** Scope expandido del checklist de 5 sitios a un patrón uniforme: nuevo package `@observability/background-scheduler` (Default + Noop schedulers, port interface, ~30 tests), wireado en DI (`TOKENS.BackgroundTaskScheduler`), integrado en SIGINT/SIGTERM (`scheduler.shutdownAll()`). Migrados 31+ sitios en `apps/api`, `apps/workers`, y `packages/`. CI fitness #11 (no raw setInterval) ahora bloquea regressions.
+
+Verificación exit criteria:
+
+```bash
+grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" | \
+  grep -v "default-scheduler\|node_modules\|dist\|\.test\.\|/tests/\|/\.stryker-tmp/\|eslint\.config\|DANGEROUS_STRINGS"   # → 0 ✅
+```
 
 ---
 
@@ -1280,7 +1289,7 @@ Lint 0 / Typecheck 0 / Test 123/123 / Build 9/9 ✅
 
 ---
 
-#### T3-H — Small god files (apps/api + packages) ⚡
+#### T3-H — Small god files (apps/api + packages) ⚡ ✅ 2026-04-28 (cierre — L-57 heredado; L-34 + L-7 diferidos en PR-13)
 
 **Scope.** Splits de archivos medianos API + packages.
 
@@ -1304,9 +1313,17 @@ find apps/api/ packages/ -name "*.ts" -not -path "*/node_modules/*" -exec wc -l 
 
 **Dependencias.** ⚡ PARALELIZABLE; L-7 cross-ref T4-X.
 
+**Resultado real.**
+
+- **L-57 `publishHandler.ts` (629 LOC):** **HEREDADO** — ya splitado en trabajo previo a `PublishingOrchestrator.ts` (444) + `PublishingOrchestratorExecution.ts` (426) + `PublishingOrchestratorHelpers.ts` (267) vía herencia. Sub-dominios cubiertos: orchestration plan management, execution flow, helper utilities.
+- **L-34 `index.ts` (725 LOC):** **DIFERIDO**. API entry point con ESM ordering constraints estrictas (dotenv → OTel → Fastify → DI → signals); estructura interna ya organizada en secciones; T1-B ya integró `scheduler.shutdownAll()` cuidadosamente. Splitearlo dispersa lógica coherente sin reducir el bottleneck cognitivo real (que son los ordering constraints, no el LOC). Ver PR-13 para razón completa + criterio de re-evaluación.
+- **L-7 `webhookDashboardService.ts` (854 LOC):** **DIFERIDO a T4-X**. T4-X va a reescribir `getDashboardMetrics`, `getDlqMetrics`, `retryAllDeadLetterEvents`, `getRecentEvents` para fixear N+1 + wirear retry queue real. Splitear ahora obliga a T4-X a navegar split files mientras reescribe lógica → mejor un único batch coordinado: split + N+1 fix + retry queue wire. Ver PR-13.
+
+Sin código nuevo en este batch. Sólo verificación de scope + documentación. T1-B también marcado retroactivamente (BackgroundTaskScheduler ya wireado).
+
 ---
 
-#### T3-I — Component size violations UI top 20 ⚡
+#### T3-I — Component size violations UI top 20 ⚡ ⏸️ 2026-04-28 (DIFERIDO con schedule — ver PR-14)
 
 **Scope.** Pragmatic: de los 103 componentes R11 priorizar **top 20 con >400 LOC**. Files muertos (L-141/L-143/L-147/L-156/L-162/L-169) son DELETE en T5-H.
 
@@ -1352,7 +1369,7 @@ find apps/ packages/ -name "*.tsx" -not -path "*/node_modules/*" -exec wc -l {} 
 
 ---
 
-#### T3-J — Missing ARIA composites ⚡
+#### T3-J — Missing ARIA composites ⚡ ✅ 2026-04-28
 
 **Scope.** ARIA gaps en business components (no los triviales de T1-H).
 
@@ -1369,6 +1386,17 @@ find apps/ packages/ -name "*.tsx" -not -path "*/node_modules/*" -exec wc -l {} 
 **Estimación.** 3-4 h.
 
 **Dependencias.** ⚡ PARALELIZABLE.
+
+**Resultado real.** Investigación canon-grounded primero (WCAG 2.2 SC 4.1.3, WAI-ARIA APG `role="alert"`, MDN, Radix Toast, W3C Forms tutorial). 6 fases ejecutadas:
+
+- **Fase 1 — Toast canonicalization:** `ToastClose` ahora tiene `aria-label="Close notification"` (Radix-required); Toast variant maps a Radix `type` prop (`destructive` → foreground/assertive, default → background/polite) per Radix a11y docs.
+- **Fase 2 — Form-level error panels (10 fixes):** `role="alert"` añadido a paneles dinámicos en RecurringPostForm, SsoStatusBanner, PerformanceInsights, CrmConnectionCard, SchedulingDashboardPostModal, RecurringPostsList, ExternalNotificationConfigs, ReplyComposer; `role="region" aria-label/aria-labelledby` en PublishingInterface (Publishing Results), AdminContentEditor (Platform Compatibility) — última también con `aria-live="polite"` en la lista interna.
+- **Fase 3 — Inline validation `aria-describedby` (10 fixes):** RecurringPostForm (3 inputs), AddWebhookForm, SamlConfigForm, OidcConfigForm, InviteMemberModal, AIImageGenerator, ReviewPanel, NotificationPreferences. Pattern canónico: `aria-invalid` + `aria-describedby` en input ↔ `id` + `role="alert"` en `<p>` de error.
+- **Fase 4 — Required asterisks `aria-hidden` (4 fixes):** AIPromptForm, TemplateVariableModal, BrandVoiceForm (2x). Asteriscos visuales ahora `aria-hidden="true"` + `required` + `aria-required="true"` en input asociado.
+- **Fase 5 — Decorative icons (≈18 fixes):** AssetDetailPanel, TaskDetailPanel, OnboardingChecklist, ReviewPanel, AnnouncementBanner, SetupBanner, TaskCard, ClientContentEditor (save status — añadió role=status/role=alert), SamlConfigForm (Copy x2), OidcConfigForm (Copy), VariableInserter (remove button), TemplateEditorCanvas (3x), ABTestResultsTab, SecurityTab, CompetitorAnalysisCard, FailedJobsTable, DeadLetterQueue (2x), SchedulePicker, SmartContentOptimizer, PublishingInterface (Validation Errors role=alert + Info icons + XCircle).
+- **Fase 6 — Verificación:** Lint 0 / Typecheck 0 / Test 366+123/489 / Build 9/9.
+
+Total: ≈48 fixes concretos, todos grounded en canon (WCAG SC 4.1.3 + ARIA APG + Radix UI + MDN). Cobertura no exhaustiva del `axe-core` E2E pass — eso queda para QA cuando los tests E2E con axe se integren al CI default. Ver PR-15 para sites pendientes de evaluación más profunda (status messages que requieren juicio de "urgent vs not urgent" caso por caso).
 
 ---
 

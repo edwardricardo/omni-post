@@ -202,19 +202,19 @@ export function ClientContentEditor({
       <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
         {saveStatus === "saving" && (
           <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4 animate-spin" />
+            <Clock aria-hidden="true" className="h-4 w-4 animate-spin" />
             <span>Saving...</span>
           </div>
         )}
         {saveStatus === "saved" && (
-          <div className="flex items-center gap-1 text-green-600">
-            <CheckCircle2 className="h-4 w-4" />
+          <div role="status" className="flex items-center gap-1 text-green-600">
+            <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
             <span>Saved</span>
           </div>
         )}
         {saveStatus === "error" && (
-          <div className="flex items-center gap-1 text-red-600">
-            <AlertCircle className="h-4 w-4" />
+          <div role="alert" className="flex items-center gap-1 text-red-600">
+            <AlertCircle aria-hidden="true" className="h-4 w-4" />
             <span>Save failed</span>
           </div>
         )}

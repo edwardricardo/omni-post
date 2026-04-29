@@ -70,7 +70,12 @@ export const TemplateVariableModal: React.FC<TemplateVariableModalProps> = ({
                   htmlFor={variableId}
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  {variable.name} {variable.required && <span className="text-red-500">*</span>}
+                  {variable.name}{" "}
+                  {variable.required && (
+                    <span aria-hidden="true" className="text-red-500">
+                      *
+                    </span>
+                  )}
                 </label>
                 {variable.type === "text" ||
                 variable.type === "hashtags" ||
