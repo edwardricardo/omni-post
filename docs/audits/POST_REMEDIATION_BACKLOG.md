@@ -478,7 +478,7 @@ El roadmap T2-I listaba 12 pages como "over-clientized" candidatas a remover `"u
 | L-132 | `ai/generate/page.tsx`       | `useState` + `onClick`                                         |
 | L-133 | `ai/optimizer/page.tsx`      | `useState` + `onChange`                                        |
 
-Fuente canon consultada: https://nextjs.org/docs/app/getting-started/server-and-client-components — _"React context is not supported in Server Components"_; Client Components son necesarios para `useState`, event handlers, browser APIs.
+Fuente canon consultada: [Next.js App Router — Server and Client Components](https://nextjs.org/docs/app/getting-started/server-and-client-components) — _"React context is not supported in Server Components"_; Client Components son necesarios para `useState`, event handlers, browser APIs.
 
 **Conclusión.**
 

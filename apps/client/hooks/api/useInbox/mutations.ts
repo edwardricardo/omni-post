@@ -89,11 +89,20 @@ export function useAssignMessage() {
 
 /**
  * @hook useMarkMessageRead
- * @description Mutation hook for marking a message as read.
- * @returns TanStack Query mutation for the read status update
+ * @description Mutation hook for marking an inbox message as read. Invalidates
+ *              the entire `["inbox"]` query family on success so conversation
+ *              lists (with unread counts), conversation detail, and message
+ *              lists all refetch with the new read state. Errors propagate to
+ *              the global `MutationCache.onError` handler wired in
+ *              `createAppQueryClient` for logging — no silent failure.
+ * @returns TanStack Query mutation that invalidates inbox queries on success
  */
 export function useMarkMessageRead() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (messageId: string) => markMessageRead(messageId),
+    mutationFn: markMessageRead,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["inbox"] });
+    },
   });
 }

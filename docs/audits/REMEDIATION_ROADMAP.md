@@ -724,9 +724,9 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 **Investigación previa (fuentes citadas):**
 
-- Next.js useRouter (v15/v16): https://nextjs.org/docs/app/api-reference/functions/use-router — _"Use the `<Link>` component for navigation unless you have a specific requirement for using `useRouter`"_. `router.push` se reserva para nav programática post-mutación; `window.location.href` es el canon para redirects externos.
-- React declarative UI: https://react.dev/learn/managing-state — construir componentes modales con state-driven UI, NO usar `prompt/alert/confirm` nativos.
-- WAI-ARIA APG Modal Dialog: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/ — `role="dialog"` + `aria-modal="true"` + `aria-labelledby`, Escape, focus trap, focus return. Radix Dialog primitive cumple out-of-the-box.
+- [Next.js useRouter (v15/v16)](https://nextjs.org/docs/app/api-reference/functions/use-router) — _"Use the `<Link>` component for navigation unless you have a specific requirement for using `useRouter`"_. `router.push` se reserva para nav programática post-mutación; `window.location.href` es el canon para redirects externos.
+- [React declarative UI](https://react.dev/learn/managing-state) — construir componentes modales con state-driven UI, NO usar `prompt/alert/confirm` nativos.
+- [WAI-ARIA APG Modal Dialog](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/) — `role="dialog"` + `aria-modal="true"` + `aria-labelledby`, Escape, focus trap, focus return. Radix Dialog primitive cumple out-of-the-box.
 
 **Findings table (4 documentados + descubiertos):**
 
@@ -772,8 +772,8 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 **Investigación previa (fuentes citadas):**
 
-- **Turborepo config** https://turborepo.dev/docs/reference/configuration: task `env` declara vars que impactan cache hash. NO declarar → cache poisoning (turbo retorna cached aunque env haya cambiado). `globalEnv` todas las tareas. `outputs` vacío → sólo logs cacheados.
-- **GitHub Actions caching** docs.github.com: patrón canon `hashFiles('pnpm-lock.yaml')` para key de invalidación automática; `restore-keys` escalonado de específico a general. Keys sin lockfile hash → false cache hits (o, como nuestro caso, cache único por SHA = never hits).
+- **[Turborepo config](https://turborepo.dev/docs/reference/configuration)**: task `env` declara vars que impactan cache hash. NO declarar → cache poisoning (turbo retorna cached aunque env haya cambiado). `globalEnv` todas las tareas. `outputs` vacío → sólo logs cacheados.
+- **[GitHub Actions caching](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows)**: patrón canon `hashFiles('pnpm-lock.yaml')` para key de invalidación automática; `restore-keys` escalonado de específico a general. Keys sin lockfile hash → false cache hits (o, como nuestro caso, cache único por SHA = never hits).
 
 **Findings originales (4) + scope extendido:**
 
@@ -884,7 +884,7 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 **Investigación previa (fuentes citadas):**
 
-- Next.js App Router (https://nextjs.org/docs/app/getting-started/server-and-client-components): default Server Components. `"use client"` es boundary — todo downstream queda en client bundle. Context no soportado en Server Components. Patrón canon: _"Add `'use client'` to specific interactive components instead of marking large parts of your UI as Client Components"_.
+- [Next.js App Router](https://nextjs.org/docs/app/getting-started/server-and-client-components): default Server Components. `"use client"` es boundary — todo downstream queda en client bundle. Context no soportado en Server Components. Patrón canon: _"Add `'use client'` to specific interactive components instead of marking large parts of your UI as Client Components"_.
 - Audit extendido vía Node AST-ish heuristic (`/tmp/use_client_audit.mjs`): detecta triggers legítimos (hooks + event handlers + browser APIs + Next.js navigation hooks + i18n + custom hooks).
 
 **Findings table (12 roadmap → 7 aplicables + 1 extensión + 5 falsos positivos + 1 deferred T3-R):**
@@ -1400,7 +1400,7 @@ Total: ≈48 fixes concretos, todos grounded en canon (WCAG SC 4.1.3 + ARIA APG 
 
 ---
 
-#### T3-K — useInbox.markMessageRead ⚡
+#### T3-K — useInbox.markMessageRead ⚡ ✅ 2026-04-28
 
 **Scope.** Silent failure + no invalidation en `useInbox`.
 
@@ -1417,6 +1417,15 @@ Total: ≈48 fixes concretos, todos grounded en canon (WCAG SC 4.1.3 + ARIA APG 
 **Estimación.** 30 min.
 
 **Dependencias.** ⚡ PARALELIZABLE.
+
+**Resultado real.** 3 fixes mecánicos + 1 test:
+
+- **Bug 1 — Silent fetch failure** (api.ts:129): Añadida guarda `if (!res.ok) throw new Error(...)` matching el patrón existente en los otros 8 endpoints del mismo archivo.
+- **Bug 2 — Missing invalidation** (mutations.ts:95): Añadido `useQueryClient()` + `onSuccess` con `invalidateQueries({ queryKey: ["inbox"] })` matching las 3 mutations hermanas (Resolve/Reopen/Assign). Ahora la lista de conversaciones (con unreadCount), conversation detail, y messages refrescan tras marcar como leído.
+- **Bug 3 — Stale UI** (consecuencia automática del fix 2): `ConversationCard.tsx:91` (sidebar unreadCount) ahora se refresca correctamente sin cambio en el consumer.
+- **Test integration** (`tests/integration/useMarkMessageRead.integration.test.tsx`): 4 casos — error propagation con !ok, cache invalidation con QueryClient spy, endpoint correcto con PATCH, no-invalidation cuando falla.
+
+Lint 0 / Typecheck 0 / Test 370/370 passed (+4) / Build 9/9 ✅
 
 ---
 

@@ -127,8 +127,9 @@ export async function assignMessage(messageId: string, assigneeId: string): Prom
 }
 
 export async function markMessageRead(messageId: string): Promise<void> {
-  await fetch(`/api/backend/inbox/messages/${messageId}/read`, {
+  const res = await fetch(`/api/backend/inbox/messages/${messageId}/read`, {
     method: "PATCH",
     credentials: "include",
   });
+  if (!res.ok) throw new Error("Failed to mark message as read");
 }
