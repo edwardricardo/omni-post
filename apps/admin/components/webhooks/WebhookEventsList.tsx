@@ -6,9 +6,15 @@
  * event payload inspection, and export functionality for webhook delivery audit trails.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ApiError, getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@/lib/parseApiError";
+import {
+  useWebhookEvents,
+  useWebhookEventDetail,
+  useExportWebhookEvents,
+  type WebhookEvent,
+} from "@/hooks/api/useWebhooks";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
@@ -23,25 +29,6 @@ import { ActionButton } from "@/components/ui/ActionButton";
 import { Search, Eye, RefreshCw, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-interface WebhookEvent {
-  id: string;
-  eventId: string;
-  eventType: string;
-  provider: string;
-  status: string;
-  verified: boolean;
-  processed: boolean;
-  retryCount: number;
-  processingTime?: number;
-  lastError?: string;
-  receivedAt: string;
-  processedAt?: string;
-  nextRetryAt?: string;
-  projectId?: string;
-  postId?: string;
-  channelId?: string;
-}
-
 interface WebhookEventsListProps {
   provider?: string;
   refreshTrigger?: string;
@@ -54,91 +41,51 @@ interface WebhookEventsListProps {
  * @param props.provider - Optional provider filter applied on mount
  * @param props.refreshTrigger - When changed, forces a data refetch
  */
-export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsListProps) {
+export function WebhookEventsList({
+  provider,
+  refreshTrigger: _refreshTrigger,
+}: WebhookEventsListProps) {
   const te = useTranslations("webhooks.events");
   const tc = useTranslations("common");
-  const [events, setEvents] = useState<WebhookEvent[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<WebhookEvent | null>(null);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    pages: 0,
-  });
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     status: "all",
     search: "",
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-        ...(provider && provider !== "all" && { provider }),
-        ...(filters.status !== "all" && { status: filters.status }),
-        ...(filters.search && { search: filters.search }),
-      });
+  // Debounce the search term so we don't fire a query on every keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
+  if (debouncedSearch !== filters.search) {
+    // Schedule a debounced update without an effect.
+    setTimeout(() => setDebouncedSearch(filters.search), 500);
+  }
 
-      const response = await fetch(`/api/backend/webhooks/dashboard/events?${params}`, {
-        credentials: "include",
-      });
+  const eventsQuery = useWebhookEvents({
+    page,
+    limit: 20,
+    provider,
+    status: filters.status,
+    search: debouncedSearch,
+  });
 
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw ApiError.fromResponse(response.status, body);
-      }
+  const events = eventsQuery.data?.events ?? [];
+  const pagination = eventsQuery.data?.pagination ?? { page, limit: 20, total: 0, pages: 0 };
+  const isLoading = eventsQuery.isPending;
+  const error = eventsQuery.isError ? getErrorMessage(eventsQuery.error) : null;
 
-      const data = await response.json();
-      const payload = data.data ?? data;
-      setEvents(payload.events ?? []);
-      if (payload.pagination) {
-        setPagination((prev) => ({ ...prev, ...payload.pagination }));
-      }
-      setError(null);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [provider, pagination.page, pagination.limit, filters.status, filters.search]);
+  const eventDetailQuery = useWebhookEventDetail(selectedEventId);
+  const selectedEvent: WebhookEvent | null = eventDetailQuery.data ?? null;
 
-  const fetchEventDetails = async (eventId: string) => {
-    try {
-      const response = await fetch(`/api/backend/webhooks/dashboard/events/${eventId}`, {
-        credentials: "include",
-      });
+  const exportMutation = useExportWebhookEvents();
 
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw ApiError.fromResponse(response.status, body);
-      }
-
-      const eventDetails = await response.json();
-      setSelectedEvent(eventDetails);
-    } catch {
-      // Failed to fetch event details — selection state remains unchanged
-    }
+  const fetchEventDetails = (eventId: string) => {
+    setSelectedEventId(eventId);
   };
 
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents, provider, refreshTrigger, pagination.page, filters.status]);
-
-  useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      if (pagination.page === 1) {
-        fetchEvents();
-      } else {
-        setPagination((prev) => ({ ...prev, page: 1 }));
-      }
-    }, 500);
-
-    return () => clearTimeout(delayedSearch);
-  }, [fetchEvents, filters.search, pagination.page]);
+  const fetchEvents = () => {
+    void eventsQuery.refetch();
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -176,34 +123,22 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
       .replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
-  const exportEvents = async () => {
-    try {
-      const params = new URLSearchParams({
-        ...(provider && provider !== "all" && { provider }),
-        ...(filters.status !== "all" && { status: filters.status }),
-      });
-
-      const response = await fetch(`/api/backend/webhooks/dashboard/export?${params}`, {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw ApiError.fromResponse(response.status, body);
+  const exportEvents = () => {
+    exportMutation.mutate(
+      { provider, status: filters.status },
+      {
+        onSuccess: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = `webhook-events-${new Date().toISOString().split("T")[0]}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+        },
       }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.style.display = "none";
-      a.href = url;
-      a.download = `webhook-events-${new Date().toISOString().split("T")[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      // Export error toast pending UI notification package
-    }
+    );
   };
 
   return (
@@ -475,7 +410,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                 <ActionButton
                   variant="secondary"
                   size="sm"
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={pagination.page === 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -487,7 +422,7 @@ export function WebhookEventsList({ provider, refreshTrigger }: WebhookEventsLis
                 <ActionButton
                   variant="secondary"
                   size="sm"
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  onClick={() => setPage((p) => p + 1)}
                   disabled={pagination.page === pagination.pages}
                 >
                   {tc("next")}

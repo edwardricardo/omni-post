@@ -1519,29 +1519,43 @@ Lint 0 / Typecheck 0 (client + admin) / Tests 378+128 / Build 9/9 ✅
 
 ---
 
-#### T3-N — Webhooks TanStack migration 🔒
+#### T3-N — Webhooks TanStack migration ✅ (2026-04-28)
 
-**Scope.** WebhookSubscriptions + WebhookEventsList bypass TanStack. Expand useWebhooks.
+**Scope.** WebhookSubscriptions + WebhookEventsList + DeadLetterQueue bypass TanStack. Expand useWebhooks.
 
 **Findings table (3):**
 
-| L-#   | Título corto                         | Esfuerzo | Acción   | §5.9 | Notas |
-| ----- | ------------------------------------ | -------- | -------- | ---- | ----- |
-| L-294 | WebhookEventsList TanStack bypass    | MEDIUM   | REFACTOR | AUTO |       |
-| L-295 | WebhookSubscriptions TanStack bypass | MEDIUM   | REFACTOR | AUTO |       |
-| L-327 | useWebhooks GAPs (expand hook)       | MEDIUM   | FIX      | AUTO |       |
+| L-#   | Título corto                         | Esfuerzo | Acción   | §5.9 | Notas    |
+| ----- | ------------------------------------ | -------- | -------- | ---- | -------- |
+| L-294 | WebhookEventsList TanStack bypass    | MEDIUM   | REFACTOR | AUTO | ✅ fixed |
+| L-295 | WebhookSubscriptions TanStack bypass | MEDIUM   | REFACTOR | AUTO | ✅ fixed |
+| L-327 | useWebhooks GAPs (expand hook)       | MEDIUM   | FIX      | AUTO | ✅ fixed |
 
 **Entry criteria.** T3-D cerrado.
 
-**Exit criteria:**
+**Exit criteria (verified 2026-04-28):**
 
 ```bash
-grep -rn "fetch(" apps/admin/src/components/webhooks/ | wc -l   # → 0
+# Raw fetch() calls (refetch() from TanStack excluded)
+grep -rnE "(^|[^a-zA-Z.])fetch\(" apps/admin/components/webhooks/ | wc -l   # → 0
+pnpm lint --max-warnings 0                                                  # → 0
+pnpm turbo run test --concurrency=1 --force                                 # → 38/38 (7,496 tests)
+pnpm build                                                                  # → 9/9
 ```
 
-**Estimación.** 4-6 h.
+**Resultado:**
 
-**Dependencias.** 🔒 BLOCKS_TIER para T3-I L-275/L-276.
+- `apps/admin/hooks/api/useWebhooks.ts` (1 archivo) → `useWebhooks/{types,api,queries,mutations,index}.ts` (split por convención T3-F/T3-G)
+- 8 query hooks: `useWebhookMetrics`, `useDlqMetrics`, `useWebhookSubscriptions`, `useProjectsForSubscriptionForm`, `useWebhookEvents`, `useWebhookEventDetail`, `useWebhookDeadLetterEvents`, `useOutboxDeadLetter`
+- 8 mutation hooks: `useCreateWebhookSubscription`, `useUpdateWebhookSubscription`, `useDeleteWebhookSubscription`, `useRetryWebhookDeadLetter`, `useRetryAllWebhookDeadLetter`, `useExportWebhookEvents`, `useRetryOutboxDlq`, `useResolveOutboxDlq`
+- 3 componentes refactor (`WebhookSubscriptions.tsx`, `WebhookEventsList.tsx`, `DeadLetterQueue.tsx`) — manual `fetch` + `useState/useEffect` reemplazado por hooks
+- 28 tests Vitest (`useWebhooks.test.tsx`) cubren queries, mutations, edge cases (PR-15 broken endpoint, payload envelope unwrapping, query string forwarding)
+
+**Diferido:** PR-15 — `fetchProjectsForSubscriptionForm` apunta a `/api/backend/projects` que no existe. Comportamiento preservado verbatim del código pre-T3-N (selector vacío en producción). Requiere decisión de producto sobre listing cross-account vs per-account. Documentado en `POST_REMEDIATION_BACKLOG.md` PR-15.
+
+**Estimación.** 4-6 h. **Real:** ~5 h.
+
+**Dependencias.** 🔒 Desbloquea T3-I L-275/L-276.
 
 ---
 

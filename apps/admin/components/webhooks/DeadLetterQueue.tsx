@@ -6,9 +6,9 @@
  * filtering, inspection, retry, and bulk operations on events that exhausted delivery attempts.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ApiError, getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@/lib/parseApiError";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
@@ -45,28 +45,12 @@ import {
   useOutboxDeadLetter,
   useRetryOutboxDlq,
   useResolveOutboxDlq,
+  useWebhookDeadLetterEvents,
+  useRetryWebhookDeadLetter,
+  useRetryAllWebhookDeadLetter,
+  type DeadLetterEvent,
 } from "@/hooks/api/useWebhooks";
 import { ChevronDown, ChevronUp, Archive, Inbox } from "lucide-react";
-
-interface DeadLetterEvent {
-  id: string;
-  provider: string;
-  eventType: string;
-  failureReason: string;
-  finalError: string;
-  retryCount: number;
-  firstFailedAt: string;
-  lastRetryAt: string;
-  resolvedAt?: string;
-  resolvedBy?: string;
-  payload: Record<string, unknown>;
-  headers: Record<string, string>;
-  originalEvent?: {
-    id: string;
-    eventId: string;
-    accountId: string;
-  };
-}
 
 /**
  * @component DeadLetterQueue
@@ -77,20 +61,13 @@ export function DeadLetterQueue() {
   const td = useTranslations("webhooks.deadLetter");
   const te = useTranslations("webhooks.events");
   const tc = useTranslations("common");
-  const [events, setEvents] = useState<DeadLetterEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<DeadLetterEvent | null>(null);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    pages: 0,
-  });
+  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     provider: "all",
     search: "",
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const [outboxExpanded, setOutboxExpanded] = useState(false);
   const [outboxPage, setOutboxPage] = useState(1);
 
@@ -99,92 +76,43 @@ export function DeadLetterQueue() {
   const retryOutbox = useRetryOutboxDlq();
   const resolveOutbox = useResolveOutboxDlq();
 
-  const fetchDeadLetterEvents = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-        ...(filters.provider !== "all" && { provider: filters.provider }),
-        ...(filters.search && { search: filters.search }),
-      });
+  // Debounce search input — schedule a pending update without an effect.
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
+  if (debouncedSearch !== filters.search) {
+    setTimeout(() => setDebouncedSearch(filters.search), 500);
+  }
 
-      const response = await fetch(`/api/backend/webhooks/dashboard/dead-letter?${params}`, {
-        credentials: "include",
-      });
+  const eventsQuery = useWebhookDeadLetterEvents({
+    page,
+    limit: 20,
+    provider: filters.provider,
+    search: debouncedSearch,
+  });
+  const events = eventsQuery.data?.events ?? [];
+  const pagination = eventsQuery.data?.pagination ?? { page, limit: 20, total: 0, pages: 0 };
+  const isLoading = eventsQuery.isPending;
+  const error = mutationError ?? (eventsQuery.isError ? getErrorMessage(eventsQuery.error) : null);
 
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw ApiError.fromResponse(response.status, body);
-      }
+  const retryMutation = useRetryWebhookDeadLetter();
+  const retryAllMutation = useRetryAllWebhookDeadLetter();
 
-      const data = await response.json();
-      const payload = data.data ?? data;
-      setEvents(payload.events ?? []);
-      if (payload.pagination) {
-        setPagination((prev) => ({ ...prev, ...payload.pagination }));
-      }
-      setError(null);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [pagination.page, pagination.limit, filters.provider, filters.search]);
-
-  const retryEvent = async (eventId: string) => {
-    try {
-      const response = await fetch(`/api/backend/webhooks/dashboard/dead-letter/${eventId}/retry`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw ApiError.fromResponse(response.status, body);
-      }
-
-      // Refresh the list
-      await fetchDeadLetterEvents();
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
+  const retryEvent = (eventId: string) => {
+    retryMutation.mutate(eventId, {
+      onSuccess: () => setMutationError(null),
+      onError: (err) => setMutationError(getErrorMessage(err)),
+    });
   };
 
-  const bulkRetryAll = async () => {
-    try {
-      // This would need to be implemented in the API
-      const response = await fetch("/api/backend/webhooks/dashboard/dead-letter/retry-all", {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw ApiError.fromResponse(response.status, body);
-      }
-
-      await fetchDeadLetterEvents();
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
+  const bulkRetryAll = () => {
+    retryAllMutation.mutate(undefined, {
+      onSuccess: () => setMutationError(null),
+      onError: (err) => setMutationError(getErrorMessage(err)),
+    });
   };
 
-  useEffect(() => {
-    fetchDeadLetterEvents();
-  }, [fetchDeadLetterEvents, pagination.page, filters.provider]);
-
-  useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      if (pagination.page === 1) {
-        fetchDeadLetterEvents();
-      } else {
-        setPagination((prev) => ({ ...prev, page: 1 }));
-      }
-    }, 500);
-
-    return () => clearTimeout(delayedSearch);
-  }, [fetchDeadLetterEvents, filters.search, pagination.page]);
+  const fetchDeadLetterEvents = () => {
+    void eventsQuery.refetch();
+  };
 
   const getProviderBadge = (provider: string) => {
     const variantMap: Record<string, "info" | "error" | "neutral"> = {
@@ -565,7 +493,7 @@ export function DeadLetterQueue() {
                 <ActionButton
                   variant="secondary"
                   size="sm"
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={pagination.page === 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -577,7 +505,7 @@ export function DeadLetterQueue() {
                 <ActionButton
                   variant="secondary"
                   size="sm"
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  onClick={() => setPage((p) => p + 1)}
                   disabled={pagination.page === pagination.pages}
                 >
                   {tc("next")}

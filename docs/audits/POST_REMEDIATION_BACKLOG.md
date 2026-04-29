@@ -755,6 +755,80 @@ Sub-batches T3-I.1..T3-I.7 se ejecutan **bajo demanda** según prioridad de Edwa
 
 ---
 
+### PR-15 — Admin webhook subscription project selector hits non-existent backend route
+
+**Fecha de aplicación:** 2026-04-29 (documentación)
+**Batch de origen:** T3-N (Webhooks TanStack migration) — descubierto durante audit pre-ejecución
+**Severidad del bug pre-existente:** medio — feature degradada silenciosa (selector siempre vacío) sin error visible al usuario
+**Tipo:** code + product (decisión de scope requerida antes del fix)
+
+**Descubrimiento.**
+
+`apps/admin/components/webhooks/WebhookSubscriptions.tsx:152` ejecuta:
+
+```typescript
+const fetchProjects = async () => {
+  try {
+    const response = await fetch("/api/backend/projects", { credentials: "include" });
+    if (response.ok) {
+      const data = await response.json();
+      setProjects(data);
+    }
+  } catch {
+    // Failed to fetch projects — select will show empty list
+  }
+};
+```
+
+Sin embargo, **`GET /api/backend/projects` no existe como ruta del backend.** `apps/api/src/projects/projectRoutes.ts` solo registra:
+
+- `GET /projects/:projectId` — fetch by id (route con path param obligatorio)
+- `GET /accounts/:accountId/projects` — list per-account
+- `POST /accounts/:accountId/projects` — create
+- otros métodos con `:projectId` o `:accountId` en path
+
+La ruta sin parámetros nunca matcheó. El fetch retorna 404, el `if (response.ok)` queda en `false`, y el `catch` con comentario explícito _"select will show empty list"_ confirma que el problema es conocido (o al menos asumido) por quien lo escribió. **Resultado en producción: el selector de proyectos en el modal de "create webhook subscription" siempre muestra lista vacía.**
+
+**Por qué NO se fixea en T3-N.**
+
+T3-N es una migración estructural (raw fetch → TanStack Query). El bug es **producto-bloqueante**, no técnico:
+
+1. **Decisión arquitectónica pendiente:** ¿el admin necesita un selector cross-account de proyectos? Per T6-A (decisión cerrada 2026-04-21): _"Admin no tiene concept de proyecto"_. Eso sugiere que el selector entero podría ser legacy de cuando admin manejaba proyectos. Si la respuesta es "no", el selector debe eliminarse — no fixearse.
+2. **Si la respuesta es "sí"**, se requiere:
+   - Decidir el modelo: cross-account (admin global) vs per-account (admin selecciona account primero, luego ve sus projects)
+   - Si cross-account: añadir nueva ruta backend `GET /admin/projects` con auth admin, paginación, y filtrado
+   - Si per-account: cambiar UX para que el modal pida primero account, luego cargue projects via `GET /accounts/:accountId/projects` (que sí existe)
+   - Añadir método al admin apiClient (`api.admin.getAllProjects()` o equivalente)
+3. T3-N preserva el comportamiento actual (incluyendo el bug). El refactor a TanStack mantiene la misma llamada rota `/api/backend/projects` dentro del nuevo hook `useWebhookSubscriptions`. Cuando se fixee este finding, el cambio será en una sola location (el hook), no esparcido por el componente.
+
+**Fix definitivo recomendado (cuando Edward decida scope).**
+
+Opción A (eliminar selector):
+
+- Quitar el campo `projectId` del modal de `WebhookSubscriptions.tsx`
+- Backend: confirmar que `webhooks/subscriptions` route ignora `projectId` (o lo deriva del account de la subscription)
+- Eliminar `fetchProjects` del flujo
+
+Opción B (cross-account admin):
+
+- Backend: añadir ruta `GET /admin/projects` con paginación + filtros + auth SUPER_ADMIN. Audit log obligatorio (cross-account access).
+- Admin apiClient: añadir `api.admin.getAllProjects(filters)` en `dashboardClient.ts`
+- Hook: nuevo `useAdminProjects(filters)` query
+- Componente: reemplazar fetch directo por hook
+
+Opción C (per-account):
+
+- Cambiar UX: paso 1 selecciona account, paso 2 selecciona project
+- Hook: reusar `useAccountProjects(accountId)` (ya existe en client app — replicar para admin)
+
+**Cuándo revisar.**
+
+Próximo turno con Edward post-T3-N. Decisión producto (A/B/C) → batch dedicado para implementación. Sugerido nombre: `T3-N.1` o entrada nueva en roadmap.
+
+**Estado:** DIFERIDO — pre-existente al T3-N, preserva comportamiento, decisión de producto pendiente. NO se introduce nueva deuda con T3-N.
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

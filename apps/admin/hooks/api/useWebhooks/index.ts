@@ -1,0 +1,43 @@
+/**
+ * @file index.ts
+ * @description Barrel export for the webhooks hook module — preserves the
+ *              public import path `@/hooks/api/useWebhooks` after the file
+ *              split into types/api/queries/mutations.
+ * @layer infrastructure
+ */
+
+export type {
+  CreateWebhookSubscriptionInput,
+  DashboardMetrics,
+  DeadLetterEvent,
+  DeadLetterFilters,
+  DeadLetterPage,
+  OutboxDeadLetterPage,
+  UpdateWebhookSubscriptionInput,
+  WebhookEvent,
+  WebhookEventsFilters,
+  WebhookEventsPage,
+  WebhookSubscription,
+} from "./types";
+
+export {
+  useDlqMetrics,
+  useOutboxDeadLetter,
+  useProjectsForSubscriptionForm,
+  useWebhookDeadLetterEvents,
+  useWebhookEventDetail,
+  useWebhookEvents,
+  useWebhookMetrics,
+  useWebhookSubscriptions,
+} from "./queries";
+
+export {
+  useCreateWebhookSubscription,
+  useDeleteWebhookSubscription,
+  useExportWebhookEvents,
+  useResolveOutboxDlq,
+  useRetryAllWebhookDeadLetter,
+  useRetryOutboxDlq,
+  useRetryWebhookDeadLetter,
+  useUpdateWebhookSubscription,
+} from "./mutations";
