@@ -547,10 +547,10 @@ Post T3-B. Sugerido: ejecutar entre T3-B y T3-C (mientras T3-D depende de mismo 
 
 ---
 
-### PR-12 — T3-F deferrals: single-hook complex state files + T3-P-blocked + authApi.ts
+### PR-12 — T3-F + T3-G deferrals: single-hook complex state files + blocked + orphan-pending
 
 **Fecha de aplicación:** 2026-04-28 (documentación)
-**Batch de origen:** T3-F (Small god files apps/client) — durante audit pre-ejecución
+**Batch de origen:** T3-F (apps/client) + T3-G (apps/admin) — durante audit pre-ejecución
 **Severidad del bug pre-existente:** N/A — no hay bug, son decisiones de scope
 **Tipo:** docs (clarificación de scope — postergaciones documentadas)
 
@@ -586,6 +586,22 @@ Audit estructural de los 15 archivos del T3-F roadmap (medición LOC + count de 
 **Excluido:**
 
 - `lib/auth/authApi.ts` (266 LOC, L-244) — listado en roadmap pero **no es un hook** (0 hooks, 1 función `parseApiError`-like, 7 types). Ya fue tocado en T3-B (migración a `ApiError` typed). El LOC es justificado por los 7 types públicos. No requiere split.
+
+---
+
+**Apéndice T3-G (apps/admin) — mismo framework aplicado.**
+
+**Grupo A — Ejecutado en T3-G (5 archivos):**
+
+`useCompliance.ts` (635/13), `usePricingTiers.ts` (305/9), `useGatewaySwitches.ts` (216/5), `useSettings.ts` (179/6), `useAdminUsers.ts` (172/5).
+
+**Grupo B / blocked — Diferido en T3-G (1 archivo):**
+
+- **`useAnalytics.ts`** (163 LOC, L-315) — 1 hook + depende de **L-325 (T3-P)** que reescribirá el wire al API real (composite fake-AI). Mismo patrón que `useContentLibraryState` (T3-F). Se ejecutará junto con T3-P.
+
+**Orphan-pending — Diferido en T3-G (1 archivo):**
+
+- **`useMultiPlatformScheduling.ts`** (159 LOC, L-316/L-320) — ORPHAN-pending: T6-A (2026-04-21) decidió **WIRE + SUPER_ADMIN gate** pero el WIRE aún no se ejecutó (sólo tests, cero consumers en producción). Split ahora = refactor doble cuando el WIRE se haga. Postergado hasta que T6-A WIRE-ee este hook (incluye L-341 + L-343 rescatados).
 
 **Por qué la regla "150-400 LOC = split" no se aplicó al pie de la letra.**
 

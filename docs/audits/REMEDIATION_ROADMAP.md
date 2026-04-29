@@ -1242,7 +1242,7 @@ Lint 0 / Typecheck 0 / Test 366/366 / Build 9/9 ✅
 
 ---
 
-#### T3-G — Small god files (apps/admin) ⚡
+#### T3-G — Small god files (apps/admin) ⚡ ✅ 2026-04-28 (parcial — Grupo A; Grupo B + orphan-pending documentados en PR-12)
 
 **Scope.** Hooks + files admin >150 LOC pero <400 LOC.
 
@@ -1269,6 +1269,14 @@ find apps/admin/src/ -name "*.ts" -not -path "*/node_modules/*" -exec wc -l {} +
 **Estimación.** 3-5 h.
 
 **Dependencias.** ⚡ PARALELIZABLE.
+
+**Resultado real.**
+
+- **Grupo A ejecutado (5 archivos):** `useCompliance.ts` (635→5 archivos, 13 hooks, 6 sub-dominios: overview, GDPR, security, score, DSAR, breach), `usePricingTiers.ts` (305→5, 9 hooks: tiers + bundles CRUD), `useGatewaySwitches.ts` (216→5, 5 hooks: list/detail + admin actions), `useSettings.ts` (179→5, 6 hooks: status + credentials + test connection + key rotation), `useAdminUsers.ts` (172→5, 5 hooks: CRUD + activate/deactivate). Cada uno split en `types.ts` / `api.ts` / `queries.ts` / `mutations.ts` + `index.ts` barrel preservando el import path original (`@/hooks/api/<name>`).
+- **Grupo B / blocked (1 archivo):** `useAnalytics.ts` (163 LOC, L-315) depende de L-325/T3-P. Documentado en PR-12.
+- **Orphan-pending (1 archivo):** `useMultiPlatformScheduling.ts` (159 LOC, L-316/L-320) — T6-A decidió WIRE pero aún no ejecutado. Split ahora = refactor doble. Documentado en PR-12.
+
+Lint 0 / Typecheck 0 / Test 123/123 / Build 9/9 ✅
 
 ---
 
