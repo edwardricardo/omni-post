@@ -9,7 +9,8 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { usePost, useProjects, useProviders } from "@/lib/api/hooks";
+import { usePost, useProjects } from "@/lib/api/hooks";
+import { useProviders } from "@/lib/hooks/useProviders";
 import { apiClient } from "@/lib/api/client";
 import { ClientContentEditor } from "@/components/editor/ClientContentEditor";
 import {

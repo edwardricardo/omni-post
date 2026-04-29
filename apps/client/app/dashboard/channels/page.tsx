@@ -5,9 +5,12 @@
  */
 "use client";
 
-import { useState, useId } from "react";
+import { useState, useId, useMemo } from "react";
+import type { ProviderMetadata } from "@shared/types";
 import { ConfirmDialog, toast } from "@packages/ui";
-import { useChannels, useProviders, useDisconnectChannel } from "@/hooks/api/useChannels";
+import { useChannels, useDisconnectChannel } from "@/hooks/api/useChannels";
+import { useProviders } from "@/lib/hooks/useProviders";
+import { mapProvidersToMetadata } from "@/lib/utils/providerMapper";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
@@ -38,18 +41,6 @@ interface Channel {
   };
 }
 
-interface Provider {
-  id: string;
-  name: string;
-  displayName: string;
-  icon: string;
-  color: string;
-  status: "active" | "beta" | "coming_soon" | "maintenance";
-  authType: "oauth" | "api_key" | "username_password";
-  capabilities: Channel["capabilities"];
-  description: string;
-}
-
 function ChannelsPageContent() {
   // Use TanStack Query hooks
   const {
@@ -58,12 +49,20 @@ function ChannelsPageContent() {
     error: channelsError,
     refetch: refetchChannels,
   } = useChannels();
-  const { data: providers, isLoading: providersLoading, error: providersError } = useProviders();
+  const {
+    providers: rawProviders,
+    isLoading: providersLoading,
+    error: providersError,
+  } = useProviders();
+  const providers = useMemo<ProviderMetadata[]>(
+    () => mapProvidersToMetadata(rawProviders),
+    [rawProviders]
+  );
   const disconnectChannelMutation = useDisconnectChannel();
 
   const [selectedChannels, setSelectedChannels] = useState<Set<string>>(new Set());
   const [showConnectModal, setShowConnectModal] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<ProviderMetadata | null>(null);
   const [blueskyHandle, setBlueskyHandle] = useState("");
   const [blueskyAppPassword, setBlueskyAppPassword] = useState("");
   const blueskyHandleId = useId();
@@ -84,7 +83,7 @@ function ChannelsPageContent() {
     setSelectedChannels(newSelected);
   };
 
-  const handleConnectProvider = (provider: Provider) => {
+  const handleConnectProvider = (provider: ProviderMetadata) => {
     setSelectedProvider(provider);
     setBlueskyHandle("");
     setBlueskyAppPassword("");
@@ -187,7 +186,7 @@ function ChannelsPageContent() {
     );
   };
 
-  const getProviderStatusBadge = (status: Provider["status"]) => {
+  const getProviderStatusBadge = (status: ProviderMetadata["status"]) => {
     const colors = {
       active: "bg-green-100 text-green-800",
       beta: "bg-blue-100 text-blue-800",

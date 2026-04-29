@@ -32,18 +32,6 @@ interface Channel {
   };
 }
 
-interface Provider {
-  id: string;
-  name: string;
-  displayName: string;
-  icon: string;
-  color: string;
-  status: "active" | "beta" | "coming_soon" | "maintenance";
-  authType: "oauth" | "api_key" | "username_password";
-  capabilities: Channel["capabilities"];
-  description: string;
-}
-
 /**
  * @hook useChannels
  * @description Fetches all connected social media channels for the current account.
@@ -65,30 +53,6 @@ export function useChannels() {
       return data.channels as Channel[];
     },
     staleTime: 60000, // 1 minute
-  });
-}
-
-/**
- * @hook useProviders
- * @description Fetches the list of available social media providers with their capabilities and status.
- * @returns TanStack Query result with provider array
- */
-export function useProviders() {
-  return useQuery({
-    queryKey: ["providers", "list"],
-    queryFn: async () => {
-      const response = await fetch("/api/backend/providers", {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch providers");
-      }
-
-      const data = await response.json();
-      return data.providers as Provider[];
-    },
-    staleTime: 300000, // 5 minutes (providers don't change often)
   });
 }
 

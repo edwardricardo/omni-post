@@ -3,12 +3,8 @@
  * @description Utility functions to map backend Provider objects to the ProviderMetadata shape expected by UI components, applying default limits, colors, and OAuth scopes.
  */
 
+import type { ProviderMetadata, ProviderCapabilities, ProviderLimits } from "@shared/types";
 import type { Provider } from "@/lib/api/types";
-import type {
-  ProviderMetadata,
-  ProviderCapabilities,
-  ProviderLimits,
-} from "@/lib/api/providerApiClient";
 
 // Default platform limits - these would normally come from the backend
 const DEFAULT_LIMITS: Record<string, ProviderLimits> = {

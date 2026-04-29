@@ -173,6 +173,3 @@ export function useUploadFile(
     ...options,
   });
 }
-
-// Re-export useProviders from hooks
-export { useProviders } from "../hooks/useProviders";

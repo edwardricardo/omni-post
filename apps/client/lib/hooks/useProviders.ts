@@ -2,29 +2,44 @@
 
 /**
  * @file useProviders.ts
- * @description Custom hooks for accessing social media provider data, including content validation, feature detection, optimal posting times, and status styling helpers.
+ * @description Canonical provider hook for the client app. Wraps the typed
+ *              `apiClient.getProviders()` call (proxied through Next.js so
+ *              auth cookies are forwarded correctly) and augments the raw
+ *              backend response with domain-level helpers from the local
+ *              provider registry — content validation, feature detection,
+ *              optimal posting times, and provider config lookup.
+ *
+ *              This is the single canonical `useProviders` import path for
+ *              components that need any of those helpers; `useApiProviders`
+ *              in `lib/api/hooks.ts` remains available for callers that only
+ *              need raw TanStack data without the helpers.
+ * @layer infrastructure
  */
 
 import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api/client";
+import type { Provider } from "@/lib/api/types";
 import { providerRegistry, type ProviderConfig } from "@/lib/providers/registry";
 
-interface Provider {
-  id: string;
-  name: string;
-  type: string;
-  enabled: boolean;
-  config: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-}
-
+/**
+ * @interface UseProvidersResult
+ * @description Public shape returned by `useProviders()`. Combines the live
+ *              backend provider list with locally-known config from
+ *              `providerRegistry`, plus convenience helpers commonly used by
+ *              editor/publishing UI.
+ */
 interface UseProvidersResult {
+  /** Backend providers as returned by `GET /providers`. */
   providers: Provider[];
+  /** Static provider configs known by the local registry. */
   providerConfigs: ProviderConfig[];
   isLoading: boolean;
   error: Error | null;
+  /** Subset of `providers` whose `isActive` flag is true. */
   enabledProviders: Provider[];
+  /** Look up a registry config by provider id. */
   getProviderConfig: (providerId: string) => ProviderConfig | undefined;
+  /** Validate content/media against a provider's registered constraints. */
   validateContent: (
     providerId: string,
     content: string,
@@ -33,33 +48,28 @@ interface UseProvidersResult {
     valid: boolean;
     errors: string[];
   };
+  /** Whether a provider supports a given feature flag in its registry config. */
   supportsFeature: (providerId: string, feature: keyof ProviderConfig["features"]) => boolean;
+  /** Optimal posting times for a provider on a given date. */
   getOptimalTimes: (providerId: string, date: Date) => string[];
 }
 
+/**
+ * @hook useProviders
+ * @description Fetches providers from the backend (through the proxy) and
+ *              augments them with local registry helpers. See
+ *              `UseProvidersResult` for the returned shape.
+ */
 export function useProviders(): UseProvidersResult {
-  const {
-    data: providers = [],
-    isLoading,
-    error,
-  } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["providers"],
-    queryFn: async () => {
-      const response = await fetch("/api/providers");
-      if (!response.ok) {
-        throw new Error("Failed to fetch providers");
-      }
-      return response.json();
-    },
+    queryFn: () => apiClient.getProviders(),
   });
 
-  // Get all available provider configurations
+  const providers: Provider[] = data?.providers ?? [];
   const providerConfigs = providerRegistry.getAllProviders();
+  const enabledProviders = providers.filter((provider) => provider.isActive);
 
-  // Filter enabled providers
-  const enabledProviders = providers.filter((provider: Provider) => provider.enabled);
-
-  // Helper functions
   const getProviderConfig = (providerId: string): ProviderConfig | undefined => {
     return providerRegistry.getProvider(providerId);
   };
@@ -83,7 +93,7 @@ export function useProviders(): UseProvidersResult {
     providers,
     providerConfigs,
     isLoading,
-    error,
+    error: error as Error | null,
     enabledProviders,
     getProviderConfig,
     validateContent,
@@ -92,7 +102,10 @@ export function useProviders(): UseProvidersResult {
   };
 }
 
-// Custom hook to get provider status color
+/**
+ * @hook useProviderStatusColor
+ * @description Tailwind class string for a registry-status badge color.
+ */
 export function useProviderStatusColor(status: "active" | "beta" | "coming_soon" | "maintenance") {
   switch (status) {
     case "active":
@@ -108,7 +121,10 @@ export function useProviderStatusColor(status: "active" | "beta" | "coming_soon"
   }
 }
 
-// Custom hook to get provider status label
+/**
+ * @hook useProviderStatusLabel
+ * @description Human-readable label for a registry-status badge.
+ */
 export function useProviderStatusLabel(status: "active" | "beta" | "coming_soon" | "maintenance") {
   switch (status) {
     case "active":
