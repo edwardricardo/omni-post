@@ -547,6 +547,63 @@ Post T3-B. Sugerido: ejecutar entre T3-B y T3-C (mientras T3-D depende de mismo 
 
 ---
 
+### PR-18 — T3-R deferrals: L-94 (channels OAuth) + L-95 (Test/Settings UI cleanup) bloqueados por decisión producto
+
+**Fecha de aplicación:** 2026-04-29 (documentación)
+**Batch de origen:** T3-R (SidebarNav + OAuth + Test/Settings) — partial completion: L-305 ejecutado, L-94/L-95 diferidos
+**Severidad del bug pre-existente:** medio-alto — 10 de 11 providers no permiten conectar canales (OAuth connect dead) + UI con botones "Coming soon" deshabilitados
+**Tipo:** code + product (decisión de scope requerida antes del fix)
+
+**Descubrimiento.**
+
+T3-R agrupa tres findings con perfiles muy distintos:
+
+- **L-305** (QUICK / AUTO) — Anti-patrón `document.cookie` + `window.location.reload()` para locale switching en `SidebarNav.tsx`. Auto-decidible. **Cerrado en este batch** vía Server Action + `revalidatePath`.
+- **L-94** (HEAVY / NEEDS*EDWARD) — `channels` OAuth connect dead for 10/11 providers. Solo Bluesky tiene flow funcional (App Password). Los demás (X, Instagram, Facebook, YouTube, TikTok, LinkedIn, Pinterest, Snapchat, Threads, Telegram) tienen botones "Connect" que abren modal pero no ejecutan OAuth real — el código tiene un comentario explícito *"OAuth flow not yet implemented — requires redirect to provider OAuth URL"\_ en `dashboard/channels/page.tsx`.
+- **L-95** (QUICK / DECIDE) — Channels list UI muestra botones "Test" y "Settings" deshabilitados con tooltip "Coming soon". Decisión: implementar features reales o eliminar de la UI.
+
+**Por qué NO se ejecutaron L-94 y L-95 ahora.**
+
+Ambos requieren decisión producto que no podemos tomar sin Edward:
+
+1. **L-94 — OAuth real para 10 providers.** Cada provider tiene flow OAuth distinto:
+   - Cliente IDs / secrets de cada provider deben configurarse (env vars).
+   - Redirect URLs registrados con cada provider (admin config).
+   - Endpoints de callback en backend (cada provider tiene shape de response distinto).
+   - Token storage (encriptado en DB — ya existe el módulo CRYPTO).
+   - Refresh token flows por provider (algunos 60 días, otros 90, otros lifetime).
+   - **Decisión producto:** ¿Qué providers tienen prioridad? ¿OAuth en orden de demanda real o todos a la vez? Estimación: 3-6h por provider × 10 = 30-60h.
+
+2. **L-95 — Test/Settings buttons.** Decisión binaria:
+   - **Implementar Test:** ¿qué hace "Test"? ¿Validación de credenciales? ¿Ping de health-check? ¿Post de prueba?
+   - **Implementar Settings:** ¿qué editor por canal? ¿Webhook URLs? ¿Throttling? ¿Posting schedule preferences?
+   - **Eliminar:** simplemente quitar los botones del UI. ~15 min.
+
+**Fix definitivo recomendado.**
+
+Opción A (parcial — L-95 cleanup ahora, L-94 después):
+
+- Eliminar botones "Test"/"Settings" del UI inmediatamente. Cierra L-95.
+- Agendar T3-R.2 dedicado para L-94 cuando Edward priorice providers.
+
+Opción B (full implementation):
+
+- Sesión dedicada con Edward para definir scope OAuth.
+- Implementar provider por provider en sub-batches T3-R.2.X (uno por provider).
+- Cada sub-batch incluye: env vars, callback route, token storage, refresh flow, tests integration.
+
+Opción C (keep deferred):
+
+- Posponer ambos hasta que Edward priorice. Mantener UI actual con botones deshabilitados.
+
+**Cuándo revisar.**
+
+Próxima sesión con Edward post-T3-R parcial. Edward decide A/B/C; si A, ejecutar L-95 cleanup en batch dedicado (~30 min). Si B, agendar sesión de planning OAuth provider-by-provider.
+
+**Estado:** DIFERIDO — pre-existente a T3-R, T3-R parcial preserva UI actual sin tocar OAuth/Settings. NO se introduce nueva deuda; la deuda ya existía y queda registrada explícitamente con plan de re-evaluación.
+
+---
+
 ### PR-12 — T3-F + T3-G deferrals: single-hook complex state files + blocked + orphan-pending
 
 **Fecha de aplicación:** 2026-04-28 (documentación)

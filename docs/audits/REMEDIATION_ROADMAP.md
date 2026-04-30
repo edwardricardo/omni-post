@@ -1650,27 +1650,40 @@ Aplicado el plan canon-grounded D5.A+B + D5.1.b + D5.3.b (smart default + overri
 
 ---
 
-#### T3-R — SidebarNav logout + OAuth admin UI ⚡
+#### T3-R — SidebarNav logout + OAuth admin UI ⚡ ⏸️ (parcial — L-305 cerrado 2026-04-29; L-94/L-95 diferidos en PR-18)
 
-**Scope.** SidebarNav logout via window.location.reload + OAuth connect dead for 10/11 providers + Test/Settings disabled.
+**Scope.** SidebarNav locale switching anti-pattern + OAuth connect dead for 10/11 providers + Test/Settings disabled.
 
 **Findings table (3):**
 
-| L-#   | Título corto                                          | Esfuerzo | Acción    | §5.9         | Notas                            |
-| ----- | ----------------------------------------------------- | -------- | --------- | ------------ | -------------------------------- |
-| L-305 | `SidebarNav` document.cookie + window.location.reload | QUICK    | REFACTOR  | AUTO         | NextAuth signOut / Server Action |
-| L-94  | channels OAuth connect dead for 10/11 providers       | HEAVY    | IMPLEMENT | NEEDS_EDWARD | OAuth flow                       |
-| L-95  | channels Test/Settings disabled "Coming soon"         | QUICK    | DECIDE    | NEEDS_EDWARD | Implement o remove               |
+| L-#   | Título corto                                          | Esfuerzo | Acción    | §5.9         | Notas                                        |
+| ----- | ----------------------------------------------------- | -------- | --------- | ------------ | -------------------------------------------- |
+| L-305 | `SidebarNav` document.cookie + window.location.reload | QUICK    | REFACTOR  | AUTO         | fixed — Server Action + revalidatePath canon |
+| L-94  | channels OAuth connect dead for 10/11 providers       | HEAVY    | IMPLEMENT | NEEDS_EDWARD | deferred PR-18 — pendiente decisión producto |
+| L-95  | channels Test/Settings disabled "Coming soon"         | QUICK    | DECIDE    | NEEDS_EDWARD | deferred PR-18 — pendiente decisión producto |
 
 **Entry criteria.** T6 decisions session (L-94/L-95 are `DECIDE`).
 
-**Exit criteria:**
+**Exit criteria (L-305 verified 2026-04-29):**
 
 ```bash
-grep -n "window.location.reload\|document.cookie" apps/admin/src/components/shared/SidebarNav.tsx | wc -l   # → 0
+grep -n "window.location.reload\|document.cookie" apps/admin/components/shared/SidebarNav.tsx | wc -l   # → 0
+pnpm lint --max-warnings 0                                                                            # → 0
+pnpm --filter @apps/admin test                                                                        # → 160/160 (4 nuevos)
+pnpm --filter @apps/admin build                                                                       # → clean
 ```
 
-**Estimación.** Variable. L-305 30 min. L-94 3-6 h si IMPLEMENT. L-95 depende decisión.
+**Resultado L-305 (parcial T3-R).**
+
+- Nuevo Server Action `apps/admin/app/actions/locale.ts` — `setLocaleAction(locale)` valida el locale, escribe `NEXT_LOCALE` cookie con atributos seguros (`path: "/"`, `sameSite: "lax"`, `maxAge: 1y`) vía `cookies().set()`, y dispara `revalidatePath("/", "layout")` para refrescar todos los Server Components.
+- `SidebarNav.tsx` refactor: eliminada función `setLocaleCookie` (anti-patrón `document.cookie` + `window.location.reload`). `useTransition` (React 19 canon) wrappea la llamada al Server Action para feedback de pending state. Botones de idioma agregan `aria-pressed` y `disabled` mientras la transición está en curso.
+- Tests: 4 unit tests del Server Action (cookie shape, locale "en"/"es", revalidatePath invocation, locale inválido ignorado).
+
+**Diferido (L-94 + L-95).**
+
+- **PR-18** — OAuth real para 10/11 providers + Test/Settings UI cleanup. Bloqueado por decisión de producto sobre alcance de OAuth en admin (¿admin gestiona OAuth real para client accounts? ¿UI de Test/Settings se implementa o se elimina del menú?). Cuando Edward decida, ejecutar como T3-R.2 dedicado. Ver entrada en `POST_REMEDIATION_BACKLOG.md`.
+
+**Estimación.** L-305 real: ~45 min (close a estimación 30 min del roadmap).
 
 **Dependencias.** ⚡ PARALELIZABLE.
 
