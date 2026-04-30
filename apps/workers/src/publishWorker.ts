@@ -25,8 +25,14 @@ import { pinterestAdapter } from "@providers/pinterest";
 import { linkedInAdapter } from "@providers/linkedin";
 import { blueskyAdapter } from "@providers/bluesky";
 import { threadsAdapter } from "@providers/threads";
+import { setChannelCredentialsRepository } from "@providers/shared";
 import { createBullMQConsumerAdapter } from "@adapters/queue-bullmq";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+
+// Wire the channel-credentials port so AbstractProviderAdapter can read
+// credentials from the database without importing `@adapters/db-prisma`
+// inside the providers package.
+setChannelCredentialsRepository(createPrismaRepoAdapter());
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
 import http from "http";

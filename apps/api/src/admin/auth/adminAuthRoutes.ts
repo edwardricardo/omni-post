@@ -7,7 +7,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { ZodError } from "zod";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
 import type { AdminAuthService } from "./AdminAuthService.js";
 import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import { requireAdminAuth, rateLimit } from "./adminAuthMiddleware";

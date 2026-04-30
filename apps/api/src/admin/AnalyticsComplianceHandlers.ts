@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import type { PrismaClient, Prisma } from "@infra/prisma";
 import { ComplianceAuditLogsQuerySchema, GdprQuerySchema } from "./analyticsSchemas.js";
 

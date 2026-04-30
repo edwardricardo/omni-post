@@ -7,6 +7,13 @@
 // Abstract Provider Adapter (class-based architecture)
 export { AbstractProviderAdapter } from "./AbstractProviderAdapter.js";
 
+// Channel credentials port — apps wire the Prisma-backed implementation at
+// startup so the providers package itself stays free of infrastructure imports.
+export {
+  setChannelCredentialsRepository,
+  type ChannelCredentialsRepository,
+} from "./channelCredentialsRepository.js";
+
 // Structured provider errors
 export { ProviderError, ProviderErrorCode } from "./ProviderError.js";
 

@@ -6,13 +6,12 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
-  BaseRouteHandler,
-  type RouteContext,
   IdSchema,
   exportToCSV,
   generateCSVFilename,
   type ColumnDefinition,
 } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { AuthenticatedUser } from "../auth/authService.js";
 import type { PrismaClient } from "@infra/prisma";

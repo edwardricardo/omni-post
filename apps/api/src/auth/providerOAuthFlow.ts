@@ -6,12 +6,12 @@
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
+import { IdSchema } from "@packages/api-common";
 import {
   BaseRouteHandler,
-  RouteContext,
-  IdSchema,
+  type RouteContext,
   type OAuthErrorContext,
-} from "@packages/api-common";
+} from "../lib/route-handler/index.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ProviderId } from "../providers/providerAdapter.interface.js";
 import type { ProviderConnection, Provider as PrismaProvider } from "@infra/prisma";

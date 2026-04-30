@@ -19,7 +19,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import * as openidClient from "openid-client";
 import { randomBytes } from "crypto";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import type { ConfigureOidcUseCase } from "../application/auth/ConfigureOidcUseCase.js";

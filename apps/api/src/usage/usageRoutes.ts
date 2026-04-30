@@ -6,7 +6,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GetUsageUseCase } from "../application/usage/GetUsageUseCase.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";

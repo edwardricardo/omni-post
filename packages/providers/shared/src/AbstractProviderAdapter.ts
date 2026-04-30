@@ -21,6 +21,10 @@ import type {
 } from "@shared/types";
 import { ok, err } from "@shared/types";
 import pino from "pino";
+import { resolveChannelCredentials } from "./channelCredentialsRepository.js";
+
+export type { ChannelCredentialsRepository } from "./channelCredentialsRepository.js";
+export { setChannelCredentialsRepository } from "./channelCredentialsRepository.js";
 
 // Re-export all types so existing importers continue to work
 export type {
@@ -172,34 +176,21 @@ export abstract class AbstractProviderAdapter<TCredentials extends ProviderCrede
   protected async getCredentialsFromDatabase(
     channelId: string
   ): Promise<Result<TCredentials, "AUTH">> {
-    try {
-      const { createPrismaRepoAdapter } = await import("@adapters/db-prisma");
-      const repoAdapter = createPrismaRepoAdapter();
-
-      const channelsResult = await repoAdapter.getChannelsByIds([channelId]);
-      if (!channelsResult.ok || channelsResult.value.length === 0) {
-        return err("AUTH");
-      }
-
-      const channel = channelsResult.value[0];
-      if (!channel || !channel.credentials) {
-        return err("AUTH");
-      }
-
-      // channel.credentials is already a parsed object from Prisma (Json field).
-      // Do not double-parse — use it directly.
-      const credentials = channel.credentials as unknown as TCredentials;
-      const validationResult = this.validateCredentialStructure(credentials);
-
-      if (!validationResult.ok) {
-        return err("AUTH");
-      }
-
-      return ok(validationResult.value);
-    } catch (error: unknown) {
-      logger.error(`Database credential retrieval failed: ${error}`);
+    const credentialsResult = await resolveChannelCredentials(channelId);
+    if (!credentialsResult.ok) {
       return err("AUTH");
     }
+
+    // The repository returns the raw JSON blob; each provider validates the
+    // shape against its own typed credentials below.
+    const credentials = credentialsResult.value as TCredentials;
+    const validationResult = this.validateCredentialStructure(credentials);
+
+    if (!validationResult.ok) {
+      return err("AUTH");
+    }
+
+    return ok(validationResult.value);
   }
 
   protected async uploadMediaWithRetry(

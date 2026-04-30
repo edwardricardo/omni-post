@@ -4,8 +4,11 @@
  *              Instagram API client and media processor to execute media uploads and post creation.
  * @layer infrastructure
  */
-import { InstagramApiClient, type InstagramCredentials } from "./apiClient.js";
-import { InstagramMediaProcessor } from "./mediaProcessor.js";
+import {
+  InstagramApiClient,
+  InstagramMediaProcessor,
+  type InstagramCredentials,
+} from "@providers/instagram";
 import { createBullMQConsumerAdapter, createBullMQQueueAdapter } from "@adapters/queue-bullmq";
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";

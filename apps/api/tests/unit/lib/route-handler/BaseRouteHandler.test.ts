@@ -15,9 +15,8 @@
 import { describe, it, beforeEach, expect } from "vitest";
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
+import { BaseRouteHandler, type RouteContext } from "../../../../src/lib/route-handler/index.js";
 import {
-  BaseRouteHandler,
-  RouteContext,
   IdSchema,
   PaginationQuerySchema,
   IsoDateSchema,
@@ -30,7 +29,7 @@ import {
   PostStatusSchema,
   PasswordSchema,
   UserRoleSchema,
-} from "../src/BaseRouteHandler";
+} from "@packages/api-common";
 
 /**
  * Concrete implementation for testing

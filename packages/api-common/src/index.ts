@@ -1,20 +1,14 @@
 /**
  * @file index.ts
- * @description Barrel exports for the api-common package — BaseRouteHandler, shared Zod schemas,
- *              and the CSV export utility.
+ * @description Barrel exports for the api-common package — framework-neutral
+ *              shared utilities: Zod schema helpers, HMAC webhook signature
+ *              verification, and CSV export. Framework-coupled route handler
+ *              base class lives app-local in `apps/api/src/lib/route-handler/`
+ *              so this package stays free of Fastify.
  * @layer infrastructure
  */
-// Base handler
-export { BaseRouteHandler } from "./BaseRouteHandler";
-export type {
-  RouteContext,
-  ValidationOptions,
-  ErrorResponse,
-  SuccessResponse,
-  OAuthErrorContext,
-} from "./BaseRouteHandler";
 
-// Common Zod schemas
+// Common Zod schemas (framework-neutral)
 export {
   IdSchema,
   PaginationQuerySchema,
@@ -28,7 +22,11 @@ export {
   PostStatusSchema,
   PasswordSchema,
   UserRoleSchema,
-} from "./BaseRouteHandler";
+} from "./schemas";
+
+// Framework-neutral webhook signature helpers (no Fastify dependency)
+export { verifyWebhookSignature, constantTimeCompare } from "./webhookSignature";
+export type { WebhookVerificationOptions } from "./webhookSignature";
 
 // CSV Export utility
 export { exportToCSV, generateCSVFilename } from "./utils/csvExport";

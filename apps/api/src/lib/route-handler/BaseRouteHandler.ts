@@ -9,7 +9,10 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { ZodSchema, ZodError } from "zod";
 import type { Result } from "@shared/types";
 import pino from "pino";
-import { createHmac, timingSafeEqual } from "crypto";
+import {
+  verifyWebhookSignature as verifyWebhookSignatureCore,
+  constantTimeCompare as constantTimeCompareCore,
+} from "@packages/api-common";
 
 const logger = pino({
   name: "base-route-handler",
@@ -62,13 +65,12 @@ export interface OAuthErrorResponse {
 }
 
 /**
- * Webhook signature verification options
+ * Webhook signature verification options — sourced from the framework-neutral
+ * helper in `@packages/api-common` so consumers may import the type from
+ * either side without duplication.
  */
-export interface WebhookVerificationOptions {
-  algorithm?: "sha256" | "sha1";
-  encoding?: "hex" | "base64";
-  removePrefix?: boolean;
-}
+export type { WebhookVerificationOptions } from "@packages/api-common";
+import type { WebhookVerificationOptions } from "@packages/api-common";
 
 /**
  * Abstract base class for route handlers
@@ -450,63 +452,24 @@ export abstract class BaseRouteHandler {
     secret: string,
     options?: WebhookVerificationOptions
   ): boolean {
-    const algorithm = options?.algorithm || "sha256";
-    const encoding = options?.encoding || "hex";
-    const removePrefix = options?.removePrefix ?? false;
-
-    try {
-      // Remove common prefixes like "sha256=" from Instagram/Facebook
-      let cleanSignature = signature;
-      if (removePrefix) {
-        cleanSignature = signature.replace(/^sha256=|^sha1=/i, "");
-      }
-
-      // Compute expected signature
-      const hmac = createHmac(algorithm, secret);
-      hmac.update(payload, "utf8");
-      const expectedSignature = hmac.digest(encoding as "hex" | "base64");
-
-      // Constant-time comparison to prevent timing attacks
-      return this.constantTimeCompare(cleanSignature, expectedSignature);
-    } catch (error) {
-      this.logError(
-        { request: {} as FastifyRequest, reply: {} as FastifyReply },
-        "Webhook signature verification failed",
-        { error }
-      );
-      return false;
-    }
+    return verifyWebhookSignatureCore(payload, signature, secret, {
+      ...options,
+      onError: (error) => {
+        // Crypto / encoding errors are reported through the framework-specific
+        // logger here. The core helper has no Fastify dependency, so the leak
+        // (the previous `{} as FastifyRequest` cast) is gone.
+        logger.error({ error, route: "webhookSignature" }, "Webhook signature verification failed");
+      },
+    });
   }
 
   /**
    * Constant-time string comparison to prevent timing attacks
    *
-   * Uses Node.js built-in timingSafeEqual when possible, falls back to
-   * bitwise XOR comparison for strings of different lengths or encoding issues.
+   * Thin wrapper around the framework-neutral helper in `./webhookSignature`.
    */
   protected constantTimeCompare(a: string, b: string): boolean {
-    if (a.length !== b.length) {
-      return false;
-    }
-
-    try {
-      // Prefer built-in constant-time comparison
-      const bufA = Buffer.from(a, "utf8");
-      const bufB = Buffer.from(b, "utf8");
-
-      if (bufA.length !== bufB.length) {
-        return false;
-      }
-
-      return timingSafeEqual(new Uint8Array(bufA), new Uint8Array(bufB));
-    } catch {
-      // Fallback to manual XOR comparison
-      let result = 0;
-      for (let i = 0; i < a.length; i++) {
-        result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-      }
-      return result === 0;
-    }
+    return constantTimeCompareCore(a, b);
   }
 
   /**
@@ -601,51 +564,3 @@ export abstract class BaseRouteHandler {
     };
   }
 }
-
-/**
- * Common Zod schema helpers for validation
- */
-import { z } from "zod";
-
-// UUID validation schema
-export const IdSchema = z.string().uuid({ message: "Invalid UUID format" });
-
-// Pagination query schema
-export const PaginationQuerySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
-});
-
-// ISO date validation schema
-export const IsoDateSchema = z.string().datetime({ message: "Invalid ISO 8601 date format" });
-
-// Optional ISO date schema
-export const OptionalIsoDateSchema = IsoDateSchema.optional();
-
-// Email validation schema
-export const EmailSchema = z.string().email({ message: "Invalid email format" });
-
-// Non-empty string schema
-export const NonEmptyStringSchema = z.string().min(1, { message: "String cannot be empty" });
-
-// URL validation schema
-export const UrlSchema = z.string().url({ message: "Invalid URL format" });
-
-// Positive integer schema
-export const PositiveIntSchema = z.number().int().positive();
-
-// Provider enum schema (commonly used)
-export const ProviderSchema = z.enum(["X", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "TIKTOK"]);
-
-// Status enum schema (commonly used for posts)
-export const PostStatusSchema = z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"]);
-
-// Password validation schema (min 8 chars, 1 uppercase, 1 number)
-export const PasswordSchema = z
-  .string()
-  .min(8, { message: "Password must be at least 8 characters" })
-  .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter" })
-  .regex(/[0-9]/, { message: "Password must contain at least one number" });
-
-// User role enum schema
-export const UserRoleSchema = z.enum(["ADMIN", "USER", "MODERATOR"]);

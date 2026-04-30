@@ -43,6 +43,7 @@ import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify"
 import { z } from "zod";
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-type-provider-zod";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { setChannelCredentialsRepository } from "@providers/shared";
 import { closeDatabaseConnections, prisma } from "@infra/prisma";
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -241,6 +242,11 @@ async function createApp(): Promise<FastifyInstance> {
   const repoAdapter = createPrismaRepoAdapter({ scheduler: bootstrapScheduler });
   const queueAdapter = createBullMQQueueAdapter();
   const storageAdapter = createStorageAdapter();
+
+  // Wire the channel-credentials port so provider adapters (which live in
+  // `@providers/*`) can resolve channel credentials from the database without
+  // importing `@adapters/db-prisma` themselves.
+  setChannelCredentialsRepository(repoAdapter);
 
   // Initialize dead letter queue
   const _deadLetterQueue = createDeadLetterQueue({

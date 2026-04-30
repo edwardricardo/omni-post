@@ -7,13 +7,12 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
-  BaseRouteHandler,
-  type RouteContext,
   IdSchema,
   exportToCSV,
   generateCSVFilename,
   type ColumnDefinition,
 } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import type { AuditService } from "./auditService.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";

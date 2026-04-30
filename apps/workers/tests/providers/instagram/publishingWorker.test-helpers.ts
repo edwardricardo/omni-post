@@ -9,7 +9,7 @@
  */
 
 import { vi } from "vitest";
-import type { InstagramPublishPayload } from "../src/publishingWorker.js";
+import type { InstagramPublishPayload } from "../../../src/providers/instagram/publishingWorker.js";
 
 // ── Mock adapter factories ──
 

@@ -10,7 +10,7 @@ import { z } from "zod";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
-import { BaseRouteHandler, RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { WebhookDashboardService } from "./webhookDashboardService.js";
 import type { RealtimeWebhookBroadcaster } from "./realtimeWebhookBroadcaster.js";

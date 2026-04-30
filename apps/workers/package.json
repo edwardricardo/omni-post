@@ -13,8 +13,10 @@
   },
   "dependencies": {
     "@adapters/db-prisma": "workspace:*",
+    "@adapters/external-apis": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
     "@observability/background-scheduler": "workspace:*",
+    "@observability/logger": "workspace:*",
     "@observability/opentelemetry": "workspace:*",
     "@ports/core": "workspace:*",
     "@providers/bluesky": "workspace:*",

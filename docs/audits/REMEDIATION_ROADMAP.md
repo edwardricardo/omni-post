@@ -1699,7 +1699,7 @@ pnpm --filter @apps/admin build                                                 
 
 ---
 
-#### T4-A — Hexagonal boundary leaks 🔒
+#### T4-A — Hexagonal boundary leaks ✅ (2026-04-30)
 
 **Scope.** Violaciones de boundary hexagonal: imports directos Fastify/db-prisma desde packages. Habilita T5-C + T5-D.
 
@@ -1707,25 +1707,41 @@ pnpm --filter @apps/admin build                                                 
 
 | L-#   | Título corto                                                  | Esfuerzo | Acción   | §5.9 | Notas                                          |
 | ----- | ------------------------------------------------------------- | -------- | -------- | ---- | ---------------------------------------------- |
-| L-364 | cache-redis fastify boundary leak (CRITICAL)                  | HEAVY    | REFACTOR | AUTO | Split core adapter puro + middleware app-local |
-| L-507 | `@api-common` BaseRouteHandler Fastify import (CRITICAL)      | HEAVY    | REFACTOR | AUTO | Relocate OR abstract via `RouteContext`        |
-| L-384 | `AbstractProviderAdapter` dynamic db-prisma import (CRITICAL) | MEDIUM   | REFACTOR | AUTO | `CredentialsPort`; remove dynamic import       |
-| L-455 | usePublishingEngine hardcoded URL boundary leak               | QUICK    | FIX      | AUTO | Cross L-443                                    |
-| L-525 | `verifyWebhookSignature` fake ctx cast                        | QUICK    | REFACTOR | AUTO | Framework-neutral signature verifier           |
-| L-385 | Instagram worker-layer en package (CRITICAL)                  | MEDIUM   | REFACTOR | AUTO | Move a `apps/workers/providers/instagram/`     |
+| L-364 | cache-redis fastify boundary leak (CRITICAL)                  | HEAVY    | REFACTOR | AUTO | fixed — DELETE dead middleware/events          |
+| L-507 | `@api-common` BaseRouteHandler Fastify import (CRITICAL)      | HEAVY    | REFACTOR | AUTO | fixed — relocate to apps/api/src/lib           |
+| L-384 | `AbstractProviderAdapter` dynamic db-prisma import (CRITICAL) | MEDIUM   | REFACTOR | AUTO | fixed — ChannelCredentialsRepository port + DI |
+| L-455 | usePublishingEngine hardcoded URL boundary leak               | QUICK    | FIX      | AUTO | WONT_FIX — false positive (PR-19)              |
+| L-525 | `verifyWebhookSignature` fake ctx cast                        | QUICK    | REFACTOR | AUTO | fixed — extracted to framework-neutral utility |
+| L-385 | Instagram worker-layer en package (CRITICAL)                  | MEDIUM   | REFACTOR | AUTO | fixed — moved to apps/workers/src/providers/   |
 
 **Entry criteria.** Ninguno.
 
-**Exit criteria:**
+**Exit criteria (verified 2026-04-30):**
 
 ```bash
-grep -rn "from \"fastify\"\|require(\"fastify\")" packages/cache-redis/ packages/api-common/ | wc -l   # → 0
-grep -rn "import.*@infra/prisma" packages/providers/ | wc -l   # → 0
+grep -rn "from \"fastify\"" packages/adapters/cache-redis/src/ packages/api-common/src/ | wc -l   # → 0
+grep -rn "import.*@infra/prisma\|import.*@adapters/db-prisma" packages/providers/ | wc -l        # → 0
+pnpm lint --max-warnings 0                                                                       # → 0
+pnpm --filter @apps/api test                                                                     # → 7,395 tests / 362 files
+pnpm --filter @apps/api build / @apps/admin build / @apps/client build                           # → clean
 ```
 
-**Estimación.** 15-20 h.
+**Resultado.**
 
-**Dependencias.** 🔒 BLOCKS_TIER (habilita T5-C + T5-D).
+- **Phase 1 (L-455 verification):** falso positivo — `apiEndpoint` es parámetro, no hardcoded. Hook entero detectado dead-code (cero consumers en apps). Documentado en PR-19.
+- **Phase 2 (L-525):** `verifyWebhookSignature` y `constantTimeCompare` extraídos a `packages/api-common/src/webhookSignature.ts` (puro, sin Fastify). `BaseRouteHandler` los consume vía thin wrapper que reporta errores al pino logger sin el cast falso `{} as FastifyRequest`. 8 tests nuevos.
+- **Phase 3 (L-364):** `cache-redis/src/middleware.ts` (cachePlugin + CacheInvalidator) y `cache-redis/src/events.ts` (CacheEventManager) eliminados — eran dead code superseded por `apps/api/src/middleware/autoCacheMiddleware.ts`. `RouteCacheOptions` interface re-localizada a `apps/api/src/lib/cache/cacheConfig.ts`. `fastify` y `fastify-plugin` removidos de las deps del package.
+- **Phase 4 (L-385):** `publishingWorker.ts` movido de `packages/providers/instagram/src/` a `apps/workers/src/providers/instagram/`. Tests acompañan el move (3 archivos de test). Provider package barrel ahora exporta `InstagramApiClient`, `InstagramMediaProcessor`, `InstagramCredentials` para uso del worker. `@adapters/external-apis` + `@observability/logger` añadidos a workers deps.
+- **Phase 5 (L-384):** Nuevo port `ChannelCredentialsRepository` en `packages/providers/shared/src/channelCredentialsRepository.ts`. `setChannelCredentialsRepository(repo)` static injector — wired en `apps/workers/src/publishWorker.ts` y `apps/api/src/index.ts` con `createPrismaRepoAdapter()`. `AbstractProviderAdapter.getCredentialsFromDatabase` ahora resuelve via port. `await import("@adapters/db-prisma")` dinámico eliminado. Dependency `@adapters/db-prisma` removida del package providers/shared.
+- **Phase 6 (L-507):** `BaseRouteHandler.ts` movido de `packages/api-common/src/` a `apps/api/src/lib/route-handler/`. Schemas zod (IdSchema, etc.) extraídos a `packages/api-common/src/schemas.ts` (framework-neutral, se quedan). Tests del handler movidos a `apps/api/tests/unit/lib/route-handler/`. ~70 imports en `apps/api/src/` actualizados de `@packages/api-common` a `../lib/route-handler/index.js` (relativo).
+
+**Diferidos.**
+
+- **PR-19** — L-455 falso positivo + observación de dead-code (`usePublishingEngine` hook). Cleanup futuro de packages no consumidos en batch dedicado.
+
+**Estimación.** 15-20 h roadmap → real ~6-8 h (L-364/L-455 fueron dead-code/false-positive en lugar de refactors completos).
+
+**Dependencias.** 🔒 BLOCKS_TIER cerrado — habilita T5-C + T5-D.
 
 ---
 

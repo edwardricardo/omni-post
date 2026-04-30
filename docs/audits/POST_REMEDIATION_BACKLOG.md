@@ -604,6 +604,51 @@ Próxima sesión con Edward post-T3-R parcial. Edward decide A/B/C; si A, ejecut
 
 ---
 
+### PR-19 — L-455 false positive (`usePublishingEngine` hardcoded URL) + dead-code observation
+
+**Fecha de aplicación:** 2026-04-30 (documentación)
+**Batch de origen:** T4-A Phase 1 — verificación previa a fix
+**Severidad del bug pre-existente:** N/A — finding incorrectamente clasificado
+**Tipo:** docs (clarificación de falso positivo + dead-code finding adicional)
+
+**Descubrimiento.**
+
+El roadmap T4-A lista L-455 como "usePublishingEngine hardcoded URL boundary leak". Verificación de `packages/ui/src/hooks/usePublishingEngine.ts`:
+
+```typescript
+const publish = useCallback(
+  async (apiEndpoint: string, postId?: string) => {
+    // ...
+    const response = await fetch(apiEndpoint, {
+      /* ... */
+    });
+  },
+  [
+    /* deps */
+  ]
+);
+```
+
+`apiEndpoint` es **parámetro de la función `publish`**, no una constante hardcoded. El caller controla la URL. El hook no contiene URL literal en su body. **L-455 es falso positivo** — el audit original probablemente confundió `fetch(apiEndpoint, ...)` con un literal hardcoded.
+
+**Bonus discovery: el hook entero es dead code.**
+
+`grep -rln "usePublishingEngine" apps/admin/components apps/admin/app apps/client/components apps/client/app` retorna cero coincidencias. Solo aparece en barrel exports de `packages/ui` y en archivos `*.tsbuildinfo`. Patrón paralelo a L-364 — abstracción genérica jamás consumida por las apps.
+
+**Por qué NO se elimina en T4-A.**
+
+T4-A scope es boundary leaks, no dead-code cleanup. Borrar `usePublishingEngine` es ortogonal: el hook no causa boundary leak (no importa Fastify ni framework code), simplemente no se usa. L-364 sí se elimina en Phase 3 porque su no-consumption es la causa misma del fix correcto del leak.
+
+**Fix definitivo recomendado.**
+
+Batch dedicado posterior (sugerido `T5-H — Dead code in shared packages`): audit de exports sin consumers en `packages/ui`, `packages/api-common`, `packages/adapters/*` + deletion + verificación post.
+
+**Cuándo revisar.** Post-T4. Hasta entonces el hook sigue exportado pero inútil.
+
+**Estado:** WONT_FIX (L-455 audit original incorrecto). Dead-code observation registrada para batch futuro.
+
+---
+
 ### PR-12 — T3-F + T3-G deferrals: single-hook complex state files + blocked + orphan-pending
 
 **Fecha de aplicación:** 2026-04-28 (documentación)

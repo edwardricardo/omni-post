@@ -6,7 +6,7 @@
  */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { PasswordSchema, UserRoleSchema } from "@packages/api-common";
 import { SecureSchemas } from "../security/inputValidation.js";
 import type { AuthService } from "./authService.js";

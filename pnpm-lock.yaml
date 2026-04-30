@@ -121,6 +121,9 @@ importers:
       '@observability/browser-logger':
         specifier: workspace:*
         version: link:../../packages/observability/browser-logger
+      '@packages/api-errors':
+        specifier: workspace:*
+        version: link:../../packages/api-errors
       '@packages/query-client':
         specifier: workspace:*
         version: link:../../packages/query-client
@@ -489,6 +492,9 @@ importers:
       '@observability/browser-logger':
         specifier: workspace:*
         version: link:../../packages/observability/browser-logger
+      '@packages/api-errors':
+        specifier: workspace:*
+        version: link:../../packages/api-errors
       '@packages/query-client':
         specifier: workspace:*
         version: link:../../packages/query-client
@@ -664,12 +670,18 @@ importers:
       '@adapters/db-prisma':
         specifier: workspace:*
         version: link:../../packages/adapters/db-prisma
+      '@adapters/external-apis':
+        specifier: workspace:*
+        version: link:../../packages/adapters/external-apis
       '@adapters/queue-bullmq':
         specifier: workspace:*
         version: link:../../packages/adapters/queue-bullmq
       '@observability/background-scheduler':
         specifier: workspace:*
         version: link:../../packages/observability/background-scheduler
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../packages/observability/logger
       '@observability/opentelemetry':
         specifier: workspace:*
         version: link:../../packages/observability/opentelemetry
@@ -774,12 +786,6 @@ importers:
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
-      fastify:
-        specifier: 5.6.1
-        version: 5.6.1
-      fastify-plugin:
-        specifier: 5.0.1
-        version: 5.0.1
       ioredis:
         specifier: 5.7.0
         version: 5.7.0

@@ -8,7 +8,7 @@ import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { ProviderRegistryService } from "./providerRegistry.js";
 import type { ProviderService } from "./providerService.js";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 

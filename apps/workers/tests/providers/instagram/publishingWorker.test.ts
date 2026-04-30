@@ -79,7 +79,7 @@ vi.mock("prom-client", () => ({
 }));
 
 // Static import after mocks (Vitest hoists vi.mock before imports)
-import { InstagramPublishingWorker } from "../src/publishingWorker.js";
+import { InstagramPublishingWorker } from "../../../src/providers/instagram/publishingWorker.js";
 
 describe("InstagramPublishingWorker", { concurrent: false }, () => {
   let worker: any;

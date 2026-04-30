@@ -7,5 +7,5 @@
     "tsBuildInfoFile": ".tsbuildinfo"
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../../shared" }, { "path": "../../adapters/db-prisma" }]
+  "references": [{ "path": "../../shared" }, { "path": "../../ports" }]
 }

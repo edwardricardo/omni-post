@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
-import { BaseRouteHandler } from "@packages/api-common";
+import { BaseRouteHandler } from "../lib/route-handler/index.js";
 import type { PrismaClient } from "@infra/prisma";
 import type { ComplianceService } from "../compliance/ComplianceService.js";
 import { AnalyticsDashboardHandler } from "./AnalyticsDashboardHandlers.js";
