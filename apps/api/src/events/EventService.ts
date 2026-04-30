@@ -74,9 +74,6 @@ export class EventService extends BaseService {
           return;
         }
 
-        // Ensure the stored_events table exists before any operations
-        await this.eventStore.ensureTable();
-
         // Subscribe publisher to handle events from store
         this.setupDefaultHandlers();
 

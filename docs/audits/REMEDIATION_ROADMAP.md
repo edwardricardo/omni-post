@@ -1745,30 +1745,39 @@ pnpm --filter @apps/api build / @apps/admin build / @apps/client build          
 
 ---
 
-#### T4-B — EventStore migration a schema 🔒
+#### T4-B — EventStore migration a schema 🔒 ✅ 2026-04-30
 
-**Scope.** EventStore runtime DDL → schema.prisma formal migration. EventSnapshots decisión.
+**Scope.** EventStore runtime DDL → schema.prisma formal migration. EventSnapshots IMPLEMENT (snapshot infrastructure for aggregate rehydration optimization, no equivalent existing).
 
 **Findings table (3):**
 
-| L-#   | Título corto                                             | Esfuerzo | Acción   | §5.9         | Notas                                     |
-| ----- | -------------------------------------------------------- | -------- | -------- | ------------ | ----------------------------------------- |
-| L-41  | `EventStore.ensureTable` runtime DDL / schema divergence | HEAVY    | REFACTOR | AUTO         | Migrar a schema.prisma + formal migration |
-| L-42  | `EventStore` referencia `EventSnapshots` no declarada    | MEDIUM   | DECIDE   | NEEDS_EDWARD | IMPLEMENT (migration) vs DELETE methods   |
-| L-528 | EventStore silent failure catch (CRITICAL)               | QUICK    | FIX      | AUTO         | Inspect error code 42P07; propagate rest  |
+| L-#   | Título corto                                             | Esfuerzo | Acción    | §5.9         | Status     | Resolución                                        |
+| ----- | -------------------------------------------------------- | -------- | --------- | ------------ | ---------- | ------------------------------------------------- |
+| L-41  | `EventStore.ensureTable` runtime DDL / schema divergence | HEAVY    | REFACTOR  | AUTO         | ✅ Cerrado | Modelo `StoredEvent` declarado + migración formal |
+| L-42  | `EventStore` referencia `EventSnapshots` no declarada    | MEDIUM   | IMPLEMENT | NEEDS_EDWARD | ✅ Cerrado | Modelo `EventSnapshot` declarado + tabla creada   |
+| L-528 | EventStore silent failure catch (CRITICAL)               | QUICK    | FIX       | AUTO         | ✅ Cerrado | `ensureTable()` eliminado completamente           |
 
-**Entry criteria.** Edward decide L-42 (T6 session).
+**Decisión L-42 (Edward 2026-04-30):** IMPLEMENT, no DELETE. Los métodos `createSnapshot` / `getSnapshot` son scaffolding para feature legítima (snapshot pattern de event sourcing, optimiza rehydration cuando streams superan ~100 eventos). Aplicada la regla "código huérfano ≠ inútil" — el código existe porque el negocio lo previó; no hay equivalente actualmente implementado. Decisión: declarar tabla, marcar como infrastructure-ready (sin consumer aún), agregar al backlog la decisión de retention/dispatch policy cuando haya streams largos.
+
+**Implementación:**
+
+- `infra/prisma/schema.prisma` — Agregados modelos `StoredEvent` (con índices `idx_stored_events_stream_id`, `idx_stored_events_sequence`, unique compuesto `idx_stored_events_stream_version`) y `EventSnapshot` (PK `streamId`).
+- `infra/prisma/migrations/20260430191252_add_event_store_tables/` — Migración con `CREATE TABLE IF NOT EXISTS` (idempotente porque dev environments tenían `stored_events` creada via runtime DDL).
+- `apps/api/src/events/EventStore.ts` — Eliminado `ensureTable()` + `tableEnsured` flag + `tableName` config. Refactor a Prisma Client typed para `findMany` / `aggregate` / `upsert` / `findUnique`. Raw SQL preservado solo donde Prisma Client no expresa la query (transaction con `MAX()` aggregations en `append`, `NOT IN` subquery en `cleanup`).
+- `apps/api/src/events/EventService.ts` — Eliminada llamada `await this.eventStore.ensureTable()` del `initialize()`.
+- `apps/api/tests/unit/EventStore.test.ts` — Mock extendido con `storedEvent` y `eventSnapshot` model methods. 33/33 tests verdes.
 
 **Exit criteria:**
 
 ```bash
-grep -n "model.*stored_events\|StoredEvent" infra/prisma/schema.prisma   # → ≥1
-grep -n "CREATE TABLE" apps/api/src/events/EventStore.ts   # → 0
+grep -n "model.*stored_events\|StoredEvent" infra/prisma/schema.prisma   # ✅ ≥1
+grep -n "CREATE TABLE" apps/api/src/events/EventStore.ts   # ✅ 0
+grep -n "ensureTable" apps/api/src/events/EventStore.ts apps/api/src/events/EventService.ts   # ✅ 0
 ```
 
-**Estimación.** 6-10 h.
+**Estimación / real.** Estimado 6–10 h / Real ~3 h.
 
-**Dependencias.** 🔒 BLOCKS_TIER (habilita event sourcing path).
+**Dependencias.** 🔒 BLOCKS_TIER cerrado.
 
 ---
 

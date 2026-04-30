@@ -1048,6 +1048,48 @@ Próximo batch que toque `dashboard/posts/[id]` (probablemente T3-I L-148 cuando
 
 ---
 
+### PR-20 — EventSnapshot policy decision (when to snapshot, retention, who calls `createSnapshot`)
+
+**Origen.** T4-B (2026-04-30) — implementación de `EventSnapshot` model + tabla `event_snapshots`.
+
+**Contexto.** El modelo `EventSnapshot` y los métodos `createSnapshot` / `getSnapshot` existen como infrastructure-ready desde Genesis del proyecto (D0v4 audit § Infrastructure §3.2). T4-B materializó el schema (modelo Prisma + migración + tabla creada en DB). El código está listo para ser consumido pero **no hay caller**: ningún aggregate emite `createSnapshot` durante su ciclo de vida y ninguna rehydration consulta `getSnapshot` antes de replay.
+
+**Por qué no se cerró en T4-B.** La decisión de **cuándo crear snapshots** y **cuándo replay desde snapshot** es una decisión de dominio, no de infrastructure. Depende de:
+
+1. Qué aggregates tienen streams largos en producción (no medido aún — sistema reciente).
+2. Política de retention (¿quedarse con el snapshot más reciente solamente, o conservar histórico?).
+3. Trigger policy (¿cada N events?, ¿cada N días?, ¿bajo demanda durante warmup?).
+4. Versioning policy: si un aggregate cambia de shape entre versiones, qué pasa con snapshots viejos.
+
+T4-B aplicó la regla "código huérfano ≠ inútil" — la infra existe porque el negocio la previó; mantenerla wireada al schema no impone costo y habilita la decisión cuando haga falta.
+
+**Plan estructurado.**
+
+1. **Trigger** — la decisión se reabre cuando ocurra alguna de:
+   - Stream rehydration latency > 500 ms p95 en métricas observability (cuando se mida).
+   - Algún aggregate alcanza ~100 eventos por stream (consultar `SELECT stream_id, COUNT(*) FROM stored_events GROUP BY 1 ORDER BY 2 DESC LIMIT 10`).
+   - Edward prioriza un evento de feature donde el snapshot pattern sea ROI claro.
+2. **Investigación previa requerida**:
+   - Canon de Kurrent (Event Store DB), Sequent, EventSourcing.NET — ¿cuándo recomiendan snapshots?
+   - Anti-pattern: "Snapshot Paradox" (los snapshots erróneos son peor que no snapshots — versioning + invalidation policy).
+   - ¿Por aggregate o por stream? Algunos sistemas snapshot solo "hot" aggregates.
+3. **Implementación esperada**:
+   - Decidir trigger por aggregate (probablemente método en aggregate root: `shouldSnapshot(): boolean`).
+   - Wire en `EventSourcedRepository.save()` o similar para invocar `createSnapshot` post-append cuando trigger fires.
+   - Wire en `rehydrate()` para consultar `getSnapshot` antes de replay.
+   - Retention: cron / outbox-style cleanup de snapshots viejos por stream (mantener N más recientes).
+   - Versioning: agregar `aggregate_version` / `snapshot_schema_version` field si decisión es histórico, o invalidar al cambiar shape.
+
+**Bloqueado por.** Métricas reales de stream length + decisión de producto sobre rehydration latency target.
+
+**Cuándo revisar.**
+
+Cuando observability reporte stream lengths > 100 eventos en aggregates relevantes, o cuando Edward priorice optimizar warm-cold rehydration UX.
+
+**Estado:** PENDING (deferred del T4-B 2026-04-30).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

@@ -3330,3 +3330,38 @@ model AiTokenUsage {
 
   @@index([accountId, usedAt])
 }
+
+/// Append-only event store for the event sourcing pipeline (saga + CQRS).
+/// Replaces the runtime-created `stored_events` table — schema lives here so
+/// Prisma Client can read/write events with type safety and migrations stay
+/// version-controlled.
+model StoredEvent {
+  id            String   @id
+  streamId      String   @map("stream_id")
+  eventType     String   @map("event_type")
+  eventData     String   @map("event_data")
+  metadata      String   @default("{}")
+  version       Int
+  sequence      BigInt
+  timestamp     DateTime @default(now()) @db.Timestamptz()
+  correlationId String?  @map("correlation_id")
+  causationId   String?  @map("causation_id")
+
+  @@unique([streamId, version], map: "idx_stored_events_stream_version")
+  @@index([streamId], map: "idx_stored_events_stream_id")
+  @@index([sequence], map: "idx_stored_events_sequence")
+  @@map("stored_events")
+}
+
+/// Aggregate state snapshots for fast rehydration of long-lived event streams.
+/// One snapshot per stream (the most recent); upsert pattern keyed by streamId.
+/// Wired by `EventStore.createSnapshot` / `getSnapshot`; consumers per
+/// aggregate decide when to emit a snapshot based on domain triggers.
+model EventSnapshot {
+  streamId  String   @id @map("stream_id")
+  version   Int
+  data      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("event_snapshots")
+}

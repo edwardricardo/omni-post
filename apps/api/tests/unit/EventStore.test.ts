@@ -10,87 +10,209 @@
 import { describe, it, beforeEach, expect } from "vitest";
 import { DomainEvent, createDomainEvent, EVENT_TYPES } from "@shared/events";
 
+interface MockStoredEventRow {
+  id: string;
+  streamId: string;
+  eventType: string;
+  eventData: string;
+  metadata: string;
+  version: number;
+  sequence: bigint;
+  timestamp: Date;
+  correlationId: string | null;
+  causationId: string | null;
+}
+
+interface MockSnapshotRow {
+  streamId: string;
+  version: number;
+  data: string;
+  createdAt: Date;
+}
+
 // Mock Prisma Client
 class MockPrismaClient {
-  private events: any[] = [];
-  private snapshots = new Map<string, any>();
+  private events: MockStoredEventRow[] = [];
+  private snapshots = new Map<string, MockSnapshotRow>();
   private shouldFailTransaction = false;
   private shouldFailQuery = false;
   private currentVersion = 0;
+
+  storedEvent = {
+    findMany: async (args?: {
+      where?: {
+        streamId?: string;
+        eventType?: string;
+        version?: { gte?: number };
+        sequence?: { gte?: bigint | number };
+        timestamp?: { gte?: Date };
+      };
+      orderBy?: Record<string, "asc" | "desc">;
+      take?: number;
+    }): Promise<MockStoredEventRow[]> => {
+      if (this.shouldFailQuery) throw new Error("Query failed");
+      let result = [...this.events];
+      const where = args?.where;
+      if (where) {
+        if (where.streamId !== undefined) {
+          result = result.filter((e) => e.streamId === where.streamId);
+        }
+        if (where.eventType !== undefined) {
+          result = result.filter((e) => e.eventType === where.eventType);
+        }
+        if (where.version?.gte !== undefined) {
+          const min = where.version.gte;
+          result = result.filter((e) => e.version >= min);
+        }
+        if (where.sequence?.gte !== undefined) {
+          const min = BigInt(where.sequence.gte);
+          result = result.filter((e) => e.sequence >= min);
+        }
+        if (where.timestamp?.gte !== undefined) {
+          const min = where.timestamp.gte;
+          result = result.filter((e) => e.timestamp >= min);
+        }
+      }
+      if (args?.orderBy) {
+        const [orderField, direction] = Object.entries(args.orderBy)[0] ?? [];
+        if (orderField) {
+          result.sort((a, b) => {
+            const av = (a as Record<string, unknown>)[orderField] as
+              | number
+              | bigint
+              | Date
+              | string
+              | null;
+            const bv = (b as Record<string, unknown>)[orderField] as
+              | number
+              | bigint
+              | Date
+              | string
+              | null;
+            const aNum = av instanceof Date ? av.getTime() : av;
+            const bNum = bv instanceof Date ? bv.getTime() : bv;
+            const cmp = (aNum ?? 0) < (bNum ?? 0) ? -1 : (aNum ?? 0) > (bNum ?? 0) ? 1 : 0;
+            return direction === "desc" ? -cmp : cmp;
+          });
+        }
+      }
+      if (args?.take !== undefined) {
+        result = result.slice(0, args.take);
+      }
+      return result;
+    },
+    aggregate: async (args?: {
+      where?: { streamId?: string };
+      _count?: { _all?: boolean };
+      _max?: { version?: boolean; timestamp?: boolean };
+      _min?: { timestamp?: boolean };
+    }): Promise<{
+      _count: { _all: number };
+      _max: { version: number | null; timestamp: Date | null };
+      _min: { timestamp: Date | null };
+    }> => {
+      if (this.shouldFailQuery) throw new Error("Query failed");
+      let scope = [...this.events];
+      if (args?.where?.streamId !== undefined) {
+        const sid = args.where.streamId;
+        scope = scope.filter((e) => e.streamId === sid);
+      }
+      return {
+        _count: { _all: scope.length },
+        _max: {
+          version: scope.length > 0 ? Math.max(...scope.map((e) => e.version)) : null,
+          timestamp:
+            scope.length > 0
+              ? new Date(Math.max(...scope.map((e) => e.timestamp.getTime())))
+              : null,
+        },
+        _min: {
+          timestamp:
+            scope.length > 0
+              ? new Date(Math.min(...scope.map((e) => e.timestamp.getTime())))
+              : null,
+        },
+      };
+    },
+  };
+
+  eventSnapshot = {
+    upsert: async (args: {
+      where: { streamId: string };
+      create: { streamId: string; version: number; data: string };
+      update: { version: number; data: string; createdAt?: Date };
+    }): Promise<MockSnapshotRow> => {
+      if (this.shouldFailQuery) throw new Error("Query failed");
+      const existing = this.snapshots.get(args.where.streamId);
+      const row: MockSnapshotRow = existing
+        ? {
+            streamId: existing.streamId,
+            version: args.update.version,
+            data: args.update.data,
+            createdAt: args.update.createdAt ?? new Date(),
+          }
+        : {
+            streamId: args.create.streamId,
+            version: args.create.version,
+            data: args.create.data,
+            createdAt: new Date(),
+          };
+      this.snapshots.set(args.where.streamId, row);
+      return row;
+    },
+    findUnique: async (args: { where: { streamId: string } }): Promise<MockSnapshotRow | null> => {
+      if (this.shouldFailQuery) throw new Error("Query failed");
+      return this.snapshots.get(args.where.streamId) ?? null;
+    },
+  };
 
   /**
    * Extract SQL text from a Prisma.sql() object or template literal.
    * Prisma.Sql objects have a `strings` property (array of template parts).
    */
-  private extractSqlText(query: any): string {
-    if (query && Array.isArray(query.strings)) {
-      return query.strings.join(" ");
+  private extractSqlText(query: unknown): string {
+    if (query && typeof query === "object" && "strings" in query) {
+      const strings = (query as { strings: unknown }).strings;
+      if (Array.isArray(strings)) return strings.join(" ");
     }
     return String(query);
   }
 
-  async $transaction(callback: (tx: any) => Promise<void>): Promise<void> {
+  async $transaction(callback: (tx: MockPrismaClient) => Promise<void>): Promise<void> {
     if (this.shouldFailTransaction) {
       throw new Error("Transaction failed");
     }
     await callback(this);
   }
 
-  async $queryRaw<T = unknown>(query: any, ..._args: any[]): Promise<T> {
-    if (this.shouldFailQuery) {
-      throw new Error("Query failed");
-    }
-
+  async $queryRaw<T = unknown>(query: unknown): Promise<T> {
+    if (this.shouldFailQuery) throw new Error("Query failed");
     const sqlText = this.extractSqlText(query);
 
-    // Simulate version query
     if (sqlText.includes("MAX(version)")) {
       return [{ version: this.currentVersion }] as T;
     }
-
-    // Simulate sequence query
     if (sqlText.includes("next_sequence")) {
       return [{ next_sequence: this.events.length + 1 }] as T;
     }
-
-    // Simulate stats query (COUNT must come before generic SELECT)
-    if (sqlText.includes("COUNT(*)") || sqlText.includes("total_events")) {
-      return [
-        {
-          event_count: this.events.length,
-          current_version: this.currentVersion,
-          first_event_at: this.events[0]?.timestamp,
-          last_event_at: this.events[this.events.length - 1]?.timestamp,
-          total_events: this.events.length,
-        },
-      ] as T;
-    }
-
-    // Simulate events query
-    if (sqlText.includes("SELECT")) {
-      return this.events as T;
-    }
-
     return [] as T;
   }
 
-  async $executeRaw(query: any, ..._args: any[]): Promise<number> {
-    if (this.shouldFailQuery) {
-      throw new Error("Execute failed");
-    }
-
+  async $executeRaw(query: unknown): Promise<number> {
+    if (this.shouldFailQuery) throw new Error("Execute failed");
     const sqlText = this.extractSqlText(query);
-    const values = query?.values ?? [];
+    const values =
+      query && typeof query === "object" && "values" in query
+        ? ((query as { values: unknown[] }).values ?? [])
+        : [];
 
     // Simulate INSERT — batch inserts use Prisma.sql`INSERT ... VALUES ${Prisma.join(tuples)}`
-    // Structure: values[0] = tableRef Sql, values[1] = joined tuples Sql
-    //   values[1].values = array of per-event Sql objects (one per event row)
+    // Structure: values[0] = joined tuples Sql; its inner `values` array length = event count.
     if (sqlText.includes("INSERT")) {
       let eventCount = 1;
-      // The joined tuples Sql is at values[1]; its inner values array length = event count
-      const joinedTuples = values[1];
+      const joinedTuples = values[0];
       if (joinedTuples && typeof joinedTuples === "object" && "values" in joinedTuples) {
-        const innerValues = (joinedTuples as any).values;
+        const innerValues = (joinedTuples as { values: unknown[] }).values;
         if (Array.isArray(innerValues) && innerValues.length > 0) {
           eventCount = innerValues.length;
         }
@@ -99,19 +221,20 @@ class MockPrismaClient {
         this.currentVersion++;
         this.events.push({
           id: `event-${Date.now()}-${i}`,
-          stream_id: "stream:test",
-          event_type: "test.event",
-          event_data: "{}",
+          streamId: "stream:test",
+          eventType: "test.event",
+          eventData: "{}",
           metadata: "{}",
           version: this.currentVersion,
-          sequence: this.events.length + 1,
+          sequence: BigInt(this.events.length + 1),
           timestamp: new Date(),
+          correlationId: null,
+          causationId: null,
         });
       }
       return eventCount;
     }
 
-    // Simulate DELETE
     if (sqlText.includes("DELETE")) {
       const deleted = this.events.length;
       this.events = [];
@@ -122,7 +245,7 @@ class MockPrismaClient {
   }
 
   // Helper methods for testing
-  getEvents(): any[] {
+  getEvents(): MockStoredEventRow[] {
     return this.events;
   }
 
