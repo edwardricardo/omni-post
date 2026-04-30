@@ -69,7 +69,7 @@ Decisión depende de: ¿`@providers/threads` es provider planeado/activo o scaff
 
 Post-roadmap completo. Cross-ref al cluster D7 (Critical Tests Coverage) del PLAN_MAESTRO.md — cuando D7 se ejecute (después del tramo de remediación), esta entrada debería quedar resuelta por escribir tests o eliminar el paquete.
 
-**Estado:** APLICADO (2026-04-22)
+**Estado:** FIXED (2026-04-29) — suite de tests creada (`packages/providers/threads/tests/ThreadsAdapter.test.ts`, 19 tests cubriendo metadata, render, publish two-step container flow para text/image/video/carousel, fetchAnalytics, getComments, postReply + paths AUTH/NETWORK). `--passWithNoTests` removido del package.json.
 
 ---
 
@@ -543,7 +543,7 @@ Batch dedicado posterior (sugerido nombre: `T3-S — ApiError unification`):
 
 Post T3-B. Sugerido: ejecutar entre T3-B y T3-C (mientras T3-D depende de mismo refactor pattern). O después del tier T3 completo cuando todos los `any` returns estén tipados (T2-K) y la unificación tenga payback inmediato.
 
-**Estado:** APLICADO (deuda documentada — cada app sigue funcionando con su ApiError local; no hay riesgo runtime).
+**Estado:** FIXED (2026-04-29) — `@packages/api-errors` creado con shape canon `(status, code, message, details?)` + helpers (`fromResponse`, `parseApiError`, `getErrorMessage`, `isPermissionDenied`, `isNotFoundError`) + 20 tests unit. Admin migrado: `apps/admin/lib/parseApiError.ts` re-exporta del package (callers sin cambios). Client migrado: `apps/client/lib/api/types.ts` re-exporta + 3 call sites flipeados al nuevo orden de args (`request.ts` x2, `authApi.ts` x1) + tests actualizados. Tsconfig paths + vitest aliases wireados en ambos apps.
 
 ---
 
@@ -942,7 +942,7 @@ Cross-batch con T3-R (channels OAuth + UI cleanup) si Edward decide tocar esa zo
 
 Próximo batch que toque `dashboard/posts/[id]` (probablemente T3-I L-148 cuando se ejecute el split de ese archivo, o batch dedicado post-T3 si Edward prioriza la UX de schedule desde post detail).
 
-**Estado:** DIFERIDO — pre-existente a T3-Q. T3-Q hace forward-compat mínimo (`[]`) para no bloquear el fix del schema bug. No se introduce nueva deuda — la deuda existía desde antes.
+**Estado:** FIXED (2026-04-29) — `dashboard/posts/[id]/page.tsx` y `dashboard/posts/[id]/preview/page.tsx` ambos consumen ahora `useProjectChannels` + `ChannelMultiSelect` + `useSchedulePost` con smart-default + override (mismo patrón D5.A+B que el editor). Los `[]` literales fueron reemplazados por `selectedChannelIds` reales con primary pre-checked. Toast de validación si el usuario intenta programar sin canales seleccionados.
 
 ---
 

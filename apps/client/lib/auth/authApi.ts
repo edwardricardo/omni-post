@@ -23,7 +23,7 @@ async function readErrorBody(response: Response): Promise<ApiErrorBody> {
 
 function buildApiError(status: number, body: ApiErrorBody, fallback: string): ApiError {
   const message = body.error ?? body.message ?? fallback;
-  return new ApiError(message, status, body.code);
+  return new ApiError(status, body.code ?? null, message);
 }
 
 export interface User {

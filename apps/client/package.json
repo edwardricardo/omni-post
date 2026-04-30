@@ -31,6 +31,7 @@
   "dependencies": {
     "@monaco-editor/react": "4.6.0",
     "@observability/browser-logger": "workspace:*",
+    "@packages/api-errors": "workspace:*",
     "@packages/query-client": "workspace:*",
     "@packages/ui": "workspace:*",
     "@providers/instagram": "workspace:*",

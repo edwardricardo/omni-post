@@ -1,6 +1,8 @@
 /**
  * @file types.test.ts
- * @description Tests for API Types
+ * @description Smoke tests for the re-exported `ApiError` class — verifies the
+ *              canonical (status, code, message, details?) signature works
+ *              through the client's `lib/api/types` barrel.
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
@@ -8,19 +10,20 @@ import { ApiError } from "../types";
 
 describe("API Types", () => {
   describe("ApiError", () => {
-    it("should create ApiError with message and status", () => {
-      const error = new ApiError("Not found", 404);
+    it("constructs with status, code, and message", () => {
+      const error = new ApiError(404, null, "Not found");
 
       expect(error.message).toBe("Not found");
       expect(error.status).toBe(404);
+      expect(error.code).toBeNull();
       expect(error.name).toBe("ApiError");
       expect(error).toBeInstanceOf(Error);
     });
 
-    it("should create ApiError with code and details", () => {
+    it("captures structured details when provided", () => {
       const details = [{ field: "email", message: "Invalid email format", code: "INVALID_EMAIL" }];
 
-      const error = new ApiError("Validation failed", 400, "VALIDATION_ERROR", details);
+      const error = new ApiError(400, "VALIDATION_ERROR", "Validation failed", details);
 
       expect(error.message).toBe("Validation failed");
       expect(error.status).toBe(400);
@@ -28,8 +31,8 @@ describe("API Types", () => {
       expect(error.details).toEqual(details);
     });
 
-    it("should be catchable as Error", () => {
-      const error = new ApiError("Test error", 500);
+    it("is catchable as a plain Error", () => {
+      const error = new ApiError(500, null, "Test error");
 
       try {
         throw error;

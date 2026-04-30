@@ -7,11 +7,13 @@
  * @component PreviewPostPage
  * @layer infrastructure
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePost } from "@/lib/api/hooks";
 import { apiClient } from "@/lib/api/client";
 import { PlatformPreview } from "@/components/editor/PlatformPreview";
+import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
+import { useSchedulePost } from "@/lib/hooks/useSchedulePost";
 import {
   Card,
   CardContent,
@@ -20,6 +22,8 @@ import {
   CardTitle,
   Button,
   Badge,
+  ChannelMultiSelect,
+  computeDefaultChannelSelection,
   toast,
 } from "@packages/ui";
 import { ArrowLeft, Edit, Send, Calendar, Share2 } from "lucide-react";
@@ -47,7 +51,25 @@ export default function PreviewPostPage() {
   const [copied, setCopied] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
-  const [isScheduling, setIsScheduling] = useState(false);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
+
+  const channelsQuery = useProjectChannels(post?.projectId);
+  const channels = useMemo(() => channelsQuery.data ?? [], [channelsQuery.data]);
+  const channelProviders = useMemo(
+    () => Array.from(new Set(channels.map((c) => c.platform))),
+    [channels]
+  );
+  const scheduleMutation = useSchedulePost();
+  const isScheduling = scheduleMutation.isPending;
+
+  useEffect(() => {
+    if (!showScheduleDialog) return;
+    if (channels.length === 0) return;
+    setSelectedChannelIds((prev) => {
+      if (prev.length > 0) return prev;
+      return computeDefaultChannelSelection(channels, channelProviders);
+    });
+  }, [showScheduleDialog, channels, channelProviders]);
 
   const handlePublishNow = useCallback(async () => {
     setIsPublishing(true);
@@ -87,9 +109,21 @@ export default function PreviewPostPage() {
       return;
     }
 
-    setIsScheduling(true);
+    if (selectedChannelIds.length === 0) {
+      toast({
+        title: "Channel required",
+        description: "Pick at least one channel to publish to.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      await apiClient.schedulePost(postId, new Date(scheduleDate).toISOString(), []);
+      await scheduleMutation.mutateAsync({
+        postId,
+        scheduledFor: new Date(scheduleDate).toISOString(),
+        channelIds: selectedChannelIds,
+      });
       toast({ title: "Post scheduled" });
       setShowScheduleDialog(false);
       setScheduleDate("");
@@ -97,10 +131,8 @@ export default function PreviewPostPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to schedule post.";
       toast({ title: "Schedule failed", description: message, variant: "destructive" });
-    } finally {
-      setIsScheduling(false);
     }
-  }, [postId, scheduleDate, refetch]);
+  }, [postId, scheduleDate, selectedChannelIds, scheduleMutation, refetch]);
 
   // Use real user data for preview, with fallbacks
   const userInfo = {
@@ -286,7 +318,7 @@ export default function PreviewPostPage() {
                     Schedule Post
                   </Button>
                   {showScheduleDialog && (
-                    <div className="space-y-2 p-3 border rounded-md bg-muted/50">
+                    <div className="space-y-3 p-3 border rounded-md bg-muted/50">
                       <label htmlFor="preview-schedule-date" className="block text-sm font-medium">
                         Select date and time
                       </label>
@@ -297,11 +329,17 @@ export default function PreviewPostPage() {
                         onChange={(e) => setScheduleDate(e.target.value)}
                         className="w-full p-2 border rounded-md bg-background text-foreground text-sm"
                       />
+                      <ChannelMultiSelect
+                        channels={channels}
+                        selectedProviders={channelProviders}
+                        value={selectedChannelIds}
+                        onChange={setSelectedChannelIds}
+                      />
                       <Button
                         className="w-full"
                         size="sm"
                         onClick={handleSchedulePost}
-                        disabled={isScheduling || !scheduleDate}
+                        disabled={isScheduling || !scheduleDate || selectedChannelIds.length === 0}
                       >
                         {isScheduling ? "Scheduling..." : "Confirm Schedule"}
                       </Button>

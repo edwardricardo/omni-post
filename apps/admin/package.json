@@ -17,6 +17,7 @@
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.0",
     "@observability/browser-logger": "workspace:*",
+    "@packages/api-errors": "workspace:*",
     "@packages/query-client": "workspace:*",
     "@packages/ui": "workspace:*",
     "@providers/instagram": "workspace:*",

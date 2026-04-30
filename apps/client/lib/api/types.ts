@@ -197,18 +197,10 @@ export interface HealthResponse {
   };
 }
 
-// Error types
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public code?: string,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
+// Error types — canonical class lives in `@packages/api-errors`. Kept as a
+// re-export so existing import paths (`from "@/lib/api/types"`) continue to
+// work without a wide import sweep.
+export { ApiError } from "@packages/api-errors";
 
 export interface ValidationError {
   field: string;

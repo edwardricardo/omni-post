@@ -46,9 +46,9 @@ export async function request<T>(
     }));
 
     throw new ApiError(
-      errorData.message || errorData.error,
       response.status,
-      errorData.code,
+      errorData.code ?? null,
+      errorData.message || errorData.error,
       errorData.details
     );
   }
@@ -86,9 +86,9 @@ export async function uploadRequest<T>(
     }));
 
     throw new ApiError(
-      errorData.message || errorData.error,
       response.status,
-      errorData.code,
+      errorData.code ?? null,
+      errorData.message || errorData.error,
       errorData.details
     );
   }

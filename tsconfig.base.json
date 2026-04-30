@@ -45,6 +45,7 @@
       "@adapters/dead-letter-queue": ["./packages/adapters/dead-letter-queue/src/index.ts"],
       "@monitoring/health-checks": ["./packages/monitoring/health-checks/src/index.ts"],
       "@monitoring/circuit-breaker": ["./packages/monitoring/circuit-breaker/src/index.ts"],
+      "@packages/api-errors": ["./packages/api-errors/src/index.ts"],
       "@observability/logger": ["./packages/observability/logger/src/index.ts"],
       "@observability/opentelemetry": ["./packages/observability/opentelemetry/src/index.ts"],
       "@observability/opentelemetry/*": ["./packages/observability/opentelemetry/src/*"],

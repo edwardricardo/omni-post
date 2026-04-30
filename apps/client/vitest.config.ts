@@ -17,6 +17,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./"),
+      "@packages/api-errors": path.resolve(__dirname, "../../packages/api-errors/src/index.ts"),
     },
   },
 });
