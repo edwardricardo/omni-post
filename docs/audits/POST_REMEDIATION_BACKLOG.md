@@ -829,6 +829,123 @@ Próximo turno con Edward post-T3-N. Decisión producto (A/B/C) → batch dedica
 
 ---
 
+### PR-16 — Client `useChannels()` legacy hook hits non-existent route + shape mismatch
+
+**Fecha de aplicación:** 2026-04-29 (documentación)
+**Batch de origen:** T3-Q (ClientContentEditor autosave + schedule wire) — descubierto durante audit pre-ejecución de Phase 2
+**Severidad del bug pre-existente:** alto — dos features completas (canales settings + recurring posts form) renderizan estado vacío permanente sin error visible
+**Tipo:** code + product (refactor de páginas consumidoras pendiente)
+
+**Descubrimiento.**
+
+`apps/client/hooks/api/useChannels.ts:44` ejecuta:
+
+```typescript
+const response = await fetch("/api/backend/channels", { credentials: "include" });
+if (!response.ok) throw new Error("Failed to fetch channels");
+const data = await response.json();
+return data.channels as Channel[];
+```
+
+Sin embargo, **`GET /api/backend/channels` no existe**. El backend (`apps/api/src/channels/channelRoutes.ts`) solo expone:
+
+- `GET /channels/:channelId` (single, requiere id)
+- `GET /projects/:projectId/channels` (listado per-project)
+- `POST /channels`, `POST /channels/bluesky/connect`, `PUT /channels/:channelId`, `PATCH /channels/:channelId/set-primary` (T3-Q Phase 1), `DELETE /channels/:channelId`, `DELETE /channels/:channelId/hard`
+
+Adicionalmente el shape `Channel` que asume el hook (campos `providerId`, `providerName`, `accountName`, `capabilities`, `usage`, `lastUsed`, `connectedAt`, `expiresAt`, `isConnected`) **no coincide** con lo que `toChannelView` retorna desde el backend (`{ id, projectId, name, platform, isPrimary, status, createdAt, updatedAt }`). Aún si la ruta existiera, los consumers leerían `undefined` para todos los fields críticos.
+
+Consumidores impactados (data permanece undefined → renderizado vacío):
+
+- `apps/client/app/dashboard/channels/page.tsx` — gestión de canales del cliente, lee `channel.capabilities.publish`, `channel.usage.postsThisMonth`, `channel.providerName`, etc.
+- `apps/client/components/scheduling/RecurringPostForm.tsx` — selector de canales en posts recurrentes.
+
+**Por qué NO se fixea completo en T3-Q.**
+
+T3-Q es _ClientContentEditor autosave + schedule_ con D5.1.b (Channel.isPrimary). Refactorizar `useChannels()` a project-scoped requiere también reescribir `dashboard/channels/page.tsx` (rendering completo basado en campos del shape antiguo) — eso es un refactor estructural amplio fuera del scope de T3-Q.
+
+T3-Q resuelve **solo lo necesario para el editor**:
+
+1. Crea hooks nuevos `useProjectChannels(projectId)` + `useSetPrimaryChannel` en módulo separado, alineados con el backend real (`GET /projects/:projectId/channels`).
+2. Editor (Phase 5) consume los hooks nuevos.
+3. Settings UI per Phase 6 incorpora botón "Set as primary" via `useSetPrimaryChannel` apuntando al hook nuevo (no toca el rendering de la página existente, que sigue mostrando estado vacío).
+4. `RecurringPostForm.tsx` queda con consumer roto (igual que estaba pre-T3-Q — el form ya estaba renderizando empty channel select).
+
+**Fix definitivo recomendado (cuando Edward decida scope).**
+
+Opción A — refactor unificado (preferida):
+
+- Eliminar `apps/client/hooks/api/useChannels.ts` (el hook roto).
+- Reemplazar todos sus call-sites por `useProjectChannels(projectId)` (creado en T3-Q).
+- Reescribir `dashboard/channels/page.tsx` con shape canónico (sin `capabilities`/`usage`/etc. — esos campos no existen en backend; si se quieren, son features nuevas que requieren backend work).
+- Actualizar `RecurringPostForm.tsx` para usar shape canónico.
+- Tests integration completos.
+
+Opción B — defer hasta resolver L-94/L-95 (T3-R):
+
+- L-94 (channels OAuth dead) y L-95 (channels Test/Settings disabled) ya estaban marcados NEEDS_EDWARD.
+- Cuando Edward decida flow producto (qué features mostrar en `/dashboard/channels`), se hace refactor unificado de UI + hooks en un solo batch.
+
+**Cuándo revisar.**
+
+Próximo batch que toque `/dashboard/channels` (probablemente T3-R cuando se resuelvan L-94/L-95) o batch dedicado post-T3 si Edward prioriza fixear el shape mismatch antes.
+
+**Estado:** DIFERIDO — pre-existente a T3-Q. T3-Q crea hooks nuevos correctos para el editor flow sin tocar consumers rotos pre-existentes. NO se introduce nueva deuda — la deuda existía desde antes y queda registrada explícitamente.
+
+---
+
+### PR-17 — `apiClient.schedulePost` callers en post detail y preview pages omiten `channelIds`
+
+**Fecha de aplicación:** 2026-04-29 (documentación + forward-compat fix)
+**Batch de origen:** T3-Q (ClientContentEditor schedule wire) — descubierto al cambiar la signature de `schedulePost` durante Phase 3
+**Severidad del bug pre-existente:** alto — feature "Schedule from post detail" siempre 400 en backend, sin error visible al usuario más allá del toast
+**Tipo:** code + product (UI selector de canales pendiente)
+
+**Descubrimiento.**
+
+Phase 3 de T3-Q corrige el bug de field name (`scheduledAt` → `scheduledFor`) en `apps/client/lib/api/clients/publishingClient.ts` y aprovecha para hacer `channelIds` requerido (matching backend `SchedulePostBodySchema` en `apps/api/src/posts/postRoutes.ts:42`). Esto descubrió dos call-sites pre-existentes que llamaban `apiClient.schedulePost(postId, scheduledAt)` sin `channelIds`:
+
+- `apps/client/app/dashboard/posts/[id]/page.tsx:109`
+- `apps/client/app/dashboard/posts/[id]/preview/page.tsx:92`
+
+Ambas páginas tienen un dialog de "Schedule" con solo un date picker — **no recogen channelIds en ningún momento**. Aún sin el bug del field name, el backend habría rechazado estas llamadas con 400 (`channelIds` es required). El comportamiento histórico: el usuario hace click en "Schedule", ve un toast genérico "Schedule failed" sin más contexto, y la operación nunca se completa.
+
+**Fix paliativo aplicado.**
+
+Ambos call-sites pasan `[]` como `channelIds` para mantener compilación TS:
+
+```typescript
+// dashboard/posts/[id]/page.tsx:109
+await apiClient.schedulePost(postId, new Date(scheduleDate).toISOString(), []);
+
+// dashboard/posts/[id]/preview/page.tsx:92
+await apiClient.schedulePost(postId, new Date(scheduleDate).toISOString(), []);
+```
+
+El comportamiento queda **igual de roto** que antes (400 backend), pero el código compila y el bug del schema name queda fijo. Comentarios explícitos en código lo señalan.
+
+**Root cause real.**
+
+Estas dos páginas fueron escritas asumiendo que `schedulePost` solo necesitaba un timestamp (probablemente el autor pensó que el backend usaría todos los canales conectados por default). El backend nunca implementó esa default — siempre exigió `channelIds` explícito. La feature ha estado rota desde su introducción.
+
+**Fix definitivo recomendado.**
+
+Las dos páginas necesitan un selector de canales (canon: el mismo `ChannelMultiSelect` que T3-Q Phase 5 introduce en el editor). El selector usa `useProjectChannels(projectId)` y aplica el patrón D5.A+B (default channel pre-seleccionado + override). Cuando se haga eso:
+
+1. Reemplazar el dialog de Schedule en ambas páginas por uno que incluya el selector.
+2. Usar `useSchedulePost(postId, scheduledFor, channelIds)` (creado en T3-Q Phase 3).
+3. Eliminar los comentarios `PR-17` y los `[]` literales.
+
+Cross-batch con T3-R (channels OAuth + UI cleanup) si Edward decide tocar esa zona.
+
+**Cuándo revisar.**
+
+Próximo batch que toque `dashboard/posts/[id]` (probablemente T3-I L-148 cuando se ejecute el split de ese archivo, o batch dedicado post-T3 si Edward prioriza la UX de schedule desde post detail).
+
+**Estado:** DIFERIDO — pre-existente a T3-Q. T3-Q hace forward-compat mínimo (`[]`) para no bloquear el fix del schema bug. No se introduce nueva deuda — la deuda existía desde antes.
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

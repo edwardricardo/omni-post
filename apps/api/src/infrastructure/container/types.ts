@@ -58,6 +58,9 @@ export const TOKENS = {
   GetPostWithThreadQuery: Symbol.for("GetPostWithThreadQuery"),
   ListPostsGlobalQuery: Symbol.for("ListPostsGlobalQuery"),
 
+  // Use Cases (channels)
+  SetPrimaryChannelUseCase: Symbol.for("SetPrimaryChannelUseCase"),
+
   // Outbox (P2-1 — Transactional Outbox)
   OutboxWriter: Symbol.for("OutboxWriter"),
   OutboxRelay: Symbol.for("OutboxRelay"),

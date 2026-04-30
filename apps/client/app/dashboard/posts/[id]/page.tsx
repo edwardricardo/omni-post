@@ -106,7 +106,7 @@ export default function EditPostPage() {
 
     setIsScheduling(true);
     try {
-      await apiClient.schedulePost(postId, new Date(scheduleDate).toISOString());
+      await apiClient.schedulePost(postId, new Date(scheduleDate).toISOString(), []);
       toast({ title: "Post scheduled" });
       setShowScheduleDialog(false);
       setScheduleDate("");

@@ -7,6 +7,7 @@
 import { type Result } from "@shared/types";
 import { type Channel } from "../entities/Channel.js";
 import { type ChannelId, type ProjectId } from "../value-objects/EntityId.js";
+import { type Provider } from "../value-objects/Provider.js";
 import { type EntityNotFoundError } from "../errors/index.js";
 
 /**
@@ -29,6 +30,22 @@ export interface ChannelRepository {
    * Find all channels belonging to a project
    */
   findByProjectId(projectId: ProjectId): Promise<Channel[]>;
+
+  /**
+   * Find all channels belonging to a project for a specific provider.
+   * Used by SetPrimaryChannelUseCase to locate sibling channels that may
+   * already hold the primary flag for the same (project, provider) pair.
+   */
+  findByProjectAndProvider(projectId: ProjectId, provider: Provider): Promise<Channel[]>;
+
+  /**
+   * Find the primary channel for a (project, provider) pair, if any.
+   * Returns NotFoundError when no primary has been set yet for that pair.
+   */
+  findPrimaryByProjectAndProvider(
+    projectId: ProjectId,
+    provider: Provider
+  ): Promise<Result<Channel, EntityNotFoundError>>;
 
   /**
    * Save a channel (create or update)

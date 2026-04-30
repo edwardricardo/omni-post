@@ -31,6 +31,7 @@ import { setupCustomerAuthUseCases } from "./setupCustomerAuthUseCases.js";
 import { setupReferralUseCases } from "./setupReferralUseCases.js";
 import { setupTrendUseCases } from "./setupTrendUseCases.js";
 import { setupRepurposeUseCases } from "./setupRepurposeUseCases.js";
+import { setupChannelUseCases } from "./setupChannelUseCases.js";
 
 /**
  * @method setupUseCases
@@ -38,6 +39,7 @@ import { setupRepurposeUseCases } from "./setupRepurposeUseCases.js";
  */
 export function setupUseCases(container: Container): void {
   setupPostUseCases(container);
+  setupChannelUseCases(container);
   setupApiKeyUseCases(container);
   setupAnalyticsUseCases(container);
   setupLinkUseCases(container);

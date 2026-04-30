@@ -36,6 +36,7 @@ export * from "./components/use-toast";
 export * from "./components/VirtualScrollList";
 
 // Business Components
+export * from "./components/business/ChannelMultiSelect";
 export * from "./components/business/ContentVersioning";
 export * from "./components/business/ContentEditorCore";
 export { EmojiPickerButton } from "./components/business/EmojiPickerButton";

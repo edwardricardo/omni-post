@@ -1,20 +1,26 @@
 /**
  * @file useAutoSave.integration.test.ts
- * @description Integration tests for useAutoSave hook — debounce, localStorage, save lifecycle.
+ * @description Integration tests for `useAutoSave` and `usePostDraft` covering
+ *              debounce + localStorage offline cache + the canonical Pattern
+ *              Lazy server-persistence flow (skip empty body, POST first save,
+ *              PATCH subsequent saves, single-flight create, status lifecycle).
  * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useAutoSave } from "../../lib/hooks/useAutoSave";
+import { useAutoSave, usePostDraft } from "../../lib/hooks/useAutoSave";
 
-// Mock the API hooks that usePostDraft depends on
+const createMutateAsync = vi.fn();
+const updateMutateAsync = vi.fn();
+let createIsPending = false;
+let updateIsPending = false;
+
 vi.mock("@/lib/api/hooks", () => ({
-  useCreatePost: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useUpdatePost: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreatePost: () => ({ mutateAsync: createMutateAsync, isPending: createIsPending }),
+  useUpdatePost: () => ({ mutateAsync: updateMutateAsync, isPending: updateIsPending }),
 }));
 
-// Mock localStorage
 const mockStorage: Record<string, string> = {};
 const mockLocalStorage = {
   getItem: vi.fn((key: string) => mockStorage[key] ?? null),
@@ -31,114 +37,188 @@ const mockLocalStorage = {
   key: vi.fn(() => null),
 };
 
-Object.defineProperty(globalThis, "localStorage", { value: mockLocalStorage, writable: true });
+// jsdom provides `window` and a real localStorage; replace just localStorage
+// (on both `globalThis` for backward compat and on the `window` object the
+// hook actually reads from) with a spy-friendly mock so we can assert calls.
+Object.defineProperty(globalThis, "localStorage", {
+  value: mockLocalStorage,
+  writable: true,
+  configurable: true,
+});
+Object.defineProperty(window, "localStorage", {
+  value: mockLocalStorage,
+  writable: true,
+  configurable: true,
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.useFakeTimers();
+  mockLocalStorage.clear();
+  createIsPending = false;
+  updateIsPending = false;
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("useAutoSave", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-    mockLocalStorage.clear();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("starts with idle saveStatus", () => {
+  it("starts with idle status, null lastSaved, and exposes the public surface", () => {
     const { result } = renderHook(() => useAutoSave({ key: "test" }));
     expect(result.current.saveStatus).toBe("idle");
-  });
-
-  it("starts with null lastSaved", () => {
-    const { result } = renderHook(() => useAutoSave({ key: "test" }));
     expect(result.current.lastSaved).toBeNull();
-  });
-
-  it("exposes save, saveNow, loadDraft, clearDraft functions", () => {
-    const { result } = renderHook(() => useAutoSave({ key: "test" }));
     expect(typeof result.current.save).toBe("function");
     expect(typeof result.current.saveNow).toBe("function");
     expect(typeof result.current.loadDraft).toBe("function");
     expect(typeof result.current.clearDraft).toBe("function");
   });
 
-  it("saves to localStorage after debounce interval", async () => {
+  it("writes to localStorage after the debounce interval", async () => {
     const { result } = renderHook(() => useAutoSave({ key: "test", interval: 1000 }));
 
     act(() => {
-      result.current.save({ content: "Hello world" });
+      result.current.save({ body: "Hello" });
     });
-
-    // Before interval — not saved yet
     expect(mockLocalStorage.setItem).not.toHaveBeenCalled();
 
-    // After interval
     await act(async () => {
       vi.advanceTimersByTime(1100);
     });
 
-    // Give async operations time to complete
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+      "draft_test",
+      expect.stringContaining('"body":"Hello"')
+    );
+  });
+
+  it("loads, clears, and reports presence of localStorage drafts", () => {
+    mockStorage["draft_post-1"] = JSON.stringify({ body: "Saved" });
+    const { result } = renderHook(() => useAutoSave({ key: "post-1" }));
+
+    expect(result.current.hasDraft).toBe(true);
+    expect(result.current.loadDraft()?.body).toBe("Saved");
+
+    act(() => result.current.clearDraft());
+    expect(mockLocalStorage.removeItem).toHaveBeenCalledWith("draft_post-1");
+  });
+
+  it("calls onPersist after the localStorage write and transitions saveStatus", async () => {
+    const onPersist = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAutoSave({ key: "test", interval: 500, onPersist }));
+
+    act(() => {
+      result.current.save({ body: "Hello" });
+    });
     await act(async () => {
-      vi.advanceTimersByTime(600);
+      await vi.advanceTimersByTimeAsync(600);
     });
 
     expect(mockLocalStorage.setItem).toHaveBeenCalled();
+    expect(onPersist).toHaveBeenCalledWith({ body: "Hello" });
+    expect(result.current.saveStatus).toBe("saved");
+    expect(result.current.lastSaved).toBeInstanceOf(Date);
   });
 
-  it("loadDraft returns null when no draft exists", () => {
-    const { result } = renderHook(() => useAutoSave({ key: "test" }));
-    const draft = result.current.loadDraft();
-    expect(draft).toBeNull();
-  });
+  it("transitions saveStatus to error when onPersist throws", async () => {
+    const onPersist = vi.fn().mockRejectedValue(new Error("boom"));
+    const onSaveResult = vi.fn();
+    const { result } = renderHook(() =>
+      useAutoSave({ key: "test", interval: 500, onPersist, onSaveResult })
+    );
 
-  it("loadDraft returns stored draft", () => {
-    mockStorage["draft_test"] = JSON.stringify({ content: "Saved draft" });
-
-    const { result } = renderHook(() => useAutoSave({ key: "test" }));
-    const draft = result.current.loadDraft();
-    expect(draft).not.toBeNull();
-    expect(draft?.content).toBe("Saved draft");
-  });
-
-  it("clearDraft removes from localStorage", () => {
-    mockStorage["draft_test"] = JSON.stringify({ content: "Draft" });
-
-    const { result } = renderHook(() => useAutoSave({ key: "test" }));
     act(() => {
-      result.current.clearDraft();
+      result.current.save({ body: "Hello" });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
     });
 
-    expect(mockLocalStorage.removeItem).toHaveBeenCalledWith("draft_test");
+    expect(result.current.saveStatus).toBe("error");
+    expect(onSaveResult).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
   });
 
-  it("hasDraft returns true when draft exists", () => {
-    mockStorage["draft_test"] = JSON.stringify({ content: "Draft" });
+  it("saveNow flushes the debounce immediately", async () => {
+    const onPersist = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAutoSave({ key: "test", interval: 60_000, onPersist }));
 
-    const { result } = renderHook(() => useAutoSave({ key: "test" }));
-    expect(result.current.hasDraft).toBe(true);
+    act(() => {
+      result.current.save({ body: "Hello" });
+    });
+
+    await act(async () => {
+      await result.current.saveNow();
+    });
+
+    expect(onPersist).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("usePostDraft (Pattern Lazy)", () => {
+  it("skips server persistence when body is empty", async () => {
+    const { result } = renderHook(() => usePostDraft());
+
+    act(() => {
+      result.current.saveDraft({ content: "   " });
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(20_000);
+    });
+
+    expect(createMutateAsync).not.toHaveBeenCalled();
+    expect(updateMutateAsync).not.toHaveBeenCalled();
+    expect(mockLocalStorage.setItem).toHaveBeenCalled(); // localStorage still runs
   });
 
-  it("hasDraft returns false when no draft", () => {
-    const { result } = renderHook(() => useAutoSave({ key: "test" }));
-    expect(result.current.hasDraft).toBe(false);
+  it("issues POST /posts on first save with body and projectId", async () => {
+    createMutateAsync.mockResolvedValue({ ok: true, data: { id: "new-post-id" } });
+    const onPostCreated = vi.fn();
+    const { result } = renderHook(() => usePostDraft(undefined, onPostCreated));
+
+    act(() => {
+      result.current.saveDraft({ content: "Hello world", projectId: "proj-1", locale: "en" });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+
+    expect(createMutateAsync).toHaveBeenCalledTimes(1);
+    expect(createMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "proj-1", body: "Hello world", locale: "en" })
+    );
+    expect(onPostCreated).toHaveBeenCalledWith("new-post-id");
   });
 
-  it("uses key to namespace localStorage", () => {
-    mockStorage["draft_project-1"] = JSON.stringify({ content: "Project 1" });
+  it("PATCHes /posts/:id on subsequent saves once the post exists", async () => {
+    updateMutateAsync.mockResolvedValue({ ok: true });
+    const { result } = renderHook(() => usePostDraft("existing-id"));
 
-    const { result } = renderHook(() => useAutoSave({ key: "project-1" }));
-    const draft = result.current.loadDraft();
-    expect(draft?.content).toBe("Project 1");
+    act(() => {
+      result.current.saveDraft({ content: "Updated", title: "T" });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+
+    expect(updateMutateAsync).toHaveBeenCalledTimes(1);
+    expect(updateMutateAsync).toHaveBeenCalledWith({
+      id: "existing-id",
+      data: { body: "Updated", title: "T" },
+    });
+    expect(createMutateAsync).not.toHaveBeenCalled();
   });
 
-  it("defaults interval to 30000ms", () => {
-    const { result } = renderHook(() => useAutoSave({ key: "test" }));
-    // Can't directly test the interval, but verify hook returns without error
-    expect(result.current.saveStatus).toBe("idle");
-  });
+  it("never creates without a projectId in the draft payload", async () => {
+    const { result } = renderHook(() => usePostDraft());
 
-  it("defaults enabled to true", () => {
-    const { result } = renderHook(() => useAutoSave({ key: "test" }));
-    expect(result.current.saveStatus).toBe("idle");
+    act(() => {
+      result.current.saveDraft({ content: "Has body but no project" });
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(20_000);
+    });
+
+    expect(createMutateAsync).not.toHaveBeenCalled();
+    expect(mockLocalStorage.setItem).toHaveBeenCalled();
   });
 });

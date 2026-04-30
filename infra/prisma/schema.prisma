@@ -691,11 +691,12 @@ model Channel {
   provider    Provider
   handle      String
   credentials Json
+  isPrimary   Boolean      @default(false)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   project     Project      @relation(fields: [projectId], references: [id])
-  publishLogs PublishLog[] // ✅ Phase 1: Added relationship (fixes N+1 queries)
-  analytics   Analytics[]  // ✅ Phase 1: Added relationship (fixes N+1 queries)
+  publishLogs PublishLog[]
+  analytics   Analytics[]
   socialMessages   SocialMessage[]
   socialConversations SocialConversation[]
   deletedAt   DateTime?

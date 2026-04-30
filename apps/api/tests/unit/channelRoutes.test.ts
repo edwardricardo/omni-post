@@ -353,6 +353,89 @@ describe("channelRoutes", () => {
 
   // ── DELETE /channels/:channelId ────────────────────────────────────────
 
+  // ── PATCH /channels/:channelId/set-primary ────────────────────────────
+
+  describe("PATCH /channels/:channelId/set-primary", () => {
+    let primaryChannelA: string;
+    let primaryChannelB: string;
+
+    beforeAll(async () => {
+      // Two channels for the same provider in the same project — A then B.
+      const a = await app.inject({
+        method: "POST",
+        url: "/channels",
+        payload: {
+          projectId: testProjectId,
+          name: "@primary-a",
+          platform: "TIKTOK",
+          credentials: { accessToken: "tok-a" },
+        },
+      });
+      primaryChannelA = JSON.parse(a.body).data.id;
+
+      const b = await app.inject({
+        method: "POST",
+        url: "/channels",
+        payload: {
+          projectId: testProjectId,
+          name: "@primary-b",
+          platform: "TIKTOK",
+          credentials: { accessToken: "tok-b" },
+        },
+      });
+      primaryChannelB = JSON.parse(b.body).data.id;
+    });
+
+    it("promotes channel A to primary", async () => {
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/channels/${primaryChannelA}/set-primary`,
+      });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.ok).toBe(true);
+      expect(body.data.id).toBe(primaryChannelA);
+      expect(body.data.isPrimary).toBe(true);
+    });
+
+    it("swaps primary from A to B", async () => {
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/channels/${primaryChannelB}/set-primary`,
+      });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.data.id).toBe(primaryChannelB);
+      expect(body.data.isPrimary).toBe(true);
+    });
+
+    it("is idempotent when channel is already primary", async () => {
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/channels/${primaryChannelB}/set-primary`,
+      });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.data.isPrimary).toBe(true);
+    });
+
+    it("returns 404 for non-existent channel", async () => {
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/channels/${NONEXISTENT_UUID}/set-primary`,
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("returns 400 for invalid channel id", async () => {
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/channels/not-a-uuid/set-primary`,
+      });
+      expect(res.statusCode).toBe(400);
+    });
+  });
+
   describe("DELETE /channels/:channelId", () => {
     let softDeleteChannelId: string;
 

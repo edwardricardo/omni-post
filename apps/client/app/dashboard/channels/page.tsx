@@ -13,6 +13,7 @@ import { useProviders } from "@/lib/hooks/useProviders";
 import { mapProvidersToMetadata } from "@/lib/utils/providerMapper";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { PrimaryChannelsSection } from "@/components/channels/PrimaryChannelsSection";
 
 interface Channel {
   id: string;
@@ -713,6 +714,10 @@ function ChannelsPageContent() {
         onConfirm={handleConfirmDisconnect}
         loading={disconnectChannelMutation.isPending}
       />
+
+      <div className="mt-8">
+        <PrimaryChannelsSection />
+      </div>
     </div>
   );
 }

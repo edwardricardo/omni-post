@@ -25,6 +25,8 @@ import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { PrismaClient } from "@infra/prisma";
 import { BlueskyClient } from "@providers/bluesky";
+import { SetPrimaryChannelUseCase } from "../application/channels/index.js";
+import { USE_CASE_ERRORS } from "../application/UseCase.js";
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -80,6 +82,7 @@ function toChannelView(channel: Channel) {
     projectId: channel.projectId.value,
     name: channel.handle,
     platform: channel.provider.type,
+    isPrimary: channel.isPrimary,
     status: channel.status,
     createdAt: channel.createdAt,
     updatedAt: channel.updatedAt,
@@ -94,7 +97,8 @@ class ChannelRouteHandler extends BaseRouteHandler {
   constructor(
     private readonly channelRepo: ChannelRepository,
     private readonly projectRepo: ProjectRepositoryPort,
-    private readonly prismaClient: PrismaClient
+    private readonly prismaClient: PrismaClient,
+    private readonly setPrimaryUseCase: SetPrimaryChannelUseCase
   ) {
     super();
   }
@@ -340,6 +344,42 @@ class ChannelRouteHandler extends BaseRouteHandler {
   }
 
   /**
+   * PATCH /channels/:channelId/set-primary
+   * Promotes a channel to primary for its (project, provider) pair. Atomically
+   * unmarks any sibling that was previously primary, so the partial unique index
+   * is never violated. Idempotent — re-marking a primary channel is a no-op.
+   */
+  async setPrimaryChannel(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    this.logInfo(ctx, "Setting primary channel");
+
+    const paramsResult = await this.validateParams<ChannelParamsType>(ctx, ChannelParams);
+    if (!paramsResult.ok) return this.sendError(ctx, 400, "Validation failed");
+
+    const { channelId } = paramsResult.value;
+    const result = await this.setPrimaryUseCase.execute({ channelId });
+
+    if (!result.ok) {
+      const code = result.error.code;
+      if (code === USE_CASE_ERRORS.NOT_FOUND) {
+        return this.sendError(ctx, 404, "Channel not found");
+      }
+      if (code === USE_CASE_ERRORS.VALIDATION_FAILED) {
+        return this.sendError(ctx, 400, result.error.message);
+      }
+      this.logError(ctx, "Failed to set primary channel", { error: result.error });
+      return this.sendError(ctx, 500, "Failed to set primary channel");
+    }
+
+    const findResult = await this.channelRepo.findById(ChannelId.fromStringUnsafe(channelId));
+    if (!findResult.ok) {
+      return this.sendError(ctx, 500, "Failed to read updated channel");
+    }
+
+    return this.sendSuccess(ctx, toChannelView(findResult.value));
+  }
+
+  /**
    * DELETE /channels/:channelId/hard
    * Hard-delete a channel and ALL cascade data permanently (irreversible).
    * SUPER_ADMIN only. Cascades to publishLogs, analytics.
@@ -384,8 +424,16 @@ export const channelRoutes: FastifyPluginAsync = async (fastify) => {
   const channelRepo = container.resolve<ChannelRepository>(TOKENS.ChannelRepository);
   const projectRepo = container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository);
   const prismaClient = container.resolve<PrismaClient>(TOKENS.PrismaClient);
+  const setPrimaryUseCase = container.resolve<SetPrimaryChannelUseCase>(
+    TOKENS.SetPrimaryChannelUseCase
+  );
 
-  const handler = new ChannelRouteHandler(channelRepo, projectRepo, prismaClient);
+  const handler = new ChannelRouteHandler(
+    channelRepo,
+    projectRepo,
+    prismaClient,
+    setPrimaryUseCase
+  );
 
   fastify.post(
     "/channels",
@@ -411,6 +459,16 @@ export const channelRoutes: FastifyPluginAsync = async (fastify) => {
     "/channels/:channelId",
     { schema: { tags: ["Channels"], summary: "Update a channel" } },
     (req, reply) => handler.updateChannel(req, reply)
+  );
+  fastify.patch(
+    "/channels/:channelId/set-primary",
+    {
+      schema: {
+        tags: ["Channels"],
+        summary: "Mark a channel as the primary one for its (project, provider) pair",
+      },
+    },
+    (req, reply) => handler.setPrimaryChannel(req, reply)
   );
   fastify.delete(
     "/channels/:channelId",

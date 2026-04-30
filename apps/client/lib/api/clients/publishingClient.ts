@@ -41,17 +41,17 @@ export class PublishingClient {
    * @method schedulePost
    * @description Schedules a post for future publication.
    * @param postId - Post identifier
-   * @param scheduledAt - ISO-8601 timestamp
-   * @param channelIds - Optional channel filter
+   * @param scheduledFor - ISO-8601 timestamp
+   * @param channelIds - Channel UUIDs to publish to
    */
   async schedulePost(
     postId: string,
-    scheduledAt: string,
-    channelIds?: string[]
+    scheduledFor: string,
+    channelIds: string[]
   ): Promise<ApiResponse<unknown>> {
     return request<ApiResponse<unknown>>(this.baseUrl, `/posts/${postId}/schedule`, {
       method: "POST",
-      body: JSON.stringify({ scheduledAt, channelIds }),
+      body: JSON.stringify({ scheduledFor, channelIds }),
     });
   }
 

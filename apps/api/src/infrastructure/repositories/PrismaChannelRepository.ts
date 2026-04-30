@@ -43,6 +43,7 @@ function toDomain(row: {
   provider: string;
   handle: string;
   credentials: unknown;
+  isPrimary: boolean;
   createdAt: Date;
   updatedAt: Date;
 }): Channel {
@@ -61,6 +62,7 @@ function toDomain(row: {
     provider: providerResult.value,
     handle: row.handle,
     credentials: parseCredentials(row.credentials),
+    isPrimary: row.isPrimary,
     // Status, errorCount, etc. are not persisted — default to healthy state
     status: CONNECTION_STATUS.CONNECTED,
     errorCount: 0,
@@ -110,6 +112,45 @@ export class PrismaChannelRepository implements ChannelRepository {
   }
 
   /**
+   * Find all channels for a specific (project, provider) pair (excludes soft-deleted)
+   */
+  async findByProjectAndProvider(projectId: ProjectId, provider: Provider): Promise<Channel[]> {
+    const rows = await this.prisma.channel.findMany({
+      where: {
+        projectId: projectId.value,
+        provider: provider.type as import("@infra/prisma").Provider,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return rows.map(toDomain);
+  }
+
+  /**
+   * Find the primary channel for a (project, provider) pair, or NotFound when none exists
+   */
+  async findPrimaryByProjectAndProvider(
+    projectId: ProjectId,
+    provider: Provider
+  ): Promise<Result<Channel, EntityNotFoundError>> {
+    const row = await this.prisma.channel.findFirst({
+      where: {
+        projectId: projectId.value,
+        provider: provider.type as import("@infra/prisma").Provider,
+        isPrimary: true,
+        deletedAt: null,
+      },
+    });
+
+    if (!row) {
+      return err(new EntityNotFoundError("Channel", `${projectId.value}/${provider.type}/primary`));
+    }
+
+    return ok(toDomain(row));
+  }
+
+  /**
    * Save a channel (create or update via upsert)
    */
   async save(channel: Channel): Promise<Result<void, Error>> {
@@ -139,12 +180,14 @@ export class PrismaChannelRepository implements ChannelRepository {
           provider: channel.provider.type as import("@infra/prisma").Provider,
           handle: channel.handle,
           credentials,
+          isPrimary: channel.isPrimary,
           createdAt: channel.createdAt,
           updatedAt: channel.updatedAt,
         },
         update: {
           handle: channel.handle,
           credentials,
+          isPrimary: channel.isPrimary,
           updatedAt: channel.updatedAt,
         },
       });

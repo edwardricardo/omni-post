@@ -233,10 +233,10 @@ class ApiClient {
 
   schedulePost(
     postId: string,
-    scheduledAt: string,
-    channelIds?: string[]
+    scheduledFor: string,
+    channelIds: string[]
   ): Promise<ApiResponse<unknown>> {
-    return this.publishing.schedulePost(postId, scheduledAt, channelIds);
+    return this.publishing.schedulePost(postId, scheduledFor, channelIds);
   }
 
   cancelScheduledPost(postId: string): Promise<ApiResponse<unknown>> {

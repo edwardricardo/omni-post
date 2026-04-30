@@ -42,6 +42,7 @@ export interface ChannelProps extends EntityProps {
   provider: Provider;
   handle: string;
   credentials: ChannelCredentials;
+  isPrimary?: boolean;
   status?: ConnectionStatusValue;
   lastHealthCheck?: Date;
   errorCount?: number;
@@ -79,6 +80,7 @@ export class Channel extends Entity<ChannelId> {
   private readonly _provider: Provider;
   private _handle: string;
   private _credentials: ChannelCredentials;
+  private _isPrimary: boolean;
   private _status: ConnectionStatusValue;
   private _lastHealthCheck: Date | undefined;
   private _errorCount: number;
@@ -90,6 +92,7 @@ export class Channel extends Entity<ChannelId> {
     this._provider = props.provider;
     this._handle = props.handle;
     this._credentials = { ...props.credentials };
+    this._isPrimary = props.isPrimary ?? false;
     this._status = props.status ?? CONNECTION_STATUS.PENDING;
     this._lastHealthCheck = props.lastHealthCheck;
     this._errorCount = props.errorCount ?? 0;
@@ -149,6 +152,7 @@ export class Channel extends Entity<ChannelId> {
       provider: Provider;
       handle: string;
       credentials: ChannelCredentials;
+      isPrimary?: boolean;
       status: ConnectionStatusValue;
       lastHealthCheck?: Date;
       errorCount: number;
@@ -180,6 +184,10 @@ export class Channel extends Entity<ChannelId> {
 
   get credentials(): Readonly<ChannelCredentials> {
     return { ...this._credentials };
+  }
+
+  get isPrimary(): boolean {
+    return this._isPrimary;
   }
 
   get status(): ConnectionStatusValue {
@@ -346,12 +354,41 @@ export class Channel extends Entity<ChannelId> {
     this.markUpdated();
   }
 
+  /**
+   * Mark this channel as the primary channel for its (project, provider) pair.
+   * Idempotent — calling on an already-primary channel is a no-op (no markUpdated).
+   *
+   * Uniqueness across the (project, provider, isPrimary=true) tuple is enforced
+   * at the persistence layer via a partial unique index, so any caller that
+   * promotes a channel must unmark the previous primary inside the same
+   * transaction or the constraint will fail mid-flight.
+   */
+  markAsPrimary(): void {
+    if (this._isPrimary) {
+      return;
+    }
+    this._isPrimary = true;
+    this.markUpdated();
+  }
+
+  /**
+   * Remove the primary flag from this channel. Idempotent.
+   */
+  unmarkAsPrimary(): void {
+    if (!this._isPrimary) {
+      return;
+    }
+    this._isPrimary = false;
+    this.markUpdated();
+  }
+
   toJSON(): Record<string, unknown> {
     return {
       id: this._id.toString(),
       projectId: this._projectId.toString(),
       provider: this._provider.type,
       handle: this._handle,
+      isPrimary: this._isPrimary,
       status: this._status,
       errorCount: this._errorCount,
       ...(this._lastHealthCheck && { lastHealthCheck: this._lastHealthCheck.toISOString() }),

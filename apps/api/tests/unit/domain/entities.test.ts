@@ -136,6 +136,92 @@ describe("Domain Entities", () => {
         expect(channel.isConnected).toBeTruthy();
       }
     });
+
+    it("defaults isPrimary to false on creation", () => {
+      const result = Channel.create({
+        projectId,
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+
+      expect(result.ok).toBeTruthy();
+      if (result.ok) {
+        expect(result.value.isPrimary).toBe(false);
+      }
+    });
+
+    it("flips isPrimary via markAsPrimary and updates timestamp", async () => {
+      const result = Channel.create({
+        projectId,
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      expect(result.ok).toBeTruthy();
+      if (!result.ok) return;
+      const channel = result.value;
+      const before = channel.updatedAt.getTime();
+      // Make sure the clock advances so updatedAt changes deterministically.
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      channel.markAsPrimary();
+      expect(channel.isPrimary).toBe(true);
+      expect(channel.updatedAt.getTime()).toBeGreaterThan(before);
+    });
+
+    it("markAsPrimary is idempotent — does not bump updatedAt when already primary", async () => {
+      const result = Channel.create({
+        projectId,
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      expect(result.ok).toBeTruthy();
+      if (!result.ok) return;
+      const channel = result.value;
+      channel.markAsPrimary();
+      const after = channel.updatedAt.getTime();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      channel.markAsPrimary();
+      expect(channel.isPrimary).toBe(true);
+      expect(channel.updatedAt.getTime()).toBe(after);
+    });
+
+    it("unmarkAsPrimary flips back to false and is idempotent", async () => {
+      const result = Channel.create({
+        projectId,
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      expect(result.ok).toBeTruthy();
+      if (!result.ok) return;
+      const channel = result.value;
+      channel.markAsPrimary();
+      expect(channel.isPrimary).toBe(true);
+      channel.unmarkAsPrimary();
+      expect(channel.isPrimary).toBe(false);
+      const after = channel.updatedAt.getTime();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      // Second unmark on an already-non-primary channel must not bump updatedAt.
+      channel.unmarkAsPrimary();
+      expect(channel.updatedAt.getTime()).toBe(after);
+    });
+
+    it("toJSON exposes isPrimary", () => {
+      const result = Channel.create({
+        projectId,
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      expect(result.ok).toBeTruthy();
+      if (!result.ok) return;
+      const channel = result.value;
+      channel.markAsPrimary();
+      const json = channel.toJSON();
+      expect(json.isPrimary).toBe(true);
+    });
   });
 
   describe("Account Entity", () => {
