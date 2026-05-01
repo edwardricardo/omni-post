@@ -1,9 +1,11 @@
 /**
  * @file templateAnalytics.ts
- * @description Template analytics service stub returning default metrics until
- *              full analytics tracking is wired into the event pipeline.
+ * @description Template analytics service. Methods throw `notImplemented`
+ *              until the analytics event pipeline is wired up. Routes that
+ *              call these surface 501 responses to the client.
  * @layer infrastructure
  */
+import { AppError } from "@shared/types";
 
 interface TemplateAnalyticsFilters {
   startDate?: Date;
@@ -20,25 +22,14 @@ interface TemplateUsageEvent {
 
 export const templateAnalytics = {
   async getTemplateAnalytics(_projectId: string, _filters?: TemplateAnalyticsFilters) {
-    return {
-      templates: [],
-      totalViews: 0,
-      totalUses: 0,
-      conversionRate: 0,
-    };
+    throw AppError.notImplemented("Template analytics aggregation not yet implemented");
   },
 
   async trackTemplateUsage(_projectId: string, _templateId: string, _event: TemplateUsageEvent) {
-    // Stub: Template usage tracking not yet implemented
-    return { success: true };
+    throw AppError.notImplemented("Template usage tracking not yet implemented");
   },
 
   async getABTestResults(_projectId: string, _testId: string) {
-    return {
-      testId: _testId,
-      variants: [],
-      winner: null,
-      confidence: 0,
-    };
+    throw AppError.notImplemented("Template A/B test results not yet implemented");
   },
 };

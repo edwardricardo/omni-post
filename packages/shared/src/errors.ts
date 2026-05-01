@@ -42,6 +42,7 @@ export enum ErrorCode {
   INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",
   BAD_REQUEST = "BAD_REQUEST",
   FORBIDDEN = "FORBIDDEN",
+  NOT_IMPLEMENTED = "NOT_IMPLEMENTED",
 }
 
 /**
@@ -117,6 +118,13 @@ export class AppError extends Error {
 
   static internal(message = "Internal server error", details?: Record<string, unknown>): AppError {
     return new AppError(ErrorCode.INTERNAL_SERVER_ERROR, 500, message, false, details);
+  }
+
+  static notImplemented(
+    message = "Feature not yet implemented",
+    details?: Record<string, unknown>
+  ): AppError {
+    return new AppError(ErrorCode.NOT_IMPLEMENTED, 501, message, true, details);
   }
 
   static validationFailed(
