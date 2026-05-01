@@ -787,7 +787,7 @@ All comments in **English**.
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-These must stay at zero. If your change breaks any of these, fix it before committing:
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all 13 — any new occurrence fails the workflow with an `::error` annotation. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 ```bash
 # 1. No Prisma singleton imports in routes
@@ -796,10 +796,14 @@ grep -rn "import { prisma" apps/api/src/ --include="*routes*" | wc -l
 # 2. Domain layer is framework-free
 grep -rn "prisma\|fastify\|redis\|bullmq" apps/api/src/domain/ --include="*.ts" | wc -l
 
-# 3. No `any` in domain/application/infrastructure
-grep -rn ": any\b\|as any\b\|<any>" \
+# 3. No `any` in domain/application/infrastructure.
+# Refined regex: `\bas any\b` (word boundary before `as`) avoids matching
+# "h*as any*" in JSDoc prose like "Check if project has any channels".
+# Also exclude lines that start with `*` (JSDoc) or `//` (line comment).
+grep -rnE "(:\s+any\b|\bas any\b|<any>)" \
   apps/api/src/domain/ apps/api/src/application/ apps/api/src/infrastructure/ \
-  --include="*.ts" | grep -v "// any" | wc -l
+  --include="*.ts" | \
+  grep -vE "//.*any|^[^:]+:[0-9]+:\s*\*" | wc -l
 
 # 4. No raw throws in domain/application
 grep -rn "throw " apps/api/src/domain/ apps/api/src/application/ \
@@ -832,9 +836,11 @@ grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" | \
   grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation" | \
   grep -v "@layer application\|@layer domain\|@layer infrastructure" | wc -l
 
-# 11. No raw setInterval in backend (scheduler-adapter excepted)
+# 11. No raw setInterval in backend (scheduler-adapter excepted).
+# Excludes `enhancedValidator.ts` which holds `"setInterval("` as a literal
+# string in a security denylist of dangerous patterns — not a real call.
 grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" | \
-  grep -v "default-scheduler\|node_modules\|dist\|\.test\.\|/tests/\|/\.stryker-tmp/\|eslint\.config\|DANGEROUS_STRINGS" | wc -l
+  grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|/\.stryker-tmp/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" | wc -l
 
 # 12. Every React component file carries an @component tag.
 # Scan component directories and fail if any canonical component .tsx lacks @component.
@@ -856,6 +862,14 @@ done | wc -l
 grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" | \
   grep -v "lib/logger\.ts\|\.test\.\|/tests/\|/\.stryker-tmp/" | wc -l
 ```
+
+**Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:
+
+1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
+2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode).
+3. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a backlog entry rather than locking in non-zero noise.
+
+The regex in this file IS the regex in CI — keep them in sync.
 
 ---
 

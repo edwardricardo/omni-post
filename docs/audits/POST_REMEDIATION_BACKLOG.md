@@ -1483,6 +1483,45 @@ Cuando aparezca un ticket relacionado con BranchManager (perf, feature, bug) o c
 
 ---
 
+### PR-31 — Remaining direct `RedisCacheManager` consumers post-T4-L (PostsService duplicate pool + autoCacheMiddleware + cacheDecorators)
+
+**Origen.** T4-L (2026-05-01) — audit post-cierre del batch detectó 3 sitios que siguen consumiendo `RedisCacheManager` directamente, fuera del `TOKENS.CachePort` consolidado.
+
+**Contexto.** T4-L consolidó 5 servicios + 2 UCs detrás de `CachePort`, pero **deliberadamente no tocó** 3 sitios HTTP-tier / decorator-tier que tienen razones legítimas o requieren scope mayor. Audit:
+
+| Sitio                                                                                                                                                           | Naturaleza                                                        | Problema                                                                                                                                                                                                                                                                                    | Scope para fix                                                                                                                                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/posts/postsService.ts:64` (`createPostsService`) — registrado en `setupServices.ts:446` con `new RedisCacheManager({ keyPrefix: "posts:", ... })` | Servicio core de posts                                            | **Duplica el pool L1+L2**: el T4-L singleton (`TOKENS.RedisCacheManager`, prefix `api:`) y el de PostsService (prefix `posts:`) son 2 instancias separadas en el mismo proceso → 2 conexiones ioredis, 2 registros Prometheus, 2 L1 LRU pools. Pre-T4-L issue, no introducido por el batch. | MEDIUM — refactor PostsService para resolver `TOKENS.RedisCacheManager` (o `TOKENS.CachePort` si la signature lo permite) en lugar de instanciar. Verificar que la migración de keys de `posts:` a `api:posts:` (o keep `posts:` con sub-prefix) no rompe consumers que dependen del prefix actual. |
+| `apps/api/src/middleware/autoCacheMiddleware.ts`                                                                                                                | Fastify plugin para HTTP response caching                         | Usa features avanzados del manager (headers-driven invalidation, ETag handling, response shape inspection) que NO están en `CachePort`. Razón legítima para mantener concrete dependency.                                                                                                   | HIGH — extender `CachePort` para exponer headers/ETag o aceptar la concrete class permanentemente como tier-specific exception (similar al patrón "ports for cross-cutting concerns" de Cockburn). Decisión arquitectónica, no rewrite mecánico.                                                    |
+| `apps/api/src/lib/cache/cacheDecorators.ts` (`@cache`, `@invalidateCache` decorators)                                                                           | TypeScript decorators de método para caching ergonómico per-class | Aceptan `RedisCacheManager` concrete por argumento. Internal helpers, no exhibido en la app surface.                                                                                                                                                                                        | QUICK — refactorizar a aceptar `CachePort`. Las features que usan (`get`, `set`, `del`) ya están en el port.                                                                                                                                                                                        |
+
+Adicionalmente, `apps/api/src/monitoring/cacheStatsRoutes.ts` y `apps/api/src/index.ts` resuelven `TOKENS.RedisCacheManager` directo para exposición de stats / decoración de Fastify. Esto es legítimo (el manager expone `getStats()`, `flush()`, `warmCache()` que NO están en el port y son apropiados para ops tooling) y NO requiere fix.
+
+**Por qué no se cerró en T4-L.** El plan T4-L explícitamente declaró:
+
+> "**`autoCacheMiddleware` migration to CachePort** → middleware usa features avanzados del `RedisCacheManager` (headers-driven invalidation, ETag handling). Migration requiere extender el port o aceptar la concrete class. Out of scope T4-L; revisar si necesario en batch específico."
+
+PostsService no estaba en el plan original como issue (la duplicación de pools es pre-existente y T4-L se enfocó en la familia de findings L-49/L-13/L-377/L-381). La detección post-batch surge del audit "lo que queda directamente acoplado al manager".
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando: (a) métricas confirmen overhead real de los 2 ioredis connections, (b) se priorice unification por completitud arquitectónica, (c) cacheDecorators se modifique por otra razón (cleanup oportunista).
+
+2. **Sub-batches sugeridos** (independientes):
+   - **31-A**: PostsService → singleton `TOKENS.RedisCacheManager`. Audit de keys `posts:*` actuales (Redis CLI `KEYS posts:*` o equivalente) para definir migration path. ~2-3h.
+   - **31-B**: cacheDecorators → `CachePort`. Refactor mecánico + actualizar tests. ~1h.
+   - **31-C**: autoCacheMiddleware → decisión arquitectónica. O extender `CachePort` con `cacheResponse(req, res, opts)` opt-in, o documentar como tier-specific exception en `docs/architecture/caching.md`. Investigación previa: revisar uso real en routes (probablemente menor de lo esperado). ~3-5h.
+
+3. **Bloqueado por.** Decisión sobre 31-C (port extension vs documented exception). 31-A y 31-B son AUTO sin decisiones bloqueantes.
+
+**Cuándo revisar.**
+
+Cuando se priorice un batch dedicado a "cache architecture finalization" o cuando alguno de los 3 sitios se modifique por razón ortogonal (refactor de PostsService, rewrite de autoCacheMiddleware, cleanup de decorators).
+
+**Estado:** PENDING (surfaced del T4-L audit 2026-05-01).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

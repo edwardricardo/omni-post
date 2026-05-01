@@ -2264,29 +2264,44 @@ grep -rn "correlationMiddleware" apps/api/src/index.ts | wc -l   # → ≥1
 
 ---
 
-#### T4-P — Fitness functions CI wire 🔒 🔗
+#### T4-P — Fitness functions CI wire 🔒 🔗 ✅ 2026-05-01
 
-**Scope.** Wire los 10 greps CLAUDE.md + thresholds iniciales [0,0,8,3,0,0,0,0,130,0].
+**Scope.** Wire los 13 greps CLAUDE.md (no 10 — la lista creció a 13 durante T1-F → T4-M) a `.github/workflows/fitness.yml` como hard-zero gate. Threshold real verificado en main: 13/13 a cero (no [0,0,8,3,0,0,0,0,130,0] — esos números eran stale del roadmap pre-T1).
 
 **Findings table (2):**
 
-| L-#   | Título corto                                            | Esfuerzo | Acción | §5.9 | Notas                                                  |
-| ----- | ------------------------------------------------------- | -------- | ------ | ---- | ------------------------------------------------------ |
-| L-630 | CLAUDE.md fitness functions ausentes CI                 | MEDIUM   | CONFIG | AUTO | Crear `.github/workflows/fitness.yml` con los 10 greps |
-| L-647 | Confirmación + escalation fitness functions CI ausentes | —        | —      | —    | Escalation de L-630 — mismos fixes                     |
+| L-#   | Título corto                                            | Esfuerzo | Acción | §5.9 | Status      | Resolución                                                                                                                                                                                                        |
+| ----- | ------------------------------------------------------- | -------- | ------ | ---- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-630 | CLAUDE.md fitness functions ausentes CI                 | MEDIUM   | CONFIG | AUTO | RESUELTO ✅ | `.github/workflows/fitness.yml` creado con 13 named steps + summary, `if: always()` collect-all, hard-zero threshold, annotations agregadas a 1 `::error` per check para evitar GitHub Actions 10-cap silencioso. |
+| L-647 | Confirmación + escalation fitness functions CI ausentes | —        | —      | —    | RESUELTO ✅ | Cerrado vía L-630.                                                                                                                                                                                                |
 
-**Entry criteria.** Ninguno.
+**Drive-by**: refinados 2 greps de CLAUDE.md con false positives (no en código real, en los regex):
 
-**Exit criteria:**
+- **#3 (`any` en layers)**: `as any\b` matcheaba "h**as any**" en JSDoc prose. Fix con `\bas any\b` + exclusión de líneas comment-prefix `*` / `//`. Verificado: 0 false positives, 0 `any` reales.
+- **#11 (raw `setInterval`)**: matcheaba `"setInterval("` literal en denylist del security validator (`enhancedValidator.ts`). Fix añadiendo `enhancedValidator.ts` al exclude list. Verificado: 0 hits.
+
+**Verificación local pre-push**: 13/13 greps en cero. 3 inverse tests (introducir violación temporal en #3, #9, #13) confirman que los step bodies fallan correctamente con annotations. Pattern `COUNT=$(... || true); COUNT=${COUNT:-0}` adoptado para evitar double-print quirk de `grep -c . || echo 0` cuando MATCHES está vacío.
+
+**Canon-driven decisiones**:
+
+- [Ford & Parsons "Building Evolutionary Architectures" (2nd ed)](https://www.oreilly.com/library/view/building-evolutionary-architectures/9781491986356/ch02.html): hard-zero correcto para invariants nuevos en codebase clean (nuestro caso). Ratchets son para baselines no-cero pre-existentes.
+- [ThoughtWorks Tech Radar Vol. 33 (Nov 2025)](https://www.thoughtworks.com/content/dam/thoughtworks/documents/radar/2025/11/tr_technology_radar_vol_33_en.pdf): re-recomienda fitness functions explícitamente como countermeasure a AI-accelerated output.
+- [GitHub Actions Workflow commands docs](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands) + [community discussion #68471](https://github.com/orgs/community/discussions/68471): annotation cap 10/step / 50/job es silente. Mitigado con 1 `::error` summary por check + `head -20` de matches.
+- [Edward Thomson "Fail-Fast Matrix Workflows"](https://www.edwardthomson.com/blog/github_actions_6_fail_fast_matrix_workflows): single-job-multi-step supera matrix para 13 cheap greps (matrix overhead × N runners domina).
+- [Continuous Architecture — Fitness Functions](https://continuous-architecture.org/practices/fitness-functions/): documenta el anti-pattern de regex que matchea comentarios/JSDoc — exactamente nuestros 2 false positives. Fix antes de wire es la canonical recommendation.
+
+**Exit criteria** (todos cumplidos):
 
 ```bash
-test -f .github/workflows/fitness.yml && echo OK
-# Workflow corre los 10 greps y fail if thresholds excedidos
+test -f .github/workflows/fitness.yml                                                  # ✅
+grep -c "^      - name: '#" .github/workflows/fitness.yml                              # 13
+# 13 fitness greps locally return 0 (verificado)
+# 3 inverse tests confirm violations are detected with annotations
 ```
 
-**Estimación.** 4-6 h.
+**Estimación.** 4-6 h roadmap → ~3.5 h ejecución real.
 
-**Dependencias.** 🔒 BLOCKS_TIER (post-wire); 🔗 CROSS_TIER con T1-F / T2-G / T3-H / T4-K / T6 (todos alimentan thresholds descendentes).
+**Dependencias.** 🔒 BLOCKS_TIER (post-wire — locked-in retroactivamente todas las invariants de T1-A → T4-M); 🔗 CROSS_TIER con T1-F / T2-G / T3-H / T4-K / T6 (todos alimentan thresholds descendentes — todos ya en cero).
 
 ---
 
