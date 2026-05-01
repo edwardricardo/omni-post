@@ -220,8 +220,8 @@ describe("healthRoutes - Unit Tests", () => {
     // Provide a DI container so healthRoutes can resolve BackgroundTaskScheduler.
     const container = createTestContainer();
     container.registerInstance(TOKENS.BackgroundTaskScheduler, new NoopBackgroundTaskScheduler());
-    // T4-H: healthRoutes resolves a queue adapter via the registry. Provide
-    // a stub that exercises the QueuePortRegistry contract without touching
+    // healthRoutes resolves a queue adapter via the registry. Provide a
+    // stub that exercises the QueuePortRegistry contract without touching
     // BullMQ or Redis.
     const stubQueuePort = {
       enqueue: vi.fn(async () => ({ ok: true as const, value: "stub-id" })),

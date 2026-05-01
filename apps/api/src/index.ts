@@ -240,7 +240,7 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Initialize components
   const repoAdapter = createPrismaRepoAdapter({ scheduler: bootstrapScheduler });
-  // T4-H: queue adapter resolved from the registry so this top-level wiring
+  // Queue adapter resolved from the registry so this top-level wiring
   // shares the same Redis connection and queue instances as the rest of the
   // container. Targets the PUBLISH queue for legacy callers that expect a
   // single QueuePort; per-queue routing happens through the registry.
@@ -711,9 +711,8 @@ async function start() {
       );
       await scheduler.shutdownAll();
 
-      // T4-H: close all BullMQ queue adapters via the registry. This closes
-      // every Queue and the shared Redis connection in one shot — replaces
-      // the per-adapter close that lived in the pre-T4-H singleton state.
+      // Close all BullMQ queue adapters via the registry — closes every
+      // Queue and the shared Redis connection in one shot.
       const registry = app.container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry);
       await registry.close();
 

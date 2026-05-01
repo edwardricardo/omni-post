@@ -2,7 +2,7 @@
  * @file OutboxRelay.ts
  * @description Polls the outbox table and dispatches unpublished domain
  *              events with at-least-once delivery semantics. Three layers
- *              of correctness apply (T4-C):
+ *              of correctness apply:
  *
  *                1. **Atomic claim** — `OutboxClaimService` runs the
  *                   canonical `UPDATE ... FOR UPDATE SKIP LOCKED ...

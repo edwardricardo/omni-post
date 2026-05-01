@@ -57,8 +57,8 @@ export class ComposedEventDispatcher implements EventDispatcher {
     } catch (err: unknown) {
       // Swallow BullMQ errors — do NOT propagate to callers (in-process dispatch
       // is the authoritative path; outbox relay provides at-least-once recovery).
-      // Log so the failure is visible in observability — T4-F will add a metric
-      // counter to alert on sustained publisher failures.
+      // Log so the failure is visible in observability. A counter metric
+      // for sustained publisher failures is tracked separately.
       log.error(
         { err, eventType: event.eventType, aggregateId: event.aggregateId },
         "Integration event publish failed (swallowed)"
@@ -84,7 +84,7 @@ export class ComposedEventDispatcher implements EventDispatcher {
       await this.publisher.publishBatch(integrationEvents);
     } catch (err: unknown) {
       // Swallow BullMQ errors — do NOT propagate to callers. See dispatch()
-      // above for the full rationale; T4-F will add a counter metric.
+      // above for the full rationale.
       log.error(
         { err, batchSize: events.length, eventTypes: events.map((e) => e.eventType) },
         "Integration event batch publish failed (swallowed)"

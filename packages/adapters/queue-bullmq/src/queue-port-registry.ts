@@ -7,7 +7,8 @@
  * @layer infrastructure
  */
 import type { QueuePort, QueuePortRegistry } from "@ports/core";
-import Redis from "ioredis";
+import type Redis from "ioredis";
+import type { DefaultJobOptions } from "bullmq";
 import { createBullMQQueueAdapter, type BullMQQueueAdapter } from "./queue-adapter.js";
 
 export interface BullMQQueuePortRegistryOptions {
@@ -18,15 +19,27 @@ export interface BullMQQueuePortRegistryOptions {
    * The registry does not own the connection; callers manage its lifecycle.
    */
   connection: Redis;
+  /**
+   * Per-queue default job options. Looked up by queue name when
+   * `forQueue(name)` constructs an adapter. Lets DI wire sensible retry +
+   * cleanup defaults per queue without requiring producers to pass them
+   * on every enqueue call.
+   *
+   * Queues not present in the map fall back to the BullMQ defaults
+   * (attempts=1, no backoff).
+   */
+  defaultJobOptionsByQueue?: Readonly<Record<string, DefaultJobOptions>>;
 }
 
 export class BullMQQueuePortRegistry implements QueuePortRegistry {
   private readonly adapters = new Map<string, BullMQQueueAdapter>();
   private readonly connection: Redis;
+  private readonly defaultJobOptionsByQueue: Readonly<Record<string, DefaultJobOptions>>;
   private closed = false;
 
   constructor(options: BullMQQueuePortRegistryOptions) {
     this.connection = options.connection;
+    this.defaultJobOptionsByQueue = options.defaultJobOptionsByQueue ?? {};
   }
 
   forQueue(queueName: string): QueuePort {
@@ -35,9 +48,11 @@ export class BullMQQueuePortRegistry implements QueuePortRegistry {
     }
     let adapter = this.adapters.get(queueName);
     if (!adapter) {
+      const defaultJobOptions = this.defaultJobOptionsByQueue[queueName];
       adapter = createBullMQQueueAdapter({
         queueName,
         connection: this.connection,
+        ...(defaultJobOptions !== undefined && { defaultJobOptions }),
       });
       this.adapters.set(queueName, adapter);
     }

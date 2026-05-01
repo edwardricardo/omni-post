@@ -630,6 +630,10 @@ export class PublishHandler {
       }
 
       finishJob();
+      // Re-throw so BullMQ marks the job failed and the queue's retry
+      // policy takes effect. Swallowing here would let every publish
+      // failure look like a success to the queue layer.
+      throw e;
     }
   }
 }

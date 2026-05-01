@@ -14,6 +14,9 @@ import { Worker } from "bullmq";
 import Redis from "ioredis";
 import pino from "pino";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
+import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
+import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
 import { xAdapter } from "@providers/x";
 import { instagramAdapter } from "@providers/instagram";
 import { facebookAdapter } from "@providers/facebook";
@@ -89,8 +92,16 @@ async function processJob(jobData: {
 
     if (!commentsResult.ok) {
       if (commentsResult.error === "AUTH") {
-        logger.warn({ channelId, provider: providerName }, "Auth error — channel may need reauth");
-        return;
+        logger.warn(
+          { channelId, provider: providerName },
+          "Auth error — flagging channel as needing reauth"
+        );
+        await handleProviderAuthError(
+          authFailureRecorder,
+          channelId,
+          providerName,
+          "Provider rejected credentials during inbox sync"
+        );
       }
       throw new Error(`Provider ${providerName} returned error: ${commentsResult.error}`);
     }
@@ -141,6 +152,8 @@ async function processJob(jobData: {
   logger.info({ channelId, provider: providerName, synced, skipped }, "Inbox sync completed");
 }
 
+const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
+
 async function start() {
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
@@ -172,6 +185,12 @@ async function start() {
 
   worker.on("error", (error) => {
     logger.error({ err: error }, "Worker error");
+  });
+
+  registerGracefulShutdown({
+    name: "inbox-sync",
+    target: { workers: [worker], connections: [connection], prisma },
+    logger,
   });
 
   logger.info("Inbox sync worker started, listening on queue: %s", QUEUE_NAMES.INBOX_SYNC);

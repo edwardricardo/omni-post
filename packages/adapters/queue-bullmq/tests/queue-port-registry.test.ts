@@ -92,4 +92,27 @@ describe("BullMQQueuePortRegistry", () => {
     await registry.close();
     expect(() => registry.forQueue("publish")).toThrow(/closed/i);
   });
+
+  it("applies defaultJobOptionsByQueue lookup when constructing per-queue adapters", () => {
+    const registry = new BullMQQueuePortRegistry({
+      connection: fakeConnection,
+      defaultJobOptionsByQueue: {
+        publish: { attempts: 3, backoff: { type: "exponential", delay: 5000 } },
+        "inbox-sync": { attempts: 2 },
+      },
+    });
+    registry.forQueue("publish");
+    registry.forQueue("inbox-sync");
+    registry.forQueue("no-config");
+    // The Queue constructor receives the looked-up options, undefined when no entry.
+    const callOpts = queueConstructor.mock.calls.map(
+      (c) => c[1] as { defaultJobOptions?: { attempts?: number } }
+    );
+    expect(callOpts[0]?.defaultJobOptions).toEqual({
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+    });
+    expect(callOpts[1]?.defaultJobOptions).toEqual({ attempts: 2 });
+    expect(callOpts[2]?.defaultJobOptions).toBeUndefined();
+  });
 });

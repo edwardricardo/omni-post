@@ -1990,31 +1990,55 @@ grep -nE "forQueue\(QUEUE_NAMES\.(ANALYTICS_AGGREGATION|INBOX_SYNC|GENERATE_REPU
 
 ---
 
-#### T4-I — Workers retry + shutdown + auth errors 🔒
+#### T4-I — Workers retry + shutdown + auth errors 🔒 ✅ 2026-05-01
 
-**Scope.** Workers: silent failure, retry policy missing, graceful shutdown missing, silent AUTH errors.
+**Scope.** Workers: silent failure, retry policy missing, graceful shutdown missing, silent AUTH errors. Aplicada solución completa via `defaultJobOptions` en queue level + helper `registerGracefulShutdown` compartido + service `ChannelAuthFailureRecorder` con outbox event para visibilidad downstream.
 
 **Findings table (4):**
 
-| L-#  | Título corto                                            | Esfuerzo | Acción    | §5.9 | Notas                                   |
-| ---- | ------------------------------------------------------- | -------- | --------- | ---- | --------------------------------------- |
-| L-52 | `publishHandler.handleJob` silent failure (no re-throw) | QUICK    | FIX       | AUTO | Re-throw tras logging                   |
-| L-53 | 4/6 workers sin retry policy explícita                  | QUICK    | CONFIG    | AUTO | `{attempts:3, backoff:exp 5000ms}`      |
-| L-54 | 3/4 workers sin graceful shutdown                       | QUICK    | FIX       | AUTO | Replicar pattern autoRenewalWorker      |
-| L-56 | `analyticsIngest` + `inboxSync` silent AUTH errors      | MEDIUM   | IMPLEMENT | AUTO | Emit `ChannelAuthFailed` + notification |
+| L-#  | Título corto                                            | Esfuerzo | Acción    | §5.9 | Status     | Resolución                                                                                                                                                                                                                                                                                        |
+| ---- | ------------------------------------------------------- | -------- | --------- | ---- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-52 | `publishHandler.handleJob` silent failure (no re-throw) | QUICK    | FIX       | AUTO | ✅ Cerrado | `throw e` después de log + saga notify + `finishJob()`. BullMQ ahora ve el fallo y aplica retry policy.                                                                                                                                                                                           |
+| L-53 | 4/6 workers sin retry policy explícita                  | QUICK    | CONFIG    | AUTO | ✅ Cerrado | `defaultJobOptions` por queue en `BullMQQueuePortRegistry`: 3 attempts exponential 5s + jitter 0.5 para PUBLISH/ANALYTICS_AGGREGATION/INBOX_SYNC; 5 attempts 2s para WEBHOOK_PROCESSING; DLQs `attempts: 1`.                                                                                      |
+| L-54 | 3/4 workers sin graceful shutdown                       | QUICK    | FIX       | AUTO | ✅ Cerrado | Helper `registerGracefulShutdown` compartido en `apps/workers/src/lib/gracefulShutdown.ts`. Aplicado a los 4 workers (publishWorker, analyticsIngest, inboxSync, autoRenewal). SIGTERM + SIGINT ambos cubiertos.                                                                                  |
+| L-56 | `analyticsIngest` + `inboxSync` silent AUTH errors      | MEDIUM   | IMPLEMENT | AUTO | ✅ Cerrado | Schema `Channel.needsReauth/authFailedAt/authFailureReason` + `ChannelAuthFailureRecorder` (UoW transaction: update channel + outbox event) + helper `handleProviderAuthError` (record + throw). Workers re-throw para que BullMQ aplique retry. Notification handler downstream → PR-27 backlog. |
 
-**Entry criteria.** T4-H cerrado.
+**Issues laterales descubiertos durante ejecución (todos cerrados en mismo batch):**
+
+1. `publishWorker.shutdown()` no cerraba consumer ni notifyRedis — tear-down incompleto. Fix: helper compartido + `afterTeardown` hook.
+2. `autoRenewalWorker` solo SIGTERM, sin SIGINT — Ctrl+C en dev no era graceful. Fix: helper compartido cubre ambos signals.
+3. `publishWorker.ts:45` llamaba `createBullMQConsumerAdapter()` sin args (firma post-T4-H requería `{ queueName }`) — type error pre-existente. Fix: `createBullMQConsumerAdapter({ queueName: QUEUE_NAMES.PUBLISH })` + ajustar `subscribe(handler)` sin opts arg.
+4. Tests de `publishHandler` (`jobHandler.test.ts` + `publishHandlerEdgeCases.test.ts`) asumían que `handleJob` no throw. Actualizados a `assert.rejects(...)` — 9 tests modificados.
+
+**Implementación:**
+
+- **Schema migration** `20260501015624_channel_needs_reauth`: + `needsReauth` (bool default false), `authFailedAt`, `authFailureReason` en Channel + partial index `WHERE needsReauth = true` para lookup eficiente.
+- **Domain event** `ChannelAuthFailed` en `apps/api/src/domain/events/ChannelEvents.ts` (extiende `BaseDomainEvent`).
+- **Recorder service** `ChannelAuthFailureRecorder` en `apps/workers/src/services/`: prisma `$transaction` que update channel + write outbox row. Construible directo sin DI container.
+- **Auth helper** `handleProviderAuthError` en `apps/workers/src/lib/`: thin wrapper `recorder.record() + throw` para testabilidad y consistency entre workers.
+- **Graceful shutdown helper** `registerGracefulShutdown` en `apps/workers/src/lib/`: ShutdownTarget config con `workers`, `queues`, `connections`, `prisma`, `afterTeardown`. SIGTERM/SIGINT registrados; idempotente.
+- **Adapter extension**: `BullMQQueueAdapterOptions.defaultJobOptions` + `BullMQQueuePortRegistryOptions.defaultJobOptionsByQueue`.
+- **DI wiring** en `setupServices.ts`: map de defaults sensatos por queue (jitter 0.5 para queues principales, 0.3 para webhooks high-volume, attempts=1 para 3 DLQs).
+- **Tests**: 14 nuevos (`ChannelAuthFailureRecorder` 5, `handleProviderAuthError` 4, `queue-adapter` +2, `queue-port-registry` +1, `jobHandler` +1) + 9 modificados (assert.rejects en publishHandler tests post-re-throw).
 
 **Exit criteria:**
 
 ```bash
-grep -rn "attempts:" apps/workers/src/ --include="*.ts" | wc -l   # → ≥4
-grep -rn "SIGTERM\|gracefulShutdown" apps/workers/src/ --include="*.ts" | wc -l   # → ≥4
+grep -n "needsReauth" infra/prisma/schema.prisma   # ✅ 5
+grep -rn "ChannelAuthFailed" apps/api/src/domain/events/ apps/workers/src/services/   # ✅ 6
+grep -n "ChannelAuthFailureRecorder" apps/workers/src/services/*.ts   # ✅ 4
+grep -n "defaultJobOptions" packages/adapters/queue-bullmq/src/queue-adapter.ts   # ✅ 3
+grep -n "defaultJobOptionsByQueue" apps/api/src/infrastructure/container/setupServices.ts   # ✅ 2
+grep -nE "throw e\b" apps/workers/src/publishHandler.ts   # ✅ 3
+grep -rn "handleProviderAuthError" apps/workers/src --include="*.ts"   # ✅ 6
+grep -rn "registerGracefulShutdown" apps/workers/src --include="*.ts"   # ✅ 9 (helper + 4 workers × 2 [import + call])
 ```
 
-**Estimación.** 6-10 h.
+**Estimación / real.** Estimado 6-10 h / Real ~4 h.
 
-**Dependencias.** 🔒 BLOCKS_TIER (habilita T5-G).
+**Dependencias.** 🔒 BLOCKS_TIER cerrado. **Habilita T5-G.**
+
+**Backlog deferred (PR-27):** Notification handler que consuma `ChannelAuthFailedEvent` y cree notification user-facing. Decisión NEEDS_EDWARD: recipient policy (account owner / project admins / todos / mixed). Documentado en `POST_REMEDIATION_BACKLOG.md`.
 
 ---
 

@@ -26,7 +26,8 @@ import { linkedInAdapter } from "@providers/linkedin";
 import { blueskyAdapter } from "@providers/bluesky";
 import { threadsAdapter } from "@providers/threads";
 import { setChannelCredentialsRepository } from "@providers/shared";
-import { createBullMQConsumerAdapter } from "@adapters/queue-bullmq";
+import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
+import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 
 // Wire the channel-credentials port so AbstractProviderAdapter can read
@@ -42,7 +43,7 @@ import { WorkerMetrics } from "./metrics/workerMetrics.js";
 import { PublishHandler } from "./publishHandler.js";
 import type { PublishProvider } from "./publishHandler.js";
 
-const consumer = createBullMQConsumerAdapter();
+const consumer = createBullMQConsumerAdapter({ queueName: QUEUE_NAMES.PUBLISH });
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 const scheduler = new DefaultBackgroundTaskScheduler({
   logger: {
@@ -103,7 +104,7 @@ const handler = new PublishHandler({
 });
 
 async function start() {
-  await consumer.subscribe({}, async (job) => {
+  await consumer.subscribe(async (job) => {
     const payload = job.payload as {
       postId: string;
       channelId: string;
@@ -153,15 +154,17 @@ async function start() {
 
 start();
 
-async function shutdown(signal: string): Promise<void> {
-  logger.info({ signal }, "Worker shutting down");
-  await scheduler.shutdownAll();
-  process.exit(0);
-}
-
-process.on("SIGTERM", () => {
-  void shutdown("SIGTERM");
-});
-process.on("SIGINT", () => {
-  void shutdown("SIGINT");
+// Graceful shutdown — closes the consumer (waits for active jobs), the
+// scheduler (cancels recurring tasks), and the saga notification Redis
+// connection. The shared helper covers SIGTERM and SIGINT identically.
+registerGracefulShutdown({
+  name: "publish",
+  target: {
+    connections: [notifyRedis],
+    afterTeardown: async () => {
+      await consumer.close();
+      await scheduler.shutdownAll();
+    },
+  },
+  logger,
 });

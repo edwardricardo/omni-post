@@ -3,8 +3,9 @@
  * @description Tests for `BullMQDeadLetterQueueAdapter`.
  *   - `archive()`: serialises canonical entry shape and enqueues to the DLQ
  *     queue via the supplied `QueuePortRegistry`.
- *   - `list()` / `retry()`: return `NOT_IMPLEMENTED` per scope T4-H — these
- *     methods are tracked in PR-26 backlog.
+ *   - `list()` / `retry()`: return `NOT_IMPLEMENTED` for now — these
+ *     methods are tracked in the backlog and will be implemented when a
+ *     consumer drives their final shape.
  * @layer infrastructure
  */
 
@@ -124,13 +125,13 @@ describe("BullMQDeadLetterQueueAdapter", () => {
     if (!result.ok) expect(result.error).toBe("CONNECTION_ERROR");
   });
 
-  it("list() returns NOT_IMPLEMENTED in T4-H scope", async () => {
+  it("list() returns NOT_IMPLEMENTED until a consumer drives the shape", async () => {
     const result = await adapter.list({ limit: 10 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("NOT_IMPLEMENTED");
   });
 
-  it("retry() returns NOT_IMPLEMENTED in T4-H scope", async () => {
+  it("retry() returns NOT_IMPLEMENTED until a consumer drives the contract", async () => {
     const result = await adapter.retry("any-id");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("NOT_IMPLEMENTED");

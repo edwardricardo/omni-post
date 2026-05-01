@@ -1295,6 +1295,48 @@ Implementar bien estos 2 métodos es ~2 h adicionales solo para infraestructura 
 
 ---
 
+### PR-27 — Notification handler para `ChannelAuthFailedEvent`
+
+**Origen.** T4-I (2026-05-01) — el `ChannelAuthFailureRecorder` introducido en T4-I escribe el event al outbox, pero no hay handler que lo consuma para crear notification al usuario.
+
+**Contexto.** T4-I introduce el flujo completo de detección + persistencia: cuando un worker (`inboxSyncWorker` o `analyticsIngestWorker`) detecta `result.error === "AUTH"` desde un provider adapter, llama `recorder.record(channelId, provider, reason)`. El recorder ejecuta una transacción que:
+
+1. Marca `Channel.needsReauth = true`, `authFailedAt = now()`, `authFailureReason = reason`.
+2. Escribe `ChannelAuthFailedEvent` al outbox.
+
+El worker después throw el error, BullMQ aplica retry policy (3 attempts con jitter), y eventualmente DLQ.
+
+**Lo que falta:** un consumer del `ChannelAuthFailedEvent` que cree una notification visible al usuario apropiado vía el sistema `NotificationEventHandlers` existente. Sin esto, el usuario no se entera del problema hasta que abra el dashboard de channels y vea el flag `needsReauth`.
+
+**Por qué no se cerró en T4-I.** Decisión NEEDS_EDWARD: ¿quién recibe la notification?
+
+- Account owner solamente (más simple, pero project admins en ese account podrían ser quienes deben actuar).
+- Project admins del project que owns el channel (más relevante operativamente, pero requiere lookup project membership).
+- Todos los project members (más alarmista, ruido para users no-admin).
+- Combinación: critical channels (primary) → todos; non-primary → solo admins.
+
+Necesita decisión de producto sobre escalation policy + UX preferences.
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando Edward decida la recipient policy.
+2. **Implementación esperada**:
+   - Agregar método `onChannelAuthFailed(channelId, provider, reason, context)` en `NotificationEventHandlers`.
+   - Wire en el `EventDispatcher` registration (ya hay un pattern para outbox events): handler resuelve recipient(s) via `Channel → Project → ProjectMembers`.
+   - `CreateNotificationUseCase` con kind `CHANNEL_AUTH_FAILED`, message human-readable, action link al re-auth flow.
+   - Tests del handler.
+3. **Integration test:** end-to-end desde worker AUTH error hasta notification creada en DB.
+
+**Bloqueado por.** Decisión Edward sobre recipient policy.
+
+**Cuándo revisar.**
+
+Cuando Edward decida la policy o cuando el primer reporte de "channel silent failure" llegue de producción.
+
+**Estado:** PENDING (deferred del T4-I 2026-05-01).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

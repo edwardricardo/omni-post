@@ -44,9 +44,10 @@ export class BullMQDeadLetterQueueAdapter implements DeadLetterQueuePort {
   }
 
   /**
-   * Not implemented in T4-H scope. Consumer-side iteration over BullMQ DLQ
-   * entries requires deciding pagination shape (cursor vs. offset) and
-   * how to deserialise back to `DeadLetterEntry`. Tracked in PR-26.
+   * Not yet implemented. Consumer-side iteration over BullMQ DLQ entries
+   * requires deciding pagination shape (cursor vs. offset) and how to
+   * deserialise back to `DeadLetterEntry`; deferred until a consumer
+   * drives the final shape.
    */
   async list(_opts: {
     limit: number;
@@ -56,9 +57,10 @@ export class BullMQDeadLetterQueueAdapter implements DeadLetterQueuePort {
   }
 
   /**
-   * Not implemented in T4-H scope. Re-enqueueing requires reading the
-   * original job's `data` + `opts` from BullMQ, atomically pushing back to
-   * the source queue, and removing the DLQ entry. Tracked in PR-26.
+   * Not yet implemented. Re-enqueueing requires reading the original
+   * job's `data` + `opts` from BullMQ, atomically pushing back to the
+   * source queue, and removing the DLQ entry; deferred until a consumer
+   * drives the atomicity contract.
    */
   async retry(
     _jobId: string

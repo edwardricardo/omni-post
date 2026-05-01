@@ -1,15 +1,15 @@
 /**
  * @file OutboxRelay.test.ts
- * @description Tests for `OutboxRelay` after the T4-C refactor:
+ * @description Tests for `OutboxRelay`:
  *   - claim/markPublished/releaseForRetry/archiveToDeadLetter delegated to
  *     `OutboxClaimService`,
  *   - consumer-side dedupe via `OutboxInbox`,
  *   - full-jitter backoff via `OutboxBackoff`.
  *
  *   Lifecycle (start/stop/isRunning) and the dispatch happy path are
- *   preserved from the pre-T4-C suite. The four new tests cover the
- *   correctness invariants introduced by T4-C: dedupe-skip, DLQ atomicity,
- *   release-on-transient-failure, and lease-expired re-claim.
+ *   covered alongside the correctness invariants of the lease-based claim
+ *   flow: dedupe-skip, DLQ atomicity, release-on-transient-failure, and
+ *   lease-expired re-claim.
  * @layer infrastructure
  */
 
@@ -170,7 +170,7 @@ describe("OutboxRelay", () => {
     expect(mockClaim.markPublished.mock.calls[1]?.[0]).toBe("evt-2");
   });
 
-  // T4-C invariants
+  // Concurrent-claim invariants
 
   it("skips dispatch when inbox reports duplicate eventId, but releases the outbox row", async () => {
     mockClaim.claim = vi.fn(async () => [makeRow()]);

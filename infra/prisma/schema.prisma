@@ -700,6 +700,14 @@ model Channel {
   socialMessages   SocialMessage[]
   socialConversations SocialConversation[]
   deletedAt   DateTime?
+  // T4-I: channel auth lifecycle. `needsReauth` is flipped by workers when
+  // the provider returns AUTH; cleared when the user completes the OAuth
+  // re-grant flow. `authFailedAt` and `authFailureReason` retain context
+  // for inspection / debug. Partial index on `needsReauth = true` declared
+  // in migration.sql (Prisma `@@index` does not support WHERE clauses yet).
+  needsReauth        Boolean   @default(false)
+  authFailedAt       DateTime?
+  authFailureReason  String?
 
   @@index([projectId])
   @@index([provider])

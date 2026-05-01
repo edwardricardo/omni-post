@@ -15,6 +15,7 @@ import Redis from "ioredis";
 import pino from "pino";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { prisma } from "@infra/prisma";
+import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "auto-renewal-worker" });
 
@@ -155,12 +156,12 @@ setupCron().catch((err) => {
 
 logger.info("Auto-renewal worker started");
 
-// Graceful shutdown
-process.on("SIGTERM", async () => {
-  logger.info("Shutting down auto-renewal worker...");
-  await worker.close();
-  await queue.close();
-  await connection.quit();
-  await prisma.$disconnect();
-  process.exit(0);
+// Graceful shutdown — handles both SIGTERM (Kubernetes/CI deploy) and SIGINT
+// (Ctrl+C in dev). Uses the shared helper so the lifecycle (worker.close →
+// queue.close → connection.quit → prisma.$disconnect) is identical across
+// every worker process.
+registerGracefulShutdown({
+  name: "auto-renewal",
+  target: { workers: [worker], queues: [queue], connections: [connection], prisma },
+  logger,
 });

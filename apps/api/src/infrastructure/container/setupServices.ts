@@ -214,11 +214,13 @@ export function setupServices(
   );
   container.registerInstance(TOKENS.ProviderRegistry, providerRegistry);
 
-  // Queue infrastructure (T4-H). Single Redis connection is shared across
-  // all queue adapters via the registry. Each consumer of QueuePort resolves
-  // its queue by name through the registry; the legacy `TOKENS.QueuePort`
-  // resolves to PUBLISH for backwards compat (callers should migrate to
-  // `TOKENS.QueuePortRegistry.forQueue(...)`).
+  // Queue infrastructure: single Redis connection shared across all queue
+  // adapters via the registry. Per-queue retry policy wired here so
+  // producers don't need to pass `attempts`/`backoff` on every enqueue
+  // call. Defaults follow the BullMQ canon — exponential backoff with
+  // jitter to avoid thundering-herd on simultaneous failures. DLQ queues
+  // set `attempts: 1` because they are terminal stores, not processing
+  // queues.
   container.register<QueuePortRegistry>(
     TOKENS.QueuePortRegistry,
     () => {
@@ -227,7 +229,33 @@ export function setupServices(
         maxRetriesPerRequest: 3,
         lazyConnect: true,
       });
-      return new BullMQQueuePortRegistry({ connection });
+      const defaultJobOptionsByQueue = {
+        [QUEUE_NAMES.PUBLISH]: {
+          attempts: 3,
+          backoff: { type: "exponential" as const, delay: 5000, jitter: 0.5 },
+        },
+        [QUEUE_NAMES.ANALYTICS_AGGREGATION]: {
+          attempts: 3,
+          backoff: { type: "exponential" as const, delay: 5000, jitter: 0.5 },
+        },
+        [QUEUE_NAMES.INBOX_SYNC]: {
+          attempts: 3,
+          backoff: { type: "exponential" as const, delay: 5000, jitter: 0.5 },
+        },
+        [QUEUE_NAMES.GENERATE_REPURPOSE]: {
+          attempts: 3,
+          backoff: { type: "exponential" as const, delay: 10000, jitter: 0.5 },
+        },
+        [QUEUE_NAMES.WEBHOOK_PROCESSING]: {
+          attempts: 5,
+          backoff: { type: "exponential" as const, delay: 2000, jitter: 0.3 },
+        },
+        // DLQs: terminal — no retry policy.
+        [QUEUE_NAMES.DEAD_LETTER_QUEUE]: { attempts: 1 },
+        [QUEUE_NAMES.WEBHOOK_DEAD_LETTER]: { attempts: 1 },
+        [QUEUE_NAMES.FAILED_OPERATIONS_DLQ]: { attempts: 1 },
+      };
+      return new BullMQQueuePortRegistry({ connection, defaultJobOptionsByQueue });
     },
     true
   );

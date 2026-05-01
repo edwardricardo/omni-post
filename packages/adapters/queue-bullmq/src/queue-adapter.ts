@@ -8,7 +8,7 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import type { QueuePort, QueueJob, QueueHealth } from "@ports/core";
-import { Queue } from "bullmq";
+import { Queue, type DefaultJobOptions } from "bullmq";
 import Redis from "ioredis";
 import { createLogger } from "@observability/logger";
 
@@ -31,6 +31,18 @@ export interface BullMQQueueAdapterOptions {
    * adapters share the same socket.
    */
   connection?: Redis;
+  /**
+   * Default options applied to every job added to this queue.
+   * `attempts` + `backoff` enable BullMQ's built-in retry policy without
+   * requiring callers to pass them on every `enqueue` call. The full set
+   * of `DefaultJobOptions` is exposed so callers can also tweak
+   * `removeOnComplete`, `priority`, `lifo`, etc. when relevant.
+   *
+   * BullMQ supports an optional `jitter` (0..1) inside `backoff` to
+   * randomise retry delays — recommended to avoid thundering-herd on
+   * batch failures.
+   */
+  defaultJobOptions?: DefaultJobOptions;
 }
 
 export type BullMQQueueAdapter = QueuePort & {
@@ -50,7 +62,12 @@ export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): Bu
       lazyConnect: true,
     });
 
-  const queue = new Queue(options.queueName, { connection });
+  const queue = new Queue(options.queueName, {
+    connection,
+    ...(options.defaultJobOptions !== undefined && {
+      defaultJobOptions: options.defaultJobOptions,
+    }),
+  });
   const metricsCollector = new MetricsCollector();
 
   const enqueueBreaker = createCircuitBreaker(

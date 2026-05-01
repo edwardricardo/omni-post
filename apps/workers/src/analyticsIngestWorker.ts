@@ -27,6 +27,9 @@ import { blueskyAdapter } from "@providers/bluesky";
 import { prisma } from "@infra/prisma";
 import type { ProviderAdapter } from "@ports/core";
 import type { Provider as PrismaProvider } from "@infra/prisma";
+import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
+import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
+import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "analytics-ingest-worker" });
 
@@ -80,8 +83,16 @@ async function processJob(jobData: {
 
   if (!result.ok) {
     if (result.error === "AUTH") {
-      logger.warn({ channelId, provider: providerName }, "Auth error — channel may need reauth");
-      return;
+      logger.warn(
+        { channelId, provider: providerName },
+        "Auth error — flagging channel as needing reauth"
+      );
+      await handleProviderAuthError(
+        authFailureRecorder,
+        channelId,
+        providerName,
+        "Provider rejected credentials during analytics ingestion"
+      );
     }
     throw new Error(`Provider ${providerName} returned error: ${result.error}`);
   }
@@ -142,6 +153,8 @@ async function processJob(jobData: {
   );
 }
 
+const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
+
 async function start() {
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
@@ -171,6 +184,12 @@ async function start() {
 
   worker.on("error", (error) => {
     logger.error({ err: error }, "Worker error");
+  });
+
+  registerGracefulShutdown({
+    name: "analytics-ingest",
+    target: { workers: [worker], connections: [connection], prisma },
+    logger,
   });
 
   logger.info(

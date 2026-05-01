@@ -36,9 +36,9 @@ import {
  * Register outbox relay/cleaner, crisis mode, and scheduled report use cases
  */
 export function setupCrisisUseCases(container: Container): void {
-  // T4-C: concurrent claim, idempotent dispatch, full-jitter backoff.
   // Worker identity must be unique per process so concurrent OutboxRelay
-  // instances (multi-pod or test harness) can distinguish their claims.
+  // instances (multi-pod or test harness) can distinguish their claims
+  // when running the lease-based concurrent-claim flow.
   const workerId = `${hostname()}-${process.pid}`;
 
   container.register<OutboxClaimService>(

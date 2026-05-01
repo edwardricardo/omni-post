@@ -1,6 +1,6 @@
 /**
  * @file OutboxRelay.integration.test.ts
- * @description Integration test for the T4-C concurrent-claim guarantee.
+ * @description Integration test for the concurrent-claim guarantee.
  *   Two `OutboxRelay` instances polling the same DB concurrently must
  *   dispatch each event exactly once across both — never twice. Exercises
  *   the real PostgreSQL `UPDATE ... FOR UPDATE SKIP LOCKED ... RETURNING`

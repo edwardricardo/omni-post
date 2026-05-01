@@ -146,4 +146,27 @@ describe("createBullMQQueueAdapter", () => {
       expect(result.value.connected).toBe(true);
     }
   });
+
+  it("forwards defaultJobOptions to the BullMQ Queue constructor when provided", async () => {
+    createBullMQQueueAdapter({
+      queueName: "publish",
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5000 },
+      },
+    });
+    const opts = queueConstructor.mock.calls[0]?.[1] as {
+      defaultJobOptions?: { attempts: number; backoff: { type: string; delay: number } };
+    };
+    expect(opts.defaultJobOptions).toEqual({
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+    });
+  });
+
+  it("omits defaultJobOptions from the Queue constructor when not provided", async () => {
+    createBullMQQueueAdapter({ queueName: "publish" });
+    const opts = queueConstructor.mock.calls[0]?.[1] as { defaultJobOptions?: unknown };
+    expect(opts.defaultJobOptions).toBeUndefined();
+  });
 });
