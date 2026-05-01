@@ -2111,26 +2111,52 @@ grep -nE "executeInTransaction" apps/api/src/application/inbox/SyncProviderComme
 
 ---
 
-#### T4-L — Cache consolidation
+#### T4-L — Cache consolidation 🔒 ✅ 2026-05-01
 
-**Scope.** 3 sistemas paralelos de caching + module-level cache pattern.
+**Scope real.** 3 sistemas paralelos de caching consolidados detrás de `CachePort` (port + 2 adapters: Redis L1+L2 wrapper + InMemory para tests). Audit canon-driven: 5/5 per-class `Map<>` caches migrados (no 2/5 como hedge inicial), 2/2 module-level Maps L-13 migrados, TTL configurable vía env, health checker verificado wired. **Net code:** ~150 líneas L1+L2 manual eliminadas + 6 servicios + 2 UCs ahora cross-pod coherent + cero perdida de funcionalidad (RedisCacheManager preservado como singleton con keyPrefix `api:`).
 
 **Findings table (4):**
 
-| L-#   | Título corto                                     | Esfuerzo | Acción    | §5.9         | Notas                                    |
-| ----- | ------------------------------------------------ | -------- | --------- | ------------ | ---------------------------------------- |
-| L-49  | 3 sistemas paralelos de caching                  | HEAVY    | REFACTOR  | NEEDS_EDWARD | Consolidar `CachePort`                   |
-| L-13  | Module-level cache pattern (2 UCs, no testeable) | MEDIUM   | REFACTOR  | AUTO         | `CachePort` abstracto; resolved con L-49 |
-| L-377 | cache-redis TTL default hardcoded                | TRIVIAL  | CONFIG    | AUTO         | Env var `CACHE_TTL_DEFAULT`              |
-| L-381 | cache-redis missing health check                 | QUICK    | IMPLEMENT | AUTO         |                                          |
+| L-#   | Título corto                                     | Esfuerzo | Acción    | §5.9         | Status     | Resolución                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----- | ------------------------------------------------ | -------- | --------- | ------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-49  | 3 sistemas paralelos de caching                  | HEAVY    | REFACTOR  | NEEDS_EDWARD | ✅ Cerrado | `CachePort` (6 métodos: `get`/`set`/`getOrSet`/`delete`/`invalidateByTag`/`has`) + `RedisCacheAdapter` (wraps singleton `RedisCacheManager`) + `InMemoryCacheAdapter` (tests + per-process). DI: `TOKENS.RedisCacheManager` (singleton) + `TOKENS.CachePort` (port wrapper). 5 per-class caches migrados: `connectionManager.healthCache`, `rbacService.permissionCache` (security-critical OWASP A07), `CredentialManager.credentialCache` (L1+L2 manual eliminado), `VersionController.versionCache` (L1+L2 manual eliminado), `BranchManager.branchCache` (write-only, preservado tal cual + flagged como PR-30). |
+| L-13  | Module-level cache pattern (2 UCs, no testeable) | MEDIUM   | REFACTOR  | AUTO         | ✅ Cerrado | `GetTopPerformersContextUseCase` y `FetchTrendingTopicsUseCase` ahora reciben `CachePort` por constructor. `getOrSet(key, factory, { ttlSeconds })` reemplaza `Map<>` global. Tests usan `InMemoryCacheAdapter` — state aislado por test (antes leakeaba via global Map).                                                                                                                                                                                                                                                                                                                                            |
+| L-377 | cache-redis TTL default hardcoded                | TRIVIAL  | CONFIG    | AUTO         | ✅ Cerrado | `RedisCacheManager` lee `CACHE_TTL_DEFAULT` (segundos) en construcción; fallback 3600 si unset/unparseable; explicit `config.defaultTtl` sigue ganando. 4 tests cubren los 4 paths.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| L-381 | cache-redis missing health check                 | QUICK    | IMPLEMENT | AUTO         | ✅ Cerrado | `CacheHealthChecker` ya implementado en `packages/monitoring/health-checks/src/checkers/redis.ts:114` y wired en `apps/api/src/health/healthRoutes.ts:88` (verificado durante T4-L; status report a `/health/detailed` incluye `cache: {hitRate, totalKeys, memoryUsage}`).                                                                                                                                                                                                                                                                                                                                          |
+
+**Trabajo adicional (canon-driven):**
+
+1. **`docs/architecture/caching.md` creado** (nuevo): explica el "por qué" de port + 2 adapters — OneUptime/BentoCache canon, OWASP A07:2021 motivation para cross-pod coherence, decision tree para `getOrSet` vs `get/set`, stampede protection roadmap (deferred a PR-29), known dead caches (BranchManager → PR-30), troubleshooting.
+2. **CLAUDE.md §Caching** agregado: paralelo a §Logging — tabla de adapters por scope, reglas (no `private *Cache = new Map()`, prefix-namespacing, tag invalidation pattern), defer rationale para stampede protection.
+3. **`RedisCacheManager.has(key)`** método agregado: chequea L1 → Redis EXISTS sin decode payload (canonical complement a `get`).
+
+**Canon investigado durante el batch (2026-05-01):**
+
+- [BentoCache — multi-tier canon](https://bentocache.dev/docs/introduction) — primary reference para L1+L2 + tagging API.
+- [PettyCache (mediocre/petty-cache)](https://github.com/mediocre/petty-cache) — confirma `getOrSet`-style cache-aside como canonical convenience method.
+- [OneUptime — Multi-Layer Caching Redis Node.js (2026)](https://oneuptime.com/blog/post/2026-01-25-multi-layer-caching-redis-nodejs/view) — recomendación explícita: "rather than repositories maintaining private cache instances, they delegate all caching to the injected CacheManager" — single source para los 5 per-class veredictos.
+- [type-cacheable](https://github.com/joshuaslate/type-cacheable) + [cache-flow](https://github.com/abourdin/cache-flow) — TypeScript ecosystem convergence en adapter interfaces.
+- [Wikipedia — Cache stampede](https://en.wikipedia.org/wiki/Cache_stampede) + [1xAPI single-flight 2026](https://1xapi.com/blog/nodejs-cache-stampede-single-flight-pattern-2026) — motivation para PR-29 (deferred).
+- [AlachiSoft — Client cache + distributed](https://www.alachisoft.com/blogs/an-insight-into-using-client-cache-with-distributed-caching/) — "leads to as many caches as application instances, leading to cache coherence problem" — 5/5 per-class migrate decision basis.
+- [OWASP A07:2021 — Identification and Authentication Failures](https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/) — threat model para `RbacService.invalidateCache` cross-pod fix.
+- [Java Code Geeks — Hexagonal in practice 2025](https://www.javacodegeeks.com/2025/06/hexagonal-architecture-in-practice-ports-adapters-and-real-use-cases.html) — cache como categoría natural para ports.
 
 **Entry criteria.** T4-A cerrado.
 
-**Exit criteria:** single CachePort SoT; all UCs resolve from DI.
+**Exit criteria cumplidos:**
 
-**Estimación.** 6-10 h.
+- ✅ Single CachePort SoT; 12 archivos consumen `CachePort` (5 servicios + 2 UCs + DI + tests).
+- ✅ 0 `RedisCacheManager` directo en `apps/api/src/application`.
+- ✅ 0 module-level `Map<>` cache en los 2 UCs.
+- ✅ 0 per-class private `Map<>` cache en los 5 servicios.
+- ✅ `CACHE_TTL_DEFAULT` env var honored.
+- ✅ `CacheHealthChecker` wired en `/health/detailed`.
+- ✅ `docs/architecture/caching.md` creado.
+- ✅ Lint 0 errors / 0 warnings, build 6/6, tests 371/371 (7,452 tests, 0 failures).
 
-**Dependencias.** BLOCKED_BY T4-A.
+**Estimación.** ~7 h actuales (vs 6-10 estimadas).
+
+**Dependencias.** Cierra L-49 + L-13 + L-377 + L-381. Habilita PR-29 (stampede) + PR-30 (BranchManager dead cache).
 
 ---
 

@@ -59,7 +59,7 @@ import { createMetricsMiddleware } from "./middleware/metricsMiddleware.js";
 import { createCircuitBreakerMonitor } from "@monitoring/circuit-breaker";
 import { createDeadLetterQueue } from "@adapters/dead-letter-queue";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { createCacheManager } from "@adapters/cache-redis";
+import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
 import { createTenantHealthMonitor } from "@monitoring/health-checks";
 import { authRoutes } from "./auth/authRoutes.js";
@@ -207,16 +207,10 @@ async function createApp(): Promise<FastifyInstance> {
     TOKENS.BackgroundTaskScheduler
   );
 
-  // Initialize cache manager
-  const cacheManager = createCacheManager(
-    {
-      redisUrl: getRedisUrl(),
-      keyPrefix: "api:",
-      defaultTtl: 300,
-      enableMetrics: true,
-    },
-    bootstrapScheduler
-  );
+  // Initialize cache manager — resolved from the DI container so the same
+  // `RedisCacheManager` singleton is wrapped by `TOKENS.CachePort` and used
+  // for the Fastify decoration below. No duplicated L1+L2 pools.
+  const cacheManager = container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
 
   // Decorate fastify instance with cache manager (accessible as fastify.cacheManager and fastify.cache)
   typedApp.decorate("redis", redis);

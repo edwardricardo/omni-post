@@ -43,7 +43,9 @@ import { ComplianceService } from "../../compliance/ComplianceService.js";
 import { DataRetentionService } from "../../compliance/DataRetentionService.js";
 import { DlqArchivalService } from "../../webhooks/DlqArchivalService.js";
 import { DatabaseOptimizer } from "../../database/DatabaseOptimizer.js";
-import { RedisCacheManager } from "@adapters/cache-redis";
+import { RedisCacheManager, RedisCacheAdapter, createCacheManager } from "@adapters/cache-redis";
+import type { CachePort } from "@ports/core";
+import { getRedisUrl } from "../../lib/redis.js";
 import { dbLogger, createLogger } from "../../lib/logger.js";
 import { CredentialManager } from "../../orchestration/CredentialManager.js";
 import { RateLimitManager } from "../../orchestration/RateLimitManager.js";
@@ -117,7 +119,11 @@ export function setupServices(
   );
   container.register<RbacService>(
     TOKENS.RbacService,
-    () => new RbacService(container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository)),
+    () =>
+      new RbacService(
+        container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
+        container.resolve<CachePort>(TOKENS.CachePort)
+      ),
     true
   );
 
@@ -154,6 +160,39 @@ export function setupServices(
   );
   // Outbound HTTP port for application services (TriggerIntegrationEventService).
   container.register<HttpClientPort>(TOKENS.HttpClientPort, () => new FetchHttpClient(), true);
+
+  // Application-wide RedisCacheManager singleton: a single L1+L2 tiered cache
+  // pool shared by every consumer. Created lazily so tests that resolve the
+  // container without exercising cache-dependent code don't open a real Redis
+  // connection. The Fastify entry point (`apps/api/src/index.ts`) resolves it
+  // immediately for `fastify.cacheManager` decoration; everything else
+  // resolves it implicitly via `TOKENS.CachePort`.
+  container.register<RedisCacheManager>(
+    TOKENS.RedisCacheManager,
+    () =>
+      createCacheManager(
+        {
+          redisUrl: getRedisUrl(),
+          keyPrefix: "api:",
+          enableMetrics: true,
+        },
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      ),
+    true
+  );
+
+  // General-purpose cache port: wraps the application-wide `RedisCacheManager`
+  // singleton behind the canonical `CachePort` API. Callers namespace their
+  // keys with conventional prefixes (`credentials:`, `permissions:`,
+  // `branch:`); the underlying manager applies the global `keyPrefix` at the
+  // Redis level, so every consumer shares L1+L2 tiering, tag invalidation,
+  // and cross-pod coherence with no duplicated cache pools.
+  container.register<CachePort>(
+    TOKENS.CachePort,
+    () => new RedisCacheAdapter(container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager)),
+    true
+  );
+
   container.registerInstance(TOKENS.DashboardService, dashboardService);
 
   container.register<AccountLifecycleService>(
@@ -302,6 +341,7 @@ export function setupServices(
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
         eventService,
+        cache: container.resolve<CachePort>(TOKENS.CachePort),
       });
     },
     true
@@ -375,7 +415,11 @@ export function setupServices(
     () => {
       const redis = createRedisConnection();
       redis.on("error", () => {});
-      return new CredentialManager({ prisma: container.resolve(TOKENS.PrismaClient), redis });
+      return new CredentialManager({
+        prisma: container.resolve(TOKENS.PrismaClient),
+        redis,
+        cache: container.resolve<CachePort>(TOKENS.CachePort),
+      });
     },
     true
   );

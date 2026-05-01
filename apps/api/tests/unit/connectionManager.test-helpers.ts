@@ -9,6 +9,7 @@
 import { vi } from "vitest";
 import type { ProviderConnection } from "@infra/prisma";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { InMemoryCacheAdapter } from "../../../../packages/adapters/cache-redis/src/in-memory-cache-adapter.js";
 import {
   ConnectionManager,
   type ConnectionManagerPrisma,
@@ -16,10 +17,11 @@ import {
 
 /**
  * Build a ConnectionManager for tests, wiring a Noop scheduler so the class
- * under test does not register real timers.
+ * under test does not register real timers, and an in-memory cache adapter so
+ * cache-aside behavior is exercised without external Redis.
  */
 export function createConnectionManager(db: ConnectionManagerPrisma): ConnectionManager {
-  return new ConnectionManager(new NoopBackgroundTaskScheduler(), db);
+  return new ConnectionManager(new NoopBackgroundTaskScheduler(), db, new InMemoryCacheAdapter());
 }
 
 export function createMockConnection(

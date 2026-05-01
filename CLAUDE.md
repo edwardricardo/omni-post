@@ -430,6 +430,30 @@ The only legitimate raw `setInterval` call in the entire backend is inside `Defa
 
 ---
 
+## Caching
+
+**All cross-pod cached state MUST go through `TOKENS.CachePort` — never instantiate `RedisCacheManager` outside the composition root, and never declare a per-class `private *Cache = new Map()`.**
+
+The cache port lives at `packages/ports/src/CachePort.ts`. Two adapters implement it: `RedisCacheAdapter` (production, wraps the singleton `RedisCacheManager` with L1 in-process LRU + L2 Redis + tag invalidation) and `InMemoryCacheAdapter` (tests + per-process scopes; pure `Map` + per-entry TTL + tag index, no I/O).
+
+| Scope                                                             | Adapter                | DI token                   |
+| ----------------------------------------------------------------- | ---------------------- | -------------------------- |
+| Cross-pod shared state (credentials, permissions, computed views) | `RedisCacheAdapter`    | `TOKENS.CachePort`         |
+| Underlying L1+L2 manager (singleton, advanced features)           | `RedisCacheManager`    | `TOKENS.RedisCacheManager` |
+| Tests (deterministic, no Redis)                                   | `InMemoryCacheAdapter` | injected directly per test |
+
+- **Inject `CachePort`** — never `RedisCacheManager` — into application services. The port surface is `get`, `set`, `getOrSet`, `delete`, `invalidateByTag`, `has`. Use `getOrSet(key, factory, options)` for cache-aside; raw `get` + `set` only when callers compose their own flow (write-only counters, pre-warmed caches with no factory).
+- **Namespace your keys** with a feature prefix (`credentials:`, `permissions:`, `branch:`, `version:`, `connection-health:`, `top-performers:`, `trends:`). The Redis manager additionally applies an `api:` prefix on the wire, so the on-the-wire key is e.g. `api:credentials:foo`.
+- **Tags** group keys for `invalidateByTag`. Use them for cross-key invalidation patterns (e.g. role-permission cache: every role's permissions share the `rbac:role` tag so `cache.invalidateByTag("rbac:role")` wipes the pool without enumerating roles).
+- **Default TTL** is configurable via `CACHE_TTL_DEFAULT` (seconds). Falls back to 3600 when unset. Explicit `ttlSeconds` per call always wins.
+- **In tests**, instantiate `new InMemoryCacheAdapter()` directly. Each test gets its own adapter, no shared state, deterministic TTL via `vi.useFakeTimers()`.
+- **Stampede protection** (single-flight, XFetch, SWR, jitter) is intentionally NOT implemented yet — tracked as PR-29 in the backlog. Concurrent factory calls on a missed key each run independently.
+- **No new `private *Cache = new Map()`** in `apps/api/src/**`. CI fitness grep blocks the pattern. The reason is OWASP A07:2021 (Identification and Authentication Failures): a per-instance Map can't propagate invalidations cross-pod, so a revoked permission stays valid on adjacent pods until their local TTL expires.
+
+Full caching architecture rationale: `docs/architecture/caching.md`.
+
+---
+
 ## Testing
 
 **Write the test first. If you can't write a test for it, reconsider the design.**

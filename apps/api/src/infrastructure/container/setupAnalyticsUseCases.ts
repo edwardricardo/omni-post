@@ -7,6 +7,7 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
+import type { CachePort } from "@ports/core";
 import type { CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
 import type { CampaignQueryRepository } from "../../domain/repositories/CampaignQueryRepository.js";
 import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
@@ -263,7 +264,8 @@ export function setupAnalyticsUseCases(container: Container): void {
     TOKENS.GetTopPerformersContextUseCase,
     () =>
       new GetTopPerformersContextUseCase(
-        container.resolve<TopPerformersQueryPort>(TOKENS.TopPerformersQueryPort)
+        container.resolve<TopPerformersQueryPort>(TOKENS.TopPerformersQueryPort),
+        container.resolve<CachePort>(TOKENS.CachePort)
       ),
     true
   );

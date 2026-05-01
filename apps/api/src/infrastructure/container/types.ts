@@ -108,6 +108,8 @@ export const TOKENS = {
   AIService: Symbol.for("AIService"),
   AIServicePort: Symbol.for("AIServicePort"),
   HttpClientPort: Symbol.for("HttpClientPort"),
+  CachePort: Symbol.for("CachePort"),
+  RedisCacheManager: Symbol.for("RedisCacheManager"),
   AiRequestService: Symbol.for("AiRequestService"),
   DashboardService: Symbol.for("DashboardService"),
   AccountLifecycleService: Symbol.for("AccountLifecycleService"),

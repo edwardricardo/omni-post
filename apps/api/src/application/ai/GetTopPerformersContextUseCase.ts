@@ -7,6 +7,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
+import type { CachePort } from "@ports/core";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 
 export interface TopPerformersInput {
@@ -50,94 +51,27 @@ export interface TopPerformersQueryPort {
   >;
 }
 
-const cache = new Map<string, { data: TopPerformersContext; expiresAt: number }>();
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const CACHE_TTL_SECONDS = 6 * 60 * 60;
 
 export class GetTopPerformersContextUseCase implements UseCase<
   TopPerformersInput,
   TopPerformersContext,
   UseCaseError
 > {
-  constructor(private readonly queryPort: TopPerformersQueryPort) {}
+  constructor(
+    private readonly queryPort: TopPerformersQueryPort,
+    private readonly cache: CachePort
+  ) {}
 
   async execute(input: TopPerformersInput): Promise<Result<TopPerformersContext, UseCaseError>> {
     try {
-      const cacheKey = `${input.accountId}:${input.platform ?? "all"}`;
-      const cached = cache.get(cacheKey);
-      if (cached && cached.expiresAt > Date.now()) {
-        return ok(cached.data);
-      }
-
-      const lookbackDays = input.lookbackDays ?? 90;
-      const limit = input.limit ?? 5;
-      const since = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
-
-      const rows = await this.queryPort.findTopPerformers({
-        accountId: input.accountId,
-        ...(input.platform ? { platform: input.platform } : {}),
-        since,
-        limit: limit * 3,
-      });
-
-      if (rows.length === 0) {
-        const empty: TopPerformersContext = {
-          posts: [],
-          accountAvgEngagement: 0,
-          topPerformingPlatform: null,
-          insights: [],
-        };
-        cache.set(cacheKey, { data: empty, expiresAt: Date.now() + CACHE_TTL_MS });
-        return ok(empty);
-      }
-
-      const withEngagement = rows
-        .map((r) => {
-          const totalEngagement = r.likes + r.comments + r.shares;
-          const engagementRate = r.views > 0 ? (totalEngagement / r.views) * 100 : 0;
-          return { ...r, engagementRate, totalEngagement };
-        })
-        .sort((a, b) => b.engagementRate - a.engagementRate);
-
-      const topPosts = withEngagement.slice(0, limit).map((r) => ({
-        content: r.postBody,
-        platform: r.platform,
-        engagementRate: Math.round(r.engagementRate * 100) / 100,
-        impressions: r.views,
-        publishedAt: r.publishedAt,
-      }));
-
-      const avgEngagement =
-        withEngagement.reduce((sum, r) => sum + r.engagementRate, 0) / withEngagement.length;
-
-      const platformCounts = new Map<string, { total: number; count: number }>();
-      for (const r of withEngagement) {
-        const current = platformCounts.get(r.platform) ?? { total: 0, count: 0 };
-        current.total += r.engagementRate;
-        current.count += 1;
-        platformCounts.set(r.platform, current);
-      }
-
-      let topPlatform: string | null = null;
-      let topPlatformAvg = 0;
-      for (const [platform, stats] of platformCounts) {
-        const avg = stats.total / stats.count;
-        if (avg > topPlatformAvg) {
-          topPlatformAvg = avg;
-          topPlatform = platform;
-        }
-      }
-
-      const insights = this.generateInsights(withEngagement, avgEngagement, topPlatform);
-
-      const context: TopPerformersContext = {
-        posts: topPosts,
-        accountAvgEngagement: Math.round(avgEngagement * 100) / 100,
-        topPerformingPlatform: topPlatform,
-        insights,
-      };
-
-      cache.set(cacheKey, { data: context, expiresAt: Date.now() + CACHE_TTL_MS });
-      return ok(context);
+      const cacheKey = `top-performers:${input.accountId}:${input.platform ?? "all"}`;
+      const result = await this.cache.getOrSet<TopPerformersContext>(
+        cacheKey,
+        () => this.computeContext(input),
+        { ttlSeconds: CACHE_TTL_SECONDS }
+      );
+      return ok(result);
     } catch (error: unknown) {
       return err(
         new UseCaseError(
@@ -147,6 +81,74 @@ export class GetTopPerformersContextUseCase implements UseCase<
         )
       );
     }
+  }
+
+  private async computeContext(input: TopPerformersInput): Promise<TopPerformersContext> {
+    const lookbackDays = input.lookbackDays ?? 90;
+    const limit = input.limit ?? 5;
+    const since = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
+
+    const rows = await this.queryPort.findTopPerformers({
+      accountId: input.accountId,
+      ...(input.platform ? { platform: input.platform } : {}),
+      since,
+      limit: limit * 3,
+    });
+
+    if (rows.length === 0) {
+      return {
+        posts: [],
+        accountAvgEngagement: 0,
+        topPerformingPlatform: null,
+        insights: [],
+      };
+    }
+
+    const withEngagement = rows
+      .map((r) => {
+        const totalEngagement = r.likes + r.comments + r.shares;
+        const engagementRate = r.views > 0 ? (totalEngagement / r.views) * 100 : 0;
+        return { ...r, engagementRate, totalEngagement };
+      })
+      .sort((a, b) => b.engagementRate - a.engagementRate);
+
+    const topPosts = withEngagement.slice(0, limit).map((r) => ({
+      content: r.postBody,
+      platform: r.platform,
+      engagementRate: Math.round(r.engagementRate * 100) / 100,
+      impressions: r.views,
+      publishedAt: r.publishedAt,
+    }));
+
+    const avgEngagement =
+      withEngagement.reduce((sum, r) => sum + r.engagementRate, 0) / withEngagement.length;
+
+    const platformCounts = new Map<string, { total: number; count: number }>();
+    for (const r of withEngagement) {
+      const current = platformCounts.get(r.platform) ?? { total: 0, count: 0 };
+      current.total += r.engagementRate;
+      current.count += 1;
+      platformCounts.set(r.platform, current);
+    }
+
+    let topPlatform: string | null = null;
+    let topPlatformAvg = 0;
+    for (const [platform, stats] of platformCounts) {
+      const avg = stats.total / stats.count;
+      if (avg > topPlatformAvg) {
+        topPlatformAvg = avg;
+        topPlatform = platform;
+      }
+    }
+
+    const insights = this.generateInsights(withEngagement, avgEngagement, topPlatform);
+
+    return {
+      posts: topPosts,
+      accountAvgEngagement: Math.round(avgEngagement * 100) / 100,
+      topPerformingPlatform: topPlatform,
+      insights,
+    };
   }
 
   private generateInsights(

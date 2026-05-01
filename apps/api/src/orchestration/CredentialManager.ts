@@ -7,6 +7,7 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import Redis from "ioredis";
+import type { CachePort } from "@ports/core";
 import type { ProviderId } from "../providers/providerAdapter.interface";
 import { OrchestrationResult } from "@shared/orchestration";
 
@@ -31,11 +32,13 @@ interface CredentialStatus {
 export class CredentialManager {
   private prisma: PrismaClient;
   private redis: Redis;
-  private credentialCache = new Map<string, ProviderCredentials>();
+  private cache: CachePort | undefined;
+  private static readonly CACHE_TTL_SECONDS = 300;
 
-  constructor(dependencies: { prisma: PrismaClient; redis: Redis }) {
+  constructor(dependencies: { prisma: PrismaClient; redis: Redis; cache?: CachePort }) {
     this.prisma = dependencies.prisma;
     this.redis = dependencies.redis;
+    this.cache = dependencies.cache;
   }
 
   /**
@@ -48,19 +51,9 @@ export class CredentialManager {
     try {
       const cacheKey = this.getCacheKey(channelId, providerId);
 
-      // Check in-memory cache first
-      const cached = this.credentialCache.get(cacheKey);
-      if (cached) {
-        return { ok: true, value: cached };
-      }
-
-      // Check Redis cache
-      const redisKey = `credentials:${cacheKey}`;
-      const cachedJson = await this.redis.get(redisKey);
-      if (cachedJson) {
-        const credentials = JSON.parse(cachedJson) as ProviderCredentials;
-        this.credentialCache.set(cacheKey, credentials);
-        return { ok: true, value: credentials };
+      if (this.cache) {
+        const cached = await this.cache.get<ProviderCredentials>(`credentials:${cacheKey}`);
+        if (cached) return { ok: true, value: this.deserializeCredentials(cached) };
       }
 
       // Fetch from database
@@ -193,8 +186,9 @@ export class CredentialManager {
       // Invalidate cache
       const channelProviderId = channel.provider.toLowerCase() as ProviderId;
       const cacheKey = this.getCacheKey(channelId, channelProviderId);
-      this.credentialCache.delete(cacheKey);
-      await this.redis.del(`credentials:${cacheKey}`);
+      if (this.cache) {
+        await this.cache.delete(`credentials:${cacheKey}`);
+      }
 
       return { ok: true, value: undefined };
     } catch (error: unknown) {
@@ -329,8 +323,9 @@ export class CredentialManager {
   ): Promise<OrchestrationResult<void>> {
     try {
       const cacheKey = this.getCacheKey(channelId, providerId);
-      this.credentialCache.delete(cacheKey);
-      await this.redis.del(`credentials:${cacheKey}`);
+      if (this.cache) {
+        await this.cache.delete(`credentials:${cacheKey}`);
+      }
 
       return { ok: true, value: undefined };
     } catch (error: unknown) {
@@ -360,11 +355,23 @@ export class CredentialManager {
     cacheKey: string,
     credentials: ProviderCredentials
   ): Promise<void> {
-    // Store in memory
-    this.credentialCache.set(cacheKey, credentials);
+    if (this.cache) {
+      await this.cache.set(`credentials:${cacheKey}`, credentials, {
+        ttlSeconds: CredentialManager.CACHE_TTL_SECONDS,
+      });
+    }
+  }
 
-    // Store in Redis with 5 minute TTL
-    await this.redis.setex(`credentials:${cacheKey}`, 300, JSON.stringify(credentials));
+  /**
+   * Re-hydrate the `expiresAt` Date — JSON round-trip via the cache turns it
+   * into an ISO string, but the rest of the orchestration code treats
+   * `expiresAt` as a real `Date` (e.g. for `expiresAt <= now` comparisons).
+   */
+  private deserializeCredentials(raw: ProviderCredentials): ProviderCredentials {
+    if (raw.expiresAt && !(raw.expiresAt instanceof Date)) {
+      return { ...raw, expiresAt: new Date(raw.expiresAt as unknown as string) };
+    }
+    return raw;
   }
 
   private generateId(): string {

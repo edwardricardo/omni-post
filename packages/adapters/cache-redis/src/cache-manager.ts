@@ -68,9 +68,14 @@ export class RedisCacheManager {
 
   constructor(config: CacheConfig, scheduler?: BackgroundTaskScheduler) {
     this.scheduler = scheduler;
+    // L-377: TTL default reads from CACHE_TTL_DEFAULT env var (seconds).
+    // Falls back to 3600 (1h) if unset or unparseable so existing deployments
+    // keep current behavior; explicit `config.defaultTtl` still wins.
+    const envTtl = Number(process.env.CACHE_TTL_DEFAULT);
+    const defaultTtl = Number.isFinite(envTtl) && envTtl > 0 ? envTtl : 3600;
     this.config = {
       keyPrefix: "cache:",
-      defaultTtl: 3600, // 1 hour
+      defaultTtl,
       maxRetries: 3,
       enableCompression: true,
       enableMetrics: true,
@@ -393,6 +398,26 @@ export class RedisCacheManager {
     } catch (error: unknown) {
       logger.error(`Factory function error for key ${key}: ${error}`);
       return err("FACTORY_ERROR");
+    }
+  }
+
+  /**
+   * Check if a key exists without decoding its payload. Checks L1 first
+   * (synchronous), then Redis `EXISTS` (single-RTT, no deserialization).
+   */
+  async has(key: string): Promise<Result<boolean, "CACHE_ERROR">> {
+    try {
+      if (this.enableL1Cache) {
+        const l1Entry = this.l1Cache.get(key);
+        if (l1Entry && this.l1Cache.isValid(l1Entry)) {
+          return ok(true);
+        }
+      }
+      const exists = await this.redis.exists(key);
+      return ok(exists > 0);
+    } catch (error: unknown) {
+      logger.error(`Cache exists error for key ${key}: ${error}`);
+      return err("CACHE_ERROR");
     }
   }
 

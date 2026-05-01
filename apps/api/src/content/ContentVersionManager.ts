@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@infra/prisma";
 import Redis from "ioredis";
+import type { CachePort } from "@ports/core";
 import { ContentVersion, VersionDiff, OrchestrationResult } from "@shared/orchestration";
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderId } from "../providers/providerAdapter.interface";
@@ -34,7 +35,12 @@ export class ContentVersionManager {
   private branchManager: BranchManager;
   private mergeManager: MergeManager;
 
-  constructor(dependencies: { prisma: PrismaClient; redis: Redis; eventService: EventService }) {
+  constructor(dependencies: {
+    prisma: PrismaClient;
+    redis: Redis;
+    eventService: EventService;
+    cache: CachePort;
+  }) {
     this.versionController = new VersionController(dependencies);
     this.diffCalculator = new DiffCalculator();
     this.branchManager = new BranchManager(dependencies);

@@ -112,7 +112,7 @@ export class RoleManagementService {
         include: { permissions: true, _count: { select: { users: true } } },
       });
 
-      this.rbacService.invalidateCache(input.name);
+      await this.rbacService.invalidateCache(input.name);
 
       return ok({
         id: role.id,
@@ -171,7 +171,7 @@ export class RoleManagementService {
         include: { permissions: true, _count: { select: { users: true } } },
       });
 
-      this.rbacService.invalidateCache(role.name);
+      await this.rbacService.invalidateCache(role.name);
 
       return ok({
         id: role.id,
@@ -219,7 +219,7 @@ export class RoleManagementService {
         data: permsCheck.value.map((p) => ({ roleId, permission: p })),
       });
 
-      this.rbacService.invalidateCache(existing.name);
+      await this.rbacService.invalidateCache(existing.name);
 
       // Reload
       const role = await prisma.role.findUnique({
@@ -264,7 +264,7 @@ export class RoleManagementService {
       if (existing._count.users > 0) return err("ROLE_IN_USE");
 
       await prisma.role.delete({ where: { id: roleId } });
-      this.rbacService.invalidateCache(existing.name);
+      await this.rbacService.invalidateCache(existing.name);
 
       return ok(undefined);
     } catch (error: unknown) {

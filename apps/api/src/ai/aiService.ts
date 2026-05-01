@@ -297,9 +297,12 @@ export class AIService extends BaseService {
           if (!result.ok) {
             throw AppError.externalService("AI", `Variation generation failed: ${result.error}`);
           }
+          const variations = Array.isArray(result.value.response)
+            ? result.value.response.filter((v): v is string => typeof v === "string")
+            : [];
           return {
             success: true,
-            variations: result.value.response,
+            variations,
             metadata: {
               provider: result.value.provider,
               model: result.value.model,
@@ -318,7 +321,10 @@ export class AIService extends BaseService {
               : result.error?.message || "Variation generation failed";
           throw AppError.externalService("AI", errorMsg);
         }
-        return { success: true, variations: result.value, metadata: result.metadata };
+        const variations = Array.isArray(result.value)
+          ? result.value.filter((v): v is string => typeof v === "string")
+          : [];
+        return { success: true, variations, metadata: result.metadata };
       }
     );
   }

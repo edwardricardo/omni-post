@@ -9,6 +9,7 @@
 
 import { prisma } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
+import type { CachePort } from "@ports/core";
 import { AuditableService } from "../services/AuditableService";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
 import { authLogger } from "../lib/logger.js";
@@ -78,24 +79,21 @@ export interface UserPermissions {
 }
 
 // ---------------------------------------------------------------------------
-// Cache entry
-// ---------------------------------------------------------------------------
-
-interface CacheEntry {
-  permissions: Permission[];
-  expiry: number;
-}
-
-// ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
 export class RbacService extends AuditableService {
-  private permissionCache = new Map<string, CacheEntry>();
-  private static CACHE_TTL = 60_000; // 60 seconds
+  private cache: CachePort | undefined;
+  private static readonly CACHE_TTL_SECONDS = 60;
+  private static readonly CACHE_KEY_PREFIX = "rbac:role:";
+  private static readonly CACHE_TAG = "rbac:role";
 
-  constructor(private readonly userRepo: AdminUserRepositoryPort) {
+  constructor(
+    private readonly userRepo: AdminUserRepositoryPort,
+    cache?: CachePort
+  ) {
     super("RbacService");
+    this.cache = cache;
   }
 
   // -------------------------------------------------------------------------
@@ -105,38 +103,45 @@ export class RbacService extends AuditableService {
   /**
    * Load permissions for a role from the DB (or cache).
    * SUPER_ADMIN always gets every permission regardless of DB contents.
+   *
+   * The cache is now backed by `CachePort` so revocations propagate cross-pod
+   * via Redis (closes the OWASP A07 window where a stale local Map kept a
+   * revoked permission valid until the local TTL expired). All entries share
+   * the `rbac:role` tag so `invalidateCache()` (no arg) wipes the whole pool
+   * without enumerating role names.
    */
   private async loadRolePermissions(roleName: string): Promise<Permission[]> {
     if (roleName === "SUPER_ADMIN") return Object.values(Permission);
 
-    const cached = this.permissionCache.get(roleName);
-    if (cached && cached.expiry > Date.now()) return cached.permissions;
+    const cacheKey = `${RbacService.CACHE_KEY_PREFIX}${roleName}`;
+    const factory = async (): Promise<Permission[]> => {
+      const role = await prisma.role.findUnique({
+        where: { name: roleName },
+        include: { permissions: true },
+      });
+      if (!role) return [];
+      return role.permissions
+        .map((rp) => rp.permission as Permission)
+        .filter((p) => Object.values(Permission).includes(p));
+    };
 
-    const role = await prisma.role.findUnique({
-      where: { name: roleName },
-      include: { permissions: true },
+    if (!this.cache) return factory();
+    return this.cache.getOrSet<Permission[]>(cacheKey, factory, {
+      ttlSeconds: RbacService.CACHE_TTL_SECONDS,
+      tags: [RbacService.CACHE_TAG],
     });
-    if (!role) return [];
-
-    const perms = role.permissions
-      .map((rp) => rp.permission as Permission)
-      .filter((p) => Object.values(Permission).includes(p));
-
-    this.permissionCache.set(roleName, {
-      permissions: perms,
-      expiry: Date.now() + RbacService.CACHE_TTL,
-    });
-    return perms;
   }
 
   /**
    * Invalidate the permission cache for a specific role or all roles.
+   * Now propagates cross-pod via the shared cache backend.
    */
-  invalidateCache(roleName?: string): void {
+  async invalidateCache(roleName?: string): Promise<void> {
+    if (!this.cache) return;
     if (roleName) {
-      this.permissionCache.delete(roleName);
+      await this.cache.delete(`${RbacService.CACHE_KEY_PREFIX}${roleName}`);
     } else {
-      this.permissionCache.clear();
+      await this.cache.invalidateByTag(RbacService.CACHE_TAG);
     }
   }
 

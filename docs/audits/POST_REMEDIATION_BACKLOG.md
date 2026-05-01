@@ -1393,6 +1393,96 @@ Cuando se acerque audit GDPR/SOC2 o cuando security team priorice PII handling.
 
 ---
 
+### PR-29 — Cache stampede protection (single-flight, jitter, stale-while-revalidate)
+
+**Origen.** T4-L (2026-05-01) — canon research identificó stampede protection como pattern recomendado pero out-of-scope inmediato.
+
+**Contexto.** El `CachePort` introducido en T4-L expone `getOrSet(key, factory, ttlSeconds?)` con semántica cache-aside simple: si miss, invoca el factory, cachea, retorna. Múltiples requests concurrentes para la misma key con cache miss → todos invocan el factory → si el factory hace una DB query expensive o un provider API call, hay thundering herd / cache stampede.
+
+Canon (Wikipedia "Cache stampede", BentoCache, 1xAPI single-flight 2026, AWS ElastiCache docs) recomienda 4 patterns combinables:
+
+1. **Single-flight / request coalescing**: in-process Promise sharing — todos los callers concurrentes esperan al mismo Promise mientras el factory ejecuta una sola vez.
+2. **Probabilistic early expiration (XFetch)**: refresh proactivo antes de expiry para evitar el "cliff edge". Algoritmo XFetch de Redis Labs.
+3. **Stale-while-revalidate**: servir valor stale instantáneamente, refresh en background.
+4. **Jitter / staggered TTLs**: TTL = base + random(0, jitter) para evitar que muchas keys expiren simultáneamente.
+
+**Por qué no se cerró en T4-L.** Stampede protection requiere:
+
+- **Métricas de hot keys**: ¿qué keys son las que tienen alta concurrency? Sin métricas, optimizar es premature optimization.
+- **Decisión de policy por key class**: ¿single-flight para todo, o solo para factories `expensive`? ¿stale-while-revalidate para queries non-critical, fail-fast para auth?
+- **Cambio en CachePort signature**: agregar `getOrSet(key, factory, { ttl, staleWhileRevalidate, jitter, deduplication })` o overloads. Requiere migración de los 7 callers actuales (5 servicios + 2 UCs) si la signature cambia.
+
+Hacer todo eso sin métricas reales es overengineering.
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando ocurra alguna de:
+   - Métricas de cache miss latency p99 > 500ms con concurrent requests > 10/sec.
+   - Reporte explícito de "hot key" causando DB load spike.
+   - Auth cache (rbac) muestra patterns de stampede tras cache invalidation events.
+
+2. **Investigación previa requerida**:
+   - Audit de los 7 callers actuales: identificar factories expensive (>100ms) vs cheap (<10ms).
+   - Decision tree: ¿qué pattern para qué tipo de factory?
+   - Canon de [BentoCache](https://bentocache.dev/docs/grace-periods) + [Wikipedia XFetch](https://en.wikipedia.org/wiki/Cache_stampede#Probabilistic_early_expiration).
+
+3. **Implementación esperada**:
+   - Extender `CachePort.getOrSet` con `{ stampedeProtection: 'single-flight' | 'xfetch' | 'stale-while-revalidate' | 'none' }` opt-in option.
+   - `RedisCacheAdapter` implementa via in-process `Map<key, Promise>` para single-flight + Redis SETNX lock para cross-pod single-flight.
+   - `InMemoryCacheAdapter` implementa via in-process Map (suficiente para tests).
+   - Métricas Prometheus: `cache_stampede_collisions_total` por key prefix.
+
+**Bloqueado por.** Métricas reales de hot keys + decision de qué policy aplica dónde.
+
+**Cuándo revisar.**
+
+Cuando aparezca el primer reporte de DB load spike correlacionado con cache invalidation, o cuando observability detecte cache miss concurrency > N para una key.
+
+**Estado:** PENDING (deferred del T4-L 2026-05-01).
+
+---
+
+### PR-30 — `BranchManager.branchCache` dead code investigation
+
+**Origen.** T4-L (2026-05-01) — audit del per-class cache reveló pattern write-only.
+
+**Contexto.** Durante T4-L se auditaron los 5 per-class `Map<>` caches en `apps/api/src/`. Cuatro tienen reads y writes claros. El quinto, `apps/api/src/content/BranchManager.ts:branchCache` (declarado en línea 17), aparece solo en `branchCache.set(...)` (línea 68). **Cero reads detectados** vía grep en el archivo completo.
+
+T4-L migró el cache al `CachePort` por consistencia, pero **NO agregó reads que no existían** — el patrón "set, never get" se preserva. Esto significa que la migration es safe (no introduce regression) pero deja la pregunta abierta: ¿el cache debería estar siendo leído en `getBranch()` o métodos similares?
+
+Posibilidades:
+
+1. **Dead code residual**: refactor anterior eliminó el read path pero olvidó eliminar el write. Cache ocupa memoria sin propósito.
+2. **Implementación incompleta**: el read estaba planeado en `getBranch()` o equivalent, nunca se completó. Bug latente: `getBranch()` siempre va a DB cuando el cache podría servir.
+3. **Premature optimization removed**: implementación previa cacheaba al crear, leía en otro flow que se simplificó. La cache quedó como artefacto.
+
+**Por qué no se cerró en T4-L.** Investigación requiere lectura completa de `BranchManager` + sus consumers + git history para distinguir entre las 3 posibilidades. Más invasivo que T4-L (que era cache infrastructure consolidation).
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando se prioritice content versioning features o cuando BranchManager se modifique por otra razón.
+
+2. **Investigación**:
+   - Read completo de `BranchManager.ts` + `VersionController.ts` + tests asociados.
+   - `git log -p --follow apps/api/src/content/BranchManager.ts` para historial del cache.
+   - Identificar consumers de `BranchManager.getBranch` (si existe ese método) y verificar si esperan cache.
+   - Decision: (a) eliminar el cache (residual) → liberar memoria; (b) agregar reads donde corresponda (incomplete) → fix performance bug; (c) algo intermedio.
+
+3. **Implementación esperada por opción**:
+   - (a): eliminar la línea `cache.set` migrada; eliminar la inyección del `CachePort`.
+   - (b): agregar `cache.getOrSet` en el read paths que actualmente van directo a DB.
+   - (c): contexto-dependiente.
+
+**Bloqueado por.** Otra razón para tocar `BranchManager` + capacidad para verificar git history.
+
+**Cuándo revisar.**
+
+Cuando aparezca un ticket relacionado con BranchManager (perf, feature, bug) o cuando alguien revise content versioning architecture en general.
+
+**Estado:** PENDING (deferred del T4-L 2026-05-01).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

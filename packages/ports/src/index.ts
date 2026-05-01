@@ -4,6 +4,7 @@
  *              StoragePort, CrmAdapter, and PaymentAdapter interfaces.
  * @layer domain
  */
+export * from "./CachePort";
 export * from "./ProviderAdapter";
 export * from "./QueuePort";
 export * from "./QueuePortRegistry";

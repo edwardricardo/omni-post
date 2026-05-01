@@ -8,6 +8,7 @@ import type { ProviderId, ConnectionConfig } from "../providers/providerAdapter.
 import type { ProviderConnection } from "@infra/prisma";
 import { prisma as defaultPrisma } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { CachePort } from "@ports/core";
 import { capabilityManager } from "../providers/providerCapabilityManager.js";
 import { authLogger } from "../lib/logger.js";
 
@@ -44,15 +45,17 @@ export interface ConnectionManagerPrisma {
  * Manages provider connections, health monitoring, and credential management
  */
 export class ConnectionManager {
-  private healthCache = new Map<string, { health: ConnectionHealth; expires: Date }>();
   private db: ConnectionManagerPrisma;
   private scheduler: BackgroundTaskScheduler;
+  private cache: CachePort | undefined;
   private readonly healthTaskId = "connection-manager-health-monitoring";
   private readonly cleanupTaskId = "connection-manager-expired-cleanup";
+  private static readonly HEALTH_TTL_SECONDS = 5 * 60;
 
-  constructor(scheduler: BackgroundTaskScheduler, db?: ConnectionManagerPrisma) {
+  constructor(scheduler: BackgroundTaskScheduler, db?: ConnectionManagerPrisma, cache?: CachePort) {
     this.db = db || (defaultPrisma as unknown as ConnectionManagerPrisma);
     this.scheduler = scheduler;
+    this.cache = cache;
     this.startHealthMonitoring();
     this.startExpiredCleanup();
   }
@@ -173,10 +176,12 @@ export class ConnectionManager {
    * Check connection health
    */
   async checkConnectionHealth(connectionId: string): Promise<ConnectionHealth> {
-    // Check cache first
-    const cached = this.healthCache.get(connectionId);
-    if (cached && cached.expires > new Date()) {
-      return cached.health;
+    if (this.cache) {
+      const cached = await this.cache.get<ConnectionHealth>(`connection-health:${connectionId}`);
+      if (cached) {
+        // Re-hydrate Date because JSON-roundtrip turns it into a string.
+        return { ...cached, lastCheck: new Date(cached.lastCheck) };
+      }
     }
 
     const connection = await this.getConnection(connectionId);
@@ -235,11 +240,11 @@ export class ConnectionManager {
       health.score = Math.max(0, health.score - health.warnings.length * 10);
     }
 
-    // Cache for 5 minutes
-    this.healthCache.set(connectionId, {
-      health,
-      expires: new Date(Date.now() + 5 * 60 * 1000),
-    });
+    if (this.cache) {
+      await this.cache.set(`connection-health:${connectionId}`, health, {
+        ttlSeconds: ConnectionManager.HEALTH_TTL_SECONDS,
+      });
+    }
 
     return health;
   }
