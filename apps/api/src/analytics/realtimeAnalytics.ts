@@ -11,6 +11,7 @@ import Redis from "ioredis";
 import { z } from "zod";
 import { prisma } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { CachePort } from "@ports/core";
 import { createLogger } from "../lib/logger.js";
 import { getRequiredSecret } from "../lib/envValidation.js";
 
@@ -48,18 +49,36 @@ interface ConnectionManager {
   socket: WebSocket.WebSocket;
 }
 
+/**
+ * Cross-pod last-known-value buffer key prefix. Cf. Confluent KTable / Flink
+ * keyed-state idiom: this is NOT a TTL-bounded cache — it's distributed
+ * keyed state used to compute metric deltas vs the previous cycle. Failover
+ * scenarios (pod 1 dies → pod 2 reads previous value) require Redis backing
+ * rather than per-instance Map.
+ */
+const REALTIME_METRICS_KEY_PREFIX = "realtime-metrics:";
+
+/**
+ * TTL choice for the keyed-state buffer. 24h is a generous failover window
+ * for a ~30s update cycle — TTL acts as orphan cleanup cap, not freshness
+ * signal. Canon: AWS Flink stream-enrichment patterns ("TTL as long as the
+ * operation requires"). 1h would be too short (60 missed cycles wipes
+ * state, next reading shows bogus delta vs zero).
+ */
+const REALTIME_METRICS_TTL_SECONDS = 24 * 60 * 60;
+
 export class RealtimeAnalyticsService extends BaseService {
   private redis: Redis;
   private connections: Map<string, ConnectionManager> = new Map();
   private subscriptions: Map<string, Set<string>> = new Map(); // postId -> Set<connectionId>
-  private metricsCache: Map<string, RealtimeMetrics> = new Map();
   private readonly metricsTaskId = "realtime-analytics-metrics-updater";
   private readonly connectionCleanerTaskId = "realtime-analytics-connection-cleaner";
 
   constructor(
     redis: Redis,
     private readonly accountRepository: AccountQueryRepositoryPort,
-    private readonly scheduler: BackgroundTaskScheduler
+    private readonly scheduler: BackgroundTaskScheduler,
+    private readonly cache: CachePort
   ) {
     super("RealtimeAnalyticsService");
     this.redis = redis;
@@ -377,13 +396,16 @@ export class RealtimeAnalyticsService extends BaseService {
         }
       });
 
-      // Calculate deltas and broadcast updates
+      // Calculate deltas and broadcast updates. The previous-value buffer is
+      // stored in CachePort (distributed keyed state, not opportunistic
+      // cache) — missing key on first cycle = no delta, expected behavior.
       for (const [key, analyticsRecord] of latestMetrics) {
         const splitKey = key.split(":");
         if (splitKey.length !== 2) continue;
         const [postId, provider] = splitKey;
         if (!postId || !provider) continue;
-        const previousMetrics = this.metricsCache.get(key);
+        const bufferKey = `${REALTIME_METRICS_KEY_PREFIX}${key}`;
+        const previousMetrics = await this.cache.get<RealtimeMetrics>(bufferKey);
 
         const currentMetrics: RealtimeMetrics = {
           timestamp: new Date(),
@@ -408,8 +430,10 @@ export class RealtimeAnalyticsService extends BaseService {
           };
         }
 
-        // Cache current metrics
-        this.metricsCache.set(key, currentMetrics);
+        // Persist current value as next cycle's "previous"
+        await this.cache.set(bufferKey, currentMetrics, {
+          ttlSeconds: REALTIME_METRICS_TTL_SECONDS,
+        });
 
         // Broadcast update
         await this.broadcastMetricsUpdate(postId!, currentMetrics);
@@ -659,6 +683,8 @@ export class RealtimeAnalyticsService extends BaseService {
 
     this.connections.clear();
     this.subscriptions.clear();
-    this.metricsCache.clear();
+    // Note: previous-metrics buffer is cross-pod state in CachePort. We do
+    // NOT clear it on shutdown — that would wipe other pods' state. TTL
+    // (24h) handles natural orphan cleanup.
   }
 }

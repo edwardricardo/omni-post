@@ -448,7 +448,7 @@ The cache port lives at `packages/ports/src/CachePort.ts`. Two adapters implemen
 - **Default TTL** is configurable via `CACHE_TTL_DEFAULT` (seconds). Falls back to 3600 when unset. Explicit `ttlSeconds` per call always wins.
 - **In tests**, instantiate `new InMemoryCacheAdapter()` directly. Each test gets its own adapter, no shared state, deterministic TTL via `vi.useFakeTimers()`.
 - **Stampede protection** (single-flight, XFetch, SWR, jitter) is intentionally NOT implemented yet — tracked as PR-29 in the backlog. Concurrent factory calls on a missed key each run independently.
-- **No new `private *Cache = new Map()`** in `apps/api/src/**`. CI fitness grep blocks the pattern. The reason is OWASP A07:2021 (Identification and Authentication Failures): a per-instance Map can't propagate invalidations cross-pod, so a revoked permission stays valid on adjacent pods until their local TTL expires.
+- **No new `private *Cache = new Map()`** in `apps/api/src/**`. CI fitness grep #14 blocks the pattern (see §Automated Compliance Checks). The reason is OWASP A07:2021 (Identification and Authentication Failures): a per-instance Map can't propagate invalidations cross-pod, so a revoked permission stays valid on adjacent pods until their local TTL expires.
 
 Full caching architecture rationale: `docs/architecture/caching.md`.
 
@@ -861,6 +861,15 @@ done | wc -l
 # file itself, tests, and stryker sandboxes.
 grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" | \
   grep -v "lib/logger\.ts\|\.test\.\|/tests/\|/\.stryker-tmp/" | wc -l
+
+# 14. No `private *Cache = new Map()` per-class caches in apps/api/src/.
+# Reason: cross-pod cache coherence (OWASP A07:2021) — per-instance Maps
+# can't propagate invalidations between pods, so revoked permissions /
+# stale credentials stay valid on adjacent pods until local TTL expires.
+# All cross-pod cached state MUST go through TOKENS.CachePort. Excludes
+# tests + test directories (test fixtures legitimately use Maps).
+grep -rnE "^\s+private \w*[Cc]ache.*= new Map" apps/api/src --include="*.ts" | \
+  grep -v "\.test\.\|/tests/" | wc -l
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:

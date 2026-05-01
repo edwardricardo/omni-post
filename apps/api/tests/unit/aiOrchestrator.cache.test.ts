@@ -79,15 +79,16 @@ describe("AIOrchestrator — Cache & Metrics", () => {
     it("should respect cache TTL", async () => {
       const messages: AIMessage[] = [{ role: "user", content: "TTL test message" }];
 
-      // First request with short TTL
+      // First request with 1s TTL (CachePort floor is 1 second; cacheTTL
+      // remains in milliseconds for backward-compat with callers).
       const result1 = await orchestrator.generateContent(messages, {
         cacheResults: true,
-        cacheTTL: 100, // 100ms TTL
+        cacheTTL: 1000,
       });
       expect(result1.ok).toBe(true);
 
       // Wait for cache to expire
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 1100));
 
       // Second request after expiration
       const result2 = await orchestrator.generateContent(messages);
@@ -127,8 +128,8 @@ describe("AIOrchestrator — Cache & Metrics", () => {
       // First request to populate cache
       await orchestrator.generateContent(messages);
 
-      // Clear cache
-      orchestrator.clearCache();
+      // Clear cache (now async — invalidateByTag against CachePort)
+      await orchestrator.clearCache();
 
       // Second request should not be cached
       const result = await orchestrator.generateContent(messages);
@@ -136,10 +137,11 @@ describe("AIOrchestrator — Cache & Metrics", () => {
       expect(result.metadata.cached).toBe(false);
     });
 
-    it("should provide cache statistics", async () => {
+    it("should provide cache hit-rate statistics", async () => {
       const stats = orchestrator.getCacheStats();
 
-      expect(typeof stats.size === "number").toBeTruthy();
+      // Post CachePort migration: shape is { hitRate } — `size` was dropped
+      // (per-instance Map size was misleading info in multi-pod).
       expect(typeof stats.hitRate === "number").toBeTruthy();
       expect(stats.hitRate >= 0 && stats.hitRate <= 1).toBeTruthy();
     });

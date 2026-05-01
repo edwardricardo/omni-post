@@ -6,6 +6,7 @@
  * @layer infrastructure
  */
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { CachePort } from "@ports/core";
 import { BaseService } from "../services/BaseService.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { AIOrchestrator } from "./orchestrator.js";
@@ -60,7 +61,8 @@ export class AIService extends BaseService {
 
   constructor(
     private readonly aiRequestService: AiRequestService,
-    private readonly scheduler: BackgroundTaskScheduler
+    private readonly scheduler: BackgroundTaskScheduler,
+    private readonly cache: CachePort
   ) {
     super("AIService");
   }
@@ -72,7 +74,7 @@ export class AIService extends BaseService {
    */
   private getAdminOrchestrator(): AIOrchestrator {
     if (!this.adminOrchestrator) {
-      this.adminOrchestrator = AIOrchestrator.createFromEnv(this.scheduler);
+      this.adminOrchestrator = AIOrchestrator.createFromEnv(this.scheduler, this.cache);
     }
     return this.adminOrchestrator;
   }
@@ -475,7 +477,7 @@ export class AIService extends BaseService {
   async clearCache() {
     return this.execute({ operation: "clearCache" }, async () => {
       const orchestrator = this.getAdminOrchestrator();
-      orchestrator.clearCache();
+      await orchestrator.clearCache();
       return { success: true, message: "Cache cleared successfully" };
     });
   }

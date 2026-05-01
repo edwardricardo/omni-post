@@ -12,6 +12,7 @@
 
 import { AIOrchestrator } from "../../src/ai/orchestrator.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import type {
   AIProvider,
   AIMessage,
@@ -226,7 +227,11 @@ export function createOrchestrator(
   providers.set("perplexity", mockPerplexity);
   providers.set("gemini", mockGemini);
 
-  const orchestrator = new AIOrchestrator(providers, new NoopBackgroundTaskScheduler());
+  const orchestrator = new AIOrchestrator(
+    providers,
+    new NoopBackgroundTaskScheduler(),
+    new InMemoryCacheAdapter()
+  );
 
   // Initialize usage metrics for each mock provider
   for (const provider of ["openai", "perplexity", "gemini"]) {

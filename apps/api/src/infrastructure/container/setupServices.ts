@@ -136,7 +136,8 @@ export function setupServices(
       new AiRequestService(
         container.resolve(TOKENS.PrismaClient),
         container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService),
-        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        container.resolve<CachePort>(TOKENS.CachePort)
       ),
     true
   );
@@ -146,7 +147,8 @@ export function setupServices(
     () =>
       new AIService(
         container.resolve<AiRequestService>(TOKENS.AiRequestService),
-        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        container.resolve<CachePort>(TOKENS.CachePort)
       ),
     true
   );

@@ -226,12 +226,26 @@ jobs:
             exit 1
           fi
 
+      - name: "#14 No per-class `private *Cache = new Map` in apps/api/src"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rnE "^\s+private \w*[Cc]ache.*= new Map" apps/api/src --include="*.ts" 2>/dev/null | \
+            grep -v "\.test\.\|/tests/" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #14 violation::$COUNT per-class private *Cache = new Map() in apps/api/src (expected 0). All cross-pod cached state MUST go through TOKENS.CachePort. Reason: OWASP A07:2021 cache coherence."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "13 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "14 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY

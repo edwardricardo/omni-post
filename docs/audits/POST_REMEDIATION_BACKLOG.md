@@ -1522,6 +1522,57 @@ Cuando se priorice un batch dedicado a "cache architecture finalization" o cuand
 
 ---
 
+### PR-32 — Cache anti-pattern fitness grep + 2 sites missed por T4-L
+
+**Fecha de aplicación:** 2026-05-01
+**Batch de origen:** post-T4-P audit (cierre del audit gap de T4-L)
+**Severidad del bug pre-existente:** medio — 2 per-class `Map<>` caches survived T4-L migration debido a scope incompleto del audit; CLAUDE.md §Caching claim sobre fitness grep era falsa
+**Tipo:** code + config + docs
+
+**Naturaleza especial.** Cierre honesto del gap auditing de T4-L. Edward exigió "no hedge"; T4-L cortó scope al directorio sin grep amplio del pattern.
+
+**Sitios cerrados:**
+
+| Sitio                                                                               | Antes                                                                           | Después                                                                                                                                                                                                                                                                                                   | TTL canon                                                                  |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `apps/api/src/ai/orchestrator.ts:52` (`private cache: Map<...>`)                    | TTL ad-hoc 5min ms, naive `JSON.stringify` key, single `clearCache()` clear-all | CachePort con SHA-256 hash key + version tokens (PROMPT_TEMPLATE_VERSION, modelId), multi-tag (`ai`, `ai:task:<type>`, `ai:model:<id>`), TTL default **1h** (3600s), `clearCache()` → `invalidateByTag("ai")`, `getCacheStats()` ahora `{ hitRate }` (drop `size` field — era info engañosa per-instance) | Helicone, Anthropic prompt cache, AWS LLM caching                          |
+| `apps/api/src/analytics/realtimeAnalytics.ts:55` (`private metricsCache: Map<...>`) | per-instance Map, `metricsCache.clear()` en shutdown                            | CachePort con TTL **24h** (failover-window cap), key prefix `realtime-metrics:`, NO `getOrSet` (canon: keyed state, no cache-aside semantics), shutdown NO clear (let TTL handle — clear() afectaría otros pods)                                                                                          | Confluent KTable, Apache Flink keyed state, AWS stream enrichment patterns |
+
+**Cambios laterales:**
+
+- `apps/api/src/ai/aiService.ts`: constructor recibe `cache: CachePort`; `getAdminOrchestrator` pasa al `createFromEnv`; `clearCache()` ahora await.
+- `apps/api/src/ai/AiRequestService.ts`: constructor recibe `cache: CachePort`; los 2 sitios donde construye orchestrator pasan cache.
+- `apps/api/src/infrastructure/container/setupServices.ts`: factories de AIService + AiRequestService resuelven `TOKENS.CachePort`.
+- `apps/api/src/ai/orchestrator.ts`: helper inline `stableStringify` (10 LOC, sort keys recursive) evita dep nueva.
+- `apps/api/tests/unit/aiOrchestrator.helpers.ts`, `aiOrchestrator.cache.test.ts`, `aiService.test.ts`, `realtimeAnalytics.test.ts`: actualizados para inyectar `InMemoryCacheAdapter`. TTL test ajustado de 100ms→1000ms (CachePort floor = 1s para sub-second TTLs).
+- `CLAUDE.md` §Automated Compliance Checks: agregado **grep #14** con threat description (OWASP A07:2021 cache coherence).
+- `.github/workflows/fitness.yml`: agregado **step #14** mirroring exact, summary count "13" → "14".
+- `CLAUDE.md` §Caching línea 451: claim "CI fitness grep blocks the pattern" ahora **verdadera** (refs grep #14 explícitamente).
+
+**Canon-driven decisiones (research del 2026-05-01):**
+
+- **SHA-256 key + version tokens**: amitkoth, AWS LLM caching, Brenndoerfer. Naive `JSON.stringify` rompe en whitespace/property-order changes.
+- **Multi-tag canon**: Brenndoerfer, oneuptime — single `"ai"` tag es nuclear-only; targeted invalidation (model upgrade, account opt-out) requiere `ai:model:<id>` y `ai:account:<id>`.
+- **TTL 1h default for AI**: Helicone "1h for stable content", Anthropic 5m+1h tiers. LLM responses son deterministas modulo temperature.
+- **TTL 24h for delta buffer**: Confluent KTable + Apache Flink keyed state — NOT TTL-bounded; bounded by key space + explicit deletion. 1h sería insuficiente (60 missed cycles wipes state).
+- **Drop `size` field from getCacheStats**: per-instance Map size era info engañosa en multi-pod. Cluster-wide stats vía `RedisCacheManager.getStats()` Prometheus metrics.
+- **Async migration accepted**: V8 v7.2+ await on resolved promise = 1 microtick (nanoseconds). BentoCache, cache-manager v6, Cacheable: todos async-only by design. No `tryGetSync` fast-path.
+- **Semantic caching deferred**: GPTCache + embeddings = higher hit-rate ceiling pero separate PR. Canon: exact-match → CachePort first, semantic on top later.
+
+**Observation laterral**: `RealtimeAnalyticsService` no está wireado en DI — orphan code. La migración aplica igual (fitness grep pasaría) y deja signature lista para cuando se wire. Documentado, no DELETE per "three questions before delete" sin tres-preguntas-cleared.
+
+**Root cause real.**
+
+T4-L audit cortó scope a directorios visibles (`auth/`, `orchestration/`, `content/`) + 2 application UCs sin grep amplio del pattern. Edward exigió "no hedge"; aún así limité scope sin justificación arquitectónica. PR-32 cierra honestamente.
+
+**Cuándo revisar.**
+
+N/A — RESUELTO. La fitness grep #14 garantiza que no regresará.
+
+**Estado:** RESUELTO ✅ (2026-05-01)
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
