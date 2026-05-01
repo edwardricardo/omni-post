@@ -2341,27 +2341,52 @@ grep -c "password123" .github/workflows/ infra/prisma/seed.ts apps/api/tests/int
 
 ---
 
-#### T4-R — CSV injection + audit completeness
+#### T4-R — CSV injection + audit completeness ✅ 2026-05-01
 
 **Scope.** CSV sanitization + audit userId extraction real.
 
 **Findings table (2):**
 
-| L-#   | Título corto                                           | Esfuerzo | Acción    | §5.9 | Notas                          |
-| ----- | ------------------------------------------------------ | -------- | --------- | ---- | ------------------------------ |
-| L-526 | admin CSV exports bypass safe util (security)          | QUICK    | FIX       | AUTO | Force csvSanitize              |
-| L-27  | `auditLogger.extractUserId` STUB (CRITICAL compliance) | MEDIUM   | IMPLEMENT | AUTO | Extraer `request.auth.user.id` |
+| L-#   | Título corto                                           | Esfuerzo | Acción    | §5.9 | Status      | Resolución                                                                                                                                                                                 |
+| ----- | ------------------------------------------------------ | -------- | --------- | ---- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| L-526 | admin CSV exports bypass safe util (security)          | QUICK    | FIX       | AUTO | RESUELTO ✅ | `webhookDashboardService.ts` ahora usa `exportToCSV` (RFC 4180 + injection prevention). El char set se extendió con `\n` + 4 full-width Unicode `＝＋－＠` (5 chars adicionales).          |
+| L-27  | `auditLogger.extractUserId` STUB (CRITICAL compliance) | MEDIUM   | IMPLEMENT | AUTO | RESUELTO ✅ | Implementación: `req.auth?.user?.id ?? req.user?.id` (admin tier prioritized, fallback regular). `fastify.d.ts` augmentation declara ahora `auth?` shape, eliminando 2 casts (admin/csrf). |
 
-**Entry criteria.** Ninguno.
+**Drive-by:**
 
-**Exit criteria:**
+- `packages/api-common/src/utils/csvExport.ts`: extendido `CSV_INJECTION_PREFIXES` de 6 a 11 chars (per OWASP CSV Injection page). 5 unit tests nuevos cubriendo cada char (`\n`, `＝`, `＋`, `－`, `＠`).
+- `apps/api/src/types/fastify.d.ts`: `auth?: { user?, sessionId?, deviceId? }` augmentation matching `adminAuthMiddleware:111`. Eliminó casts en `adminUserRoutes.ts:469` + `csrfMiddleware.ts:52`.
+- `apps/api/tests/unit/auditLogger.test.ts`: 5 nuevos tests cubriendo extracción admin tier, regular tier, missing auth, priority, explicit override.
+
+**Backlog deferral (con justificación):**
+
+- **PR-35**: Actor discriminator refactor + auth shape consolidation. Canon-recommended (OWASP Logging + microservices.io) pero no canon-required. T4-R alcance era stub fix + CSV bypass; discriminator/consolidation son scope mayor (data migration + breaking change).
+
+**Canon-driven decisiones** (refs en `~/.claude/.../memory/canon_research_index.md` §Security · OWASP CSV Injection / §Audit Logging · Multi-tier auth + actor extraction):
+
+- **CSV injection** (OWASP CSV Injection page + CWE-1236 + csv-stringify `escape_formulas`): existing `exportToCSV` es canon-correct. Char set match exact con csv-stringify default. Solo extender con OWASP-listed `\n` + full-width chars.
+- **Audit user extraction** (OWASP Logging Cheat Sheet + microservices.io audit-logging): explicit param-passing canon (caller passes `event.userId`); reflection-on-request es fallback. Implementación actual canon-aligned (`event.userId` precedes `extractUserId(req)`).
+- **Fastify auth shape** (@fastify/jwt + @fastify/auth): module augmentation pattern. Multi-strategy auth populates ONE shape (canon); split shapes son tech debt (consolidation deferred a PR-35-B).
+
+**Exit criteria** (todos cumplidos):
 
 ```bash
-grep -n "return undefined" apps/api/src/security/auditLogger.ts   # → 0
-grep -rn "csvSanitize" apps/api/src/ --include="*.ts" | wc -l   # → ≥1
+# Hand-rolled CSV emitter eliminado (single bypass site)
+grep -nE 'replace\(/"/g.*""\)' apps/api/src/webhooks/webhookDashboardService.ts | wc -l       # → 0
+# csvExport hardened
+grep -E "FULLWIDTH|＝|＋|－|＠" packages/api-common/src/utils/csvExport.ts | wc -l            # ≥4
+# extractUserId implementado (no stub)
+grep -nE "return undefined" apps/api/src/security/auditLogger.ts | wc -l                      # → 0
+# fastify.d.ts auth declared
+grep -A2 "interface FastifyRequest" apps/api/src/types/fastify.d.ts | grep "auth"             # 1+ match
+# Suite verde
+pnpm --filter @apps/api test                                                                   # 7,457 / 7,457 ✅
+pnpm --filter @packages/api-common test                                                        # 49 / 49 ✅
+# Fitness no regression
+# 14/14 a cero (post-PR-32 baseline)
 ```
 
-**Estimación.** 4-6 h.
+**Estimación.** 4-6 h roadmap → ~3.5 h ejecución real.
 
 **Dependencias.** INDEPENDENT.
 

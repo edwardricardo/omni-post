@@ -46,6 +46,30 @@ declare module "fastify" {
       projectId?: string;
       accountId?: string;
     };
+    /**
+     * Admin auth context populated by `adminAuthMiddleware`. Distinct from
+     * `request.user` (regular user auth tier).
+     */
+    auth?: {
+      user?: {
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        isActive: boolean;
+        emailVerified: boolean;
+        mfaEnabled: boolean;
+        timezone: string | null;
+        locale: string | null;
+        department: string | null;
+        team: string | null;
+        lastLoginAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+      };
+      sessionId?: string;
+      deviceId?: string;
+    };
     correlationId?: string;
     requestId?: string;
     userId?: string;

@@ -185,6 +185,52 @@ describe("CSV Export - CSV Injection Prevention", { concurrency: 1 }, () => {
     expect(csv).toContain("'\tformula");
   });
 
+  it("should prevent formula injection with newline (LF) prefix", () => {
+    const data: TestData[] = [{ formula: "\n=1+1" }];
+    const columns: ColumnDefinition<TestData>[] = [{ key: "formula", header: "Value" }];
+
+    const csv = exportToCSV(data, columns);
+
+    // Field with leading LF gets prefixed with `'` and quoted (LF requires quoting per RFC 4180)
+    expect(csv).toContain("'\n=1+1");
+  });
+
+  it("should prevent formula injection with full-width equals (＝) prefix", () => {
+    const data: TestData[] = [{ formula: "＝SUM(A1:A10)" }];
+    const columns: ColumnDefinition<TestData>[] = [{ key: "formula", header: "Value" }];
+
+    const csv = exportToCSV(data, columns);
+
+    expect(csv).toContain("'＝SUM(A1:A10)");
+  });
+
+  it("should prevent formula injection with full-width plus (＋) prefix", () => {
+    const data: TestData[] = [{ formula: "＋1234" }];
+    const columns: ColumnDefinition<TestData>[] = [{ key: "formula", header: "Value" }];
+
+    const csv = exportToCSV(data, columns);
+
+    expect(csv).toContain("'＋1234");
+  });
+
+  it("should prevent formula injection with full-width minus (－) prefix", () => {
+    const data: TestData[] = [{ formula: "－5678" }];
+    const columns: ColumnDefinition<TestData>[] = [{ key: "formula", header: "Value" }];
+
+    const csv = exportToCSV(data, columns);
+
+    expect(csv).toContain("'－5678");
+  });
+
+  it("should prevent formula injection with full-width at-sign (＠) prefix", () => {
+    const data: TestData[] = [{ formula: "＠HYPERLINK" }];
+    const columns: ColumnDefinition<TestData>[] = [{ key: "formula", header: "Value" }];
+
+    const csv = exportToCSV(data, columns);
+
+    expect(csv).toContain("'＠HYPERLINK");
+  });
+
   it("should allow disabling injection prevention", () => {
     const data: TestData[] = [{ formula: "=1+1" }];
     const columns: ColumnDefinition<TestData>[] = [{ key: "formula", header: "Value" }];

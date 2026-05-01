@@ -65,9 +65,12 @@ export interface CSVExportOptions {
 }
 
 /**
- * CSV injection prevention: Characters that can execute formulas in Excel/Sheets
+ * CSV injection prevention: characters that can execute formulas in
+ * Excel/Sheets/LibreOffice. Includes ASCII formula triggers, line/tab
+ * control characters, and full-width Unicode CJK variants which render
+ * identically and are also interpreted as formulas in CJK locales.
  */
-const CSV_INJECTION_PREFIXES = ["=", "+", "-", "@", "\t", "\r"];
+const CSV_INJECTION_PREFIXES = ["=", "+", "-", "@", "\t", "\r", "\n", "＝", "＋", "－", "＠"];
 
 /**
  * Characters that require field quoting per RFC 4180

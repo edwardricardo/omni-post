@@ -8,6 +8,7 @@ import { BaseService } from "../services/BaseService.js";
 import { prisma, WebhookEventType } from "@infra/prisma";
 import type { Provider } from "@infra/prisma";
 import { AppError } from "../lib/errors/AppError.js";
+import { exportToCSV, type ColumnDefinition } from "@packages/api-common";
 
 /** All valid WebhookEventType enum values for search filtering */
 const ALL_WEBHOOK_EVENT_TYPES: string[] = Object.values(WebhookEventType);
@@ -729,32 +730,36 @@ export class WebhookDashboardService extends BaseService {
           },
         });
 
-        // Convert to CSV format
-        const csv = [
-          // Header
-          "Event ID,Event Type,Provider,Status,Verified,Processed,Retry Count,Processing Time (ms),Last Error,Received At,Processed At,Project ID,Post ID,Channel ID",
-          // Data rows
-          ...events.map((event) =>
-            [
-              event.eventId,
-              event.eventType,
-              event.provider,
-              event.status,
-              event.verified,
-              event.processed,
-              event.retryCount,
-              event.processingTime || "",
-              event.lastError || "",
-              event.receivedAt.toISOString(),
-              event.processedAt?.toISOString() || "",
-              event.projectId || "",
-              event.postId || "",
-              event.channelId || "",
-            ]
-              .map((field) => `"${String(field).replace(/"/g, '""')}"`)
-              .join(",")
-          ),
-        ].join("\n");
+        type WebhookExportRow = (typeof events)[number];
+        const columns: ColumnDefinition<WebhookExportRow>[] = [
+          { key: "eventId", header: "Event ID" },
+          { key: "eventType", header: "Event Type" },
+          { key: "provider", header: "Provider" },
+          { key: "status", header: "Status" },
+          { key: "verified", header: "Verified", format: (v) => String(v) },
+          { key: "processed", header: "Processed", format: (v) => String(v) },
+          { key: "retryCount", header: "Retry Count", format: (v) => String(v) },
+          {
+            key: "processingTime",
+            header: "Processing Time (ms)",
+            format: (v) => (v == null ? "" : String(v)),
+          },
+          { key: "lastError", header: "Last Error", format: (v) => (v == null ? "" : String(v)) },
+          {
+            key: "receivedAt",
+            header: "Received At",
+            format: (v) => (v as Date).toISOString(),
+          },
+          {
+            key: "processedAt",
+            header: "Processed At",
+            format: (v) => (v ? (v as Date).toISOString() : ""),
+          },
+          { key: "projectId", header: "Project ID", format: (v) => (v == null ? "" : String(v)) },
+          { key: "postId", header: "Post ID", format: (v) => (v == null ? "" : String(v)) },
+          { key: "channelId", header: "Channel ID", format: (v) => (v == null ? "" : String(v)) },
+        ];
+        const csv = exportToCSV(events, columns);
 
         return { csv, count: events.length, timeRange: query.timeRange };
       }

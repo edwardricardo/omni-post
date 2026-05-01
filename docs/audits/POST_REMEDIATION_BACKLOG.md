@@ -1573,6 +1573,172 @@ N/A — RESUELTO. La fitness grep #14 garantiza que no regresará.
 
 ---
 
+### PR-33 — Direct `this.redis.*` usage bypassing `CachePort` (24 files / 65 usages)
+
+**Fecha de surfacing:** 2026-05-01 (audit post-PR-32)
+**Severidad:** medio — viola CLAUDE.md §Caching ("All cross-pod cached state MUST go through `TOKENS.CachePort`"); fitness #14 no lo cubre porque el pattern es distinto al `private *Cache = new Map()`
+**Tipo:** code refactor + posible fitness extension
+
+**Contexto.** Sweep post-PR-32 con `grep this.redis.(setex|get|set|del)` en `apps/api/src` arroja **65 usages en 24 files**. T4-L y PR-32 cubrieron el patrón `private *Cache = new Map()`; direct `this.redis.*` es un patrón paralelo que también bypassa el port.
+
+**Categorización por naturaleza** (audit en código real, no por nombre):
+
+| Categoría                        | Files (ejemplos confirmados)                                                                                                                                                                                                                                         | Verdict                 | Razón                                                                                                                                                                    |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Cache-aside (claro anti-pattern) | `apps/api/src/analytics/engagementPredictor.ts:318` (`setex(cacheKey, 3600, JSON.stringify(context))`), `analytics/performanceComparison/index.ts:455`, `analytics/crossPlatform/index.ts:147`, `analytics/threadAnalytics.ts:183`, `analytics/roiCalculator.ts:340` | **MIGRATE** a CachePort | Patrón canónico cache-aside con TTL — exactly what CachePort.set + get cubre. Mismo cross-pod coherence concern que motivó T4-L.                                         |
+| Rate limiters / counters         | `monitoring/rateLimitingDashboard.ts`, `auth/enhancedOAuthProvider.ts` (sliding window via Redis sorted sets)                                                                                                                                                        | **KEEP**                | Sorted sets / atomic counters — distinct concern. No es cache, port abstraction sería overkill. Documentar como exception justificada en `docs/architecture/caching.md`. |
+| Sessions / connection state      | `orchestration/ProviderDependencyManager.ts`, `auth/...`                                                                                                                                                                                                             | **AUDIT**               | Mixed — algunos pueden ser cache (con port), otros session storage (Redis directo justified). Requiere caso-por-caso.                                                    |
+| Pub/sub / distributed locks      | `content/SyncEngineImpl.ts` (channel notifications), `realtimeAnalytics.ts` (subscribe/publish)                                                                                                                                                                      | **KEEP**                | Pub/sub + locks no son cache. Distinct ports si surge necesidad (`PubSubPort`, `DistributedLockPort`); por ahora directo justified.                                      |
+
+**5 sitios cache-aside confirmados** (claros, no ambiguos):
+
+- `analytics/engagementPredictor.ts:318` — predictions cache, TTL 1h.
+- `analytics/performanceComparison/index.ts:455` — comparison results cache.
+- `analytics/crossPlatform/index.ts:147` — cross-platform aggregations cache.
+- `analytics/threadAnalytics.ts:183` — thread metrics cache.
+- `analytics/roiCalculator.ts:340` — ROI computation results cache.
+
+Adicional: `cqrs/CQRSBus.ts:353` usa `JSON.stringify(result)` para `cacheData` — verificar si va por CachePort o redis directo (read del file requerido).
+
+**Por qué no se cerró en T4-L/PR-32.** T4-L scope era `private *Cache = new Map` consolidación. PR-32 cerró el audit gap del MISMO patrón. Direct `this.redis.*` es un patrón **paralelo distinto** que requiere su propio batch + diferenciación caso-por-caso (no todo `redis.setex` es cache).
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando: (a) cualquier reporte de cross-pod cache inconsistency en analytics, (b) priorización por completitud arquitectónica, (c) métricas Prometheus muestran cache hit rate < 80% en analytics endpoints.
+
+2. **Sub-batches sugeridos:**
+   - **33-A** (HIGH PRIORITY, ~2-3h, AUTO): Migrar las 5 analytics cache-aside a CachePort. Inject `cache: CachePort` + `cache.getOrSet`. Tags: `analytics:engagement`, `analytics:performance`, etc. para invalidación targeted.
+   - **33-B** (MEDIUM, ~1-2h): Audit completo de los otros 19 files. Tabla con verdict por sitio (MIGRATE / KEEP-rate-limiter / KEEP-session / KEEP-pubsub).
+   - **33-C** (variable scope): Migrar los KEEPs justificados a backlog comments + caching.md exceptions section. Migrar los MIGRATE.
+   - **33-D** (deferred / opcional): evaluar fitness #15 para "non-rate-limiter direct redis.setex". Alta false-positive risk; viable con allowlist de archivos rate-limiter.
+
+3. **Bloqueado por.** Solo prioritization decision. 33-A es AUTO sin decisiones bloqueantes.
+
+**Cuándo revisar.**
+
+Cuando se prioritice un batch dedicado a "cache port coverage finalization", o cuando aparezca un report de cross-pod inconsistency en analytics dashboards.
+
+**Estado:** PENDING (surfaced del PR-32 audit 2026-05-01).
+
+---
+
+### PR-34 — `RealtimeAnalyticsService` orphan code decision (wire / deprecate / DELETE)
+
+**Fecha de surfacing:** 2026-05-01 (audit post-PR-32)
+**Severidad:** bajo — código inactivo, no causa bugs en producción, pero ocupa mantenimiento
+**Tipo:** decision NEEDS_EDWARD
+
+**Contexto.** Audit post-PR-32 con `grep -rn RealtimeAnalyticsService apps/ --include="*.ts" --include="*.tsx"` repo-wide arroja **0 usages fuera de su propio file y tests** (`apps/api/src/analytics/realtimeAnalytics.ts` + `apps/api/tests/unit/realtimeAnalytics.test.ts`). Completamente orphan en runtime.
+
+PR-32 migró su `metricsCache: Map<>` a CachePort por consistencia con la fitness rule, pero el service NO está wireado en DI ni instanciado por ninguna route/worker/entry point. Tests lo construyen manualmente para verificar `calculateEngagementRate` (utility function pura).
+
+**Tres preguntas (CLAUDE.md feedback rule):**
+
+1. **Origen.** ¿Por qué se añadió? Probable feature WebSocket realtime planeada para dashboards live (analytics/inbox/notifications). Indicios: el archivo tiene 660 LOC con setup de WebSocket routes (`registerWebSocketRoutes`, `handleWebSocketConnection`), JWT auth via `jsonwebtoken`, broadcast updates pattern. No es speculative scaffold — implementación bastante completa.
+2. **Propósito.** Provee analytics realtime via WebSocket: subscribe a posts → cada cycle (~30s) recibe metrics + deltas vs previous reading. Backend para dashboards live update.
+3. **Duplicación.** No hay equivalente activo: otros analytics services trabajan con polling/cron + REST endpoints (no WebSocket). Si se DELETE, no hay alternativa equivalente — perdemos la capability futura.
+
+Veredicto tres-preguntas: **scope grande, NO clearly DELETE-able**. Necesita Edward decision.
+
+**Opciones (por presentar a Edward):**
+
+- **Opción A: WIRE** — registrar en DI, exponer ruta WebSocket en index.ts, escribir tests integration. Requiere: feature roadmap entry (cuándo se cobra esta capability) + frontend dashboard wiring (Storybook, hooks). Esfuerzo HEAVY (~8-12h total). Razón: feature genuinely valuable para realtime dashboards.
+- **Opción B: DEPRECATE** — agregar `@deprecated` con TODO/issue ID para wire-up. Mantener el código, fitness pasa, tests verifican utilities. Esfuerzo TRIVIAL (~30min). Razón: si feature está pospuesta pero no descartada.
+- **Opción C: DELETE** — eliminar archivo + tests + cualquier referencia. Esfuerzo QUICK (~1h). Razón: si feature realmente abandonada, evita mantener 660 LOC fantasma.
+
+Mi recomendación tentativa: **Opción B (DEPRECATE)** — el código está bien estructurado, no causa drag operacional, y delete elimina opcionalidad. Pero solo Edward sabe el roadmap real para realtime dashboards.
+
+**Por qué no se cerró en PR-32.** PR-32 era cache anti-pattern fix, no decision sobre orphan code. La migración del cache se aplicó porque la fitness grep #14 es uniforme (no excluye orphan files); el decision sobre el archivo es scope distinto.
+
+**Plan estructurado.**
+
+1. **Trigger** — Edward decision durante una sesión de roadmap planning.
+2. **Investigación previa requerida**:
+   - Verificar si hay un old plan / Linear ticket que mencione realtime analytics dashboard.
+   - Revisar `git log --follow apps/api/src/analytics/realtimeAnalytics.ts` para historial.
+   - Buscar issues open con keyword "realtime" o "websocket".
+3. **Por opción**:
+   - A (WIRE): roadmap entry + DI registration + frontend hook + integration tests.
+   - B (DEPRECATE): `@deprecated` JSDoc + comment con razón + backlog issue.
+   - C (DELETE): rm file + rm test + git commit con mensaje "feat: drop unused RealtimeAnalyticsService".
+
+**Bloqueado por.** Edward decision.
+
+**Cuándo revisar.**
+
+Próxima sesión de roadmap planning, o cuando aparezca user demand de realtime analytics dashboards.
+
+**Estado:** PENDING — NEEDS_EDWARD (surfaced del PR-32 audit 2026-05-01).
+
+---
+
+### PR-35 — `extractUserId` → `Actor` discriminator refactor + auth shape consolidation
+
+**Fecha de surfacing:** 2026-05-01 (deferred from T4-R)
+**Severidad:** bajo — el extractUserId actual es funcional y canon-aligned (explicit param-passing prioritized). Refactor a discriminator es mejora deseable, no requerimiento.
+**Tipo:** refactor
+
+**Contexto.** T4-R implementó `extractUserId(req)` retornando `req.auth?.user?.id ?? req.user?.id` (admin → regular fallback) y declaró `request.auth?` en `fastify.d.ts` para eliminar casts. Esto resuelve L-27 (audit logs ahora tienen userId real). Quedan dos mejoras canon-recomendadas pero out-of-scope T4-R.
+
+**Mejora 1: Actor discriminator pattern**
+
+Canon (OWASP Logging Cheat Sheet, microservices.io audit-logging, sonar): `actor: { type: "user" | "admin" | "system" | "service"; id: string | null }` beats bare `userId: string | undefined`. Razón: bare null/undefined es ambiguo — ¿anonymous? ¿cron job? ¿retry worker? El discriminator field elimina la ambigüedad.
+
+Cambio sugerido:
+
+```typescript
+type Actor =
+  | { type: "user"; id: string }
+  | { type: "admin"; id: string }
+  | { type: "system"; id: string };
+
+private extractActor(req: FastifyRequest): Actor | null {
+  if (req.auth?.user?.id) return { type: "admin", id: req.auth.user.id };
+  if (req.user?.id) return { type: "user", id: req.user.id };
+  return null;  // anonymous request
+}
+```
+
+Impactos: `AuditEvent.userId?: string` → `AuditEvent.actor?: Actor`. Migration de schema `auditLog.userId` (string?) → `auditLog.actorType` + `auditLog.actorId` (split fields). Requiere data migration retroactiva.
+
+**Mejora 2: Auth shape consolidación**
+
+Canon (`@fastify/auth` multi-strategy pattern): one shape, multiple strategies. Nuestro split `request.user` (regular) vs `request.auth.user` (admin) es non-canon technical debt. Canon: ambos deberían populate `request.auth.user` (o `request.user`) con `request.auth.scope: "user" | "admin"` discriminator.
+
+Migration HEAVY:
+
+- Refactor `adminAuthMiddleware` para set `request.auth = { user, scope: "admin", sessionId, deviceId }`.
+- Refactor regular auth middleware (busca por `request.user` setter en código) para set `request.auth = { user, scope: "user" }`.
+- Delete `request.user` augmentation.
+- Update todos los callers que leen `request.user.id` → `request.auth.user.id`.
+
+**Mejora 3: AsyncLocalStorage user context (opcional)**
+
+Canon (`@fastify/request-context`): para deep call chains donde threading param es impractical. No es nuestro caso actual (audit logger recibe `FastifyRequest` directly), pero si surge un caller deep-stack podría aplicar.
+
+**Por qué no se cerró en T4-R.**
+
+T4-R alcance era "implementar L-27 stub fix + L-526 CSV bypass". Las 3 mejoras arriba son **canon-recommended pero no canon-required** — el extractUserId actual es funcional y canon-aligned (explicit param-passing es la primera línea, reflection-on-request es fallback). Discriminator + consolidación son scope mayor (data migration, breaking change para callers, decisión arquitectónica).
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando: (a) GDPR/audit compliance review pida actor.type explicit field, (b) priorización de auth architecture finalization, (c) bug donde anonymous-vs-system no se distinguen en audit logs.
+
+2. **Sub-batches sugeridos:**
+   - **35-A** (MEDIUM, ~3-4h): Actor discriminator. Schema migration `auditLog.userId` → `actorType + actorId`. Retro data migration con default `actorType: "user"` si `userId IS NOT NULL`. Refactor `extractUserId` → `extractActor`. Update callers.
+   - **35-B** (HEAVY, ~6-10h): Auth shape consolidation. Refactor `adminAuthMiddleware` + regular auth setter. Update todos los callers de `request.user.id` y `request.auth.user.id` a single shape. Delete uno de los augmentations.
+   - **35-C** (opcional, ~2-3h): `@fastify/request-context` plugin si aparece caller deep-stack que justifica AsyncLocalStorage.
+
+3. **Bloqueado por.** Solo prioritization decision. 35-A es AUTO sin decisiones bloqueantes. 35-B requiere acuerdo sobre nombre canonical de la shape consolidada.
+
+**Cuándo revisar.**
+
+Cuando se prioritice un batch dedicado a "auth architecture finalization" o cuando GDPR/SOC2 audit pida explicit actor.type discrimination.
+
+**Estado:** PENDING (surfaced del T4-R 2026-05-01).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

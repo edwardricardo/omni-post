@@ -444,10 +444,15 @@ export class AuditLogger {
     return req.socket?.remoteAddress || req.ip || "unknown";
   }
 
-  private extractUserId(_req: FastifyRequest): string | undefined {
-    // This would be implemented based on your authentication system
-    // For now, return undefined as we don't have auth implemented yet
-    return undefined;
+  /**
+   * Extract user ID from the request auth context. Tries the admin auth
+   * tier first (`req.auth.user.id`), then the regular user tier
+   * (`req.user.id`). Returns undefined when neither is populated — callers
+   * may pass `event.userId` explicitly via the `log()` API to bypass this
+   * fallback path.
+   */
+  private extractUserId(req: FastifyRequest): string | undefined {
+    return req.auth?.user?.id ?? req.user?.id;
   }
 
   private sanitizeEvent(event: AuditEvent): AuditEvent {

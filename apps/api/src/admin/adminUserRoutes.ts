@@ -466,8 +466,10 @@ class AdminUserHandler extends BaseRouteHandler {
     }
 
     const { id } = paramsResult.data;
-    const requestingUserId = (request as FastifyRequest & { auth: { user: { id: string } } }).auth
-      .user.id;
+    const requestingUserId = request.auth?.user?.id;
+    if (!requestingUserId) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
 
     if (id === requestingUserId) {
       return this.sendError(ctx, 400, "Use the change-password flow for your own account");
