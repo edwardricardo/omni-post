@@ -87,7 +87,6 @@ describe("SyncProviderCommentsUseCase — with adapter wired", () => {
     useCase = new SyncProviderCommentsUseCase(
       channelRepo as never,
       ingestUseCase as never,
-      undefined,
       (provider: string) => (provider === "instagram" ? (adapter as never) : undefined)
     );
   });
@@ -147,7 +146,6 @@ describe("SyncProviderCommentsUseCase — with adapter wired", () => {
     const useCaseNoComments = new SyncProviderCommentsUseCase(
       channelRepo as never,
       ingestUseCase as never,
-      undefined,
       () => ({ id: "telegram", getComments: undefined }) as never
     );
 

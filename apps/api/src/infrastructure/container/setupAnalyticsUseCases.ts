@@ -34,7 +34,7 @@ import { GetHistoricalAnalyticsQuery } from "../../application/analytics/GetHist
 import { GenerateUTMLinksUseCase } from "../../application/utm/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { AnalyticsWriteRepository } from "../../domain/repositories/AnalyticsWriteRepository.js";
-import type { ChannelQueryForIngestion } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
+import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
 import { IngestChannelAnalyticsUseCase } from "../../application/analytics/IngestChannelAnalyticsUseCase.js";
 import { DispatchAnalyticsIngestionUseCase } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
 import { PrismaAnalyticsWriteRepository } from "../repositories/PrismaAnalyticsWriteRepository.js";
@@ -52,7 +52,7 @@ import { QUEUE_NAMES } from "@adapters/queue-bullmq";
  * Register all analytics, ML, campaign, historical analytics, and UTM use cases in the container
  */
 export function setupAnalyticsUseCases(container: Container): void {
-  // Register Analytics Port Adapters (F26)
+  // Register Analytics Port Adapters
   container.register<CrossPlatformAnalyticsAdapter>(
     TOKENS.CrossPlatformAnalyticsAdapter,
     () => new CrossPlatformAnalyticsAdapter(),
@@ -69,7 +69,7 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // Register Analytics Use Cases (F26)
+  // Register Analytics Use Cases
   container.register<GetCrossPlatformAnalyticsUseCase>(
     TOKENS.GetCrossPlatformAnalyticsUseCase,
     () =>
@@ -93,12 +93,16 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // Register ML Use Cases (B0-2 — AI-powered with heuristic fallback)
+  // Register ML Use Cases — AI-powered with heuristic fallback. Resolves
+  // the AI port (not the concrete AIService) so application/ml depends on
+  // the abstraction.
   container.register<OptimizeContentUseCase>(
     TOKENS.OptimizeContentUseCase,
     () =>
       new OptimizeContentUseCase(
-        container.resolve<import("../../ai/aiService.js").AIService>(TOKENS.AIService)
+        container.resolve<import("../../domain/repositories/AIServicePort.js").AIServicePort>(
+          TOKENS.AIServicePort
+        )
       ),
     true
   );
@@ -106,7 +110,9 @@ export function setupAnalyticsUseCases(container: Container): void {
     TOKENS.PredictOptimalTimingUseCase,
     () =>
       new PredictOptimalTimingUseCase(
-        container.resolve<import("../../ai/aiService.js").AIService>(TOKENS.AIService),
+        container.resolve<import("../../domain/repositories/AIServicePort.js").AIServicePort>(
+          TOKENS.AIServicePort
+        ),
         container.resolve<
           import("../../domain/repositories/AnalyticsReadRepository.js").AnalyticsReadRepositoryPort
         >(TOKENS.AnalyticsReadRepository)
@@ -201,7 +207,8 @@ export function setupAnalyticsUseCases(container: Container): void {
     TOKENS.GenerateUTMLinksUseCase,
     () =>
       new GenerateUTMLinksUseCase(
-        container.resolve<TrackedLinkRepository>(TOKENS.TrackedLinkRepository)
+        container.resolve<TrackedLinkRepository>(TOKENS.TrackedLinkRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );

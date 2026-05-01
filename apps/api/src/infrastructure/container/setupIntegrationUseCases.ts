@@ -92,6 +92,9 @@ export function setupIntegrationUseCases(container: Container): void {
       new TriggerIntegrationEventService(
         container.resolve<IntegrationSubscriptionRepository>(
           TOKENS.IntegrationSubscriptionRepository
+        ),
+        container.resolve<import("../../domain/repositories/HttpClientPort.js").HttpClientPort>(
+          TOKENS.HttpClientPort
         )
       ),
     true

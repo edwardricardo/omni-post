@@ -106,6 +106,8 @@ export const TOKENS = {
   AuditService: Symbol.for("AuditService"),
   ActivityFeedService: Symbol.for("ActivityFeedService"),
   AIService: Symbol.for("AIService"),
+  AIServicePort: Symbol.for("AIServicePort"),
+  HttpClientPort: Symbol.for("HttpClientPort"),
   AiRequestService: Symbol.for("AiRequestService"),
   DashboardService: Symbol.for("DashboardService"),
   AccountLifecycleService: Symbol.for("AccountLifecycleService"),

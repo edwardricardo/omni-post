@@ -13,7 +13,7 @@ import type {
   ContentVariation,
   MLProvider,
 } from "./types.js";
-import type { AIService } from "../../ai/aiService.js";
+import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
 
 /**
  * Platform character limits
@@ -74,7 +74,7 @@ export class OptimizeContentUseCase implements UseCase<
   OptimizeContentOutput,
   UseCaseError
 > {
-  constructor(private readonly aiService: AIService) {}
+  constructor(private readonly aiService: AIServicePort) {}
 
   /**
    * @method execute

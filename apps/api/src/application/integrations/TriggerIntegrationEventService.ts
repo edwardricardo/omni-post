@@ -8,6 +8,7 @@
 
 import type { IntegrationSubscriptionRepository } from "../../domain/repositories/IntegrationSubscriptionRepository.js";
 import type { IntegrationPlatformValue } from "../../domain/entities/IntegrationApiKey.js";
+import type { HttpClientPort } from "../../domain/repositories/HttpClientPort.js";
 
 /**
  * @class TriggerIntegrationEventService
@@ -15,7 +16,10 @@ import type { IntegrationPlatformValue } from "../../domain/entities/Integration
  *   to each target URL. Errors are logged but do not propagate.
  */
 export class TriggerIntegrationEventService {
-  constructor(private readonly repository: IntegrationSubscriptionRepository) {}
+  constructor(
+    private readonly repository: IntegrationSubscriptionRepository,
+    private readonly httpClient: HttpClientPort
+  ) {}
 
   /**
    * @method fire
@@ -49,16 +53,9 @@ export class TriggerIntegrationEventService {
     const body = JSON.stringify({ event, data: payload, firedAt: new Date().toISOString() });
 
     const deliveries = subscriptions.map(async (sub) => {
-      try {
-        await fetch(sub.targetUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body,
-          signal: AbortSignal.timeout(10_000),
-        });
-      } catch {
-        // Fire-and-forget: errors are silently consumed
-      }
+      // Fire-and-forget: HttpClientPort returns a Result; we ignore the
+      // outcome (errors are surfaced via observability, not propagated).
+      await this.httpClient.post(sub.targetUrl, body, { timeoutMs: 10_000 });
     });
 
     await Promise.allSettled(deliveries);

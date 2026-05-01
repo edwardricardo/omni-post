@@ -10,6 +10,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { TrackedLinkId, type TrackedLinkRepository } from "../../domain/index.js";
 import { UTMParameters } from "../../domain/value-objects/UTMParameters.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
  * Input DTO for generating UTM links
@@ -35,10 +36,15 @@ export interface GenerateUTMLinksOutput {
  * @description Creates UTM parameters for an existing tracked link, persists them,
  *   and returns the full URL with UTM query parameters appended.
  */
-export class GenerateUTMLinksUseCase
-  implements UseCase<GenerateUTMLinksInput, GenerateUTMLinksOutput, UseCaseError>
-{
-  constructor(private readonly repository: TrackedLinkRepository) {}
+export class GenerateUTMLinksUseCase implements UseCase<
+  GenerateUTMLinksInput,
+  GenerateUTMLinksOutput,
+  UseCaseError
+> {
+  constructor(
+    private readonly repository: TrackedLinkRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {}
 
   /**
    * @method execute
@@ -79,35 +85,57 @@ export class GenerateUTMLinksUseCase
       );
     }
 
-    // Load the tracked link
-    const findResult = await this.repository.findById(linkIdResult.value);
-    if (!findResult.ok) {
+    const linkId = linkIdResult.value;
+    const utm = utmResult.value;
+
+    const doWork = async (): Promise<Result<GenerateUTMLinksOutput, UseCaseError>> => {
+      const findResult = await this.repository.findById(linkId);
+      if (!findResult.ok) {
+        return err(
+          new UseCaseError(
+            `Tracked link not found: ${input.trackedLinkId}`,
+            USE_CASE_ERRORS.NOT_FOUND,
+            findResult.error
+          )
+        );
+      }
+
+      const link = findResult.value;
+      link.setUTMParameters(utm);
+
+      const saveResult = await this.repository.save(link);
+      if (!saveResult.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save tracked link with UTM parameters",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            saveResult.error
+          )
+        );
+      }
+
+      return ok({ utmUrl: link.getUTMUrl() });
+    };
+
+    try {
+      if (this.unitOfWork) {
+        let result: Result<GenerateUTMLinksOutput, UseCaseError> = ok({
+          utmUrl: "",
+        }) as Result<GenerateUTMLinksOutput, UseCaseError>;
+        await this.unitOfWork.executeInTransaction(async () => {
+          result = await doWork();
+        });
+        return result;
+      }
+      return await doWork();
+    } catch (error: unknown) {
       return err(
         new UseCaseError(
-          `Tracked link not found: ${input.trackedLinkId}`,
-          USE_CASE_ERRORS.NOT_FOUND,
-          findResult.error
-        )
-      );
-    }
-
-    const link = findResult.value;
-
-    // Apply UTM parameters to the link entity
-    link.setUTMParameters(utmResult.value);
-
-    // Persist
-    const saveResult = await this.repository.save(link);
-    if (!saveResult.ok) {
-      return err(
-        new UseCaseError(
-          "Failed to save tracked link with UTM parameters",
+          "Failed to generate UTM links",
           USE_CASE_ERRORS.INTERNAL_ERROR,
-          saveResult.error
+          error instanceof Error ? error : undefined
         )
       );
     }
-
-    return ok({ utmUrl: link.getUTMUrl() });
   }
 }

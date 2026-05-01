@@ -2064,33 +2064,50 @@ grep -rn "registerGracefulShutdown" apps/workers/src --include="*.ts"   # ✅ 9 
 
 ---
 
-#### T4-K — AI service port (hexagonal fix) 🔒
+#### T4-K — AI service port (hexagonal fix) 🔒 ✅ 2026-05-01
 
-**Scope.** `application/ml/*` viola hexagonal + raw fetches + VO bypass + UoW missing.
+**Scope.** Application layer hexagonal cleanup: AIServicePort + HttpClientPort introducidos, VO factory bypass eliminado, UoW agregado a UTM links, external HTTP calls extraídos de UoW de SyncProviderComments, ChannelQueryForIngestion movido a domain.
 
 **Findings table (6):**
 
-| L-#  | Título corto                                                            | Esfuerzo | Acción   | §5.9 | Notas                         |
-| ---- | ----------------------------------------------------------------------- | -------- | -------- | ---- | ----------------------------- |
-| L-15 | `application/ml/*` viola hexagonal (import AIService)                   | MEDIUM   | REFACTOR | AUTO | Introducir `AIServicePort`    |
-| L-16 | `SyncProviderCommentsUseCase` provider API dentro UoW (SAFETY_CRITICAL) | QUICK    | FIX      | AUTO | Mover fetch fuera de UoW      |
-| L-17 | `IngestChannelAnalyticsUseCase` VO factory bypass (SAFETY_CRITICAL)     | QUICK    | FIX      | AUTO | `ChannelId.fromString()`      |
-| L-18 | `TriggerIntegrationEventService` raw fetch sin port                     | MEDIUM   | REFACTOR | AUTO | `HttpClientPort`              |
-| L-19 | Cross-domain type import `ChannelQueryForIngestion`                     | QUICK    | REFACTOR | AUTO | Move a `domain/repositories/` |
-| L-21 | `GenerateUTMLinksUseCase` mutante sin UoW (SAFETY_CRITICAL)             | QUICK    | FIX      | AUTO | Wrapper UoW                   |
+| L-#  | Título corto                                                            | Esfuerzo | Acción   | §5.9 | Status     | Resolución                                                                                                                                                    |
+| ---- | ----------------------------------------------------------------------- | -------- | -------- | ---- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-15 | `application/ml/*` viola hexagonal (import AIService)                   | MEDIUM   | REFACTOR | AUTO | ✅ Cerrado | `AIServicePort` declarado en `domain/repositories/`. UCs refactorizados. DI registra port → AIService.                                                        |
+| L-16 | `SyncProviderCommentsUseCase` provider API dentro UoW (SAFETY_CRITICAL) | QUICK    | FIX      | AUTO | ✅ Cerrado | Split en 2 fases: (1) fetch all paginated comments, (2) ingest each (each ingest ya tiene UoW interna). El UC outer ya no usa `executeInTransaction`.         |
+| L-17 | `IngestChannelAnalyticsUseCase` VO factory bypass (SAFETY_CRITICAL)     | QUICK    | FIX      | AUTO | ✅ Cerrado | `as ChannelId` cast → `ChannelId.fromString(input.channelId)` con Result handling. Tests actualizados con UUIDs válidos.                                      |
+| L-18 | `TriggerIntegrationEventService` raw fetch sin port                     | MEDIUM   | REFACTOR | AUTO | ✅ Cerrado | `HttpClientPort` declarado en `domain/repositories/`; `FetchHttpClient` adapter en `infrastructure/adapters/`. UC inyecta el port.                            |
+| L-19 | Cross-domain type import `ChannelQueryForIngestion`                     | QUICK    | REFACTOR | AUTO | ✅ Cerrado | Interface movido de `application/analytics/DispatchAnalyticsIngestionUseCase.ts` a `domain/repositories/ChannelQueryForIngestion.ts`. 6 imports actualizados. |
+| L-21 | `GenerateUTMLinksUseCase` mutante sin UoW (SAFETY_CRITICAL)             | QUICK    | FIX      | AUTO | ✅ Cerrado | Constructor agrega `unitOfWork?: UnitOfWork`. `execute()` envuelve `findById + setUTMParameters + save` en `executeInTransaction`. DI inyecta UoW.            |
 
-**Entry criteria.** T4-A cerrado.
+**Issues laterales descubiertos durante ejecución (todos cerrados):**
+
+1. **Comentarios con referencias a fases** (`B0-2`, `F26`, `F28`, `R1-A`, `P2-2`, `P2-5`, `P2-A`, `P2-B`, `B0-4`) en `setupAnalyticsUseCases.ts` y `setupServices.ts` — violación CLAUDE.md "no sprint references in source comments". Limpieza aplicada en archivos tocados.
+2. Tests preexistentes para `TriggerIntegrationEventService` mockeaban global `fetch`; actualizados para mockear el `HttpClientPort` inyectado.
+3. Tests preexistentes para `SyncProviderCommentsUseCase` pasaban `undefined` como UoW arg; actualizados al constructor sin UoW.
+
+**Implementación:**
+
+- 4 archivos nuevos: `domain/repositories/AIServicePort.ts`, `domain/repositories/HttpClientPort.ts`, `domain/repositories/ChannelQueryForIngestion.ts`, `infrastructure/adapters/FetchHttpClient.ts`.
+- 22 tests nuevos: `optimizeContent.test.ts` 4, `predictOptimalTiming.test.ts` 4, `generateUTMLinks.test.ts` 5, `triggerIntegrationEvent.test.ts` 6, `FetchHttpClient.test.ts` 7. Plus 9 tests modificados en suites pre-existentes (sync/integration/ingestChannelAnalytics).
+- DI: `TOKENS.AIServicePort`, `TOKENS.HttpClientPort` registrados; `setupAnalyticsUseCases` resuelve port para ml UCs; `setupIntegrationUseCases` inyecta `HttpClientPort` a TriggerIntegrationEvent.
 
 **Exit criteria:**
 
 ```bash
-grep -rn "executeInTransaction" apps/api/src/application/inbox/SyncProviderCommentsUseCase.ts   # → external calls NO envueltas
-grep -rn "import.*AIService" apps/api/src/application/ml/ | grep -v "Port" | wc -l   # → 0
+grep -n "AIServicePort" apps/api/src/domain/repositories/AIServicePort.ts                # ✅ ≥1
+grep -n "HttpClientPort" apps/api/src/domain/repositories/HttpClientPort.ts              # ✅ ≥1
+grep -n "ChannelQueryForIngestion" apps/api/src/domain/repositories/ChannelQueryForIngestion.ts  # ✅ ≥1
+grep -rn "from.*aiService\|from.*AIService\b" apps/api/src/application/ml --include="*.ts" \
+  | grep -v "Port"                                                                        # ✅ 0
+grep -nE "^\s+await fetch\(" apps/api/src/application -r --include="*.ts"                # ✅ 0
+grep -nE " as.*ChannelId\b" apps/api/src/application/analytics/IngestChannelAnalyticsUseCase.ts  # ✅ 0
+grep -n "unitOfWork\|UnitOfWork" apps/api/src/application/utm/GenerateUTMLinksUseCase.ts # ✅ 4
+grep -nE "executeInTransaction" apps/api/src/application/inbox/SyncProviderCommentsUseCase.ts  # ✅ 0
 ```
 
-**Estimación.** 8-12 h.
+**Estimación / real.** Estimado 8-12 h / Real ~3 h.
 
-**Dependencias.** 🔒 BLOCKS_TIER.
+**Dependencias.** 🔒 BLOCKS_TIER cerrado. No habilita batches específicos pero deja application layer hexagonalmente clean para futuros refactors (T4-L cache, T4-M logger).
 
 ---
 

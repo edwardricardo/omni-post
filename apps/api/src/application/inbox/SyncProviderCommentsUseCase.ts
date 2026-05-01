@@ -11,7 +11,6 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { type ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
 import { ChannelId } from "../../domain/value-objects/index.js";
 import { type IngestSocialMessageUseCase } from "./IngestSocialMessageUseCase.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { ProviderAdapter } from "@ports/core";
 import type { ProviderType } from "../../domain/value-objects/Provider.js";
 
@@ -50,7 +49,6 @@ export class SyncProviderCommentsUseCase implements UseCase<
   constructor(
     private readonly channelRepository: ChannelRepository,
     private readonly ingestUseCase: IngestSocialMessageUseCase,
-    private readonly unitOfWork?: UnitOfWork,
     private readonly getProviderAdapter?: (provider: string) => ProviderAdapter | undefined
   ) {}
 
@@ -64,7 +62,7 @@ export class SyncProviderCommentsUseCase implements UseCase<
   async execute(
     input: SyncProviderCommentsInput
   ): Promise<Result<SyncProviderCommentsOutput, UseCaseError>> {
-    const doWork = async (): Promise<Result<SyncProviderCommentsOutput, UseCaseError>> => {
+    try {
       const channelIdResult = ChannelId.fromString(input.channelId);
       if (!channelIdResult.ok) {
         return err(
@@ -99,19 +97,29 @@ export class SyncProviderCommentsUseCase implements UseCase<
         return ok({ synced: 0, skipped: 0 });
       }
 
-      const credentials = channel.credentials;
-      let synced = 0;
-      let skipped = 0;
+      // Phase 1 — fetch all paginated comments outside any DB transaction.
+      // Holding a transaction open across HTTP round-trips would pin a
+      // connection per channel and risk pool starvation on busy accounts.
+      type ProviderComment = {
+        providerMessageId: string;
+        providerParentId?: string;
+        authorName: string;
+        authorHandle?: string;
+        authorAvatarUrl?: string;
+        authorProviderId: string;
+        body: string;
+        mediaUrls?: string[];
+        createdAt: Date;
+      };
+      const allComments: ProviderComment[] = [];
       let cursor: string | undefined;
-
       do {
         const commentsResult = await adapter.getComments({
-          channelCredentials: credentials as unknown,
+          channelCredentials: channel.credentials as unknown,
           ...(input.since !== undefined && { since: input.since }),
           ...(cursor !== undefined && { cursor }),
           limit: input.limit ?? 100,
         });
-
         if (!commentsResult.ok) {
           if (commentsResult.error === "AUTH") {
             return err(
@@ -128,58 +136,47 @@ export class SyncProviderCommentsUseCase implements UseCase<
             )
           );
         }
-
-        const { comments, nextCursor } = commentsResult.value;
-
-        for (const comment of comments) {
-          const ingestResult = await this.ingestUseCase.execute({
-            accountId: input.accountId ?? "",
-            projectId: input.projectId ?? channel.projectId.value,
-            channelId: input.channelId,
-            provider: providerName.toUpperCase() as ProviderType,
-            providerMessageId: comment.providerMessageId,
-            ...(comment.providerParentId !== undefined && {
-              providerParentId: comment.providerParentId,
-            }),
-            messageType: "COMMENT",
-            authorName: comment.authorName,
-            ...(comment.authorHandle !== undefined && { authorHandle: comment.authorHandle }),
-            ...(comment.authorAvatarUrl !== undefined && {
-              authorAvatarUrl: comment.authorAvatarUrl,
-            }),
-            authorProviderId: comment.authorProviderId,
-            body: comment.body,
-            ...(comment.mediaUrls !== undefined && { mediaUrls: comment.mediaUrls }),
-            providerCreatedAt: comment.createdAt,
-          });
-
-          if (ingestResult.ok) {
-            if (ingestResult.value.isNew) {
-              synced++;
-            } else {
-              skipped++;
-            }
-          }
-        }
-
-        cursor = nextCursor;
+        allComments.push(...(commentsResult.value.comments as ProviderComment[]));
+        cursor = commentsResult.value.nextCursor;
       } while (cursor);
 
-      return ok({ synced, skipped });
-    };
-
-    try {
-      if (this.unitOfWork) {
-        let result: Result<SyncProviderCommentsOutput, UseCaseError> = ok({
-          synced: 0,
-          skipped: 0,
-        }) as Result<SyncProviderCommentsOutput, UseCaseError>;
-        await this.unitOfWork.executeInTransaction(async () => {
-          result = await doWork();
+      // Phase 2 — ingest each comment. `IngestSocialMessageUseCase` is
+      // idempotent (dedupes by `providerMessageId`) and runs its own UoW
+      // per message, so the outer flow does not need an enclosing
+      // transaction — keeping external HTTP fully outside DB locking.
+      let synced = 0;
+      let skipped = 0;
+      for (const comment of allComments) {
+        const ingestResult = await this.ingestUseCase.execute({
+          accountId: input.accountId ?? "",
+          projectId: input.projectId ?? channel.projectId.value,
+          channelId: input.channelId,
+          provider: providerName.toUpperCase() as ProviderType,
+          providerMessageId: comment.providerMessageId,
+          ...(comment.providerParentId !== undefined && {
+            providerParentId: comment.providerParentId,
+          }),
+          messageType: "COMMENT",
+          authorName: comment.authorName,
+          ...(comment.authorHandle !== undefined && { authorHandle: comment.authorHandle }),
+          ...(comment.authorAvatarUrl !== undefined && {
+            authorAvatarUrl: comment.authorAvatarUrl,
+          }),
+          authorProviderId: comment.authorProviderId,
+          body: comment.body,
+          ...(comment.mediaUrls !== undefined && { mediaUrls: comment.mediaUrls }),
+          providerCreatedAt: comment.createdAt,
         });
-        return result;
+        if (ingestResult.ok) {
+          if (ingestResult.value.isNew) {
+            synced++;
+          } else {
+            skipped++;
+          }
+        }
       }
-      return await doWork();
+
+      return ok({ synced, skipped });
     } catch (error: unknown) {
       return err(
         new UseCaseError(

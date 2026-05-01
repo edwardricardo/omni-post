@@ -14,6 +14,9 @@ import { RbacService } from "../../auth/rbacService.js";
 import { auditService } from "../../audit/auditService.js";
 import { ActivityFeedService } from "../../audit/activityFeedService.js";
 import { AIService } from "../../ai/aiService.js";
+import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import type { HttpClientPort } from "../../domain/repositories/HttpClientPort.js";
+import { FetchHttpClient } from "../adapters/FetchHttpClient.js";
 import { AiRequestService } from "../../ai/AiRequestService.js";
 import { dashboardService } from "../../admin/dashboardService.js";
 import { AccountLifecycleService } from "../../admin/accountLifecycleService.js";
@@ -76,7 +79,7 @@ export function setupServices(
   container: Container,
   integrationEventPublisher?: IntegrationEventPublisher
 ): void {
-  // Register Integration Event Publisher (P2-2) -- if provided
+  // Register Integration Event Publisher -- if provided
   if (integrationEventPublisher) {
     container.registerInstance(TOKENS.IntegrationEventPublisher, integrationEventPublisher);
   }
@@ -89,7 +92,7 @@ export function setupServices(
     true
   );
 
-  // Register Event Versioning infrastructure (P2-5)
+  // Register Event Versioning infrastructure
   container.register<EventSchemaRegistry>(
     TOKENS.EventSchemaRegistry,
     () => new EventSchemaRegistry(),
@@ -97,7 +100,7 @@ export function setupServices(
   );
   container.register<UpcasterChain>(TOKENS.UpcasterChain, () => new UpcasterChain(), true);
 
-  // Register Auth Services (R1-A -- factory-based with injected deps)
+  // Register Auth Services -- factory-based with injected deps
   container.register<MfaService>(
     TOKENS.MfaService,
     () => new MfaService(container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository)),
@@ -141,6 +144,16 @@ export function setupServices(
       ),
     true
   );
+  // Port-side handle so application/ml use cases depend on the abstraction.
+  // The concrete AIService instance fulfils the AIServicePort contract;
+  // resolving the port returns the same singleton.
+  container.register<AIServicePort>(
+    TOKENS.AIServicePort,
+    () => container.resolve<AIService>(TOKENS.AIService),
+    true
+  );
+  // Outbound HTTP port for application services (TriggerIntegrationEventService).
+  container.register<HttpClientPort>(TOKENS.HttpClientPort, () => new FetchHttpClient(), true);
   container.registerInstance(TOKENS.DashboardService, dashboardService);
 
   container.register<AccountLifecycleService>(
@@ -274,7 +287,7 @@ export function setupServices(
     true
   );
 
-  // Register Content Sync Services (F28)
+  // Register Content Sync Services
   container.register<ContentVersionManager>(
     TOKENS.ContentVersionManager,
     () => {
@@ -356,7 +369,7 @@ export function setupServices(
   );
   // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
 
-  // Register CredentialManager + RateLimitManager (P2-A)
+  // Register CredentialManager + RateLimitManager
   container.register<CredentialManager>(
     TOKENS.CredentialManager,
     () => {
@@ -376,7 +389,7 @@ export function setupServices(
     true
   );
 
-  // Register PostsService (B0-4)
+  // Register PostsService
   container.register(
     TOKENS.PostsService,
     () => {
@@ -401,7 +414,7 @@ export function setupServices(
     true
   );
 
-  // Register ProviderCoordinator (P2-B)
+  // Register ProviderCoordinator
   container.register<ProviderCoordinator>(
     TOKENS.ProviderCoordinator,
     () => {
