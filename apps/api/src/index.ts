@@ -45,7 +45,7 @@ import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { setChannelCredentialsRepository } from "@providers/shared";
 import { closeDatabaseConnections, prisma } from "@infra/prisma";
-import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import type { QueuePortRegistry } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
 import { createStorageAdapter } from "./infrastructure/storage/createStorageAdapter.js";
@@ -240,7 +240,12 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Initialize components
   const repoAdapter = createPrismaRepoAdapter({ scheduler: bootstrapScheduler });
-  const queueAdapter = createBullMQQueueAdapter();
+  // T4-H: queue adapter resolved from the registry so this top-level wiring
+  // shares the same Redis connection and queue instances as the rest of the
+  // container. Targets the PUBLISH queue for legacy callers that expect a
+  // single QueuePort; per-queue routing happens through the registry.
+  const queueRegistry = container.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry);
+  const queueAdapter = queueRegistry.forQueue(QUEUE_NAMES.PUBLISH);
   const storageAdapter = createStorageAdapter();
 
   // Wire the channel-credentials port so provider adapters (which live in
@@ -705,6 +710,12 @@ async function start() {
         TOKENS.BackgroundTaskScheduler
       );
       await scheduler.shutdownAll();
+
+      // T4-H: close all BullMQ queue adapters via the registry. This closes
+      // every Queue and the shared Redis connection in one shot — replaces
+      // the per-adapter close that lived in the pre-T4-H singleton state.
+      const registry = app.container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry);
+      await registry.close();
 
       await app.close();
       await closeDatabaseConnections();

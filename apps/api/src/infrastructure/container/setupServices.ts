@@ -57,7 +57,13 @@ import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.
 import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import { ResendEmailAdapter } from "../adapters/ResendEmailAdapter.js";
-import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import {
+  BullMQQueuePortRegistry,
+  BullMQDeadLetterQueueAdapter,
+  QUEUE_NAMES,
+} from "@adapters/queue-bullmq";
+import type { QueuePort, QueuePortRegistry, DeadLetterQueuePort } from "@ports/core";
+import Redis from "ioredis";
 import {
   DefaultBackgroundTaskScheduler,
   type BackgroundTaskScheduler,
@@ -208,8 +214,37 @@ export function setupServices(
   );
   container.registerInstance(TOKENS.ProviderRegistry, providerRegistry);
 
-  // Queue adapter (shared by analytics ingestion, inbox sync, etc.)
-  container.register(TOKENS.QueuePort, () => createBullMQQueueAdapter(), true);
+  // Queue infrastructure (T4-H). Single Redis connection is shared across
+  // all queue adapters via the registry. Each consumer of QueuePort resolves
+  // its queue by name through the registry; the legacy `TOKENS.QueuePort`
+  // resolves to PUBLISH for backwards compat (callers should migrate to
+  // `TOKENS.QueuePortRegistry.forQueue(...)`).
+  container.register<QueuePortRegistry>(
+    TOKENS.QueuePortRegistry,
+    () => {
+      const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+        enableReadyCheck: false,
+        maxRetriesPerRequest: 3,
+        lazyConnect: true,
+      });
+      return new BullMQQueuePortRegistry({ connection });
+    },
+    true
+  );
+  container.register<QueuePort>(
+    TOKENS.QueuePort,
+    () =>
+      container.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry).forQueue(QUEUE_NAMES.PUBLISH),
+    true
+  );
+  container.register<DeadLetterQueuePort>(
+    TOKENS.DeadLetterQueuePort,
+    () =>
+      new BullMQDeadLetterQueueAdapter({
+        registry: container.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry),
+      }),
+    true
+  );
 
   // Register Content Sync Services (F28)
   container.register<ContentVersionManager>(

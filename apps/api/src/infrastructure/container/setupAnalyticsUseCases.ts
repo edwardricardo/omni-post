@@ -45,7 +45,7 @@ import {
   type TopPerformersQueryPort,
 } from "../../application/ai/GetTopPerformersContextUseCase.js";
 import type { PrismaClient } from "@infra/prisma";
-import type { QueuePort } from "@ports/core";
+import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 
 /**
@@ -237,7 +237,9 @@ export function setupAnalyticsUseCases(container: Container): void {
     () =>
       new DispatchAnalyticsIngestionUseCase(
         container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
-        container.resolve<QueuePort>(TOKENS.QueuePort),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.ANALYTICS_AGGREGATION),
         QUEUE_NAMES.ANALYTICS_AGGREGATION,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),

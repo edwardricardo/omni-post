@@ -394,6 +394,12 @@ export const TOKENS = {
 
   // Queue (shared)
   QueuePort: Symbol.for("QueuePort"),
+  // Multi-queue routing (T4-H). Use this in preference to TOKENS.QueuePort
+  // — the legacy token resolves to the PUBLISH queue for backwards compat
+  // and will be removed once all callers migrate.
+  QueuePortRegistry: Symbol.for("QueuePortRegistry"),
+  // Producer-side DLQ port (archive only in T4-H; list/retry in PR-26).
+  DeadLetterQueuePort: Symbol.for("DeadLetterQueuePort"),
 
   // Analytics Aggregation
   AnalyticsAggregationQuery: Symbol.for("AnalyticsAggregationQuery"),

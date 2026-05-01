@@ -1194,6 +1194,107 @@ Cuando se introduzca un use case que requiera real-time dispatch o cuando latenc
 
 ---
 
+### PR-24 — Migrate `webhookJobProcessor` to `QueuePortRegistry` + `DeadLetterQueuePort`
+
+**Origen.** T4-H (2026-05-01) — refactor del adapter queue-bullmq.
+
+**Contexto.** `apps/api/src/webhooks/webhookJobProcessor.ts:53-105` crea `Queue` y `Worker` instancias directamente con `new Queue(QUEUE_NAMES.WEBHOOK_PROCESSING)` + `new Queue(QUEUE_NAMES.WEBHOOK_DEAD_LETTER)` + 2 `new Worker(...)`. Bypassa completamente el `QueuePort`/`QueuePortRegistry` introducidos por T4-H.
+
+T4-H expone `QueuePortRegistry.forQueue(name)` y `BullMQDeadLetterQueueAdapter.archive()`. El webhookJobProcessor podría migrar para:
+
+- Producer side: `registry.forQueue(QUEUE_NAMES.WEBHOOK_PROCESSING).enqueue(...)` en lugar de `new Queue(...).add()`.
+- DLQ side: `dlqAdapter.archive(entry)` en lugar de `deadLetterQueue.add(...)` con shape ad-hoc.
+- Connection: compartir `IORedis` connection del registry en lugar de crear sus 2 propias.
+
+**Por qué no se cerró en T4-H.** Touching `webhookJobProcessor` arrastra T4-G (Integration events handlers) que está blocked by T6 (NEEDS_EDWARD decisions sobre L-44/L-45 webhook handlers stubs). El refactor estructural (queue + DLQ + connection sharing) es safe pero pequeño; el problema es que T4-G podría querer cambiar la lógica de processing en formas que dejen este refactor obsoleto. Esperar.
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando se ejecute T4-G (Integration events handlers NO-OP).
+2. **Implementación esperada**:
+   - Inyectar `QueuePortRegistry` en `WebhookJobProcessor` constructor.
+   - Reemplazar `new Queue(WEBHOOK_PROCESSING)` con `registry.forQueue(WEBHOOK_PROCESSING)`.
+   - Reemplazar `new Queue(WEBHOOK_DEAD_LETTER)` con `BullMQDeadLetterQueueAdapter` apuntando a `WEBHOOK_DEAD_LETTER`.
+   - Reemplazar el shape ad-hoc del DLQ `{ originalJob, failure }` con `DeadLetterEntry` canónico.
+   - Workers (`new Worker(...)`) pueden quedar directos (consumer-adapter actual no cubre todos los hooks de Worker).
+
+**Bloqueado por.** T4-G unblock (Edward CP3 decision sobre L-44/L-45 stubs).
+
+**Estado:** PENDING (deferred del T4-H 2026-05-01).
+
+---
+
+### PR-25 — Migrate workers + processors que crean `Queue/Worker` directos a `QueuePortRegistry`
+
+**Origen.** T4-H (2026-05-01) — refactor del adapter queue-bullmq.
+
+**Contexto.** Después del refactor T4-H, los siguientes archivos siguen creando `new Queue(...)` o `new Worker(...)` directamente sin pasar por `QueuePortRegistry`:
+
+- `apps/workers/src/autoRenewalWorker.ts:28,54` — Queue + Worker propios para `AUTO_RENEWAL`.
+- `apps/workers/src/inboxSyncWorker.ts:150` — Worker para `INBOX_SYNC`.
+- `apps/workers/src/analyticsIngestWorker.ts:151` — Worker para `ANALYTICS_AGGREGATION`.
+- `apps/workers/src/publishWorker.ts:81+` — Worker para `PUBLISH` (usa `createBullMQConsumerAdapter` parcialmente).
+- `apps/workers/src/providers/instagram/publishingWorker.ts:86` — usa `createBullMQConsumerAdapter` y `createBullMQQueueAdapter` (ya cubierto por T4-H pero specific config queda).
+- `apps/api/src/billing/GatewaySwitchJobService.ts:30` — Queue para `GATEWAY_SWITCH`.
+- `apps/api/src/billing/gatewaySwitchProcessor.ts:30` — Worker para `GATEWAY_SWITCH`.
+- `apps/api/src/infrastructure/integration-events/IntegrationEventConsumer.ts:191` — Worker para `INTEGRATION_EVENTS`.
+- `apps/api/src/saga/SagaIntegration.ts` — utiliza `QueuePort` indirectamente; revisar si necesita migración.
+
+T4-H solo fixea el adapter y los 3 dispatchers que ya usaban `QueuePort` (analytics, inbox-sync, repurpose). Los workers y processors directos siguen funcionando pero no comparten el registry — cada uno crea sus propias `IORedis` connections (ineficiente con N workers) y no aprovecha la abstracción.
+
+**Por qué no se cerró en T4-H.** Es scope de T4-I (Workers retry + shutdown + auth errors) y T4-J (Workers ubicación + provider registry). T4-I está blocked-by T4-H (que se acaba de cerrar) → quedará desbloqueado al revisar al final de batch. La migración va junto con el refactor de retry/shutdown para no abrir y cerrar el mismo archivo dos veces.
+
+**Plan estructurado.**
+
+1. **Trigger** — automáticamente al ejecutar T4-I (queda desbloqueado por T4-H).
+2. **Implementación esperada por archivo**:
+   - Cada worker/processor recibe `QueuePortRegistry` via DI (los workers tienen su propio container; deben inicializarlo igual que API).
+   - Reemplazar `new Queue(name)` con `registry.forQueue(name)` para producer side.
+   - Workers pueden seguir usando `new Worker(name, handler)` directamente (consumer-adapter actual no cubre todos los hooks como `worker.on("failed", ...)` para DLQ); alternativamente extender `consumer-adapter` con event hooks. Decidir caso por caso.
+   - Compartir Redis connection del registry para reducir overhead.
+
+**Bloqueado por.** T4-I (que ahora está desbloqueado).
+
+**Estado:** PENDING (deferred del T4-H 2026-05-01) — esperado close en T4-I.
+
+---
+
+### PR-26 — `DeadLetterQueuePort.list()` + `.retry()` implementation
+
+**Origen.** T4-H (2026-05-01) — port introducido con producer-side completo (`archive`) pero `list/retry` no-implementados.
+
+**Contexto.** `BullMQDeadLetterQueueAdapter` introducido en T4-H solo implementa `archive()` (mover failed job al DLQ). Los métodos `list({limit, offset})` y `retry(jobId)` están declarados en el port pero no implementados — throw `Error("Not implemented")` con referencia a este PR.
+
+La razón es scope: T4-H mismo no tiene un consumer que necesite list/retry. Los consumers naturales son:
+
+- Admin UI/API que muestra el DLQ y permite re-trigger manual (parcialmente existe en `outboxAdminRoutes.ts` pero para outbox, no para BullMQ DLQ).
+- `webhookJobProcessor` que tiene su propio worker DLQ con re-process logic ad-hoc (PR-24).
+- T4-I retry policies que pueden requerir auto-retry de DLQ entries bajo ciertas condiciones.
+
+**Por qué no se cerró en T4-H.** "Crear sin consumer" es exactamente el patrón que la regla "infrastructure-ready ≠ inútil" autoriza, pero **solo cuando hay forma natural de testear**. Para `list/retry`:
+
+- `list()` requeriría iterar entries del Queue — testeable contra mock pero el shape del entry deserializado requiere cuidado (es un Job de BullMQ con `data` json).
+- `retry(jobId)` requeriría leer el entry, extraer `originalJob.data` + `originalJob.opts`, hacer `mainQueue.add(...)`, luego remover de DLQ. Atomicidad debatible (transaction de Redis vs. acepta race).
+
+Implementar bien estos 2 métodos es ~2 h adicionales solo para infraestructura sin consumer. Mejor diferir hasta que un consumer natural aparezca y guíe el shape final (e.g., paginated vs. cursor, search by failure reason, etc.).
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando ocurra alguna de:
+   - Admin UI requiere mostrar BullMQ DLQ entries (probablemente parte de T5 dashboard).
+   - T4-I retry policies necesitan auto-retry de DLQ entries.
+   - PR-24 (webhookJobProcessor migration) requiere re-process logic estandarizado.
+2. **Implementación esperada**:
+   - `list({limit, offset})`: usa `Queue.getJobs(["waiting", "delayed"], offset, offset + limit)` + map a `DeadLetterEntry`.
+   - `retry(jobId)`: `Queue.getJob(jobId)` → extract → `targetQueue.add(originalJobName, originalData, originalOpts)` → `dlqJob.remove()`. Document race-condition trade-off.
+   - Tests: cubrir paginación, retry happy path, retry job not found, retry connection error.
+
+**Bloqueado por.** Aparición del primer consumer natural.
+
+**Estado:** PENDING (deferred del T4-H 2026-05-01).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

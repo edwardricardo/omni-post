@@ -1937,27 +1937,56 @@ grep -rn "new EventService\b" apps/api/src/ | wc -l   # → 1
 
 ---
 
-#### T4-H — QueuePort adapter fix 🔒
+#### T4-H — QueuePort adapter fix 🔒 ✅ 2026-05-01
 
-**Scope.** QueuePort hardcoded PUBLISH queue; también absorbe L-55/L-73/L-74/L-75 downstream. Habilita T5-A.
+**Scope.** Adapter `queue-bullmq` parametrizado por queue name + concurrency configurable + introducción de `QueuePortRegistry` y `DeadLetterQueuePort` para habilitar T4-I y T5-A.
 
 **Findings table (5):**
 
-| L-#   | Título corto                                    | Esfuerzo | Acción   | §5.9 | Notas                   |
-| ----- | ----------------------------------------------- | -------- | -------- | ---- | ----------------------- |
-| L-61  | QueuePort hardcoded PUBLISH misroute            | —        | —        | —    | Same composite L-363    |
-| L-363 | queue-bullmq hardcoded PUBLISH queue (CRITICAL) | MEDIUM   | REFACTOR | AUTO | Parametrize queueName   |
-| L-380 | queue-bullmq `concurrency` ignored              | —        | —        | —    | Absorbed L-363          |
-| L-376 | queue-bullmq test mocks                         | QUICK    | FIX      | AUTO | Update mocks post-L-363 |
-| L-383 | queue-bullmq DLQ wiring no official             | QUICK    | REFACTOR | AUTO | Formalize DLQ port      |
+| L-#   | Título corto                                    | Esfuerzo | Acción   | §5.9 | Status     | Resolución                                                                                                                                                            |
+| ----- | ----------------------------------------------- | -------- | -------- | ---- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-61  | QueuePort hardcoded PUBLISH misroute            | —        | —        | —    | ✅ Cerrado | Same composite L-363 — fixed by parametrising adapter.                                                                                                                |
+| L-363 | queue-bullmq hardcoded PUBLISH queue (CRITICAL) | MEDIUM   | REFACTOR | AUTO | ✅ Cerrado | `createBullMQQueueAdapter({ queueName })` ahora se invoca con el nombre correcto vía registry.                                                                        |
+| L-380 | queue-bullmq `concurrency` ignored              | —        | —        | —    | ✅ Cerrado | `createBullMQConsumerAdapter({ concurrency, removeOnComplete, removeOnFail })` ahora respeta opts.                                                                    |
+| L-376 | queue-bullmq test mocks                         | QUICK    | FIX      | AUTO | ✅ Cerrado | Suite del adapter creada (no existía); 27 tests nuevos cubren queue-adapter, consumer-adapter, registry, DLQ adapter.                                                 |
+| L-383 | queue-bullmq DLQ wiring no official             | QUICK    | REFACTOR | AUTO | ✅ Cerrado | `DeadLetterQueuePort` declarado en `@ports/core`; `BullMQDeadLetterQueueAdapter` implementa producer-side (`archive`); consumer-side (`list/retry`) deferido a PR-26. |
 
-**Entry criteria.** Ninguno.
+**Issues laterales descubiertos durante ejecución (todos cerrados en mismo batch):**
 
-**Exit criteria:** queue name configurable; mocks pass; DLQ port exported.
+1. **Module-level singleton state** (`globalConnection`/`globalQueue`) en el adapter ya no era válido tras parametrizar el queue name — un segundo call con queue distinto reusaría la instancia del primero. Eliminado.
+2. **Tests directos del adapter no existían** — `resilience.test.ts` solo cubría el helper. Creados: `queue-adapter.test.ts` (8 tests), `consumer-adapter.test.ts` (5 tests), `queue-port-registry.test.ts` (6 tests), `dead-letter-queue-adapter.test.ts` (8 tests).
+3. **`apps/api/src/admin/queueRoutes.ts:260`** sigue creando `new Queue(QUEUE_NAMES.PUBLISH)` directo para introspection (admin reads, no write). Documentado en backlog como aceptable; no migrar (out-of-scope T4-H).
 
-**Estimación.** 4-6 h.
+**Implementación:**
 
-**Dependencias.** 🔒 BLOCKS_TIER (habilita T4-I + T5-A).
+- **2 nuevos ports en `@ports/core`:** `QueuePortRegistry` (lookup `forQueue(name): QueuePort` con memoization), `DeadLetterQueuePort` (`archive` + `list` + `retry` con shape canónico per OneUptime canon).
+- **4 archivos nuevos en `@adapters/queue-bullmq`:** `queue-adapter.ts` (parametrizado), `consumer-adapter.ts` (parametrizado), `queue-port-registry.ts` (memo + share Redis connection), `dead-letter-queue-adapter.ts` (producer side + NOT_IMPLEMENTED para list/retry).
+- **DI:** `TOKENS.QueuePortRegistry`, `TOKENS.DeadLetterQueuePort`. Registry singleton comparte una `IORedis` connection. `TOKENS.QueuePort` mantenido como compatibility binding resolviendo a `registry.forQueue(QUEUE_NAMES.PUBLISH)`.
+- **3 use cases re-wireados** (`DispatchAnalyticsIngestionUseCase`, `DispatchInboxSyncUseCase`, `BullMQRepurposeJobDispatcher`): ahora reciben el `QueuePort` correcto via `registry.forQueue(QUEUE_NAMES.X)` — los jobs ya no misrutean a PUBLISH.
+- **`apps/api/src/index.ts`** y **`healthRoutes.ts`** resuelven el queue adapter desde el registry. SIGTERM handler agrega `await registry.close()` antes del shutdown final.
+
+**Exit criteria:**
+
+```bash
+grep -nE "options\.queueName" packages/adapters/queue-bullmq/src/queue-adapter.ts          # ✅ 4
+grep -nE "QUEUE_NAMES\.PUBLISH" packages/adapters/queue-bullmq/src/queue-adapter.ts        # ✅ 0
+grep -n "globalConnection\|globalQueue" packages/adapters/queue-bullmq/src/*.ts            # ✅ 0
+grep -nE "concurrency: 5" packages/adapters/queue-bullmq/src/consumer-adapter.ts            # ✅ 0
+grep -n "BullMQQueuePortRegistry" packages/adapters/queue-bullmq/src/                      # ✅ 6
+grep -n "DeadLetterQueuePort" packages/ports/src/index.ts                                  # ✅ 1
+grep -nE "forQueue\(QUEUE_NAMES\.(ANALYTICS_AGGREGATION|INBOX_SYNC|GENERATE_REPURPOSE)\)" \
+  apps/api/src/infrastructure/container/                                                    # ✅ 3
+```
+
+**Estimación / real.** Estimado 4-6 h / Real ~4 h.
+
+**Dependencias.** 🔒 BLOCKS_TIER cerrado. **Habilita T4-I** (Workers retry + shutdown — usa `DeadLetterQueuePort` para mover jobs exhaustos) y T5-A.
+
+**Backlog deferred (PR-24/25/26):**
+
+- PR-24: Migrate `webhookJobProcessor` a `QueuePortRegistry` + `DeadLetterQueuePort` — bloqueado por T4-G (NEEDS_EDWARD).
+- PR-25: Migrate workers (`autoRenewalWorker`, `inboxSyncWorker`, etc.) que crean `Queue/Worker` directos — esperado en T4-I.
+- PR-26: `DeadLetterQueuePort.list()` y `.retry()` no-implementados; formalizar cuando primer consumer aparezca (T4-I).
 
 ---
 

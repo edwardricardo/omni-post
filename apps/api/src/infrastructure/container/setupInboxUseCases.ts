@@ -40,7 +40,7 @@ import { InboxEventHandlers } from "../../application/inbox/handlers/InboxEventH
 import type { ProviderRegistryService } from "../../providers/providerRegistry.js";
 import { DispatchInboxSyncUseCase } from "../../application/inbox/DispatchInboxSyncUseCase.js";
 import type { ChannelQueryForIngestion } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
-import type { QueuePort } from "@ports/core";
+import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { prisma } from "@infra/prisma";
 import { PrismaTriageMessageAdapter } from "../repositories/PrismaTriageMessageAdapter.js";
@@ -224,7 +224,9 @@ export function setupInboxUseCases(container: Container): void {
     () =>
       new DispatchInboxSyncUseCase(
         container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
-        container.resolve<QueuePort>(TOKENS.QueuePort),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.INBOX_SYNC),
         QUEUE_NAMES.INBOX_SYNC,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),

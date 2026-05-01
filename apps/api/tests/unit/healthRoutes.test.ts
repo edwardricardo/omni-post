@@ -189,7 +189,7 @@ vi.mock("@adapters/db-prisma", () => ({
 }));
 
 vi.mock("@adapters/queue-bullmq", () => ({
-  createBullMQQueueAdapter: vi.fn(() => ({})),
+  QUEUE_NAMES: { PUBLISH: "publish" },
 }));
 
 vi.mock("@adapters/storage-s3", () => ({
@@ -220,6 +220,21 @@ describe("healthRoutes - Unit Tests", () => {
     // Provide a DI container so healthRoutes can resolve BackgroundTaskScheduler.
     const container = createTestContainer();
     container.registerInstance(TOKENS.BackgroundTaskScheduler, new NoopBackgroundTaskScheduler());
+    // T4-H: healthRoutes resolves a queue adapter via the registry. Provide
+    // a stub that exercises the QueuePortRegistry contract without touching
+    // BullMQ or Redis.
+    const stubQueuePort = {
+      enqueue: vi.fn(async () => ({ ok: true as const, value: "stub-id" })),
+      health: vi.fn(async () => ({
+        ok: true as const,
+        value: { connected: true, waiting: 0, active: 0, completed: 0, failed: 0 },
+      })),
+      remove: vi.fn(async () => ({ ok: true as const, value: true })),
+    };
+    container.registerInstance(TOKENS.QueuePortRegistry, {
+      forQueue: () => stubQueuePort,
+      close: async () => {},
+    });
     app.decorate("container", container);
 
     const { healthRoutes } = await import("../../src/health/healthRoutes.js");

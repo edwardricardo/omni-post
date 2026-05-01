@@ -16,7 +16,8 @@ import {
   ProviderHealthChecker,
 } from "@monitoring/health-checks";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
-import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import type { QueuePortRegistry } from "@ports/core";
 import { createS3StorageAdapter } from "@adapters/storage-s3";
 import { providerRegistry } from "../providers/providerRegistry.js";
 import type Redis from "ioredis";
@@ -63,7 +64,9 @@ export async function healthRoutes(
 
   // Initialize adapters
   const repoAdapter = createPrismaRepoAdapter({ scheduler });
-  const queueAdapter = createBullMQQueueAdapter();
+  const queueAdapter = fastify
+    .container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+    .forQueue(QUEUE_NAMES.PUBLISH);
   const storageAdapter = createS3StorageAdapter({
     bucket: process.env.S3_BUCKET || "omni-post-media",
     region: process.env.S3_REGION || "us-east-1",
