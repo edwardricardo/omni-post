@@ -1,7 +1,7 @@
 generator client {
   provider        = "prisma-client"
   output          = "./generated/prisma/client"
-  previewFeatures = ["fullTextSearchPostgres", "relationJoins"]
+  previewFeatures = ["fullTextSearchPostgres", "relationJoins", "partialIndexes"]
 }
 
 datasource db {
@@ -9,84 +9,84 @@ datasource db {
 }
 
 model Account {
-  id                     String                  @id @default(uuid())
-  email                  String                  @unique
-  name                   String
-  maxProjects            Int                     @default(1)
-  isOnTrial              Boolean                 @default(true)
-  trialStartDate         DateTime                @default(now())
-  trialEndDate           DateTime?
-  autoRenewal            Boolean                 @default(false)
-  billingCycle           String                  @default("monthly") // "monthly" or "yearly"
-  lastBillingDate        DateTime?
-  nextBillingDate        DateTime?
-  stripeCustomerId       String?
-  stripeSubscriptionId   String?
-  slug                   String?                 @unique
-  timezone               String                  @default("UTC")
-  locale                 String                  @default("en")
-  phone                  String?
-  maxTeamMembers         Int                     @default(5)
-  maxStorageBytes        BigInt                  @default(5368709120)
-  maxRecurringPosts      Int                     @default(5)
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
-  projects               Project[]
-  apiKeys                ApiKey[]
-  providerConnections    ProviderConnection[]
-  contentTemplates       ContentTemplate[]
-  publishingQueue        PublishingQueue[]
-  instagramStoryProjects InstagramStoryProject[]
-  videoProcessingJobs    VideoProcessingJob[]
-  instagramAnalytics     InstagramAnalytics[]
-  schedulingRules        SchedulingRule[]
-  webhookEvents          WebhookEvent[]
-  webhookSubscriptions   WebhookSubscription[]
-  templates              Template[]
-  deletedAt              DateTime?
-  teamMembers            TeamMember[]
-  socialMessages         SocialMessage[]
-  socialConversations    SocialConversation[]
-  aiPromptTemplates      AIPromptTemplate[]
-  usageMetrics           UsageMetric[]
-  brandVoice             BrandVoice?
-  brandKit               BrandKit?
-  integrationApiKeys     IntegrationApiKey[]
-  approvalWorkflows      ApprovalWorkflow[]
-  tasks                  Task[]
+  id                       String                    @id @default(uuid())
+  email                    String                    @unique
+  name                     String
+  maxProjects              Int                       @default(1)
+  isOnTrial                Boolean                   @default(true)
+  trialStartDate           DateTime                  @default(now())
+  trialEndDate             DateTime?
+  autoRenewal              Boolean                   @default(false)
+  billingCycle             String                    @default("monthly") // "monthly" or "yearly"
+  lastBillingDate          DateTime?
+  nextBillingDate          DateTime?
+  stripeCustomerId         String?
+  stripeSubscriptionId     String?
+  slug                     String?                   @unique
+  timezone                 String                    @default("UTC")
+  locale                   String                    @default("en")
+  phone                    String?
+  maxTeamMembers           Int                       @default(5)
+  maxStorageBytes          BigInt                    @default(5368709120)
+  maxRecurringPosts        Int                       @default(5)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  projects                 Project[]
+  apiKeys                  ApiKey[]
+  providerConnections      ProviderConnection[]
+  contentTemplates         ContentTemplate[]
+  publishingQueue          PublishingQueue[]
+  instagramStoryProjects   InstagramStoryProject[]
+  videoProcessingJobs      VideoProcessingJob[]
+  instagramAnalytics       InstagramAnalytics[]
+  schedulingRules          SchedulingRule[]
+  webhookEvents            WebhookEvent[]
+  webhookSubscriptions     WebhookSubscription[]
+  templates                Template[]
+  deletedAt                DateTime?
+  teamMembers              TeamMember[]
+  socialMessages           SocialMessage[]
+  socialConversations      SocialConversation[]
+  aiPromptTemplates        AIPromptTemplate[]
+  usageMetrics             UsageMetric[]
+  brandVoice               BrandVoice?
+  brandKit                 BrandKit?
+  integrationApiKeys       IntegrationApiKey[]
+  approvalWorkflows        ApprovalWorkflow[]
+  tasks                    Task[]
   integrationSubscriptions IntegrationSubscription[]
-  samlConfiguration      SamlConfiguration?
-  oidcConfiguration      OidcConfiguration?
-  isActive               Boolean            @default(true)
-  ssoEnabled             Boolean            @default(false)
-  ssoProvider            SsoProvider        @default(NONE)
-  customReports          CustomReport[]
-  crmConnections         CrmConnection[]
-  crmContacts            CrmContact[]
-  crmActivities          CrmActivity[]
-  customerUsers          CustomerUser[]
-  mediaAssets            MediaAsset[]
-  assetFolders           AssetFolder[]
-  assetTags              AssetTag[]
-  accountSubscription    AccountSubscription?
-  referralCode           ReferralCode?
-  repurposeProposals     RepurposeProposal[]
-  trendRadarResults      TrendRadarResult[]
-  gatewayProvider        GatewayProvider    @default(STRIPE)
-  gatewayCustomerId      String?
-  pendingGatewayProvider GatewayProvider?
-  pendingGatewaySwitch   Boolean            @default(false)
-  gatewaySwitchAt        DateTime?
-  gatewaySwitchEvents    GatewaySwitchEvent[]
-  billingEvents          BillingEvent[]
-  invoices               Invoice[]
-  dsarRequests           DsarRequest[]
-  accountCredentials     AccountCredential[]
-  aiTokenUsage           AiTokenUsage[]
-  onboarding             AccountOnboarding?
+  samlConfiguration        SamlConfiguration?
+  oidcConfiguration        OidcConfiguration?
+  isActive                 Boolean                   @default(true)
+  ssoEnabled               Boolean                   @default(false)
+  ssoProvider              SsoProvider               @default(NONE)
+  customReports            CustomReport[]
+  crmConnections           CrmConnection[]
+  crmContacts              CrmContact[]
+  crmActivities            CrmActivity[]
+  customerUsers            CustomerUser[]
+  mediaAssets              MediaAsset[]
+  assetFolders             AssetFolder[]
+  assetTags                AssetTag[]
+  accountSubscription      AccountSubscription?
+  referralCode             ReferralCode?
+  repurposeProposals       RepurposeProposal[]
+  trendRadarResults        TrendRadarResult[]
+  gatewayProvider          GatewayProvider           @default(STRIPE)
+  gatewayCustomerId        String?
+  pendingGatewayProvider   GatewayProvider?
+  pendingGatewaySwitch     Boolean                   @default(false)
+  gatewaySwitchAt          DateTime?
+  gatewaySwitchEvents      GatewaySwitchEvent[]
+  billingEvents            BillingEvent[]
+  invoices                 Invoice[]
+  dsarRequests             DsarRequest[]
+  accountCredentials       AccountCredential[]
+  aiTokenUsage             AiTokenUsage[]
+  onboarding               AccountOnboarding?
 
-  @@index([isOnTrial, trialEndDate])
-  @@index([nextBillingDate])
+  @@index([isOnTrial, trialEndDate], where: { deletedAt: null })
+  @@index([nextBillingDate], where: { deletedAt: null })
   @@index([deletedAt])
 }
 
@@ -119,17 +119,17 @@ model RolePermission {
 }
 
 model AdminUser {
-  id                   String    @id @default(uuid())
-  email                String    @unique
-  passwordHash         String
-  name                 String
-  roleId               String
-  role                 Role      @relation(fields: [roleId], references: [id])
-  isActive             Boolean   @default(true)
-  emailVerified        Boolean   @default(false)
-  lastLoginAt          DateTime?
-  passwordResetToken   String?
-  passwordResetExpires DateTime?
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  passwordHash          String
+  name                  String
+  roleId                String
+  role                  Role      @relation(fields: [roleId], references: [id])
+  isActive              Boolean   @default(true)
+  emailVerified         Boolean   @default(false)
+  lastLoginAt           DateTime?
+  passwordResetToken    String?
+  passwordResetExpires  DateTime?
   mfaEnabled            Boolean   @default(false)
   mfaSecret             String?
   passwordHashAlgo      String    @default("argon2id")
@@ -152,7 +152,7 @@ model AdminUser {
 
   // Relationships
   sessions      AdminSession[]
-  auditLogs     AuditLog[]              @relation("PerformedBy")
+  auditLogs     AuditLog[]            @relation("PerformedBy")
   permissions   AdminUserPermission[]
   roleHistory   AdminRoleHistory[]
   loginAttempts AdminLoginAttempt[]
@@ -166,14 +166,14 @@ model AdminUser {
 }
 
 model AdminSession {
-  id           String    @id @default(uuid())
-  userId       String
-  refreshToken String    @unique
-  accessToken  String? // Optional - can store for tracking
-  ipAddress    String?
-  userAgent    String?
-  isActive     Boolean   @default(true)
-  expiresAt    DateTime
+  id             String    @id @default(uuid())
+  userId         String
+  refreshToken   String    @unique
+  accessToken    String? // Optional - can store for tracking
+  ipAddress      String?
+  userAgent      String?
+  isActive       Boolean   @default(true)
+  expiresAt      DateTime
   createdAt      DateTime  @default(now())
   revokedAt      DateTime?
   csrfToken      String    @unique @default(uuid())
@@ -259,31 +259,31 @@ model AdminRoleHistory {
 }
 
 model TeamMember {
-  id        String   @id @default(uuid())
-  accountId String
-  email     String
-  name      String
-  role      TeamRole @default(MEMBER)
-  isActive  Boolean  @default(true)
-  invitedBy        String?
-  inviteToken      String?   @unique
+  id                String    @id @default(uuid())
+  accountId         String
+  email             String
+  name              String
+  role              TeamRole  @default(MEMBER)
+  isActive          Boolean   @default(true)
+  invitedBy         String?
+  inviteToken       String?   @unique
   inviteTokenExpiry DateTime?
-  joinedAt         DateTime  @default(now())
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  joinedAt          DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  account            Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  projectMemberships ProjectMember[]
-  notifications      Notification[]
-  submittedApprovals ApprovalRequest[] @relation("ApprovalSubmitter")
-  reviews            ApprovalReview[]
-  comments           PostComment[]
-  assignedMessages   SocialMessage[]     @relation("MessageAssignee")
-  outboundReplies    SocialOutboundReply[]
-  resolvedConversations SocialConversation[] @relation("ConversationResolver")
-  conversationNotes     ConversationNote[]   @relation("NoteAuthor")
-  assignedTasks         Task[]               @relation("TaskAssignee")
-  createdTasks          Task[]               @relation("TaskCreator")
+  account               Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  projectMemberships    ProjectMember[]
+  notifications         Notification[]
+  submittedApprovals    ApprovalRequest[]     @relation("ApprovalSubmitter")
+  reviews               ApprovalReview[]
+  comments              PostComment[]
+  assignedMessages      SocialMessage[]       @relation("MessageAssignee")
+  outboundReplies       SocialOutboundReply[]
+  resolvedConversations SocialConversation[]  @relation("ConversationResolver")
+  conversationNotes     ConversationNote[]    @relation("NoteAuthor")
+  assignedTasks         Task[]                @relation("TaskAssignee")
+  createdTasks          Task[]                @relation("TaskCreator")
 
   @@unique([accountId, email])
   @@index([accountId, isActive])
@@ -315,8 +315,8 @@ model CustomerUser {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@unique([accountId, email])
-  @@index([accountId])
-  @@index([email])
+  @@index([accountId], where: { deletedAt: null })
+  @@index([email], where: { deletedAt: null })
 }
 
 model ProjectMember {
@@ -395,19 +395,19 @@ model ApprovalWorkflow {
 
   levels   ApprovalWorkflowLevel[]
   requests ApprovalRequest[]
-  account  Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account  Account                 @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@unique([accountId, name])
   @@index([accountId])
 }
 
 model ApprovalWorkflowLevel {
-  id         String  @id @default(cuid())
+  id         String   @id @default(cuid())
   workflowId String
   order      Int
   role       String?
   assigneeId String?
-  requireAll Boolean @default(false)
+  requireAll Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   workflow ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
@@ -430,7 +430,7 @@ model ApprovalRequest {
 
   post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
   submitter TeamMember        @relation("ApprovalSubmitter", fields: [submitterId], references: [id])
-  workflow  ApprovalWorkflow?  @relation(fields: [workflowId], references: [id])
+  workflow  ApprovalWorkflow? @relation(fields: [workflowId], references: [id])
   reviews   ApprovalReview[]
 
   @@index([postId, status])
@@ -490,10 +490,10 @@ model Task {
   assignee  TeamMember? @relation("TaskAssignee", fields: [assigneeId], references: [id])
   createdBy TeamMember  @relation("TaskCreator", fields: [createdById], references: [id])
 
-  @@index([accountId])
-  @@index([assigneeId])
-  @@index([status])
-  @@index([createdById])
+  @@index([accountId], where: { deletedAt: null })
+  @@index([assigneeId], where: { deletedAt: null })
+  @@index([status], where: { deletedAt: null })
+  @@index([createdById], where: { deletedAt: null })
 }
 
 model PostComment {
@@ -515,8 +515,8 @@ model PostComment {
   replies PostComment[] @relation("CommentReplies")
 
   @@index([postId, deletedAt, createdAt])
-  @@index([parentId])
-  @@index([authorId])
+  @@index([parentId], where: { deletedAt: null })
+  @@index([authorId], where: { deletedAt: null })
 }
 
 enum ApprovalStatus {
@@ -533,22 +533,22 @@ enum ReviewDecision {
 }
 
 model AdminLoginAttempt {
-  id              String    @id @default(uuid())
+  id              String   @id @default(uuid())
   userId          String?
   email           String
-  success         Boolean   @default(false)
+  success         Boolean  @default(false)
   failureReason   String?
-  mfaAttempted    Boolean   @default(false)
+  mfaAttempted    Boolean  @default(false)
   mfaSuccess      Boolean?
   ipAddress       String?
   userAgent       String?
   deviceId        String?
   location        Json?
-  isBlocked       Boolean   @default(false)
+  isBlocked       Boolean  @default(false)
   blockReason     String?
-  threatScore     Int?      @default(0)
-  requiresCaptcha Boolean   @default(false)
-  attemptedAt     DateTime  @default(now())
+  threatScore     Int?     @default(0)
+  requiresCaptcha Boolean  @default(false)
+  attemptedAt     DateTime @default(now())
 
   user AdminUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -561,85 +561,82 @@ model AdminLoginAttempt {
 }
 
 model Project {
-  id                     String                  @id @default(uuid())
-  name                   String
-  locale                 String                  @default("es")
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
-  accountId              String
-  isInCrisisMode         Boolean                 @default(false)
-  crisisStartedAt        DateTime?
-  crisisReason           String?
-  crisisModeHistory      Json?                   @default("[]")
-  deletedAt              DateTime?
-  channels               Channel[]
-  posts                  Post[]
-  account                Account                 @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  providerConnections    ProviderConnection[]
-  contentTemplates       ContentTemplate[]
-  publishingQueue        PublishingQueue[]
-  instagramStoryProjects InstagramStoryProject[]
-  videoProcessingJobs    VideoProcessingJob[]
-  instagramAnalytics     InstagramAnalytics[]
-  schedulingRules        SchedulingRule[]
-  webhookEvents          WebhookEvent[]
-  webhookSubscriptions   WebhookSubscription[]
-  templates              Template[]
-  trackedLinks           TrackedLink[]
-  members                ProjectMember[]
-  socialMessages         SocialMessage[]
-  socialConversations    SocialConversation[]
-  campaigns              Campaign[]
-  scheduledReports       ScheduledReport[]
+  id                          String                       @id @default(uuid())
+  name                        String
+  locale                      String                       @default("es")
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  accountId                   String
+  isInCrisisMode              Boolean                      @default(false)
+  crisisStartedAt             DateTime?
+  crisisReason                String?
+  crisisModeHistory           Json?                        @default("[]")
+  deletedAt                   DateTime?
+  channels                    Channel[]
+  posts                       Post[]
+  account                     Account                      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  providerConnections         ProviderConnection[]
+  contentTemplates            ContentTemplate[]
+  publishingQueue             PublishingQueue[]
+  instagramStoryProjects      InstagramStoryProject[]
+  videoProcessingJobs         VideoProcessingJob[]
+  instagramAnalytics          InstagramAnalytics[]
+  schedulingRules             SchedulingRule[]
+  webhookEvents               WebhookEvent[]
+  webhookSubscriptions        WebhookSubscription[]
+  templates                   Template[]
+  trackedLinks                TrackedLink[]
+  members                     ProjectMember[]
+  socialMessages              SocialMessage[]
+  socialConversations         SocialConversation[]
+  campaigns                   Campaign[]
+  scheduledReports            ScheduledReport[]
   externalNotificationConfigs ExternalNotificationConfig[]
-  generatedImages        GeneratedImage[]
-  recurringPosts         RecurringPost[]
-  mediaAssets            MediaAsset[]
-  tasks                  Task[]
-  customReports          CustomReport[]  @relation("CustomReportProject")
+  generatedImages             GeneratedImage[]
+  recurringPosts              RecurringPost[]
+  mediaAssets                 MediaAsset[]
+  tasks                       Task[]
+  customReports               CustomReport[]               @relation("CustomReportProject")
 
   @@unique([accountId, name])
-  @@index([accountId])
-  @@index([createdAt])
-  @@index([locale])
-  @@index([isInCrisisMode])
+  @@index([accountId], where: { deletedAt: null })
+  @@index([createdAt], where: { deletedAt: null })
+  @@index([locale], where: { deletedAt: null })
+  @@index([isInCrisisMode], where: { deletedAt: null })
   @@index([deletedAt])
 }
 
 model Post {
-  id              String            @id @default(uuid())
-  projectId       String
-  status          String            @default("DRAFT")
-  scheduledAt     DateTime?
-  publishedAt     DateTime?         // ✅ Phase 1: Added missing field referenced in code
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  project         Project           @relation(fields: [projectId], references: [id])
-  contents        PostContent[]
-  media           PostMedia[]
-  thread          Thread?
-  publishingQueue PublishingQueue[]
-  contentVersions ContentVersion[]
-  webhookEvents   WebhookEvent[]
-  analytics       Analytics[]       // ✅ Phase 1: Added relationship (fixes N+1 queries)
-  publishLogs     PublishLog[]      // ✅ Phase 1: Added relationship (fixes N+1 queries)
-  approvalRequests ApprovalRequest[]
-  comments        PostComment[]
-  socialMessages  SocialMessage[]
-  campaignPosts   CampaignPost[]
-  firstComment          FirstComment?
-  repurposeProposals    RepurposeProposal[]  @relation("RepurposeSource")
-  repurposedVariants    RepurposeVariant[]   @relation("RepurposedPost")
-  deletedAt             DateTime?
+  id                 String              @id @default(uuid())
+  projectId          String
+  status             String              @default("DRAFT")
+  scheduledAt        DateTime?
+  publishedAt        DateTime? // ✅ Phase 1: Added missing field referenced in code
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  project            Project             @relation(fields: [projectId], references: [id])
+  contents           PostContent[]
+  media              PostMedia[]
+  thread             Thread?
+  publishingQueue    PublishingQueue[]
+  contentVersions    ContentVersion[]
+  webhookEvents      WebhookEvent[]
+  analytics          Analytics[] // ✅ Phase 1: Added relationship (fixes N+1 queries)
+  publishLogs        PublishLog[] // ✅ Phase 1: Added relationship (fixes N+1 queries)
+  approvalRequests   ApprovalRequest[]
+  comments           PostComment[]
+  socialMessages     SocialMessage[]
+  campaignPosts      CampaignPost[]
+  firstComment       FirstComment?
+  repurposeProposals RepurposeProposal[] @relation("RepurposeSource")
+  repurposedVariants RepurposeVariant[]  @relation("RepurposedPost")
+  deletedAt          DateTime?
 
-  // @@index([projectId]) - REMOVED: Covered by [projectId, status] and [projectId, createdAt]
-  // @@index([status]) - REMOVED: Low cardinality (only 3-4 values)
-  @@index([scheduledAt])
-  // @@index([createdAt]) - REMOVED: Covered by [projectId, createdAt]
-  @@index([projectId, status])
-  @@index([projectId, createdAt])
-  @@index([projectId, publishedAt]) // ✅ Phase 1: Added index for published posts queries
-  @@index([projectId, scheduledAt, status]) // ✅ Phase 4: For upcoming scheduled posts queries
+  @@index([scheduledAt], where: { deletedAt: null })
+  @@index([projectId, status], where: { deletedAt: null })
+  @@index([projectId, createdAt], where: { deletedAt: null })
+  @@index([projectId, publishedAt], where: { deletedAt: null })
+  @@index([projectId, scheduledAt, status], where: { deletedAt: null })
   @@index([deletedAt])
 }
 
@@ -686,55 +683,56 @@ model PostMedia {
 }
 
 model Channel {
-  id          String       @id @default(uuid())
-  projectId   String
-  provider    Provider
-  handle      String
-  credentials Json
-  isPrimary   Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  project     Project      @relation(fields: [projectId], references: [id])
-  publishLogs PublishLog[]
-  analytics   Analytics[]
-  socialMessages   SocialMessage[]
+  id                  String               @id @default(uuid())
+  projectId           String
+  provider            Provider
+  handle              String
+  credentials         Json
+  isPrimary           Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  project             Project              @relation(fields: [projectId], references: [id])
+  publishLogs         PublishLog[]
+  analytics           Analytics[]
+  socialMessages      SocialMessage[]
   socialConversations SocialConversation[]
-  deletedAt   DateTime?
-  // T4-I: channel auth lifecycle. `needsReauth` is flipped by workers when
+  deletedAt           DateTime?
+  // Channel auth lifecycle. `needsReauth` is flipped by workers when
   // the provider returns AUTH; cleared when the user completes the OAuth
   // re-grant flow. `authFailedAt` and `authFailureReason` retain context
-  // for inspection / debug. Partial index on `needsReauth = true` declared
-  // in migration.sql (Prisma `@@index` does not support WHERE clauses yet).
-  needsReauth        Boolean   @default(false)
-  authFailedAt       DateTime?
-  authFailureReason  String?
+  // for inspection / debug.
+  needsReauth         Boolean              @default(false)
+  authFailedAt        DateTime?
+  authFailureReason   String?
 
-  @@index([projectId])
-  @@index([provider])
-  @@index([projectId, provider])
-  @@index([createdAt])
+  @@index([projectId], where: { deletedAt: null })
+  @@index([provider], where: { deletedAt: null })
+  @@index([projectId, provider], where: { deletedAt: null })
+  @@index([createdAt], where: { deletedAt: null })
   @@index([deletedAt])
+  @@index([needsReauth], where: { needsReauth: true }, map: "Channel_needsReauth_idx")
+  @@unique([projectId, provider], where: { isPrimary: true, deletedAt: null }, map: "Channel_projectId_provider_isPrimary_unique")
 }
 
 model TrackedLink {
-  id          String      @id @default(uuid())
+  id          String   @id @default(uuid())
   projectId   String
   originalUrl String
-  shortCode   String      @unique
+  shortCode   String   @unique
   vanitySlug  String?
-  clicks      Int         @default(0)
-  isActive    Boolean     @default(true)
+  clicks      Int      @default(0)
+  isActive    Boolean  @default(true)
   utmSource   String?
   utmMedium   String?
   utmCampaign String?
   utmContent  String?
   utmTerm     String?
   campaignId  String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  linkClicks  LinkClick[]
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  linkClicks LinkClick[]
 
   @@index([projectId, isActive])
   @@index([shortCode])
@@ -744,16 +742,16 @@ model TrackedLink {
 }
 
 model LinkClick {
-  id            String      @id @default(uuid())
+  id            String   @id @default(uuid())
   trackedLinkId String
-  timestamp     DateTime    @default(now())
+  timestamp     DateTime @default(now())
   referrer      String?
   userAgent     String?
   ipAddress     String?
   country       String?
   city          String?
 
-  trackedLink   TrackedLink @relation(fields: [trackedLinkId], references: [id], onDelete: Cascade)
+  trackedLink TrackedLink @relation(fields: [trackedLinkId], references: [id], onDelete: Cascade)
 
   @@index([trackedLinkId, timestamp])
   @@index([country])
@@ -1510,9 +1508,9 @@ model WebhookEvent {
   updatedAt   DateTime  @updatedAt
 
   // Relationships
-  account Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  post    Post?    @relation(fields: [postId], references: [id], onDelete: SetNull)
+  account       Account?       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project       Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  post          Post?          @relation(fields: [postId], references: [id], onDelete: SetNull)
   socialMessage SocialMessage?
 
   @@unique([provider, eventId]) // Prevent duplicate events
@@ -1760,13 +1758,11 @@ model Template {
   collaborations  TemplateCollaboration[]
   analytics       TemplateAnalytics[]
 
-  @@index([projectId, isActive])
-  @@index([accountId, isActive])
-  @@index([category])
-  @@index([platforms])
-  @@index([tags])
-  // @@index([createdAt]) - REMOVED: Rarely queried alone for templates
-  // @@index([updatedAt]) - REMOVED: Rarely queried alone for templates
+  @@index([projectId, isActive], where: { deletedAt: null })
+  @@index([accountId, isActive], where: { deletedAt: null })
+  @@index([category], where: { deletedAt: null })
+  @@index([platforms], where: { deletedAt: null })
+  @@index([tags], where: { deletedAt: null })
   @@index([deletedAt])
 }
 
@@ -2034,12 +2030,10 @@ model OutboxEvent {
   createdAt     DateTime  @default(now())
   claimedAt     DateTime?
   claimedBy     String?
-
   @@index([aggregateId, aggregateType])
   @@index([eventType])
   @@index([createdAt])
-  // Partial index `idx_outbox_claim_hot` declared in migration.sql
-  // (Prisma does not support WHERE clauses on @@index yet).
+  @@index([nextRetryAt, occurredAt], where: raw("\"publishedAt\" IS NULL AND \"retryCount\" < \"maxRetries\""), map: "idx_outbox_claim_hot")
 }
 
 model OutboxInbox {
@@ -2128,13 +2122,13 @@ model SocialMessage {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
-  account         Account              @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project         Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  channel         Channel              @relation(fields: [channelId], references: [id])
-  conversation    SocialConversation?  @relation(fields: [conversationId], references: [id])
-  webhookEvent    WebhookEvent?        @relation(fields: [webhookEventId], references: [id], onDelete: SetNull)
-  relatedPost     Post?                @relation(fields: [relatedPostId], references: [id], onDelete: SetNull)
-  assignee        TeamMember?          @relation("MessageAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  account         Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channel         Channel               @relation(fields: [channelId], references: [id])
+  conversation    SocialConversation?   @relation(fields: [conversationId], references: [id])
+  webhookEvent    WebhookEvent?         @relation(fields: [webhookEventId], references: [id], onDelete: SetNull)
+  relatedPost     Post?                 @relation(fields: [relatedPostId], references: [id], onDelete: SetNull)
+  assignee        TeamMember?           @relation("MessageAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   outboundReplies SocialOutboundReply[]
 
   @@unique([provider, providerMessageId])
@@ -2163,12 +2157,12 @@ model SocialConversation {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  account    Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project    Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  channel    Channel         @relation(fields: [channelId], references: [id])
+  account    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channel    Channel            @relation(fields: [channelId], references: [id])
   messages   SocialMessage[]
   notes      ConversationNote[]
-  resolvedBy TeamMember?     @relation("ConversationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedBy TeamMember?        @relation("ConversationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@index([accountId, projectId, isResolved])
   @@index([channelId, provider])
@@ -2184,11 +2178,11 @@ model ConversationNote {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  conversation   SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  author         TeamMember         @relation("NoteAuthor", fields: [authorId], references: [id])
+  conversation SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author       TeamMember         @relation("NoteAuthor", fields: [authorId], references: [id])
 
-  @@index([conversationId])
-  @@index([authorId])
+  @@index([conversationId], where: { deletedAt: null })
+  @@index([authorId], where: { deletedAt: null })
 }
 
 model SocialOutboundReply {
@@ -2228,7 +2222,7 @@ model Campaign {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   posts   CampaignPost[]
 
   @@index([projectId, status])
@@ -2316,7 +2310,7 @@ model ScheduledReport {
 model ExternalNotificationConfig {
   id         String   @id @default(uuid())
   projectId  String
-  channel    String   // "slack" | "teams"
+  channel    String // "slack" | "teams"
   webhookUrl String
   label      String
   events     String[]
@@ -2394,7 +2388,7 @@ enum ReportFormat {
 
 model AIPromptTemplate {
   id        String   @id @default(uuid())
-  accountId String?  // null = global system template
+  accountId String? // null = global system template
   name      String
   category  String
   platforms String[]
@@ -2411,15 +2405,15 @@ model AIPromptTemplate {
 }
 
 model UsageMetric {
-  id               String   @id @default(uuid())
-  accountId        String
-  periodYear       Int
-  periodMonth      Int      // 1-12
-  postsPublished   Int      @default(0)
-  aiCallsMade      Int      @default(0)
-  storageGb        Float    @default(0)
-  teamMemberCount  Int      @default(0)
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(uuid())
+  accountId       String
+  periodYear      Int
+  periodMonth     Int // 1-12
+  postsPublished  Int      @default(0)
+  aiCallsMade     Int      @default(0)
+  storageGb       Float    @default(0)
+  teamMemberCount Int      @default(0)
+  updatedAt       DateTime @updatedAt
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2580,8 +2574,8 @@ model CustomReport {
   updatedAt      DateTime        @updatedAt
 
   schedules ReportSchedule[]
-  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project   Project? @relation("CustomReportProject", fields: [projectId], references: [id])
+  account   Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project   Project?         @relation("CustomReportProject", fields: [projectId], references: [id])
 
   @@index([accountId])
   @@index([createdById])
@@ -2730,15 +2724,15 @@ model MediaAsset {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  account Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project Project?     @relation(fields: [projectId], references: [id])
-  folder  AssetFolder? @relation(fields: [folderId], references: [id])
+  account Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project Project?          @relation(fields: [projectId], references: [id])
+  folder  AssetFolder?      @relation(fields: [folderId], references: [id])
   tags    AssetTagOnAsset[]
 
-  @@index([accountId])
-  @@index([projectId])
-  @@index([folderId])
-  @@index([mimeType])
+  @@index([accountId], where: { deletedAt: null })
+  @@index([projectId], where: { deletedAt: null })
+  @@index([folderId], where: { deletedAt: null })
+  @@index([mimeType], where: { deletedAt: null })
   @@index([deletedAt])
 }
 
@@ -2789,7 +2783,8 @@ model ProviderPricingTier {
   id                    String   @id @default(cuid())
   minProviders          Int
   maxProviders          Int?
-  pricePerProviderMonth Decimal  @db.Decimal(10, 2)
+  /// Money: industry canon Decimal(19,4) — accommodates GAAP rounding tolerance + sub-cent precision.
+  pricePerProviderMonth Decimal  @db.Decimal(19, 4)
   isActive              Boolean  @default(true)
   effectiveFrom         DateTime @default(now())
   createdAt             DateTime @default(now())
@@ -2801,7 +2796,8 @@ model AccountPricingTier {
   id            String   @id @default(cuid())
   minAccounts   Int
   maxAccounts   Int?
-  multiplier    Decimal  @db.Decimal(4, 3)
+  /// Multiplier/rate: Decimal(10,6) — supports basis-point precision.
+  multiplier    Decimal  @db.Decimal(10, 6)
   isActive      Boolean  @default(true)
   effectiveFrom DateTime @default(now())
   createdAt     DateTime @default(now())
@@ -2815,23 +2811,24 @@ model ProviderBundle {
   slug                 String     @unique
   description          String
   providers            Provider[]
-  pricePerAccountMonth Decimal    @db.Decimal(10, 2)
+  /// Money: industry canon Decimal(19,4).
+  pricePerAccountMonth Decimal    @db.Decimal(19, 4)
   isActive             Boolean    @default(true)
   sortOrder            Int        @default(0)
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
 
-  subscriptions    AccountSubscription[]
-  featureFlags     BundleFeatureFlag[]
+  subscriptions AccountSubscription[]
+  featureFlags  BundleFeatureFlag[]
 }
 
 model BundleFeatureFlag {
-  id         String          @id @default(cuid())
+  id         String  @id @default(cuid())
   bundleId   String?
   featureKey String
-  isEnabled  Boolean         @default(true)
+  isEnabled  Boolean @default(true)
 
-  bundle     ProviderBundle? @relation(fields: [bundleId], references: [id])
+  bundle ProviderBundle? @relation(fields: [bundleId], references: [id])
 
   @@unique([bundleId, featureKey])
 }
@@ -2843,7 +2840,8 @@ model AccountSubscription {
   providers              Provider[]
   accountCount           Int                @default(1)
   maxProjects            Int                @default(3)
-  pricePerMonth          Decimal            @db.Decimal(10, 2)
+  /// Money: industry canon Decimal(19,4).
+  pricePerMonth          Decimal            @db.Decimal(19, 4)
   status                 SubscriptionStatus @default(TRIALING)
   externalSubscriptionId String?
   externalCustomerId     String?
@@ -2857,8 +2855,8 @@ model AccountSubscription {
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 
-  account  Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  bundle   ProviderBundle? @relation(fields: [bundleId], references: [id])
+  account  Account                    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  bundle   ProviderBundle?            @relation(fields: [bundleId], references: [id])
   history  SubscriptionPriceHistory[]
   invoices Invoice[]
 
@@ -2866,14 +2864,16 @@ model AccountSubscription {
 }
 
 model SubscriptionPriceHistory {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   subscriptionId String
-  previousPrice  Decimal  @db.Decimal(10, 2)
-  newPrice       Decimal  @db.Decimal(10, 2)
+  /// Money: industry canon Decimal(19,4).
+  previousPrice  Decimal   @db.Decimal(19, 4)
+  /// Money: industry canon Decimal(19,4).
+  newPrice       Decimal   @db.Decimal(19, 4)
   reason         String
   effectiveAt    DateTime
   notifiedAt     DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   subscription AccountSubscription @relation(fields: [subscriptionId], references: [id])
 
@@ -3134,11 +3134,11 @@ model DsarRequest {
 }
 
 model DataBreachReport {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
   title                String
   description          String
   discoveredAt         DateTime
-  reportedAt           DateTime @default(now())
+  reportedAt           DateTime  @default(now())
   reportedBy           String
   affectedUserCount    Int?
   dataTypesAffected    String[]
@@ -3147,25 +3147,25 @@ model DataBreachReport {
   notificationSentBy   String?
   regulatoryReportedAt DateTime?
   regulatoryReportedTo String?
-  resolved             Boolean  @default(false)
+  resolved             Boolean   @default(false)
   resolvedAt           DateTime?
   internalNotes        String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 }
 
 // ─── Referral Program (Sprint 8) ────────────────────────────────────────────
 
 model ReferralCode {
-  id          String     @id @default(cuid())
-  accountId   String     @unique
-  code        String     @unique
-  usageCount  Int        @default(0)
-  conversions Int        @default(0)
-  createdAt   DateTime   @default(now())
+  id          String   @id @default(cuid())
+  accountId   String   @unique
+  code        String   @unique
+  usageCount  Int      @default(0)
+  conversions Int      @default(0)
+  createdAt   DateTime @default(now())
 
-  account     Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  referrals   Referral[]
+  account   Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  referrals Referral[]
 }
 
 model Referral {
@@ -3178,7 +3178,7 @@ model Referral {
   convertedAt       DateTime?
   createdAt         DateTime       @default(now())
 
-  referralCode      ReferralCode   @relation(fields: [referralCodeId], references: [id])
+  referralCode ReferralCode @relation(fields: [referralCodeId], references: [id])
 
   @@index([referralCodeId])
   @@index([referredAccountId])
@@ -3199,14 +3199,16 @@ model RepurposeProposal {
   sourcePostId         String
   sourcePlatform       Provider
   status               RepurposeStatus @default(PENDING)
-  engagementRate       Decimal         @db.Decimal(8, 4)
-  engagementMultiplier Decimal         @db.Decimal(6, 2)
+  /// Rate: Decimal(10,6) — basis-point precision.
+  engagementRate       Decimal         @db.Decimal(10, 6)
+  /// Multiplier: Decimal(10,6) — basis-point precision.
+  engagementMultiplier Decimal         @db.Decimal(10, 6)
   detectedAt           DateTime        @default(now())
   reviewedAt           DateTime?
   reviewedBy           String?
 
-  account    Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  sourcePost Post                @relation("RepurposeSource", fields: [sourcePostId], references: [id])
+  account    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  sourcePost Post               @relation("RepurposeSource", fields: [sourcePostId], references: [id])
   variants   RepurposeVariant[]
 
   @@index([accountId, status])

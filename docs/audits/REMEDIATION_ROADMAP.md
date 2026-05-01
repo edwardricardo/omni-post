@@ -2416,26 +2416,69 @@ grep -rn "Simulate ClamAV\|scanForMalware.*placeholder" apps/api/src/ | wc -l   
 
 ---
 
-#### T4-T — Schema FK gaps + CHECK constraints
+#### T4-T — Schema FK gaps + CHECK constraints ✅ 2026-05-01
 
-**Scope.** FK gaps, partial indexes, CHECK constraints composites.
+**Scope.** Schema integrity: NULL-trap fixes, CHECK constraints, partial soft-delete indexes, FK gaps, Decimal precision standardization.
 
 **Findings table (6):**
 
-| L-#   | Título corto                            | Esfuerzo | Acción | §5.9 | Notas                                    |
-| ----- | --------------------------------------- | -------- | ------ | ---- | ---------------------------------------- |
-| L-534 | Composite unique NULL-trap (3 files)    | MEDIUM   | FIX    | AUTO | Partial indexes                          |
-| L-535 | CHECK constraints composite (5+ fields) | HEAVY    | FIX    | AUTO | Raw migrations con CHECK                 |
-| L-536 | Partial indexes missing soft-delete     | MEDIUM   | FIX    | AUTO | Partial indexes WHERE deleted_at IS NULL |
-| L-539 | `DataBreachReport` FK gap               | QUICK    | FIX    | AUTO | Declare relation                         |
-| L-540 | `ConsentRecord` FK gap                  | QUICK    | FIX    | AUTO | Declare relation + cascade               |
-| L-541 | Decimal precision inconsistency         | QUICK    | FIX    | AUTO | Standard: money 19,4 / rates 10,6        |
+| L-#   | Título corto                        | Esfuerzo | Acción | §5.9 | Status      | Resolución                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----- | ----------------------------------- | -------- | ------ | ---- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-534 | Composite unique NULL-trap          | MEDIUM   | FIX    | AUTO | RESUELTO ✅ | 5 sitios audited (no "10+"): AdminUserPermission, WebhookSubscription, AnalyticsDailySummary, AnalyticsMonthlySummary, BundleFeatureFlag. Todos → `UNIQUE NULLS NOT DISTINCT` (PG15+) por business intent treat-NULL-as-value. Raw SQL migration (Prisma no expone el modifier).                                                                                                                                                                     |
+| L-535 | CHECK constraints composite         | HEAVY    | FIX    | AUTO | RESUELTO ✅ | 13 CHECK constraints date/numeric range pairs (`Account.trial`, `VideoSegment.time`, `InstagramAnalytics.period`, `ABTest.dates`, `TemplateAnalytics.dates`, `Campaign.dates`, `RecurringPost.dates`, `CustomReport.dateRange`, `ProviderPricingTier.providers`, `AccountPricingTier.accounts`, `AccountSubscription.period`, `Invoice.period`, `SystemAnnouncement.window`). Two-phase: NOT VALID → data audit (0 offenders) → VALIDATE CONSTRAINT. |
+| L-536 | Partial indexes missing soft-delete | MEDIUM   | FIX    | AUTO | RESUELTO ✅ | 10 modelos audited: Account, CustomerUser, Task, PostComment, Project, Post, Channel, Template, ConversationNote, MediaAsset. ~34 indexes convertidos a `WHERE "deletedAt" IS NULL` partial via Prisma `partialIndexes` preview flag + `where: { deletedAt: null }` syntax. Indexes en `deletedAt` mismo se mantienen non-partial (cleanup jobs).                                                                                                    |
+| L-539 | `DataBreachReport` FK gap           | QUICK    | FIX    | AUTO | DEFERRED ⏸️ | Modelo es **0-callers orphan** — sin saber wiring real, agregar FK puede ser premature. Surfaced a Edward como **PR-36**: 3 opciones (WIRE+FK / DELETE / DEPRECATE+loose-audit-trail).                                                                                                                                                                                                                                                               |
+| L-540 | `ConsentRecord` FK gap              | QUICK    | FIX    | AUTO | DEFERRED ⏸️ | Idem PR-36. `userId` ambiguo (TeamMember/CustomerUser/AdminUser?), `accountId` mecánico una vez aclarado userId.                                                                                                                                                                                                                                                                                                                                     |
+| L-541 | Decimal precision inconsistency     | QUICK    | FIX    | AUTO | RESUELTO ✅ | 8 de 9 sitios estandarizados: 5 money (`pricePerProviderMonth`, `pricePerAccountMonth`, `pricePerMonth`, `previousPrice`, `newPrice`) → `Decimal(19,4)`. 3 rate/multiplier (`multiplier`, `engagementRate`, `engagementMultiplier`) → `Decimal(10,6)`. JSDoc rationale per field. 9no (`sentimentScore` 0-callers) → **PR-37** backlog.                                                                                                              |
 
-**Entry criteria.** Ninguno.
+**Drive-by:**
 
-**Exit criteria:** migration applied + data integrity verified.
+- `infra/prisma/schema.prisma`: enabled `partialIndexes` preview flag.
+- `Channel_needsReauth_idx`, `Channel_projectId_provider_isPrimary_unique`, `idx_outbox_claim_hot`: declarados ahora en schema (eran raw-SQL-only, causaban migration drift por Prisma issue #23734).
+- `docs/architecture/schema-conventions.md` creado: Decimal precision per category, NULLS NOT DISTINCT decision tree, CHECK two-phase pattern, soft-delete partial-index rule, FK loose-string trade-off.
 
-**Estimación.** 6-10 h.
+**Backlog deferral:**
+
+- **PR-36**: ConsentRecord + DataBreachReport FK decisions (NEEDS_EDWARD — orphan models, unclear FK targets).
+- **PR-37**: sentimentScore precision verification (low priority — 0 callers, scale unknown).
+
+**Canon-driven decisiones** (refs en `~/.claude/.../canon_research_index.md` §Database section, 7 entries nuevos):
+
+- **NULLS NOT DISTINCT** (PG15+ docs + pganalyze): canon for treat-NULL-as-value uniqueness intent. Prisma schema no expone modifier → raw SQL.
+- **CHECK constraints** (Prisma issue #3388 + Squawk): Prisma never supports schema-level CHECK; canon workflow es `migrate dev --create-only` + raw SQL append. **NOT VALID first** (no full table scan), VALIDATE CONSTRAINT después de data audit.
+- **Partial indexes** (Prisma docs + Atlas + SQL for Devs): `partialIndexes` preview flag; `where:` object-literal for simple equality, `raw()` for column-vs-column comparisons.
+- **Decimal precision** (Crunchy Data + Rietta): `(19,4)` money industry canon; `(10,6)` rates; `(5,2)` percentages; `(4,3)` bounded scores. Widening migrations safe; narrowing requires USING + audit.
+- **Migration drift** (Prisma issue #23734): partial indexes created via raw SQL but not declared in schema get dropped on every migrate. Resolution: declare partials in schema with `where:` + `map:` so Prisma recognizes them.
+
+**Migrations creadas (4):**
+
+1. `20260501210520_t4t_partial_indexes_and_decimal_precision`: 34 partial indexes + 7 Decimal precision ALTER COLUMN.
+2. `20260501210635_t4t_unique_nulls_not_distinct`: 5 unique indexes recreated con NULLS NOT DISTINCT.
+3. `20260501210731_t4t_check_constraints_not_valid`: 13 CHECK constraints added NOT VALID.
+4. `20260501210847_t4t_validate_check_constraints`: 13 VALIDATE CONSTRAINT statements (post data audit, 0 offenders).
+
+**Exit criteria** (todos cumplidos):
+
+```bash
+# 1. NULLS NOT DISTINCT applied (5 sites)
+psql -d omnipostdb -c "SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexdef LIKE '%NULLS NOT DISTINCT%'"   # → 5
+
+# 2. CHECK constraints validated (13 sites)
+psql -d omnipostdb -c "SELECT count(*) FROM pg_constraint WHERE contype='c' AND conname LIKE '%_check' AND convalidated"     # → ≥13
+
+# 3. Partial indexes (soft-delete predicate present)
+psql -d omnipostdb -c "SELECT count(*) FROM pg_indexes WHERE indexdef LIKE '%deletedAt%IS NULL%'"                            # → ~34
+
+# 4. Decimal precision: 0 money fields en (10,2)
+grep -E "price.*@db\.Decimal\(10, 2\)" infra/prisma/schema.prisma | wc -l                                                    # → 0
+
+# 5. Suite verde
+pnpm lint --max-warnings 0   # 0/0
+pnpm --filter @apps/api test # green
+pnpm build                    # 10/10
+```
+
+**Estimación.** 6-10 h roadmap → ~5 h ejecución real.
 
 **Dependencias.** INDEPENDENT.
 

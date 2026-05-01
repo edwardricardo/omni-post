@@ -1739,6 +1739,51 @@ Cuando se prioritice un batch dedicado a "auth architecture finalization" o cuan
 
 ---
 
+### PR-36 — FK gap decisions on dead models (ConsentRecord + DataBreachReport)
+
+**Fecha de surfacing:** 2026-05-01 (deferred from T4-T)
+**Severidad:** bajo — modelos sin callers en runtime
+**Tipo:** decision NEEDS_EDWARD
+
+**Contexto.** T4-T audit identificó 2 modelos GDPR-relacionados con campos id-shaped sin `@relation`:
+
+- **`ConsentRecord`** (línea 3092): `userId: String?` y `accountId: String?` sin `@relation`. Compare con `DsarRequest` que sí tiene `account Account? @relation(...)`.
+- **`DataBreachReport`** (línea 3136): `reportedBy: String` y `notificationSentBy: String?` parecen userId references como strings.
+
+**Verificación**: 0 callers fuera del schema en `apps/` y `packages/`. Ambos modelos orphan.
+
+**Tres preguntas (CLAUDE.md feedback rule):** GDPR/compliance scaffold; sin callers; no equivalent activo → NO clear DELETE.
+
+**Decisiones requeridas:**
+
+- `ConsentRecord.userId`: ¿FK a `TeamMember`, `CustomerUser`, o `AdminUser`? O loose-string by design?
+- `ConsentRecord.accountId`: FK a `Account` (parallel a DsarRequest) → mecánico una vez aclarado lo de userId.
+- `DataBreachReport.reportedBy` + `notificationSentBy`: ¿FK a `AdminUser` o loose audit-trail strings?
+
+**Por qué no se cerró en T4-T.** Sin callers, agregar FK requiere conocer cuál user table es el target. Surfaced explícitamente per "ask, don't assume" rule.
+
+**Plan**: 3 opciones (WIRE+FK / DELETE / DEPRECATE+loose). Bloqueado por Edward decision.
+
+**Estado:** PENDING — NEEDS_EDWARD (surfaced del T4-T 2026-05-01).
+
+---
+
+### PR-37 — `sentimentScore` Decimal precision verification (0 callers)
+
+**Fecha de surfacing:** 2026-05-01 (deferred from T4-T)
+**Severidad:** trivial
+**Tipo:** decision NEEDS_EDWARD (low priority)
+
+**Contexto.** T4-T standardizó 8 de 9 Decimal sites. El 9no, `sentimentScore? @db.Decimal(3, 2)` (RepurposeProposal model línea 2126), tiene 0 callers en `apps/` y `packages/`. Sin callers la scale no es verificable (¿0-1 normalized? ¿-1 to +1 polarity? ¿0-100 percentage?).
+
+**Por qué no se cerró en T4-T.** Cambiar precision sin saber scale puede romper future wiring. Per strict mandate "verify caller behavior, not file description" — no callers means no verifiable behavior.
+
+**Plan**: cuando feature wire-up suceda → determine scale → apply canon precision + range CHECK.
+
+**Estado:** PENDING — low priority (surfaced del T4-T 2026-05-01).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
