@@ -65,6 +65,10 @@ export const TOKENS = {
   OutboxWriter: Symbol.for("OutboxWriter"),
   OutboxRelay: Symbol.for("OutboxRelay"),
   OutboxCleaner: Symbol.for("OutboxCleaner"),
+  // Outbox concurrent claim + idempotency (T4-C)
+  OutboxClaimService: Symbol.for("OutboxClaimService"),
+  OutboxBackoff: Symbol.for("OutboxBackoff"),
+  OutboxInbox: Symbol.for("OutboxInbox"),
 
   // Background task scheduler — centralised setInterval registry for all
   // recurring in-process work (cleanup jobs, health checks, metrics pushes).

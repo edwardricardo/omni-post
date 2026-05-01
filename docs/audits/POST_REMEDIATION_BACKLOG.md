@@ -1090,6 +1090,110 @@ Cuando observability reporte stream lengths > 100 eventos en aggregates relevant
 
 ---
 
+### PR-21 — `OutboxInboxCleaner` retention policy + cron task
+
+**Origen.** T4-C (2026-04-30) — implementación de tabla `outbox_inbox` (consumer-side dedupe).
+
+**Contexto.** T4-C agrega una tabla `outbox_inbox` (`messageId @id`, `processedAt`, `consumerId`) que persiste un row por cada evento procesado por un consumer del outbox. La tabla crece de forma monótona: cada dispatch del relay agrega una row, y nunca se purga. En estado estable, eso es ~100 rows/min por outbox event (asumiendo el polling cadence default), o sea ~150K rows/día. En el horizonte de 1 año = ~50M rows.
+
+El propósito de la tabla es defense-in-depth contra re-processing tras un crash o re-claim (lease expiry). El `messageId` solo es relevante mientras el evento podría ser re-claimed; una vez que el row del outbox tiene `publishedAt IS NOT NULL` y supera el retention de `OutboxCleaner` (default 7d), el inbox row asociado es vestigial.
+
+**Por qué no se cerró en T4-C.** La política de retention es una decisión separada que requiere observability data (¿cuántos rows tras N días?, ¿cuál es el query rate del lookup `tryClaimForProcessing`?). La implementación es trivial — clase `OutboxInboxCleaner` análoga a `OutboxCleaner`, registrada en `BackgroundTaskScheduler`.
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando ocurra alguna de:
+   - `outbox_inbox` row count > 1M (consultar `SELECT count(*) FROM outbox_inbox`).
+   - Latencia del `outboxInbox.create()` p95 > 50ms (índice degradado por table size).
+2. **Implementación esperada**:
+   - Crear `apps/api/src/infrastructure/outbox/OutboxInboxCleaner.ts` siguiendo el patrón de `OutboxCleaner.ts`.
+   - Default retention = 7 días (mismo que `OutboxCleaner`) — un message no puede ser re-claimed si ya pasó el retention del outbox event.
+   - Registrar en DI + start en `index.ts`.
+   - Tests análogos a `OutboxCleaner.test.ts`.
+
+**Bloqueado por.** Métricas reales de table growth.
+
+**Cuándo revisar.**
+
+Cuando se observe el patrón de growth en producción, o tras 30 días de uso del outbox post-T4-C.
+
+**Estado:** PENDING (deferred del T4-C 2026-04-30).
+
+---
+
+### PR-22 — Migración a CDC vía Debezium para outbox dispatch
+
+**Origen.** T4-C (2026-04-30) — escalabilidad futura.
+
+**Contexto.** T4-C usa el **polling publisher** pattern del Transactional Outbox (cada 1 s, batch hasta 100). Es el approach más simple y suficiente hasta volúmenes de ~10K events/min. Por encima de ese threshold, el polling overhead (CPU + DB load del UPDATE...WHERE IN SELECT) compite con el throughput legítimo.
+
+El alternative pattern es **transaction log tailing** vía Debezium (Kafka Connect): un proceso lee el WAL de PostgreSQL y publica events a Kafka inmediatamente, con latency p99 < 100ms y zero polling overhead. Es el approach usado por Netflix, Uber y la mayoría de sistemas de gran escala según el canon (`microservices.io transactional-outbox`).
+
+**Por qué no se cerró en T4-C.** Requiere infraestructura nueva: Kafka cluster + Debezium connector + connector config + Schema Registry. Cambio arquitectónico mayor que requiere decisión de producto sobre el message broker (Kafka vs Pulsar vs Redis Streams). El polling con SKIP LOCKED + jitter + lease (T4-C) resuelve los problemas inmediatos sin esa inversión.
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando ocurra alguna de:
+   - `OutboxEvent` row count > 100K activos (no-published) en cualquier momento.
+   - p95 dispatch latency > 5s (polling cadence dominando).
+   - Decisión de producto introduce dispatch externo (Kafka consumers, downstream services no-API).
+2. **Investigación previa requerida**:
+   - ¿Kafka, Pulsar, Redis Streams o NATS? — requiere decisión de stack.
+   - ¿Postgres logical decoding (`wal2json`/`pgoutput`)? — verificar config y replication slot management.
+   - Schema Registry (Confluent vs Apicurio) si Kafka.
+3. **Implementación esperada**:
+   - Habilitar `wal_level=logical` en PostgreSQL config.
+   - Deploy Debezium connector con `OutboxEvent` table como source.
+   - Migrar consumers downstream a leer del topic Kafka en lugar del `EventDispatcher` in-process.
+   - Mantener `OutboxRelay` como fallback durante migración (dual-dispatch period).
+   - Eventualmente retirar `OutboxRelay` y reemplazarlo por health-check del Debezium connector.
+
+**Bloqueado por.** Decisión de producto sobre message broker + presupuesto de infra.
+
+**Cuándo revisar.**
+
+Cuando volumen de outbox supere 100K events/min sostenidos, o cuando se introduzca el primer consumer downstream out-of-process.
+
+**Estado:** PENDING (deferred del T4-C 2026-04-30).
+
+---
+
+### PR-23 — `LISTEN/NOTIFY` para wake-up del OutboxRelay (latency optimization)
+
+**Origen.** T4-C (2026-04-30) — optimización de latency.
+
+**Contexto.** T4-C usa polling cadence default de 1s. Esto significa que un evento escrito al outbox a `t=0` espera promedio 500ms (worst case 1s) antes de ser dispatched. Para use cases donde la latency p99 de dispatch debe ser < 100ms (ej. real-time notifications, webhook delivery con SLA), el polling 1s es insuficiente.
+
+El optimización canónica es PostgreSQL `LISTEN/NOTIFY`: el `PrismaOutboxWriter.writeEvents()` emite `pg_notify('outbox_new_event', ...)` después del INSERT, y el `OutboxRelay` mantiene una connection con `LISTEN outbox_new_event` que dispara una `poll()` inmediatamente cuando llega notification. El polling timer queda como fallback para eventos perdidos (NOTIFY no garantiza delivery).
+
+**Por qué no se cerró en T4-C.** Requiere mantener una connection PG dedicada al LISTEN (no puede compartirse con el pool), más manejo de reconexión + buffer de notifications durante reconnect. Es complejidad significativa para una optimización que actualmente no tiene métricas que la justifiquen.
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando ocurra alguna de:
+   - p99 dispatch latency observada > 1s y se requiere SLA < 500ms.
+   - Use case introducido que necesita real-time delivery (UI live updates, real-time webhooks).
+2. **Investigación previa**:
+   - Canon: `https://www.postgresql.org/docs/current/sql-notify.html`.
+   - Pattern: ya usado por `pg-listen` (Node lib) y supabase realtime.
+   - Trade-off: NOTIFY no es transactional con la transacción que lo emite — el listener puede recibirlo antes del COMMIT del writer. Solución: hacer el writer notificar **después** del COMMIT vía `process.nextTick` post-transaction, o aceptar el race y confiar en que el polling lo captura.
+3. **Implementación esperada**:
+   - `OutboxRelay` recibe un `pg.Client` dedicado (no del pool).
+   - `LISTEN outbox_new_event` en el dedicated client.
+   - `pg_notify('outbox_new_event', '')` después del COMMIT en `PrismaOutboxWriter`.
+   - On notification → llamar `poll()` (debounce si llegan muchas a la vez).
+   - Polling fallback cada 5s en lugar de 1s (NOTIFY cubre el happy path).
+
+**Bloqueado por.** Métricas observability (latency p99) + decisión de producto sobre real-time SLA.
+
+**Cuándo revisar.**
+
+Cuando se introduzca un use case que requiera real-time dispatch o cuando latency p99 > 1s sea visible en dashboards.
+
+**Estado:** PENDING (deferred del T4-C 2026-04-30).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

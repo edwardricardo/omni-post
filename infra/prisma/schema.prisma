@@ -1591,6 +1591,7 @@ model OutboxDeadLetter {
   originalEventId String    @unique
   eventType       String
   aggregateId     String
+  aggregateType   String    @default("unknown")
   payload         Json
   failureReason   String
   retryCount      Int
@@ -2023,11 +2024,23 @@ model OutboxEvent {
   maxRetries    Int       @default(5)
   nextRetryAt   DateTime  @default(now())
   createdAt     DateTime  @default(now())
+  claimedAt     DateTime?
+  claimedBy     String?
 
-  @@index([publishedAt, nextRetryAt])
   @@index([aggregateId, aggregateType])
   @@index([eventType])
   @@index([createdAt])
+  // Partial index `idx_outbox_claim_hot` declared in migration.sql
+  // (Prisma does not support WHERE clauses on @@index yet).
+}
+
+model OutboxInbox {
+  messageId   String   @id
+  processedAt DateTime @default(now())
+  consumerId  String
+
+  @@index([processedAt])
+  @@map("outbox_inbox")
 }
 
 // Saga Pattern - durable saga instance persistence

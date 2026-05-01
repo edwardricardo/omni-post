@@ -1781,26 +1781,51 @@ grep -n "ensureTable" apps/api/src/events/EventStore.ts apps/api/src/events/Even
 
 ---
 
-#### T4-C — Outbox concurrent claim fix 🔒
+#### T4-C — Outbox concurrent claim fix 🔒 ✅ 2026-04-30
 
-**Scope.** OutboxRelay sin SELECT FOR UPDATE SKIP LOCKED + 3 issues outbox composite.
+**Scope.** OutboxRelay sin SELECT FOR UPDATE SKIP LOCKED + 3 issues outbox composite. Aplicada solución completa lease-based con consumer-side dedupe + full-jitter backoff.
 
 **Findings table (2):**
 
-| L-#  | Título corto                                           | Esfuerzo | Acción | §5.9 | Notas              |
-| ---- | ------------------------------------------------------ | -------- | ------ | ---- | ------------------ |
-| L-43 | `OutboxRelay` sin `SELECT FOR UPDATE SKIP LOCKED`      | MEDIUM   | FIX    | AUTO | Composite con L-22 |
-| L-22 | Outbox pattern — 3 issues (race, idempotency, backoff) | HEAVY    | FIX    | AUTO |                    |
+| L-#  | Título corto                                           | Esfuerzo | Acción | §5.9 | Status     | Resolución                                                                                                                                                                                                                  |
+| ---- | ------------------------------------------------------ | -------- | ------ | ---- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-43 | `OutboxRelay` sin `SELECT FOR UPDATE SKIP LOCKED`      | MEDIUM   | FIX    | AUTO | ✅ Cerrado | `OutboxClaimService.claim()` ejecuta `UPDATE…WHERE IN (SELECT…FOR UPDATE SKIP LOCKED LIMIT N) RETURNING` con lease columns.                                                                                                 |
+| L-22 | Outbox pattern — 3 issues (race, idempotency, backoff) | HEAVY    | FIX    | AUTO | ✅ Cerrado | (1) race: misma resolución que L-43; (2) idempotency: `OutboxInbox.tryClaimForProcessing` dedupe via `messageId @id` UNIQUE; (3) backoff: `OutboxBackoff.computeDelayMs` full-jitter `random(0, min(cap, base*2^attempt))`. |
 
-**Entry criteria.** Ninguno.
+**Issues adicionales descubiertos durante ejecución (todos cerrados en mismo batch):**
+
+1. **DLQ archival no atómico** — `outboxDeadLetter.create` + `outboxEvent.update` separados causaban loop infinito si el segundo fallaba (DLQ create violaba `originalEventId @unique` en re-poll). Corregido envolviendo en `prisma.$transaction([...])` dentro de `OutboxClaimService.archiveToDeadLetter`.
+2. **Admin retry no atómico** — `outboxAdminRoutes.ts:54-75` tenía la misma clase de bug. Wrap en `$transaction([create, update])`.
+3. **Admin route violando hexagonal** — `outboxAdminRoutes.ts:9` `import { prisma } from "@infra/prisma"` directo. Refactor a `fastify.container.resolve<PrismaClient>(TOKENS.PrismaClient)`.
+4. **DLQ schema perdía aggregateType** — `outboxAdminRoutes.ts:58` hardcodeaba `aggregateType: "unknown"` porque la tabla `OutboxDeadLetter` no preservaba el field. Schema migration agrega `aggregateType String @default("unknown")` (default solo para back-fill rows residuales en dev).
+
+**Implementación:**
+
+- **Schema migration** `20260501000706_add_outbox_concurrent_claim`:
+  - `OutboxEvent`: + `claimedAt`, `claimedBy` (lease columns).
+  - `OutboxDeadLetter`: + `aggregateType` con default back-fill.
+  - Drop índice `[publishedAt, nextRetryAt]`, replace por partial `idx_outbox_claim_hot ON OutboxEvent (nextRetryAt, occurredAt) WHERE publishedAt IS NULL AND retryCount < maxRetries` (Prisma no soporta `WHERE` en `@@index`, declarado en migration.sql).
+  - - tabla `outbox_inbox` con PK `messageId`.
+- **Servicios infra nuevos**: `OutboxClaimService` (atomic claim + lease + DLQ transactional), `OutboxBackoff` (full-jitter helper), `OutboxInbox` (consumer dedupe).
+- **Refactor `OutboxRelay`**: usa los 3 servicios via DI; mantiene API pública (`start`/`stop`/`poll`/`isRunning`); release-on-transient-failure + DLQ-on-exhausted vía servicios.
+- **DI**: `TOKENS.OutboxClaimService`, `TOKENS.OutboxBackoff`, `TOKENS.OutboxInbox` registrados; `workerId = ${hostname}-${pid}` para distinguir claims multi-pod.
+- **Tests**: 24 unit tests nuevos (`OutboxBackoff` 8, `OutboxInbox` 5, `OutboxClaimService` 11) + 11 tests `OutboxRelay` (6 preservados + 5 nuevos: dedupe-skip, DLQ rollback propagation, release-on-transient, no-reentrant-poll). Integration test 2-relays concurrent: seed 100 events, `Promise.all([rA.poll(), rB.poll()])` x10 ciclos, asserts dispatches=100 sin duplicates.
 
 **Exit criteria:**
 
 ```bash
-grep -n "FOR UPDATE SKIP LOCKED" apps/api/src/events/OutboxRelay.ts   # → ≥1
+grep -nE "FOR UPDATE SKIP LOCKED" apps/api/src/infrastructure/outbox/OutboxClaimService.ts   # ✅ 3
+grep -n "import.*prisma.*infra/prisma" apps/api/src/outbox/outboxAdminRoutes.ts               # ✅ 0
+grep -nE "Math\.pow\(2," apps/api/src/infrastructure/outbox/OutboxRelay.ts                    # ✅ 0
+grep -n "claimedAt" infra/prisma/schema.prisma                                                # ✅ 1
+grep -n "model OutboxInbox" infra/prisma/schema.prisma                                        # ✅ 1
 ```
 
-**Estimación.** 4-6 h.
+**Estimación / real.** Estimado 4-6 h / Real ~5 h.
+
+**Dependencias.** 🔒 BLOCKS_TIER cerrado.
+
+**Backlog deferred (PRs 21-23):** `OutboxInboxCleaner` retention (PR-21), CDC vía Debezium (PR-22), `LISTEN/NOTIFY` wake-up (PR-23) — fuera de scope T4-C, registrados en `POST_REMEDIATION_BACKLOG.md`.
 
 **Dependencias.** 🔒 BLOCKS_TIER.
 

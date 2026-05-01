@@ -11,6 +11,10 @@ import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { OutboxRelay } from "../outbox/OutboxRelay.js";
 import { OutboxCleaner } from "../outbox/OutboxCleaner.js";
+import { OutboxClaimService } from "../outbox/OutboxClaimService.js";
+import { OutboxBackoff } from "../outbox/OutboxBackoff.js";
+import { OutboxInbox } from "../outbox/OutboxInbox.js";
+import { hostname } from "os";
 import type { CrisisProjectRepository } from "../../application/crisis/types.js";
 import {
   EnterCrisisModeUseCase,
@@ -32,6 +36,27 @@ import {
  * Register outbox relay/cleaner, crisis mode, and scheduled report use cases
  */
 export function setupCrisisUseCases(container: Container): void {
+  // T4-C: concurrent claim, idempotent dispatch, full-jitter backoff.
+  // Worker identity must be unique per process so concurrent OutboxRelay
+  // instances (multi-pod or test harness) can distinguish their claims.
+  const workerId = `${hostname()}-${process.pid}`;
+
+  container.register<OutboxClaimService>(
+    TOKENS.OutboxClaimService,
+    () =>
+      new OutboxClaimService({
+        prisma: container.resolve(TOKENS.PrismaClient),
+        workerId,
+      }),
+    true
+  );
+  container.register<OutboxBackoff>(TOKENS.OutboxBackoff, () => new OutboxBackoff(), true);
+  container.register<OutboxInbox>(
+    TOKENS.OutboxInbox,
+    () => new OutboxInbox(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
   // Register Outbox Relay + Cleaner (P2-1)
   container.register<OutboxRelay>(
     TOKENS.OutboxRelay,
@@ -40,6 +65,10 @@ export function setupCrisisUseCases(container: Container): void {
         prisma: container.resolve(TOKENS.PrismaClient),
         eventDispatcher: container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
         scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        claimService: container.resolve<OutboxClaimService>(TOKENS.OutboxClaimService),
+        backoff: container.resolve<OutboxBackoff>(TOKENS.OutboxBackoff),
+        inbox: container.resolve<OutboxInbox>(TOKENS.OutboxInbox),
+        consumerId: workerId,
       }),
     true
   );
