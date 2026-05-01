@@ -8,6 +8,9 @@ import { PrismaClient } from "./generated/prisma/client/client.js";
 import { Provider } from "./generated/prisma/client/client.js";
 import argon2 from "argon2";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { createLogger } from "@observability/logger";
+
+const logger = createLogger("seed");
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -534,15 +537,18 @@ async function main() {
     });
   }
 
-  console.log("Seed OK", {
-    account,
-    project,
-    systemTemplates: systemTemplates.length,
-    adminUser: { email: adminUser.email, roleId: adminUser.roleId },
-    pricingTiers: providerTiers.length,
-    accountTiers: accountTiers.length,
-    bundles: bundles.length,
-  });
+  logger.info(
+    {
+      account,
+      project,
+      systemTemplates: systemTemplates.length,
+      adminUser: { email: adminUser.email, roleId: adminUser.roleId },
+      pricingTiers: providerTiers.length,
+      accountTiers: accountTiers.length,
+      bundles: bundles.length,
+    },
+    "Seed OK"
+  );
 
   await seedTestAccounts();
 }
@@ -791,9 +797,9 @@ async function seedTestAccounts() {
     }
   }
 
-  console.log(`Test accounts seeded: ${testAccounts.length}`);
+  logger.info({ count: testAccounts.length }, "Test accounts seeded");
 
-  // ─── Compliance Settings (Sprint C) ───────────────────────────────────────
+  // ─── Compliance Settings ──────────────────────────────────────────────────
   await prisma.gdprSettings.upsert({
     where: { id: "gdpr-singleton" },
     update: {},
@@ -810,7 +816,7 @@ async function seedTestAccounts() {
       enableBreachNotification: true,
     },
   });
-  console.log("GdprSettings seeded");
+  logger.info("GdprSettings seeded");
 
   await prisma.securitySettings.upsert({
     where: { id: "security-singleton" },
@@ -822,7 +828,7 @@ async function seedTestAccounts() {
       passwordMinLength: 8,
     },
   });
-  console.log("SecuritySettings seeded");
+  logger.info("SecuritySettings seeded");
 }
 
 main().finally(() => prisma.$disconnect());

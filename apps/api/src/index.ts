@@ -17,8 +17,8 @@ dotenv.config({ path: envPath, override: true });
 
 // ---- OpenTelemetry initialization (MUST happen before Fastify import) ----
 // Conditional on TRACING_ENABLED=true to avoid overhead in dev/test environments
-import pino from "pino";
-const otelLogger = pino({ name: "api-telemetry" });
+import { createLogger } from "./lib/logger.js";
+const otelLogger = createLogger("api-telemetry");
 
 if (process.env.TRACING_ENABLED === "true") {
   try {

@@ -2134,33 +2134,53 @@ grep -nE "executeInTransaction" apps/api/src/application/inbox/SyncProviderComme
 
 ---
 
-#### T4-M — Logger port + browser-logger 🔒
+#### T4-M — Logger port + browser-logger 🔒 ✅ 2026-05-01
 
-**Scope.** Logger port backend + browser-logger frontend. Habilita T2-B pendientes + otros items que dependen de LoggerPort.
+**Scope.** Cierre completo del logging infrastructure. Cinco findings YA estaban resueltos por T2-B (browser-logger creado, admin/client lib/logger.ts removidos) — verificados durante T4-M. Los dos restantes (L-552 seed.ts, L-361 pino direct imports) corregidos en este batch.
 
 **Findings table (7):**
 
-| L-#   | Título corto                                           | Esfuerzo | Acción | §5.9 | Notas                           |
-| ----- | ------------------------------------------------------ | -------- | ------ | ---- | ------------------------------- |
-| L-347 | `lib/logger.ts` console-based (cross-app admin/client) | QUICK    | FIX    | AUTO | Extract browser logger package  |
-| L-303 | `ErrorBoundary` console.error                          | —        | —      | —    | Already in T2-B (deferred part) |
-| L-110 | `error.tsx` uses console.error                         | —        | —      | —    | Already in T2-B (deferred part) |
-| L-382 | db-prisma logger no inyectado (usa console)            | TRIVIAL  | FIX    | AUTO | Inject `LoggerPort`             |
-| L-495 | `console.error` VirtualScrollList                      | TRIVIAL  | FIX    | AUTO | Logger port                     |
-| L-552 | `console.log` en seed.ts                               | TRIVIAL  | FIX    | AUTO | Inject logger                   |
-| L-361 | Shadowed logger variable                               | TRIVIAL  | FIX    | AUTO |                                 |
+| L-#   | Título corto                                           | Esfuerzo | Acción | §5.9 | Status     | Resolución                                                                                                                                                                                                                                                                                                                                               |
+| ----- | ------------------------------------------------------ | -------- | ------ | ---- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L-347 | `lib/logger.ts` console-based (cross-app admin/client) | QUICK    | FIX    | AUTO | ✅ Cerrado | Verificado en T4-M: `apps/admin/lib/logger.ts` y `apps/client/lib/logger.ts` ya removidos en T2-B; ambos apps usan `@observability/browser-logger`.                                                                                                                                                                                                      |
+| L-303 | `ErrorBoundary` console.error                          | —        | —      | —    | ✅ Cerrado | Verificado: `apps/admin/components/shared/ErrorBoundary.tsx` usa `BrowserLoggerPort` con `ConsoleLoggerAdapter` default.                                                                                                                                                                                                                                 |
+| L-110 | `error.tsx` uses console.error                         | —        | —      | —    | ✅ Cerrado | Verificado: `apps/admin/app/error.tsx` y `apps/client/app/error.tsx` usan `useLogger("admin.error-page")` desde `@observability/browser-logger`.                                                                                                                                                                                                         |
+| L-382 | db-prisma logger no inyectado (usa console)            | TRIVIAL  | FIX    | AUTO | ✅ Cerrado | Verificado: `packages/adapters/db-prisma/src/*` usa `createLogger` desde `@observability/logger`.                                                                                                                                                                                                                                                        |
+| L-495 | `console.error` VirtualScrollList                      | TRIVIAL  | FIX    | AUTO | ✅ Cerrado | Verificado: `packages/ui/src/components/VirtualScrollList.tsx` no tiene `console.*`.                                                                                                                                                                                                                                                                     |
+| L-552 | `console.log` en seed.ts                               | TRIVIAL  | FIX    | AUTO | ✅ Cerrado | 4 `console.log` reemplazados por `logger.info`. `infra/prisma/package.json` agrega `@observability/logger` como dependency.                                                                                                                                                                                                                              |
+| L-361 | Shadowed logger variable                               | TRIVIAL  | FIX    | AUTO | ✅ Cerrado | 5 archivos refactorizados (`index.ts`, `monitoring/cacheStatsRoutes.ts`, `middleware/autoCacheMiddleware.ts`, `lib/cache/cacheDecorators.ts`, `lib/route-handler/BaseRouteHandler.ts`): `import pino` directo → `createLogger(name)` desde `apps/api/src/lib/logger.ts`. Ahora todos heredan redaction config + service binding + test sync destination. |
 
-**Entry criteria.** Ninguno.
+**Trabajo adicional (canon-driven):**
+
+1. **CLAUDE.md §Logging & Observability** reescrito: el texto previo mencionaba un `LoggerPort` inexistente y declaraba `@observability/logger` como factory única. La sección ahora documenta las 3 factories reales (api con redaction / packages lightweight / browser) + cuándo usar cada una + cómo extender redaction paths con conscientiousness sobre case-sensitivity.
+2. **CLAUDE.md fitness check #13** agregado: `grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src` para prevenir reintroducción de pino direct.
+3. **`docs/architecture/logging.md` creado** (nuevo): explica el "por qué" de las tres factories — OWASP A09:2025 (Security Logging and Alerting Failures), case-sensitivity gotcha de pino redact, y razón por la cual no introducimos un `LoggerPort` formal en domain (Cockburn alternative pattern para cross-cutting concerns).
+
+**Canon investigado durante el batch (2026-05-01):**
+
+- [Better Stack Pino guide](https://betterstack.com/community/guides/logging/how-to-install-setup-and-use-pino-to-log-node-js-applications/), [SigNoz 2026](https://signoz.io/guides/pino-logger/), [Last9](https://last9.io/blog/npm-pino-logger/) — pino production-grade config canon.
+- [Pape — Redacting Secrets from Pino logs](https://blog.lepape.me/nodejs-best-practices-redacting-secrets-from-pino-logs/) — case-sensitivity gotcha que motiva la single-factory rule.
+- [OWASP A09:2025 — Security Logging and Alerting Failures](https://owasp.org/Top10/2025/A09_2025-Security_Logging_and_Alerting_Failures/) — sensitive data leakage via logs.
+- [Cockburn — Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture) — alternativa "decorator + factory" para cross-cutting concerns como logging.
+
+**Backlog deferred (PR-28):** PII redaction paths (`email`, `ssn`, `creditCard`, `phone`, `address`, `dateOfBirth`) no agregados al `REDACT_PATHS` actual. Decisión bloqueada por security/compliance review — agregar redaction sin auditar call-sites puede romper admin/audit/customer-support workflows que legítimamente leen PII en logs. Documentado en `POST_REMEDIATION_BACKLOG.md` con plan estructurado.
 
 **Exit criteria:**
 
 ```bash
-grep -rn "console\." apps/api/src/ apps/admin/src/ apps/client/src/ --include="*.ts" --include="*.tsx" | grep -vE "tests?/|scripts/" | wc -l   # → 0
+grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" \
+  | grep -v "lib/logger\.ts\|test\.ts"   # ✅ 0
+grep -nE "console\.(log|error|warn)" infra/prisma/seed.ts   # ✅ 0
+grep -l "createLogger" apps/api/src/index.ts apps/api/src/monitoring/cacheStatsRoutes.ts \
+  apps/api/src/middleware/autoCacheMiddleware.ts apps/api/src/lib/cache/cacheDecorators.ts \
+  apps/api/src/lib/route-handler/BaseRouteHandler.ts   # ✅ 5
+test -f docs/architecture/logging.md   # ✅
+grep -n "fitness #13" CLAUDE.md   # ✅ ≥1 (ahora en §Automated Compliance Checks)
 ```
 
-**Estimación.** 6-8 h.
+**Estimación / real.** Estimado 6-8 h / Real ~2.5 h (T2-B había hecho el grueso).
 
-**Dependencias.** 🔒 BLOCKS_TIER (habilita T2-B pendientes).
+**Dependencias.** 🔒 BLOCKS_TIER cerrado. Habilita batches futuros que dependan del logger pattern unificado.
 
 ---
 

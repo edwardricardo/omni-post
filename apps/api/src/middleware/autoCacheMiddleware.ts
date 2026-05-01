@@ -13,12 +13,9 @@ import {
   getInvalidationTags,
   generateApiCacheKey,
 } from "../lib/cache/cacheConfig.js";
-import pino from "pino";
+import { createLogger } from "../lib/logger.js";
 
-const logger = pino({
-  name: "auto-cache-middleware",
-  level: process.env.LOG_LEVEL || "info",
-});
+const logger = createLogger("auto-cache-middleware");
 
 /**
  * Auto-cache plugin options

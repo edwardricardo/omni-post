@@ -8,12 +8,9 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type { RedisCacheManager, CacheOptions } from "@adapters/cache-redis";
 import { getInvalidationTags, generateApiCacheKey } from "./cacheConfig.js";
-import pino from "pino";
+import { createLogger } from "../logger.js";
 
-const logger = pino({
-  name: "cache-decorators",
-  level: process.env.LOG_LEVEL || "info",
-});
+const logger = createLogger("cache-decorators");
 
 /**
  * Cache decorator options for route handlers

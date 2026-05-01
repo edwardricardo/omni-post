@@ -755,6 +755,9 @@ importers:
 
   infra/prisma:
     dependencies:
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../packages/observability/logger
       '@prisma/adapter-pg':
         specifier: 7.6.0
         version: 7.6.0
@@ -1584,9 +1587,6 @@ importers:
 
   packages/providers/shared:
     dependencies:
-      '@adapters/db-prisma':
-        specifier: workspace:*
-        version: link:../../adapters/db-prisma
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared

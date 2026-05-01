@@ -1337,6 +1337,62 @@ Cuando Edward decida la policy o cuando el primer reporte de "channel silent fai
 
 ---
 
+### PR-28 — PII redaction paths en logger config
+
+**Origen.** T4-M (2026-05-01) — canon research identificó OWASP A09:2025 gap.
+
+**Contexto.** El logger factory en `apps/api/src/lib/logger.ts:13-34` aplica redaction de fields auth-related (password, token, apiKey, accessToken, refreshToken, authorization, cookie) — esto cubre la categoría "credentials" de OWASP Logging Cheat Sheet.
+
+Pero la categoría **PII** está sin cubrir:
+
+| Categoría OWASP  | En redact paths? | Riesgo                       |
+| ---------------- | ---------------- | ---------------------------- |
+| Auth credentials | ✅               | Bajo                         |
+| Cookies/tokens   | ✅               | Bajo                         |
+| email            | ❌               | A09:2025 — PII leak          |
+| ssn              | ❌               | A09:2025 — high-severity PII |
+| creditCard / pan | ❌               | A09:2025 — PCI-DSS violation |
+| phone            | ❌               | A09:2025 — PII leak          |
+| address          | ❌               | A09:2025 — PII leak          |
+| dateOfBirth      | ❌               | A09:2025 — PII leak          |
+
+**Por qué no se cerró en T4-M.** Agregar PII redaction sin auditar primero los call-sites puede romper functionality:
+
+- Admin UI puede legítimamente necesitar ver `user.email` en logs de actividad sospechosa.
+- Customer support workflows pueden requerir últimos 4 dígitos de PAN para identificación.
+- Compliance audit logs DEBEN mostrar quién accedió qué (PII no se redacta en audit category).
+
+Decisión simplista (`logger.redact = ['*.email']`) tiene blast radius alto — log entries que actualmente muestran emails dejarían de mostrarlos, posiblemente rompiendo dashboards/alerts.
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando ocurra alguna de:
+   - Compliance audit (GDPR/CCPA/SOC2) detecta PII en logs.
+   - Security review request explícito.
+   - Volumen de log entries con PII supere threshold de tooling externo.
+
+2. **Investigación previa requerida**:
+   - Audit `grep -rn "logger\.\(info\|warn\|error\)\b" apps/api/src` — categorizar call-sites por whether they include PII.
+   - Threat model: para cada PII type, decide ¿debe ser redactado en TODOS los logs o solo en algunos?
+   - Tail-end behavior: ¿`remove: true` (drop completo) o `censor: "[REDACTED]"` (placeholder)?
+   - Audit log exception: la category `audit` puede necesitar bypass (compliance demanda full names/emails).
+
+3. **Implementación esperada**:
+   - Extender `apps/api/src/lib/logger.ts:REDACT_PATHS` con paths PII.
+   - Considerar separation: `auditLogger` (sin PII redaction) vs `httpLogger` (con PII redaction).
+   - Tests con payloads que incluyan PII para verificar redaction.
+   - Documentar en `docs/security/` el threat model + decisiones por PII type.
+
+**Bloqueado por.** Compliance/security review + threat model.
+
+**Cuándo revisar.**
+
+Cuando se acerque audit GDPR/SOC2 o cuando security team priorice PII handling.
+
+**Estado:** PENDING (deferred del T4-M 2026-05-01) — security review necesaria.
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

@@ -6,13 +6,10 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
-import pino from "pino";
+import { createLogger } from "../lib/logger.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
-const logger = pino({
-  name: "cache-stats-routes",
-  level: process.env.LOG_LEVEL || "info",
-});
+const logger = createLogger("cache-stats-routes");
 
 /**
  * Cache statistics routes

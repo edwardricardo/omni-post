@@ -392,13 +392,23 @@ execute(command: CreatePostCommand): Promise<Post>  // hides failure
 
 ## Logging & Observability
 
-- Use `@observability/logger` (Pino) — zero `console.*` in production code
-- **Domain layer: zero logging** — it is an infrastructure concern
-- Application layer: `WARN` or `ERROR` only
-- Logger injected via `LoggerPort` — never imported as a concrete class
-- Every log entry carries: `correlationId`, `layer`, `operation`
-- Correlation ID propagated to: logger → domain events → outbox → BullMQ job data → error responses
-- OTel SDK initialized as **first import** in entry points (`index.ts`) — before Fastify, before Prisma
+**All logger instances MUST come from one of three named factories — never `import pino from "pino"` directly outside the factory itself.** Each factory targets a distinct scope:
+
+| Where                                                              | Factory                                                | Why                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/api/src/**`                                                  | `createLogger(name)` from `apps/api/src/lib/logger.ts` | Applies redaction of sensitive fields (`password`, `token`, `apiKey`, `accessToken`, `refreshToken`, `authorization`, `cookie`, `set-cookie`), sets `service: "omnipost-api"` binding, and uses `pino.destination({ sync: true })` in tests to avoid open handles. |
+| `packages/**` (adapters, observability, providers, ui server-side) | `createLogger(name)` from `@observability/logger`      | Lightweight factory for shared packages. No redaction (packages don't see request payloads with credentials directly — that lives in `apps/api`).                                                                                                                  |
+| `apps/admin/**`, `apps/client/**`, `packages/ui/**` (browser code) | `useLogger(name)` from `@observability/browser-logger` | Browser-targeted; routes through a `BrowserLoggerPort` (Sentry/console adapter).                                                                                                                                                                                   |
+| `apps/workers/**`                                                  | Direct `pino()` factory in the worker entry file       | Workers have distinct ergonomics (separate process, per-worker config); inline factories accepted there.                                                                                                                                                           |
+| Tests                                                              | Anything (real factory, `vi.fn()`, or test double)     | No restrictions in `*.test.ts`.                                                                                                                                                                                                                                    |
+
+- **Zero `console.*` in production code** (JSDoc `@example` blocks excluded — those are documentation, not executed).
+- **Domain layer: zero logging** — logging is an infrastructure concern; domain stays pure.
+- Application layer: `WARN` or `ERROR` only — info/debug belong to infrastructure or routes.
+- Every log entry carries: `correlationId`, `layer`, `operation` where applicable.
+- Correlation ID propagated through: logger → domain events → outbox → BullMQ job data → error responses.
+- OTel SDK initialized as **first import** in entry points (`index.ts`) — before Fastify, before Prisma.
+- **Adding a new sensitive field?** Extend the `REDACT_PATHS` array in `apps/api/src/lib/logger.ts` and document the rationale alongside the threat being mitigated. Redact paths are case-sensitive — `req.headers.AUTHORIZATION` does not match `authorization`. See [docs/architecture/logging.md](docs/architecture/logging.md) for the threat-model and how to extend safely.
 
 ---
 
@@ -814,6 +824,13 @@ for f in $(find apps/admin/components apps/client/components packages/ui/src/com
   if ! grep -qE "^export (default )?(function|const) [A-Z]" "$f"; then continue; fi
   grep -q "@component" "$f" || echo "MISSING @component: $f"
 done | wc -l
+
+# 13. No direct `pino` instantiation in apps/api production code — every
+# logger MUST come from the `createLogger` factory in `apps/api/src/lib/logger.ts`
+# so redaction paths and service bindings are uniform. Excludes the factory
+# file itself, tests, and stryker sandboxes.
+grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" | \
+  grep -v "lib/logger\.ts\|\.test\.\|/tests/\|/\.stryker-tmp/" | wc -l
 ```
 
 ---

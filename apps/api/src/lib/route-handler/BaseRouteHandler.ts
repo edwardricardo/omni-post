@@ -8,16 +8,13 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { ZodSchema, ZodError } from "zod";
 import type { Result } from "@shared/types";
-import pino from "pino";
+import { createLogger } from "../logger.js";
 import {
   verifyWebhookSignature as verifyWebhookSignatureCore,
   constantTimeCompare as constantTimeCompareCore,
 } from "@packages/api-common";
 
-const logger = pino({
-  name: "base-route-handler",
-  level: process.env.LOG_LEVEL || "info",
-});
+const logger = createLogger("base-route-handler");
 
 export interface RouteContext {
   request: FastifyRequest;
