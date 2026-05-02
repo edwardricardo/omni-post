@@ -1889,6 +1889,42 @@ My L-541 Decimal audit was keyword-filtered (`amount|price|fee|cost|...`) — mi
 
 ---
 
+### PR-39 — Test suite flakiness under Turbo parallel execution (Redis contention)
+
+**Fecha de surfacing:** 2026-05-02 (descubierto durante audit toolkit setup)
+**Severidad:** medio — false-confidence systémico durante batches anteriores
+**Tipo:** test infrastructure fix
+
+**Contexto.** Durante el setup del audit toolkit, Edward preguntó "por qué no se está usando Turborepo" — surfaced que mi flujo bypaseba Turbo cache (corría `pnpm --filter @apps/api test` directo). Cuando finalmente corrí `pnpm test` (= `turbo run test`), descubrí que `@adapters/dead-letter-queue` falla **consistentemente bajo turbo run** pero **passes cuando se ejecuta aislado**. Tests aparecen como `skipped` (no failing) por timeout — `tests/mutation-killing-part2.test.ts (29 tests | 29 skipped) 18689ms`.
+
+**Causa probable**: tests de `@adapters/dead-letter-queue` usan BullMQ + Redis. Múltiples packages corriendo en paralelo (`@apps/api`, `@adapters/queue-bullmq`, etc.) compiten por el mismo Redis instance → conexiones se quedan stuck → timeout → tests skipped.
+
+**Por qué importa**: durante batches T0-T4 yo corría `pnpm --filter @apps/api test` aislado. Esto daba **false confidence** — el `apps/api` testaba bajo condiciones distintas a las que la suite full ejecutaría. El revisitado del roadmap debe usar `pnpm test` (turbo) para detectar este tipo de regresiones.
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando se ejecute revisitado de batches que tocan BullMQ/Redis (T4-H QueuePort, T4-I workers retry, T4-L cache, etc.) o cuando un PR rompa el tree por flakiness.
+
+2. **Investigación**:
+   - Reproducir consistentemente: `pnpm test --concurrency=1` (debe pasar) vs `pnpm test` (default concurrency, falla).
+   - Vitest config audit: cada package que use Redis debería tener un namespace prefix único (e.g., `redis:dlq:test:`).
+   - BullMQ test setup: cada test suite debería tener `keyPrefix` único.
+
+3. **Fix opciones**:
+   - **A** (workaround): `turbo run test --concurrency=1` en CI. Slower (~60s vs 17s) pero confiable.
+   - **B** (proper): namespace Redis prefixes per package en tests. Permite parallel sin contention.
+   - **C** (proper +): vitest pool isolation a nivel package, separate Redis client per worker.
+
+**Bloqueado por.** Solo prioritization. AUTO scope — fix técnico, no decision.
+
+**Cuándo revisar.**
+
+Inmediatamente después del revisitado del roadmap (necesario para confiar en green-checkmark de batches que tocan Redis). Posiblemente promovido a CI gate via audit workflow.
+
+**Estado:** PENDING (surfaced 2026-05-02 durante audit toolkit setup).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

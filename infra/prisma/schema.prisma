@@ -209,7 +209,7 @@ model AuditLog {
   userAgent  String?
   success    Boolean  @default(true)
   error      String? // Error message if success = false
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   // Relationships
   user AdminUser? @relation("PerformedBy", fields: [userId], references: [id], onDelete: SetNull)
@@ -557,7 +557,7 @@ model AdminLoginAttempt {
   blockReason     String?
   threatScore     Int?     @default(0)
   requiresCaptcha Boolean  @default(false)
-  attemptedAt     DateTime @default(now())
+  attemptedAt     DateTime @default(now()) @db.Timestamptz(6)
 
   user AdminUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -1617,9 +1617,9 @@ model OutboxDeadLetter {
   payload         Json
   failureReason   String
   retryCount      Int
-  firstFailedAt   DateTime
-  archivedAt      DateTime  @default(now())
-  resolvedAt      DateTime?
+  firstFailedAt   DateTime  @db.Timestamptz(6)
+  archivedAt      DateTime  @default(now()) @db.Timestamptz(6)
+  resolvedAt      DateTime? @db.Timestamptz(6)
   resolvedBy      String?
 
   @@index([resolvedAt])
@@ -2038,13 +2038,13 @@ model OutboxEvent {
   aggregateType String
   payload       Json
   version       Int       @default(1)
-  occurredAt    DateTime
-  publishedAt   DateTime?
+  occurredAt    DateTime  @db.Timestamptz(6)
+  publishedAt   DateTime? @db.Timestamptz(6)
   retryCount    Int       @default(0)
   maxRetries    Int       @default(5)
-  nextRetryAt   DateTime  @default(now())
-  createdAt     DateTime  @default(now())
-  claimedAt     DateTime?
+  nextRetryAt   DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  claimedAt     DateTime? @db.Timestamptz(6)
   claimedBy     String?
   @@index([aggregateId, aggregateType])
   @@index([eventType])
@@ -2054,7 +2054,7 @@ model OutboxEvent {
 
 model OutboxInbox {
   messageId   String   @id
-  processedAt DateTime @default(now())
+  processedAt DateTime @default(now()) @db.Timestamptz(6)
   consumerId  String
 
   @@index([processedAt])
@@ -3043,9 +3043,9 @@ model BillingEvent {
   rawEventType    String
   payload         Json
   processed       Boolean         @default(false)
-  processedAt     DateTime?
+  processedAt     DateTime?       @db.Timestamptz(6)
   error           String?
-  createdAt       DateTime        @default(now())
+  createdAt       DateTime        @default(now()) @db.Timestamptz(6)
 
   account Account? @relation(fields: [accountId], references: [id])
 
@@ -3394,7 +3394,7 @@ model StoredEvent {
   metadata      String   @default("{}")
   version       Int
   sequence      BigInt
-  timestamp     DateTime @default(now()) @db.Timestamptz()
+  timestamp     DateTime @default(now()) @db.Timestamptz(6)
   correlationId String?  @map("correlation_id")
   causationId   String?  @map("causation_id")
 
@@ -3412,7 +3412,7 @@ model EventSnapshot {
   streamId  String   @id @map("stream_id")
   version   Int
   data      String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("event_snapshots")
 }
