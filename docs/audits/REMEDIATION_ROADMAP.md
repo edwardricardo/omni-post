@@ -282,9 +282,19 @@ Otros hallazgos secret-related (L-623 password123, L-621 PAT, L-546 ADMIN_PASSWO
 
 ---
 
-#### T1-A — ESLint rules wire ⚡
+#### T1-A — ESLint rules wire ⚡ ✅ 2026-05-02 (revisitado: ya wireado, exit criteria pasan)
 
 **Scope.** Activar las 4 rules CLAUDE.md que faltan en ESLint (`no-console`, `no-restricted-imports`, `no-explicit-any`, `no-floating-promises`) + eslint-config-prettier.
+
+**Resolución (revisitado 2026-05-02).** Las 5 reglas estaban ya correctamente wireadas en `eslint.config.cjs` con scoping canónico:
+
+- `no-console: "error"` (lines 95, 142) con overrides para tests/seeds/scripts/storybook/CLI tooling.
+- `no-restricted-imports` (line 183) bloquea prisma/fastify/redis/bullmq desde `apps/api/src/domain/**` (hexagonal boundary).
+- `@typescript-eslint/no-explicit-any: "error"` (line 194) en backend core (domain/application/infrastructure), `"off"` en TS files generales y tests.
+- `@typescript-eslint/no-floating-promises: "error"` (line 176) en type-aware backend paths con `projectService: true` scoped (memoria bounded).
+- `eslint-config-prettier` aplicado last (line 241) para suprimir conflictos estilísticos.
+
+`pnpm lint --max-warnings 0` → exit 0. No work needed.
 
 **Findings table (5):**
 
@@ -336,6 +346,8 @@ grep -rn "setInterval(" apps/api/src/ --include="*.ts" | grep -v ".unref()" | gr
 **Dependencias.** ⚡ PARALELIZABLE.
 
 **Resultado real.** Scope expandido del checklist de 5 sitios a un patrón uniforme: nuevo package `@observability/background-scheduler` (Default + Noop schedulers, port interface, ~30 tests), wireado en DI (`TOKENS.BackgroundTaskScheduler`), integrado en SIGINT/SIGTERM (`scheduler.shutdownAll()`). Migrados 31+ sitios en `apps/api`, `apps/workers`, y `packages/`. CI fitness #11 (no raw setInterval) ahora bloquea regressions.
+
+**Revisitado canon 2026-05-02.** Verificado contra Node.js timers docs + Agenda's `drain(timeoutMs)` pattern + DEV best-practices canon (entries añadidos a `canon_research_index.md` §Background Tasks). Implementación alineada en 9 puntos canónicos (`unref()` default, in-flight tracking, try/catch, idempotent register, port + adapters, etc.). Una mejora canon-aligned introducida (commit `9972005`): `shutdownAll(timeoutMs = 10000)` ahora retorna `ShutdownResult { taskCount, drained, pending, timedOut }` para evitar deadlock cuando un callback hangs vs el K8s `terminationGracePeriod`. 3 tests nuevos (39/39). Callers `apps/api/src/index.ts` y `apps/workers/src/publishWorker.ts` actualizados para loguear `timedOut`.
 
 Verificación exit criteria:
 
