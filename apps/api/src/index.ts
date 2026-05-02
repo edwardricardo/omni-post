@@ -692,7 +692,10 @@ async function start() {
       const scheduler = app.container!.resolve<BackgroundTaskScheduler>(
         TOKENS.BackgroundTaskScheduler
       );
-      await scheduler.shutdownAll();
+      const shutdownResult = await scheduler.shutdownAll();
+      if (shutdownResult.timedOut) {
+        logger.warn({ shutdownResult }, "BackgroundTaskScheduler shutdown timed out");
+      }
 
       // Close all BullMQ queue adapters via the registry — closes every
       // Queue and the shared Redis connection in one shot.

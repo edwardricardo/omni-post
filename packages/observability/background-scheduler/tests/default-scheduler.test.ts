@@ -253,7 +253,8 @@ describe("DefaultBackgroundTaskScheduler", () => {
     it("is idempotent — calling twice does not throw", async () => {
       scheduler = new DefaultBackgroundTaskScheduler();
       await scheduler.shutdownAll();
-      await expect(scheduler.shutdownAll()).resolves.toBeUndefined();
+      const result = await scheduler.shutdownAll();
+      expect(result).toEqual({ taskCount: 0, drained: 0, pending: 0, timedOut: false });
     });
 
     it("clears getActiveTasks", async () => {
@@ -291,8 +292,39 @@ describe("DefaultBackgroundTaskScheduler", () => {
 
       const shutdownPromise = scheduler.shutdownAll();
       resolveCb();
-      await shutdownPromise;
+      const result = await shutdownPromise;
       expect(settled).toBe(true);
+      expect(result.drained).toBe(1);
+      expect(result.pending).toBe(0);
+      expect(result.timedOut).toBe(false);
+    });
+
+    it("returns timedOut=true when in-flight callbacks exceed the deadline", async () => {
+      vi.useRealTimers();
+      scheduler = new DefaultBackgroundTaskScheduler();
+      // Callback that never resolves — simulates a hung handler.
+      scheduler.register("hung", () => new Promise<void>(() => {}), 5, { immediate: true });
+      // Let the immediate run schedule the in-flight promise.
+      await new Promise((r) => setTimeout(r, 20));
+      const result = await scheduler.shutdownAll(50);
+      expect(result.timedOut).toBe(true);
+      expect(result.taskCount).toBe(1);
+      expect(result.pending).toBeGreaterThanOrEqual(1);
+      vi.useFakeTimers();
+    });
+
+    it("logs error with timeout context when shutdown times out", async () => {
+      vi.useRealTimers();
+      const logger = makeLogger();
+      scheduler = new DefaultBackgroundTaskScheduler({ logger });
+      scheduler.register("hung", () => new Promise<void>(() => {}), 5, { immediate: true });
+      await new Promise((r) => setTimeout(r, 20));
+      await scheduler.shutdownAll(50);
+      expect(logger.errorCalls).toHaveLength(1);
+      const data = logger.errorCalls[0]?.data as { timedOut: boolean; timeoutMs: number };
+      expect(data.timedOut).toBe(true);
+      expect(data.timeoutMs).toBe(50);
+      vi.useFakeTimers();
     });
   });
 

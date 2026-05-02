@@ -46,6 +46,20 @@ export interface BackgroundTaskOptions {
 }
 
 /**
+ * Result of a shutdown attempt.
+ */
+export interface ShutdownResult {
+  /** Number of tasks that were registered when shutdown started. */
+  taskCount: number;
+  /** Number of in-flight async callbacks that completed before shutdown returned. */
+  drained: number;
+  /** Number that did NOT complete because the timeout fired. */
+  pending: number;
+  /** Whether the shutdown deadline was hit. */
+  timedOut: boolean;
+}
+
+/**
  * Scheduler port — registers, cancels, and tears down recurring tasks.
  * Implementations decide how to actually execute the schedule (real timers,
  * noop for tests, future APM-instrumented variants).
@@ -74,10 +88,17 @@ export interface BackgroundTaskScheduler {
 
   /**
    * Cancel every registered task and clear internal state. Intended for
-   * SIGTERM/SIGINT handlers. Idempotent. Awaits any in-flight async callback
-   * so shutdown is clean.
+   * SIGTERM/SIGINT handlers. Idempotent.
+   *
+   * Waits up to `timeoutMs` for in-flight async callbacks to settle so the
+   * process exits cleanly. Default 10000ms keeps shutdown well under typical
+   * Kubernetes grace periods (30s) so a hanging callback can't deadlock the
+   * pod past its terminationGracePeriod.
+   *
+   * Pattern: Agenda's `drain(timeoutMs)` — timeout-bounded graceful drain
+   * that reports how many tasks finished vs were left hanging.
    */
-  shutdownAll(): Promise<void>;
+  shutdownAll(timeoutMs?: number): Promise<ShutdownResult>;
 
   /**
    * Snapshot of currently-registered task identifiers — useful for diagnostics

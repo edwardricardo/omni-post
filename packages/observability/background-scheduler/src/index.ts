@@ -6,7 +6,12 @@
  * @layer infrastructure
  */
 
-export type { BackgroundTaskScheduler, BackgroundTaskOptions, SchedulerLogger } from "./port";
+export type {
+  BackgroundTaskScheduler,
+  BackgroundTaskOptions,
+  SchedulerLogger,
+  ShutdownResult,
+} from "./port";
 
 export { DefaultBackgroundTaskScheduler } from "./default-scheduler";
 export { NoopBackgroundTaskScheduler } from "./noop-scheduler";

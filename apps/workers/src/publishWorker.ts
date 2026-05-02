@@ -163,7 +163,10 @@ registerGracefulShutdown({
     connections: [notifyRedis],
     afterTeardown: async () => {
       await consumer.close();
-      await scheduler.shutdownAll();
+      const shutdownResult = await scheduler.shutdownAll();
+      if (shutdownResult.timedOut) {
+        logger.warn({ shutdownResult }, "BackgroundTaskScheduler shutdown timed out");
+      }
     },
   },
   logger,

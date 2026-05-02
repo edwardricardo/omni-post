@@ -7,7 +7,14 @@
  * @layer infrastructure
  */
 
-import type { BackgroundTaskOptions, BackgroundTaskScheduler, SchedulerLogger } from "./port";
+import type {
+  BackgroundTaskOptions,
+  BackgroundTaskScheduler,
+  SchedulerLogger,
+  ShutdownResult,
+} from "./port";
+
+const DEFAULT_SHUTDOWN_TIMEOUT_MS = 10_000;
 
 interface RegisteredTask {
   readonly id: string;
@@ -77,8 +84,10 @@ export class DefaultBackgroundTaskScheduler implements BackgroundTaskScheduler {
     this.tasks.delete(taskId);
   }
 
-  async shutdownAll(): Promise<void> {
-    if (this.isShuttingDown) return;
+  async shutdownAll(timeoutMs: number = DEFAULT_SHUTDOWN_TIMEOUT_MS): Promise<ShutdownResult> {
+    if (this.isShuttingDown) {
+      return { taskCount: 0, drained: 0, pending: 0, timedOut: false };
+    }
     this.isShuttingDown = true;
 
     const active = Array.from(this.tasks.values());
@@ -86,19 +95,56 @@ export class DefaultBackgroundTaskScheduler implements BackgroundTaskScheduler {
       clearInterval(task.handle);
     }
 
-    // Wait for any in-flight callback to settle so shutdown is clean.
+    // Snapshot in-flight callbacks before racing the timeout.
     const pending: Promise<void>[] = [];
     for (const task of active) {
       for (const p of task.inFlight) {
         pending.push(p);
       }
     }
-    await Promise.allSettled(pending);
+    const initialPending = pending.length;
+
+    // Race the drain against the shutdown deadline. Settled promises are
+    // counted from the inFlight Sets (mutated as each promise finalizes).
+    let timedOut = false;
+    if (pending.length > 0 && timeoutMs > 0) {
+      const drainAll = Promise.allSettled(pending);
+      const timeoutPromise = new Promise<"timeout">((resolve) => {
+        const t = setTimeout(() => resolve("timeout"), timeoutMs);
+        t.unref();
+      });
+      const winner = await Promise.race([drainAll.then(() => "drained" as const), timeoutPromise]);
+      timedOut = winner === "timeout";
+    } else if (pending.length > 0) {
+      // Negative or zero timeout = wait forever (legacy behaviour, opt-in).
+      await Promise.allSettled(pending);
+    }
+
+    // Recount how many in-flight callbacks remain after the race.
+    let stillPending = 0;
+    for (const task of active) {
+      stillPending += task.inFlight.size;
+    }
+    const drained = initialPending - stillPending;
 
     this.tasks.clear();
-    this.logger?.info?.("BackgroundTaskScheduler shutdownAll complete", {
+    const result: ShutdownResult = {
       taskCount: active.length,
-    });
+      drained,
+      pending: stillPending,
+      timedOut,
+    };
+
+    if (timedOut) {
+      this.logger?.error("BackgroundTaskScheduler shutdownAll timed out", {
+        ...result,
+        timeoutMs,
+      });
+    } else {
+      this.logger?.info?.("BackgroundTaskScheduler shutdownAll complete", result);
+    }
+
+    return result;
   }
 
   getActiveTasks(): readonly string[] {

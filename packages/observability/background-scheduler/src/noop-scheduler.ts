@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import type { BackgroundTaskOptions, BackgroundTaskScheduler } from "./port";
+import type { BackgroundTaskOptions, BackgroundTaskScheduler, ShutdownResult } from "./port";
 
 interface NoopTask {
   readonly id: string;
@@ -51,8 +51,10 @@ export class NoopBackgroundTaskScheduler implements BackgroundTaskScheduler {
     this.tasks.delete(taskId);
   }
 
-  async shutdownAll(): Promise<void> {
+  async shutdownAll(): Promise<ShutdownResult> {
+    const taskCount = this.tasks.size;
     this.tasks.clear();
+    return { taskCount, drained: taskCount, pending: 0, timedOut: false };
   }
 
   getActiveTasks(): readonly string[] {
