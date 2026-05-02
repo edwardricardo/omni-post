@@ -233,21 +233,10 @@ jobs:
       - name: Run lychee on docs + repo markdown
         uses: lycheeverse/lychee-action@v2
         with:
-          # `--offline` skips external HTTPS (no rate-limit flakes). Source-
-          # code file refs (.ts/.tsx/.json/.sql/etc) are excluded — they're
-          # workspace-relative and resolved by IDE tooling, not by lychee's
-          # filesystem-relative semantics. The check focuses on actual
-          # documentation refs (.md → .md and similar).
-          args: >-
-            --offline
-            --no-progress
-            --exclude-path node_modules
-            --exclude-path .next
-            --exclude-path .stryker-tmp
-            --exclude-path '**/dist'
-            --exclude-path '**/coverage'
-            --exclude '\.(ts|tsx|js|jsx|cjs|mjs|json|sql|yaml|yml|css|scss|html|sh|toml|prisma|test\.ts)'
-            './**/*.md'
+          # Config lives in `.lychee.toml` at repo root. Decouples regex
+          # escaping from YAML quoting (which broke an inline `--exclude`
+          # flag earlier — multi-line `>-` collapsed quotes incorrectly).
+          args: --config .lychee.toml './**/*.md'
           fail: true
 
   # ──────────────────────────────────────────────────────────────────────
