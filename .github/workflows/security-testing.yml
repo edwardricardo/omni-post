@@ -1,68 +1,56 @@
-# Comprehensive Security Testing Pipeline
-# OWASP ZAP, CodeQL, Dependency scanning, and custom security tests
-name: Security Testing & Vulnerability Assessment
+name: Security Testing
+
+# Three jobs survived the 3-questions filter (origin / purpose / duplication):
+#
+#   - sast-codeql           — second SAST engine, complementary to Semgrep CE
+#                             in audit.yml. CodeQL queries are deeper (taint,
+#                             dataflow) but slower; suited for SAT + nightly.
+#   - custom-security-tests — runs `test:auth/rbac/security/mfa/ratelimit`
+#                             scripts that exist in apps/api/package.json.
+#                             No equivalent elsewhere — these are the project's
+#                             own focused security suites.
+#   - dast-owasp-zap        — DAST against a spun-up API. Schedule + manual
+#                             only (45-min runs); the only DAST capability in
+#                             the repo. Stays gated behind workflow_dispatch
+#                             until a staging URL exists for `--target-url`.
+#
+# Removed (covered by 3-questions audit, see commit message): SonarQube
+# (covered by Semgrep CE + CodeQL), Snyk (covered by OSV-Scanner), Anchore
+# container scan (covered by Trivy in production-ci.yml), compliance-checks
+# (covered by fitness.yml architectural greps), security-reporting Slack
+# notify (covered by GitHub native PR check status + email).
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, omni-post-cc, "refactor/**"]
   pull_request:
-    branches: [main]
+    branches: [main, omni-post-cc]
   schedule:
-    # Run daily security scans at 2 AM UTC
-    - cron: "0 2 * * *"
+    - cron: "0 3 * * *"
   workflow_dispatch:
-    inputs:
-      scan_type:
-        description: "Type of security scan to run"
-        required: true
-        default: "comprehensive"
-        type: choice
-        options:
-          - comprehensive
-          - sast-only
-          - dast-only
-          - dependency-only
-      severity_threshold:
-        description: "Minimum severity level to fail pipeline"
-        required: false
-        default: "high"
-        type: choice
-        options:
-          - critical
-          - high
-          - medium
-          - low
 
-env:
-  NODE_VERSION: "24"
-  PNPM_VERSION: "10.33.0"
-  SECURITY_SCAN_TIMEOUT: "30m"
+permissions:
+  contents: read
+  security-events: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: security-testing-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # ===== STATIC APPLICATION SECURITY TESTING (SAST) =====
+  # ──────────────────────────────────────────────────────────────────────
+  # 1. CodeQL — native GitHub SAST (TypeScript + JavaScript matrix)
+  # ──────────────────────────────────────────────────────────────────────
   sast-codeql:
-    name: CodeQL Security Analysis
+    name: CodeQL (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: ${{ inputs.scan_type == 'comprehensive' || inputs.scan_type == 'sast-only' || github.event_name != 'workflow_dispatch' }}
-
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-
     strategy:
       fail-fast: false
       matrix:
         language: [typescript, javascript]
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -71,483 +59,29 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           queries: +security-extended,security-and-quality
-          config: |
-            name: "CodeQL Security Config"
-            paths:
-              - apps/
-              - packages/
-            paths-ignore:
-              - "**/*.test.ts"
-              - "**/*.spec.ts"
-              - "**/node_modules/"
-              - "**/coverage/"
-            queries:
-              - uses: security-extended
-              - uses: security-and-quality
 
-      - name: Setup Node.js with pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
-      - name: Enable pnpm
-        run: corepack enable pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build application for CodeQL analysis
-        run: pnpm build
-
-      - name: Perform CodeQL Analysis
+      - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{ matrix.language }}"
-          upload: true
+          category: /language:${{ matrix.language }}
 
-  sast-sonarqube:
-    name: SonarQube Security Analysis
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    if: ${{ inputs.scan_type == 'comprehensive' || inputs.scan_type == 'sast-only' || github.event_name != 'workflow_dispatch' }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js with pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
-
-      - name: Enable pnpm
-        run: corepack enable pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run tests with coverage
-        run: pnpm --filter @apps/api test:coverage
-        env:
-          NODE_ENV: test
-
-      - name: SonarQube Scan
-        uses: sonarqube-quality-gate-action@master
-        with:
-          scanMetadataReportFile: .scannerwork/report-task.txt
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-      - name: Generate security report
-        run: |
-          echo "# 🔍 SonarQube Security Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "- Security hotspots identified" >> $GITHUB_STEP_SUMMARY
-          echo "- Code quality metrics analyzed" >> $GITHUB_STEP_SUMMARY
-          echo "- View detailed report: [$SONAR_HOST_URL]($SONAR_HOST_URL)" >> $GITHUB_STEP_SUMMARY
-
-  # ===== DEPENDENCY SECURITY SCANNING =====
-  dependency-scan:
-    name: Dependency Vulnerability Scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: ${{ inputs.scan_type == 'comprehensive' || inputs.scan_type == 'dependency-only' || github.event_name != 'workflow_dispatch' }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js with pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
-
-      - name: Enable pnpm
-        run: corepack enable pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: NPM Audit
-        run: |
-          echo "🔍 Running NPM audit..."
-          # pnpm audit exits 1 when vulnerabilities are found at or above the
-          # audit-level threshold. We need the JSON report regardless to parse
-          # severity buckets and make the fail/pass decision below. Only swallow
-          # exit code 1; any other failure should bubble up as a real error.
-          set +e
-          pnpm audit --audit-level moderate --json > npm-audit.json
-          AUDIT_EXIT=$?
-          set -e
-          if [ "$AUDIT_EXIT" -ne 0 ] && [ "$AUDIT_EXIT" -ne 1 ]; then
-            echo "::error::pnpm audit failed with exit code $AUDIT_EXIT"
-            exit "$AUDIT_EXIT"
-          fi
-
-          # Parse audit results
-          CRITICAL=$(cat npm-audit.json | jq '.vulnerabilities | map(select(.severity == "critical")) | length')
-          HIGH=$(cat npm-audit.json | jq '.vulnerabilities | map(select(.severity == "high")) | length')
-          MODERATE=$(cat npm-audit.json | jq '.vulnerabilities | map(select(.severity == "moderate")) | length')
-
-          echo "## 📦 Dependency Audit Results" >> $GITHUB_STEP_SUMMARY
-          echo "- Critical vulnerabilities: $CRITICAL" >> $GITHUB_STEP_SUMMARY
-          echo "- High vulnerabilities: $HIGH" >> $GITHUB_STEP_SUMMARY
-          echo "- Moderate vulnerabilities: $MODERATE" >> $GITHUB_STEP_SUMMARY
-
-          # Fail if critical or high vulnerabilities found based on threshold
-          THRESHOLD="${{ inputs.severity_threshold || 'high' }}"
-          if [[ "$THRESHOLD" == "critical" && "$CRITICAL" -gt 0 ]] || \
-             [[ "$THRESHOLD" == "high" && ("$CRITICAL" -gt 0 || "$HIGH" -gt 0) ]]; then
-            echo "❌ Vulnerability threshold exceeded: $THRESHOLD"
-            exit 1
-          fi
-
-      - name: Snyk Security Scan
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=${{ inputs.severity_threshold || 'high' }} --json-file-output=snyk-results.json
-
-      - name: Upload Snyk results to GitHub Code Scanning
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk-results.sarif
-
-      - name: License compliance check
-        run: |
-          echo "📝 Checking license compliance..."
-          # license-checker exits 1 when packages with disallowed licenses are
-          # found. We want the JSON report written either way so we can parse
-          # and report below. Only swallow exit code 1; other failures fail fast.
-          set +e
-          npx license-checker --json --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD' > license-report.json
-          LICENSE_EXIT=$?
-          set -e
-          if [ "$LICENSE_EXIT" -ne 0 ] && [ "$LICENSE_EXIT" -ne 1 ]; then
-            echo "::error::license-checker failed with exit code $LICENSE_EXIT"
-            exit "$LICENSE_EXIT"
-          fi
-
-          # Count non-compliant licenses
-          NON_COMPLIANT=$(cat license-report.json | jq 'to_entries | map(select(.value.licenses | test("GPL|AGPL|LGPL|SSPL|Commons Clause"; "i"))) | length')
-
-          echo "## 📜 License Compliance" >> $GITHUB_STEP_SUMMARY
-          echo "- Non-compliant licenses found: $NON_COMPLIANT" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$NON_COMPLIANT" -gt 0 ]; then
-            echo "❌ Non-compliant licenses detected"
-            cat license-report.json | jq 'to_entries | map(select(.value.licenses | test("GPL|AGPL|LGPL|SSPL|Commons Clause"; "i")))'
-            exit 1
-          fi
-
-  # ===== CONTAINER SECURITY SCANNING =====
-  container-security:
-    name: Container Security Scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    if: ${{ inputs.scan_type == 'comprehensive' || github.event_name != 'workflow_dispatch' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [api, workers, admin, client]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build container image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/${{ matrix.service }}/Dockerfile
-          tags: security-test:${{ matrix.service }}
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: security-test:${{ matrix.service }}
-          format: "sarif"
-          output: "trivy-${{ matrix.service }}.sarif"
-          severity: "CRITICAL,HIGH,MEDIUM"
-          exit-code: "0"
-
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: "trivy-${{ matrix.service }}.sarif"
-
-      - name: Run Grype security scan
-        uses: anchore/scan-action@v3
-        with:
-          image: security-test:${{ matrix.service }}
-          fail-build: false
-          severity-cutoff: ${{ inputs.severity_threshold || 'high' }}
-
-      - name: Container best practices check
-        run: |
-          echo "🐳 Checking container best practices..."
-
-          # hadolint exits with a non-zero status when it finds lint issues in
-          # the Dockerfile. We surface the findings in the job log but do not
-          # block the pipeline on style-level findings; infra/security failures
-          # (image pull errors, etc.) are distinguished from lint failures by
-          # exit code: hadolint uses exit 1 for lint warnings only.
-          set +e
-          docker run --rm -i hadolint/hadolint < apps/${{ matrix.service }}/Dockerfile
-          HADOLINT_EXIT=$?
-          set -e
-          if [ "$HADOLINT_EXIT" -gt 1 ]; then
-            echo "::error::hadolint failed to run (exit $HADOLINT_EXIT)"
-            exit "$HADOLINT_EXIT"
-          fi
-
-          # Check for common security misconfigurations
-          docker run --rm -v "$(pwd):/app" -w /app conftest verify --policy security/policies/docker/ apps/${{ matrix.service }}/Dockerfile || echo "No policy violations found"
-
-  # ===== DYNAMIC APPLICATION SECURITY TESTING (DAST) =====
-  dast-owasp-zap:
-    name: OWASP ZAP Security Scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    if: ${{ inputs.scan_type == 'comprehensive' || inputs.scan_type == 'dast-only' || github.event_name != 'workflow_dispatch' }}
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: test_omni_post
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js with pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
-
-      - name: Enable pnpm
-        run: corepack enable pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Setup test database
-        run: |
-          echo "🗄️ Setting up test database..."
-          pnpm --filter @infra/prisma migrate:deploy
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_omni_post
-
-      - name: Start API server for testing
-        run: |
-          echo "🚀 Starting API server..."
-          pnpm --filter @apps/api dev:test &
-
-          # Wait for server to be ready
-          timeout 60s bash -c 'until curl -f http://localhost:3000/health; do sleep 2; done'
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_omni_post
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: test
-          PORT: 3000
-
-      - name: Create ZAP authentication script
-        run: |
-          mkdir -p security/zap/scripts
-          cat > security/zap/scripts/authentication.js << 'EOF'
-          // ZAP Authentication Script for Social Media CMS
-          function authenticate(helper, paramsValues, credentials) {
-            var msg = helper.prepareMessage();
-
-            // Login endpoint
-            msg.setRequestHeader("Content-Type: application/json");
-            msg.setRequestBody(JSON.stringify({
-              email: credentials.getParam("email"),
-              password: credentials.getParam("password")
-            }));
-
-            msg.getRequestHeader().setURI(
-              new org.apache.commons.httpclient.URI(
-                "http://localhost:3000/api/auth/login",
-                false
-              )
-            );
-
-            msg.getRequestHeader().setMethod("POST");
-
-            // Send authentication request
-            helper.sendAndReceive(msg);
-
-            var responseBody = msg.getResponseBody().toString();
-            var statusCode = msg.getResponseHeader().getStatusCode();
-
-            if (statusCode === 200) {
-              var response = JSON.parse(responseBody);
-              if (response.token) {
-                // Store token for subsequent requests
-                helper.getHttpState().addCookie(
-                  "localhost",
-                  "auth-token",
-                  response.token,
-                  "/",
-                  null,
-                  false
-                );
-                return helper.newMessage();
-              }
-            }
-
-            return null;
-          }
-
-          function getRequiredParamsNames() {
-            return ["email", "password"];
-          }
-
-          function getOptionalParamsNames() {
-            return [];
-          }
-          EOF
-
-      - name: Create ZAP scan policy
-        run: |
-          mkdir -p security/zap/policies
-          cat > security/zap/policies/api-security-policy.policy << 'EOF'
-          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-          <configuration>
-              <policy>Social Media CMS API Security Policy</policy>
-              <scanner name="Directory Browsing" id="0" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Path Traversal" id="6" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Remote File Inclusion" id="7" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Server Side Include" id="40009" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Cross Site Scripting (Reflected)" id="40012" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Cross Site Scripting (Persistent)" id="40014" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="SQL Injection" id="40018" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Parameter Tampering" id="40008" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="LDAP Injection" id="40015" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Format String Error" id="40022" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Buffer Overflow" id="40024" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="NoSQL Injection - MongoDB" id="40033" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Command Injection" id="90020" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="JSON Injection" id="90021" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="XML External Entity Attack" id="90023" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Generic Padding Oracle" id="90024" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="Expression Language Injection" id="90025" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="LDAP Injection" id="90026" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="SQL Injection - SQLite" id="90027" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="SQL Injection - Hypersonic SQL" id="90028" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="NoSQL Injection - MongoDB" id="90029" level="MEDIUM" strength="MEDIUM"/>
-              <scanner name="HTTP Parameter Override" id="90030" level="MEDIUM" strength="MEDIUM"/>
-          </configuration>
-          EOF
-
-      - name: Run OWASP ZAP Full Scan
-        uses: zaproxy/action-full-scan@v0.10.0
-        with:
-          target: "http://localhost:3000"
-          rules_file_name: "security/zap/policies/api-security-policy.policy"
-          cmd_options: '-a -j -m 10 -T 30 -z "-addoninstall jython" -z "-addoninstall pscanrulesBeta" -z "-addoninstall ascanrulesBeta"'
-          allow_issue_writing: false
-          fail_action: false
-
-      - name: Run OWASP ZAP API Scan
-        uses: zaproxy/action-api-scan@v0.7.0
-        with:
-          target: "http://localhost:3000/api"
-          format: "openapi"
-          api_specification: "docs/api/openapi.yaml"
-          cmd_options: "-a -j -m 10"
-          fail_action: false
-
-      - name: Upload ZAP scan results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: zap-scan-results
-          path: |
-            report_html.html
-            report_json.json
-            report_md.md
-            report_xml.xml
-          retention-days: 7
-
-      - name: Process ZAP results
-        if: always()
-        run: |
-          echo "# 🛡️ OWASP ZAP Security Scan Results" >> $GITHUB_STEP_SUMMARY
-
-          if [ -f report_json.json ]; then
-            # Parse ZAP JSON report
-            HIGH_ALERTS=$(cat report_json.json | jq '.site[0].alerts | map(select(.riskdesc | startswith("High"))) | length')
-            MEDIUM_ALERTS=$(cat report_json.json | jq '.site[0].alerts | map(select(.riskdesc | startswith("Medium"))) | length')
-            LOW_ALERTS=$(cat report_json.json | jq '.site[0].alerts | map(select(.riskdesc | startswith("Low"))) | length')
-            INFO_ALERTS=$(cat report_json.json | jq '.site[0].alerts | map(select(.riskdesc | startswith("Info"))) | length')
-
-            echo "## 📊 Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
-            echo "- High Risk: $HIGH_ALERTS" >> $GITHUB_STEP_SUMMARY
-            echo "- Medium Risk: $MEDIUM_ALERTS" >> $GITHUB_STEP_SUMMARY
-            echo "- Low Risk: $LOW_ALERTS" >> $GITHUB_STEP_SUMMARY
-            echo "- Informational: $INFO_ALERTS" >> $GITHUB_STEP_SUMMARY
-
-            # Check failure threshold
-            THRESHOLD="${{ inputs.severity_threshold || 'high' }}"
-            if [[ "$THRESHOLD" == "high" && "$HIGH_ALERTS" -gt 0 ]] || \
-               [[ "$THRESHOLD" == "medium" && ("$HIGH_ALERTS" -gt 0 || "$MEDIUM_ALERTS" -gt 0) ]]; then
-              echo "❌ Security vulnerability threshold exceeded"
-              exit 1
-            fi
-          fi
-
-  # ===== CUSTOM SECURITY TESTS =====
+  # ──────────────────────────────────────────────────────────────────────
+  # 2. Custom security tests — project-specific suites
+  # ──────────────────────────────────────────────────────────────────────
   custom-security-tests:
     name: Custom Security Test Suite
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    if: ${{ inputs.scan_type == 'comprehensive' || github.event_name != 'workflow_dispatch' }}
-
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: test_omni_post
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: omnipost_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -566,309 +100,100 @@ jobs:
         ports:
           - 6379:6379
 
+    env:
+      NODE_ENV: test
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/omnipost_test?schema=public"
+      SHADOW_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/omnipost_test_shadow?schema=public"
+      REDIS_URL: "redis://localhost:6379"
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js with pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+      - uses: ./.github/actions/setup-node-pnpm-cache
 
-      - name: Enable pnpm
-        run: corepack enable pnpm
+      - name: Apply Prisma migrations
+        run: pnpm --filter @infra/prisma exec prisma migrate deploy
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Setup test database
-        run: |
-          echo "🗄️ Setting up test database..."
-          pnpm --filter @infra/prisma migrate:deploy
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_omni_post
-
-      - name: Run authentication security tests
+      - name: Run authentication suite
         run: pnpm --filter @apps/api test:auth
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_omni_post
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: test
 
-      - name: Run RBAC security tests
+      - name: Run RBAC suite
         run: pnpm --filter @apps/api test:rbac
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_omni_post
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: test
 
-      - name: Run input validation security tests
+      - name: Run input validation suite
         run: pnpm --filter @apps/api test:security
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_omni_post
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: test
 
-      - name: Run MFA security tests
+      - name: Run MFA suite
         run: pnpm --filter @apps/api test:mfa
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_omni_post
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: test
 
-      - name: Run rate limiting security tests
+      - name: Run rate-limit suite
         run: pnpm --filter @apps/api test:ratelimit
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 3. OWASP ZAP DAST — runtime scan against the spun-up API.
+  #    Gated to schedule + manual dispatch only (45-min runs are too heavy
+  #    for every push). Once a staging URL is available the target should
+  #    move from local API spin-up to that URL.
+  # ──────────────────────────────────────────────────────────────────────
+  dast-owasp-zap:
+    name: OWASP ZAP DAST
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_omni_post
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: test
+          POSTGRES_DB: omnipost_dast
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
-  # ===== SECURITY COMPLIANCE CHECKS =====
-  compliance-checks:
-    name: Security Compliance Validation
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: ${{ inputs.scan_type == 'comprehensive' || github.event_name != 'workflow_dispatch' }}
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check security headers implementation
-        run: |
-          echo "🔒 Validating security headers implementation..."
-
-          # Check for security middleware usage
-          HELMET_USAGE=$(grep -r "@fastify/helmet" apps/ | wc -l)
-          CORS_USAGE=$(grep -r "@fastify/cors" apps/ | wc -l)
-
-          echo "## 🛡️ Security Headers Compliance" >> $GITHUB_STEP_SUMMARY
-          echo "- Helmet middleware usage: $HELMET_USAGE files" >> $GITHUB_STEP_SUMMARY
-          echo "- CORS middleware usage: $CORS_USAGE files" >> $GITHUB_STEP_SUMMARY
-
-      - name: Check authentication implementation
-        run: |
-          echo "🔐 Validating authentication implementation..."
-
-          # Check for JWT usage
-          JWT_USAGE=$(grep -r "jsonwebtoken\|@fastify/jwt" apps/ | wc -l)
-          BCRYPT_USAGE=$(grep -r "bcrypt" apps/ | wc -l)
-
-          echo "## 🔐 Authentication Compliance" >> $GITHUB_STEP_SUMMARY
-          echo "- JWT implementation: $JWT_USAGE files" >> $GITHUB_STEP_SUMMARY
-          echo "- Password hashing: $BCRYPT_USAGE files" >> $GITHUB_STEP_SUMMARY
-
-      - name: Check input validation implementation
-        run: |
-          echo "🔍 Validating input validation implementation..."
-
-          # Check for Zod usage
-          ZOD_USAGE=$(grep -r "zod" apps/ | grep -v node_modules | wc -l)
-          VALIDATION_USAGE=$(grep -r "validateBody\|validateQuery\|validateParams" apps/ | wc -l)
-
-          echo "## 🔍 Input Validation Compliance" >> $GITHUB_STEP_SUMMARY
-          echo "- Zod schema usage: $ZOD_USAGE files" >> $GITHUB_STEP_SUMMARY
-          echo "- Validation middleware: $VALIDATION_USAGE files" >> $GITHUB_STEP_SUMMARY
-
-      - name: Check logging and monitoring
-        run: |
-          echo "📊 Validating logging and monitoring implementation..."
-
-          # Check for proper logging
-          PINO_USAGE=$(grep -r "pino\|request.log" apps/ | grep -v node_modules | wc -l)
-          METRICS_USAGE=$(grep -r "prom-client\|metrics" apps/ | grep -v node_modules | wc -l)
-
-          echo "## 📊 Monitoring Compliance" >> $GITHUB_STEP_SUMMARY
-          echo "- Structured logging: $PINO_USAGE files" >> $GITHUB_STEP_SUMMARY
-          echo "- Metrics collection: $METRICS_USAGE files" >> $GITHUB_STEP_SUMMARY
-
-      - name: Generate compliance report
-        run: |
-          echo "# 📋 Security Compliance Report" >> $GITHUB_STEP_SUMMARY
-          echo "Generated on: $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## ✅ Compliance Status" >> $GITHUB_STEP_SUMMARY
-          echo "- OWASP Top 10 2024: Mitigated" >> $GITHUB_STEP_SUMMARY
-          echo "- Input validation: Implemented" >> $GITHUB_STEP_SUMMARY
-          echo "- Authentication: JWT + MFA" >> $GITHUB_STEP_SUMMARY
-          echo "- Authorization: RBAC implemented" >> $GITHUB_STEP_SUMMARY
-          echo "- Security headers: Configured" >> $GITHUB_STEP_SUMMARY
-          echo "- Rate limiting: Active" >> $GITHUB_STEP_SUMMARY
-          echo "- Audit logging: Enabled" >> $GITHUB_STEP_SUMMARY
-
-  # ===== SECURITY REPORTING AND NOTIFICATIONS =====
-  security-reporting:
-    name: Security Report Generation
-    runs-on: ubuntu-latest
-    needs:
-      [
-        sast-codeql,
-        sast-sonarqube,
-        dependency-scan,
-        container-security,
-        dast-owasp-zap,
-        custom-security-tests,
-        compliance-checks,
-      ]
-    if: always()
+    env:
+      NODE_ENV: test
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/omnipost_dast?schema=public"
+      SHADOW_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/omnipost_dast_shadow?schema=public"
+      REDIS_URL: "redis://localhost:6379"
+      PORT: "3000"
 
     steps:
-      - name: Download security artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: security-reports/
+      - uses: actions/checkout@v4
 
-      - name: Generate comprehensive security report
+      - uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Apply Prisma migrations
+        run: pnpm --filter @infra/prisma exec prisma migrate deploy
+
+      - name: Start API in background
         run: |
-          echo "# 🛡️ Comprehensive Security Assessment Report" > security-summary.md
-          echo "**Generated**: $(date -u)" >> security-summary.md
-          echo "**Repository**: ${{ github.repository }}" >> security-summary.md
-          echo "**Commit**: ${{ github.sha }}" >> security-summary.md
-          echo "**Branch**: ${{ github.ref_name }}" >> security-summary.md
-          echo "" >> security-summary.md
+          pnpm --filter @apps/api dev:test &
+          echo "API_PID=$!" >> $GITHUB_ENV
+          timeout 90s bash -c 'until curl -fsS http://localhost:3000/health >/dev/null; do sleep 2; done'
 
-          echo "## 📊 Security Scan Results" >> security-summary.md
-          echo "| Test Category | Status | Critical | High | Medium | Low |" >> security-summary.md
-          echo "|---------------|--------|----------|------|--------|-----|" >> security-summary.md
-          echo "| SAST (CodeQL) | ${{ needs.sast-codeql.result == 'success' && '✅ Passed' || '❌ Failed' }} | - | - | - | - |" >> security-summary.md
-          echo "| SAST (SonarQube) | ${{ needs.sast-sonarqube.result == 'success' && '✅ Passed' || '❌ Failed' }} | - | - | - | - |" >> security-summary.md
-          echo "| Dependencies | ${{ needs.dependency-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} | - | - | - | - |" >> security-summary.md
-          echo "| Containers | ${{ needs.container-security.result == 'success' && '✅ Passed' || '❌ Failed' }} | - | - | - | - |" >> security-summary.md
-          echo "| DAST (ZAP) | ${{ needs.dast-owasp-zap.result == 'success' && '✅ Passed' || '❌ Failed' }} | - | - | - | - |" >> security-summary.md
-          echo "| Custom Tests | ${{ needs.custom-security-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} | - | - | - | - |" >> security-summary.md
-          echo "" >> security-summary.md
-
-          echo "## 🎯 Security Recommendations" >> security-summary.md
-          echo "- [ ] Review and address any high/critical vulnerabilities" >> security-summary.md
-          echo "- [ ] Update dependencies with known vulnerabilities" >> security-summary.md
-          echo "- [ ] Validate security headers configuration" >> security-summary.md
-          echo "- [ ] Review authentication and authorization implementation" >> security-summary.md
-          echo "- [ ] Ensure proper input validation coverage" >> security-summary.md
-          echo "" >> security-summary.md
-
-          echo "## 📋 Next Steps" >> security-summary.md
-          echo "1. Address critical and high-severity findings" >> security-summary.md
-          echo "2. Schedule regular security assessments" >> security-summary.md
-          echo "3. Update security policies and procedures" >> security-summary.md
-          echo "4. Implement additional security controls as needed" >> security-summary.md
-
-      - name: Upload security report
-        uses: actions/upload-artifact@v4
+      - name: Run OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.14.0
         with:
-          name: comprehensive-security-report
-          path: |
-            security-summary.md
-            security-reports/
-          retention-days: 30
+          target: "http://localhost:3000"
+          rules_file_name: ".zap/rules.tsv"
+          cmd_options: "-a"
+          fail_action: false
 
-      - name: Notify security team
-        if: failure()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: failure
-          channel: "#security-alerts"
-          webhook_url: ${{ secrets.SLACK_WEBHOOK_SECURITY }}
-          fields: repo,commit,author,action,workflow
-          custom_payload: |
-            {
-              "attachments": [
-                {
-                  "color": "danger",
-                  "blocks": [
-                    {
-                      "type": "header",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "🚨 Security Scan Failed"
-                      }
-                    },
-                    {
-                      "type": "section",
-                      "fields": [
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Repository:*\n${{ github.repository }}"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Branch:*\n${{ github.ref_name }}"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Commit:*\n${{ github.sha }}"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Triggered by:*\n${{ github.actor }}"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "section",
-                      "text": {
-                        "type": "mrkdwn",
-                        "text": "Security vulnerabilities detected. Please review the scan results and take immediate action."
-                      }
-                    },
-                    {
-                      "type": "actions",
-                      "elements": [
-                        {
-                          "type": "button",
-                          "text": {
-                            "type": "plain_text",
-                            "text": "View Results"
-                          },
-                          "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-
-      - name: Create security issue
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const title = `🚨 Security Vulnerability Detected - ${new Date().toISOString().split('T')[0]}`;
-            const body = `
-            ## Security Scan Failure Report
-
-            **Workflow Run**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            **Commit**: ${{ github.sha }}
-            **Branch**: ${{ github.ref_name }}
-            **Triggered by**: ${{ github.actor }}
-
-            ## Failed Security Checks
-
-            - SAST (CodeQL): ${{ needs.sast-codeql.result }}
-            - SAST (SonarQube): ${{ needs.sast-sonarqube.result }}
-            - Dependency Scan: ${{ needs.dependency-scan.result }}
-            - Container Security: ${{ needs.container-security.result }}
-            - DAST (OWASP ZAP): ${{ needs.dast-owasp-zap.result }}
-            - Custom Security Tests: ${{ needs.custom-security-tests.result }}
-
-            ## Action Required
-
-            Please review the security scan results and address any vulnerabilities found.
-
-            ## Resources
-
-            - [Security Scan Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            - [Security Documentation](./docs/architecture/SECURITY.md)
-
-            ---
-            *This issue was automatically created by the security testing pipeline.*
-            `;
-
-            github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: title,
-              body: body,
-              labels: ['security', 'priority:high', 'automated']
-            });
+      - name: Stop API
+        if: always()
+        run: kill "$API_PID" 2>/dev/null || true
