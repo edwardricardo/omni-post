@@ -114,6 +114,13 @@ jobs:
       - name: Apply Prisma migrations
         run: pnpm --filter @infra/prisma exec prisma migrate deploy
 
+      - name: Seed roles + permissions
+        # Tests call AuthService.registerAdmin(_, _, _, "ADMIN") which looks up
+        # the role record in DB. A fresh migration leaves the Role table empty,
+        # so registration returns VALIDATION_ERROR. Seed populates the system
+        # roles + permissions before the auth suites run.
+        run: pnpm --filter @infra/prisma run seed
+
       - name: Run authentication suite
         run: pnpm --filter @apps/api test:auth
 
@@ -179,6 +186,9 @@ jobs:
 
       - name: Apply Prisma migrations
         run: pnpm --filter @infra/prisma exec prisma migrate deploy
+
+      - name: Seed roles + permissions
+        run: pnpm --filter @infra/prisma run seed
 
       - name: Start API in background
         run: |
