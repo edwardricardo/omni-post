@@ -6,6 +6,7 @@
  */
 
 import pino, { Logger, LoggerOptions } from "pino";
+import { env } from "../config/env.js";
 
 /**
  * Sensitive fields to redact from logs
@@ -37,7 +38,7 @@ const REDACT_PATHS = [
  * Base logger options
  */
 const baseOptions: LoggerOptions = {
-  level: process.env.LOG_LEVEL || "info",
+  level: env.LOG_LEVEL || "info",
   redact: {
     paths: REDACT_PATHS,
     censor: "[REDACTED]",
@@ -68,7 +69,7 @@ function createLoggerOptions(name: string): LoggerOptions {
  * Uses synchronous destination in test environment to prevent hanging tests
  */
 function createDestination() {
-  if (process.env.NODE_ENV === "test") {
+  if (env.NODE_ENV === "test") {
     return pino.destination({ sync: true });
   }
   return undefined; // Use default (stdout)

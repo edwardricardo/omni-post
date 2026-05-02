@@ -23,6 +23,7 @@
 import type { ProviderId } from "../providers/providerAdapter.interface.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { getRedisInstance } from "./redisSessionHelpers.js";
+import { env } from "../config/env.js";
 
 export interface OAuthConfig {
   clientId: string;
@@ -95,9 +96,9 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   x: {
     id: "x",
     config: {
-      clientId: process.env.X_CLIENT_ID || "",
-      clientSecret: process.env.X_CLIENT_SECRET || "",
-      redirectUri: process.env.X_REDIRECT_URI || "http://localhost:3000/auth/callback/x",
+      clientId: env.X_CLIENT_ID ?? "",
+      clientSecret: env.X_CLIENT_SECRET ?? "",
+      redirectUri: env.X_REDIRECT_URI ?? "http://localhost:3000/auth/callback/x",
       scopes: ["tweet.read", "tweet.write", "users.read", "offline.access"],
       authUrl: "https://twitter.com/i/oauth2/authorize",
       tokenUrl: "https://api.twitter.com/2/oauth2/token",
@@ -183,10 +184,9 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   instagram: {
     id: "instagram",
     config: {
-      clientId: process.env.INSTAGRAM_CLIENT_ID || "",
-      clientSecret: process.env.INSTAGRAM_CLIENT_SECRET || "",
-      redirectUri:
-        process.env.INSTAGRAM_REDIRECT_URI || "http://localhost:3000/auth/callback/instagram",
+      clientId: env.INSTAGRAM_CLIENT_ID ?? "",
+      clientSecret: env.INSTAGRAM_CLIENT_SECRET ?? "",
+      redirectUri: env.INSTAGRAM_REDIRECT_URI ?? "http://localhost:3000/auth/callback/instagram",
       scopes: ["user_profile", "user_media", "instagram_basic"],
       authUrl: "https://api.instagram.com/oauth/authorize",
       tokenUrl: "https://api.instagram.com/oauth/access_token",
@@ -237,10 +237,9 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   facebook: {
     id: "facebook",
     config: {
-      clientId: process.env.FACEBOOK_CLIENT_ID || "",
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET || "",
-      redirectUri:
-        process.env.FACEBOOK_REDIRECT_URI || "http://localhost:3000/auth/callback/facebook",
+      clientId: env.FACEBOOK_CLIENT_ID ?? "",
+      clientSecret: env.FACEBOOK_CLIENT_SECRET ?? "",
+      redirectUri: env.FACEBOOK_REDIRECT_URI ?? "http://localhost:3000/auth/callback/facebook",
       scopes: ["pages_manage_posts", "pages_read_engagement", "pages_show_list"],
       authUrl: "https://www.facebook.com/v18.0/dialog/oauth",
       tokenUrl: "https://graph.facebook.com/v18.0/oauth/access_token",
@@ -283,10 +282,9 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   youtube: {
     id: "youtube",
     config: {
-      clientId: process.env.YOUTUBE_CLIENT_ID || "",
-      clientSecret: process.env.YOUTUBE_CLIENT_SECRET || "",
-      redirectUri:
-        process.env.YOUTUBE_REDIRECT_URI || "http://localhost:3000/auth/callback/youtube",
+      clientId: env.YOUTUBE_CLIENT_ID ?? "",
+      clientSecret: env.YOUTUBE_CLIENT_SECRET ?? "",
+      redirectUri: env.YOUTUBE_REDIRECT_URI ?? "http://localhost:3000/auth/callback/youtube",
       scopes: [
         "https://www.googleapis.com/auth/youtube.upload",
         "https://www.googleapis.com/auth/youtube.readonly",
@@ -349,9 +347,9 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   tiktok: {
     id: "tiktok",
     config: {
-      clientId: process.env.TIKTOK_CLIENT_ID || "",
-      clientSecret: process.env.TIKTOK_CLIENT_SECRET || "",
-      redirectUri: process.env.TIKTOK_REDIRECT_URI || "http://localhost:3000/auth/callback/tiktok",
+      clientId: env.TIKTOK_CLIENT_ID ?? "",
+      clientSecret: env.TIKTOK_CLIENT_SECRET ?? "",
+      redirectUri: env.TIKTOK_REDIRECT_URI ?? "http://localhost:3000/auth/callback/tiktok",
       scopes: ["user.info.basic", "video.upload"],
       authUrl: "https://www.tiktok.com/auth/authorize/",
       tokenUrl: "https://open-api.tiktok.com/oauth/access_token/",
@@ -408,10 +406,9 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   linkedin: {
     id: "linkedin",
     config: {
-      clientId: process.env.LINKEDIN_CLIENT_ID || "",
-      clientSecret: process.env.LINKEDIN_CLIENT_SECRET || "",
-      redirectUri:
-        process.env.LINKEDIN_REDIRECT_URI || "http://localhost:3000/auth/callback/linkedin",
+      clientId: env.LINKEDIN_CLIENT_ID ?? "",
+      clientSecret: env.LINKEDIN_CLIENT_SECRET ?? "",
+      redirectUri: env.LINKEDIN_REDIRECT_URI ?? "http://localhost:3000/auth/callback/linkedin",
       scopes: ["openid", "profile", "w_member_social"],
       authUrl: "https://www.linkedin.com/oauth/v2/authorization",
       tokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
@@ -467,10 +464,9 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   pinterest: {
     id: "pinterest",
     config: {
-      clientId: process.env.PINTEREST_CLIENT_ID || "",
-      clientSecret: process.env.PINTEREST_CLIENT_SECRET || "",
-      redirectUri:
-        process.env.PINTEREST_REDIRECT_URI || "http://localhost:3000/auth/callback/pinterest",
+      clientId: env.PINTEREST_CLIENT_ID ?? "",
+      clientSecret: env.PINTEREST_CLIENT_SECRET ?? "",
+      redirectUri: env.PINTEREST_REDIRECT_URI ?? "http://localhost:3000/auth/callback/pinterest",
       scopes: ["boards:read", "boards:write", "pins:read", "pins:write"],
       authUrl: "https://www.pinterest.com/oauth/",
       tokenUrl: "https://api.pinterest.com/v5/oauth/token",
@@ -527,10 +523,9 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   snapchat: {
     id: "snapchat",
     config: {
-      clientId: process.env.SNAPCHAT_CLIENT_ID || "",
-      clientSecret: process.env.SNAPCHAT_CLIENT_SECRET || "",
-      redirectUri:
-        process.env.SNAPCHAT_REDIRECT_URI || "http://localhost:3000/auth/callback/snapchat",
+      clientId: env.SNAPCHAT_CLIENT_ID ?? "",
+      clientSecret: env.SNAPCHAT_CLIENT_SECRET ?? "",
+      redirectUri: env.SNAPCHAT_REDIRECT_URI ?? "http://localhost:3000/auth/callback/snapchat",
       scopes: ["snapchat-marketing-api"],
       authUrl: "https://accounts.snapchat.com/login/oauth2/authorize",
       tokenUrl: "https://accounts.snapchat.com/login/oauth2/access_token",

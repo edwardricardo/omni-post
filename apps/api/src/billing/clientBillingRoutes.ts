@@ -11,6 +11,7 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GatewayBillingService } from "./GatewayBillingService.js";
 import { initiateGatewaySwitchSchema } from "./gatewaySwitchSchemas.js";
+import { env } from "../config/env.js";
 
 export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
   const container = fastify.container;
@@ -148,7 +149,7 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const accountId = request.customerUser!.accountId;
-      const clientUrl = process.env.CLIENT_APP_URL ?? "http://localhost:3001";
+      const clientUrl = env.CLIENT_APP_URL ?? "http://localhost:3001";
       const successUrl = `${clientUrl}/dashboard/settings/billing?success=true`;
       const cancelUrl = `${clientUrl}/dashboard/settings/billing?canceled=true`;
 
@@ -183,7 +184,7 @@ export const clientBillingRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const accountId = request.customerUser!.accountId;
-      const clientUrl = process.env.CLIENT_APP_URL ?? "http://localhost:3001";
+      const clientUrl = env.CLIENT_APP_URL ?? "http://localhost:3001";
       const returnUrl = `${clientUrl}/dashboard/settings/billing`;
 
       const result = await gatewayService.getBillingPortalUrl(accountId, returnUrl);

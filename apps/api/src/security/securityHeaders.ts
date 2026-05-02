@@ -9,6 +9,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import helmet from "@fastify/helmet";
 import cors from "@fastify/cors";
 import { logger } from "../lib/logger.js";
+import { env } from "../config/env.js";
 
 export interface SecurityConfig {
   contentSecurityPolicy: {
@@ -417,8 +418,8 @@ export const SecurityConfigs = {
     cors: {
       enabled: true,
       allowedOrigins: [
-        process.env.CLIENT_URL || "https://app.yourapp.com",
-        process.env.ADMIN_URL || "https://admin.yourapp.com",
+        env.CLIENT_URL || "https://app.yourapp.com",
+        env.ADMIN_URL || "https://admin.yourapp.com",
       ],
       allowCredentials: true,
     },

@@ -13,7 +13,7 @@ import { prisma } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { CachePort } from "@ports/core";
 import { createLogger } from "../lib/logger.js";
-import { getRequiredSecret } from "../lib/envValidation.js";
+import { env } from "../config/env.js";
 
 const analyticsLogger = createLogger("analytics");
 // Note: Authentication is handled within this service
@@ -528,8 +528,8 @@ export class RealtimeAnalyticsService extends BaseService {
         return null;
       }
 
-      const JWT_SECRET = getRequiredSecret("JWT_SECRET", "jwt-secret-dev-only");
-      const decoded = jwt.verify(token, JWT_SECRET) as Record<string, unknown>;
+      // WebSocket auth must use the same access secret as the rest of the API.
+      const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as Record<string, unknown>;
       const userId = typeof decoded?.userId === "string" ? decoded.userId : null;
 
       if (!userId) {

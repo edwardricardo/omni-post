@@ -8,6 +8,7 @@ import { promises as fs } from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { createLogger } from "../lib/logger.js";
+import { env } from "../config/env.js";
 
 const videoLogger = createLogger("video");
 
@@ -119,7 +120,7 @@ export class VideoUploadPipeline {
   private readonly simulatedChunkDelayMs: number;
 
   constructor(simulatedChunkDelayMs?: number) {
-    this.tempDir = process.env.VIDEO_TEMP_DIR || "/tmp/claude/video-uploads";
+    this.tempDir = env.VIDEO_TEMP_DIR || "/tmp/claude/video-uploads";
     this.simulatedChunkDelayMs = simulatedChunkDelayMs ?? 100;
     this.ensureTempDir();
   }

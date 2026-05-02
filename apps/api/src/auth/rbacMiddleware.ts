@@ -9,6 +9,7 @@ import type { RbacService } from "./rbacService.js";
 import { Permission } from "./rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { authLogger } from "../lib/logger.js";
+import { env } from "../config/env.js";
 
 /**
  * Resolve RbacService from the DI container attached to the Fastify instance.
@@ -253,7 +254,7 @@ export function auditPermissionAccess(operation: string) {
 export function debugPermissions() {
   return async function debugMiddleware(request: FastifyRequest, _reply: FastifyReply) {
     const user = resolveUser(request);
-    if (process.env.NODE_ENV === "development" && user) {
+    if (env.NODE_ENV === "development" && user) {
       const rbacSvc = resolveRbacService(request);
       if (rbacSvc) {
         const userPermissions = await rbacSvc.getUserPermissions(user.id, user.role);

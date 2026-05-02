@@ -10,6 +10,7 @@ import argon2 from "argon2";
 import { randomBytes } from "crypto";
 import { ok, err, type Result } from "@shared/types";
 import { prisma } from "@infra/prisma";
+import { env } from "../config/env.js";
 import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
 import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
 import { AuditableService } from "../services/AuditableService";
@@ -54,14 +55,8 @@ export class AuthServiceCore extends AuditableService {
     readonly mfaSvc: MfaService
   ) {
     super("AuthService");
-    this.jwtSecret = process.env.JWT_SECRET || this.generateSecret();
-    this.refreshSecret = process.env.JWT_REFRESH_SECRET || this.generateSecret();
-
-    if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
-      authLogger.warn(
-        "JWT secrets not found in environment. Using generated secrets (not suitable for production)"
-      );
-    }
+    this.jwtSecret = env.JWT_ACCESS_SECRET;
+    this.refreshSecret = env.JWT_REFRESH_SECRET;
 
     authLogger.info(
       { enhancedFeatures: this.hasRedis },
@@ -437,10 +432,6 @@ export class AuthServiceCore extends AuditableService {
 
   async verifyPassword(password: string, hash: string): Promise<boolean> {
     return argon2.verify(hash, password);
-  }
-
-  generateSecret(): string {
-    return randomBytes(64).toString("hex");
   }
 
   mapUserToAuthenticatedUser(user: AdminUserDto): AuthenticatedUser {

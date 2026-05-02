@@ -8,6 +8,8 @@
 
 import jwt from "jsonwebtoken";
 
+import { env } from "../config/env.js";
+
 /**
  * Payload embedded in customer access tokens.
  */
@@ -31,7 +33,7 @@ export interface CustomerRefreshPayload {
   type: "customer-refresh";
 }
 
-const CUSTOMER_JWT_SECRET = process.env.CUSTOMER_JWT_SECRET || "customer-jwt-dev-only-change-me";
+const CUSTOMER_JWT_SECRET = env.CUSTOMER_JWT_SECRET;
 const CUSTOMER_JWT_EXPIRY = 15 * 60; // 15 minutes
 
 /**

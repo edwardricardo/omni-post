@@ -8,6 +8,7 @@
 import { prisma } from "@infra/prisma";
 import { Logger } from "pino";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import { env } from "../config/env.js";
 
 type PrismaClient = typeof prisma;
 
@@ -480,7 +481,7 @@ export class DatabaseOptimizer {
    * Schedule automatic materialized view refresh
    */
   async scheduleAutomaticRefresh(): Promise<void> {
-    const refreshInterval = parseInt(process.env.MATERIALIZED_VIEW_REFRESH_INTERVAL || "900000"); // 15 minutes default
+    const refreshInterval = env.MATERIALIZED_VIEW_REFRESH_INTERVAL ?? 900000; // 15 minutes default
 
     this.scheduler.register(
       this.refreshTaskId,

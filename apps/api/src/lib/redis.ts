@@ -6,6 +6,7 @@
  */
 
 import Redis from "ioredis";
+import { env } from "../config/env.js";
 
 /**
  * Get Redis connection URL from environment
@@ -13,14 +14,14 @@ import Redis from "ioredis";
  */
 export function getRedisUrl(): string {
   // Priority 1: REDIS_URL (Railway, Heroku, etc.)
-  if (process.env.REDIS_URL) {
-    return process.env.REDIS_URL;
+  if (env.REDIS_URL) {
+    return env.REDIS_URL;
   }
 
   // Priority 2: Individual components (Docker Compose)
-  const host = process.env.REDIS_HOST || "localhost";
-  const port = process.env.REDIS_PORT || "6379";
-  const password = process.env.REDIS_PASSWORD;
+  const host = env.REDIS_HOST || "localhost";
+  const port = env.REDIS_PORT || "6379";
+  const password = env.REDIS_PASSWORD;
 
   // Build Redis URL
   if (password) {

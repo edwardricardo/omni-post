@@ -454,6 +454,28 @@ Full caching architecture rationale: `docs/architecture/caching.md`.
 
 ---
 
+## Secrets and Environment
+
+**All env access in `apps/api/src/**`MUST go through the typed`env`constant from`apps/api/src/config/env.ts`— never`process.env.X`directly, never a`process.env.X || "fallback"` pattern.\*\*
+
+The schema lives at `apps/api/src/config/env.ts` and defines every variable the API and workers consume. It is parsed once at module load via Zod; if any required key is missing or malformed, the API refuses to boot with a precise error. There is no warn-and-continue — the previous `getRequiredSecret(name, devFallback)` helper was retired.
+
+| Scope                                  | Pattern                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Read a value                           | `import { env } from ".../config/env.js"; env.MY_VAR`                                            |
+| Add a new var                          | Add to `envSchema` with `(required \| optional \| default)`, then update `.env.example`          |
+| Conditional secret (e.g. Stripe)       | Schema marks optional; factory throws at construction if the toggle requires it                  |
+| Test fixture                           | Set in `.env.test` at root; tests should not mutate `process.env` at runtime                     |
+| Runtime-mutable allowlist (non-secret) | Extract to a factory function that takes the allowlist as a parameter (cf. `makeMediaUrlSchema`) |
+
+- **Fail-fast required, no fallbacks for secrets** (CWE-798). CI fitness greps #15 + #16 enforce this in `apps/api/src` and `apps/workers/src`.
+- **Single source of truth on disk**: root `.env` for dev, root `.env.test` for tests. Per-app `.env`s were removed.
+- **`packages/providers/*` are out of scope** — they still read `process.env` directly (~25 occurrences). The canonical fix is constructor injection (PR-40 backlog), not a wider env-import refactor.
+
+Full secrets architecture rationale: `docs/architecture/secrets-and-env.md`.
+
+---
+
 ## Testing
 
 **Write the test first. If you can't write a test for it, reconsider the design.**
@@ -787,7 +809,7 @@ All comments in **English**.
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all 13 — any new occurrence fails the workflow with an `::error` annotation. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all 16 — any new occurrence fails the workflow with an `::error` annotation. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 ```bash
 # 1. No Prisma singleton imports in routes
@@ -870,6 +892,26 @@ grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" | \
 # tests + test directories (test fixtures legitimately use Maps).
 grep -rnE "^\s+private \w*[Cc]ache.*= new Map" apps/api/src --include="*.ts" | \
   grep -v "\.test\.\|/tests/" | wc -l
+
+# 15. No insecure secret fallbacks (CWE-798) in apps/api/src + apps/workers/src.
+# Reason: `process.env.X || "dev-only-..."`, `... ?? ""`, `... || generated()`
+# patterns let the app boot with hard-coded / empty / per-restart secrets,
+# masking misconfiguration in dev and shipping insecurely to prod. The fix
+# is the typed env constant from apps/api/src/config/env.ts (Zod fail-fast).
+# Scope is apps/* only — packages/providers/* still has ~25 occurrences
+# (PR-40 backlog: provider constructor injection refactor).
+grep -rnE "process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)" \
+  apps/api/src apps/workers/src --include="*.ts" | \
+  grep -v "node_modules\|\.test\.\|/tests/\|\.stryker\|/dist/\|config/env\.ts" | wc -l
+
+# 16. No direct `process.env.*` in apps/api/src outside config/env.ts.
+# Reason: forces every consumer to go through the Zod-validated `env` constant
+# so every secret/config value passes schema validation at boot. Direct
+# process.env access is the carrier for #15 violations and bypasses type-safety.
+# Exception: process.env.NODE_ENV — Node ecosystem convention treats this as
+# runtime-readable everywhere (libraries, tests) and Zod still validates it.
+grep -rn "process\.env\." apps/api/src --include="*.ts" | \
+  grep -v "config/env\.ts\|/tests/\|\.test\.\|process\.env\.NODE_ENV\b" | wc -l
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:

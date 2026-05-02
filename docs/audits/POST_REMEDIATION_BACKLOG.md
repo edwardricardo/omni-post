@@ -1925,6 +1925,62 @@ Inmediatamente después del revisitado del roadmap (necesario para confiar en gr
 
 ---
 
+### PR-40 — Provider adapters constructor injection (eliminar `process.env` reads en `packages/providers/*`)
+
+**Fecha de surfacing:** 2026-05-02 (T0-A-bis revisitado)
+**Severidad:** medio — 25 CWE-798 violations + violación arquitectura hexagonal
+**Tipo:** library refactor (constructor injection)
+
+**Contexto.** T0-A-bis cerró 22 CWE-798 fallbacks en `apps/api/src` y wireó fitness checks #15 + #16 que bloquean nuevos. Pero el regex inicial scoped a `apps/*` solamente: `packages/providers/*` aún tiene **25 occurrences** del patrón `process.env.X || "placeholder"`:
+
+| Provider    | File                                                              | Sites                                                                              |
+| ----------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Telegram    | `packages/providers/telegram/src/TelegramAdapter.ts`              | 1 (BOT_TOKEN)                                                                      |
+| YouTube     | `packages/providers/youtube/src/YouTubeAdapter.ts`                | 2 (CLIENT_SECRET, REFRESH_TOKEN)                                                   |
+| X (Twitter) | `packages/providers/x/src/XAdapter.ts`                            | 5 (API_KEY, SECRET, ACCESS_TOKEN, TOKEN_SECRET, BEARER)                            |
+| Pinterest   | `packages/providers/pinterest/src/PinterestAdapter.ts`            | 2 (ACCESS_TOKEN, REFRESH_TOKEN)                                                    |
+| Snapchat    | `packages/providers/snapchat/src/SnapchatAdapter.ts`              | 3 (CLIENT_SECRET, ACCESS, REFRESH)                                                 |
+| Facebook    | `packages/providers/facebook/src/FacebookAdapter.ts`              | 2 (ACCESS_TOKEN, APP_SECRET)                                                       |
+| TikTok      | `packages/providers/tiktok/src/TikTokAdapter.ts` + `apiClient.ts` | 6 (CLIENT_KEY, CLIENT_SECRET, ACCESS_TOKEN, RESEARCH_API_KEY×2, ANALYTICS_API_KEY) |
+| Instagram   | `packages/providers/instagram/src/InstagramAdapter.ts`            | 1 (ACCESS_TOKEN)                                                                   |
+| LinkedIn    | `packages/providers/linkedin/src/LinkedInAdapter.ts`              | 2 (ACCESS_TOKEN, REFRESH_TOKEN)                                                    |
+
+**Por qué T0-A-bis no lo cierra:** la fix correcta NO es importar `env` desde `apps/api/src/config/env.ts` — eso violaría hexagonal (libraries dependen de la app). La fix correcta es **constructor injection**: cada provider adapter recibe sus credentials como parámetros del constructor; la app's composition root (DI container) las pasa desde `env`. Eso es un refactor más amplio que el scope de T0-A-bis y toca:
+
+- 9+ provider adapters (cambiar signature del constructor)
+- DI container registrations (`setupServices.ts` o equivalente — pasar env values al construir cada adapter)
+- Provider tests (que probablemente mockean process.env hoy)
+
+**Plan estructurado.**
+
+1. **Trigger** — antes de touch de provider adapters por otra razón, o cuando se ramp el fitness check #15 a `packages/providers/*`.
+
+2. **Investigación**:
+   - Audit: ¿qué provider adapters ya aceptan config via constructor (e.g. Bluesky)? Esos son la referencia de patrón.
+   - Audit: ¿dónde se construyen los providers actualmente? (`packages/providers/registry.ts`? DI container? por feature?).
+   - Identificar si hay `IConfig` / `ProviderConfig` interfaces compartidas reutilizables.
+
+3. **Implementation per provider**:
+   - Constructor signature: `constructor(config: { accessToken: string; refreshToken?: string; ... })`
+   - Eliminar todos los `process.env.X` reads internos.
+   - Update construction sites (DI registration o factory) para pasar config.
+   - Update tests (no más `process.env.X = ...`; pasar config directamente).
+
+4. **Wire fitness check #15 expand a `packages/`**:
+   - Cuando los 25 sites estén a 0, expandir el grep scope a `packages/providers/*`.
+
+**Bloqueado por.** Solo prioritization. Es scope claro pero amplio (~1-2 días).
+
+**Cuándo revisar.**
+
+- Cuando se haga refactor de provider system (registry, factory).
+- Cuando un provider new se agregue (oportunidad para introducir el patrón canonical).
+- Cuando se quiera fortalecer fitness check #15 a alcance completo.
+
+**Estado:** PENDING (surfaced 2026-05-02 durante T0-A-bis revisitado del roadmap).
+
+---
+
 ## Meta
 
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.

@@ -1,30 +1,20 @@
 /**
  * @file index.ts
- * @description API server entry point. Loads environment, initializes OpenTelemetry,
- *              configures Fastify with all plugins and routes, and starts the HTTP server.
+ * @description API server entry point. Initializes OpenTelemetry, configures
+ *              Fastify with all plugins and routes, and starts the HTTP server.
+ *              Environment loading and validation are owned by `./config/env.ts`,
+ *              which executes via the import below.
  * @layer infrastructure
  */
-// Load environment-specific .env file FIRST
-import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
+import { env } from "./config/env.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
-const envPath = path.resolve(__dirname, "../../..", envFile); // Root of monorepo
-dotenv.config({ path: envPath, override: true });
-
-// ---- OpenTelemetry initialization (MUST happen before Fastify import) ----
-// Conditional on TRACING_ENABLED=true to avoid overhead in dev/test environments
 import { createLogger } from "./lib/logger.js";
 const otelLogger = createLogger("api-telemetry");
 
-if (process.env.TRACING_ENABLED === "true") {
+if (env.TRACING_ENABLED) {
   try {
     const otel = await import("@observability/opentelemetry");
-    const environment = process.env.NODE_ENV || "development";
-    const telemetry = otel.createApiTelemetry(environment);
+    const telemetry = otel.createApiTelemetry(env.NODE_ENV);
     await telemetry.start();
     otelLogger.info("OpenTelemetry initialized for API server");
   } catch (error) {
@@ -53,7 +43,6 @@ import { RateLimit, RateLimitConfigs, EXPENSIVE_ENDPOINT_RULES } from "./securit
 import { createErrorHandler } from "./lib/errors/errorHandler.js";
 import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
 import { logger } from "./lib/logger.js";
-import { getRequiredSecret } from "./lib/envValidation.js";
 import { ApiMetrics } from "./metrics/apiMetrics.js";
 import { createMetricsMiddleware } from "./middleware/metricsMiddleware.js";
 import { createCircuitBreakerMonitor } from "@monitoring/circuit-breaker";
@@ -223,13 +212,13 @@ async function createApp(): Promise<FastifyInstance> {
     cacheManager,
     enableCaching: true,
     enableInvalidation: true,
-    logCacheOps: process.env.LOG_CACHE_OPS === "true",
+    logCacheOps: env.LOG_CACHE_OPS ?? false,
     excludeRoutes: ["/health", "/metrics"],
   });
 
   // Initialize cookie support
   await typedApp.register(fastifyCookie, {
-    secret: getRequiredSecret("COOKIE_SECRET", "cookie-secret-dev-only"),
+    secret: env.COOKIE_SECRET,
   });
 
   // Initialize components
@@ -345,7 +334,7 @@ async function createApp(): Promise<FastifyInstance> {
       const creds = monitoringCreds.value;
       initSentry(
         creds.sentryDsn ?? null,
-        creds.sentryEnvironment ?? process.env.NODE_ENV,
+        creds.sentryEnvironment ?? env.NODE_ENV,
         parseFloat(creds.sentryTracesSampleRate ?? "0.1")
       );
     }
@@ -360,7 +349,7 @@ async function createApp(): Promise<FastifyInstance> {
   typedApp.log.info("Centralized error handler enabled - all errors sanitized");
 
   // Rate limiting setup
-  if (process.env.ENABLE_RATE_LIMITING !== "false") {
+  if (env.ENABLE_RATE_LIMITING) {
     const rateLimit = new RateLimit(redis, RateLimitConfigs.STANDARD);
 
     // Configure rate limit rules for standard endpoints
@@ -677,8 +666,8 @@ async function start() {
       24 * 60 * 60 * 1000
     );
 
-    const port = parseInt(process.env.PORT || "3000");
-    const host = process.env.HOST || "0.0.0.0";
+    const port = env.PORT;
+    const host = env.HOST;
 
     await app.listen({ port, host });
 

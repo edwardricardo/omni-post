@@ -6,6 +6,7 @@
  * @layer infrastructure
  */
 import { randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
+import { env } from "../config/env.js";
 
 const ALGORITHM = "aes-256-gcm" as const;
 const IV_LENGTH = 12;
@@ -26,13 +27,17 @@ export interface EncryptedValue {
 export class EncryptionService {
   private readonly key: Buffer;
 
-  constructor() {
-    const envKey = process.env.PLATFORM_ENCRYPTION_KEY;
-    if (!envKey) {
+  /**
+   * @param keyBase64 - Master key as base64 string. Defaults to
+   *   `env.PLATFORM_ENCRYPTION_KEY` so production code constructs without
+   *   args; tests pass a specific value to exercise edge cases.
+   */
+  constructor(keyBase64: string = env.PLATFORM_ENCRYPTION_KEY) {
+    if (!keyBase64) {
       throw new Error("PLATFORM_ENCRYPTION_KEY environment variable is required");
     }
 
-    const keyBuffer = Buffer.from(envKey, "base64");
+    const keyBuffer = Buffer.from(keyBase64, "base64");
     if (keyBuffer.length !== KEY_LENGTH) {
       throw new Error(
         `PLATFORM_ENCRYPTION_KEY must be ${KEY_LENGTH} bytes (256-bit) encoded as base64`

@@ -9,6 +9,7 @@
 
 import * as Sentry from "@sentry/node";
 import { createLogger } from "../lib/logger.js";
+import { env } from "../config/env.js";
 
 const sentryLogger = createLogger("sentry");
 
@@ -23,7 +24,7 @@ let initialized = false;
  */
 export function initSentry(
   dsn: string | null,
-  environment: string = process.env.NODE_ENV ?? "development",
+  environment: string = env.NODE_ENV ?? "development",
   tracesSampleRate: number = 0.1
 ): void {
   if (initialized) return;

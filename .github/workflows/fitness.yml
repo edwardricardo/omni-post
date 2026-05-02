@@ -240,12 +240,57 @@ jobs:
             exit 1
           fi
 
+      - name: "#15 No insecure secret fallbacks (CWE-798)"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Block the patterns that defeated us across apps/api:
+          #   process.env.X_SECRET || "dev-only-..."
+          #   process.env.X_KEY ?? ""
+          #   process.env.X_TOKEN || generated()
+          # The fix is the typed `env` constant from apps/api/src/config/env.ts
+          # (Zod-validated, fail-fast). Direct process.env access for secrets is
+          # the carrier for hard-coded fallbacks; both flow through this regex.
+          # Scope: apps/* only. packages/providers/* still have ~25 occurrences
+          # tracked under PR-40 (provider constructor injection refactor — fixing
+          # them requires moving env access out of libraries entirely).
+          MATCHES=$(grep -rnE 'process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)' \
+            apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
+            grep -v "node_modules\|\.test\.\|/tests/\|\.stryker\|/dist/\|config/env\.ts" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #15 violation::$COUNT insecure secret fallbacks (expected 0). Replace with the typed env constant from apps/api/src/config/env.ts — Zod schema fails fast at boot, no fallback. Reason: CWE-798 (Use of Hard-coded Credentials), OWASP A07:2025."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#16 No direct process.env.* in apps/api/src outside config/env.ts"
+        if: always()
+        run: |
+          set -uo pipefail
+          # apps/api/src must consume the typed `env` constant from
+          # config/env.ts — direct process.env access bypasses Zod validation
+          # and creates a regression vector for #15. Workers + packages are
+          # out of scope (separate refactor) but this gate locks in the API.
+          # Exception: process.env.NODE_ENV — Node ecosystem convention treats
+          # this as runtime-readable, and tests rely on dynamic mutation.
+          MATCHES=$(grep -rn "process\.env\." apps/api/src --include="*.ts" 2>/dev/null | \
+            grep -v "config/env\.ts\|/tests/\|\.test\.\|process\.env\.NODE_ENV\b" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #16 violation::$COUNT direct process.env.* references in apps/api/src outside config/env.ts (expected 0). Use the typed env constant — see apps/api/src/config/env.ts."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "14 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "16 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY

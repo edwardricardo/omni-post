@@ -9,6 +9,7 @@ import { randomBytes } from "node:crypto";
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import { env } from "../../config/env.js";
 
 export interface ReferralCodeInput {
   accountId: string;
@@ -45,7 +46,7 @@ export class GetOrCreateReferralCodeUseCase implements UseCase<
     const doWork = async (): Promise<Result<ReferralCodeOutput, UseCaseError>> => {
       const existing = await this.repo.findByAccountId(input.accountId);
       if (existing) {
-        const clientUrl = process.env.CLIENT_URL ?? "http://localhost:3002";
+        const clientUrl = env.CLIENT_URL ?? "http://localhost:3002";
         return ok({
           code: existing.code,
           shareUrl: `${clientUrl}/register?ref=${existing.code}`,
@@ -64,7 +65,7 @@ export class GetOrCreateReferralCodeUseCase implements UseCase<
 
       await this.repo.create({ accountId: input.accountId, code });
 
-      const clientUrl = process.env.CLIENT_URL ?? "http://localhost:3002";
+      const clientUrl = env.CLIENT_URL ?? "http://localhost:3002";
       return ok({
         code,
         shareUrl: `${clientUrl}/register?ref=${code}`,

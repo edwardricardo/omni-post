@@ -20,6 +20,7 @@ import { randomBytes, createHash } from "crypto";
 import { oauthProviders } from "./providerOAuthConfigs.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { getRedisInstance } from "./redisSessionHelpers.js";
+import { env } from "../config/env.js";
 
 // ===========================
 // Validation Schemas
@@ -294,7 +295,7 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
   /** Route: GET /auth/callback/:provider - Handle OAuth callback */
   async handleCallback(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3200";
+    const frontendUrl = env.FRONTEND_URL || "http://localhost:3200";
 
     try {
       const validated = await this.validateRequest<z.infer<typeof OAuthCallbackSchema>>(ctx, {

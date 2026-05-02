@@ -3,7 +3,7 @@
  * @description Unit tests for AES-256-GCM EncryptionService.
  * @layer infrastructure
  */
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { randomBytes } from "node:crypto";
 import { EncryptionService } from "../../../src/security/EncryptionService.js";
 import type { EncryptedValue } from "../../../src/security/EncryptionService.js";
@@ -11,33 +11,20 @@ import type { EncryptedValue } from "../../../src/security/EncryptionService.js"
 const VALID_KEY = randomBytes(32).toString("base64");
 
 function createService(): EncryptionService {
-  process.env.PLATFORM_ENCRYPTION_KEY = VALID_KEY;
-  return new EncryptionService();
+  return new EncryptionService(VALID_KEY);
 }
 
 describe("EncryptionService", () => {
-  const originalEnv = process.env.PLATFORM_ENCRYPTION_KEY;
-
-  afterEach(() => {
-    if (originalEnv !== undefined) {
-      process.env.PLATFORM_ENCRYPTION_KEY = originalEnv;
-    } else {
-      delete process.env.PLATFORM_ENCRYPTION_KEY;
-    }
-    vi.resetModules();
-  });
-
   describe("constructor", () => {
-    it("throws when PLATFORM_ENCRYPTION_KEY is not set", () => {
-      delete process.env.PLATFORM_ENCRYPTION_KEY;
-      expect(() => new EncryptionService()).toThrow(
+    it("throws when key is empty", () => {
+      expect(() => new EncryptionService("")).toThrow(
         "PLATFORM_ENCRYPTION_KEY environment variable is required"
       );
     });
 
-    it("throws when PLATFORM_ENCRYPTION_KEY is wrong length (not 32 bytes)", () => {
-      process.env.PLATFORM_ENCRYPTION_KEY = randomBytes(16).toString("base64");
-      expect(() => new EncryptionService()).toThrow("must be 32 bytes");
+    it("throws when key is wrong length (not 32 bytes)", () => {
+      const shortKey = randomBytes(16).toString("base64");
+      expect(() => new EncryptionService(shortKey)).toThrow("must be 32 bytes");
     });
 
     it("initializes successfully with valid 32-byte base64 key", () => {
@@ -140,8 +127,8 @@ describe("EncryptionService", () => {
       const svc = createService();
       const encrypted = svc.encrypt("secret");
 
-      process.env.PLATFORM_ENCRYPTION_KEY = randomBytes(32).toString("base64");
-      const otherSvc = new EncryptionService();
+      const otherKey = randomBytes(32).toString("base64");
+      const otherSvc = new EncryptionService(otherKey);
 
       expect(() => otherSvc.decrypt(encrypted)).toThrow("Decryption failed");
     });

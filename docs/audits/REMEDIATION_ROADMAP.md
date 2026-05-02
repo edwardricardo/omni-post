@@ -220,15 +220,22 @@ Un batch `T<n>-<letter>` está **CERRADO** cuando:
 
 ---
 
-#### T0-A — Secrets rotation 🔒
+#### T0-A — Secrets rotation 🔒 ✅ 2026-05-02 (revisitado: scope expandido a "config-as-code" — Zod schema + 22 CWE-798 fixes)
 
-**Scope.** `apps/api/.env` está tracked en git con DATABASE_URL + JWT_SECRET + provider keys reales. Rotar todo y sacarlo del historial.
+**Scope.** Original L-591 era acerca de `apps/api/.env` git-tracked. Revisitado halló:
 
-**Findings table (1):**
+- `apps/api/.env` jamás fue trackeado en git (premisa de L-591 incorrecta)
+- Pero root `.env` SÍ estuvo trackeado hasta `78b1055` con `JWT_*` + `DATABASE_URL` (ya removido)
+- Y el modelo dual `apps/api/.env` vs root `.env` causaba **22 CWE-798 fallbacks** ocultos en el código (`process.env.X || "dev-only-..."`, `?? ""`, `|| this.generate*()`)
+- Y `lib/envValidation.ts:24` (helper `getRequiredSecret(name, devFallback)`) era el wrapper que normalizaba el anti-pattern
 
-| L-#   | Título corto                                   | Esfuerzo | Acción | §5.9         | Notas                                                                         |
-| ----- | ---------------------------------------------- | -------- | ------ | ------------ | ----------------------------------------------------------------------------- |
-| L-591 | `apps/api/.env` git-tracked con secrets reales | QUICK    | FIX    | NEEDS_EDWARD | `git rm --cached` + rotate ALL secrets + verify git history + bfg si expuesto |
+T0-A-bis (este batch) cierra todo: Zod schema + fail-fast + 22 sites fixed + 2 fitness gates + doc.
+
+**Findings table (1 + 22 derived):**
+
+| L-#   | Título corto                                   | Esfuerzo | Acción | §5.9         | Notas                                                                        |
+| ----- | ---------------------------------------------- | -------- | ------ | ------------ | ---------------------------------------------------------------------------- |
+| L-591 | `apps/api/.env` git-tracked con secrets reales | QUICK    | FIX    | NEEDS_EDWARD | Premisa incorrecta — never tracked. Real fix: Zod schema + dual-env collapse |
 
 **Entry criteria.** Ninguno (primero de todos).
 
@@ -249,12 +256,21 @@ git log --all --full-history -- "apps/api/.env" | head -1   # → empty si BFG c
 
 **Dependencias.** 🔒 BLOCKS_TIER (todo lo demás espera a que T0-A cierre para no filtrar secrets durante trabajo paralelo).
 
-**Notas.** Edward debe:
+**Notas.** Resolución T0-A-bis (2026-05-02, scope expandido tras revisitado):
 
-1. Correr `git rm --cached apps/api/.env`.
-2. Rotar cada secret actualmente comprometido (DATABASE_URL password, JWT_SECRET, cada `*_CLIENT_SECRET`, `*_API_KEY`).
-3. Verificar `.gitignore` tiene `.env` y `apps/*/.env`.
-4. Si el repo fue público en algún momento, correr BFG para limpiar historial.
+- `apps/api/.env` y `apps/api/.env.example` borrados (placeholders + dup secrets + DB password pre-B1)
+- Single source of truth: root `.env` + root `.env.test` (canon: Turborepo monorepo + 12-Factor)
+- Zod schema en `apps/api/src/config/env.ts` valida 80+ keys al boot, fail-fast (canon: znv / dev.to / jacobparis 2026)
+- 22 CWE-798 fallbacks fixed (`customerJwt` + `paymentAdapterFactory` + `GatewayAdapterRegistry` + `adminAuthConfig` + `realtimeAnalytics` + `index.ts` cookieSecret + `authServiceCore` + `enhancedOAuthProvider` OAuth encryption + 8 OAuth provider client secrets)
+- `lib/envValidation.ts` wrapper retirado
+- 137 `process.env.*` references en apps/api/src reemplazadas por `env.X` typed constant
+- CI fitness checks #15 (CWE-798 secret fallbacks) + #16 (no direct `process.env` outside `config/env.ts`) wire en `.github/workflows/fitness.yml`
+- Doc `docs/architecture/secrets-and-env.md` (threat model + schema + rotación + troubleshooting)
+- **Hidden bug discovered**: `realtimeAnalytics.ts` usaba `JWT_SECRET` (legacy, no en root .env) → WebSocket auth fallback a `"jwt-secret-dev-only"` (CWE-798) y rechazaba todos los tokens reales. `authServiceCore` tenía variante similar (`generateSecret()` per-restart) que invalidaba sesiones en cada restart. Ambos consolidados a `env.JWT_ACCESS_SECRET`.
+
+**BFG históricos (56 hits gitleaks)**: deferido a launch runbook (Edward's directiva — pre-prod).
+
+**Backlog spawned**: PR-40 (provider constructor injection — `packages/providers/*` aún tiene ~25 CWE-798 + violación hexagonal de leer env directamente).
 
 Otros hallazgos secret-related (L-623 password123, L-621 PAT, L-546 ADMIN_PASSWORD) están en T2-F / T4-V / T4-Q — no son urgentes-temporales pero sí importantes.
 

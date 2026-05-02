@@ -24,6 +24,7 @@ import type Redis from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { TOKENS } from "../infrastructure/container/types.js";
+import { env } from "../config/env.js";
 
 /**
  * Health check routes for monitoring and Kubernetes probes
@@ -68,10 +69,10 @@ export async function healthRoutes(
     .container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
     .forQueue(QUEUE_NAMES.PUBLISH);
   const storageAdapter = createS3StorageAdapter({
-    bucket: process.env.S3_BUCKET || "omni-post-media",
-    region: process.env.S3_REGION || "us-east-1",
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "",
+    bucket: env.S3_BUCKET || "omni-post-media",
+    region: env.S3_REGION || "us-east-1",
+    accessKeyId: env.S3_ACCESS_KEY_ID || "",
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY || "",
   });
 
   // Register health checkers

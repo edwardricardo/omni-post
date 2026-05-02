@@ -10,6 +10,7 @@ import { promises as fs } from "fs";
 import * as _path from "path";
 import * as crypto from "crypto";
 import { createLogger } from "../lib/logger.js";
+import { env } from "../config/env.js";
 
 const videoLogger = createLogger("video");
 
@@ -95,9 +96,9 @@ export class VideoProcessor {
   private readonly spawn: SpawnFn;
 
   constructor(spawnFn?: SpawnFn) {
-    this.ffmpegPath = process.env.FFMPEG_PATH || "ffmpeg";
-    this.ffprobePath = process.env.FFPROBE_PATH || "ffprobe";
-    this.tempDir = process.env.VIDEO_TEMP_DIR || "/tmp/claude/video-processing";
+    this.ffmpegPath = env.FFMPEG_PATH || "ffmpeg";
+    this.ffprobePath = env.FFPROBE_PATH || "ffprobe";
+    this.tempDir = env.VIDEO_TEMP_DIR || "/tmp/claude/video-processing";
     this.spawn = spawnFn ?? defaultSpawn;
     this.ensureTempDir();
   }

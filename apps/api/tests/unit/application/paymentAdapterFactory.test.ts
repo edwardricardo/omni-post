@@ -11,37 +11,46 @@ import { StripePaymentAdapter } from "../../../src/infrastructure/billing/Stripe
 import { PaddlePaymentAdapter } from "../../../src/infrastructure/billing/PaddlePaymentAdapter.js";
 
 describe("createPaymentAdapter", () => {
-  const originalEnv = process.env;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env = { ...originalEnv };
   });
 
-  it("returns StripePaymentAdapter when PAYMENT_PROVIDER=stripe", () => {
-    process.env.PAYMENT_PROVIDER = "stripe";
-    process.env.STRIPE_SECRET_KEY = "sk_test_placeholder_key_for_testing";
-    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
-    const adapter = createPaymentAdapter();
+  it("returns StripePaymentAdapter when provider=stripe", () => {
+    const adapter = createPaymentAdapter({
+      provider: "stripe",
+      stripeSecretKey: "sk_test_placeholder_key_for_testing",
+      stripeWebhookSecret: "whsec_test",
+    });
     assert.strictEqual(adapter.provider, "stripe");
     expect(adapter).toBeInstanceOf(StripePaymentAdapter);
   });
 
-  it("returns PaddlePaymentAdapter when PAYMENT_PROVIDER=paddle", () => {
-    process.env.PAYMENT_PROVIDER = "paddle";
-    process.env.PADDLE_API_KEY = "test_paddle_key";
-    process.env.PADDLE_WEBHOOK_SECRET = "test_secret";
-    const adapter = createPaymentAdapter();
+  it("returns PaddlePaymentAdapter when provider=paddle", () => {
+    const adapter = createPaymentAdapter({
+      provider: "paddle",
+      paddleApiKey: "test_paddle_key",
+      paddleWebhookSecret: "test_secret",
+    });
     assert.strictEqual(adapter.provider, "paddle");
     expect(adapter).toBeInstanceOf(PaddlePaymentAdapter);
   });
 
-  it("defaults to Stripe when PAYMENT_PROVIDER not set", () => {
-    delete process.env.PAYMENT_PROVIDER;
-    process.env.STRIPE_SECRET_KEY = "sk_test_placeholder_key_for_testing";
-    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
-    const adapter = createPaymentAdapter();
-    assert.strictEqual(adapter.provider, "stripe");
+  it("throws when provider=none — explicit selection required", () => {
+    expect(() => createPaymentAdapter({ provider: "none" })).toThrow(
+      /Set PAYMENT_PROVIDER to "stripe" or "paddle"/
+    );
+  });
+
+  it("throws when stripe is partially configured", () => {
+    expect(() =>
+      createPaymentAdapter({ provider: "stripe", stripeSecretKey: "sk_test_only" })
+    ).toThrow(/STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET/);
+  });
+
+  it("throws when paddle is partially configured", () => {
+    expect(() => createPaymentAdapter({ provider: "paddle", paddleApiKey: "key_only" })).toThrow(
+      /PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET/
+    );
   });
 });
 

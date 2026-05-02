@@ -8,33 +8,31 @@
 
 import { createS3StorageAdapter } from "@adapters/storage-s3";
 import type { StoragePort } from "@ports/core";
+import { env } from "../../config/env.js";
 
-function requireEnv(key: string): string {
-  const value = process.env[key];
+function require<T extends string | undefined>(value: T, key: string): NonNullable<T> {
   if (!value) throw new Error(`Missing required env var: ${key}`);
-  return value;
+  return value as NonNullable<T>;
 }
 
 export function createStorageAdapter(): StoragePort {
-  const provider = process.env.STORAGE_PROVIDER ?? "s3";
-
-  switch (provider) {
+  switch (env.STORAGE_PROVIDER) {
     case "do-spaces":
       return createS3StorageAdapter({
-        bucket: requireEnv("DO_SPACES_BUCKET"),
-        region: requireEnv("DO_SPACES_REGION"),
-        accessKeyId: requireEnv("DO_SPACES_KEY"),
-        secretAccessKey: requireEnv("DO_SPACES_SECRET"),
-        endpoint: `https://${requireEnv("DO_SPACES_ENDPOINT")}`,
+        bucket: require(env.DO_SPACES_BUCKET, "DO_SPACES_BUCKET"),
+        region: require(env.DO_SPACES_REGION, "DO_SPACES_REGION"),
+        accessKeyId: require(env.DO_SPACES_KEY, "DO_SPACES_KEY"),
+        secretAccessKey: require(env.DO_SPACES_SECRET, "DO_SPACES_SECRET"),
+        endpoint: `https://${require(env.DO_SPACES_ENDPOINT, "DO_SPACES_ENDPOINT")}`,
       });
 
     case "s3":
-    default:
+    case "local":
       return createS3StorageAdapter({
-        bucket: process.env.S3_BUCKET ?? "omni-post-media",
-        region: process.env.S3_REGION ?? "us-east-1",
-        accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
-        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
+        bucket: env.S3_BUCKET ?? "omni-post-media",
+        region: env.S3_REGION ?? "us-east-1",
+        accessKeyId: env.S3_ACCESS_KEY_ID ?? "",
+        secretAccessKey: env.S3_SECRET_ACCESS_KEY ?? "",
       });
   }
 }

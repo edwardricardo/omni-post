@@ -46,10 +46,11 @@ export type {
   ContentDiscoveryInsight,
   TrendReport,
 } from "./trendTypes.js";
+import { env } from "../config/env.js";
 
 // Global registry for circuit breaker metrics
 const registry = new client.Registry();
-const circuitBreaker = createExternalApiCircuitBreaker(registry, process.env.REDIS_URL);
+const circuitBreaker = createExternalApiCircuitBreaker(registry, env.REDIS_URL);
 
 export class TrendAnalysisService extends BaseService {
   constructor(

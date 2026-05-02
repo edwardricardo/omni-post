@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { CustomReportRepository } from "../../domain/repositories/CustomReportRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import { env } from "../../config/env.js";
 
 export interface EnableReportSharingInput {
   reportId: string;
@@ -47,7 +48,7 @@ export class EnableReportSharingUseCase implements UseCase<
       }
 
       const shareToken = randomBytes(32).toString("hex");
-      const clientUrl = process.env.CLIENT_URL ?? "http://localhost:3002";
+      const clientUrl = env.CLIENT_URL ?? "http://localhost:3002";
 
       await this.repository.update(input.reportId, {
         shareToken,

@@ -29,6 +29,7 @@ const aiLogger = logger.child({ module: "ai" });
 import { OpenAIProvider } from "./providers/openai.js";
 import { PerplexityProvider } from "./providers/perplexity.js";
 import { GeminiProvider } from "./providers/gemini.js";
+import { env } from "../config/env.js";
 
 /** Callback invoked after each successful AI request with token usage */
 type TokenUsageCallback = (provider: string, tokens: number) => Promise<void>;
@@ -98,12 +99,12 @@ export class AIOrchestrator {
   static createFromEnv(scheduler: BackgroundTaskScheduler, cache: CachePort): AIOrchestrator {
     const providers = new Map<string, AIProvider>();
 
-    if (process.env.OPENAI_API_KEY) {
+    if (env.OPENAI_API_KEY) {
       providers.set(
         "openai",
         new OpenAIProvider({
-          apiKey: process.env.OPENAI_API_KEY,
-          model: process.env.OPENAI_MODEL || "gpt-4",
+          apiKey: env.OPENAI_API_KEY,
+          model: env.OPENAI_MODEL || "gpt-4",
           rateLimit: {
             requestsPerMinute: 500,
             tokensPerMinute: 200000,
@@ -116,12 +117,12 @@ export class AIOrchestrator {
       );
     }
 
-    if (process.env.PERPLEXITY_API_KEY) {
+    if (env.PERPLEXITY_API_KEY) {
       providers.set(
         "perplexity",
         new PerplexityProvider({
-          apiKey: process.env.PERPLEXITY_API_KEY,
-          model: process.env.PERPLEXITY_MODEL || "llama-3.1-sonar-small-128k-online",
+          apiKey: env.PERPLEXITY_API_KEY,
+          model: env.PERPLEXITY_MODEL || "llama-3.1-sonar-small-128k-online",
           baseUrl: "https://api.perplexity.ai",
           rateLimit: {
             requestsPerMinute: 20,
@@ -135,12 +136,12 @@ export class AIOrchestrator {
       );
     }
 
-    if (process.env.GEMINI_API_KEY) {
+    if (env.GEMINI_API_KEY) {
       providers.set(
         "gemini",
         new GeminiProvider({
-          apiKey: process.env.GEMINI_API_KEY,
-          model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
+          apiKey: env.GEMINI_API_KEY,
+          model: env.GEMINI_MODEL || "gemini-1.5-flash",
           rateLimit: {
             requestsPerMinute: 60,
             tokensPerMinute: 30000,

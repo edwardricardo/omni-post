@@ -73,6 +73,7 @@ import {
   DefaultBackgroundTaskScheduler,
   type BackgroundTaskScheduler,
 } from "@observability/background-scheduler";
+import { env } from "../../config/env.js";
 
 /**
  * Register all services in the container
@@ -278,7 +279,7 @@ export function setupServices(
   container.register<QueuePortRegistry>(
     TOKENS.QueuePortRegistry,
     () => {
-      const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+      const connection = new Redis(env.REDIS_URL || "redis://localhost:6379", {
         enableReadyCheck: false,
         maxRetriesPerRequest: 3,
         lazyConnect: true,
@@ -439,7 +440,7 @@ export function setupServices(
   container.register(
     TOKENS.PostsService,
     () => {
-      const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
+      const redisUrl = env.REDIS_URL ?? "redis://localhost:6379";
       const dbOptimizer = new DatabaseOptimizer(
         container.resolve(TOKENS.PrismaClient),
         dbLogger,

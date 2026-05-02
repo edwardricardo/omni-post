@@ -5,6 +5,7 @@
  * @layer infrastructure
  */
 import { z, ZodSchema } from "zod";
+import { env } from "../config/env.js";
 
 // Security validation rules
 export class SecurityValidator {
@@ -162,6 +163,53 @@ export const createSecureSchema = <T>(baseSchema: ZodSchema<T>) => {
   });
 };
 
+/**
+ * @function makeMediaUrlSchema
+ * @description Builds a Zod schema that validates a media URL against an
+ *   explicit allowlist of host suffixes. Exported so tests can construct a
+ *   schema with a known allowlist instead of mutating process.env at runtime.
+ * @param allowedHosts - Suffix matches: a hostname matches if it `endsWith` any
+ *   entry. Empty array disables host checking entirely.
+ */
+export function makeMediaUrlSchema(allowedHosts: readonly string[]): ZodSchema {
+  return z
+    .string()
+    .url()
+    .max(2048)
+    .transform((url, ctx) => {
+      try {
+        const parsed = new URL(url);
+        const allowedProtocols = ["http:", "https:"];
+
+        if (!allowedProtocols.includes(parsed.protocol)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Invalid media URL protocol",
+          });
+          return z.NEVER;
+        }
+
+        if (
+          allowedHosts.length > 0 &&
+          !allowedHosts.some((host) => parsed.hostname.endsWith(host))
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Unauthorized media host",
+          });
+          return z.NEVER;
+        }
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Invalid media URL format",
+        });
+        return z.NEVER;
+      }
+      return url;
+    });
+}
+
 // Enhanced validation schemas
 export const SecureSchemas = {
   // User input with stricter validation
@@ -236,43 +284,7 @@ export const SecureSchemas = {
   uuid: z.string().uuid(),
 
   // Media validation with stricter checks
-  mediaUrl: z
-    .string()
-    .url()
-    .max(2048)
-    .transform((url, ctx) => {
-      try {
-        const parsed = new URL(url);
-        const allowedProtocols = ["http:", "https:"];
-        const allowedHosts = process.env.ALLOWED_MEDIA_HOSTS?.split(",") || [];
-
-        if (!allowedProtocols.includes(parsed.protocol)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Invalid media URL protocol",
-          });
-          return z.NEVER;
-        }
-
-        if (
-          allowedHosts.length > 0 &&
-          !allowedHosts.some((host) => parsed.hostname.endsWith(host))
-        ) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Unauthorized media host",
-          });
-          return z.NEVER;
-        }
-      } catch {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Invalid media URL format",
-        });
-        return z.NEVER;
-      }
-      return url;
-    }),
+  mediaUrl: makeMediaUrlSchema(env.ALLOWED_MEDIA_HOSTS?.split(",") ?? []),
 
   // File path validation
   filePath: z

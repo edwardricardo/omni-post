@@ -15,6 +15,7 @@ import { prisma as globalPrisma } from "@infra/prisma";
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
 import { AuditableService } from "../services/AuditableService.js";
 import { AppError } from "../lib/errors/AppError.js";
+import { env } from "../config/env.js";
 
 /**
  * Minimal Prisma interface required by EnhancedOAuthService.
@@ -127,16 +128,7 @@ export class EnhancedOAuthService extends AuditableService {
     this.metrics = metrics;
     this.db = prismaClient ?? (globalPrisma as unknown as OAuthPrismaClient);
 
-    // Initialize encryption key for token storage
-    const encryptionKeyHex = process.env.OAUTH_ENCRYPTION_KEY || this.generateEncryptionKey();
-    this.encryptionKey = Buffer.from(encryptionKeyHex, "hex");
-
-    if (!process.env.OAUTH_ENCRYPTION_KEY) {
-      this.logWarning(
-        { operation: "constructor" },
-        "OAuth encryption key not found in environment. Using generated key (not suitable for production)"
-      );
-    }
+    this.encryptionKey = Buffer.from(env.OAUTH_ENCRYPTION_KEY, "hex");
 
     this.logOperation(
       { serviceName: "EnhancedOAuthService", operation: "constructor" },
@@ -622,10 +614,6 @@ export class EnhancedOAuthService extends AuditableService {
       );
       return encryptedToken; // Fallback to encrypted value
     }
-  }
-
-  private generateEncryptionKey(): string {
-    return randomBytes(32).toString("hex");
   }
 
   /**

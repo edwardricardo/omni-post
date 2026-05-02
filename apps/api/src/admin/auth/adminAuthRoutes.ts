@@ -27,6 +27,7 @@ import {
   validatePasswordSchema,
 } from "./adminAuthSchemas";
 import type { DeviceFingerprint } from "./adminAuthTypes";
+import { env } from "../../config/env.js";
 
 // ============================================================================
 // Route Handler Class
@@ -506,7 +507,7 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   // ==========================================================================
 
   // Login (with rate limiting — account lockout after 5 failed attempts provides primary brute-force protection)
-  const loginRateMax = process.env.NODE_ENV === "test" ? 100 : 15;
+  const loginRateMax = env.NODE_ENV === "test" ? 100 : 15;
   fastify.post(
     "/admin/auth/login",
     {
