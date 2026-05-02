@@ -393,7 +393,7 @@ grep -E "^\*\.bak" .gitignore | wc -l   # → ≥1
 
 ---
 
-#### T1-D — Comments obsoletos + dead refs ⚡ ✅ 2026-04-22
+#### T1-D — Comments obsoletos + dead refs ⚡ ✅ 2026-04-22 (revisitado canon 2026-05-02 — lychee wired, 21 broken docs refs fixed)
 
 **Scope.** Comments tipo "Added in Sprint X", dangling doc refs, obsolete notes.
 
@@ -419,6 +419,14 @@ grep -rn "Part of Sprint\|Phase.*Sprint\|Sprint [0-9]" apps/ packages/ --include
 **Estimación.** 30 min.
 
 **Dependencias.** ⚡ PARALELIZABLE.
+
+**Revisitado canon 2026-05-02.** Verificado contra Google TS Style Guide (JSDoc vs implementation comments) + lychee canon (Rust-based markdown link checker, official GitHub Action). El batch original cerró findings puntuales pero **no wireó CI gate** que prevenga regresión de la clase "dangling doc ref" (L-555 era una instancia, no la clase). Gap canon implementado:
+
+1. **lychee-link-check job en `audit.yml`** (8º tool en el toolkit), `--offline` + exclude regex para code-file refs (workspace-relative, IDE-resolvable, no docs).
+2. **21 broken markdown links fixed** baseline: case mismatches en `docs/README.md` (10 sites: api.md→API.md, database.md→DATABASE.md, etc.), `docs/development/getting-started.md` 3 dead refs, `docs/features/templates.md` 4 broken (CONTRIBUTING relative path + missing Enhanced-Template-System.md + GitHub URL ambiguity), `docs/api/caching.md` 3 root-relative refs sin --root-dir config + 2 archivos que no existían (middleware.ts, events.ts).
+3. **Hard-zero gate**: lychee falla CI si nuevo broken link entra. Final baseline: `78 OK / 0 Errors / 217 Excluded`.
+
+Canon entries añadidos: Google TS Style Guide, lychee-action, alternativas evaluadas (markdown-link-check, linkinator) — `canon_research_index.md` §Documentation Hygiene.
 
 ---
 

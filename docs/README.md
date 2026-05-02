@@ -35,13 +35,13 @@
 | Document                                        | Description                                 |
 | ----------------------------------------------- | ------------------------------------------- |
 | [Architecture Overview](architecture/README.md) | Hexagonal, DDD, CQRS, event-driven patterns |
-| [API Reference](architecture/api.md)            | Fastify REST API, endpoints, auth           |
-| [Database](architecture/database.md)            | Prisma schema, migrations, indexes          |
-| [Security](architecture/security.md)            | JWT, MFA, RBAC, audit logging               |
-| [Providers](architecture/providers.md)          | 10 social platform adapters                 |
-| [Testing](architecture/testing.md)              | Vitest, node:test, Playwright strategy      |
+| [API Reference](architecture/API.md)            | Fastify REST API, endpoints, auth           |
+| [Database](architecture/DATABASE.md)            | Prisma schema, migrations, indexes          |
+| [Security](architecture/SECURITY.md)            | JWT, MFA, RBAC, audit logging               |
+| [Providers](architecture/PROVIDERS.md)          | 10 social platform adapters                 |
+| [Testing](architecture/TESTING.md)              | Vitest, node:test, Playwright strategy      |
 | [Observability](architecture/observability.md)  | OpenTelemetry, Prometheus, Pino logging     |
-| [Client App](architecture/client-app.md)        | Next.js, React 19, TanStack Query           |
+| [Client App](architecture/CLIENT-APP.md)        | Next.js, React 19, TanStack Query           |
 
 ### API
 
@@ -56,8 +56,8 @@
 
 | Document                                 | Description                      |
 | ---------------------------------------- | -------------------------------- |
-| [Admin Dashboard](admin/README.md)       | Admin app overview               |
-| [Admin Auth](admin/auth.md)              | Server Actions, httpOnly cookies |
+| [Admin Dashboard](admin/dashboard.md)    | Admin app overview               |
+| [Admin Auth](admin/AUTH.md)              | Server Actions, httpOnly cookies |
 | [Admin E2E Tests](admin/e2e/README.md)   | Playwright test suite            |
 | [Client App](client/react-19.md)         | React 19 concurrent features     |
 | [Content Editor](client/editor.md)       | TipTap, platform previews        |
@@ -77,8 +77,8 @@
 
 | Document                                  | Description                   |
 | ----------------------------------------- | ----------------------------- |
-| [Security Overview](security/overview.md) | JWT, MFA, password, audit     |
-| [Auth Architecture](security/auth.md)     | Cookie auth, dual-app pattern |
+| [Security Overview](security/OVERVIEW.md) | JWT, MFA, password, audit     |
+| [Auth Architecture](security/AUTH.md)     | Cookie auth, dual-app pattern |
 
 ### Reports (Historical)
 
@@ -166,7 +166,7 @@ pnpm dev:api      # API server
 pnpm dev:admin    # Admin dashboard
 ```
 
-See [GETTING_STARTED.md](./GETTING_STARTED.md) for detailed setup instructions.
+See [getting-started.md](./development/getting-started.md) for detailed setup instructions.
 
 ## Performance Testing
 

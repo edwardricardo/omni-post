@@ -220,7 +220,38 @@ jobs:
           retention-days: 30
 
   # ──────────────────────────────────────────────────────────────────────
-  # 7. TruffleHog — verified secrets (NIGHTLY only)
+  # 7. lychee — markdown link check (broken internal docs refs)
+  # ──────────────────────────────────────────────────────────────────────
+  lychee-link-check:
+    if: github.event_name != 'schedule'
+    name: lychee (markdown link check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run lychee on docs + repo markdown
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # `--offline` skips external HTTPS (no rate-limit flakes). Source-
+          # code file refs (.ts/.tsx/.json/.sql/etc) are excluded — they're
+          # workspace-relative and resolved by IDE tooling, not by lychee's
+          # filesystem-relative semantics. The check focuses on actual
+          # documentation refs (.md → .md and similar).
+          args: >-
+            --offline
+            --no-progress
+            --exclude-path node_modules
+            --exclude-path .next
+            --exclude-path .stryker-tmp
+            --exclude-path '**/dist'
+            --exclude-path '**/coverage'
+            --exclude '\.(ts|tsx|js|jsx|cjs|mjs|json|sql|yaml|yml|css|scss|html|sh|toml|prisma|test\.ts)'
+            './**/*.md'
+          fail: true
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 8. TruffleHog — verified secrets (NIGHTLY only)
   # ──────────────────────────────────────────────────────────────────────
   trufflehog-nightly:
     if: github.event_name == 'schedule'
@@ -269,6 +300,7 @@ jobs:
       - gitleaks
       - squawk
       - size-limit
+      - lychee-link-check
     steps:
       - name: Render summary
         run: |
@@ -282,5 +314,6 @@ jobs:
           echo "| gitleaks           | ${{ needs.gitleaks.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Squawk             | ${{ needs.squawk.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| size-limit         | ${{ needs.size-limit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| lychee             | ${{ needs.lychee-link-check.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Reference: docs/architecture/audit-toolkit.md" >> $GITHUB_STEP_SUMMARY
