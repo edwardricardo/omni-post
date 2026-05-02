@@ -1806,7 +1806,7 @@ Raw count after filters: **~20 sitios**. Verificación per-site requerida antes 
 
 **Sub-batches sugeridos:**
 
-- **36-A** (QUICK, ~2-3h, AUTO): Grupo A solo (high-confidence + mecánico). 14 sites with target evidente. Migration adds `@relation` + FK constraint.
+- **36-A** ✅ RESUELTO 2026-05-01: 12 real DB FK gaps closed (final scope, smaller than initially scoped 14-16; 4 alleged sites already had Prisma-implicit FKs in DB — verified via `pg_constraint` query). Migration `20260502010535_pr36a_fk_relations_grupo_a` added 12 ADD FOREIGN KEY constraints; orphan-row data audit returned 0 across all 12 sites pre-apply; post-apply DB verification confirms 12/12 HAS_FK ✓.
 - **36-B** (MEDIUM, NEEDS_EDWARD): Grupo B + Grupo C. Per-site Edward decision: WIRE+FK / DELETE-orphan / loose-by-design + JSDoc.
 - **36-C** (deferred): re-audit after migration to verify 0 unintended new gaps.
 
