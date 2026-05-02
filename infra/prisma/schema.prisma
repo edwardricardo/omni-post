@@ -14,12 +14,12 @@ model Account {
   name                     String
   maxProjects              Int                       @default(1)
   isOnTrial                Boolean                   @default(true)
-  trialStartDate           DateTime                  @default(now())
-  trialEndDate             DateTime?
+  trialStartDate           DateTime                  @default(now()) @db.Timestamptz(6)
+  trialEndDate             DateTime?                 @db.Timestamptz(6)
   autoRenewal              Boolean                   @default(false)
   billingCycle             String                    @default("monthly") // "monthly" or "yearly"
-  lastBillingDate          DateTime?
-  nextBillingDate          DateTime?
+  lastBillingDate          DateTime?                 @db.Timestamptz(6)
+  nextBillingDate          DateTime?                 @db.Timestamptz(6)
   stripeCustomerId         String?
   stripeSubscriptionId     String?
   slug                     String?                   @unique
@@ -29,8 +29,8 @@ model Account {
   maxTeamMembers           Int                       @default(5)
   maxStorageBytes          BigInt                    @default(5368709120)
   maxRecurringPosts        Int                       @default(5)
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
+  createdAt                DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime                  @updatedAt @db.Timestamptz(6)
   projects                 Project[]
   apiKeys                  ApiKey[]
   providerConnections      ProviderConnection[]
@@ -43,7 +43,7 @@ model Account {
   webhookEvents            WebhookEvent[]
   webhookSubscriptions     WebhookSubscription[]
   templates                Template[]
-  deletedAt                DateTime?
+  deletedAt                DateTime?                 @db.Timestamptz(6)
   teamMembers              TeamMember[]
   socialMessages           SocialMessage[]
   socialConversations      SocialConversation[]
@@ -76,7 +76,7 @@ model Account {
   gatewayCustomerId        String?
   pendingGatewayProvider   GatewayProvider?
   pendingGatewaySwitch     Boolean                   @default(false)
-  gatewaySwitchAt          DateTime?
+  gatewaySwitchAt          DateTime?                 @db.Timestamptz(6)
   gatewaySwitchEvents      GatewaySwitchEvent[]
   billingEvents            BillingEvent[]
   invoices                 Invoice[]
@@ -2814,8 +2814,8 @@ model ProviderPricingTier {
   /// Money: industry canon Decimal(19,4) — accommodates GAAP rounding tolerance + sub-cent precision.
   pricePerProviderMonth Decimal  @db.Decimal(19, 4)
   isActive              Boolean  @default(true)
-  effectiveFrom         DateTime @default(now())
-  createdAt             DateTime @default(now())
+  effectiveFrom         DateTime @default(now()) @db.Timestamptz(6)
+  createdAt             DateTime @default(now()) @db.Timestamptz(6)
 
   @@unique([minProviders, isActive])
 }
@@ -2827,8 +2827,8 @@ model AccountPricingTier {
   /// Multiplier/rate: Decimal(10,6) — supports basis-point precision.
   multiplier    Decimal  @db.Decimal(10, 6)
   isActive      Boolean  @default(true)
-  effectiveFrom DateTime @default(now())
-  createdAt     DateTime @default(now())
+  effectiveFrom DateTime @default(now()) @db.Timestamptz(6)
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
 
   @@unique([minAccounts, isActive])
 }
@@ -2843,8 +2843,8 @@ model ProviderBundle {
   pricePerAccountMonth Decimal    @db.Decimal(19, 4)
   isActive             Boolean    @default(true)
   sortOrder            Int        @default(0)
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
+  createdAt            DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime   @updatedAt @db.Timestamptz(6)
 
   subscriptions AccountSubscription[]
   featureFlags  BundleFeatureFlag[]
@@ -2874,14 +2874,14 @@ model AccountSubscription {
   externalSubscriptionId String?
   externalCustomerId     String?
   billingCycle           BillingCycle       @default(MONTHLY)
-  currentPeriodStart     DateTime?
-  currentPeriodEnd       DateTime?
-  trialEndsAt            DateTime?
+  currentPeriodStart     DateTime?          @db.Timestamptz(6)
+  currentPeriodEnd       DateTime?          @db.Timestamptz(6)
+  trialEndsAt            DateTime?          @db.Timestamptz(6)
   cancelAtPeriodEnd      Boolean            @default(false)
   gatewayProvider        GatewayProvider    @default(STRIPE)
   gatewaySubscriptionId  String?            @unique
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
+  createdAt              DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime           @updatedAt @db.Timestamptz(6)
 
   account  Account                    @relation(fields: [accountId], references: [id], onDelete: Cascade)
   bundle   ProviderBundle?            @relation(fields: [bundleId], references: [id])
@@ -2899,9 +2899,9 @@ model SubscriptionPriceHistory {
   /// Money: industry canon Decimal(19,4).
   newPrice       Decimal   @db.Decimal(19, 4)
   reason         String
-  effectiveAt    DateTime
-  notifiedAt     DateTime?
-  createdAt      DateTime  @default(now())
+  effectiveAt    DateTime  @db.Timestamptz(6)
+  notifiedAt     DateTime? @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
 
   subscription AccountSubscription @relation(fields: [subscriptionId], references: [id])
 
@@ -2918,15 +2918,15 @@ model Invoice {
   amountDue        Float
   amountPaid       Float           @default(0)
   currency         String          @default("usd")
-  periodStart      DateTime
-  periodEnd        DateTime
-  paidAt           DateTime?
+  periodStart      DateTime        @db.Timestamptz(6)
+  periodEnd        DateTime        @db.Timestamptz(6)
+  paidAt           DateTime?       @db.Timestamptz(6)
   hostedUrl        String?
   pdfUrl           String?
   attemptCount     Int             @default(0)
-  nextRetryAt      DateTime?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  nextRetryAt      DateTime?       @db.Timestamptz(6)
+  createdAt        DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @db.Timestamptz(6)
 
   account      Account              @relation(fields: [accountId], references: [id])
   subscription AccountSubscription? @relation(fields: [subscriptionId], references: [id])
@@ -3015,18 +3015,18 @@ model GatewaySwitchEvent {
   accountId      String
   fromGateway    GatewayProvider
   toGateway      GatewayProvider
-  requestedAt    DateTime        @default(now())
-  scheduledFor   DateTime
-  completedAt    DateTime?
-  cancelledAt    DateTime?
-  reminderSentAt DateTime?
-  suspendedAt    DateTime?
-  extendedUntil  DateTime?
+  requestedAt    DateTime        @default(now()) @db.Timestamptz(6)
+  scheduledFor   DateTime        @db.Timestamptz(6)
+  completedAt    DateTime?       @db.Timestamptz(6)
+  cancelledAt    DateTime?       @db.Timestamptz(6)
+  reminderSentAt DateTime?       @db.Timestamptz(6)
+  suspendedAt    DateTime?       @db.Timestamptz(6)
+  extendedUntil  DateTime?       @db.Timestamptz(6)
   extendedBy     String?
   status         SwitchStatus    @default(SCHEDULED)
   metadata       Json?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -3190,7 +3190,7 @@ model ReferralCode {
   code        String   @unique
   usageCount  Int      @default(0)
   conversions Int      @default(0)
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
 
   account   Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
   referrals Referral[]
@@ -3203,8 +3203,8 @@ model Referral {
   referredEmail     String
   status            ReferralStatus @default(PENDING)
   rewardGranted     Boolean        @default(false)
-  convertedAt       DateTime?
-  createdAt         DateTime       @default(now())
+  convertedAt       DateTime?      @db.Timestamptz(6)
+  createdAt         DateTime       @default(now()) @db.Timestamptz(6)
 
   referralCode    ReferralCode @relation(fields: [referralCodeId], references: [id])
   referredAccount Account?     @relation("ReferredAccount", fields: [referredAccountId], references: [id], onDelete: SetNull)
@@ -3311,7 +3311,7 @@ model PlatformCredential {
   iv             String
   authTag        String
   isActive       Boolean         @default(true)
-  updatedAt      DateTime        @updatedAt
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(6)
   updatedBy      String?
 
   @@unique([group, key])
@@ -3327,8 +3327,8 @@ model AccountCredential {
   iv             String
   authTag        String
   isActive       Boolean                @default(true)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  createdAt      DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime               @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
