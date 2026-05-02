@@ -430,7 +430,7 @@ Canon entries añadidos: Google TS Style Guide, lychee-action, alternativas eval
 
 ---
 
-#### T1-E — Unused imports + state ⚡ ✅ 2026-04-22
+#### T1-E — Unused imports + state ⚡ ✅ 2026-04-22 (revisitado canon 2026-05-02 — knip canon recognized, baseline reduction → PR-41)
 
 **Scope.** Unused imports + state + eslint-disable sin documentar + empty interface.
 
@@ -455,6 +455,8 @@ pnpm lint --max-warnings 0 2>&1 | grep -c "unused\|no-unused"   # → 0
 **Estimación.** 30 min.
 
 **Dependencias.** ⚡ PARALELIZABLE (tras T1-A).
+
+**Revisitado canon 2026-05-02.** Verificado contra knip canon (Effective TypeScript 2026 + Vercel adoption). El batch original cerró 5 findings variable-level (lint-detectable) + ESLint `no-unused-vars` enforce ✅. Pero **module-level dead code** (knip surface) requiere su propia investigación — knip ya está instalado (v6.1.0, `knip.json` con 23 workspaces) y wireado en `ci.yml > code-quality` job, pero ese workflow **no se dispara en `refactor/**`** y baseline local muestra **426 findings** (32 unused files + 12 unused deps + 47 unused exports + 300 unused types + más). Aplicar el filtro de 3-preguntas (origen/propósito/duplicación) por cada finding es batch propio: **PR-41 backlog**. Canon entry agregado a `canon_research_index.md §Code Quality / Dead Code Detection`.
 
 ---
 

@@ -1983,6 +1983,65 @@ Inmediatamente después del revisitado del roadmap (necesario para confiar en gr
 
 ## Meta
 
+### PR-41 — Knip dead-code reduction sweep (426 findings) + ci.yml triggers en refactor/\*\*
+
+**Fecha de surfacing:** 2026-05-02 (T1-E revisitado canon)
+**Severidad:** medio — gate canónico configurado pero no enforced en branch refactor/\*\*
+**Tipo:** scope grande — barrido de dead-code module-level con filtro 3-preguntas
+
+**Contexto.** T1-E original (2026-04-22) cerró 5 findings variable-level (L-120..L-502) y exit criteria pasan (`pnpm lint --max-warnings 0` → 0 unused). Knip ya está instalado (`v6.1.0` con `knip.json` comprehensive) y wireado en CI vía `ci.yml > code-quality > pnpm check:dead-code` — **pero ese workflow no se dispara en `refactor/**`branches** (solo`main`/`omni-post-cc`), así que el gate nunca se ejerció en esta branch.
+
+Baseline local 2026-05-02:
+
+| Knip finding type      | Count    |
+| ---------------------- | -------- |
+| Unused files           | 32       |
+| Unused dependencies    | 12       |
+| Unused devDependencies | 6        |
+| Unlisted dependencies  | 17       |
+| Unlisted binaries      | 5        |
+| Unused exports         | 47       |
+| Unused exported types  | 300      |
+| Duplicate exports      | 7        |
+| **Total**              | **~426** |
+
+**Por qué no fue cerrado en T1-E revisitado.** Cada finding requiere aplicación del filtro de 3 preguntas (`feedback_three_questions_before_delete.md`):
+
+1. Origen: ¿alguien lo creó con intención válida?
+2. Propósito: ¿scaffolding (wiring incompleto) o reemplazo histórico (deuda)?
+3. Duplicación: ¿hay equivalente en otro lado?
+
+426 findings × 3 preguntas + verificación = batch propio (~6-12h). El L-42 EventSnapshots case study advierte explícitamente contra "cero callers → DELETE" sin investigación.
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando se quiera fortalecer el gate de dead-code o cuando un PR vaya a tocar archivos flagged.
+
+2. **Investigación**:
+   - Audit de los 32 unused files: clasificar como (a) scaffolding intencional → IMPLEMENT/WIRE, (b) reemplazo histórico → DELETE, (c) entry/binary que knip no reconoce → ajustar `knip.json` config.
+   - Audit de los 47 unused exports + 300 unused types: muchos pueden ser intencional API surface (port interfaces, DTO definitions) — ajustar config para reconocer entry points.
+   - Audit de 12 unused dependencies + 17 unlisted: limpieza directa en package.json.
+
+3. **Implementation**:
+   - Rondas iterativas: cada finding pasa el filtro 3-preguntas, se decide DELETE / IMPLEMENT / IGNORE-IN-CONFIG.
+   - Se aprovecha para configurar `knip.json` con entry-points explícitos (CLI scripts como `generateEncryptionKey.ts`, etc.).
+
+4. **Wire ci.yml en `refactor/**`\*\* + cualquier branch protection una vez baseline = 0:
+   - Extender `on: push.branches` a `[main, omni-post-cc, "refactor/**"]`.
+   - Lock-in hard-zero gate.
+
+**Bloqueado por.** Solo prioritization + tiempo. Es scope claro pero amplio.
+
+**Cuándo revisar.**
+
+- Cuando un PR toque archivos flagged como unused (oportunidad de incluir audit).
+- Cuando se merge la rama actual a `main` (ci.yml correrá, baseline visible).
+- Cuando se quiera empezar la entrega/rollout del proyecto (limpieza pre-launch).
+
+**Estado:** PENDING (surfaced 2026-05-02 durante T1-E revisitado canon).
+
+---
+
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
 
 **Cierre.** Un entry se marca como `REVIEWED` cuando Edward lo revisa al final del roadmap. Se marca como `FIXED` cuando el fix de raíz se aplicó. Se marca como `WONT_FIX` si Edward decide que el paliativo es suficiente a largo plazo (en cuyo caso la razón debe documentarse).
