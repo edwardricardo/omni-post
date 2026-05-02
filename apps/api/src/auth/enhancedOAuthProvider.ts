@@ -570,7 +570,7 @@ export class EnhancedOAuthService extends AuditableService {
 
     try {
       const iv = randomBytes(16);
-      const cipher = createCipheriv("aes-256-gcm", this.encryptionKey, iv);
+      const cipher = createCipheriv("aes-256-gcm", this.encryptionKey, iv, { authTagLength: 16 });
 
       let encrypted = cipher.update(token, "utf8", "hex");
       encrypted += cipher.final("hex");
@@ -606,7 +606,9 @@ export class EnhancedOAuthService extends AuditableService {
       const iv = Buffer.from(ivHex, "hex");
       const authTag = Buffer.from(authTagHex, "hex");
 
-      const decipher = createDecipheriv("aes-256-gcm", this.encryptionKey, iv);
+      const decipher = createDecipheriv("aes-256-gcm", this.encryptionKey, iv, {
+        authTagLength: 16,
+      });
       decipher.setAuthTag(authTag);
 
       let decrypted = decipher.update(encrypted, "hex", "utf8");

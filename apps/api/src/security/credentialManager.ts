@@ -303,7 +303,7 @@ export class CredentialManager {
     const key = Buffer.isBuffer(this.config.secretKey)
       ? this.config.secretKey
       : Buffer.from(this.config.secretKey, "hex");
-    const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+    const cipher = crypto.createCipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
     cipher.setAAD(Buffer.from("api-credentials"));
 
     let encrypted = cipher.update(data, "utf8", "hex");
@@ -324,7 +324,7 @@ export class CredentialManager {
     const key = Buffer.isBuffer(this.config.secretKey)
       ? this.config.secretKey
       : Buffer.from(this.config.secretKey, "hex");
-    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
     decipher.setAAD(Buffer.from("api-credentials"));
     decipher.setAuthTag(Buffer.from(encryptedData.tag, "hex"));
 

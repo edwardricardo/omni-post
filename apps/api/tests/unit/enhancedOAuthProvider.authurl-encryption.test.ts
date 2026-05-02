@@ -155,6 +155,13 @@ describe("EnhancedOAuthService - Token Encryption", () => {
     expect(capturedAccessToken).not.toBe("plain-token");
     expect(capturedAccessToken.includes(":")).toBeTruthy();
 
+    // Auth tag must be exactly 16 bytes (32 hex chars) — explicit authTagLength
+    const parts = capturedAccessToken.split(":");
+    expect(parts.length).toBe(3);
+    const authTagHex = parts[1];
+    expect(authTagHex).toBeDefined();
+    expect(authTagHex!.length).toBe(32);
+
     // Restore original fetch
     global.fetch = mocks.globalFetch;
   });

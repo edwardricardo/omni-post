@@ -89,6 +89,13 @@ describe("EncryptionService", () => {
       const result = svc.encrypt(longString);
       expect(result.encryptedValue.length).toBeGreaterThan(0);
     });
+
+    it("produces a 16-byte (128-bit) auth tag (explicit authTagLength)", () => {
+      const svc = createService();
+      const result = svc.encrypt("any-plaintext");
+      const tagBytes = Buffer.from(result.authTag, "base64");
+      expect(tagBytes.length).toBe(16);
+    });
   });
 
   describe("decrypt", () => {
