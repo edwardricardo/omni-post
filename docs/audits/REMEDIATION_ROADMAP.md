@@ -389,6 +389,8 @@ grep -E "^\*\.bak" .gitignore | wc -l   # → ≥1
 
 **Dependencias.** ⚡ PARALELIZABLE.
 
+**Revisitado canon 2026-05-02.** Verificado contra GitHub docs (line endings + CODEOWNERS) + linguist-generated canon (entries añadidas a `canon_research_index.md` §Git Hygiene). Implementación alineada en lo crítico (`* text=auto eol=lf`, fallback CODEOWNERS rule, `.bak*` patterns en gitignore). 1 mejora canon-aligned aplicada: `pnpm-lock.yaml` y `pnpm-lock.yaml.baseline` marcados con `-diff linguist-generated=true` para suprimir ruido en PR review (canon: GitHub Linguist overrides). L-590 resuelto en T1-C original con interpretación válida (track baseline as reference artifact en lugar de ignore). Exit criteria 5/5 ✅.
+
 ---
 
 #### T1-D — Comments obsoletos + dead refs ⚡ ✅ 2026-04-22

@@ -12,3 +12,9 @@
 *.zip binary
 *.gz binary
 *.tar binary
+
+# Lockfiles: suppress diff (PR review noise) and exclude from language stats.
+# Canon: GitHub linguist-generated + Git -diff attribute. Lockfile changes
+# are better reviewed via tooling (Renovate, pnpm-audit) than line diff.
+pnpm-lock.yaml -diff linguist-generated=true
+pnpm-lock.yaml.baseline -diff linguist-generated=true
