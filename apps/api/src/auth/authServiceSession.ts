@@ -186,7 +186,7 @@ export class AuthServiceSession {
 
       const session = await prisma.adminSession.findUnique({
         where: { id: decoded.sessionId },
-        include: { user: true },
+        include: { user: { include: { role: true } } },
       });
       if (!session || !session.isActive || session.expiresAt < new Date()) {
         return err("SESSION_EXPIRED");
@@ -200,7 +200,11 @@ export class AuthServiceSession {
         }
       }
 
-      return ok(this.core.mapUserToAuthenticatedUser(session.user as unknown as AdminUserDto));
+      const userDto = {
+        ...session.user,
+        role: session.user.role.name,
+      } as unknown as AdminUserDto;
+      return ok(this.core.mapUserToAuthenticatedUser(userDto));
     } catch (error) {
       if (error instanceof jwt.JsonWebTokenError) {
         return err("INVALID_TOKEN");

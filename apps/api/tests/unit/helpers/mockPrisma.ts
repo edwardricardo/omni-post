@@ -503,13 +503,28 @@ export function createMockPrismaModule() {
     return result;
   };
 
-  // Session include resolver: resolves include: { user: true }
+  // Session include resolver: resolves include: { user: true } and nested
+  // include: { user: { include: { role: true } } } (used by verifyAccessToken).
   const sessionIncludeResolver: IncludeResolver = (record, include) => {
     const result = { ...record };
     if (include.user) {
       const userId = record.userId as string;
-      const user = stores.adminUser.all().find((u) => u.id === userId) ?? null;
-      result.user = user ? { ...user } : null;
+      const rawUser = stores.adminUser.all().find((u) => u.id === userId) ?? null;
+      if (rawUser) {
+        const userInclude =
+          typeof include.user === "object" && include.user !== null
+            ? ((include.user as { include?: Record<string, unknown> }).include ?? {})
+            : {};
+        const userResult: Record<string, unknown> = { ...rawUser };
+        if (userInclude.role) {
+          const roleId = rawUser.roleId as string | undefined;
+          const role = roleId ? (stores.role.all().find((r) => r.id === roleId) ?? null) : null;
+          userResult.role = role ? { ...role } : null;
+        }
+        result.user = userResult;
+      } else {
+        result.user = null;
+      }
     }
     return result;
   };
