@@ -129,19 +129,19 @@ model AdminUser {
   role                  Role      @relation(fields: [roleId], references: [id])
   isActive              Boolean   @default(true)
   emailVerified         Boolean   @default(false)
-  lastLoginAt           DateTime?
+  lastLoginAt           DateTime? @db.Timestamptz(6)
   passwordResetToken    String?
-  passwordResetExpires  DateTime?
+  passwordResetExpires  DateTime? @db.Timestamptz(6)
   mfaEnabled            Boolean   @default(false)
   mfaSecret             String?
   passwordHashAlgo      String    @default("argon2id")
-  passwordChangedAt     DateTime  @default(now())
+  passwordChangedAt     DateTime  @default(now()) @db.Timestamptz(6)
   passwordHistory       String[]  @default([])
   mustChangePassword    Boolean   @default(false)
   mfaBackupCodes        String[]  @default([])
   mfaBackupUsedAt       Json?     @default("{}")
   failedLoginAttempts   Int       @default(0)
-  lockedUntil           DateTime?
+  lockedUntil           DateTime? @db.Timestamptz(6)
   lockReason            String?
   maxConcurrentSessions Int       @default(3)
   timezone              String?   @default("UTC")
@@ -149,8 +149,8 @@ model AdminUser {
   department            String?
   team                  String?
   avatarUrl             String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
 
   // Relationships
   sessions      AdminSession[]
@@ -175,14 +175,14 @@ model AdminSession {
   ipAddress      String?
   userAgent      String?
   isActive       Boolean   @default(true)
-  expiresAt      DateTime
-  createdAt      DateTime  @default(now())
-  revokedAt      DateTime?
+  expiresAt      DateTime  @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  revokedAt      DateTime? @db.Timestamptz(6)
   csrfToken      String    @unique @default(uuid())
   deviceId       String?
   deviceName     String?
   location       Json?
-  lastActivityAt DateTime  @default(now())
+  lastActivityAt DateTime  @default(now()) @db.Timestamptz(6)
   revokedBy      String?
   revokeReason   String?
 
@@ -229,8 +229,8 @@ model AdminUserPermission {
   scope      String?   @default("*")
   conditions Json?
   grantedBy  String?
-  grantedAt  DateTime  @default(now())
-  expiresAt  DateTime?
+  grantedAt  DateTime  @default(now()) @db.Timestamptz(6)
+  expiresAt  DateTime? @db.Timestamptz(6)
   isActive   Boolean   @default(true)
 
   user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -249,9 +249,9 @@ model AdminRoleHistory {
   newRole        String
   reason         String?
   changedBy      String?
-  changedAt      DateTime  @default(now())
-  effectiveFrom  DateTime  @default(now())
-  effectiveUntil DateTime?
+  changedAt      DateTime  @default(now()) @db.Timestamptz(6)
+  effectiveFrom  DateTime  @default(now()) @db.Timestamptz(6)
+  effectiveUntil DateTime? @db.Timestamptz(6)
 
   user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -269,26 +269,26 @@ model TeamMember {
   isActive          Boolean   @default(true)
   invitedBy         String?
   inviteToken       String?   @unique
-  inviteTokenExpiry DateTime?
-  joinedAt          DateTime  @default(now())
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  inviteTokenExpiry DateTime? @db.Timestamptz(6)
+  joinedAt          DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
 
-  account               Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  projectMemberships    ProjectMember[]
-  notifications         Notification[]
-  submittedApprovals    ApprovalRequest[]     @relation("ApprovalSubmitter")
-  reviews               ApprovalReview[]
-  comments              PostComment[]
-  assignedMessages      SocialMessage[]       @relation("MessageAssignee")
-  outboundReplies       SocialOutboundReply[]
-  resolvedConversations SocialConversation[]  @relation("ConversationResolver")
-  conversationNotes     ConversationNote[]    @relation("NoteAuthor")
-  assignedTasks         Task[]                @relation("TaskAssignee")
-  createdTasks          Task[]                @relation("TaskCreator")
-  notificationPreferences NotificationPreference[]
+  account                  Account                  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  projectMemberships       ProjectMember[]
+  notifications            Notification[]
+  submittedApprovals       ApprovalRequest[]        @relation("ApprovalSubmitter")
+  reviews                  ApprovalReview[]
+  comments                 PostComment[]
+  assignedMessages         SocialMessage[]          @relation("MessageAssignee")
+  outboundReplies          SocialOutboundReply[]
+  resolvedConversations    SocialConversation[]     @relation("ConversationResolver")
+  conversationNotes        ConversationNote[]       @relation("NoteAuthor")
+  assignedTasks            Task[]                   @relation("TaskAssignee")
+  createdTasks             Task[]                   @relation("TaskCreator")
+  notificationPreferences  NotificationPreference[]
   approvalLevelAssignments ApprovalWorkflowLevel[]
-  customReportsCreated  CustomReport[]        @relation("CustomReportCreator")
+  customReportsCreated     CustomReport[]           @relation("CustomReportCreator")
 
   @@unique([accountId, email])
   @@index([accountId, isActive])
@@ -306,16 +306,16 @@ model CustomerUser {
   isActive          Boolean   @default(true)
   isEmailVerified   Boolean   @default(false)
   emailVerifyToken  String?   @unique
-  emailVerifyExpiry DateTime?
+  emailVerifyExpiry DateTime? @db.Timestamptz(6)
   resetToken        String?   @unique
-  resetTokenExpiry  DateTime?
+  resetTokenExpiry  DateTime? @db.Timestamptz(6)
   mfaEnabled        Boolean   @default(false)
   mfaSecret         String?
-  lastLoginAt       DateTime?
+  lastLoginAt       DateTime? @db.Timestamptz(6)
   avatarUrl         String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  deletedAt         DateTime?
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt         DateTime? @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -418,7 +418,7 @@ model ApprovalWorkflowLevel {
   createdAt  DateTime @default(now())
 
   workflow ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  assignee TeamMember? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignee TeamMember?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
 
   @@unique([workflowId, order])
   @@index([workflowId])
@@ -616,34 +616,34 @@ model Project {
 }
 
 model Post {
-  id                 String              @id @default(uuid())
-  projectId          String
-  status             String              @default("DRAFT")
-  scheduledAt        DateTime?
-  publishedAt        DateTime? // ✅ Phase 1: Added missing field referenced in code
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  project            Project             @relation(fields: [projectId], references: [id])
-  contents           PostContent[]
-  media              PostMedia[]
-  thread             Thread?
-  publishingQueue    PublishingQueue[]
-  contentVersions    ContentVersion[]
-  webhookEvents      WebhookEvent[]
-  analytics          Analytics[] // ✅ Phase 1: Added relationship (fixes N+1 queries)
-  publishLogs        PublishLog[] // ✅ Phase 1: Added relationship (fixes N+1 queries)
-  approvalRequests   ApprovalRequest[]
-  comments           PostComment[]
-  socialMessages     SocialMessage[]
-  campaignPosts      CampaignPost[]
-  firstComment       FirstComment?
-  repurposeProposals RepurposeProposal[] @relation("RepurposeSource")
-  repurposedVariants RepurposeVariant[]  @relation("RepurposedPost")
-  tasks              Task[]
-  analyticsDailySummaries AnalyticsDailySummary[]
+  id                        String                    @id @default(uuid())
+  projectId                 String
+  status                    String                    @default("DRAFT")
+  scheduledAt               DateTime?
+  publishedAt               DateTime? // ✅ Phase 1: Added missing field referenced in code
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+  project                   Project                   @relation(fields: [projectId], references: [id])
+  contents                  PostContent[]
+  media                     PostMedia[]
+  thread                    Thread?
+  publishingQueue           PublishingQueue[]
+  contentVersions           ContentVersion[]
+  webhookEvents             WebhookEvent[]
+  analytics                 Analytics[] // ✅ Phase 1: Added relationship (fixes N+1 queries)
+  publishLogs               PublishLog[] // ✅ Phase 1: Added relationship (fixes N+1 queries)
+  approvalRequests          ApprovalRequest[]
+  comments                  PostComment[]
+  socialMessages            SocialMessage[]
+  campaignPosts             CampaignPost[]
+  firstComment              FirstComment?
+  repurposeProposals        RepurposeProposal[]       @relation("RepurposeSource")
+  repurposedVariants        RepurposeVariant[]        @relation("RepurposedPost")
+  tasks                     Task[]
+  analyticsDailySummaries   AnalyticsDailySummary[]
   analyticsMonthlySummaries AnalyticsMonthlySummary[]
-  recurringInstances RecurringPost[]    @relation("RecurringTemplatePost")
-  deletedAt          DateTime?
+  recurringInstances        RecurringPost[]           @relation("RecurringTemplatePost")
+  deletedAt                 DateTime?
 
   @@index([scheduledAt], where: { deletedAt: null })
   @@index([projectId, status], where: { deletedAt: null })
@@ -696,37 +696,37 @@ model PostMedia {
 }
 
 model Channel {
-  id                  String               @id @default(uuid())
-  projectId           String
-  provider            Provider
-  handle              String
-  credentials         Json
-  isPrimary           Boolean              @default(false)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  project             Project              @relation(fields: [projectId], references: [id])
-  publishLogs         PublishLog[]
-  analytics           Analytics[]
-  socialMessages      SocialMessage[]
-  socialConversations SocialConversation[]
+  id                        String                    @id @default(uuid())
+  projectId                 String
+  provider                  Provider
+  handle                    String
+  credentials               Json
+  isPrimary                 Boolean                   @default(false)
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+  project                   Project                   @relation(fields: [projectId], references: [id])
+  publishLogs               PublishLog[]
+  analytics                 Analytics[]
+  socialMessages            SocialMessage[]
+  socialConversations       SocialConversation[]
   analyticsDailySummaries   AnalyticsDailySummary[]
   analyticsMonthlySummaries AnalyticsMonthlySummary[]
-  deletedAt           DateTime?
+  deletedAt                 DateTime?
   // Channel auth lifecycle. `needsReauth` is flipped by workers when
   // the provider returns AUTH; cleared when the user completes the OAuth
   // re-grant flow. `authFailedAt` and `authFailureReason` retain context
   // for inspection / debug.
-  needsReauth         Boolean              @default(false)
-  authFailedAt        DateTime?
-  authFailureReason   String?
+  needsReauth               Boolean                   @default(false)
+  authFailedAt              DateTime?
+  authFailureReason         String?
 
+  @@unique([projectId, provider], where: { isPrimary: true, deletedAt: null }, map: "Channel_projectId_provider_isPrimary_unique")
   @@index([projectId], where: { deletedAt: null })
   @@index([provider], where: { deletedAt: null })
   @@index([projectId, provider], where: { deletedAt: null })
   @@index([createdAt], where: { deletedAt: null })
   @@index([deletedAt])
   @@index([needsReauth], where: { needsReauth: true }, map: "Channel_needsReauth_idx")
-  @@unique([projectId, provider], where: { isPrimary: true, deletedAt: null }, map: "Channel_projectId_provider_isPrimary_unique")
 }
 
 model TrackedLink {
@@ -861,12 +861,12 @@ model ApiKey {
   prefix           String
   permissions      String[]  @default(["read"])
   rateLimit        Int       @default(1000)
-  expiresAt        DateTime?
-  lastUsedAt       DateTime?
+  expiresAt        DateTime? @db.Timestamptz(6)
+  lastUsedAt       DateTime? @db.Timestamptz(6)
   isActive         Boolean   @default(true)
   rotationSchedule String? // cron expression
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(6)
 
   // Relationships
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -1555,16 +1555,16 @@ model WebhookSubscription {
   eventTypes     WebhookEventType[] // Subscribed event types
 
   // Subscription metadata
-  expiresAt    DateTime? // Subscription expiration
-  lastVerified DateTime? // Last successful verification
+  expiresAt    DateTime? @db.Timestamptz(6) // Subscription expiration
+  lastVerified DateTime? @db.Timestamptz(6) // Last successful verification
 
   // Statistics
   eventsReceived  Int       @default(0)
   eventsProcessed Int       @default(0)
-  lastEventAt     DateTime?
+  lastEventAt     DateTime? @db.Timestamptz(6)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   account Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -2046,6 +2046,7 @@ model OutboxEvent {
   createdAt     DateTime  @default(now()) @db.Timestamptz(6)
   claimedAt     DateTime? @db.Timestamptz(6)
   claimedBy     String?
+
   @@index([aggregateId, aggregateType])
   @@index([eventType])
   @@index([createdAt])
@@ -2534,8 +2535,8 @@ model SamlConfiguration {
   idpCertificate   String   @db.Text
   attributeMapping Json
   isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
@@ -2544,8 +2545,8 @@ model SamlSession {
   id         String   @id @default(cuid())
   accountId  String
   relayState String   @unique
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
+  expiresAt  DateTime @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2562,8 +2563,8 @@ model OidcConfiguration {
   scopes           String[] @default(["openid", "email", "profile"])
   attributeMapping Json
   isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
@@ -3140,16 +3141,16 @@ model DsarRequest {
   type              DsarRequestType
   jurisdiction      JurisdictionType @default(GDPR)
   status            DsarStatus       @default(PENDING)
-  deadlineAt        DateTime
-  requestedAt       DateTime         @default(now())
-  acknowledgedAt    DateTime?
-  completedAt       DateTime?
+  deadlineAt        DateTime         @db.Timestamptz(6)
+  requestedAt       DateTime         @default(now()) @db.Timestamptz(6)
+  acknowledgedAt    DateTime?        @db.Timestamptz(6)
+  completedAt       DateTime?        @db.Timestamptz(6)
   completedBy       String?
-  rejectedAt        DateTime?
+  rejectedAt        DateTime?        @db.Timestamptz(6)
   rejectedBy        String?
   rejectionReason   String?
   exportUrl         String?
-  exportExpiresAt   DateTime?
+  exportExpiresAt   DateTime?        @db.Timestamptz(6)
   notes             String?
   ipAddress         String?
   verificationToken String?          @unique
