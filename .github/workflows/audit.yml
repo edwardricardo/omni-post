@@ -48,6 +48,7 @@ jobs:
     # We never connect — depcruise scans source files — so a dummy URL is fine.
     env:
       DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
+      SHADOW_DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit_shadow"
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm-cache
@@ -200,6 +201,7 @@ jobs:
     # (Next.js builds @infra/prisma). Dummy URL — no connection attempted.
     env:
       DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
+      SHADOW_DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit_shadow"
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm-cache
