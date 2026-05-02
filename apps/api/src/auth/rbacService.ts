@@ -397,7 +397,7 @@ export class RbacService extends AuditableService {
       "Billing & Subscriptions": [Permission.BILLING_READ, Permission.BILLING_MANAGE],
       Pricing: [Permission.PRICING_MANAGE],
       Analytics: [Permission.ANALYTICS_READ, Permission.ANALYTICS_EXPORT],
-      System: [Permission.SYSTEM_CONFIGURE, Permission.SYSTEM_MONITOR],
+      "System Administration": [Permission.SYSTEM_CONFIGURE, Permission.SYSTEM_MONITOR],
       "Audit & Compliance": [Permission.AUDIT_READ, Permission.AUDIT_EXPORT],
       Webhooks: [Permission.WEBHOOK_MANAGE],
       Dashboard: [Permission.DASHBOARD_VIEW],

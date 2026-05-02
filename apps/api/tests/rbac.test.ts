@@ -274,8 +274,9 @@ describe("RBAC System", () => {
       // Verify update in database
       const updatedUser = await prisma.adminUser.findUnique({
         where: { id: testUserId },
+        include: { role: true },
       });
-      assert.equal(updatedUser?.role, "ADMIN", "Role should be updated to ADMIN");
+      assert.equal(updatedUser?.role?.name, "ADMIN", "Role should be updated to ADMIN");
     });
 
     it("should reject unauthorized role updates", async () => {
@@ -333,7 +334,7 @@ describe("RBAC System", () => {
 
       assert.ok(categories["User Management"], "Should have User Management category");
       assert.ok(categories["System Administration"], "Should have System Administration category");
-      assert.ok(categories["AI Features"], "Should have AI Features category");
+      assert.ok(categories["Audit & Compliance"], "Should have Audit & Compliance category");
       assert.ok(
         categories["User Management"].length > 0,
         "User Management should have permissions"
