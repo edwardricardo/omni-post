@@ -121,19 +121,28 @@ jobs:
         # roles + permissions before the auth suites run.
         run: pnpm --filter @infra/prisma run seed
 
+      # `if: always()` on each suite so a failure in one doesn't short-circuit
+      # the others — every push surfaces every broken suite at once instead
+      # of revealing them incrementally across runs.
+
       - name: Run authentication suite
+        if: always()
         run: pnpm --filter @apps/api test:auth
 
       - name: Run RBAC suite
+        if: always()
         run: pnpm --filter @apps/api test:rbac
 
       - name: Run input validation suite
+        if: always()
         run: pnpm --filter @apps/api test:security
 
       - name: Run MFA suite
+        if: always()
         run: pnpm --filter @apps/api test:mfa
 
       - name: Run rate-limit suite
+        if: always()
         run: pnpm --filter @apps/api test:ratelimit
 
   # ──────────────────────────────────────────────────────────────────────

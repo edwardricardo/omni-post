@@ -400,6 +400,8 @@ export class RbacService extends AuditableService {
       System: [Permission.SYSTEM_CONFIGURE, Permission.SYSTEM_MONITOR],
       "Audit & Compliance": [Permission.AUDIT_READ, Permission.AUDIT_EXPORT],
       Webhooks: [Permission.WEBHOOK_MANAGE],
+      Dashboard: [Permission.DASHBOARD_VIEW],
+      Posts: [Permission.POST_MANAGE],
     };
   }
 
