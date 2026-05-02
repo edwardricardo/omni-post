@@ -30,6 +30,11 @@ concurrency:
   group: audit-${{ github.ref }}
   cancel-in-progress: true
 
+# Minimal permissions baseline; OSV-Scanner upload-sarif needs write.
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   # ──────────────────────────────────────────────────────────────────────
   # 1. dependency-cruiser — hexagonal layer enforcement (graph-level rules)
