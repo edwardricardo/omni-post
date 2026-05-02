@@ -486,11 +486,11 @@ model Task {
   priority    TaskPriority @default(MEDIUM)
   assigneeId  String?
   createdById String
-  dueDate     DateTime?
-  completedAt DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  deletedAt   DateTime?
+  dueDate     DateTime?    @db.Timestamptz(6)
+  completedAt DateTime?    @db.Timestamptz(6)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(6)
+  deletedAt   DateTime?    @db.Timestamptz(6)
   postId      String?
 
   account   Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -513,10 +513,10 @@ model PostComment {
   body      String
   mentions  String[]  @default([])
   isEdited  Boolean   @default(false)
-  editedAt  DateTime?
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  editedAt  DateTime? @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
 
   post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
   author  TeamMember    @relation(fields: [authorId], references: [id])
@@ -573,14 +573,14 @@ model Project {
   id                          String                       @id @default(uuid())
   name                        String
   locale                      String                       @default("es")
-  createdAt                   DateTime                     @default(now())
-  updatedAt                   DateTime                     @updatedAt
+  createdAt                   DateTime                     @default(now()) @db.Timestamptz(6)
+  updatedAt                   DateTime                     @updatedAt @db.Timestamptz(6)
   accountId                   String
   isInCrisisMode              Boolean                      @default(false)
-  crisisStartedAt             DateTime?
+  crisisStartedAt             DateTime?                    @db.Timestamptz(6)
   crisisReason                String?
   crisisModeHistory           Json?                        @default("[]")
-  deletedAt                   DateTime?
+  deletedAt                   DateTime?                    @db.Timestamptz(6)
   channels                    Channel[]
   posts                       Post[]
   account                     Account                      @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -619,10 +619,10 @@ model Post {
   id                        String                    @id @default(uuid())
   projectId                 String
   status                    String                    @default("DRAFT")
-  scheduledAt               DateTime?
-  publishedAt               DateTime? // ✅ Phase 1: Added missing field referenced in code
-  createdAt                 DateTime                  @default(now())
-  updatedAt                 DateTime                  @updatedAt
+  scheduledAt               DateTime?                 @db.Timestamptz(6)
+  publishedAt               DateTime?                 @db.Timestamptz(6) // ✅ Phase 1: Added missing field referenced in code
+  createdAt                 DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime                  @updatedAt @db.Timestamptz(6)
   project                   Project                   @relation(fields: [projectId], references: [id])
   contents                  PostContent[]
   media                     PostMedia[]
@@ -643,7 +643,7 @@ model Post {
   analyticsDailySummaries   AnalyticsDailySummary[]
   analyticsMonthlySummaries AnalyticsMonthlySummary[]
   recurringInstances        RecurringPost[]           @relation("RecurringTemplatePost")
-  deletedAt                 DateTime?
+  deletedAt                 DateTime?                 @db.Timestamptz(6)
 
   @@index([scheduledAt], where: { deletedAt: null })
   @@index([projectId, status], where: { deletedAt: null })
@@ -662,8 +662,8 @@ model PostContent {
   body      String
   tags      String[]
   revision  Int      @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
   post      Post     @relation(fields: [postId], references: [id])
 
   @@unique([postId, locale, revision])
@@ -683,7 +683,7 @@ model PostMedia {
   alt                 String?
   hash                String?
   tags                String[]             @default([])
-  createdAt           DateTime             @default(now())
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   type                MediaKind
   post                Post                 @relation(fields: [postId], references: [id])
   instagramStories    InstagramStory[]
@@ -702,8 +702,8 @@ model Channel {
   handle                    String
   credentials               Json
   isPrimary                 Boolean                   @default(false)
-  createdAt                 DateTime                  @default(now())
-  updatedAt                 DateTime                  @updatedAt
+  createdAt                 DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime                  @updatedAt @db.Timestamptz(6)
   project                   Project                   @relation(fields: [projectId], references: [id])
   publishLogs               PublishLog[]
   analytics                 Analytics[]
@@ -711,13 +711,13 @@ model Channel {
   socialConversations       SocialConversation[]
   analyticsDailySummaries   AnalyticsDailySummary[]
   analyticsMonthlySummaries AnalyticsMonthlySummary[]
-  deletedAt                 DateTime?
+  deletedAt                 DateTime?                 @db.Timestamptz(6)
   // Channel auth lifecycle. `needsReauth` is flipped by workers when
   // the provider returns AUTH; cleared when the user completes the OAuth
   // re-grant flow. `authFailedAt` and `authFailureReason` retain context
   // for inspection / debug.
   needsReauth               Boolean                   @default(false)
-  authFailedAt              DateTime?
+  authFailedAt              DateTime?                 @db.Timestamptz(6)
   authFailureReason         String?
 
   @@unique([projectId, provider], where: { isPrimary: true, deletedAt: null }, map: "Channel_projectId_provider_isPrimary_unique")
@@ -743,8 +743,8 @@ model TrackedLink {
   utmContent  String?
   utmTerm     String?
   campaignId  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
   project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   linkClicks LinkClick[]
@@ -760,7 +760,7 @@ model TrackedLink {
 model LinkClick {
   id            String   @id @default(uuid())
   trackedLinkId String
-  timestamp     DateTime @default(now())
+  timestamp     DateTime @default(now()) @db.Timestamptz(6)
   referrer      String?
   userAgent     String?
   ipAddress     String?
@@ -781,7 +781,7 @@ model PublishLog {
   channelId String
   payload   Json
   dedupeKey String    @unique
-  createdAt DateTime  @default(now())
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
   status    LogStatus
   post      Post?     @relation(fields: [postId], references: [id], onDelete: SetNull) // ✅ Phase 1: Added relationship
   channel   Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade) // ✅ Phase 1: Added relationship
@@ -819,8 +819,8 @@ model Thread {
   id        String         @id @default(uuid())
   postId    String         @unique
   strategy  ThreadStrategy @default(AUTO)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  createdAt DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime       @updatedAt @db.Timestamptz(6)
   post      Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
   tweets    Tweet[]
 
@@ -839,9 +839,9 @@ model Tweet {
   tweetId        String?
   parentTweetId  String?
   status         TweetStatus @default(PENDING)
-  publishedAt    DateTime?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  publishedAt    DateTime?   @db.Timestamptz(6)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(6)
   thread         Thread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
   // @@index([threadId, sequenceNumber]) - REMOVED: Duplicate of unique constraint
 
@@ -895,9 +895,9 @@ model ProviderConnection {
   tokenType    String? @default("Bearer")
 
   // Connection metadata
-  connectedAt DateTime  @default(now())
-  lastUsedAt  DateTime?
-  expiresAt   DateTime?
+  connectedAt DateTime  @default(now()) @db.Timestamptz(6)
+  lastUsedAt  DateTime? @db.Timestamptz(6)
+  expiresAt   DateTime? @db.Timestamptz(6)
   isActive    Boolean   @default(true)
   isVerified  Boolean   @default(false)
 
@@ -908,14 +908,14 @@ model ProviderConnection {
 
   // Status and health
   status          ConnectionStatus @default(CONNECTED)
-  lastHealthCheck DateTime?
+  lastHealthCheck DateTime?        @db.Timestamptz(6)
   healthScore     Int?             @default(100)
   errorCount      Int              @default(0)
   lastError       String?
-  lastErrorAt     DateTime?
+  lastErrorAt     DateTime?        @db.Timestamptz(6)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -952,7 +952,7 @@ model ContentTemplate {
 
   // Usage and performance
   usageCount  Int       @default(0)
-  lastUsedAt  DateTime?
+  lastUsedAt  DateTime? @db.Timestamptz(6)
   performance Json? // Analytics data when used
 
   // Template settings
@@ -961,8 +961,8 @@ model ContentTemplate {
   version  Int     @default(1)
   parentId String? // For template versioning
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   account         Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -997,7 +997,7 @@ model PublishingQueue {
   // Publishing configuration
   providers          Provider[] // Target providers
   contentType        InstagramContentType? // Specific content type for Instagram
-  scheduledAt        DateTime?
+  scheduledAt        DateTime?             @db.Timestamptz(6)
   timezone           String                @default("UTC")
   publishImmediately Boolean               @default(false)
 
@@ -1018,8 +1018,8 @@ model PublishingQueue {
   // Status and progress
   status      PublishingStatus @default(PENDING)
   progress    Int              @default(0) // 0-100
-  startedAt   DateTime?
-  completedAt DateTime?
+  startedAt   DateTime?        @db.Timestamptz(6)
+  completedAt DateTime?        @db.Timestamptz(6)
 
   // Results and tracking
   results             Json? // PublishResult per provider
@@ -1031,15 +1031,15 @@ model PublishingQueue {
   retryCount  Int       @default(0)
   maxRetries  Int       @default(3)
   lastError   String?
-  lastErrorAt DateTime?
+  lastErrorAt DateTime? @db.Timestamptz(6)
 
   // Dependencies and sequencing
   parentQueueId  String? // For threaded publishing
   sequenceNumber Int? // Order in sequence
   dependsOn      String[] @default([]) // Queue IDs this depends on
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   account            Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -1090,14 +1090,14 @@ model ContentVersion {
   // Authorship and approval
   createdBy  String? // User/system that created this version
   approvedBy String? // User who approved (if required)
-  approvedAt DateTime?
+  approvedAt DateTime? @db.Timestamptz(6)
 
   // Performance tracking
   analytics Json? // Performance data for this version
   feedback  Json? // User feedback/comments
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   post     Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -1468,8 +1468,8 @@ model SchedulingRule {
   successRate    Float?
   avgPerformance Float?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -2232,12 +2232,12 @@ model Campaign {
   name        String
   description String?
   status      CampaignStatus @default(DRAFT)
-  startDate   DateTime?
-  endDate     DateTime?
+  startDate   DateTime?      @db.Timestamptz(6)
+  endDate     DateTime?      @db.Timestamptz(6)
   utmSource   String?
   utmMedium   String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
 
   project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   posts        CampaignPost[]
@@ -2250,7 +2250,7 @@ model Campaign {
 model CampaignPost {
   campaignId String
   postId     String
-  taggedAt   DateTime @default(now())
+  taggedAt   DateTime @default(now()) @db.Timestamptz(6)
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -2384,17 +2384,17 @@ model RecurringPost {
   name             String
   cronExpression   String
   timezone         String    @default("UTC")
-  startDate        DateTime
-  endDate          DateTime?
+  startDate        DateTime  @db.Timestamptz(6)
+  endDate          DateTime? @db.Timestamptz(6)
   maxOccurrences   Int?
   occurrenceCount  Int       @default(0)
   isActive         Boolean   @default(true)
-  lastScheduledAt  DateTime?
-  nextScheduledAt  DateTime?
+  lastScheduledAt  DateTime? @db.Timestamptz(6)
+  nextScheduledAt  DateTime? @db.Timestamptz(6)
   channels         String[]
   contentVariation String    @default("EXACT")
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(6)
 
   project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   templatePost Post    @relation("RecurringTemplatePost", fields: [templatePostId], references: [id], onDelete: Restrict)
