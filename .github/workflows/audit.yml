@@ -44,6 +44,10 @@ jobs:
     name: dependency-cruiser (hexagonal)
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Prisma's postinstall config loader requires DATABASE_URL to be defined.
+    # We never connect — depcruise scans source files — so a dummy URL is fine.
+    env:
+      DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm-cache
@@ -63,8 +67,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run Semgrep
+        # `semgrep ci` is for the AppSec Platform; we have no platform login.
+        # `semgrep scan` accepts --error / --severity and exits non-zero
+        # on findings at the requested severity (canonical OSS-rules CI flow).
         run: |
-          semgrep ci \
+          semgrep scan \
             --config p/typescript \
             --config p/security-audit \
             --config p/owasp-top-ten \
@@ -189,6 +196,10 @@ jobs:
     name: size-limit (bundles)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # DATABASE_URL needed at install (Prisma config loader) and at build
+    # (Next.js builds @infra/prisma). Dummy URL — no connection attempted.
+    env:
+      DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm-cache
