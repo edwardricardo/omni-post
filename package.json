@@ -53,7 +53,9 @@
   },
   "devDependencies": {
     "@ast-grep/cli": "0.42.0",
+    "@axe-core/playwright": "4.10.2",
     "@eslint/js": "9.36.0",
+    "@size-limit/preset-app": "^12.1.0",
     "@stryker-mutator/core": "9.6.0",
     "@stryker-mutator/vitest-runner": "9.6.0",
     "@types/opossum": "8.1.9",
@@ -64,6 +66,7 @@
     "autocannon": "8.0.0",
     "concurrently": "9.2.1",
     "depcheck": "1.4.7",
+    "dependency-cruiser": "^17.3.10",
     "eslint": "9.36.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react": "7.37.5",
@@ -80,6 +83,7 @@
     "prettier": "3.8.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "size-limit": "^12.1.0",
     "tsx": "4.21.0",
     "turbo": "2.8.21",
     "zod": "4.3.6"
@@ -111,5 +115,31 @@
     "*.{json,md,yaml,yml}": [
       "prettier --write"
     ]
-  }
+  },
+  "size-limit": [
+    {
+      "name": "admin · /login (initial JS)",
+      "path": "apps/admin/.next/static/chunks/app/login/*.js",
+      "limit": "150 KB",
+      "gzip": true
+    },
+    {
+      "name": "admin · /(dashboard) (initial JS)",
+      "path": "apps/admin/.next/static/chunks/app/(dashboard)/*.js",
+      "limit": "250 KB",
+      "gzip": true
+    },
+    {
+      "name": "client · / (initial JS)",
+      "path": "apps/client/.next/static/chunks/app/*.js",
+      "limit": "200 KB",
+      "gzip": true
+    },
+    {
+      "name": "client · /(authenticated) (initial JS)",
+      "path": "apps/client/.next/static/chunks/app/(authenticated)/*.js",
+      "limit": "300 KB",
+      "gzip": true
+    }
+  ]
 }

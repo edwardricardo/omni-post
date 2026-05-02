@@ -1,0 +1,43 @@
+# gitleaks: secret scanning at pre-commit + CI.
+#
+# Inherits the default ruleset (150+ patterns) and adds project-specific
+# allowlists for known-safe strings (test fixtures, doc examples).
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Project-specific allowlists"
+
+paths = [
+  '''(.*?)(jpg|jpeg|png|gif|webp|ico|svg|woff2?|ttf|eot|mp4|webm|pdf)$''',
+  '''node_modules/''',
+  '''dist/''',
+  '''\.next/''',
+  '''\.stryker-tmp/''',
+  '''reports/''',
+  '''coverage/''',
+  '''pnpm-lock\.yaml''',
+  # Prisma generated client (no secrets, large file)
+  '''infra/prisma/generated/''',
+]
+
+regexes = [
+  # Test/example values used in fixtures and docs
+  '''password123''',  # Documented in T2-F + PR-23 backlog as test-only
+  '''sk_test_''',
+  '''pk_test_''',
+  '''rk_test_''',
+  '''whsec_test_''',
+  # Storybook ENV defaults shipped with @fastify/cors examples
+  '''Bearer test-token''',
+  # JWT signing secret placeholder used in CLAUDE.md examples
+  '''dev-jwt-secret-not-for-production''',
+]
+
+stopwords = [
+  "EXAMPLE",
+  "PLACEHOLDER",
+  "DUMMY",
+  "FAKE",
+]

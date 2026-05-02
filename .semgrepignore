@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.next/
+.stryker-tmp/
+reports/
+coverage/
+infra/prisma/generated/
+*.min.js
+*.bundle.js
