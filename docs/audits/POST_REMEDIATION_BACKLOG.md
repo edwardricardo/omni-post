@@ -1739,32 +1739,82 @@ Cuando se prioritice un batch dedicado a "auth architecture finalization" o cuan
 
 ---
 
-### PR-36 — FK gap decisions on dead models (ConsentRecord + DataBreachReport)
+### PR-36 — FK gap decisions repo-wide (~20 sites, expanded scope)
 
-**Fecha de surfacing:** 2026-05-01 (deferred from T4-T)
-**Severidad:** bajo — modelos sin callers en runtime
-**Tipo:** decision NEEDS_EDWARD
+**Fecha de surfacing:** 2026-05-01 (deferred + expanded post-T4-T)
+**Severidad:** medio (revised up from "bajo" — expanded scope)
+**Tipo:** decision per-site + mass mechanical refactor
 
-**Contexto.** T4-T audit identificó 2 modelos GDPR-relacionados con campos id-shaped sin `@relation`:
+**Honest scoping note.** T4-T cerró 4 de 6 findings y deferí los 2 que el roadmap nombró (ConsentRecord + DataBreachReport). **Audit estricto post-batch reveló que el patrón "id-shaped string sin @relation" es ~20 sitios repo-wide, no 2.** El roadmap entry name (`L-539 DataBreachReport` + `L-540 ConsentRecord`) era FLOOR, no ceiling — pattern grep amplio identifica significativamente más. Esto es exactamente el método-de-audit failure documentado en `feedback_audit_method_pattern_not_instance.md`.
 
-- **`ConsentRecord`** (línea 3092): `userId: String?` y `accountId: String?` sin `@relation`. Compare con `DsarRequest` que sí tiene `account Account? @relation(...)`.
-- **`DataBreachReport`** (línea 3136): `reportedBy: String` y `notificationSentBy: String?` parecen userId references como strings.
+**Audit method (broad-pattern, transparent):**
 
-**Verificación**: 0 callers fuera del schema en `apps/` y `packages/`. Ambos modelos orphan.
+```python
+# Pattern: *Id String? fields not appearing in any @relation fields:[...]
+# Filters applied (per-name justification):
+#   EXTERNAL_HINTS = ['stripe','gateway','tweet','provideraccount','jwt',
+#                     'session','device','event','message','consumer',
+#                     'aggregate','correlation','dedupe','idempotency',
+#                     'webhook','tracking','origin','remote','external',
+#                     'samlentity','oidc']
+#   Models excluded as audit-trail-by-design:
+#     OutboxEvent, AuditLog, BillingEvent, SocialMessage,
+#     SocialConversation, OutboxInbox, OutboxDeadLetter,
+#     AdminLoginAttempt, SamlConfiguration, OidcConfiguration,
+#     WebhookEvent, SagaInstance
+```
 
-**Tres preguntas (CLAUDE.md feedback rule):** GDPR/compliance scaffold; sin callers; no equivalent activo → NO clear DELETE.
+Raw count after filters: **~20 sitios**. Verificación per-site requerida antes de fix.
 
-**Decisiones requeridas:**
+**Sitios identificados (3 grupos por confidence):**
 
-- `ConsentRecord.userId`: ¿FK a `TeamMember`, `CustomerUser`, o `AdminUser`? O loose-string by design?
-- `ConsentRecord.accountId`: FK a `Account` (parallel a DsarRequest) → mecánico una vez aclarado lo de userId.
-- `DataBreachReport.reportedBy` + `notificationSentBy`: ¿FK a `AdminUser` o loose audit-trail strings?
+**Grupo A — High confidence FK gap (mecánico, target tabla evidente):**
 
-**Por qué no se cerró en T4-T.** Sin callers, agregar FK requiere conocer cuál user table es el target. Surfaced explícitamente per "ask, don't assume" rule.
+- `NotificationPreference.memberId String` → `TeamMember`
+- `ApprovalWorkflowLevel.assigneeId String?` → `TeamMember`
+- `Task.postId String?` → `Post`
+- `TrackedLink.campaignId String?` → `Campaign`
+- `InstagramStory.storyProjectId String` → `InstagramStoryProject`
+- `WebhookEvent.channelId String?` → `Channel` (verify si está en exclusion list válida)
+- `TemplateVersion.templateId String` → `Template`
+- `TemplateUsageEvent.templateId String` → `Template`
+- `AnalyticsDailySummary.postId String?` → `Post`
+- `AnalyticsDailySummary.channelId String` → `Channel`
+- `AnalyticsMonthlySummary.postId String?` → `Post`
+- `AnalyticsMonthlySummary.channelId String` → `Channel`
+- `ScheduledReport.projectId String` → `Project`
+- `RecurringPost.templatePostId String` → `Post`
+- `CustomReport.createdById String` → `TeamMember`
+- `SamlSession.accountId String` → `Account`
+- `Referral.referredAccountId String?` → `Account`
+- `StoredEvent.streamId String` → ? (event-sourcing aggregate stream — could be loose by design, verify)
+- `EventSnapshot.streamId String` → idem
 
-**Plan**: 3 opciones (WIRE+FK / DELETE / DEPRECATE+loose). Bloqueado por Edward decision.
+**Grupo B — Polymorphic / ambiguous (necesita decision):**
 
-**Estado:** PENDING — NEEDS_EDWARD (surfaced del T4-T 2026-05-01).
+- `Notification.resourceId String?` — polymorphic (resource type varies); likely loose-by-design.
+- `Notification.actorId String?` — could FK to TeamMember/CustomerUser/AdminUser; ambiguous.
+- `InstagramAnalytics.contentId String` — what's contentId? likely Post or media — verify.
+- `TemplateCollaboration.userId String` — TeamMember? CustomerUser? AdminUser?
+
+**Grupo C — Originally-named (T4-T scope, deferred):**
+
+- `ConsentRecord.userId String?` — same userId-ambiguity (TeamMember/CustomerUser/AdminUser)
+- `ConsentRecord.accountId String?` → `Account` (mecánico, parallel a DsarRequest)
+- `DataBreachReport.reportedBy String` — `AdminUser` or loose audit-trail?
+- `DataBreachReport.notificationSentBy String?` — idem
+
+**Sub-batches sugeridos:**
+
+- **36-A** (QUICK, ~2-3h, AUTO): Grupo A solo (high-confidence + mecánico). 14 sites with target evidente. Migration adds `@relation` + FK constraint.
+- **36-B** (MEDIUM, NEEDS_EDWARD): Grupo B + Grupo C. Per-site Edward decision: WIRE+FK / DELETE-orphan / loose-by-design + JSDoc.
+- **36-C** (deferred): re-audit after migration to verify 0 unintended new gaps.
+
+**Por qué no se cerró en T4-T.**
+
+T4-T scope was the L-\* entry names (2 sites). Strict pattern audit shows ~20. Per the new method-of-audit feedback rule, scope-lock requires broad-pattern grep upfront — T4-T failed that.
+
+**Estado:** PENDING — partial-NEEDS_EDWARD (Grupo A AUTO, Grupos B+C decision-required). Surfaced del T4-T 2026-05-01.
 
 ---
 
@@ -1781,6 +1831,61 @@ Cuando se prioritice un batch dedicado a "auth architecture finalization" o cuan
 **Plan**: cuando feature wire-up suceda → determine scale → apply canon precision + range CHECK.
 
 **Estado:** PENDING — low priority (surfaced del T4-T 2026-05-01).
+
+---
+
+### PR-38 — Float → Decimal migration repo-wide (8 sites + L-538 already in T4-U)
+
+**Fecha de surfacing:** 2026-05-01 (post-T4-T audit, pattern-grep amplio)
+**Severidad:** medio (money loss + rate precision)
+**Tipo:** code refactor + raw SQL data migration
+
+**Honest scoping note.** T4-T only addressed `L-541 Decimal precision inconsistency` (existing Decimal fields). My initial Decimal audit used keyword-grep `(amount|price|fee|cost|...)` and found 5 hits. **Pattern-grep amplio (`Float` repo-wide) finds 10 hits — 5 missed by my keyword filter** (`success/avg/performance/rating/engagement` aren't in my hand-picked list). Same audit-method failure documented in `feedback_audit_method_pattern_not_instance.md`.
+
+**Audit method (broad-pattern, transparent):**
+
+```bash
+grep -nE "Float\??\s*$|Float\s+@" infra/prisma/schema.prisma
+# Raw count: 10
+# Filter: storageGb (bytes count, not money/rate) → out of scope
+# In-scope: 9 (1 money new + 7 rates new + 2 money already in L-538/T4-U)
+```
+
+**Sitios identificados (3 grupos):**
+
+**Grupo A — Money as Float (3 sites; canon: `Decimal(19,4)`):**
+
+- `Invoice.amountDue Float` (línea 2890) — already L-538 (T4-U scope, BLOCKED_BY T0-A originally; clarification 2026-05-01: T0-A is procedural-defensive gate, not technical block).
+- `Invoice.amountPaid Float @default(0)` (línea 2891) — same as above (L-538).
+- `TemplateAnalytics.revenueGenerated Float?` (línea 1969) — **NEW finding**, missed by T4-T scope. Same anti-pattern as L-538 in different table.
+
+**Grupo B — Rates/scores as Float (7 sites; canon: `Decimal(10,6)` for rates / `Decimal(5,2)` for percentages 0-100):**
+
+- `RepurposeProposal.completion_rate Float?` (línea 1398) — Reels completion rate (probably 0-1).
+- `RepurposeProposal.successRate Float?` (línea 1452) — success rate.
+- `RepurposeProposal.avgPerformance Float?` (línea 1453) — performance metric.
+- `TemplateAnalytics.successRate Float @default(0.0)` (línea 1963) — success rate.
+- `TemplateAnalytics.avgRating Float?` (línea 1964) — rating (scale unknown without spec).
+- `TemplateAnalytics.avgEngagement Float?` (línea 1967) — engagement rate.
+- `TemplateAnalytics.conversionRate Float?` (línea 1968) — conversion rate (0-1 or 0-100?).
+
+**Grupo C — Acceptable Float (1 site, kept as-is):**
+
+- `AccountSubscription.storageGb Float @default(0)` (línea 2414) — bytes/GB count, integer-with-fractional-precision pattern is reasonable for storage metering. Document in `schema-conventions.md` if confirmed.
+
+**Plan estructurado:**
+
+- **38-A** (QUICK, ~2h, AUTO): TemplateAnalytics.revenueGenerated → `Decimal(19,4)`. Single-field migration (the model is currently dead but the schema bug persists).
+- **38-B** (MEDIUM, NEEDS_EDWARD per scale): 7 rate/score fields. Each needs scale verification (0-1, 0-100, ratio?) — without callers the canonical precision is unknowable. Same NEEDS_EDWARD pattern as PR-37.
+- **38-C** (verify): document `storageGb` Float decision in `schema-conventions.md`.
+
+**Bloqueado por.** Grupo A.NEW (revenueGenerated) is AUTO, can fast-track. Grupos B+C need product decision (or callers wire-up to verify scale).
+
+**Por qué no se cerró en T4-T.**
+
+My L-541 Decimal audit was keyword-filtered (`amount|price|fee|cost|...`) — missed `success/avg/performance/rating/engagement` Float fields. Per the new method-of-audit feedback, broad-pattern grep (just `Float`) is the correct first pass; keyword filters are post-hoc data-shopping.
+
+**Estado:** PENDING — Grupo A AUTO, Grupo B partial-NEEDS_EDWARD (surfaced del T4-T 2026-05-01).
 
 ---
 
