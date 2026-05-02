@@ -99,8 +99,8 @@ model Role {
   level       Int      @default(1)
   isSystem    Boolean  @default(false)
   isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
   permissions RolePermission[]
   users       AdminUser[]
@@ -112,7 +112,7 @@ model RolePermission {
   id         String   @id @default(cuid())
   roleId     String
   permission String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
@@ -329,7 +329,7 @@ model ProjectMember {
   projectId   String
   memberId    String
   permissions String[] @default(["READ", "WRITE"])
-  assignedAt  DateTime @default(now())
+  assignedAt  DateTime @default(now()) @db.Timestamptz(6)
 
   project Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   member  TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
@@ -356,9 +356,9 @@ model Notification {
   actorId      String?
   actorName    String?
   isRead       Boolean          @default(false)
-  readAt       DateTime?
+  readAt       DateTime?        @db.Timestamptz(6)
   metadata     Json?
-  createdAt    DateTime         @default(now())
+  createdAt    DateTime         @default(now()) @db.Timestamptz(6)
 
   recipient TeamMember @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
@@ -371,7 +371,7 @@ model NotificationPreference {
   memberId  String
   type      NotificationType
   enabled   Boolean          @default(true)
-  updatedAt DateTime         @updatedAt
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
 
   member TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
@@ -397,8 +397,8 @@ model ApprovalWorkflow {
   description String?
   isDefault   Boolean  @default(false)
   isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
   levels   ApprovalWorkflowLevel[]
   requests ApprovalRequest[]
@@ -415,7 +415,7 @@ model ApprovalWorkflowLevel {
   role       String?
   assigneeId String?
   requireAll Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   workflow ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   assignee TeamMember?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
@@ -433,8 +433,8 @@ model ApprovalRequest {
   totalLevels  Int            @default(1)
   status       ApprovalStatus @default(PENDING)
   comment      String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @db.Timestamptz(6)
 
   post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
   submitter TeamMember        @relation("ApprovalSubmitter", fields: [submitterId], references: [id])
@@ -453,7 +453,7 @@ model ApprovalReview {
   decision   ReviewDecision
   comment    String?
   level      Int            @default(1)
-  reviewedAt DateTime       @default(now())
+  reviewedAt DateTime       @default(now()) @db.Timestamptz(6)
 
   request  ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
   reviewer TeamMember      @relation(fields: [reviewerId], references: [id])
@@ -803,7 +803,7 @@ model Analytics {
   likes      Int?     @default(0)
   comments   Int?     @default(0)
   shares     Int?     @default(0)
-  capturedAt DateTime @default(now())
+  capturedAt DateTime @default(now()) @db.Timestamptz(6)
   post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade) // ✅ Phase 1: Added relationship (CRITICAL for N+1 fix)
   channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade) // ✅ Phase 1: Added relationship
 
@@ -1198,15 +1198,15 @@ model InstagramStoryProject {
   autoTransitions Boolean          @default(false)
 
   // Scheduling
-  scheduledAt        DateTime?
+  scheduledAt        DateTime? @db.Timestamptz(6)
   timezone           String    @default("UTC")
   publishImmediately Boolean   @default(false)
 
   // Status tracking
   status      StoryProjectStatus @default(DRAFT)
   progress    Int                @default(0) // 0-100
-  startedAt   DateTime?
-  completedAt DateTime?
+  startedAt   DateTime?          @db.Timestamptz(6)
+  completedAt DateTime?          @db.Timestamptz(6)
 
   // Results
   publishedStories Int  @default(0)
@@ -1216,12 +1216,12 @@ model InstagramStoryProject {
 
   // Error handling
   lastError   String?
-  lastErrorAt DateTime?
+  lastErrorAt DateTime? @db.Timestamptz(6)
   retryCount  Int       @default(0)
   maxRetries  Int       @default(3)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   account         Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -1263,8 +1263,8 @@ model InstagramStory {
 
   // Publishing results
   instagramStoryId String? // Instagram's story ID
-  publishedAt      DateTime?
-  expiresAt        DateTime? // Stories expire after 24 hours
+  publishedAt      DateTime? @db.Timestamptz(6)
+  expiresAt        DateTime? @db.Timestamptz(6) // Stories expire after 24 hours
 
   // Analytics
   views        Int?
@@ -1274,8 +1274,8 @@ model InstagramStory {
   taps_back    Int?
   exits        Int?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   storyProject InstagramStoryProject @relation(fields: [storyProjectId], references: [id], onDelete: Cascade)
@@ -1309,8 +1309,8 @@ model VideoProcessingJob {
   status      VideoProcessingStatus @default(QUEUED)
   progress    Int                   @default(0) // 0-100
   currentStep String? // Current processing step
-  startedAt   DateTime?
-  completedAt DateTime?
+  startedAt   DateTime?             @db.Timestamptz(6)
+  completedAt DateTime?             @db.Timestamptz(6)
 
   // Results
   segments          VideoSegment[]
@@ -1324,12 +1324,12 @@ model VideoProcessingJob {
 
   // Error handling
   error       String?
-  lastErrorAt DateTime?
+  lastErrorAt DateTime? @db.Timestamptz(6)
   retryCount  Int       @default(0)
   maxRetries  Int       @default(3)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   account         Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -1370,10 +1370,10 @@ model VideoSegment {
 
   // Publishing results
   instagramMediaId String? // Instagram's media ID
-  publishedAt      DateTime?
+  publishedAt      DateTime? @db.Timestamptz(6)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   processingJob VideoProcessingJob @relation(fields: [processingJobId], references: [id], onDelete: Cascade)
@@ -1417,12 +1417,12 @@ model InstagramAnalytics {
   audience_data Json? // Age, gender, location breakdown
 
   // Time-based metrics
-  capturedAt  DateTime  @default(now())
-  periodStart DateTime?
-  periodEnd   DateTime?
+  capturedAt  DateTime  @default(now()) @db.Timestamptz(6)
+  periodStart DateTime? @db.Timestamptz(6)
+  periodEnd   DateTime? @db.Timestamptz(6)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -1509,7 +1509,7 @@ model WebhookEvent {
   // Processing metadata
   retryCount     Int       @default(0)
   maxRetries     Int       @default(3)
-  nextRetryAt    DateTime?
+  nextRetryAt    DateTime? @db.Timestamptz(6)
   lastError      String?
   processingTime Int? // Processing time in milliseconds
 
@@ -1518,10 +1518,10 @@ model WebhookEvent {
   channelId String? // Related channel if applicable
 
   // Timestamps
-  receivedAt  DateTime  @default(now())
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  receivedAt  DateTime  @default(now()) @db.Timestamptz(6)
+  processedAt DateTime? @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
 
   // Relationships
   account       Account?       @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -1592,14 +1592,14 @@ model WebhookDeadLetter {
   retryCount    Int
 
   // Metadata
-  firstFailedAt DateTime
-  lastRetryAt   DateTime
-  resolvedAt    DateTime?
+  firstFailedAt DateTime  @db.Timestamptz(6)
+  lastRetryAt   DateTime  @db.Timestamptz(6)
+  resolvedAt    DateTime? @db.Timestamptz(6)
   resolvedBy    String? // Admin user who resolved
-  archivedAt    DateTime? // soft archive — null = active
+  archivedAt    DateTime? @db.Timestamptz(6) // soft archive — null = active
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   @@index([provider, eventType])
   @@index([firstFailedAt])
@@ -1759,9 +1759,9 @@ model Template {
   isActive Boolean @default(true)
 
   // Timestamps
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
 
   // Relationships
   project         Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -1804,7 +1804,7 @@ model TemplateVersion {
   branchName      String  @default("main")
 
   // Timestamps
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 
   // Relationships
   template      Template          @relation(fields: [templateId], references: [id], onDelete: Cascade)
@@ -1829,15 +1829,15 @@ model ABTest {
 
   // Test status and timing
   status    ABTestStatus @default(DRAFT)
-  startDate DateTime?
-  endDate   DateTime?
+  startDate DateTime?    @db.Timestamptz(6)
+  endDate   DateTime?    @db.Timestamptz(6)
 
   // Results
   results Json? // ABTestResults
 
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
   template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
@@ -1857,8 +1857,8 @@ model TemplateUsageEvent {
   variantId String?
 
   // Timestamps
-  timestamp DateTime @default(now())
-  createdAt DateTime @default(now())
+  timestamp DateTime @default(now()) @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 
   // Relationships
   template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
@@ -1903,8 +1903,8 @@ model TemplateComponent {
   templates TemplateComponentUsage[]
 
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   @@index([type])
   @@index([isReusable])
@@ -1938,7 +1938,7 @@ model TemplateCommit {
   metadata       Json?
 
   // Timestamps
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 
   template Template         @relation(fields: [templateId], references: [id], onDelete: Cascade)
   parent   TemplateCommit?  @relation("CommitHistory", fields: [parentCommitId], references: [id])
@@ -1957,9 +1957,9 @@ model TemplateCollaboration {
   role        TemplateCollaboratorRole @default(EDITOR)
 
   // Collaboration metadata
-  invitedAt    DateTime  @default(now())
-  acceptedAt   DateTime?
-  lastActiveAt DateTime?
+  invitedAt    DateTime  @default(now()) @db.Timestamptz(6)
+  acceptedAt   DateTime? @db.Timestamptz(6)
+  lastActiveAt DateTime? @db.Timestamptz(6)
 
   template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
@@ -1986,12 +1986,12 @@ model TemplateAnalytics {
 
   // Time-based metrics
   period    String // 'daily', 'weekly', 'monthly'
-  startDate DateTime
-  endDate   DateTime
+  startDate DateTime @db.Timestamptz(6)
+  endDate   DateTime @db.Timestamptz(6)
 
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
@@ -2075,10 +2075,10 @@ model SagaInstance {
   retryCount          Int       @default(0)
   error               String?
   accountId           String?
-  startedAt           DateTime  @default(now())
-  completedAt         DateTime?
-  updatedAt           DateTime  @updatedAt
-  createdAt           DateTime  @default(now())
+  startedAt           DateTime  @default(now()) @db.Timestamptz(6)
+  completedAt         DateTime? @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([status, startedAt])
   @@index([definitionId, status])
@@ -2133,11 +2133,11 @@ model SocialMessage {
   priority          MessagePriority     @default(NORMAL)
   suggestedReplies  String[]            @default([])
   crmContactId      String?
-  aiProcessedAt     DateTime?
+  aiProcessedAt     DateTime?           @db.Timestamptz(6)
   sentimentScore    Decimal?            @db.Decimal(3, 2)
-  providerCreatedAt DateTime
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  providerCreatedAt DateTime            @db.Timestamptz(6)
+  createdAt         DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime            @updatedAt @db.Timestamptz(6)
 
   account         Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -2166,13 +2166,13 @@ model SocialConversation {
   subject               String?
   participantCount      Int       @default(1)
   messageCount          Int       @default(0)
-  lastMessageAt         DateTime
+  lastMessageAt         DateTime  @db.Timestamptz(6)
   isResolved            Boolean   @default(false)
-  resolvedAt            DateTime?
+  resolvedAt            DateTime? @db.Timestamptz(6)
   resolvedById          String?
   rootProviderMessageId String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
 
   account    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -2191,9 +2191,9 @@ model ConversationNote {
   conversationId String
   authorId       String
   body           String    @db.Text
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  deletedAt      DateTime?
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt      DateTime? @db.Timestamptz(6)
 
   conversation SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   author       TeamMember         @relation("NoteAuthor", fields: [authorId], references: [id])
@@ -2210,9 +2210,9 @@ model SocialOutboundReply {
   providerReplyId String?
   status          OutboundReplyStatus @default(PENDING)
   errorMessage    String?
-  sentAt          DateTime?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  sentAt          DateTime?           @db.Timestamptz(6)
+  createdAt       DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @db.Timestamptz(6)
 
   socialMessage SocialMessage @relation(fields: [socialMessageId], references: [id], onDelete: Cascade)
   author        TeamMember    @relation(fields: [authorId], references: [id])
@@ -2272,6 +2272,7 @@ model AnalyticsDailySummary {
   postId    String?
   channelId String
   provider  Provider
+  /// Calendar date (no time-of-day, no timezone) — wall-clock carve-out per canon.
   date      DateTime @db.Date
   views     Int      @default(0)
   likes     Int      @default(0)
@@ -2292,6 +2293,7 @@ model AnalyticsMonthlySummary {
   postId    String?
   channelId String
   provider  Provider
+  /// Calendar month (no time-of-day, no timezone) — wall-clock carve-out per canon.
   month     DateTime @db.Date
   views     Int      @default(0)
   likes     Int      @default(0)
@@ -2316,10 +2318,10 @@ model ScheduledReport {
   recipients   String[]
   filters      Json         @default("{}")
   isActive     Boolean      @default(true)
-  lastRunAt    DateTime?
-  nextRunAt    DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  lastRunAt    DateTime?    @db.Timestamptz(6)
+  nextRunAt    DateTime?    @db.Timestamptz(6)
+  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(6)
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -2339,8 +2341,8 @@ model ExternalNotificationConfig {
   label      String
   events     String[]
   isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -2352,11 +2354,11 @@ model FirstComment {
   postId            String    @unique
   body              String
   status            String    @default("PENDING")
-  publishedAt       DateTime?
+  publishedAt       DateTime? @db.Timestamptz(6)
   providerCommentId String?
   error             String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
@@ -2370,7 +2372,7 @@ model GeneratedImage {
   size          String
   quality       String
   style         String
-  createdAt     DateTime @default(now())
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -2421,8 +2423,8 @@ model AIPromptTemplate {
   variables Json
   tone      String[]
   isSystem  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   account Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2438,7 +2440,7 @@ model UsageMetric {
   aiCallsMade     Int      @default(0)
   storageGb       Float    @default(0)
   teamMemberCount Int      @default(0)
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2454,8 +2456,8 @@ model BrandVoice {
   tone         String[]
   examples     String[]
   isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2472,8 +2474,8 @@ model BrandKit {
   logoStorageKey String?
   fontPrimary    String?
   fontSecondary  String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
@@ -2492,9 +2494,9 @@ model IntegrationApiKey {
   keyHash    String              @unique
   keyPrefix  String
   label      String?
-  lastUsedAt DateTime?
-  createdAt  DateTime            @default(now())
-  revokedAt  DateTime?
+  lastUsedAt DateTime?           @db.Timestamptz(6)
+  createdAt  DateTime            @default(now()) @db.Timestamptz(6)
+  revokedAt  DateTime?           @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2509,7 +2511,7 @@ model IntegrationSubscription {
   event     String
   targetUrl String
   active    Boolean             @default(true)
-  createdAt DateTime            @default(now())
+  createdAt DateTime            @default(now()) @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2588,17 +2590,17 @@ model CustomReport {
   metrics        String[]
   dimensions     String[]
   dateRange      String          @default("LAST_30_DAYS")
-  dateRangeStart DateTime?
-  dateRangeEnd   DateTime?
+  dateRangeStart DateTime?       @db.Timestamptz(6)
+  dateRangeEnd   DateTime?       @db.Timestamptz(6)
   chartType      ReportChartType @default(LINE)
   filters        Json?
   isShared       Boolean         @default(false)
   shareToken     String?         @unique
   shareEnabled   Boolean         @default(false)
-  shareExpiresAt DateTime?
+  shareExpiresAt DateTime?       @db.Timestamptz(6)
   createdById    String
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(6)
 
   schedules ReportSchedule[]
   account   Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -2617,9 +2619,9 @@ model ReportSchedule {
   format         ReportFormat @default(PDF)
   recipients     String[]
   isActive       Boolean      @default(true)
-  lastRunAt      DateTime?
-  nextRunAt      DateTime?
-  createdAt      DateTime     @default(now())
+  lastRunAt      DateTime?    @db.Timestamptz(6)
+  nextRunAt      DateTime?    @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
 
   report CustomReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
@@ -2656,15 +2658,15 @@ model CrmConnection {
   isActive       Boolean     @default(true)
   accessToken    String      @db.Text
   refreshToken   String?     @db.Text
-  tokenExpiresAt DateTime?
+  tokenExpiresAt DateTime?   @db.Timestamptz(6)
   portalId       String?
   instanceUrl    String?
   sandboxMode    Boolean     @default(false)
   syncContacts   Boolean     @default(true)
   syncActivities Boolean     @default(true)
-  lastSyncAt     DateTime?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  lastSyncAt     DateTime?   @db.Timestamptz(6)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(6)
 
   account  Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   syncLogs CrmSyncLog[]
@@ -2684,8 +2686,8 @@ model CrmContact {
   company    String?
   title      String?
   phone      String?
-  syncedAt   DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  syncedAt   DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime    @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2702,13 +2704,13 @@ model CrmActivity {
   type         CrmActivityType
   title        String
   description  String?         @db.Text
-  occurredAt   DateTime
+  occurredAt   DateTime        @db.Timestamptz(6)
   contactEmail String?
   postId       String?
   campaignId   String?
-  syncedAt     DateTime?
+  syncedAt     DateTime?       @db.Timestamptz(6)
   syncError    String?
-  createdAt    DateTime        @default(now())
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2719,8 +2721,8 @@ model CrmActivity {
 model CrmSyncLog {
   id               String     @id @default(cuid())
   connectionId     String
-  startedAt        DateTime   @default(now())
-  completedAt      DateTime?
+  startedAt        DateTime   @default(now()) @db.Timestamptz(6)
+  completedAt      DateTime?  @db.Timestamptz(6)
   contactsSynced   Int        @default(0)
   activitiesSynced Int        @default(0)
   errors           Json?
@@ -2748,9 +2750,9 @@ model MediaAsset {
   duration    Int?
   usageCount  Int       @default(0)
   folderId    String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt   DateTime? @db.Timestamptz(6)
 
   account Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project Project?          @relation(fields: [projectId], references: [id])
@@ -2769,8 +2771,8 @@ model AssetFolder {
   accountId String
   name      String
   parentId  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   account  Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
   parent   AssetFolder?  @relation("FolderTree", fields: [parentId], references: [id])
@@ -2786,7 +2788,7 @@ model AssetTag {
   accountId String
   name      String
   color     String?  @default("#6366f1")
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 
   account Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
   assets  AssetTagOnAsset[]
@@ -2949,12 +2951,12 @@ model SystemAnnouncement {
   title     String
   message   String
   type      AnnouncementType @default(INFO)
-  startsAt  DateTime
-  endsAt    DateTime?
+  startsAt  DateTime         @db.Timestamptz(6)
+  endsAt    DateTime?        @db.Timestamptz(6)
   isActive  Boolean          @default(true)
   createdBy String
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
 
   @@index([isActive, startsAt])
 }
@@ -2973,10 +2975,10 @@ model AccountOnboarding {
   createdFirstPost       Boolean   @default(false)
   invitedTeamMember      Boolean   @default(false)
   configuredBilling      Boolean   @default(false)
-  completedAt            DateTime?
-  dismissedAt            DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  completedAt            DateTime? @db.Timestamptz(6)
+  dismissedAt            DateTime? @db.Timestamptz(6)
+  createdAt              DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
@@ -3099,7 +3101,7 @@ model GdprSettings {
   enableDataExport         Boolean          @default(true)
   enableDataAccess         Boolean          @default(true)
   enableBreachNotification Boolean          @default(true)
-  updatedAt                DateTime         @updatedAt
+  updatedAt                DateTime         @updatedAt @db.Timestamptz(6)
   updatedBy                String?
 }
 
@@ -3113,7 +3115,7 @@ model SecuritySettings {
   requireSpecialChar    Boolean  @default(false)
   ipAllowlistEnabled    Boolean  @default(false)
   ipAllowlist           String[]
-  updatedAt             DateTime @updatedAt
+  updatedAt             DateTime @updatedAt @db.Timestamptz(6)
   updatedBy             String?
 }
 
@@ -3123,11 +3125,11 @@ model ConsentRecord {
   accountId      String?
   consentType    String
   consentVersion String
-  acceptedAt     DateTime  @default(now())
+  acceptedAt     DateTime  @default(now()) @db.Timestamptz(6)
   ipAddress      String?
   userAgent      String?
   withdrawn      Boolean   @default(false)
-  withdrawnAt    DateTime?
+  withdrawnAt    DateTime? @db.Timestamptz(6)
 
   @@index([userId, consentType])
   @@index([accountId])
@@ -3165,21 +3167,21 @@ model DataBreachReport {
   id                   String    @id @default(cuid())
   title                String
   description          String
-  discoveredAt         DateTime
-  reportedAt           DateTime  @default(now())
+  discoveredAt         DateTime  @db.Timestamptz(6)
+  reportedAt           DateTime  @default(now()) @db.Timestamptz(6)
   reportedBy           String
   affectedUserCount    Int?
   dataTypesAffected    String[]
   severity             String
-  notificationSentAt   DateTime?
+  notificationSentAt   DateTime? @db.Timestamptz(6)
   notificationSentBy   String?
-  regulatoryReportedAt DateTime?
+  regulatoryReportedAt DateTime? @db.Timestamptz(6)
   regulatoryReportedTo String?
   resolved             Boolean   @default(false)
-  resolvedAt           DateTime?
+  resolvedAt           DateTime? @db.Timestamptz(6)
   internalNotes        String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @db.Timestamptz(6)
 }
 
 // ─── Referral Program (Sprint 8) ────────────────────────────────────────────
@@ -3232,8 +3234,8 @@ model RepurposeProposal {
   engagementRate       Decimal         @db.Decimal(10, 6)
   /// Multiplier: Decimal(10,6) — basis-point precision.
   engagementMultiplier Decimal         @db.Decimal(10, 6)
-  detectedAt           DateTime        @default(now())
-  reviewedAt           DateTime?
+  detectedAt           DateTime        @default(now()) @db.Timestamptz(6)
+  reviewedAt           DateTime?       @db.Timestamptz(6)
   reviewedBy           String?
 
   account    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -3287,8 +3289,8 @@ model TrendRadarResult {
   bestPlatform   Provider?
   urgency        TrendUrgency
   volume         Int?
-  fetchedAt      DateTime
-  expiresAt      DateTime
+  fetchedAt      DateTime     @db.Timestamptz(6)
+  expiresAt      DateTime     @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -3339,7 +3341,7 @@ model AccountCredential {
 model PlatformEncryptionKey {
   id         String   @id @default(cuid())
   keyVersion Int      @default(1)
-  rotatedAt  DateTime @default(now())
+  rotatedAt  DateTime @default(now()) @db.Timestamptz(6)
   rotatedBy  String
   note       String?
   isActive   Boolean  @default(true)
@@ -3375,7 +3377,7 @@ model AiTokenUsage {
   accountId  String
   provider   String
   tokensUsed Int
-  usedAt     DateTime @default(now())
+  usedAt     DateTime @default(now()) @db.Timestamptz(6)
   isByok     Boolean  @default(false)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
