@@ -77,7 +77,7 @@ describe("RBAC System", () => {
     });
 
     it("should grant Super Admin all permissions", async () => {
-      const permissions = rbacService.getUserPermissions(superAdminId, "SUPER_ADMIN");
+      const permissions = await rbacService.getUserPermissions(superAdminId, "SUPER_ADMIN");
 
       assert.ok(
         permissions.canAccess(Permission.USER_DELETE),
@@ -94,7 +94,7 @@ describe("RBAC System", () => {
     });
 
     it("should grant Admin appropriate permissions", async () => {
-      const permissions = rbacService.getUserPermissions(adminId, "ADMIN");
+      const permissions = await rbacService.getUserPermissions(adminId, "ADMIN");
 
       assert.ok(permissions.canAccess(Permission.USER_CREATE), "Admin should have USER_CREATE");
       assert.ok(
@@ -108,7 +108,7 @@ describe("RBAC System", () => {
     });
 
     it("should grant Support limited permissions", async () => {
-      const permissions = rbacService.getUserPermissions(supportId, "SUPPORT");
+      const permissions = await rbacService.getUserPermissions(supportId, "SUPPORT");
 
       assert.ok(
         permissions.canAccess(Permission.SUPPORT_RESPOND),
@@ -125,9 +125,9 @@ describe("RBAC System", () => {
     });
 
     it("should have correct permission counts per role", async () => {
-      const superAdminPerms = rbacService.getUserPermissions(superAdminId, "SUPER_ADMIN");
-      const adminPerms = rbacService.getUserPermissions(adminId, "ADMIN");
-      const supportPerms = rbacService.getUserPermissions(supportId, "SUPPORT");
+      const superAdminPerms = await rbacService.getUserPermissions(superAdminId, "SUPER_ADMIN");
+      const adminPerms = await rbacService.getUserPermissions(adminId, "ADMIN");
+      const supportPerms = await rbacService.getUserPermissions(supportId, "SUPPORT");
 
       assert.ok(superAdminPerms.permissions.length > 0, "Super Admin should have permissions");
       assert.ok(adminPerms.permissions.length > 0, "Admin should have permissions");
@@ -148,38 +148,44 @@ describe("RBAC System", () => {
   describe("Role Hierarchy", () => {
     it("should enforce hierarchical permission structure", async () => {
       // Super Admin can do everything
-      assert.ok(rbacService.hasPermission("SUPER_ADMIN", Permission.SYSTEM_CONFIGURE));
-      assert.ok(rbacService.hasPermission("SUPER_ADMIN", Permission.USER_DELETE));
-      assert.ok(rbacService.hasPermission("SUPER_ADMIN", Permission.BILLING_MANAGE));
+      assert.ok(await rbacService.hasPermission("SUPER_ADMIN", Permission.SYSTEM_CONFIGURE));
+      assert.ok(await rbacService.hasPermission("SUPER_ADMIN", Permission.USER_DELETE));
+      assert.ok(await rbacService.hasPermission("SUPER_ADMIN", Permission.BILLING_MANAGE));
 
       // Admin has elevated permissions but not system-level
-      assert.ok(rbacService.hasPermission("ADMIN", Permission.USER_CREATE));
-      assert.ok(!rbacService.hasPermission("ADMIN", Permission.SYSTEM_CONFIGURE));
+      assert.ok(await rbacService.hasPermission("ADMIN", Permission.USER_CREATE));
+      assert.ok(!(await rbacService.hasPermission("ADMIN", Permission.SYSTEM_CONFIGURE)));
 
       // Support has basic permissions
-      assert.ok(rbacService.hasPermission("SUPPORT", Permission.SUPPORT_READ));
-      assert.ok(!rbacService.hasPermission("SUPPORT", Permission.USER_DELETE));
+      assert.ok(await rbacService.hasPermission("SUPPORT", Permission.SUPPORT_READ));
+      assert.ok(!(await rbacService.hasPermission("SUPPORT", Permission.USER_DELETE)));
     });
 
     it("should enforce role modification hierarchy", async () => {
       // Super Admin can modify everyone
-      assert.ok(rbacService.canModifyRole("SUPER_ADMIN", "ADMIN"), "Super Admin can modify Admin");
       assert.ok(
-        rbacService.canModifyRole("SUPER_ADMIN", "SUPPORT"),
+        await rbacService.canModifyRole("SUPER_ADMIN", "ADMIN"),
+        "Super Admin can modify Admin"
+      );
+      assert.ok(
+        await rbacService.canModifyRole("SUPER_ADMIN", "SUPPORT"),
         "Super Admin can modify Support"
       );
 
       // Admin can modify lower roles
-      assert.ok(rbacService.canModifyRole("ADMIN", "SUPPORT"), "Admin can modify Support");
+      assert.ok(await rbacService.canModifyRole("ADMIN", "SUPPORT"), "Admin can modify Support");
       assert.ok(
-        !rbacService.canModifyRole("ADMIN", "SUPER_ADMIN"),
+        !(await rbacService.canModifyRole("ADMIN", "SUPER_ADMIN")),
         "Admin cannot modify Super Admin"
       );
 
       // Support cannot modify anyone
-      assert.ok(!rbacService.canModifyRole("SUPPORT", "ADMIN"), "Support cannot modify Admin");
       assert.ok(
-        !rbacService.canModifyRole("SUPPORT", "SUPER_ADMIN"),
+        !(await rbacService.canModifyRole("SUPPORT", "ADMIN")),
+        "Support cannot modify Admin"
+      );
+      assert.ok(
+        !(await rbacService.canModifyRole("SUPPORT", "SUPER_ADMIN")),
         "Support cannot modify Super Admin"
       );
     });
@@ -361,11 +367,11 @@ describe("RBAC System", () => {
   describe("Permission Check Methods", () => {
     it("should check hasPermission correctly", async () => {
       assert.ok(
-        rbacService.hasPermission("ADMIN", Permission.USER_CREATE),
+        await rbacService.hasPermission("ADMIN", Permission.USER_CREATE),
         "Admin should have USER_CREATE"
       );
       assert.ok(
-        !rbacService.hasPermission("SUPPORT", Permission.USER_DELETE),
+        !(await rbacService.hasPermission("SUPPORT", Permission.USER_DELETE)),
         "Support should not have USER_DELETE"
       );
     });
@@ -374,11 +380,11 @@ describe("RBAC System", () => {
       const adminPerms = [Permission.USER_CREATE, Permission.SYSTEM_CONFIGURE];
 
       assert.ok(
-        rbacService.hasAnyPermission("ADMIN", adminPerms),
+        await rbacService.hasAnyPermission("ADMIN", adminPerms),
         "Admin should have at least one permission"
       );
       assert.ok(
-        !rbacService.hasAnyPermission("SUPPORT", adminPerms),
+        !(await rbacService.hasAnyPermission("SUPPORT", adminPerms)),
         "Support should not have any of these permissions"
       );
     });
@@ -388,11 +394,11 @@ describe("RBAC System", () => {
       const adminPerms = [Permission.USER_CREATE, Permission.SYSTEM_CONFIGURE];
 
       assert.ok(
-        rbacService.hasAllPermissions("SUPPORT", supportPerms),
+        await rbacService.hasAllPermissions("SUPPORT", supportPerms),
         "Support should have all support permissions"
       );
       assert.ok(
-        !rbacService.hasAllPermissions("SUPPORT", adminPerms),
+        !(await rbacService.hasAllPermissions("SUPPORT", adminPerms)),
         "Support should not have all admin permissions"
       );
     });
@@ -552,7 +558,7 @@ describe("RBAC System", () => {
       testUsers.push(userId);
 
       // Verify initial permissions
-      const initialPerms = rbacService.getUserPermissions(userId, "SUPPORT");
+      const initialPerms = await rbacService.getUserPermissions(userId, "SUPPORT");
       assert.ok(!initialPerms.canAccess(Permission.USER_CREATE));
 
       // Super Admin upgrades to Admin role (only SUPER_ADMIN can modify roles)
@@ -565,7 +571,7 @@ describe("RBAC System", () => {
       assert.ok(upgradeResult.ok);
 
       // Verify new permissions
-      const upgradedPerms = rbacService.getUserPermissions(userId, "ADMIN");
+      const upgradedPerms = await rbacService.getUserPermissions(userId, "ADMIN");
       assert.ok(upgradedPerms.canAccess(Permission.USER_CREATE));
     });
 
