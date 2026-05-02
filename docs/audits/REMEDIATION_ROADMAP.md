@@ -460,7 +460,7 @@ pnpm lint --max-warnings 0 2>&1 | grep -c "unused\|no-unused"   # → 0
 
 ---
 
-#### T1-F — @layer y @file JSDoc normalization 🔗 ✅ 2026-04-22
+#### T1-F — @layer y @file JSDoc normalization 🔗 ✅ 2026-04-22 (revisitado canon 2026-05-02 — TSDoc considerada, JSDoc-with-custom-tags es la canon interna)
 
 **Scope.** Composite L-298/L-388/L-527 resolved @layer en D0v4-8; quedan ~130 files missing @file headers + 4 @component/@layer misnamed. Este batch cierra el composite definitivamente.
 
@@ -492,6 +492,8 @@ grep -rn "@layer" apps/api/src/ --include="*.ts" | grep -v "@layer application\|
 **Dependencias.** 🔗 CROSS_TIER_COMPOSITE con T4-P (fitness function #9 enforcement).
 
 **Notas.** L-299 aparece aquí solo para completar tracking de @file (si el file tiene violations); su fix funcional está en T3-O. Esta es una excepción deliberada para no duplicar.
+
+**Revisitado canon 2026-05-02.** Verificado contra TSDoc (Microsoft TypeScript doc spec) + TypeDoc (HTML doc generator). El batch original cerró 9 findings + fitness #9 (`@file` mandatory), #10 (valid `@layer`), #12 (`@component` en React) enforce las invariantes. Broader audit (apps + packages, .ts + .tsx) confirma 0 violations en los 3 ejes. **TSDoc evaluada y NO adoptada**: TSDoc canon aplica a librerías npm-públicas (donde la rigurosidad de grammar habilita tool interop entre consumers); este repo es monorepo interno sin consumers externos, así que JSDoc-with-custom-tags + fitness functions enforcement es equivalente y evita migration cost. TypeDoc tampoco — Storybook autodocs cubre frontend, backend usa grep + inline JSDoc. Canon entries añadidas a `canon_research_index.md §TypeScript Doc Comments`.
 
 ---
 
