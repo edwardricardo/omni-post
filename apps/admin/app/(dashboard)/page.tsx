@@ -85,7 +85,6 @@ function DashboardContent() {
         <div
           className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-3"
           role="alert"
-          aria-live="assertive"
         >
           <div className="text-[var(--error)]">{getErrorMessage(error)}</div>
           <ActionButton

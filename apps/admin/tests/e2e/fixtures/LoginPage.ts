@@ -180,10 +180,11 @@ export class LoginPage {
     await expect(this.emailInput).toHaveAttribute("autocomplete", "email");
     await expect(this.passwordInput).toHaveAttribute("autocomplete", "current-password");
 
-    // Check error alert has proper ARIA attributes
+    // Check error alert has proper ARIA — role="alert" implies
+    // aria-live="assertive" + aria-atomic="true" per WAI-ARIA, so asserting
+    // on role alone is the canonical check.
     if (await this.hasError()) {
       await expect(this.errorAlert).toHaveAttribute("role", "alert");
-      await expect(this.errorAlert).toHaveAttribute("aria-live", "assertive");
     }
   }
 

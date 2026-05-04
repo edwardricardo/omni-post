@@ -57,7 +57,6 @@ export function LoginForm() {
           <div
             className="rounded-md bg-[var(--error-subtle)] p-4"
             role="alert"
-            aria-live="assertive"
             data-testid="login-error"
           >
             <div className="text-sm text-[var(--error)]">{state.error}</div>

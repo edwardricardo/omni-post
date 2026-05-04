@@ -2337,6 +2337,45 @@ Estos NO son el mismo pattern que SettingsService:
 
 ---
 
+### PR-47 — Migrate `error.tsx` `reset` → `unstable_retry` (Next.js v16.2+ canonical recovery)
+
+**Surfaced:** 2026-05-04 durante T2-B revisitado canon research.
+
+**Tipo:** API forward-migration — Next 16.2 introduce affordance preferida.
+
+**Contexto.** Next.js v16.2.0 (2026-04) agregó `unstable_retry` como prop al `error.tsx` boundary, semánticamente distinta a `reset`:
+
+- `reset()` (legacy): re-renderiza el boundary's children sin re-fetch de data → si el error fue por data stale, el retry repite el mismo bug.
+- `unstable_retry()` (v16.2+): re-fetches data + re-renders → recovery real del error transient.
+
+Per [Next.js docs](https://nextjs.org/docs/app/api-reference/file-conventions/error#unstable_retry): _"In most cases, you should use `unstable_retry()` instead. However, if you have a specific reason to clear the error state and re-render the error boundary's children without re-fetching the contents, you can use the `reset()` function."_
+
+**Estado actual.** 3 archivos usan `reset`:
+
+- `apps/admin/app/error.tsx`
+- `apps/client/app/error.tsx`
+- `apps/client/app/global-error.tsx`
+
+Funcionan correctamente — `reset` sigue siendo soportado en v16.2+. La migración es preferred-pattern, no fix-required.
+
+**Plan estructurado.**
+
+1. **Trigger** — cuando se reporte un caso de "error retry no funciona" (síntoma típico: usuario clickea Retry, mismo error reaparece porque data stale).
+2. **Implementation**: cambiar prop name de `reset` a `unstable_retry` en los 3 archivos. Update botones a `onClick={() => unstable_retry()}`. ~30 min.
+3. **Caveat**: `unstable_*` puede cambiar su nombre en futuras versiones de Next. Esperar hasta que pase a stable (probablemente `retry` sin prefix) puede ser razonable.
+
+**Bloqueado por.** Solo prioritization. Patron está disponible HOY pero `unstable_*` prefix sugiere esperar a estabilización.
+
+**Cuándo revisar.**
+
+- Cuando Next remueva el prefix `unstable_*` (señal de API estable).
+- Cuando un usuario reporte retry-no-funciona en producción.
+- Pre-launch hardening pass.
+
+**Estado:** PENDING (surfaced 2026-05-04 durante T2-B revisitado canon research; no es un GAP, es forward-migration deuda).
+
+---
+
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
 
 **Cierre.** Un entry se marca como `REVIEWED` cuando Edward lo revisa al final del roadmap. Se marca como `FIXED` cuando el fix de raíz se aplicó. Se marca como `WONT_FIX` si Edward decide que el paliativo es suficiente a largo plazo (en cuyo caso la razón debe documentarse).

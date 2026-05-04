@@ -37,11 +37,7 @@ export default function GlobalError({
   return (
     <html lang="en">
       <body>
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="flex min-h-screen flex-col items-center justify-center"
-        >
+        <div role="alert" className="flex min-h-screen flex-col items-center justify-center">
           <h2 className="text-2xl font-bold mb-4">Something went wrong!</h2>
           <p className="text-gray-600 mb-4">{displayMessage}</p>
           {!isDev && error.digest && (

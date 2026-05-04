@@ -278,7 +278,7 @@ function SubscriptionsPageContent() {
     return (
       <div>
         <PageHeader title={t("subscriptions")} />
-        <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
+        <div className="flex justify-center items-center h-64" role="alert">
           <div className="text-sm text-[var(--error)]">
             {tc("error")}: {getErrorMessage(error)}
           </div>

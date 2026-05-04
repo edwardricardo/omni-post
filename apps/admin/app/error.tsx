@@ -34,11 +34,7 @@ export default function Error({
   const displayMessage = isDev ? error.message || t("genericMessage") : t("genericMessage");
 
   return (
-    <div
-      role="alert"
-      aria-live="assertive"
-      className="flex min-h-screen items-center justify-center bg-[var(--bg-base)]"
-    >
+    <div role="alert" className="flex min-h-screen items-center justify-center bg-[var(--bg-base)]">
       <div className="text-center max-w-md p-8">
         <div className="mb-4">
           <div className="mx-auto w-16 h-16 bg-[var(--error-subtle)] rounded-full flex items-center justify-center">

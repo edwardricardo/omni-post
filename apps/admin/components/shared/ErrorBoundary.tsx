@@ -57,7 +57,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           ? this.state.error.message
           : "Something went wrong. Please try again or contact support.";
       return (
-        <div role="alert" aria-live="assertive">
+        <div role="alert">
           <h2>Error</h2>
           <p>{displayMessage}</p>
         </div>

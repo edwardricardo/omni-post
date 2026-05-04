@@ -343,7 +343,7 @@ function AccountsPageContent() {
     return (
       <div>
         <PageHeader title={t("accounts")} />
-        <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
+        <div className="flex justify-center items-center h-64" role="alert">
           <div className="text-sm text-[var(--error)]">Error: {getErrorMessage(error)}</div>
           <ActionButton
             variant="primary"
