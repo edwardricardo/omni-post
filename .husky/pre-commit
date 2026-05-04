@@ -10,6 +10,15 @@
 
 set -e
 
+# Augment PATH so user-local installs (gitleaks, etc.) are visible. Git hooks
+# run in non-interactive shells which skip ~/.bashrc, so the user's interactive
+# PATH is not inherited. ~/.local/bin is the XDG canonical location for
+# user-installed binaries.
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks protect --staged --redact --no-banner
 else
