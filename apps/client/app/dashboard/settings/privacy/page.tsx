@@ -178,7 +178,7 @@ export default function PrivacyPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Request type */}
-        <fieldset className="space-y-3">
+        <fieldset className="border-0 p-0 m-0 min-w-0 space-y-3">
           <legend className="text-sm font-medium text-foreground">Request type</legend>
           {REQUEST_TYPES.map((rt) => (
             <label key={rt.value} className="flex items-center gap-3 cursor-pointer">
