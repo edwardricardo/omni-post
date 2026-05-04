@@ -122,6 +122,9 @@ tsconfig.tsbuildinfo
 *.bak[0-9]*
 *.contaminated.bak
 
+# jscpd reports
+reports/jscpd/
+
 # Optional: Local development overrides
 docker-compose.local.yml
 .claude/settings.local.json

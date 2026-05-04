@@ -151,6 +151,28 @@ jobs:
           fi
 
   # ──────────────────────────────────────────────────────────────────────
+  # 4b. secretlint — defense-in-depth secret scan (rule-based, complements gitleaks regex)
+  # ──────────────────────────────────────────────────────────────────────
+  secretlint:
+    if: github.event_name != 'schedule'
+    name: secretlint (rule-based secrets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run secretlint
+        run: pnpm secret:scan
+
+  # ──────────────────────────────────────────────────────────────────────
   # 5. Squawk — Postgres migration safety (only when migrations changed)
   # ──────────────────────────────────────────────────────────────────────
   squawk:
@@ -287,6 +309,7 @@ jobs:
       - semgrep
       - osv-scanner
       - gitleaks
+      - secretlint
       - squawk
       - size-limit
       - lychee-link-check
@@ -301,6 +324,7 @@ jobs:
           echo "| Semgrep CE         | ${{ needs.semgrep.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| OSV-Scanner        | ${{ needs.osv-scanner.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| gitleaks           | ${{ needs.gitleaks.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| secretlint         | ${{ needs.secretlint.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Squawk             | ${{ needs.squawk.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| size-limit         | ${{ needs.size-limit.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| lychee             | ${{ needs.lychee-link-check.result }} |" >> $GITHUB_STEP_SUMMARY

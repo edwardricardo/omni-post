@@ -40,6 +40,8 @@
     "zustand": "5.0.11"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
+    "@playwright/test": "1.55.1",
     "@storybook/addon-a11y": "10.2.13",
     "@storybook/addon-docs": "10.2.13",
     "@storybook/nextjs": "10.2.13",

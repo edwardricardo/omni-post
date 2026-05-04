@@ -2376,6 +2376,75 @@ Funcionan correctamente — `reset` sigue siendo soportado en v16.2+. La migraci
 
 ---
 
+### PR-48 — reg-suit visual regression: decisión de storage backend
+
+**Surfaced.** 2026-05-04 durante B-tools-1 (toolkit install).
+
+**Síntoma.** Edward eligió "GitHub plugin" para reg-suit asumiendo que `reg-publish-github-plugin` existía. **No existe en npm.** reg-suit canon requiere storage externo: S3, GCS, o filesystem + commit manual a branch.
+
+**Opciones técnicas viables.**
+
+1. **`reg-publish-s3-plugin`** — bucket S3 dedicado. Setup ~30min. Costo ~$0.02/mes inicial. Stable a largo plazo. Requiere AWS creds + bucket creado.
+2. **`reg-publish-fs-plugin` + workflow custom** — snapshots en `.reg/`, GH Actions los committea a orphan branch `reg-suit-snapshots`. Cero infra externa, infla repo size, ~50 LoC workflow custom.
+3. **GitHub Actions Artifacts (DIY)** — sin reg-publish-\*. Workflow sube/baja como GHA artifacts (90d retention). Rompe flujo canónico de reg-suit.
+4. **reg-suit Cloud** — servicio managed (paid).
+
+**Plan estructurado.**
+
+1. **Decisión de storage** — Edward elige A/B/C/D arriba.
+2. **Install** — `pnpm add -Dw reg-suit reg-cli reg-keygen-git-hash-plugin reg-notify-github-plugin reg-publish-{s3|fs}-plugin`.
+3. **Config** — `regconfig.json` apuntando al plugin elegido + auth tokens vía GitHub Secrets.
+4. **Wire CI** — workflow nightly que corre `reg-suit run`, compara contra baseline, comenta en PR.
+5. **Baseline inicial** — `reg-suit run` en `main` para crear snapshots de partida.
+
+**Bloqueado por.** Decisión de storage (Edward).
+
+**Estado:** **WONT_FIX** (cerrado 2026-05-04). Edward decidió postponer definitivamente. reg-suit no se instala ni wirea hasta nuevo aviso. Si en el futuro surge la necesidad de visual regression, este entry se revive con la decisión de storage que corresponda.
+
+---
+
+### PR-49 — secretlint CI step (defense in depth post pre-commit)
+
+**Surfaced.** 2026-05-04 durante B-tools-1 audit.
+
+**Síntoma.** secretlint está wired en lint-staged (`*` glob) + tiene script `secret:scan` + config `.secretlintrc.json` + ignore `.secretlintignore`. **Falta solo el step en CI** — actualmente si alguien commit-skipea hooks (e.g. con `--no-verify`), secretlint nunca corre. gitleaks SÍ corre en CI pero cubre regex distinto que secretlint preset-recommend.
+
+**Opciones técnicas.**
+
+1. Step en `fitness.yml` invocando `pnpm secret:scan`. Hard-fail si encuentra. ~10 LoC.
+2. Job dedicado en `security-testing.yml`. Más visible pero más overhead.
+
+**Plan estructurado.**
+
+1. Agregar step en `.github/workflows/fitness.yml` después del step de gitleaks.
+2. Run on `push` + `pull_request`. ~30s typical.
+
+**Bloqueado por.** Es B-tools-2 (CI wiring batch).
+
+**Estado:** **FIXED** (cerrado 2026-05-04 en B-tools-2). Step `secretlint` agregado en `.github/workflows/audit.yml` después del job `gitleaks` + entry en `audit-summary` table.
+
+---
+
+### PR-50 — MSW global setupFiles incompatible con vi.mock fetch (test legacy)
+
+**Surfaced.** 2026-05-04 durante B-tools-2 smoke en apps/admin (18 tests rotos al activar MSW global).
+
+**Síntoma.** MSW v2 + `setupFiles: ["./tests/msw/vitest.setup.ts"]` activa `server.listen()` antes de cada test file. Tests legacy que usan `vi.mock("global.fetch")` o `globalThis.fetch = vi.fn(...)` ya no llegan a su mock — MSW intercepta primero (a nivel network handler) y devuelve unhandled-warning. Ejemplo concreto: `apps/admin/tests/unit/hooks/useUniversalAnalytics.test.tsx` espera `mockFetch.mock.calls[0]` → recibe array vacío porque el call nunca llegó al mock.
+
+**Decisión 2026-05-04.** Revertir MSW completo: uninstall del paquete + delete de scaffolding (handlers, server, vitest.setup). No quedó nada en disco.
+
+**Opciones para reintroducir MSW en el futuro.**
+
+1. **Migración test-by-test (opt-in)** — cada test que use MSW importa el helper localmente y NO usa vi.mock fetch en ese mismo test. Coexistencia segura. Requiere disciplina.
+2. **Migración masiva** — reemplazar TODOS los `vi.mock` de fetch por handlers MSW. Trabajo grande pero coherente. Estimación: ~80 tests afectados en admin + client + api combinados.
+3. **NO reintroducir** — vi.mock funciona, no hay un caso de uso fuerte que justifique el switch. WONT_FIX si no surge una necesidad concreta.
+
+**Bloqueado por.** Decisión sobre cuál de las 3 opciones aplicar.
+
+**Estado:** PENDING (deferido indefinidamente). Si el equipo necesita mockear request multipart, streams, websocket, o GraphQL en tests, MSW canon es la solución superior — entonces se revive este entry.
+
+---
+
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
 
 **Cierre.** Un entry se marca como `REVIEWED` cuando Edward lo revisa al final del roadmap. Se marca como `FIXED` cuando el fix de raíz se aplicó. Se marca como `WONT_FIX` si Edward decide que el paliativo es suficiente a largo plazo (en cuyo caso la razón debe documentarse).
