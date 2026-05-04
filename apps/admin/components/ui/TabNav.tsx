@@ -35,7 +35,7 @@ export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
   );
 
   return (
-    <nav
+    <div
       role="tablist"
       aria-label="Tabs"
       className="flex gap-1 border-b border-[var(--border-subtle)] overflow-x-auto"
@@ -64,6 +64,6 @@ export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
           </button>
         );
       })}
-    </nav>
+    </div>
   );
 }

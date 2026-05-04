@@ -87,12 +87,22 @@ export function StoriesTimeline({
         {stories.map((story, index) => (
           <div
             key={story.id}
+            role="button"
+            tabIndex={0}
+            aria-pressed={selectedStoryIndex === index}
+            aria-label={`Select story ${index + 1}`}
             className={`relative p-3 rounded-lg border cursor-pointer transition-colors ${
               selectedStoryIndex === index
                 ? "border-blue-500 bg-blue-50"
                 : "border-gray-200 hover:border-gray-300"
             }`}
             onClick={() => onStorySelect(index)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onStorySelect(index);
+              }
+            }}
           >
             <div className="flex items-center space-x-3">
               <div className="w-12 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">

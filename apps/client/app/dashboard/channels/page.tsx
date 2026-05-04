@@ -549,16 +549,17 @@ function ChannelsPageContent() {
         {showConnectModal && selectedProvider && (
           <div
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-            onClick={() => setShowConnectModal(false)}
             role="dialog"
             aria-modal="true"
             aria-labelledby="connect-modal-title"
           >
-            <div
-              ref={modalRef}
-              className="bg-white rounded-lg max-w-md w-full p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <button
+              type="button"
+              aria-label="Close connect provider dialog"
+              className="absolute inset-0 cursor-default"
+              onClick={() => setShowConnectModal(false)}
+            />
+            <div ref={modalRef} className="relative bg-white rounded-lg max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 id="connect-modal-title" className="text-xl font-semibold text-gray-900">
                   Connect {selectedProvider.displayName}

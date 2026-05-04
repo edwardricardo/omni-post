@@ -250,8 +250,9 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
         </legend>
         <div className="space-y-2">
           {CONTENT_VARIATION_OPTIONS.map((opt) => (
-            <label key={opt.value} className="flex cursor-pointer items-start gap-3">
+            <div key={opt.value} className="flex items-start gap-3">
               <input
+                id={`content-variation-${opt.value}`}
                 type="radio"
                 name="contentVariation"
                 value={opt.value}
@@ -259,11 +260,11 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
                 onChange={() => setContentVariation(opt.value)}
                 className="mt-0.5 text-blue-600"
               />
-              <div>
+              <label htmlFor={`content-variation-${opt.value}`} className="cursor-pointer">
                 <span className="text-sm font-medium text-gray-900">{opt.label}</span>
                 <p className="text-xs text-gray-500">{opt.description}</p>
-              </div>
-            </label>
+              </label>
+            </div>
           ))}
         </div>
       </fieldset>

@@ -85,17 +85,29 @@ const g = globalThis as unknown as {
   prismaConnectionCount?: number;
 };
 
-// Connection pool configuration based on environment
+// Connection pool configuration. Defaults derive from CPU count + NODE_ENV;
+// each value is overridable via env so ops can tune for cloud topology
+// without a code change. Idle timeout sits just below the typical cloud LB
+// 10-minute idle cutoff so Postgres recycles connections before the LB
+// silently drops them.
 const getConnectionPoolConfig = () => {
   const isProduction = process.env.NODE_ENV === "production";
   const cpuCount = cpus().length;
 
+  const defaultMax = isProduction
+    ? Math.max(cpuCount * 2, 10) // Production: 2x CPU cores, minimum 10
+    : Math.min(cpuCount + 2, 8); // Development: CPU + 2, maximum 8
+
+  const parsePositiveInt = (raw: string | undefined, fallback: number): number => {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? Math.trunc(n) : fallback;
+  };
+
   return {
-    max: isProduction
-      ? Math.max(cpuCount * 2, 10) // Production: 2x CPU cores, minimum 10
-      : Math.min(cpuCount + 2, 8), // Development: CPU + 2, maximum 8
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 580000, // 9 minutes 40 seconds
+    max: parsePositiveInt(process.env.DB_POOL_SIZE, defaultMax),
+    connectionTimeoutMillis: parsePositiveInt(process.env.DB_CONNECTION_TIMEOUT, 10_000),
+    idleTimeoutMillis: parsePositiveInt(process.env.DB_IDLE_TIMEOUT, 580_000),
   };
 };
 

@@ -42,6 +42,12 @@ export function createBullMQConsumerAdapter(
     new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
       maxRetriesPerRequest: null,
       lazyConnect: true,
+      // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+      // 5 s on each so a hung Redis fails fast instead of stalling consumer
+      // job processing. BullMQ requires maxRetriesPerRequest:null, so the
+      // timeout is the only escape hatch.
+      commandTimeout: 5_000,
+      connectTimeout: 5_000,
     });
 
   const concurrency = options.concurrency ?? 5;
@@ -65,6 +71,12 @@ export function createBullMQConsumerAdapter(
           concurrency,
           removeOnComplete,
           removeOnFail,
+          // BullMQ default lockDuration is 30 s, which is too tight for
+          // publishing jobs that wait on social provider APIs. 60 s gives
+          // headroom; stalledInterval halved so detection lands on tick 2.
+          lockDuration: 60_000,
+          stalledInterval: 30_000,
+          drainDelay: 5,
         }
       );
 

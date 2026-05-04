@@ -285,6 +285,11 @@ export function setupServices(
         enableReadyCheck: false,
         maxRetriesPerRequest: 3,
         lazyConnect: true,
+        // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+        // 5 s on each so a hung Redis fails fast instead of stalling job
+        // enqueues from API request handlers.
+        commandTimeout: 5_000,
+        connectTimeout: 5_000,
       });
       const defaultJobOptionsByQueue = {
         [QUEUE_NAMES.PUBLISH]: {

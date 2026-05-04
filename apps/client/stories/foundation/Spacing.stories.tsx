@@ -122,16 +122,19 @@ const SpacingSystem = () => {
             <span className="font-semibold">Brand</span>
           </div>
           <div className="flex items-center space-x-6">
-            <a href="#" className="text-sm hover:text-primary">
+            <a href="/dashboard" className="text-sm hover:text-primary">
               Dashboard
             </a>
-            <a href="#" className="text-sm hover:text-primary">
+            <a href="/posts" className="text-sm hover:text-primary">
               Posts
             </a>
-            <a href="#" className="text-sm hover:text-primary">
+            <a href="/analytics" className="text-sm hover:text-primary">
               Analytics
             </a>
-            <button className="px-3 py-1.5 bg-primary text-primary-foreground rounded-sm text-sm">
+            <button
+              type="button"
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-sm text-sm"
+            >
               Upgrade
             </button>
           </div>

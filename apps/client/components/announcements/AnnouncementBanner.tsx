@@ -9,6 +9,7 @@
 import { useState, useEffect } from "react";
 import { X, Info, AlertTriangle, Wrench, AlertOctagon } from "lucide-react";
 import { useLogger, extractErrorInfo } from "@observability/browser-logger";
+import { request, PROXY_BASE } from "@/lib/api/clients/request";
 
 interface Announcement {
   id: string;
@@ -52,10 +53,9 @@ export function AnnouncementBanner() {
 
   useEffect(() => {
     setDismissed(getDismissed());
-    fetch("/api/announcements/active")
-      .then((res) => (res.ok ? res.json() : null))
+    request<{ data: Announcement[] }>(PROXY_BASE, "/announcements/active")
       .then((json) => {
-        if (json?.data) setAnnouncements(json.data);
+        if (json.data) setAnnouncements(json.data);
       })
       .catch((err: unknown) => {
         // Banner renders nothing if the fetch fails — graceful degradation.

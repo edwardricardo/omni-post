@@ -2,6 +2,8 @@
  * @file ClientTemplateEngine.ts
  * @description Client-side template engine extending BaseTemplateEngine with API-based template
  *              loading, browser-only preview, documentation generation, and context enrichment.
+ *              All API calls route through the canonical proxy `request<T>` helper so the
+ *              `/api/backend` prefix and httpOnly session cookie are applied consistently.
  * @layer infrastructure
  */
 
@@ -13,11 +15,13 @@ import {
   TemplateContext,
   TemplateCompilationResult,
 } from "@shared/types";
+import { request, PROXY_BASE } from "@/lib/api/clients/request";
+import { ApiError } from "@/lib/api/types";
 
 export class ClientTemplateEngine extends BaseTemplateEngine {
   private apiBaseUrl: string;
 
-  constructor(apiBaseUrl: string = "/api") {
+  constructor(apiBaseUrl: string = PROXY_BASE) {
     super();
     this.apiBaseUrl = apiBaseUrl;
   }
@@ -145,73 +149,48 @@ export class ClientTemplateEngine extends BaseTemplateEngine {
   }
 
   // ===== Abstract Method Implementations (API-based) =====
+  // These methods satisfy the BaseTemplateEngine abstract contract. Production
+  // template list/CRUD is performed via the `useTemplates` hook (TanStack
+  // Query); these direct fetch paths exist only for non-React consumers.
 
   async loadTemplates(filter?: { category?: string; tags?: string[] }): Promise<Template[]> {
     const params = new URLSearchParams();
-
     if (filter?.category) {
       params.append("category", filter.category);
     }
-
     if (filter?.tags && filter.tags.length > 0) {
       filter.tags.forEach((tag) => params.append("tags", tag));
     }
-
-    const response = await fetch(`${this.apiBaseUrl}/templates?${params.toString()}`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to load templates: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.templates || [];
+    const qs = params.toString();
+    const path = qs ? `/templates?${qs}` : "/templates";
+    const data = await request<{ templates?: Template[] }>(this.apiBaseUrl, path);
+    return data.templates ?? [];
   }
 
   async loadTemplate(id: string): Promise<Template | null> {
-    const response = await fetch(`${this.apiBaseUrl}/templates/${id}`);
-
-    if (!response.ok) {
-      if (response.status === 404) {
+    try {
+      const data = await request<{ template?: Template }>(this.apiBaseUrl, `/templates/${id}`);
+      return data.template ?? null;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
         return null;
       }
-      throw new Error(`Failed to load template: ${response.statusText}`);
+      throw error;
     }
-
-    const data = await response.json();
-    return data.template || null;
   }
 
   async saveTemplate(template: Template): Promise<Template> {
     const method = template.id ? "PUT" : "POST";
-    const url = template.id
-      ? `${this.apiBaseUrl}/templates/${template.id}`
-      : `${this.apiBaseUrl}/templates`;
-
-    const response = await fetch(url, {
+    const path = template.id ? `/templates/${template.id}` : "/templates";
+    const data = await request<{ template: Template }>(this.apiBaseUrl, path, {
       method,
-      headers: {
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify(template),
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to save template: ${response.statusText}`);
-    }
-
-    const data = await response.json();
     return data.template;
   }
 
   async deleteTemplate(id: string): Promise<boolean> {
-    const response = await fetch(`${this.apiBaseUrl}/templates/${id}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to delete template: ${response.statusText}`);
-    }
-
+    await request<void>(this.apiBaseUrl, `/templates/${id}`, { method: "DELETE" });
     return true;
   }
 }

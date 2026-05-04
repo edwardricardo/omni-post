@@ -1,26 +1,13 @@
-// ESLint v9 flat config for the monorepo
-const js = require("@eslint/js");
-const tsParser = require("@typescript-eslint/parser");
-const tsPlugin = require("@typescript-eslint/eslint-plugin");
-const reactPlugin = require("eslint-plugin-react");
-const reactHooksPlugin = require("eslint-plugin-react-hooks");
-const prettierConfig = require("eslint-config-prettier");
-
-// Restricted import patterns for hexagonal boundary enforcement (apps/api/src/domain/).
-// Domain layer must not import framework/infrastructure concretions.
-const domainRestrictedPatterns = [
-  "@prisma/client",
-  "@prisma/client/*",
-  "@infra/prisma",
-  "@infra/prisma/*",
-  "prisma",
-  "fastify",
-  "@fastify/*",
-  "redis",
-  "ioredis",
-  "bullmq",
-  "@adapters/*",
-];
+// ESLint v9 flat config for the monorepo (TypeScript, with defineConfig).
+import { defineConfig } from "eslint/config";
+import js from "@eslint/js";
+import tsParser from "@typescript-eslint/parser";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
+import reactPlugin from "eslint-plugin-react";
+import reactHooksPlugin from "eslint-plugin-react-hooks";
+import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
+import boundariesPlugin from "eslint-plugin-boundaries";
+import prettierConfig from "eslint-config-prettier";
 
 // Paths that benefit from type-aware linting (no-floating-promises).
 // Scoped narrowly to keep memory usage bounded — full-monorepo projectService OOMs.
@@ -32,8 +19,20 @@ const typeAwareBackendPaths = [
   "apps/api/src/infrastructure/**/*.ts",
 ];
 
-/** @type {import('eslint').Linter.FlatConfig[]} */
-module.exports = [
+// Hexagonal element classification for boundaries plugin. Each element type
+// declares which other elements it may import. Files matching no element are
+// caught by `boundaries/no-unknown-files` so the classification stays exhaustive.
+const hexagonalElements = [
+  { type: "domain", pattern: "apps/api/src/domain/**" },
+  { type: "application", pattern: "apps/api/src/application/**" },
+  { type: "routes", pattern: "apps/api/src/**/*Routes.ts" },
+  { type: "infrastructure", pattern: "apps/api/src/infrastructure/**" },
+  { type: "ports", pattern: "packages/ports/**" },
+  { type: "shared", pattern: "packages/shared/**" },
+  { type: "adapters", pattern: "packages/adapters/**" },
+];
+
+export default defineConfig([
   {
     ignores: [
       "**/node_modules/**",
@@ -50,8 +49,6 @@ module.exports = [
       // Prisma generated files
       "infra/prisma/src/**/*.js",
       "infra/prisma/generated/**",
-      // ESLint config file itself (Node CJS globals not recognized)
-      "eslint.config.cjs",
     ],
   },
   js.configs.recommended,
@@ -88,7 +85,12 @@ module.exports = [
       "no-useless-escape": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", ignoreRestSiblings: true },
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
       ],
       // Production code must use @observability/logger (Pino) for all log levels.
       // Overrides below allow console.* in CLI tooling, Storybook, seeds, and tests.
@@ -118,6 +120,7 @@ module.exports = [
       "@typescript-eslint": tsPlugin,
       react: reactPlugin,
       "react-hooks": reactHooksPlugin,
+      "jsx-a11y": jsxA11yPlugin,
     },
     rules: {
       // TypeScript rules
@@ -128,7 +131,12 @@ module.exports = [
       "no-useless-escape": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", ignoreRestSiblings: true },
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
       ],
       // React rules
       "react/jsx-uses-react": "off", // Not needed in React 17+
@@ -142,6 +150,8 @@ module.exports = [
       "no-console": "error",
       // Default off; no core layer files are TSX.
       "@typescript-eslint/no-explicit-any": "off",
+      // a11y static AST checks (jsx-a11y strict preset rules).
+      ...jsxA11yPlugin.flatConfigs.strict.rules,
     },
     settings: {
       react: {
@@ -168,7 +178,7 @@ module.exports = [
       sourceType: "module",
       parserOptions: {
         projectService: true,
-        tsconfigRootDir: __dirname,
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     plugins: { "@typescript-eslint": tsPlugin },
@@ -176,11 +186,173 @@ module.exports = [
       "@typescript-eslint/no-floating-promises": "error",
     },
   },
-  // Hexagonal domain boundary: block framework/infra imports
+  // Hexagonal layer enforcement via eslint-plugin-boundaries.
+  // Each from-element declares the to-elements it may import; everything else
+  // is denied by `default: "disallow"`.
+  //   domain         → domain, shared
+  //   application    → domain, ports, shared, application
+  //   infrastructure → application, domain, ports, adapters, shared, infrastructure
+  //   routes         → application, ports, shared
+  //   ports          → shared, ports
+  //   shared         → shared
+  //   adapters       → ports, shared, adapters
   {
-    files: ["apps/api/src/domain/**/*.ts"],
+    files: [
+      "apps/api/src/**/*.ts",
+      "packages/ports/**/*.ts",
+      "packages/shared/**/*.ts",
+      "packages/adapters/**/*.ts",
+    ],
+    plugins: { boundaries: boundariesPlugin },
+    settings: {
+      "boundaries/elements": hexagonalElements,
+      "boundaries/include": [
+        "apps/api/src/**/*.ts",
+        "packages/ports/**/*.ts",
+        "packages/shared/**/*.ts",
+        "packages/adapters/**/*.ts",
+      ],
+    },
     rules: {
-      "no-restricted-imports": ["error", { patterns: domainRestrictedPatterns }],
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "disallow",
+          checkAllOrigins: true,
+          rules: [
+            // Internal element-to-element rules (cross-package within the monorepo).
+            {
+              from: { type: "domain" },
+              allow: [{ to: { type: "domain" } }, { to: { type: "shared" } }],
+            },
+            {
+              from: { type: "application" },
+              allow: [
+                { to: { type: "domain" } },
+                { to: { type: "ports" } },
+                { to: { type: "shared" } },
+                { to: { type: "application" } },
+              ],
+            },
+            {
+              from: { type: "infrastructure" },
+              allow: [
+                { to: { type: "application" } },
+                { to: { type: "domain" } },
+                { to: { type: "ports" } },
+                { to: { type: "adapters" } },
+                { to: { type: "shared" } },
+                { to: { type: "infrastructure" } },
+              ],
+            },
+            {
+              from: { type: "routes" },
+              allow: [
+                { to: { type: "application" } },
+                { to: { type: "ports" } },
+                { to: { type: "shared" } },
+              ],
+            },
+            {
+              from: { type: "ports" },
+              allow: [{ to: { type: "shared" } }, { to: { type: "ports" } }],
+            },
+            {
+              from: { type: "shared" },
+              allow: [{ to: { type: "shared" } }],
+            },
+            {
+              from: { type: "adapters" },
+              allow: [
+                { to: { type: "ports" } },
+                { to: { type: "shared" } },
+                { to: { type: "adapters" } },
+              ],
+            },
+            // External npm packages and Node.js core builtins — allow by
+            // default for every element; specific framework / infra SDKs are
+            // denied below for domain and ports only.
+            { from: { type: "domain" }, allow: [{ to: { origin: "external" } }] },
+            { from: { type: "domain" }, allow: [{ to: { origin: "core" } }] },
+            { from: { type: "application" }, allow: [{ to: { origin: "external" } }] },
+            { from: { type: "application" }, allow: [{ to: { origin: "core" } }] },
+            { from: { type: "infrastructure" }, allow: [{ to: { origin: "external" } }] },
+            { from: { type: "infrastructure" }, allow: [{ to: { origin: "core" } }] },
+            { from: { type: "routes" }, allow: [{ to: { origin: "external" } }] },
+            { from: { type: "routes" }, allow: [{ to: { origin: "core" } }] },
+            { from: { type: "ports" }, allow: [{ to: { origin: "external" } }] },
+            { from: { type: "ports" }, allow: [{ to: { origin: "core" } }] },
+            { from: { type: "shared" }, allow: [{ to: { origin: "external" } }] },
+            { from: { type: "shared" }, allow: [{ to: { origin: "core" } }] },
+            { from: { type: "adapters" }, allow: [{ to: { origin: "external" } }] },
+            { from: { type: "adapters" }, allow: [{ to: { origin: "core" } }] },
+            {
+              from: { type: "domain" },
+              disallow: { to: { origin: "external" }, dependency: { module: "fastify" } },
+            },
+            {
+              from: { type: "domain" },
+              disallow: { to: { origin: "external" }, dependency: { module: "@fastify/*" } },
+            },
+            {
+              from: { type: "domain" },
+              disallow: { to: { origin: "external" }, dependency: { module: "@prisma/client" } },
+            },
+            {
+              from: { type: "domain" },
+              disallow: { to: { origin: "external" }, dependency: { module: "@prisma/client/*" } },
+            },
+            {
+              from: { type: "domain" },
+              disallow: { to: { origin: "external" }, dependency: { module: "prisma" } },
+            },
+            {
+              from: { type: "domain" },
+              disallow: { to: { origin: "external" }, dependency: { module: "redis" } },
+            },
+            {
+              from: { type: "domain" },
+              disallow: { to: { origin: "external" }, dependency: { module: "ioredis" } },
+            },
+            {
+              from: { type: "domain" },
+              disallow: { to: { origin: "external" }, dependency: { module: "bullmq" } },
+            },
+            {
+              from: { type: "ports" },
+              disallow: { to: { origin: "external" }, dependency: { module: "fastify" } },
+            },
+            {
+              from: { type: "ports" },
+              disallow: { to: { origin: "external" }, dependency: { module: "@fastify/*" } },
+            },
+            {
+              from: { type: "ports" },
+              disallow: { to: { origin: "external" }, dependency: { module: "@prisma/client" } },
+            },
+            {
+              from: { type: "ports" },
+              disallow: { to: { origin: "external" }, dependency: { module: "@prisma/client/*" } },
+            },
+            {
+              from: { type: "ports" },
+              disallow: { to: { origin: "external" }, dependency: { module: "prisma" } },
+            },
+            {
+              from: { type: "ports" },
+              disallow: { to: { origin: "external" }, dependency: { module: "redis" } },
+            },
+            {
+              from: { type: "ports" },
+              disallow: { to: { origin: "external" }, dependency: { module: "ioredis" } },
+            },
+            {
+              from: { type: "ports" },
+              disallow: { to: { origin: "external" }, dependency: { module: "bullmq" } },
+            },
+          ],
+        },
+      ],
     },
   },
   // Backend core layers: zero explicit any (per project coding standards)
@@ -342,7 +514,12 @@ module.exports = [
       "no-undef": "error",
       "no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", ignoreRestSiblings: true },
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
       ],
     },
   },
@@ -370,8 +547,13 @@ module.exports = [
       "no-undef": "error",
       "no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", ignoreRestSiblings: true },
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
       ],
     },
   },
-];
+]);

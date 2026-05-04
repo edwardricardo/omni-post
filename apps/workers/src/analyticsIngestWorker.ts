@@ -191,6 +191,12 @@ async function start() {
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
     lazyConnect: true,
+    // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+    // Both bounded here so a hung Redis fails fast instead of stalling the
+    // worker. BullMQ requires maxRetriesPerRequest:null, so the timeout is
+    // the only escape hatch.
+    commandTimeout: 5_000,
+    connectTimeout: 5_000,
   });
 
   const worker = new Worker(
@@ -203,6 +209,17 @@ async function start() {
       concurrency: 5,
       removeOnComplete: { count: 200 },
       removeOnFail: { count: 100 },
+      // Bound BullMQ defaults that are too lax:
+      //   lockDuration default 30000 ms → 60000 ms — analytics ingestion
+      //     can legitimately exceed 30s on large tenants; 60s gives room
+      //     before stalled-detection re-picks the job.
+      //   stalledInterval default 30000 ms → 30000 ms (kept) — half of
+      //     lockDuration so a stalled worker is detected on the second tick.
+      //   drainDelay default 5 → 5 (kept) — 5 s polling on empty queue is
+      //     the canonical baseline.
+      lockDuration: 60_000,
+      stalledInterval: 30_000,
+      drainDelay: 5,
     }
   );
 

@@ -217,12 +217,22 @@ export default function InstagramUploadPage() {
                   {uploadedFiles.map((file) => (
                     <div
                       key={file.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={selectedFiles.includes(file.id)}
+                      aria-label={`Select file ${file.id}`}
                       className={`relative group border-2 rounded-lg overflow-hidden bg-white transition-all cursor-pointer ${
                         selectedFiles.includes(file.id)
                           ? "border-blue-500 ring-2 ring-blue-200"
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                       onClick={() => handleFileSelect(file.id, !selectedFiles.includes(file.id))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleFileSelect(file.id, !selectedFiles.includes(file.id));
+                        }
+                      }}
                     >
                       {/* Selection Checkbox */}
                       <div className="absolute top-2 left-2 z-10">

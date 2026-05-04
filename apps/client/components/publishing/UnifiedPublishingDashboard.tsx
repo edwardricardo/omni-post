@@ -298,10 +298,24 @@ function ComposeTab({
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {providerStatuses.map((provider) => (
-                <div
-                  key={provider.providerId}
-                  className={`
+              {providerStatuses.map((provider) => {
+                const togglePlatform = () => {
+                  if (!provider.connected) return;
+                  setSelectedProviders((prev) =>
+                    prev.includes(provider.providerId)
+                      ? prev.filter((id) => id !== provider.providerId)
+                      : [...prev, provider.providerId]
+                  );
+                };
+                return (
+                  <div
+                    key={provider.providerId}
+                    role="button"
+                    tabIndex={provider.connected ? 0 : -1}
+                    aria-pressed={selectedProviders.includes(provider.providerId)}
+                    aria-disabled={!provider.connected}
+                    aria-label={`Select ${provider.providerId}`}
+                    className={`
                     relative p-4 border rounded-lg cursor-pointer transition-all
                     ${
                       selectedProviders.includes(provider.providerId)
@@ -310,29 +324,29 @@ function ComposeTab({
                     }
                     ${!provider.connected ? "opacity-50 cursor-not-allowed" : ""}
                   `}
-                  onClick={() => {
-                    if (!provider.connected) return;
-                    setSelectedProviders((prev) =>
-                      prev.includes(provider.providerId)
-                        ? prev.filter((id) => id !== provider.providerId)
-                        : [...prev, provider.providerId]
-                    );
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium capitalize">{provider.providerId}</span>
-                    <div className={`w-3 h-3 rounded-full ${getProviderStatusColor(provider)}`} />
+                    onClick={togglePlatform}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        togglePlatform();
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium capitalize">{provider.providerId}</span>
+                      <div className={`w-3 h-3 rounded-full ${getProviderStatusColor(provider)}`} />
+                    </div>
+                    {!provider.connected && (
+                      <p className="text-sm text-gray-500 mt-1">Not connected</p>
+                    )}
+                    {provider.rateLimit && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        {provider.rateLimit.remaining} requests remaining
+                      </p>
+                    )}
                   </div>
-                  {!provider.connected && (
-                    <p className="text-sm text-gray-500 mt-1">Not connected</p>
-                  )}
-                  {provider.rateLimit && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      {provider.rateLimit.remaining} requests remaining
-                    </p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

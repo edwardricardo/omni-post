@@ -283,7 +283,10 @@ describe("ClientTemplateEngine.loadTemplates", () => {
     mockFetch.mockResolvedValue(mockJsonResponse({ templates: [{ id: "t1", content: "test" }] }));
 
     const result = await engine.loadTemplates();
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("/api/templates"));
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/templates"),
+      expect.any(Object)
+    );
     expect(result).toHaveLength(1);
   });
 
@@ -291,15 +294,24 @@ describe("ClientTemplateEngine.loadTemplates", () => {
     mockFetch.mockResolvedValue(mockJsonResponse({ templates: [] }));
 
     await engine.loadTemplates({ category: "promotion" });
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("category=promotion"));
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("category=promotion"),
+      expect.any(Object)
+    );
   });
 
   it("adds tags filter to query params", async () => {
     mockFetch.mockResolvedValue(mockJsonResponse({ templates: [] }));
 
     await engine.loadTemplates({ tags: ["social", "marketing"] });
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("tags=social"));
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("tags=marketing"));
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("tags=social"),
+      expect.any(Object)
+    );
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("tags=marketing"),
+      expect.any(Object)
+    );
   });
 
   it("returns empty array when templates key missing", async () => {
@@ -309,10 +321,10 @@ describe("ClientTemplateEngine.loadTemplates", () => {
     expect(result).toEqual([]);
   });
 
-  it("throws on non-ok response", async () => {
+  it("throws ApiError on non-ok response", async () => {
     mockFetch.mockResolvedValue(mockJsonResponse({}, false, 500));
 
-    await expect(engine.loadTemplates()).rejects.toThrow("Failed to load templates");
+    await expect(engine.loadTemplates()).rejects.toMatchObject({ status: 500 });
   });
 });
 
@@ -332,7 +344,7 @@ describe("ClientTemplateEngine.loadTemplate", () => {
     mockFetch.mockResolvedValue(mockJsonResponse({ template: { id: "t1", content: "test" } }));
 
     const result = await engine.loadTemplate("t1");
-    expect(mockFetch).toHaveBeenCalledWith("/api/templates/t1");
+    expect(mockFetch).toHaveBeenCalledWith("/api/templates/t1", expect.any(Object));
     expect(result?.id).toBe("t1");
   });
 
@@ -343,10 +355,10 @@ describe("ClientTemplateEngine.loadTemplate", () => {
     expect(result).toBeNull();
   });
 
-  it("throws on non-404 error", async () => {
+  it("throws ApiError on non-404 error", async () => {
     mockFetch.mockResolvedValue(mockJsonResponse({}, false, 500));
 
-    await expect(engine.loadTemplate("t1")).rejects.toThrow("Failed to load template");
+    await expect(engine.loadTemplate("t1")).rejects.toMatchObject({ status: 500 });
   });
 
   it("returns null when template key missing", async () => {
@@ -404,12 +416,12 @@ describe("ClientTemplateEngine.saveTemplate", () => {
     expect(body.content).toBe("my content");
   });
 
-  it("throws on non-ok response", async () => {
+  it("throws ApiError on non-ok response", async () => {
     mockFetch.mockResolvedValue(mockJsonResponse({}, false, 500));
 
-    await expect(engine.saveTemplate(makeTemplate("test"))).rejects.toThrow(
-      "Failed to save template"
-    );
+    await expect(engine.saveTemplate(makeTemplate("test"))).rejects.toMatchObject({
+      status: 500,
+    });
   });
 });
 
@@ -436,10 +448,10 @@ describe("ClientTemplateEngine.deleteTemplate", () => {
     expect(result).toBe(true);
   });
 
-  it("throws on non-ok response", async () => {
+  it("throws ApiError on non-ok response", async () => {
     mockFetch.mockResolvedValue(mockJsonResponse({}, false, 500));
 
-    await expect(engine.deleteTemplate("t1")).rejects.toThrow("Failed to delete template");
+    await expect(engine.deleteTemplate("t1")).rejects.toMatchObject({ status: 500 });
   });
 });
 
@@ -448,18 +460,23 @@ describe("ClientTemplateEngine.deleteTemplate", () => {
 // ============================================================================
 
 describe("ClientTemplateEngine constructor", () => {
-  it("uses /api as default base URL", () => {
+  it("uses /api/backend as default base URL (canonical proxy)", () => {
     const engine = new ClientTemplateEngine();
-    // Verify by calling loadTemplates and checking the URL
     mockFetch.mockResolvedValue(mockJsonResponse({ templates: [] }));
     engine.loadTemplates();
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("/api/templates"));
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/backend/templates"),
+      expect.any(Object)
+    );
   });
 
   it("uses custom base URL when provided", () => {
     const engine = new ClientTemplateEngine("/custom-api");
     mockFetch.mockResolvedValue(mockJsonResponse({ templates: [] }));
     engine.loadTemplates();
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("/custom-api/templates"));
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/custom-api/templates"),
+      expect.any(Object)
+    );
   });
 });

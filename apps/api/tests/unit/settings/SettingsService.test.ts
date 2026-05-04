@@ -292,6 +292,7 @@ describe("SettingsService", () => {
 
       expect(mockFetch).toHaveBeenCalledWith("https://api.stripe.com/v1/balance", {
         headers: { Authorization: "Bearer sk_test_123" },
+        signal: expect.any(AbortSignal),
       });
 
       vi.unstubAllGlobals();

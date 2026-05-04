@@ -142,6 +142,10 @@ export function PublishDialog({
                   return (
                     <div
                       key={provider.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      aria-label={`Toggle ${provider.name}`}
                       className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                         isSelected
                           ? validation.valid
@@ -150,6 +154,12 @@ export function PublishDialog({
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                       onClick={() => handleProviderToggle(provider.name)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleProviderToggle(provider.name);
+                        }
+                      }}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">

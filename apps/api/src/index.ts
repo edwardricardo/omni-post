@@ -124,6 +124,12 @@ async function createApp(): Promise<FastifyInstance> {
   const app = Fastify({
     logger: true,
     trustProxy: true,
+    // Bound the two HTTP defaults Fastify inherits from Node:
+    //   keepAliveTimeout = 72000 ms   → 5 s (LB manages connection reuse)
+    //   requestTimeout   = 0 (none)   → 30 s (matches typical API SLA)
+    // Together they prevent socket hoarding and indefinite request hangs.
+    keepAliveTimeout: 5_000,
+    requestTimeout: 30_000,
   });
 
   // ✅ Apply ZodTypeProvider for type safety

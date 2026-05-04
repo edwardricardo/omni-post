@@ -289,8 +289,17 @@ export function SchedulingDashboardSidebar({
           {sidebarPosts.map((post) => (
             <div
               key={post.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open post ${post.title ?? ""}`.trim()}
               className="border rounded-lg p-3 cursor-pointer hover:border-gray-300 transition-colors"
               onClick={() => onPostClick(post)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onPostClick(post);
+                }
+              }}
             >
               <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0">

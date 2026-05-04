@@ -126,8 +126,9 @@ function GatewaySelector({
     <div className="rounded-lg border bg-card p-5 mb-6">
       <h3 className="text-sm font-medium text-foreground mb-3">Procesador de pago</h3>
       <div className="space-y-3">
-        <label className="flex items-start gap-3 cursor-pointer">
+        <div className="flex items-start gap-3">
           <input
+            id="gateway-stripe"
             type="radio"
             name="gateway"
             value="stripe"
@@ -135,7 +136,7 @@ function GatewaySelector({
             onChange={() => onChange("stripe")}
             className="mt-1"
           />
-          <div>
+          <label htmlFor="gateway-stripe" className="cursor-pointer">
             <span className="text-sm font-medium text-foreground">Stripe</span>
             <p className="text-xs text-muted-foreground mt-0.5">
               Recommended for US, Canada and Europe.
@@ -143,10 +144,11 @@ function GatewaySelector({
             <p className="text-xs text-muted-foreground">
               Visa, Mastercard, Amex, Apple Pay, Google Pay.
             </p>
-          </div>
-        </label>
-        <label className="flex items-start gap-3 cursor-pointer">
+          </label>
+        </div>
+        <div className="flex items-start gap-3">
           <input
+            id="gateway-paddle"
             type="radio"
             name="gateway"
             value="paddle"
@@ -154,7 +156,7 @@ function GatewaySelector({
             onChange={() => onChange("paddle")}
             className="mt-1"
           />
-          <div>
+          <label htmlFor="gateway-paddle" className="cursor-pointer">
             <span className="text-sm font-medium text-foreground">Paddle</span>
             <p className="text-xs text-muted-foreground mt-0.5">
               Recommended for rest of the world.
@@ -162,8 +164,8 @@ function GatewaySelector({
             <p className="text-xs text-muted-foreground">
               VAT and local tax handling included. Visa, Mastercard, PayPal and more.
             </p>
-          </div>
-        </label>
+          </label>
+        </div>
       </div>
     </div>
   );

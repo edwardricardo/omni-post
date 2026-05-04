@@ -1977,7 +1977,194 @@ Inmediatamente después del revisitado del roadmap (necesario para confiar en gr
 - Cuando un provider new se agregue (oportunidad para introducir el patrón canonical).
 - Cuando se quiera fortalecer fitness check #15 a alcance completo.
 
-**Estado:** PENDING (surfaced 2026-05-02 durante T0-A-bis revisitado del roadmap).
+**Estado:** FIXED (2026-05-03) — cerrado por Batch 09 Tier 1 del roadmap T0A revisitado. 11 adapters refactorizados (X, Telegram, Bluesky, Threads, YouTube, Instagram, Facebook, TikTok, LinkedIn, Pinterest, Snapchat) ahora `implements ProviderAdapter` directo, sin herencia, constructor inyectado `{ logger, apiClientFactory }`, factory functions `createXAdapter()` reemplazando singletons, cero env reads en `*Adapter.ts` files. Fitness #15 expandido a `packages/providers/*` (hard-zero) y fitness #19 nuevo (no `process.env.*` en `*Adapter.ts`) — ambos verificados 0 hits. Verify gates: typecheck 33/33, lint 0/0, tests 380/380 · 7521/7521.
+
+---
+
+## Admin UI · Secret Operability
+
+> Capacidades de operación de secretos desde la UI de Admin. Surgieron de la
+> conversación post-completion del roadmap T0A revisitado: el doc canónico
+> SECRETS.md existe pero el operador hoy no tiene control runtime. Steps 1-3
+> son ejecutables sin cambios arquitectónicos mayores; steps 4-8 (post-batch
+> 13/14/15 implementations) están fuera de scope de este cluster.
+
+### PR-42 — Admin UI dashboard read-only: status de rotación per-secret
+
+**Fecha de surfacing:** 2026-05-03 (post-roadmap T0A revisitado, conversación SECRETS.md)
+**Severidad:** medio — operacionalmente útil; sin esto, "¿cuándo rotamos JWT_ACCESS_SECRET por última vez?" es una pregunta sin respuesta automatizada
+**Tipo:** feature (admin UI + DB schema + API endpoint)
+
+**Contexto.** SECRETS.md (`docs/security/SECRETS.md`) ahora es el catálogo
+canónico de cada secret en omni-post: ~24 env vars + ~18 columnas DB + sus
+NIST cryptoperiods. Pero **la información de "cuándo se rotó cada uno por
+última vez" no se persiste en ningún lado** — el operador depende de
+recordar o de revisar logs/git. Esto significa que las cadencias NIST
+documentadas (90 días JWT, 1 año API keys, 1 año KEK) se **incumplen
+silenciosamente**: no hay ningún check que diga "hey, han pasado 13 meses
+desde que rotaste Stripe webhook secret".
+
+**Por qué no fue cerrado durante el roadmap.** Roadmap T0A revisitado se
+enfocó en encryption-at-rest, audit trail, fitness functions, y docs
+arquitectónicos. UI de admin para operability es una vertical separada que
+no se tocó.
+
+**Plan estructurado.**
+
+1. **Trigger** — cuando se quiera capacidad operacional de "alertar antes de
+   que un secret exceda su NIST cadence" o cuando se prepare SOC2/ISO
+   compliance evidence.
+
+2. **Investigación**:
+   - Definir el modelo de datos: tabla nueva `SecretRotationLog` con
+     `{ id, secretCategory, secretName, rotatedAt, rotatedBy, notes }`.
+   - Decidir granularidad: per-env-var (24 entries) o per-categoría (~10).
+   - Auditar UI de admin existente (`apps/admin/`) para encontrar el slot
+     natural (Settings? Security? Operations?).
+
+3. **Implementation**:
+   - Migration: crear tabla `SecretRotationLog`.
+   - API endpoint: `GET /admin/api/secrets/rotation-status` — devuelve cada
+     secret listado en SECRETS.md con su last_rotated_at + next_due_at
+     (calculado from NIST cadence) + status (green/amber/red).
+   - UI page en `apps/admin/`: tabla con filtros por categoría + status.
+     Color-coded por urgencia. Sin acciones destructivas en este step.
+   - Seed data: 1-time backfill con "no record" / fecha estimada para
+     secrets ya rotados en T0A original (2026-04-21).
+
+4. **Verify gates**:
+   - Tabla muestra todos los ~24 env vars y ~18 DB columns documentados en SECRETS.md
+   - Click en un secret abre detail panel con cross-link a T0A §X.Y
+   - Status amber/red coincide con NIST cadence excedida
+
+**Bloqueado por.** Solo prioritization. Scope ~3-5 días de admin UI work.
+
+**Cuándo revisar.**
+
+- Cuando empiece preparación SOC2/ISO (evidence "we track key lifecycle")
+- Cuando se planee UI de operations general
+- Si surge incident donde "no sabíamos cuándo rotamos X" sea el root cause
+
+**Estado:** PENDING (surfaced 2026-05-03 post-roadmap T0A revisitado).
+
+---
+
+### PR-43 — Admin UI rotation buttons para Bucket B (per-tenant DB-stored secrets)
+
+**Fecha de surfacing:** 2026-05-03 (post-roadmap T0A revisitado, conversación SECRETS.md)
+**Severidad:** medio — capacidad operacional faltante para incident response
+**Tipo:** feature (admin UI + endpoints + tests)
+
+**Contexto.** Per-tenant secrets DB-stored (Class A: `Channel.credentials`,
+`OidcConfiguration.clientSecret`, `WebhookSubscription.secretKey`, etc.) hoy
+solo se "rotan" implícitamente:
+
+- OAuth tokens → refresh-token flow automático al expirar el access token
+- Webhook signing secrets → no rotan (nunca, salvo intervención manual SQL)
+- OIDC client secrets → solo via re-edit del config
+
+**No hay capacidad de admin para forzar rotación**. En un incident response
+("este channel está sospechoso, fuerza re-auth ya"), el operador hoy no
+tiene botón. Solo puede borrar el row → el tenant tiene que re-conectar
+desde cero, perdiendo configuration.
+
+**Por qué no fue cerrado durante el roadmap.** Roadmap T0A se enfocó en
+encryption-at-rest correcto y audit trail, no en operability.
+
+**Plan estructurado.**
+
+1. **Trigger** — primer incident donde un operator necesita force re-auth o regen webhook signing key, o decisión proactiva de SOC2 evidence ("we can rotate per-tenant secrets on demand").
+
+2. **Investigación**:
+   - Audit per-table de qué endpoints de re-issue ya existen (probablemente algunos hay por feature, e.g. "re-connect channel" → ya hay flow).
+   - Para `WebhookSubscription.secretKey`: necesita columna `previousSecretKey` + window de overlap para no rechazar webhooks in-flight.
+   - Para `OidcConfiguration.clientSecret`: el IDP también tiene que tener el nuevo — flow es "admin pega el nuevo, el viejo se invalida".
+
+3. **Implementation per-target**:
+   - `Channel.credentials`: botón "Force re-auth" → marca `Channel.status = 'needs_reauth'` + opcional invalida access token actual. Tenant ve banner "reconnect required" en su dashboard.
+   - `WebhookSubscription.secretKey`: botón "Regenerate signing key". Schema migration añade `previousSecretKey` + `previousSecretKeyExpiresAt` para overlap. Verificación HMAC acepta cualquiera de los dos durante el window. Background job purga el viejo después.
+   - `OidcConfiguration.clientSecret`: form "Replace OIDC client secret" — admin pega el nuevo. Validación: probar handshake con el IDP antes de comprometer.
+   - `ApiKey`: botón "Regenerate" (probablemente ya existe; verificar).
+
+4. **Verify gates per-target**:
+   - Force re-auth de un Channel funciona end-to-end (tenant ve el banner; reconnect flow completa)
+   - Webhook con signing key vieja sigue siendo aceptado durante el grace window; rechazado después
+   - OIDC handshake test pasa con el nuevo secret antes de comprometer
+
+**Bloqueado por.** PR-42 (status dashboard) idealmente primero — porque sin saber qué rotar, los buttons son hipotéticos. No es bloqueante hard.
+
+**Cuándo revisar.**
+
+- Después de PR-42 (orden natural)
+- Antes de cualquier preparación SOC2/HIPAA donde "we can rotate per-tenant credentials" es evidence requerida
+- Si surge incident donde no haber podido force-rotate causó daño
+
+**Estado:** PENDING (surfaced 2026-05-03 post-roadmap T0A revisitado).
+
+---
+
+### PR-44 — Mass force-reauth post-rotation de Provider OAuth client secret
+
+**Fecha de surfacing:** 2026-05-03 (post-roadmap T0A revisitado, conversación SECRETS.md)
+**Severidad:** medio — recovery operacional faltante para una de las rotaciones más comunes
+**Tipo:** feature (admin UI + background job)
+
+**Contexto.** Cuando se rota un Provider OAuth client secret a nivel
+platform (e.g. `FACEBOOK_CLIENT_SECRET` re-issued en Facebook developer
+console), los **per-tenant access tokens existentes** (`ProviderConnection.accessToken`)
+**siguen siendo válidos** — ese token vive en runtime del provider, no
+depende del client secret. Pero los **refresh tokens fallan** en el próximo
+ciclo (depende del provider) porque el refresh exchange usa el client secret.
+
+Sin un mecanismo de mass re-auth, el operator queda en una situación incómoda:
+
+- Opción A: esperar a que cada token expire individualmente y falle el
+  refresh → tenants pierden conexión escalonadamente sin warning.
+- Opción B: hacer un SQL manual para flagear todos los `ProviderConnection`
+  del provider afectado como `needs_reauth` → no hay UI, requiere DB access
+  de producción.
+
+**Por qué no fue cerrado durante el roadmap.** No surgió como gap durante
+el roadmap T0A — es una operability discovery de la conversación post-roadmap.
+
+**Plan estructurado.**
+
+1. **Trigger** — primera vez que se necesite rotar un provider OAuth client
+   secret (ya sea por compromise, por rotación rutinaria, o por requirement
+   del provider).
+
+2. **Investigación**:
+   - Audit del flujo actual de `Channel.status = 'needs_reauth'`: ¿el banner
+     en el dashboard del cliente ya existe? ¿qué triggerea el setup actual?
+   - Por provider: investigar si el access token sigue válido tras rotación
+     del client secret (Facebook/Instagram comparten Meta consent; X/LinkedIn
+     son OAuth 2.0 client credentials; cada uno tiene comportamiento distinto).
+
+3. **Implementation**:
+   - Endpoint: `POST /admin/api/providers/{providerId}/force-mass-reauth`
+     — flagea todos los `ProviderConnection` + `Channel` rows de ese
+     provider como `needs_reauth`.
+   - UI: en la página del PR-42 (status dashboard), cuando se rote un
+     Provider OAuth secret (Bucket A), un banner ofrece "Force mass
+     re-auth de todos los X channels afectados".
+   - Background job: opcional, throttled email a tenants afectados
+     ("Action required: reconnect your X account in omni-post").
+   - Audit log: registra el actor del mass-flag + count de rows afectados.
+
+4. **Verify gates**:
+   - Trigger desde UI flagea N rows
+   - Cliente afectado ve banner "needs reauth" en su dashboard
+   - Reconnect flow completa exitosamente con el nuevo client secret
+
+**Bloqueado por.** PR-42 idealmente (UI host); PR-43 conceptualmente (force-reauth single-channel debería existir antes que mass). En orden: 42 → 43 → 44.
+
+**Cuándo revisar.**
+
+- Cuando se planee la primera rotación de provider OAuth client secret
+- Como prerequisito para cualquier playbook de "provider compromise response"
+- Después de PR-42 + PR-43
+
+**Estado:** PENDING (surfaced 2026-05-03 post-roadmap T0A revisitado).
 
 ---
 
@@ -2039,6 +2226,114 @@ Baseline local 2026-05-02:
 - Cuando se quiera empezar la entrega/rollout del proyecto (limpieza pre-launch).
 
 **Estado:** PENDING (surfaced 2026-05-02 durante T1-E revisitado canon).
+
+---
+
+### PR-45 — fetch sites sin AbortSignal en `apps/api/src` (26 sites fuera de SettingsService.ts)
+
+**Surfaced:** 2026-05-04 durante T1-J L-632 broad-pattern re-audit.
+
+**Tipo:** external-call hardening — extensión del patrón cerrado en T1-J cat 5.
+
+**Contexto.** T1-J L-632 cat 5 fixeó las 6 fetch en `apps/api/src/settings/SettingsService.ts` (test-connection paths admin) con `signal: AbortSignal.timeout(5_000)`. Re-audit broad reveló otros **26 fetch sites** sin AbortSignal en `apps/api/src`:
+
+```text
+1   apps/api/src/video/uploadPipeline.ts:692            (webhook delivery)
+2   apps/api/src/ai/providers/perplexity.ts:33,55       (LLM calls)
+1   apps/api/src/auth/enhancedOAuthProvider.ts:515      (token exchange)
+1   apps/api/src/admin/auth/adminAuthRoutes.ts:273      (Cloudflare Turnstile verify)
+~20 apps/api/src/auth/providerOAuthConfigs.ts           (token + userInfo per OAuth provider)
+```
+
+Estos NO son el mismo pattern que SettingsService:
+
+- **SettingsService**: admin clica "Test Connection" → fetch sincrónico bloquea el request handler. Timeout obvio (5 s).
+- **OAuth handshakes**: code-for-token + userInfo fetches durante login flow. Cada provider tiene SLA distinto (Google ~500 ms p99, custom self-hosted SSO puede ser mucho más lento). Timeout uniforme rompe edge cases legítimos.
+- **AI providers**: LLM calls. Timeouts típicos 30-120 s (modelos largos, streaming). 5 s default rompe el feature.
+- **Webhook delivery**: ya en BullMQ con retry/backoff. Falta de timeout es bug pero blast-radius es bounded por job lockDuration.
+- **Turnstile verify**: Cloudflare canon < 1 s. Timeout ~3 s razonable, pero es path crítico de login.
+
+**Por qué NO es T1-J scope.** L-632 finding original era explícitamente "test-connection paths en SettingsService". El audit broad reveló superficie distinta que requiere research per-categoría:
+
+1. OAuth providers: timeouts canónicos por provider (Google docs / GitHub docs / Discord docs).
+2. AI providers: timeouts ~120 s + streaming considerations.
+3. Webhook delivery: revisar interaction entre fetch timeout y job lockDuration; evitar double-timeout.
+4. Turnstile: Cloudflare docs confirma 5 s default.
+
+**Plan estructurado.**
+
+1. **Trigger** — abrir cuando se quiera hardening completo de external-call surface, o cuando un incidente real (ej. OAuth provider hung) lo justifique.
+
+2. **Investigación**:
+   - OAuth providers: leer docs de cada provider para SLA esperado; canonical timeout per provider.
+   - AI providers: research de timeouts típicos por modelo (gpt-4 vs gpt-3.5 vs Claude vs Gemini).
+   - Webhook + BullMQ: verificar interaction entre fetch timeout y job lockDuration; evitar double-timeout.
+   - Turnstile: docs Cloudflare confirma timeout default.
+
+3. **Implementation**:
+   - Helper `fetchWithProviderTimeout(url, opts, providerProfile)` con timeouts per-categoría.
+   - 26 sites refactorizados en sub-batches (OAuth juntos, AI juntos, webhook independiente, Turnstile independiente).
+
+4. **Verify**:
+   - Tests unitarios para cada categoría con mock de hung fetch (verificar que el AbortError se maneja sin 500).
+   - Smoke test E2E de OAuth flow (login real con Google/GitHub).
+
+**Bloqueado por.** Solo prioritization + tiempo. No bloqueante para producción (los hangs serían raros y manifestarían como request-stuck, recuperables vía request-level keepAliveTimeout que ahora es 5 s).
+
+**Cuándo revisar.**
+
+- Si un incidente real (oauth provider hung, AI provider stuck) ocurre en producción.
+- Cuando se quiera reforzar el SLA del API (cada request handler con bounded latency garantizado).
+- Pre-launch hardening pass.
+
+**Estado:** PENDING (surfaced 2026-05-04 durante T1-J L-632 broad-pattern re-audit).
+
+---
+
+### PR-46 — Backend route gaps surfaced por T2-A revisitado (template versions DELETE + AB-tests UPDATE/PAUSE/DELETE)
+
+**Surfaced:** 2026-05-04 durante T2-A revisitado (migración de hooks a `request<T>` canonical helper).
+
+**Tipo:** broken contract — UI buttons that call non-existent backend routes.
+
+**Contexto.** T2-A revisitado migró 7 frontend files / 24 fetch sites a través del helper canónico `request<T>` (PROXY_BASE = `/api/backend`). Durante el audit broad-pattern se descubrió que **4 endpoints del flujo template/AB-test tienen UI consumer pero el backend nunca expuso la ruta**:
+
+| UI consumer                                       | Hook method                         | Backend route faltante                                                  | Status actual en prod                                       |
+| ------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `TemplateVersionControl.onVersionDelete`          | `useTemplateVersions.deleteVersion` | `DELETE /projects/:projectId/templates/:templateId/versions/:versionId` | 404 — botón delete en UI versions visible pero no funcional |
+| `TemplateManagementDashboard` (AB-tests pause UI) | `useABTests.pauseTest`              | `POST /projects/:projectId/templates/ab-tests/:testId/pause`            | 404 — pausar test imposible                                 |
+| `TemplateManagementDashboard` (AB-tests update)   | `useABTests.updateTest`             | `PUT /projects/:projectId/templates/ab-tests/:testId`                   | 404 — editar test imposible                                 |
+| `TemplateManagementDashboard` (AB-tests delete)   | `useABTests.deleteTest`             | `DELETE /projects/:projectId/templates/ab-tests/:testId`                | 404 — eliminar test imposible                               |
+
+**Backend routes que SÍ existen (templateRoutes.ts):**
+
+- Templates CRUD scoped a project: `/projects/:projectId/templates[/:templateId][/duplicate|/compile|/validate|/versions[...]]`
+- AB-tests parciales: `GET /...ab-tests`, `POST /...ab-tests` (create), `POST /...ab-tests/:testId/start`, `POST /...ab-tests/:testId/stop`, `GET /...ab-tests/:testId/results`
+
+**Por qué NO se cerró en T2-A revisitado.** Decisión de producto:
+
+1. **Template version DELETE**: ¿qué política de retención queremos? (¿soft-delete? ¿hard-delete con confirmación? ¿restricción de role?). Sin esta decisión, exponer DELETE puede romper auditoría.
+2. **AB-test UPDATE**: ¿cuáles fields son mutables post-creación? Mutar config de variants en un test running corrompe métricas históricas.
+3. **AB-test PAUSE**: ¿semánticas distintas a STOP? PAUSE típicamente preserva metrics + permite resume; STOP es terminal. Si son equivalentes, eliminar el botón pause de UI.
+4. **AB-test DELETE**: ¿qué hacer con métricas históricas? ¿soft-delete con audit trail? ¿hard-delete con confirmación double-opt?
+
+**Mitigación aplicada (T2-A revisitado):** Los 4 hook methods se conservan pero ahora consumen `request<T>` con paths canónicos esperados (`/projects/:projectId/templates[...]`, `/projects/:projectId/templates/ab-tests/:testId/...`). Cuando el backend agregue las rutas, el frontend funcionará sin cambios. Mientras tanto, los 4 botones UI 404 — comportamiento idéntico al pre-T2-A (ya estaban rotos), pero ahora la falla es trazable vía ApiError tipado en lugar de Error genérico.
+
+**Plan estructurado.**
+
+1. **Trigger** — sesión de producto para definir las 4 políticas (retención versions + 3 lifecycle ABTest).
+2. **Backend implementation**: agregar las 4 rutas con tests integration + audit logging. Estimación 4-6h.
+3. **UI cleanup**: cualquier semántica decidida "no aplica" (e.g., si PAUSE se descarta) requiere remover el botón del UI también.
+
+**Bloqueado por.** Decisión de producto (4 políticas).
+
+**Cuándo revisar.**
+
+- Cuando un usuario interno reporte el botón roto.
+- Pre-launch (no se debe lanzar con UI dead buttons).
+- Cuando se haga product review del módulo Templates (deuda funcional acumulada).
+
+**Estado:** PENDING — NEEDS_PRODUCT (surfaced 2026-05-04 durante T2-A revisitado).
 
 ---
 

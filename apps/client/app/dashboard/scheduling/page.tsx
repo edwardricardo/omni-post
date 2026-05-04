@@ -203,7 +203,7 @@ export default function SchedulingPage() {
     <div className="flex flex-col h-full">
       {/* Tab bar */}
       <div className="border-b border-gray-200 bg-white px-6">
-        <nav className="-mb-px flex space-x-6" role="tablist" aria-label="Scheduling views">
+        <div className="-mb-px flex space-x-6" role="tablist" aria-label="Scheduling views">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -220,7 +220,7 @@ export default function SchedulingPage() {
               {tab.label}
             </button>
           ))}
-        </nav>
+        </div>
       </div>
 
       {/* Recurring posts shortcut */}

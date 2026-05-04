@@ -6,7 +6,7 @@
  */
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
@@ -87,7 +87,15 @@ function AccountsPageContent() {
   });
   const [resetPasswordId, setResetPasswordId] = useState<string | null>(null);
   const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const resetPasswordInputRef = useRef<HTMLInputElement>(null);
   const resetAccountPassword = useResetAccountPassword();
+
+  // Focus the password input when the reset-password modal opens.
+  useEffect(() => {
+    if (resetPasswordId !== null) {
+      resetPasswordInputRef.current?.focus();
+    }
+  }, [resetPasswordId]);
 
   const accounts = useMemo(() => {
     if (!accountsData) return [];
@@ -788,13 +796,13 @@ function AccountsPageContent() {
               {ta("resetPassword.description")}
             </p>
             <input
+              ref={resetPasswordInputRef}
               type="password"
               value={resetPasswordValue}
               onChange={(e) => setResetPasswordValue(e.target.value)}
               placeholder={ta("resetPassword.placeholder")}
               className="w-full mb-4 rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)]"
               minLength={8}
-              autoFocus
             />
             <div className="flex justify-end gap-2">
               <ActionButton

@@ -141,6 +141,12 @@ export function createCachedRepositoryAdapter(
     enableReadyCheck: false,
     maxRetriesPerRequest: 3,
     lazyConnect: true,
+    // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+    // 5 s on each so a hung Redis fails fast instead of stalling cached repo
+    // lookups; cache misses fall through to Prisma which has its own pool
+    // timeout.
+    commandTimeout: 5_000,
+    connectTimeout: 5_000,
   });
 
   // Handle Redis connection errors

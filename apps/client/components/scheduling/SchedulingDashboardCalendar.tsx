@@ -99,10 +99,19 @@ export function SchedulingDashboardCalendar({
           {calendarDays.map((day, index) => (
             <div
               key={index}
+              role="button"
+              tabIndex={0}
+              aria-label={`Select ${day.date.toDateString()}`}
               className={`border-r last:border-r-0 border-b last:border-b-0 p-2 cursor-pointer hover:bg-gray-50 ${
                 !day.isCurrentMonth ? "bg-gray-50" : ""
               } ${day.isToday ? "bg-blue-50" : ""}`}
               onClick={() => onDateSelect(day.date)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onDateSelect(day.date);
+                }
+              }}
             >
               <div className="h-full flex flex-col">
                 <div
@@ -121,10 +130,20 @@ export function SchedulingDashboardCalendar({
                   {day.posts.slice(0, 3).map((post) => (
                     <div
                       key={post.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Open post ${post.title}`}
                       className={`text-xs px-1.5 py-0.5 rounded-sm ${getStatusColor(post.status)} truncate`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onPostClick(post);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onPostClick(post);
+                        }
                       }}
                     >
                       {getContentTypeIcon(post.contentType)} {post.title}

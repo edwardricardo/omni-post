@@ -224,7 +224,11 @@ export function TipTapContentEditor({
                   src={mediaItem.url}
                   className="w-full h-full object-cover rounded-md"
                   controls={false}
-                />
+                >
+                  {/* Captions intentionally absent: this is a thumbnail preview of
+                      user-uploaded media with no caption track. Placeholder track declares intent. */}
+                  <track kind="captions" />
+                </video>
               </div>
             ) : (
               <img

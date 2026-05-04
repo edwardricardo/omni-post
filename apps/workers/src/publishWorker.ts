@@ -100,6 +100,11 @@ const notifyRedis = new Redis(process.env.REDIS_URL || "redis://localhost:6379",
   lazyConnect: true,
   maxRetriesPerRequest: 1,
   enableReadyCheck: false,
+  // Bound the ioredis "wait forever" defaults: a hung Redis must not stall
+  // the worker. 5 s per command + 5 s connect; enough for healthy clusters,
+  // fail-fast for a black hole.
+  commandTimeout: 5_000,
+  connectTimeout: 5_000,
 });
 notifyRedis.on("error", () => {
   // Suppress unhandled errors -- saga notifications are best-effort

@@ -60,6 +60,11 @@ export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): Bu
       enableReadyCheck: false,
       maxRetriesPerRequest: 3,
       lazyConnect: true,
+      // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+      // 5 s on each so a hung Redis fails fast instead of stalling enqueue
+      // calls from request handlers.
+      commandTimeout: 5_000,
+      connectTimeout: 5_000,
     });
 
   const queue = new Queue(options.queueName, {

@@ -189,14 +189,17 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
           aria-modal="true"
           aria-labelledby="reject-dialog-title"
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
+        >
+          <button
+            type="button"
+            aria-label="Close reject dialog"
+            className="absolute inset-0 cursor-default"
+            onClick={() => {
               setShowRejectDialog(false);
               setRejectReason("");
-            }
-          }}
-        >
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            }}
+          />
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
             <h3 id="reject-dialog-title" className="text-base font-semibold text-gray-900">
               Reject Post
             </h3>

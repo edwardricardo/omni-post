@@ -35,7 +35,7 @@ export default function GlobalError({
     : "Something went wrong. Please try again or contact support.";
 
   return (
-    <html>
+    <html lang="en">
       <body>
         <div
           role="alert"

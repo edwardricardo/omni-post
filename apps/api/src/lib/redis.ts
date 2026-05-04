@@ -51,5 +51,10 @@ export function createRedisConnection(
     lazyConnect: true,
     // Enable offline queue to prevent connection errors from crashing the app
     enableOfflineQueue: true,
+    // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+    // 5 s on each so a hung Redis fails fast instead of stalling request
+    // handlers that share this factory.
+    commandTimeout: 5_000,
+    connectTimeout: 5_000,
   });
 }

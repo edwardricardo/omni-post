@@ -451,6 +451,9 @@ export function MediaUploadZone({
         {/* Drop Zone */}
         <div
           ref={dropZoneRef}
+          role="button"
+          tabIndex={0}
+          aria-label="Upload media — click or drop files"
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -460,6 +463,12 @@ export function MediaUploadZone({
             ${isUploading ? "pointer-events-none opacity-75" : "cursor-pointer"}
           `}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
         >
           <input
             ref={fileInputRef}

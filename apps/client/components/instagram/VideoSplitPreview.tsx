@@ -491,7 +491,11 @@ export function VideoSplitPreview({
                     className="w-72 h-128 object-cover rounded-2xl bg-black"
                     onPause={() => setIsPlaying(false)}
                     onPlay={() => setIsPlaying(true)}
-                  />
+                  >
+                    {/* Captions intentionally absent: this is a preview of user-uploaded
+                        media with no caption track yet. Placeholder track declares intent. */}
+                    <track kind="captions" />
+                  </video>
 
                   {/* Play/Pause Overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -543,12 +547,22 @@ export function VideoSplitPreview({
                 {segments.map((segment, index) => (
                   <div
                     key={segment.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Play segment ${index + 1}`}
+                    aria-pressed={index === currentPreviewIndex}
                     className={`relative border-2 rounded-lg overflow-hidden cursor-pointer transition-all ${
                       index === currentPreviewIndex
                         ? "border-blue-500 shadow-lg"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                     onClick={() => playSegment(index)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        playSegment(index);
+                      }
+                    }}
                   >
                     <div className="aspect-[9/16] bg-gray-100 relative">
                       {segment.thumbnail ? (

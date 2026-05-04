@@ -51,6 +51,11 @@ export class FallbackManager {
         enableReadyCheck: false,
         maxRetriesPerRequest: 2,
         lazyConnect: true,
+        // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+        // 5 s on each so a hung Redis fails fast instead of stalling fallback
+        // lookups (which themselves run inside an already-degraded request).
+        commandTimeout: 5_000,
+        connectTimeout: 5_000,
       });
 
       this.redis.on("error", (error) => {

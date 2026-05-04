@@ -87,6 +87,12 @@ export class RedisCacheManager {
       maxRetriesPerRequest: null, // Required for BullMQ compatibility
       lazyConnect: true,
       keyPrefix: this.config.keyPrefix,
+      // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+      // 5 s on each so a hung Redis fails fast on cache reads/writes instead
+      // of blocking request handlers indefinitely. maxRetriesPerRequest:null
+      // (BullMQ-compat) means timeout is the only escape hatch.
+      commandTimeout: 5_000,
+      connectTimeout: 5_000,
     });
 
     this.l1Cache = new L1CacheManager(this.stats);

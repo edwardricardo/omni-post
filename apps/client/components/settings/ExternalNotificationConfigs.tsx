@@ -217,11 +217,14 @@ export function ExternalNotificationConfigs({ projectId }: ExternalNotificationC
           aria-modal="true"
           aria-labelledby="delete-webhook-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setDeleteId(null);
-          }}
         >
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+          <button
+            type="button"
+            aria-label="Close delete webhook dialog"
+            className="absolute inset-0 cursor-default"
+            onClick={() => setDeleteId(null)}
+          />
+          <div className="relative w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
             <h3 id="delete-webhook-title" className="text-base font-semibold text-gray-900">
               Delete Webhook
             </h3>

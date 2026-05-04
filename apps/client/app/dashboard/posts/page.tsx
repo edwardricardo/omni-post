@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import type { Post } from "@/lib/api";
 import { useDeletePost } from "@/lib/api/hooks";
+import { request, PROXY_BASE } from "@/lib/api/clients/request";
 
 type AppRouter = ReturnType<typeof useRouter>;
 import { Button, ConfirmDialog, toast } from "@packages/ui";
@@ -79,11 +80,12 @@ export default function PostsPage() {
 
   // Enhanced data fetching with concurrent features
   const fetchPosts = useCallback(async () => {
-    const response = await fetch(
-      `/api/posts?page=${currentPage}&limit=10&status=${statusFilter === "ALL" ? "" : statusFilter}`
-    );
-    if (!response.ok) throw new Error("Failed to fetch posts");
-    return response.json();
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      limit: "10",
+      status: statusFilter === "ALL" ? "" : statusFilter,
+    });
+    return request<{ data: Post[]; total?: number }>(PROXY_BASE, `/posts?${params.toString()}`);
   }, [currentPage, statusFilter]);
 
   const {

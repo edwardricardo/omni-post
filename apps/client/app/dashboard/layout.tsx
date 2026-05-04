@@ -174,8 +174,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black bg-opacity-25 lg:hidden"
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          className="fixed inset-0 z-40 bg-black bg-opacity-25 lg:hidden cursor-default"
           onClick={() => setSidebarOpen(false)}
         />
       )}

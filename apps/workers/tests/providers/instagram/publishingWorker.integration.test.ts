@@ -27,10 +27,14 @@ import {
 
 // ── Hoist vi.mock() calls before module evaluation ──
 
-vi.mock("@adapters/queue-bullmq", () => ({
-  createBullMQConsumerAdapter: () => createMockConsumerAdapter(),
-  createBullMQQueueAdapter: () => createMockQueueAdapter(),
-}));
+vi.mock("@adapters/queue-bullmq", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/queue-bullmq")>();
+  return {
+    ...actual,
+    createBullMQConsumerAdapter: () => createMockConsumerAdapter(),
+    createBullMQQueueAdapter: () => createMockQueueAdapter(),
+  };
+});
 
 vi.mock("@adapters/external-apis", () => ({
   createExternalApiCircuitBreaker: () => ({

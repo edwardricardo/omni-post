@@ -286,9 +286,10 @@ export function SchedulePicker({
           <CardContent>
             <div className="space-y-2">
               {optimalTimes.map((time, index) => (
-                <div
+                <button
+                  type="button"
                   key={index}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                  className="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer transition-colors text-left"
                   onClick={() => handleOptimalTimeSelect(time)}
                 >
                   <div className="flex items-center gap-3">
@@ -300,7 +301,7 @@ export function SchedulePicker({
                     </div>
                     <span className="text-sm text-muted-foreground">{time.reason}</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
 

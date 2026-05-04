@@ -122,8 +122,12 @@ export function TemplateManagementDashboard({
       try {
         if (editorMode === "create") {
           await createTemplate.mutateAsync({
-            ...template,
-            projectId,
+            name: template.name,
+            category: template.category,
+            content: template.content,
+            platforms: template.platforms,
+            ...(template.description !== undefined && { description: template.description }),
+            ...(template.tags !== undefined && { tags: template.tags }),
           });
           success({ description: "Template created successfully!" });
         } else {
@@ -138,7 +142,7 @@ export function TemplateManagementDashboard({
         error({ description: "Failed to save template" });
       }
     },
-    [editorMode, createTemplate, updateTemplate, projectId, success, error]
+    [editorMode, createTemplate, updateTemplate, success, error]
   );
 
   const handleTemplateDelete = useCallback(

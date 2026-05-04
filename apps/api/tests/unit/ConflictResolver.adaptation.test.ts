@@ -13,11 +13,7 @@ import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vites
 import { ConflictResolver } from "../../src/orchestration/ConflictResolver.js";
 import { providerRegistry } from "../../src/providers/providerRegistry.js";
 import type { TimingConfiguration } from "@shared/orchestration";
-import type { CanonicalPost } from "@shared/types";
-import type {
-  ProviderId,
-  ContentValidationResult,
-} from "../../src/providers/providerAdapter.interface.js";
+import type { ProviderId } from "../../src/providers/providerAdapter.interface.js";
 import {
   MockPrismaClient,
   MockRedis,
@@ -28,7 +24,6 @@ import {
 describe("ConflictResolver - Content Adaptation", () => {
   let resolver: ConflictResolver;
   let originalGetAdapter: typeof providerRegistry.getAdapter;
-  let mockValidateContent: ReturnType<typeof import("node:test").mock.fn>;
 
   beforeAll(() => {
     // Save original for restoration
@@ -39,16 +34,6 @@ describe("ConflictResolver - Content Adaptation", () => {
     const mockPrisma = new MockPrismaClient();
     const mockRedis = new MockRedis();
     const mockEventService = new MockEventService();
-
-    // Create mock validateContent
-    mockValidateContent = vi.fn(
-      async (_content: CanonicalPost): Promise<ContentValidationResult> => ({
-        valid: true,
-        errors: [],
-        suggestions: [],
-        adaptations: [],
-      })
-    );
 
     // Monkey-patch the singleton
     providerRegistry.getAdapter = vi.fn(((id: string) => {

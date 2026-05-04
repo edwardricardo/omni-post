@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Button, Input, Label } from "@packages/ui";
 import { useCreateTask } from "@/hooks/api/useTasks";
 
@@ -25,6 +25,14 @@ export function CreateTaskModal({ accountId, userId, open, onClose }: CreateTask
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<(typeof PRIORITY_OPTIONS)[number]>("MEDIUM");
   const [dueDate, setDueDate] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus the title input when the modal opens.
+  useEffect(() => {
+    if (open) {
+      titleInputRef.current?.focus();
+    }
+  }, [open]);
 
   const createMutation = useCreateTask();
 
@@ -57,7 +65,12 @@ export function CreateTaskModal({ accountId, userId, open, onClose }: CreateTask
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/25" onClick={onClose} />
+      <button
+        type="button"
+        aria-label="Close modal"
+        className="fixed inset-0 bg-black/25 cursor-default"
+        onClick={onClose}
+      />
       <div className="relative z-50 w-full max-w-lg rounded-lg bg-card border shadow-lg p-6">
         <h2 className="text-lg font-semibold mb-4">New Task</h2>
 
@@ -65,12 +78,12 @@ export function CreateTaskModal({ accountId, userId, open, onClose }: CreateTask
           <div>
             <Label htmlFor="task-title">Title *</Label>
             <Input
+              ref={titleInputRef}
               id="task-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="What needs to be done?"
               maxLength={200}
-              autoFocus
             />
           </div>
 

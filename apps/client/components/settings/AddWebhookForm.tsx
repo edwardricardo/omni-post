@@ -74,11 +74,14 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
       aria-modal="true"
       aria-labelledby="add-webhook-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+      <button
+        type="button"
+        aria-label="Close add webhook dialog"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
         <h3 id="add-webhook-title" className="text-base font-semibold text-gray-900">
           Add Webhook
         </h3>

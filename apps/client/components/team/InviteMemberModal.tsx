@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Button, Input, Label } from "@packages/ui";
 import { useInviteTeamMember } from "@/hooks/api/useTeam";
 
@@ -24,6 +24,14 @@ export function InviteMemberModal({ accountId, invitedBy, open, onClose }: Invit
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<(typeof INVITE_ROLES)[number]>("MEMBER");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus the name input when the modal opens.
+  useEffect(() => {
+    if (open) {
+      nameInputRef.current?.focus();
+    }
+  }, [open]);
 
   const inviteMutation = useInviteTeamMember();
 
@@ -56,7 +64,12 @@ export function InviteMemberModal({ accountId, invitedBy, open, onClose }: Invit
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/25" onClick={onClose} />
+      <button
+        type="button"
+        aria-label="Close modal"
+        className="fixed inset-0 bg-black/25 cursor-default"
+        onClick={onClose}
+      />
       <div className="relative z-50 w-full max-w-md rounded-lg bg-card border shadow-lg p-6">
         <h2 className="text-lg font-semibold mb-4">Invite Team Member</h2>
 
@@ -64,11 +77,11 @@ export function InviteMemberModal({ accountId, invitedBy, open, onClose }: Invit
           <div>
             <Label htmlFor="invite-name">Name *</Label>
             <Input
+              ref={nameInputRef}
               id="invite-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="John Doe"
-              autoFocus
             />
           </div>
 
