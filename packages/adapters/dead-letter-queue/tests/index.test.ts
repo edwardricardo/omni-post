@@ -91,17 +91,12 @@ vi.mock("bullmq", () => ({
   Job: class MockJob {},
 }));
 
-// Stub @adapters/queue-bullmq (only QUEUE_NAMES is used)
-vi.mock("@adapters/queue-bullmq", () => ({
-  QUEUE_NAMES: {
-    PUBLISH: "publish",
-    WEBHOOK_PROCESSING: "webhook-processing",
-    WEBHOOK_DEAD_LETTER: "webhook-dead-letter",
-    DEAD_LETTER_QUEUE: "dead-letter-queue",
-    INTEGRATION_EVENTS: "integration-events",
-    FAILED_OPERATIONS_DLQ: "failed-operations-dlq",
-  },
-}));
+// Use real QUEUE_NAMES + any future exports — the package has zero side effects
+// at import time, so importOriginal is safe and prevents drift when keys are added.
+vi.mock("@adapters/queue-bullmq", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/queue-bullmq")>();
+  return { ...actual };
+});
 
 // Stub uuid
 let uuidCounter = 0;

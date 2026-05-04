@@ -87,16 +87,10 @@ vi.mock("bullmq", () => ({
   Job: class MockJob {},
 }));
 
-vi.mock("@adapters/queue-bullmq", () => ({
-  QUEUE_NAMES: {
-    PUBLISH: "publish",
-    WEBHOOK_PROCESSING: "webhook-processing",
-    WEBHOOK_DEAD_LETTER: "webhook-dead-letter",
-    DEAD_LETTER_QUEUE: "dead-letter-queue",
-    INTEGRATION_EVENTS: "integration-events",
-    FAILED_OPERATIONS_DLQ: "failed-operations-dlq",
-  },
-}));
+vi.mock("@adapters/queue-bullmq", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/queue-bullmq")>();
+  return { ...actual };
+});
 
 let uuidCounter = 0;
 vi.mock("uuid", () => ({

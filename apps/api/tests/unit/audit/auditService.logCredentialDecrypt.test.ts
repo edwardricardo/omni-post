@@ -10,11 +10,15 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 // Mock @infra/prisma BEFORE importing auditService — the singleton constructs
 // at import time and binds to the prisma client.
 const auditLogCreate = vi.fn();
-vi.mock("@infra/prisma", () => ({
-  prisma: {
-    auditLog: { create: auditLogCreate },
-  },
-}));
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@infra/prisma")>();
+  return {
+    ...actual,
+    prisma: {
+      auditLog: { create: auditLogCreate },
+    },
+  };
+});
 
 const { auditService, AuditActions } = await import("../../../src/audit/auditService.js");
 const { withRequestAuditContext } = await import("../../../src/security/decryptAuditContext.js");

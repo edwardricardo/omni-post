@@ -38,17 +38,25 @@ vi.mock("@adapters/queue-bullmq", async (importOriginal) => {
   };
 });
 
-vi.mock("@adapters/external-apis", () => ({
-  createExternalApiCircuitBreaker: () => ({
-    call: async (_svc: string, _op: string, fn: (...a: any[]) => Promise<any>) => fn(),
-    getAllStatuses: () => ({}),
-  }),
-  resetExternalApiCircuitBreaker: async () => undefined,
-}));
+vi.mock("@adapters/external-apis", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/external-apis")>();
+  return {
+    ...actual,
+    createExternalApiCircuitBreaker: () => ({
+      call: async (_svc: string, _op: string, fn: (...a: any[]) => Promise<any>) => fn(),
+      getAllStatuses: () => ({}),
+    }),
+    resetExternalApiCircuitBreaker: async () => undefined,
+  };
+});
 
-vi.mock("@adapters/db-prisma", () => ({
-  createPrismaRepoAdapter: () => createMockRepoAdapter(),
-}));
+vi.mock("@adapters/db-prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/db-prisma")>();
+  return {
+    ...actual,
+    createPrismaRepoAdapter: () => createMockRepoAdapter(),
+  };
+});
 
 vi.mock("prom-client", () => ({
   default: {

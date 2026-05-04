@@ -6,12 +6,13 @@
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import { createHmac } from "node:crypto";
 
-vi.mock("@infra/prisma", () => ({
-  prisma: {},
-  Prisma: {},
-  WebhookEventType: {},
-  WebhookProcessingStatus: {},
-}));
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@infra/prisma")>();
+  return {
+    ...actual,
+    prisma: {},
+  };
+});
 import { TikTokWebhookProcessor } from "../../../src/webhooks/processors/tiktokWebhookProcessor.js";
 import { XWebhookProcessor } from "../../../src/webhooks/processors/xWebhookProcessor.js";
 import { signPayload } from "./webhookSignatureVerification.test-helpers.js";

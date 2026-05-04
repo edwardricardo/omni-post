@@ -174,24 +174,34 @@ const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealth
   };
 };
 
-vi.mock("@monitoring/health-checks", () => ({
-  createHealthCheckManager: vi.fn(),
-  DatabaseHealthChecker: class {},
-  RedisHealthChecker: class {},
-  CacheHealthChecker: class {},
-  QueueHealthChecker: class {},
-  StorageHealthChecker: class {},
-  ProviderHealthChecker: class {},
-}));
+vi.mock("@monitoring/health-checks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@monitoring/health-checks")>();
+  return {
+    ...actual,
+    createHealthCheckManager: vi.fn(),
+    DatabaseHealthChecker: class {},
+    RedisHealthChecker: class {},
+    CacheHealthChecker: class {},
+    QueueHealthChecker: class {},
+    StorageHealthChecker: class {},
+    ProviderHealthChecker: class {},
+  };
+});
 
-vi.mock("@adapters/db-prisma", () => ({
-  createPrismaRepoAdapter: vi.fn(() => ({})),
-}));
+vi.mock("@adapters/db-prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/db-prisma")>();
+  return {
+    ...actual,
+    createPrismaRepoAdapter: vi.fn(() => ({})),
+  };
+});
 
-vi.mock("@adapters/queue-bullmq", () => ({
-  QUEUE_NAMES: { PUBLISH: "publish" },
-}));
+vi.mock("@adapters/queue-bullmq", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/queue-bullmq")>();
+  return { ...actual };
+});
 
+// Full REPLACE intentional — storage-s3 has import-time side effects.
 vi.mock("@adapters/storage-s3", () => ({
   createS3StorageAdapter: vi.fn(() => ({})),
 }));

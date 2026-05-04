@@ -10,19 +10,27 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 
 // Mock external dependencies before importing source
-vi.mock("@adapters/external-apis", () => ({
-  createExternalApiCircuitBreaker: vi.fn(() => ({
-    call: vi.fn((_service: string, _op: string, fn: () => unknown) => fn()),
-    getAllStatuses: vi.fn(() => ({ "tiktok-auth-api": "CLOSED" })),
-    clearCache: vi.fn(),
-  })),
-}));
+vi.mock("@adapters/external-apis", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/external-apis")>();
+  return {
+    ...actual,
+    createExternalApiCircuitBreaker: vi.fn(() => ({
+      call: vi.fn((_service: string, _op: string, fn: () => unknown) => fn()),
+      getAllStatuses: vi.fn(() => ({ "tiktok-auth-api": "CLOSED" })),
+      clearCache: vi.fn(),
+    })),
+  };
+});
 
-vi.mock("@adapters/fallback-strategies", () => ({
-  CommonFallbackStrategies: {
-    METADATA_FALLBACK: { type: "metadata" },
-  },
-}));
+vi.mock("@adapters/fallback-strategies", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/fallback-strategies")>();
+  return {
+    ...actual,
+    CommonFallbackStrategies: {
+      METADATA_FALLBACK: { type: "metadata" },
+    },
+  };
+});
 
 vi.mock("prom-client", () => ({
   Registry: class MockRegistry {},
